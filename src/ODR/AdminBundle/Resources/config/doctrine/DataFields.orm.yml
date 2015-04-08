@@ -1,0 +1,208 @@
+ODR\AdminBundle\Entity\DataFields:
+    type: entity
+    table: odr_data_fields
+    gedmo:
+        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        fieldName:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: field_name
+            gedmo:
+                - versioned
+        description:
+            type: text
+            nullable: true
+            gedmo:
+                - versioned
+        markdownText:
+            type: text
+            default: ''
+            nullable: true
+            gedmo:
+                - versioned
+        meta:
+            type: text
+            nullable: true
+            gedmo:
+                - versioned
+        regexValidator:
+            type: string
+            length: 255
+            fixed: false
+            nullable: true
+            column: regex_validator
+            gedmo:
+                - versioned
+        phpValidator:
+            type: text
+            nullable: true
+            column: php_validator
+            gedmo:
+                - versioned
+        required:
+            type: boolean
+            nullable: false
+            gedmo:
+                - versioned
+#        is_unique:
+#            type: boolean
+#            nullable: false
+#            default: false
+#            column: is_unique
+#            gedmo:
+#                - versioned
+        allow_multiple_uploads:
+            type: boolean
+            nullable: false
+            default: false
+            column: allow_multiple_uploads
+            gedmo:
+                - versioned
+        shorten_filename:
+            type: boolean
+            nullable: false
+            default: true
+            column: shorten_filename
+            gedmo:
+                - versioned
+
+        displayOrder:
+            type: integer
+            nullable: false
+            column: display_order
+            gedmo:
+                - versioned
+        children_per_row:
+            type: integer
+            nullable: false
+            default: 1
+            column: children_per_row
+            gedmo:
+                - versioned
+
+        radio_option_name_sort:
+            type: boolean
+            nullable: false
+            default: true
+            column: radio_option_name_sort
+            gedmo:
+                - versioned
+
+        searchable:
+            type: integer
+            unsigned: false
+            default: 0
+            nullable: false
+            gedmo:
+                - versioned
+        user_only_search:
+            type: boolean
+            default: false
+            nullable: false
+            gedmo:
+                - versioned
+        deletedAt:
+            type: date
+            nullable: true
+            gedmo:
+                - versioned
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+    oneToMany:
+        dataRecordFields:
+            targetEntity: DataRecordFields
+            cascade: {  }
+            mappedBy: dataField
+            fetch: EXTRA_LAZY
+            joinColumns:
+                data_field_id:
+                    referencedColumnName: id
+
+        themeDataField:
+            targetEntity: ThemeDataField
+            cascade: {  }
+            mappedBy: dataFields
+            gedmo:
+                - versioned
+        radioOptions:
+            targetEntity: RadioOptions
+            cascade: {  }
+            mappedBy: dataFields
+#            inversedBy: radioOptions
+            orderBy:
+                displayOrder: ASC
+                id: ASC
+            gedmo:
+                - versioned
+    manyToOne:
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        renderPlugin:
+            targetEntity: RenderPlugin
+            cascade: {  }
+            inversedBy: dataFields
+            joinColumns:
+                render_plugin_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        dataType:
+            targetEntity: DataType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: dataFields
+            joinColumns:
+                data_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        fieldType:
+            targetEntity: FieldType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                field_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+    lifecycleCallbacks: {  }

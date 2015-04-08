@@ -1,0 +1,89 @@
+jms_security_extra:
+    secure_all_services: false
+    expressions: true
+    util:
+        secure_random: ~
+
+# app/config/security.yml
+security:
+    encoders:
+        FOS\UserBundle\Model\UserInterface: sha512
+
+    role_hierarchy:
+        ROLE_USER:           ROLE_USER
+        ROLE_ADMIN:          ROLE_ADMIN
+        ROLE_SUPER_ADMIN:    ROLE_SUPER_ADMIN
+
+    providers:
+        fos_userbundle:
+            id: fos_user.user_provider.username
+
+    firewalls:
+        main:
+            pattern: ^/
+            form_login:
+                provider: fos_userbundle
+                csrf_provider: form.csrf_provider
+            remember_me:
+                key:      [ ENTER RANDOM KEY HERE - Text String ]
+                lifetime: 1209600
+                path:     /
+                domain:   ~
+    
+            logout:
+                path:   /logout
+                target: /
+            anonymous:    true
+
+    access_control:
+        - { path: ^/login$, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/register, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/resetting, role: IS_AUTHENTICATED_ANONYMOUSLY }
+
+# available to everybody
+        - { path: ^/search, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/shortresults, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/results, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/beanstalk, role: IS_AUTHENTICATED_ANONYMOUSLY }
+
+# available to editor, designer, and admin
+        - { path: ^/admin$, role: ROLE_USER }                     # front page
+        - { path: ^/admin/dashboard, role: ROLE_USER }            # dashboard
+        - { path: ^/profile, role: ROLE_USER }                    # ability to edit own profile
+
+        - { path: ^/admin/type/list/records, role: ROLE_USER }    # can see page that provides links to add/edit/import datarecords for a datatype
+        - { path: ^/edit, role: ROLE_USER }                       # ability to add/edit/import/delete datarecords
+
+# available to designer and admin
+        - { path: ^/admin/type/list/design, role: ROLE_USER }     # can see page that provides links to design the layout of datatypes
+        - { path: ^/admin/type/add, role: ROLE_ADMIN }
+        - { path: ^/admin/type/recache_all, role: ROLE_SUPER_ADMIN }
+        - { path: ^/admin/type/edit, role: ROLE_USER }            # can see page that lets user modify datatype properties
+        - { path: ^/admin/type/save, role: ROLE_USER }            # can save changes to datatype properties page
+        - { path: ^/design, role: ROLE_USER }                     # ability to design results/records and shortresults layouts
+#        - { path: ^/plugin, role: ROLE_USER }                     # ability to modify render plugin settings
+
+# available to admin only
+        - { path: ^/admin/user/list, role: ROLE_USER }
+        - { path: ^/admin/user/managepermissions, role: ROLE_USER }
+        - { path: ^/admin/user/togglepermission, role: ROLE_USER }
+
+        - { path: ^/admin/massedit, role: ROLE_SUPER_ADMIN }
+        - { path: ^/admin/csvexport, role: ROLE_SUPER_ADMIN }
+
+        - { path: ^/admin/adduser, role: ROLE_ADMIN }
+        - { path: ^/admin/user/edit, role: ROLE_ADMIN }
+        - { path: ^/admin/user/save, role: ROLE_ADMIN }
+
+        - { path: ^/admin/user/quickpermissions, role: ROLE_SUPER_ADMIN }
+        - { path: ^/admin/user/togglequickpermission, role: ROLE_SUPER_ADMIN }
+        - { path: ^/admin/user/datafieldpermissions, role: ROLE_SUPER_ADMIN }
+        - { path: ^/admin/user/savedatafieldpermission, role: ROLE_SUPER_ADMIN }
+        - { path: ^/admin/user/manage/roles, role: ROLE_SUPER_ADMIN }
+        - { path: ^/admin/user/setrole, role: ROLE_SUPER_ADMIN }
+        - { path: ^/admin/user/delete, role: ROLE_SUPER_ADMIN }
+        - { path: ^/admin/user/undelete, role: ROLE_SUPER_ADMIN }
+
+        - { path: ^/admin, role: ROLE_SUPER_ADMIN }                     # everything should already be covered?
+

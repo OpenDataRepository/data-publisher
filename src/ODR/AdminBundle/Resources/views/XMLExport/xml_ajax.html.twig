@@ -1,0 +1,8 @@
+{% set datatype = datatype_tree.datatype %}<?xml version="1.0"?>
+<datarecords>
+<datarecord name="{{ datatype.shortname }}">
+{% spaceless %}
+    {% include 'ODRAdminBundle:XMLExport:xml_area.html.twig' with {'datatype_tree': datatype_tree, 'datarecord_tree': datarecord_tree, 'using_metadata': using_metadata, 'baseurl': baseurl} %}
+{% endspaceless %}
+</datarecord>
+</datarecords>

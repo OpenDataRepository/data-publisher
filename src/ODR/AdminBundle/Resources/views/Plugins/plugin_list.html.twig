@@ -1,0 +1,148 @@
+<div class="grid_12">
+    <div class="box">
+    
+        <div class="header">
+            <h2>Plugin List</h2>
+        </div>
+        
+        <div class="content">
+
+            <div class="tabletools">
+                <div class="left">
+                    <a class="open-add-datatype-dialog" href="javascript:void(0);"><i class="icon-plus"></i>New Plugin Instance</a>
+                </div>
+            </div>
+            <table class="styled">
+                <thead>
+                    <tr>
+                        <th>Plugin Name</th>
+                        <th>Number of Records</th>
+                        <th>Latest Addition</th>
+                        <th>Plugin Field Map</th>
+                        <th>Plugin Options</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for plugin in plugins %}
+                    <tr>
+                        <td>{{ plugin.pluginname}}</td>
+
+                        {% set found = false %}
+                        {% for plugin_id, data in metadata %}
+                            {% if plugin_id == plugin.id %}
+                                {% set found = true %}
+                                <td class="center">{{ data.count }}</td>
+                                <td class="center">--</td>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if found == false %}
+                            <td class="center">0</td>
+                            <td class="center">--</td>
+                        {% endif %}
+
+                        <td class="center"><a class="address" href="#{{ path('admin_plugin_map', { 'plugin_id': plugin.id }) }}"><i class="icon-pencil"></i>&nbsp;Edit Field Map</a></td>
+
+                        <td class="center"><a class="address" href="#{{ path('admin_plugin_options', { 'plugin_id': plugin.id }) }}"><i class="icon-pencil"></i>&nbsp;Edit Options</a></td>
+
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="6">No Plugins Found</td>
+                    </tr>
+                {% endfor %}
+
+                </tbody>
+            </table>
+            
+            <script>
+                function deleteDataType(id) {
+                    if(confirm("This will delete this data type and all associated records.")) {
+                        // Delete the datatype selected
+                        var url = '{{ path('odr_display_template_delete_type', { 'datatype_id': 0 }) }}';
+                        url = url.substring(0, (url.length - 1));
+                        url += id;
+
+                        var dataType = "json";
+    
+                        $.ajax({
+                            type: 'GET',
+                            url: url,
+                            dataType: dataType,
+                            success: function(data, textStatus, jqXHR) {
+                                if(data.r == 0) {
+                                    // Reload this area of the page
+                                    LoadContentFullAjax('{{ path('odr_list_types', { 'section': 'design' }) }}');
+                                }
+                                else {
+                                    // Error occurred
+                                    alert( data.d );
+                                }
+                            },
+                            error: function(jqXHR, textStatus, errorThrown) {
+                                // Deal with login/logout issues
+                                alert("Server error: " + textStatus + " " + errorThrown);
+                            },
+                            statusCode: {
+                                500: function() {
+                                    alert("Server error.");
+                                },
+                                404: function() {
+                                    alert("Page not found.");
+                                },
+                                403: function() {
+                                    alert("Forbidden.");
+                                }
+                            }
+                        });
+                    }
+                }
+
+                // Listen for attempts to follow the links
+                $("a.address").address();
+/*
+                function LoadContent(url) {
+                    $("#content").load(url);
+                }
+
+                function LoadContentFullAjax(url) {
+                    // Load to Content area
+                    var dataType = "json";
+                    $.ajax({
+                        type: 'GET',
+                        url: url,
+                        dataType: dataType,
+                        success: function(data, textStatus, jqXHR) {
+                            if(data.r == 0) {
+                                $("#content").html(data.d.html);
+                            }
+                            else {
+                                // An error has occurred.
+                                // Show Error message dialog
+                                alert(data.d);
+                            }
+                        },
+                        error: function(jqXHR, textStatus, errorThrown) {
+                            // Deal with login/logout issues
+                            alert("Server error: " + textStatus + " " + errorThrown);
+                        },
+                        statusCode: {
+                            500: function() {
+                                alert("Server error.");
+                            },
+                            404: function() {
+                                alert("Page not found.");
+                            },
+                            403: function() {
+                                alert("Forbidden.");
+                            }
+                        }
+                    });
+                }
+*/
+            </script>
+        </div><!-- End of .content -->
+        
+    </div><!-- End of .box -->
+</div><!-- End of .grid_12 -->
+

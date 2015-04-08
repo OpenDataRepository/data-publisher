@@ -1,0 +1,71 @@
+{{ price|raw }}
+<style type='text/css'>@import url("/bundles/odropenrepositorygraph/js/nvd3/nv.d3.min.css");</style>
+<div style="height: 350px; width: 900px;" id="{{ chart_id }}"><svg style='height: 340px;'></svg></div>
+<script src="/bundles/odropenrepositorygraph/js/d3.v2.js" type="text/javascript"></script>
+<script src="/bundles/odropenrepositorygraph/js/fisheye.js" type="text/javascript"></script>
+<script src="/bundles/odropenrepositorygraph/js/nvd3/nv.d3.min.js" type="text/javascript"></script>
+<script type="text/javascript">
+jQuery(function() {
+    nv.addGraph(function() {  
+        var chart_{{ chart_id }} = nv.models.lineChart();
+        
+        chart_{{ chart_id }}.xAxis
+            .axisLabel('Time (ms)')
+            .tickFormat(d3.format(',r'));
+        
+        chart_{{ chart_id }}.yAxis
+            .axisLabel('Voltage (v)')
+            .tickFormat(d3.format('.02f'));
+                
+        d3.select('#{{ chart_id }} svg')
+            .datum(sinAndCos())
+            .transition().duration(500)
+            .call(chart_{{ chart_id }});
+        
+        nv.utils.windowResize(function() { d3.select('#{{ chart_id }} svg').call(chart_{{ chart_id }}) });
+        
+        return chart_{{ chart_id }};
+    });
+});
+
+/**************************************
+* Simple test data generator
+*/
+
+if(!typeof(sinAndCos) == "function") {
+        
+    function sinAndCos() {
+        var sin = [],
+            cos = [];
+
+
+/*
+sin.push({x: 1, y:4});
+sin.push({x: 2, y:5});
+sin.push({x: 3, y:3});
+sin.push({x: 4, y:8});
+sin.push({x: 5, y:9});
+sin.push({x: 6, y:4});
+*/
+
+sin = {{ graph_data|json_encode|raw }};
+
+        for (var i = 0; i < 100; i++) {
+            cos.push({x: i, y: .5 * Math.cos(i/10)});
+        }
+                
+        return [
+            {
+            values: sin,
+            key: 'Sine Wave',
+            color: '#ff7f0e'
+            },
+            {
+            values: cos,
+            key: 'Cosine Wave',
+            color: '#2ca02c'
+            }
+        ];
+    }
+}
+</script>

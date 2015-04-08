@@ -1,0 +1,170 @@
+{% spaceless %}
+
+<div class="header">
+    <h2>Permissions List 
+        <select id="datatypes" onchange="datatypeChanged();">
+        {% for datatype in datatypes %}
+            <option value="{{ datatype.id }}">{{ datatype.shortname }}</option>
+        {% endfor %}
+        </select>
+        <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
+    </h2>
+</div>
+
+<div class="content">
+
+    <table id="permissions_table" class="pure-table pure-table-striped">
+        <thead>
+            <tr id="header">
+                <th>Type Name</th>
+                <th>Can View Datatype</th>
+                <th>Can Edit Records</th>
+                <th>Can Add Records</th>
+                <th>Can Delete Records</th>
+                <th>Can Design Datatype</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% set first = true %}
+        {% for datatype in datatypes %}
+            <tr id="datatype_{{ datatype.id }}" {% if first == false %}style="display:none;"{% endif %}>
+                <td>{{ datatype.shortname }}</td>
+
+                <td class="center">
+                    <input onclick="togglePermission('view_{{ datatype.id }}',1);" type="button" value="Grant" />
+                    <input onclick="togglePermission('view_{{ datatype.id }}',0);" type="button" value="Revoke" />
+                </td>
+                <td class="center">
+                    <input onclick="togglePermission('edit_{{ datatype.id }}',1);" type="button" value="Grant" />
+                    <input onclick="togglePermission('edit_{{ datatype.id }}',0);" type="button" value="Revoke" />
+                </td>
+                <td class="center">
+                    <input onclick="togglePermission('add_{{ datatype.id }}',1);" type="button" value="Grant" />
+                    <input onclick="togglePermission('add_{{ datatype.id }}',0);" type="button" value="Revoke" />
+                </td>
+                <td class="center">
+                    <input onclick="togglePermission('delete_{{ datatype.id }}',1);" type="button" value="Grant" />
+                    <input onclick="togglePermission('delete_{{ datatype.id }}',0);" type="button" value="Revoke" />
+                </td>
+                <td class="center">
+                    <input onclick="togglePermission('design_{{ datatype.id }}',1);" type="button" value="Grant" />
+                    <input onclick="togglePermission('design_{{ datatype.id }}',0);" type="button" value="Revoke" />
+                </td>
+            </tr>
+
+            {% if childtypes[datatype.id] != null %}
+            {% for childtype in childtypes[datatype.id] %}
+            <tr id="datatype_{{ datatype.id }}" {% if first == false %}style="display:none;"{% endif %}>
+                <td>-- {{ childtype.shortname }}</td>
+
+                <td class="center">
+                    <input onclick="togglePermission('view_{{ datatype.id }}',1);" type="button" value="Grant" />
+                    <input onclick="togglePermission('view_{{ datatype.id }}',0);" type="button" value="Revoke" />
+                </td>
+                <td class="center">
+                    <input onclick="togglePermission('edit_{{ childtype.id }}',1);" type="button" value="Grant" />
+                    <input onclick="togglePermission('edit_{{ childtype.id }}',0);" type="button" value="Revoke" />
+                </td>
+                <td class="center">
+                    <input onclick="togglePermission('add_{{ childtype.id }}',1);" type="button" value="Grant" />
+                    <input onclick="togglePermission('add_{{ childtype.id }}',0);" type="button" value="Revoke" />
+                </td>
+                <td class="center">
+                    <input onclick="togglePermission('delete_{{ childtype.id }}',1);" type="button" value="Grant" />
+                    <input onclick="togglePermission('delete_{{ childtype.id }}',0);" type="button" value="Revoke" />
+                </td>
+                <td class="center">
+                    <input onclick="togglePermission('design_{{ childtype.id }}',1);" type="button" value="Grant" />
+                    <input onclick="togglePermission('design_{{ childtype.id }}',0);" type="button" value="Revoke" />
+                </td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+
+            {% set first = false %}
+        {% else %}
+            <tr>
+                <td colspan="5">No Data Types Found</td>
+            </tr>
+        {% endfor %}
+
+        </tbody>
+    </table>
+
+</div><!-- End of .content -->
+            
+<script>
+    $(function() {
+        $("#saved").hide();
+    });
+
+    function datatypeChanged() {
+        var datatype_id = 'datatype_' + $("#datatypes").children(":selected").val();
+
+        $("#permissions_table").find('tr').each(function() {
+            if ( $(this).attr('id') == datatype_id || $(this).attr('id') == 'header' )
+                $(this).show();
+            else
+                $(this).hide();
+        });
+    }
+
+    function togglePermission(id, value) {
+        var data = id.split('_');
+        var permission = data[0];
+        var datatype_id = data[1];
+
+        var type = '';
+        if (value == 1)
+            type = 'grant';
+        else
+            type = 'revoke';
+
+        var str = 'Are you sure you want to ' + type + ' ' + permission + ' permissions to all users for this datatype?';
+        if (permission == 'view' && value == 0) {
+            str = 'This will revoke ALL permissions of all users for this datatype...are you sure?';
+        }
+
+        if ( confirm(str) ) {
+            var url = '{{ path('odr_toggle_quick_permission', { 'datatype_id': 0, 'value': 0, 'permission': '' }) }}';
+            url = url.substring(0, (url.length - 3));
+            url += datatype_id + '/' + value + '/' + permission;
+
+            var dataType = "json";
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: dataType,
+                success: function(data, textStatus, jqXHR) {
+                    if (data.r == 0) {
+                        $('#saved').fadeIn();
+                        setTimeout(function() {
+                            $('#saved').fadeOut();
+                        }, 2000);
+                    }
+                    else {
+                        // An error has occurred.
+                        // Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        }
+    }
+</script>
+
+{% endspaceless %}

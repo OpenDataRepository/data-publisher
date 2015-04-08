@@ -1,0 +1,45 @@
+MediumVarchar:
+    type: entity
+    table: odr_medium_varchar
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        value:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+    manyToOne:
+        dataField:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_field_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+        fieldType:
+            targetEntity: FieldType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                field_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+        dataRecord:
+            targetEntity: DataRecord
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_record_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+    lifecycleCallbacks: {  }

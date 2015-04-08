@@ -1,0 +1,134 @@
+{% spaceless %}
+
+{% set datatype = datatype_tree.datatype %}
+{% set datarecord = dr_entry.datarecord %}
+{% set drf_list = dr_entry.datarecordfields %}
+{% set form_list = dr_entry.forms %}
+
+
+{% if datatype.getdisplaytype == 1 or datatype.getdisplaytype == 2 %}
+    {% if public_only == false and datarecord.grandparent != null %}
+    <div id="DataTypeTools_{{ datarecord.id }}" class="ResultsDataTypeTools"><span style="float: right;">
+        <i class="tooltip fa fa-globe {% if datarecord.ispublic == false %}IconRed{% endif %}" title="{% if datatype_tree.is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if datarecord.ispublic == false %}not {% endif %}Public" style="cursor:default;"></i>
+    </span></div>
+    {% endif %}
+{% endif %}
+
+
+{% for data in datatype_tree.theme_elements %}
+    {% set theme_element = data.theme_element %}
+
+        {#{% include 'ODRAdminBundle:Results:element_style.html.twig' with {'element': theme_element, 'theme': theme} %}#}
+
+    <div class="{% if datarecord.parent.id == datarecord.grandparent.id %}ODRTopLevel {% endif %}ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.getcsswidthmed }} pure-u-xl-{{ theme_element.getcsswidthxl }}">
+    <div class="ODRInnerBox">
+
+        {% if public_only == false or theme_element.getdisplayinresults == 1 %}
+            {% if data.datafields != null %}
+                {% for field in data.datafields %}
+                    {% set theme_datafield = field.theme_datafield %}
+                    {% set datafield = field.datafield %}
+                    {% set datafield_id = datafield.id %}
+
+                    <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.getcsswidthmed }} pure-u-xl-{{ theme_datafield.getcsswidthxl }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}">
+                    {% if datafield.fieldtype.typename == "Markdown" %}
+                        {% include 'ODRAdminBundle:Results:results_markdown.html.twig' with {'field': datafield} %}
+                    {% else %}
+                        {% include 'ODRAdminBundle:Results:results_datafield.html.twig' with {'fieldtheme': theme_datafield, 'field': datafield, 'datatype': datatype, 'datarecord': datarecord, 'datarecordfield': drf_list[datafield_id], 'form': form_list[datafield_id], 'public_only': public_only} %}
+                    {% endif %}
+                    </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->
+                {% endfor %}
+            {% elseif data.datatype != null %}
+                {% set childtype = data.datatype.datatype %}
+                {% set datarecord_children = [] %}
+                {% if dr_entry.child_datarecords[childtype.id] is defined %}
+                    {% set datarecord_children = dr_entry.child_datarecords[childtype.id] %}
+                {% endif %}
+
+                <div class="ODRChildDatatype" id="ChildTypeWrapper_{{ childtype.id }}_{{ datarecord.id }}">
+
+                    {% set mylayout = "default" %}
+                    {% for rpi in childtype.getrenderplugin.getrenderplugininstance %}
+                        {% if rpi.getdatatype.id == childtype.id %}
+                            {% for myoption in rpi.getrenderpluginoptions %}
+                                {% if myoption.optionname == "layout" %}
+                                    {% set mylayout = myoption.optionvalue %}
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if mylayout == "13_23" %}
+                        {# Data Fields for all child types are rendered here #}
+                        <div class="pure-u-1 pure-u-md-1-3 pure-u-xl-1-3">
+                        {% import "ODRAdminBundle:Results:results_childtype.html.twig" as mychildform %}
+                        {{ mychildform.input(data.datatype, datarecord_children, theme, public_only) }}
+                        </div>
+                        
+                        {# Graphs for plugins are rendered here #}
+                        <div class="pure-u-1 pure-u-md-2-3 pure-u-xl-2-3">
+                        {% if childtype.getrenderplugin.getoverridechild and dr_entry.rendered_child_datarecords_html[childtype.id] is defined %}
+                            <!-- child_override render plugin html -->
+                            {{ dr_entry.rendered_child_datarecords_html[childtype.id]|raw }}
+                        {% endif %}
+                        </div>
+                    {% elseif mylayout == "23_13" %}
+                        {# Data Fields for all child types are rendered here #}
+                        <div class="pure-u-1 pure-u-md-2-3 pure-u-xl-2-3">
+                        {% import "ODRAdminBundle:Results:results_childtype.html.twig" as mychildform %}
+                        {{ mychildform.input(data.datatype, datarecord_children, theme, public_only) }}
+                        </div>
+                        
+                        {# Graphs for plugins are rendered here #}
+                        <div class="pure-u-1 pure-u-md-1-3 pure-u-xl-1-3">
+                        {% if childtype.getrenderplugin.getoverridechild and dr_entry.rendered_child_datarecords_html[childtype.id] is defined %}
+                            <!-- child_override render plugin html -->
+                            {{ dr_entry.rendered_child_datarecords_html[childtype.id]|raw }}
+                        {% endif %}
+                        </div>
+                    {% elseif mylayout == "14_34" %}
+                        {# Data Fields for all child types are rendered here #}
+                        <div class="pure-u-1 pure-u-md-1-4 pure-u-xl-1-4">
+                        {% import "ODRAdminBundle:Results:results_childtype.html.twig" as mychildform %}
+                        {{ mychildform.input(data.datatype, datarecord_children, theme, public_only) }}
+                        </div>
+                        
+                        {# Graphs for plugins are rendered here #}
+                        <div class="pure-u-1 pure-u-md-3-4 pure-u-xl-3-4">
+                        {% if childtype.getrenderplugin.getoverridechild and dr_entry.rendered_child_datarecords_html[childtype.id] is defined %}
+                            <!-- child_override render plugin html -->
+                            {{ dr_entry.rendered_child_datarecords_html[childtype.id]|raw }}
+                        {% endif %}
+                        </div>
+                    {% elseif mylayout == "34_14" %}
+                        {# Data Fields for all child types are rendered here #}
+                        <div class="pure-u-1 pure-u-md-3-4 pure-u-xl-3-4">
+                        {% import "ODRAdminBundle:Results:results_childtype.html.twig" as mychildform %}
+                        {{ mychildform.input(data.datatype, datarecord_children, theme, public_only) }}
+                        </div>
+                        
+                        {# Graphs for plugins are rendered here #}
+                        <div class="pure-u-1 pure-u-md-1-4 pure-u-xl-1-4">
+                        {% if childtype.getrenderplugin.getoverridechild and dr_entry.rendered_child_datarecords_html[childtype.id] is defined %}
+                            <!-- child_override render plugin html -->
+                            {{ dr_entry.rendered_child_datarecords_html[childtype.id]|raw }}
+                        {% endif %}
+                        </div>
+                    {% else %}
+                        {% import "ODRAdminBundle:Results:results_childtype.html.twig" as mychildform %}
+                        {{ mychildform.input(data.datatype, datarecord_children, theme, public_only) }}
+                        {% if childtype.getrenderplugin.getoverridechild and dr_entry.rendered_child_datarecords_html[childtype.id] is defined %}
+                            <!-- child_override render plugin html -->
+                            {{ dr_entry.rendered_child_datarecords_html[childtype.id]|raw }}
+                        {% endif %}
+                    {% endif %}
+                </div><!-- End of #ChildTypeWrapper_{{ childtype.id }}_{{ datarecord.id }} -->
+            {% endif %}
+        {% endif %}
+
+    </div><!-- End of .ODRInnerBox -->
+    </div><!-- End of .ThemeElement -->
+
+{% endfor %}
+
+{% endspaceless %}

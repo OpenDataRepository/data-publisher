@@ -1,0 +1,53 @@
+DataFields:
+    type: entity
+    table: odr_data_fields
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        fieldName:
+            type: string
+            length: 32
+            fixed: false
+            nullable: false
+            column: field_name
+        description:
+            type: text
+            nullable: true
+        regexValidator:
+            type: string
+            length: 255
+            fixed: false
+            nullable: true
+            column: regex_validator
+        phpValidator:
+            type: text
+            nullable: true
+            column: php_validator
+        required:
+            type: boolean
+            nullable: false
+    manyToOne:
+        dataType:
+            targetEntity: DataType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+        fieldType:
+            targetEntity: FieldType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                field_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+    lifecycleCallbacks: {  }

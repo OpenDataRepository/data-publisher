@@ -1,0 +1,108 @@
+ODR\AdminBundle\Entity\DatetimeValue:
+    type: entity
+    table: odr_datetime_value
+    gedmo:
+        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        value:
+            type: datetime
+            nullable: false
+            column: value
+            gedmo:
+                - versioned
+        deletedAt:
+            type: date
+            nullable: true
+            gedmo:
+                - versioned
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+    manyToOne:
+        dataField:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_field_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        fieldType:
+            targetEntity: FieldType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                field_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        dataRecord:
+            targetEntity: DataRecord
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_record_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+#            gedmo:
+#                blameable:
+#                    on: update
+    oneToOne:
+        dataRecordFields:
+            targetEntity: DataRecordFields
+            cascade: {  }
+            inversedBy: datetimeValue
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+    lifecycleCallbacks: {  }

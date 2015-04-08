@@ -1,0 +1,82 @@
+{% extends "ODROpenRepositoryUserBundle::layout.html.twig" %}
+
+{% block fos_user_content %}
+{% if error %}
+    <div>{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+{% endif %}
+
+<form action="{{ path("fos_user_security_check") }}" method="post">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
+    <input type="hidden" id="target_path" name="_target_path" value="" />
+{#
+    <input type="hidden" id="failure_path" name="_failure_path" value="" />
+#}
+    <table id="ODRLoginTable">
+    <tr>
+        <td>
+    <label for="username">{{ 'security.login.username'|trans({}, 'FOSUserBundle') }}</label>
+        </td>
+        <td>
+    <input type="text" id="username" name="_username" value="{{ last_username }}" required="required" />
+        </td>
+    </tr>
+    <tr> 
+        <td>
+    <label for="password">{{ 'security.login.password'|trans({}, 'FOSUserBundle') }}</label>
+        </td>
+        <td>
+        <input type="password" id="password" name="_password" required="required" />
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2">
+            <input type="checkbox" id="remember_me" name="_remember_me" value="on" />
+            <label for="remember_me">{{ 'security.login.remember_me'|trans({}, 'FOSUserBundle') }}</label>
+            <input class="pure-button pure-button-primary" type="submit" id="_submit" name="_submit" value="{{ 'security.login.submit'|trans({}, 'FOSUserBundle') }}" />
+        </td>
+    </table>
+</form>
+
+{#
+<!-- Grab Google CDN's jQuery, with a protocol relative URL; fall back to local if offline -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.js"></script>
+<script>window.jQuery || document.write('<script src="/js/libs/jquery-1.7.2.js"><\/script>')</script>
+#}
+
+<script>
+    $(function() {
+        // Need to grab referrer for the search slug
+        var referrer = document.referrer;
+        // Need this for the hash
+        var url = window.location.href;
+
+//alert( 'referrer: ' + referrer + "\n\n" + 'url: ' + url );
+
+        // Grab parts of the urls to compare with...
+        var referrer_hostname = referrer.substr(0, referrer.lastIndexOf('/'));
+        var url_hostname = url;
+        if ( url.indexOf('#') !== -1 ) {
+            var tmp = url.split('#');
+            url_hostname = tmp[0].substr(0, tmp[0].lastIndexOf('/'));
+        }
+
+//alert( referrer_hostname + "\n" + url_hostname + "\n" + (referrer_hostname == url_hostname));
+
+        // If the user was redirected here from a page on this site and a hash is present, splice them together to create a target path for symfony
+        // This target_path should be the page from which they clicked the "Login" button...
+        if (referrer_hostname.indexOf(url_hostname) !== -1 && url.indexOf('#') !== -1) {
+            var tmp = url.split('#');
+            url = referrer + '#' + tmp[1];
+
+//alert( url );
+            $("#target_path").val( url );
+        }
+        else {
+            // Otherwise, just use the default target path redirect...
+        }
+
+        $("#username").focus();
+    });
+</script>
+{% endblock fos_user_content %}
+

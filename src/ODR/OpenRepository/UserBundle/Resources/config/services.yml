@@ -1,0 +1,7 @@
+parameters:
+#    odr_open_repository_user.example.class: ODR\OpenRepository\UserBundle\Example
+
+services:
+#    odr_open_repository_user.example:
+#        class: %odr_open_repository_user.example.class%
+#        arguments: [@service_id, "plain_value", %parameter%]

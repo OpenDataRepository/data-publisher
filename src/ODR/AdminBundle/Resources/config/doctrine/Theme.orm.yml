@@ -1,0 +1,91 @@
+ODR\AdminBundle\Entity\Theme:
+    type: entity
+    table: odr_theme
+    gedmo:
+        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        templateName:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: template_name
+            gedmo:
+                - versioned
+        templateDescription:
+            type: text
+            nullable: true
+            column: template_description
+            gedmo:
+                - versioned
+        templateType:
+            type: string
+            length: 32
+            default: 'form'
+            column: template_type
+            gedmo:
+                - versioned
+        templatePreview:
+            type: blob
+            nullable: true
+            column: template_preview
+            gedmo:
+                - versioned
+        isDefault:
+            type: boolean
+            nullable: false
+            column: is_default
+            gedmo:
+                - versioned
+        deletedAt:
+            type: date
+            nullable: true
+            gedmo:
+                - versioned
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+    manyToOne:
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+#            gedmo:
+#                blameable:
+#                    on: update
+    lifecycleCallbacks: {  }

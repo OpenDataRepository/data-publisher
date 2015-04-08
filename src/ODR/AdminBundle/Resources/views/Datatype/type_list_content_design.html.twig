@@ -1,0 +1,213 @@
+{% set level = 0 %}
+{% for role in user.getroles %}
+    {% if role == 'ROLE_SUPER_ADMIN' %}
+        {% set level = level + 4 %}
+    {% elseif role == 'ROLE_ADMIN' %}
+        {% set level = level + 2 %}
+    {% elseif role == 'ROLE_USER' %}
+        {% set level = level + 1 %}
+    {% endif %}
+{% endfor %}
+
+        
+<div class="tabletools">
+    {% if level > 1 %}
+    <div class="left">
+        <a class="ODRCreateDatatype Pointer"><i class="fa fa-lg fa-plus"></i>New Data Type</a>
+    </div>
+    {% endif %}
+    {% if level == 7 %}
+    <div class="left">
+        <a class="Pointer" onclick="recacheAll();"><i class="fa fa-lg fa-refresh"></i>Recache All Datatypes</a>
+    </div>
+    {% endif %}
+</div>
+
+<table class="pure-table pure-table-striped">
+    <thead>
+        <tr>
+            <th>Type Name</th>
+            <th>Number of Records</th>
+            <th>Search Layout</th>
+            <th>Field Layout</th>
+            <th>Datatype Properties</th>
+            <th>Download Schema</th>
+            <th>CSV Import</th>
+
+            {% if level > 1 %}
+            <th>Delete</th>
+            {% endif %}
+        </tr>
+    </thead>
+    <tbody>
+    {% for datatype in datatypes %}
+
+        {% set can_view_datatype = false %}
+        {% set can_edit_datatype = false %}
+        {% set can_design_datatype = false %}
+        {% set is_type_admin = false %}
+        {% if permissions[ datatype.id ] is defined %}
+            {% if permissions[ datatype.id ][ 'view' ] is defined %}
+                {% set can_view_datatype = true %}
+            {% endif %}
+            {% if permissions[ datatype.id ][ 'edit' ] is defined %}
+                {% set can_edit_datatype = true %}
+            {% endif %}
+            {% if permissions[ datatype.id ][ 'design' ] is defined %}
+                {% set can_design_datatype = true %}
+            {% endif %}
+            {% if permissions[ datatype.id ][ 'admin' ] is defined %}
+                {% set is_type_admin = true %}
+            {% endif %}
+        {% endif %}
+
+        {#{% if datatype.ispublic == true or can_view_datatype == true %}#}
+        {% if can_view_datatype == true %}
+        <tr>
+            <td id="datatype_{{ datatype.id }}_name">{{ datatype.shortname }}</td>
+
+            {% set found = false %}
+            {% for datatype_id, data in metadata %}
+                {% if datatype_id == datatype.id %}
+                    {% set found = true %}
+                    <td class="center">{{ data.count }}</td>
+                {% endif %}
+            {% endfor %}
+
+            {% if found == false %}
+                <td class="center">0</td>
+            {% endif %}
+
+            {% if can_design_datatype == true %}
+                {# If user has design permissions... #}
+                <td class="center"><a class="address" href="#{{ path('odr_search_template_edit', { 'datatype_id': datatype.id, 'theme_id': 2 }) }}" title="Edit {{ datatype.shortname }} Search Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a></td>
+                <td class="center"><a class="address" href="#{{ path('odr_design_display_template', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a></td>
+
+                {% if datatype.searchslug == '' %}
+                <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
+                {% elseif datatype.getnamefield == null %}
+                <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Assign Name Field</a></td>
+                {% elseif datatype.hastextresults == false %}
+                <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;TextResults not designed!</a></td>
+                {% else %}
+                <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-cog"></i>&nbsp;Edit Properties</a></td>
+                {% endif %}
+            {% else %}
+                {# Otherwise, print out nothing #}
+                <td class="center"></td>
+                <td class="center"></td>
+                <td class="center"></td>
+            {% endif %}
+
+                <td class="center"><a class="address" href="#{{ path('odr_xsd_generate_datatype', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-download"></i>&nbsp;Download</a></td>
+
+            {% if can_design_datatype == true and can_edit_datatype == true %}
+                <td class="center"><a class="address" href="#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-upload"></i>&nbsp;Import</a></td>
+            {% else %}
+                <td class="center"></td>
+            {% endif %}
+
+            {% if level == 7 or is_type_admin == true %}
+                <td class="center"><a style="cursor:pointer;" onclick="deleteDataType({{ datatype.id }});"><i class="fa fa-lg fa-times"></i>&nbsp;Delete</a></td>
+            {% elseif level > 1 %}
+                <td class="center"></td>
+            {% endif %}
+        </tr>
+        {% endif %}
+    {% else %}
+        <tr>
+            <td colspan="6">No Data Types Found</td>
+        </tr>
+    {% endfor %}
+
+    </tbody>
+</table>
+
+<script>
+    $(function() {
+        $(".ODRCreateDatatype").unbind('click');
+        $(".ODRCreateDatatype").click(function() {
+            // Open the dialog to create a new datatype
+            $("#dialog_add_datatype").dialog( "open" );
+        });
+    });
+
+    function deleteDataType(datatype_id) {
+        var datatype_name = $("#datatype_" + datatype_id + "_name").html();
+
+        if( confirm("Are you sure you want to delete the \"" + datatype_name + "\" datatype and all associated datarecords?") ) {
+            // Delete the datatype selected
+            var url = '{{ path('odr_design_delete_datatype', { 'datatype_id': 0 }) }}';
+            url = url.substring(0, (url.length - 1));
+            url += datatype_id;
+
+            var dataType = "json";
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: dataType,
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+                        // Reload this area of the page
+                        LoadContentFullAjax('{{ path('odr_list_types', { 'section': 'design' }) }}');
+                    }
+                    else {
+                        // Error occurred
+                        alert( data.d );
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        }
+    }
+
+    function recacheAll() {
+        if( confirm("This will rebuild all cache entries for all datatypes.") ) {
+            // Delete the datatype selected
+            var url = '{{ path('odr_recache_all') }}';
+
+            var dataType = "json";
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: dataType,
+                success: function(data, textStatus, jqXHR) {
+                    if (data.r == 0) {
+                        alert( 'All DataTypes scheduled for recache...this may take awhile...' );
+                    }
+                    else {
+                        // Error occurred
+                        alert( data.d );
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        }
+    }
+</script>

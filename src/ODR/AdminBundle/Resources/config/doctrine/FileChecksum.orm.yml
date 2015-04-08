@@ -1,0 +1,43 @@
+ODR\AdminBundle\Entity\FileChecksum:
+    type: entity
+    table: odr_file_checksum
+    gedmo:
+        loggable: true
+#        soft_deleteable:
+#            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        chunk_id:
+            type: integer
+            unsigned: false
+            nullable: false
+            default: 0
+
+        checksum:
+            type: string
+            nullable: true
+            length: 32
+            fixed: false
+            column: checksum
+#            gedmo:
+#                - versioned
+
+    manyToOne:
+        File:
+            targetEntity: File
+            cascade: {  }
+            mappedBy: null
+            inversedBy: FileChecksum
+            joinColumns:
+                file_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned

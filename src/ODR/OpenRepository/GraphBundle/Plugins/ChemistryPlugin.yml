@@ -1,0 +1,23 @@
+ODR\OpenRepository\GraphBundle\Plugins\Graph:
+    name: Chemistry Field 
+    datatype: false
+    version: 1.00
+    override_fields: false
+    override_child: false
+    description: A datafield containing a chemical formula.
+    required_fields:
+        chemistry_field:
+            name: Chemistry Field
+            description: A datafield containing a chemical formula.
+            type: ShortVarchar
+    config_options:
+        subscript_delimiter:
+            name: Subscript Delimiter
+            type: string
+            default: _
+            description: A character that indicates what to place between HTML <sub> tags.
+        superscript_delimiter:
+            name: Superscript Delimiter
+            type: string
+            default: ^
+            description: A character that indicates what to place between HTML <super> tags.

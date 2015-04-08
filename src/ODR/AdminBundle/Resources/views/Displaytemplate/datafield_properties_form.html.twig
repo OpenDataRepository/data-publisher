@@ -1,0 +1,196 @@
+{% spaceless %}
+{% set typename = datafield.getfieldtype.gettypename %}
+
+<div class="pure-u-3-4" style="visibility: hidden;">
+    <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
+</div>
+
+{% include 'ODRAdminBundle:Displaytemplate:theme_datafield_properties_form.html.twig' with {'theme_datafield': theme_datafield, 'theme_datafield_form': theme_datafield_form} %}
+
+<form class="ODRDatafieldPropertiesForm pure-form pure-form-aligned" {{ form_enctype(datafield_form) }} id="DatafieldPropertiesForm_{{ datafield.id }}">
+    {{ form_errors(datafield_form._token) }}
+    {{ form_widget(datafield_form._token) }}
+
+    <fieldset>
+    {% if typename != "Markdown" %}
+        <div class="pure-control-group">
+            <label for="{{datafield_form.field_name.vars.id}}">
+                <strong>{{datafield_form.field_name.vars.label}}</strong>
+            </label>
+            {{ form_errors(datafield_form.field_name) }}
+            {{ form_widget(datafield_form.field_name, { 'attr': {'class': 'required ODRDatafieldName', 'data-error-type': 'inline' } }) }}
+            {{ form_widget(datafield_form.data_type, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+        </div>
+
+        <div class="pure-control-group">
+            <label for="{{datafield_form.description.vars.id}}">
+                <strong>{{datafield_form.description.vars.label}}</strong>
+            </label>
+            {{ form_errors(datafield_form.description) }}
+            {{ form_widget(datafield_form.description, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+        </div>
+    {% endif %}
+{#
+        <div class="pure-control-group">
+            <label for="{{datafield_form.regex_validator.vars.id}}">
+                <strong>{{datafield_form.regex_validator.vars.label}}</strong>
+            </label>
+            {{ form_errors(datafield_form.regex_validator) }}
+            {{ form_widget(datafield_form.regex_validator, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+        </div>
+        <div class="pure-control-group">
+            <label for="{{datafield_form.php_validator.vars.id}}">
+                <strong>{{datafield_form.php_validator.vars.label}}</strong>
+            </label>
+            {{ form_errors(datafield_form.php_validator) }}
+            {{ form_widget(datafield_form.php_validator, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+        </div>
+#}
+
+        <div class="pure-control-group">
+            <label for="{{datafield_form.field_type.vars.id}}">
+                <strong>{{datafield_form.field_type.vars.label}}</strong>
+            </label>
+            <input type="hidden" id="previous_fieldtype" name="DataFieldsForm[previous_field_type]" value="{{ datafield.getfieldtype.id }}" />
+
+            {{ form_errors(datafield_form.field_type) }}
+            {% if prevent_fieldtype_change == true %}
+                {{ form_widget(datafield_form.field_type, { 'attr': {'class': 'required ODRDatafieldType', 'data-error-type': 'inline', 'disabled': 'disabled' } }) }}
+            {% else %}
+                {{ form_widget(datafield_form.field_type, { 'attr': {'class': 'required ODRDatafieldType', 'data-error-type': 'inline' } }) }}
+            {% endif %}
+            <span id="field_type_meta" class="Cursor" title="
+            {% if typename == 'Long Text' %}
+                255 Character Limit
+            {% elseif typename == 'Medium Text' %}
+                64 Character Limit
+            {% elseif typename == 'Short Text' %}
+                32 Character Limit
+            {% elseif typename == 'Paragraph Text' %}
+                No Character Limit
+            {% endif %}
+            ">
+                &nbsp;<i class="fa fa-question-circle fa-lg"></i>
+            </span>
+        </div>
+
+        {% if typename == "Markdown" %}
+        <div class="pure-control-group">
+            <label for="{{datafield_form.markdown_text.vars.id}}">
+                <strong>{{datafield_form.markdown_text.vars.label}}</strong>
+            </label>
+            {{ form_errors(datafield_form.markdown_text) }}
+            {{ form_widget(datafield_form.markdown_text, { 'attr': {'class': 'ODRDatafieldMarkdown', 'style': 'width:400px; min-height:300px;'} }) }}
+        </div>
+        {% endif %}
+
+        {% if typename != "Markdown" %}
+        <div class="pure-control-group">
+{#
+            <label for="{{datafield_form.render_plugin.vars.id}}">
+                <strong>{{datafield_form.render_plugin.vars.label}}</strong>
+            </label>
+            {{ form_errors(datafield_form.render_plugin) }}
+            {{ form_widget(datafield_form.render_plugin, { 'attr': {'style': 'width:auto'} }) }}
+#}
+            <label for="render_plugin_id">
+                <strong>Render Plugin</strong>
+            </label>
+            <input type="text" disabled value="{{ datafield.renderplugin.pluginname }}" class="pure-u-1-3"/>
+            <span class="pure-u-1-4">
+                <button type="button" class="pure-button pure-button-primary" onclick="openPluginSettingsDialog({{ datafield.id }}, {{ datafield.datatype.id }});">Edit</button>
+            </span>
+        </div>
+
+        <div class="pure-control-group">
+            <label for="{{datafield_form.required.vars.id}}">
+                <strong>{{datafield_form.required.vars.label}}</strong>
+            </label>
+            {{ form_errors(datafield_form.required) }}
+            {{ form_widget(datafield_form.required, { 'attr': {'style': 'width:auto'} }) }}
+        </div>
+        {% endif %}
+
+        {% if typename == 'Image' or typename == 'Single Radio' or typename == 'Multiple Radio' %}
+        <div class="pure-control-group">
+            <label for="{{datafield_form.children_per_row.vars.id}}">
+                <strong>
+                {% if typename == 'Image' %}
+                    Images per row:&nbsp;
+                {% else %}
+                    Options per row:&nbsp;
+                {% endif %}
+                </strong>
+            </label>
+            {{ form_errors(datafield_form.children_per_row) }}
+            {{ form_widget(datafield_form.children_per_row, { 'attr': {'class': 'ODRDatafieldChildren', 'style': 'width:auto'} }) }}
+        </div>
+        {% endif %}
+
+        {% if typename == 'Single Radio' or typename == 'Multiple Radio' or typename == 'Single Select' or typename == 'Multiple Select' %}
+        <div class="pure-control-group">
+            <label for="{{datafield_form.radio_option_name_sort.vars.id}}">
+                <strong>{{datafield_form.radio_option_name_sort.vars.label}}</strong>
+            </label>
+            {{ form_errors(datafield_form.radio_option_name_sort) }}
+            {{ form_widget(datafield_form.radio_option_name_sort, { 'attr': {'class': 'ODRDatafieldNameSort', 'style': 'width:auto'} }) }}
+        </div>
+        {% endif %}
+
+        {% if typename != 'Markdown' %}   {# all fields except these two are searchable to some degree #}
+        <div class="pure-control-group">
+            <label for="{{datafield_form.searchable.vars.id}}">
+                <strong>{{datafield_form.searchable.vars.label}}</strong>
+            </label>
+            {{ form_errors(datafield_form.searchable) }}
+            {{ form_widget(datafield_form.searchable, { 'attr': {'style': 'width:auto'} }) }}
+        </div>
+
+        <div class="pure-control-group">
+            <label for="{{datafield_form.user_only_search.vars.id}}">
+                <strong>{{datafield_form.user_only_search.vars.label}}</strong>
+            </label>
+            {{ form_errors(datafield_form.user_only_search) }}
+            {{ form_widget(datafield_form.user_only_search, { 'attr': {'style': 'width:auto'} }) }}
+        </div>
+        {% endif %}
+
+        {% if datafield.getfieldtype.gettypename == 'File' or datafield.getfieldtype.gettypename == 'Image' %}
+        <div class="pure-control-group">
+            <label for="{{datafield_form.allow_multiple_uploads.vars.id}}">
+                <strong>{{datafield_form.allow_multiple_uploads.vars.label}}</strong>
+            </label>
+            <span {% if has_multiple_uploads == 1 %}title="This DataField can't be set to only accept a single file, because at least one DataRecord already has multiple files attached to this DataField"{% endif %}>
+            {{ form_errors(datafield_form.allow_multiple_uploads) }}
+            {% if has_multiple_uploads == 1 %}
+                <input type="hidden" name="{{ datafield_form.allow_multiple_uploads.vars.full_name }}" value="1" />
+                {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'disabled': 'disabled', 'style': 'width:auto'} }) }}
+            {% else %}
+                {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'style': 'width:auto'} }) }}
+            {% endif %}
+            </span>
+        </div>
+        {% endif %}
+
+        {% if datafield.getfieldtype.gettypename == 'File' %}
+        <div class="pure-control-group">
+            <label for="{{datafield_form.shorten_filename.vars.id}}">
+                <strong>{{datafield_form.shorten_filename.vars.label}}</strong>
+            </label>
+            {{ form_errors(datafield_form.shorten_filename) }}
+            {{ form_widget(datafield_form.shorten_filename, { 'attr': {'style': 'width:auto'} }) }}
+        </div>
+        {% endif %}
+
+        <div style="display: none">
+        {{ form_rest(datafield_form) }}
+        </div>
+
+    </fieldset>
+</form>
+
+<button type="button" id="DeleteField_{{ datafield.id }}" class="pure-button pure-button-primary{% if prevent_fieldtype_change == true %} pure-button-disabled{% endif %} ODRDeleteField"><i class="fa fa-trash-o"></i>&nbsp;Delete Field</button>
+&nbsp;&nbsp;&nbsp;
+<button type="button" id="CopyField_{{ datafield.id }}" class="pure-button pure-button-primary ODRCopyField"><i class="fa fa-repeat"></i>&nbsp;Copy Field</button>
+
+{% endspaceless %}

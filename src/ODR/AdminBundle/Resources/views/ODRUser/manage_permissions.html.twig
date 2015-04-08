@@ -1,0 +1,252 @@
+{% spaceless %}
+
+{# Determine permissino level of the user doing the changing of permissions #}
+{% set admin_level = 0 %}
+{% for role in admin_user.getroles %}
+    {% if role == 'ROLE_SUPER_ADMIN' %}
+        {% set admin_level = admin_level + 4 %}
+    {% elseif role == 'ROLE_ADMIN' %}
+        {% set admin_level = admin_level + 2 %}
+    {% elseif role == 'ROLE_USER' %}
+        {% set admin_level = admin_level + 1 %}
+    {% endif %}
+{% endfor %}
+
+{# Determine permission level of the user getting his permissions managed #}
+{% set level = 0 %}
+{% for role in user.getroles %}
+    {% if role == 'ROLE_SUPER_ADMIN' %}
+        {% set level = level + 4 %}
+    {% elseif role == 'ROLE_ADMIN' %}
+        {% set level = level + 2 %}
+    {% elseif role == 'ROLE_USER' %}
+        {% set level = level + 1 %}
+    {% endif %}
+{% endfor %}
+
+{% set force_enabled = false %}
+{% set role_text = '' %}
+{% if level == 1 %}
+    {% set role_text = 'User' %}
+{% elseif level == 3 %}
+    {% set role_text = 'Admin' %}
+{% elseif level == 7 %}
+    {% set role_text = 'SuperAdmin' %}
+    {% set force_enabled = true %}
+{% endif %}
+
+{% if user.id == admin_user.id %}
+    {% set force_enabled = true %}
+{% endif %}
+
+<div class="header">
+    <h2>Permissions List > {{ user.getuserextend.firstname }} {{ user.getuserextend.lastname }} ({{ role_text }})
+       <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
+    </h2>
+</div>
+
+<div class="content">
+
+    <table class="pure-table pure-table-striped">
+        <thead>
+            <tr>
+                <th>Type Name</th>
+                <th class="Pointer" title="Able to view non-public sections of datarecords of this datatype">Can View Datatype</th>
+                <th class="Pointer" title="Able to edit existing datarecords of this datatype">Can Edit Records</th>
+                <th class="Pointer" title="Able to add and import datarecords for this datatype">Can Add Records</th>
+                <th class="Pointer" title="Able to delete datarecords of this datatype">Can Delete Records</th>
+                <th class="Pointer" title="Able to modify search/field layouts for this datatype">Can Design Datatype</th>
+                <th class="Pointer" title="Able to set permissions of other users with regards to this datatype">Can Administrate Datatype</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for datatype in datatypes %}
+
+            {% for permission in permissions %}
+                {% if permission.datatype == datatype and admin_permissions[ datatype.id ] is defined %}
+            <tr>
+                <td>{{ datatype.shortname }}</td>
+                <td class="center">
+                    <input id="view_{{ datatype.id }}" onclick="togglePermission('view_{{ datatype.id }}');" type="checkbox" {% if force_enabled == true or permission.canviewtype == 1 %}checked{% endif %} {% if force_enabled == true or permission.istypeadmin == 1 %}disabled title="User has admin permissions for this datatype"{% endif %} />
+                </td>
+                <td class="center">
+                    <input id="edit_{{ datatype.id }}" onclick="togglePermission('edit_{{ datatype.id }}');" type="checkbox" {% if force_enabled == true or permission.caneditrecord == 1 %}checked{% endif %} {% if force_enabled == true or permission.istypeadmin == 1 %}disabled title="User has admin permissions for this datatype"{% endif %}/>
+                    {% if admin_level == 7 %}<button type="button" {# class="pure-button pure-button-primary" #} style="float: right;" onclick="editDatafieldPermissions({{ datatype.id }});">datafields...</button>{% endif %}
+                </td>
+                <td class="center">
+                    <input id="add_{{ datatype.id }}" onclick="togglePermission('add_{{ datatype.id }}');" type="checkbox" {% if force_enabled == true or permission.canaddrecord == 1 %}checked{% endif %} {% if force_enabled == true or permission.istypeadmin == 1 %}disabled title="User has admin permissions for this datatype"{% endif %}/>
+                </td>
+                <td class="center">
+                    <input id="delete_{{ datatype.id }}" onclick="togglePermission('delete_{{ datatype.id }}');" type="checkbox" {% if force_enabled == true or permission.candeleterecord == 1 %}checked{% endif %} {% if force_enabled == true or permission.istypeadmin == 1 %}disabled title="User has admin permissions for this datatype"{% endif %}/>
+                </td>
+                <td class="center">
+                    <input id="design_{{ datatype.id }}" onclick="togglePermission('design_{{ datatype.id }}');" type="checkbox" {% if force_enabled == true or permission.candesigntype == 1 %}checked{% endif %} {% if force_enabled == true or permission.istypeadmin == 1 %}disabled title="User has admin permissions for this datatype"{% endif %}/>
+                </td>
+                <td class="center">
+                    <input id="admin_{{ datatype.id }}" onclick="togglePermission('admin_{{ datatype.id }}');" type="checkbox" {% if force_enabled == true or permission.istypeadmin == 1 %}checked{% endif %} {% if force_enabled == true %}disabled{% endif %}/>
+                </td>
+                {% endif %}
+            {% endfor %}
+            </tr>
+
+            {% if childtypes[datatype.id] != null %}
+            {% for childtype in childtypes[datatype.id] %}
+
+                {% for permission in permissions %}
+                    {% if permission.datatype == childtype and admin_permissions[ childtype.id ] is defined %}
+                <tr class="datatype_{{ datatype.id }}_child" rel="{{ childtype.id }}">
+                    <td>-- {{ childtype.shortname }}</td>
+                    <td class="center">
+                        <input id="view_{{ childtype.id }}" onclick="togglePermission('view_{{ childtype.id }}');" type="checkbox" {% if force_enabled == true or permission.canviewtype == 1 %}checked{% endif %} {% if force_enabled == true %}disabled{% endif %} />
+                    </td>
+                    <td class="center">
+                        <input id="edit_{{ childtype.id }}" onclick="togglePermission('edit_{{ childtype.id }}');" type="checkbox" {% if force_enabled == true or permission.caneditrecord == 1 %}checked{% endif %} {% if force_enabled == true %}disabled{% endif %}/>
+                    </td>
+                    <td class="center">
+                        <input id="add_{{ childtype.id }}" onclick="togglePermission('add_{{ childtype.id }}');" type="checkbox" {% if force_enabled == true or permission.canaddrecord == 1 %}checked{% endif %} {% if force_enabled == true %}disabled{% endif %}/>
+                    </td>
+                    <td class="center">
+                        <input id="delete_{{ childtype.id }}" onclick="togglePermission('delete_{{ childtype.id }}');" type="checkbox" {% if force_enabled == true or permission.candeleterecord == 1 %}checked{% endif %} {% if force_enabled == true %}disabled{% endif %}/>
+                    </td>
+                    <td class="center">
+                        <input id="design_{{ childtype.id }}" onclick="togglePermission('design_{{ childtype.id }}');" type="checkbox" {% if force_enabled == true or permission.candesigntype == 1 %}checked{% endif %} {% if force_enabled == true %}disabled{% endif %}/>
+                    </td>
+                    <td class="center">
+                        {#<input id="admin_{{ datatype.id }}" onclick="togglePermission('admin_{{ datatype.id }}');" type="checkbox" {% if force_enabled == true or permission.istypeadmin == 1 %}checked{% endif %} {% if force_enabled == true %}disabled{% endif %}/>#}
+                    </td>
+                    {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+            {% endif %}
+
+        {% else %}
+            <tr>
+                <td colspan="5">No Data Types Found</td>
+            </tr>
+        {% endfor %}
+
+        </tbody>
+    </table>
+
+</div><!-- End of .content -->
+            
+<script>
+    $(function() {
+        $("#saved").hide();
+    });
+
+    function togglePermission(id) {
+        var user_id = {{ user.id }};
+
+        var data = id.split('_');
+        var permission = data[0];
+        var datatype_id = data[1];
+
+        var value = 0;
+        if ( $('#'+id).is(':checked') )
+            value = 1;
+
+        var url = '{{ path('odr_toggle_user_permission', { 'user_id': 0, 'datatype_id': 0, 'value': 0, 'permission': '' }) }}';
+        url = url.substring(0, (url.length - 6));
+        url += user_id + '/' + datatype_id + '/' + value + '/' + permission;
+
+        var dataType = "json";
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: dataType,
+            success: function(data, textStatus, jqXHR) {
+                if (data.r == 0) {
+                    $('#saved').fadeIn();
+                    setTimeout(function() {
+                        $('#saved').fadeOut();
+                    }, 2000);
+
+                    if (permission == 'view') {
+                        var all_permissions = [/*'view',*/ 'edit', 'add', 'delete', 'design', 'admin'];
+                        if (value == 0) {
+                            // If user no longer has view permissions for a datatype, delete all his other permissions for this datatype as well
+                            jQuery.each(all_permissions, function(index, value) {
+                                var element = "#" + value + "_" + datatype_id;
+                                if ( $(element).is(':checked') )
+                                    $(element).removeAttr('checked');
+                            });
+
+                            // Disable view permissions for all children of this datatype as well
+                            $(".datatype_" + datatype_id + "_child").each(function() {
+                                var childtype_id = $(this).attr('rel');
+
+                                if ( $("#view_" + childtype_id).is(':checked') ) {
+                                    $("#view_" + childtype_id).removeAttr('checked');
+                                    togglePermission("view_" + childtype_id);
+                                }
+                            });
+                        }
+                    }
+                    else if (permission == 'admin') {
+                        var all_permissions = ['view', 'edit', 'add', 'delete', 'design', /*'admin'*/];
+                        if (value == 1) {
+                            // If user got admin permissions for a datatype, ensure they have all other permissions as well
+                            jQuery.each(all_permissions, function(index, value) {
+                                var element = "#" + value + "_" + datatype_id;
+                                if ( !$(element).is(':checked') )
+                                    $(element).attr('checked', 'checked');
+                                // doesn't make sense to not have some other permission, but have admin permissions
+                                $(element).attr('disabled', 'disabled').attr('title', 'User has admin permissions for this datatype');
+                            });
+                        }
+                        else {
+                            // If user lost admin permissions for a datatype, ensure they have all other permissions as well
+                            jQuery.each(all_permissions, function(index, value) {
+                                var element = "#" + value + "_" + datatype_id;
+                                // enable removal of the other permissions for this datatype
+                                $(element).removeAttr('disabled').removeAttr('title');
+                            });
+                        }
+                    }
+                    else {
+                        if (value == 1) {
+                            // If user gets some permission for a datatype, ensure they have view permissions as well
+                            if ( !$("#view_" + datatype_id).is(':checked') ) {
+                                $("#view_" + datatype_id).attr('checked', 'checked');
+                            }
+                        }
+                    }
+
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function editDatafieldPermissions(datatype_id) {
+        var user_id = {{ user.id }};
+
+        var url = '{{ path('odr_edit_datafield_permissions', { 'user_id': 0, 'datatype_id': 0 }) }}';
+        url = url.substring(0, (url.length - 3));
+        url += user_id + '/' + datatype_id;
+
+        UpdateURL(url);
+    }
+</script>
+
+{% endspaceless %}

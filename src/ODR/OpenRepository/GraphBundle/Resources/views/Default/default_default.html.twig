@@ -1,0 +1,6 @@
+{% spaceless %}
+<fieldset>
+    <label id="Label_{{ field.id }}" for="Input_{{ field.id }}" class="ODRFieldLabel">{{ field.fieldname }}</label>
+    <div class="ODRPseudoField" id="Input_{{ field.id }}">{% if str|raw != '' %}{{ str|raw }}{% else %}&nbsp;{% endif %}</div>
+</fieldset>
+{% endspaceless %}

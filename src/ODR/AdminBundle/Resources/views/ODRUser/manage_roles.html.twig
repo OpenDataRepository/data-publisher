@@ -1,0 +1,111 @@
+{% spaceless %}
+
+<div class="header">
+    <h2>User List
+        <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
+    </h2>
+</div>
+
+<div class="content">
+
+    <table class="pure-table pure-table-striped">
+        <thead>
+            <tr>
+                <th>User Name</th>
+                <th class="Pointer" title="Restricted to datatypes they have permissions for">User</th>
+                <th class="Pointer" title="Able to create new datatypes and delete datatypes they are admin of, but still restricted by datatype permissions">Admin</th>
+                <th class="Pointer" title="Able to create new users, change user roles, and perform any action to any datatype">Super Admin</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for user in users %}
+
+            {% if user.enabled == 1 %}
+            <tr>
+                <td>{{ user.username }}</td>
+
+                {% set level = 0 %}
+                {% for role in user.getroles %}
+                    {% if role == 'ROLE_SUPER_ADMIN' %}
+                        {% set level = level + 4 %}
+                    {% elseif role == 'ROLE_ADMIN' %}
+                        {% set level = level + 2 %}
+                    {% elseif role == 'ROLE_USER' %}
+                        {% set level = level + 1 %}
+                    {% endif %}
+                {% endfor %}
+
+                <td class="center">
+                    <input id="user_{{ user.id }}" onclick="setRole('user_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 1 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
+                </td>
+                <td class="center">
+                    <input id="admin_{{ user.id }}" onclick="setRole('admin_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 3 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
+                </td>
+                <td class="center">
+                    <input id="sadmin_{{ user.id }}" onclick="setRole('sadmin_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 7 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
+                </td>
+            </tr>
+            {% endif %}
+
+        {% else %}
+            <tr>
+                <td colspan="3">No Users Found</td>
+            </tr>
+        {% endfor %}
+
+        </tbody>
+    </table>
+
+</div><!-- End of .content -->
+            
+<script>
+    $(function() {
+        $('#saved').hide();
+    });
+
+    function setRole(id) {
+        var data = id.split('_');
+        var role = data[0];
+        var user_id = data[1];
+
+        var url = '{{ path('odr_set_user_role', { 'user_id': 0, 'role': '' }) }}';
+        url = url.substring(0, (url.length - 2));
+        url += user_id + '/' + role;
+
+        var dataType = "json";
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: dataType,
+            success: function(data, textStatus, jqXHR) {
+                if (data.r == 0) {
+                    $('#saved').fadeIn();
+                    setTimeout(function() {
+                        $('#saved').fadeOut();
+                    }, 2000);
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+{% endspaceless %}

@@ -1,0 +1,17 @@
+<h1 class="grid_12 no-margin-top-phone">
+    <span>Data Types</span>
+</h1>
+{# include 'ODRAdminBundle:Datatype:type_list.html.twig' with {'is_admin': is_admin, 'datatypes': datatypes, 'section' : section, 'metadata': metadata } #}
+<div id="add_datatype_dialog_wrapper">
+    {# include 'ODRAdminBundle:Datatype:add_type_dialog.html.twig' with {'form': form} #}
+{# outputs $5,500.00 #}
+{# pluginfilter #}
+{{ '5500'|plug(the_extension, the_filter, 'view') }}
+</div>
+
+<script>
+    $(function() {
+        // $(".MenuDesignArea").remove();
+    });
+</script>
+

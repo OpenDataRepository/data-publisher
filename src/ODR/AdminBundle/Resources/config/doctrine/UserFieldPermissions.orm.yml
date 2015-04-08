@@ -1,0 +1,69 @@
+ODR\AdminBundle\Entity\UserFieldPermissions:
+    type: entity
+    table: odr_user_field_permissions
+    gedmo:
+        loggable: true
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+
+        can_view_field:
+            type: integer
+            unsigned: false
+            nullable: false
+            default: 0
+
+        can_edit_field:
+            type: integer
+            unsigned: false
+            nullable: false
+            default: 0
+
+    manyToOne:
+        user_id:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                user_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+        dataFields:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_fields_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+        dataType:
+            targetEntity: DataType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+    lifecycleCallbacks: {  }

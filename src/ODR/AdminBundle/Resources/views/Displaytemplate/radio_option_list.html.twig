@@ -1,0 +1,51 @@
+{% spaceless %}
+
+{% set typename = datafield.getfieldtype.gettypename %}
+
+<div class="pure-u-3-4" style="visibility: hidden;">
+    <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
+</div>
+
+<div class="pure-g pure-u-1">
+    <div class="pure-u-1" style="max-height:500px; overflow:auto; margin-bottom:10px;">
+        <input type="hidden" id="datafield_{{ datafield.id }}_name_sort" value="{% if datafield.getradiooptionnamesort == true %}1{% else %}0{% endif %}" />
+        <form id="ODRRadioOptionsForm_0" class="pure-form" rel="{{ datafield.id }}">    {# id ends with 0 so the click event attached to .ODRDataField works properly #}    {# wtf why #}
+            <fieldset>
+                <table class="pure-table pure-table-striped">
+                    <thead><tr>
+                        {% if datafield.getradiooptionnamesort == false %}
+                        <th></th>
+                        {% endif %}
+                        <th>Option Name</th>
+                        <th>Default?</th>
+                        <th></th>
+                    </tr></thead>
+                    <tbody class="ODRSortableOption" rel="{{ datafield.id }}">
+                    {% for radio_option in radio_options %}
+                        <tr id="radio_option_{{ radio_option.id }}">
+                            {% if datafield.getradiooptionnamesort == false %}
+                            <td>
+                                <i class="Pointer tooltip fa fa-arrows"></i>
+                            </td>
+                            {% endif %}
+                            <td>
+                                <input id="radio_option_{{ radio_option.id }}_name" class="ODRRadioOptionName" type="text" name="option_name" value="{{ radio_option.getoptionname }}" rel="{{ radio_option.id}}" />
+                            </td>
+                            <td>
+                                <input {% if typename == 'Single Radio' or typename == 'Single Select' %}type="radio"{% else %}type="checkbox"{% endif %} class="ODRDefaultRadioOption" name="RadioGroup_{{ datafield.id }}" {% if radio_option.isdefault == true %}checked="checked"{% endif %} rel="{{ radio_option.id }}"/>
+                            </td>
+                            <td>
+                                <i class="ODRDeleteRadioOption Pointer tooltip fa fa-lg fa-trash-o" id="radiooption_{{ radio_option.id }}" rel="{{ datafield.id }}" title="Delete Option?"></i>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </fieldset>
+        </form>
+    </div>
+    <button class="ODRAddRadioOption pure-button pure-button-primary" type="button" rel="{{ datafield.id }}">Add Option</button>
+{#    <button class="ODRImportRadioOption pure-button" type="button" rel="{{ datafield.id }}">Import Radio Options...</button>#}
+</div>
+
+{% endspaceless %}

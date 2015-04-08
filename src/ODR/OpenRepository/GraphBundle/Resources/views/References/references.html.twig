@@ -1,0 +1,20 @@
+{% spaceless %}
+<div class="ODRReference">
+{% if ref is defined %}
+    {% set author = ref.authors|plug(ref.authors.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
+    {% set year = ref.year|plug(ref.year.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
+    {% set article_title = ref.article_title|plug(ref.article_title.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
+    {% set journal = ref.journal|plug(ref.journal.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
+    {% set volume = ref.volume|plug(ref.volume.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
+    {% set pages = ref.pages|plug(ref.pages.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
+
+
+{{ author|raw }}&nbsp;({{ year|raw }})&nbsp;{{ article_title|raw }},&nbsp;{{ journal|raw }},&nbsp;{{ volume|raw }},&nbsp;{{ pages|raw }}
+
+
+{% for file in ref.file.getassociatedentity %}
+    {% if file.ispublic == true or public_only == false %}&nbsp;<a href="{{ path('odr_file_download', {'file_id': file.id} ) }}">[view file]</a>{% endif %}
+{% endfor %}
+{% endif %}
+</div>
+{% endspaceless %}

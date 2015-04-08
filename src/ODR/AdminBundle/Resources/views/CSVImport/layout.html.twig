@@ -1,0 +1,186 @@
+{% spaceless %}
+
+    <form id="csv_import_form">
+        <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />
+
+        <table id="csv_import_table" class="pure-table pure-table-striped">
+            <thead>
+                <tr id="header">
+                    <th>Column Name</th>
+                    <th>Use as external ID</th>
+                    <th>Import?</th>
+                    <th>Map to datafield...</th>
+                    <th>Fieldtype...</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for column_id, column_name in columns %}
+                <tr>
+                    <td>{{ column_name }}</td>
+                    <td><input type="checkbox" class="external_id_checkbox" name="external_id_column" value="{{ column_id }}" /></td>
+                    <td><input type="checkbox" class="import_checkbox" rel="{{ column_id }}" /></td>
+                    <td>
+                        <select id="column_{{ column_id }}" class="field_mapping" name="datafield_mapping[{{ column_id }}]" rel="{{ column_id }}" disabled>
+                            <option value="new">Create new datafield...</option>
+                            {% for datafield in datafields %}
+                            <option value="{{ datafield.id }}">{{ datafield.fieldname }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <select id="column_{{ column_id }}_fieldtype" name="fieldtype_mapping[{{ column_id }}]" disabled>
+                            {% for fieldtype in fieldtypes %}
+                            <option value="{{ fieldtype.id }}">{{ fieldtype.typename }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </form>
+
+    </br></br>
+    <button id="import_button" type="button" class="pure-button pure-button-primary" onclick="startImport();">Start Import</button>
+
+<script>
+    $(function() {
+        $(".import_checkbox").unbind('change');
+        $(".import_checkbox").change(function() {
+            var column_id = $(this).attr('rel');
+
+            if ( $(this).is(':checked') ) {
+//                $("#column_" + column_id + "_external").removeAttr('disabled');
+                $("#column_" + column_id).removeAttr('disabled');
+
+                if ( $("#column_" + column_id).val() == "new" )
+                    $("#column_" + column_id + "_fieldtype").removeAttr('disabled');
+            }
+            else {
+//                $("#column_" + column_id + "_external").attr('disabled', 'disabled');
+                $("#column_" + column_id).attr('disabled', 'disabled');
+                $("#column_" + column_id + "_fieldtype").attr('disabled', 'disabled');
+            }
+        });
+
+        $(".external_id_checkbox").unbind('change');
+        $(".external_id_checkbox").change(function() {
+            // Save the state of this checkbox
+            var is_checked = false;
+            if ( $(this).is(':checked') )
+                is_checked = true;
+
+            // Uncheck all of these external_id checkboxes
+            $(".external_id_checkbox").each(function() {
+                $(this).prop('checked', false);
+            });
+
+            // If the desired checkbox was originally checked, re-check it
+            if ( is_checked )
+                $(this).prop('checked', true);
+        });
+
+        $(".field_mapping").unbind('change');
+        $(".field_mapping").change(function() {
+            var column_id = $(this).attr('rel');
+
+            if ( $(this).val() == "new" ) {
+                $("#column_" + column_id + "_fieldtype").removeAttr('disabled');
+            }
+            else {
+                $("#column_" + column_id + "_fieldtype").attr('disabled', 'disabled');
+            }
+        });
+    });
+
+    function startImport() {
+
+        // If no checkboxes checked, no point doing any importing...
+        var any_checked = false;
+        $(".import_checkbox").each(function() {
+            if ( $(this).is(':checked') )
+                any_checked = true;
+        });
+        if (!any_checked) {
+            alert('No columns selected for import');
+            return;
+        }
+
+        // Check for an external ID
+        var any_checked = false;
+        $(".external_id_checkbox").each(function() {
+            if ( $(this).is(':checked') )
+                any_checked = true;
+        });
+        if (!any_checked) {
+            if ( !confirm("No \"external ID\" selected...Any data that is imported will NOT be able to be updated via CSV/XML at a later time.\nAre you sure you want to import?") )
+                return;
+        }
+
+        // Notify when same datafield selected for two different columns
+        var selections = [];
+        var block_import = false;
+        $(".field_mapping:enabled").each(function() {
+            var selection = $(this).val();
+            if (selection == 'new') {
+                // Don't care about situations where a new datafield has to be created
+//                continue;
+            }
+            else if ( selections.indexOf(selection) !== -1 ) {
+                // Notify of duplicate selection
+                var fieldname = $(this).children('option:selected').first().text();
+                alert( 'ERROR: Multiple columns are mapped to DataField "' + fieldname + '".' );
+                block_import = true;
+            }
+            else {
+                // Haven't seen this datafield before, continue
+                selections.push(selection);
+            }
+        });
+
+        if (block_import)
+            return;
+
+        if ( confirm("Are you sure you want to import?") ) {
+            var import_data = $("#csv_import_form").serialize();
+
+            var url = '{{ path('odr_csv_import_process') }}';
+
+            var dataType = "json";
+            $.ajax({
+                cache: false,
+                type: 'POST',
+                url: url,
+                dataType: 'json',
+                data: import_data,
+                success: function(data, textStatus, jqXHR) {
+                    if (data.r == 0) {
+                        // ...
+                        alert('csv import in progress?');
+                    }
+                    else {
+                        // An error has occurred.
+                        // Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        }
+
+    }
+</script>
+
+{% endspaceless %}

@@ -1,0 +1,203 @@
+{% spaceless %}
+    <div class="pure-control-group">
+        <div style="margin-top:10px; margin-left:10px; margin-bottom:10px;">
+            {{ plugin.description }}
+        </div>
+    </div>
+
+{% if local_datafield == null %}
+    <div class="pure-control-group">
+        <div style="margin-top:10px; margin-left:10px; margin-bottom:10px; max-height: 500px; overflow-y: auto;">
+            {% set has_fields = 0 %}
+
+            {# Determine if the rendering plugin has any required fields #}
+            {% for plugin_field in render_plugin_fields %}
+                {% if plugin_field.renderplugin.id == plugin.id %}
+                    {% set has_fields = 1 %}
+                {% endif %}
+            {% endfor %}
+
+            {% if has_fields == 0 %}
+                This Render Plugin does not require specific fields.
+            {% else %}
+                {# Print out all required fields for this plugin #}
+                <table class="pure-table pure-table-bordered pure-table-striped">
+                    <thead><tr>
+                        <th>Field Name</th>
+                        <th>Field Description</th>
+                        <th>Field Type</th>
+                        <th>Map to DataField...</th>
+                    </tr></thead>
+                    <tbody>
+                    {% for plugin_field in render_plugin_fields %}
+                        {% if plugin_field.renderplugin.id == plugin.id %}
+                            <tr>
+                                <td><strong>{{ plugin_field.fieldname }}: </strong></td>
+                                <td>{{ plugin_field.description }}</td>
+                                <td>{{ plugin_field.fieldtype.typename }}</td>
+                                <td>
+                                    {# Print out a dropdown of fields in this datatype that match the fieldtype of the required field #}
+                                    <select name="plugin_map[{{ plugin_field.id }}]">
+                                    {% if render_plugin_map != null %}
+                                        {# Locate and pre-select the previously selected field in the dropdown #}
+                                        <option value="-1">Choose a Field...</option>
+                                        {% for df in datafields %}
+                                            {% if df.fieldtype.id in allowed_field_types[plugin_field.id] %}
+                                                <option value="{{ df.id }}" 
+                                                {% for map in render_plugin_map %}
+                                                   {% if df.id == map.datafield.id and map.renderpluginfields.id == plugin_field.id %} selected{% endif %}
+                                                {% endfor %} 
+                                                >{{ df.fieldname }}</option>
+                                            {% endif %}
+                                        {% endfor %}
+
+                                    {% else %}
+                                        {# No previously selected field #}
+                                        <option value="-1" selected>Choose a Field...</option>
+                                        {% for df in datafields %}
+                                            {% if df.fieldtype.id in allowed_field_types[plugin_field.id] %}
+                                                <option value="{{ df.id }}">{{ df.fieldname }}</option>
+                                            {% endif %}
+                                        {% endfor %}
+
+                                    {% endif %}
+                                    </select>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </br>
+                <div>
+                    <input type="checkbox" id="autofill_fields" name="autofill_fields" value="1" />&nbsp;Automatically create DataFields required for this Render Plugin.
+                <div>
+            {% endif %}
+        </div>
+    </div>
+{% else %}
+    {% for plugin_field in render_plugin_fields %}
+        <input type="hidden" name="plugin_map[{{ plugin_field.id }}]" value="{{ local_datafield.id }}" />
+    {% endfor %}
+{% endif %}
+
+    <div class="row">
+        <div style="margin-top:10px; margin-left:10px; margin-bottom:10px;">
+            {# Determine if the rendering plugin has any available options #}
+            {% set has_options = 0 %}
+            {% for plugin_id, plugin_options in available_options %}
+                {% if plugin_id == plugin.id %}
+                    {% set has_options = 1 %}
+                {% endif %}
+            {% endfor %}
+
+            {% if has_options == 0 %}
+               This Render Plugin has no options.
+            {% else %}
+                {% for plugin_id, plugin_options in available_options %}
+                    {% if plugin_id == plugin.id %}
+                        <table class="pure-table pure-table-bordered pure-table-striped">
+                            <tbody><tr>
+                            {% set count = 1 %}
+                            {% for option_key,option in plugin_options %}
+                                {# Only want two options per row #}
+                                {% if count == 1 %}
+                                    </tr><tr>
+                                {% endif %}
+
+                                <td><strong>{{ option.name }}<span style="cursor:pointer;" title="{{ option.description|e }}">&nbsp;<u>?</u>&nbsp;</span></strong></td>
+
+                                {# Save the default value for the option, if there is one #}
+                                {% set default = '' %}
+                                {% if option.default is defined %}
+                                    {% set default = option.default %}
+                                {% endif %}
+
+                                <td>
+                                    {% if option.choices is defined %}
+                                        {# Create a dropdown to hold the available choices #}
+                                        <select name="plugin_options[{{ option_key }}]">
+
+                                        {% if "," in option.choices %}
+                                            {% set choices = option.choices|split(',') %}
+                                            {% for choice in choices %}
+                                                {% set mychoice = choice|split('||') %}
+                                                {% if current_plugin_options == null %}
+                                                    {# Use the default value to set the initial selection for the dropdown #}
+                                                    <option value="{{ mychoice[0] }}" {% if mychoice[0] == default %}selected{% endif %}>{{ mychoice[1] }}</option>
+                                                {% else %}
+                                                    {# Locate the previously saved value for this plugin option and use that to set the initial selection for the dropdown #}
+                                                    {% set found = false %}
+                                                    {% for current_option in current_plugin_options %}
+                                                        {% if current_option.optionname == option_key %}
+                                                            {% set found = true %}
+                                                            <option value="{{ mychoice[0] }}" {% if current_option.optionvalue == mychoice[0] %}selected{% endif %}>{{ mychoice[1] }}</option>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                    {% if found == false %}
+                                                        <option value="{{ mychoice[0] }}" {% if mychoice[0] == default %}selected{% endif %}>{{ mychoice[1] }}</option>
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            {% set choices = option.choices|split('||') %}
+                                            {% for choice in choices %}
+                                                {% if current_plugin_options == null %}
+                                                    {# Use the default value to set the initial selection for the dropdown #}
+                                                    <option value="{{ choice }}" {% if choice == default %}selected{% endif %}>{{ choice }}</option>
+                                                {% else %}
+                                                    {# Locate the previously saved value for this plugin option and use that to set the initial selection for the dropdown #}
+                                                    {% set found = false %}
+                                                    {% for current_option in current_plugin_options %}
+                                                        {% if current_option.optionname == option_key %}
+                                                            {% set found = true %}
+                                                            <option value="{{ choice }}" {% if current_option.optionvalue == choice %}selected{% endif %}>{{ choice }}</option>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                    {% if found == false %}
+                                                        <option value="{{ choice }}" {% if choice == default %}selected{% endif %}>{{ choice }}</option>
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endif %}
+                                        </select>
+
+                                    {% else %}
+                                        {# Create a textfield so the user can enter a value #}
+                                        {% if current_plugin_options == null %}
+                                            {# Fill the textfield with the default value for the option #}
+                                            <input size="20" type="text" name="plugin_options[{{ option_key }}]" value="{{ default }}" />
+                                        {% else %}
+                                            {# Locate the previously saved value for this plugin option and use that to fill the textfield #}
+                                            {% set found = false %}
+                                            {% for current_option in current_plugin_options %}
+                                                {% if current_option.optionname == option_key %}
+                                                    {% set found = true %}
+                                                    <input size="20" type="text" name="plugin_options[{{ option_key }}]" value="{{ current_option.optionvalue }}" /> 
+                                                {% endif %}
+                                            {% endfor %}
+                                            {% if found == false %}
+                                                <input size="20" type="text" name="plugin_options[{{ option_key }}]" value="{{ default }}" />
+                                            {% endif %}
+                                                 
+                                        {% endif %}
+
+                                    {% endif %}
+                                </td>
+
+                                {# Only want two options per row #}
+                                {% set count = count + 2 %}
+                                {% if count == 5 %}
+                                    {% set count = 1 %}
+                                {% endif %}
+
+                            {% endfor %}
+                            </tr></tbody>
+                        </table>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+{% endspaceless %}

@@ -1,0 +1,30 @@
+{% spaceless %}
+
+{% if comments is defined %}
+<fieldset>
+    <div class="pure-u-1">
+        <table class="pure-u-1 ODRTable ODRDataField">
+            <thead class="pure-u-1">
+                <tr class="pure-u-1">
+                    <th class="pure-u-1-4">Date</th>
+                    <th class="pure-u-1-2">{{ shortname }}</th>
+                    <th class="pure-u-1-4">Author</th>
+                </tr>
+            </thead>
+            <tbody class="pure-u-1">
+            {% for sort_value, drf in comments %}
+                {% if public_only == false or drf.getdatarecord.ispublic == true %}
+                <tr id="datarecordchild_{{ drf.id }}" class="pure-u-1">
+                    <td class="pure-u-1-4">{{ drf.getAssociatedEntity.getUpdated|date("Y-m-d") }}</td>
+                    <td class="pure-u-1-2">{{ drf|plug(drf.getdatafield.getrenderplugin,'', 'TextResults')|raw }}</td>
+                    <td class="pure-u-1-4">{{ drf.getAssociatedEntity.getUpdatedBy.getUserExtend.getFirstName }}&nbsp;{{ drf.getAssociatedEntity.getUpdatedBy.getUserExtend.getLastName }}</td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+    <div>
+</fieldset>
+{% endif %}
+
+{% endspaceless %}

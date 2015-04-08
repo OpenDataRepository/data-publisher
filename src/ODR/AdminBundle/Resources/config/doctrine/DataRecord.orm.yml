@@ -1,0 +1,118 @@
+ODR\AdminBundle\Entity\DataRecord:
+    type: entity
+    table: odr_data_record
+    gedmo:
+        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+#        revision:
+#            type: integer
+#            unsigned: true
+#            nullable: false
+#            default: 0
+#            column: revision
+
+        external_id:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: external_id
+            gedmo:
+                - versioned
+
+        publicDate:
+            type: datetime
+            nullable: false
+            column: public_date
+            gedmo:
+                - versioned
+        deletedAt:
+            type: date
+            nullable: true
+            gedmo:
+                - versioned
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+    oneToMany:
+        dataRecordFields:
+            targetEntity: DataRecordFields
+            cascade: {  }
+            mappedBy: dataRecord
+            fetch: EXTRA_LAZY
+            joinColumns:
+                data_record_id:
+                    referencedColumnName: id
+        grandchildren:
+            targetEntity: DataRecord
+            mappedBy: grandparent
+            fetch: EXTRA_LAZY
+        children:
+            targetEntity: DataRecord
+            mappedBy: parent
+            fetch: EXTRA_LAZY
+    manyToOne:
+        parent:
+            targetEntity: DataRecord
+            inversedBy: children
+            fetch: EXTRA_LAZY
+            gedmo:
+                - versioned
+        grandparent:
+            targetEntity: DataRecord
+            fetch: EXTRA_LAZY
+            inversedBy: grandchildren
+            gedmo:
+                - versioned
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            fetch: EXTRA_LAZY
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            fetch: EXTRA_LAZY
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        dataType:
+            targetEntity: DataType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            fetch: LAZY
+            joinColumns:
+                data_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+    lifecycleCallbacks: {  }

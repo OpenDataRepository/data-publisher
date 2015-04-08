@@ -1,0 +1,68 @@
+ODR\AdminBundle\Entity\ODRUserExtend:
+    type: entity
+    table: odr_user_extend
+    gedmo:
+        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        firstName:
+            type: string
+            length: 32
+            fixed: false
+            nullable: false
+            default: ''
+            column: first_name
+            gedmo:
+                - versioned
+        lastName:
+            type: string
+            length: 32
+            fixed: false
+            nullable: false
+            default: ''
+            column: last_name
+            gedmo:
+                - versioned
+
+        deletedAt:
+            type: date
+            nullable: true
+            gedmo:
+                - versioned
+
+    oneToOne:
+        user:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                user_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+#        updatedBy:
+#            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+#            cascade: {  }
+#            mappedBy: null
+#            inversedBy: null
+#            joinColumns:
+#                updatedBy:
+#                    referencedColumnName: id
+#            orphanRemoval: false
+#            gedmo:
+#                - versioned
+#            gedmo:
+#                blameable:
+#                    on: update
+    lifecycleCallbacks: {  }

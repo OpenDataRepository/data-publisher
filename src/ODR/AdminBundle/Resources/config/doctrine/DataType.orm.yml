@@ -1,0 +1,227 @@
+ODR\AdminBundle\Entity\DataType:
+    type: entity
+    table: odr_data_type
+    gedmo:
+        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        searchSlug:
+            type: string
+            length: 32
+            fixed: false
+            nullable: true
+            column: search_slug
+            gedmo:
+                - versioned
+        shortName:
+            type: string
+            length: 32
+            fixed: false
+            nullable: false
+            column: short_name
+            gedmo:
+                - versioned
+        longName:
+            type: string
+            length: 128
+            fixed: false
+            nullable: false
+            column: long_name
+            gedmo:
+                - versioned
+        description:
+            type: text
+            fixed: false
+            nullable: true
+            column: description
+            gedmo:
+                - versioned
+        multipleRecordsPerParent:
+            type: boolean
+            nullable: false
+            column: multiple_records_per_parent
+            gedmo:
+                - versioned
+        useShortResults:
+            type: boolean
+            nullable: false
+            default: true
+            column: use_short_results
+            gedmo:
+                - versioned
+        display_type:
+            type: integer
+            nullable: false
+            default: 0
+            column: display_type
+            gedmo:
+                - versioned
+        revision:
+            type: integer
+            unsigned: true
+            nullable: false
+            default: 0
+            column: revision
+
+        has_shortresults:
+            type: boolean
+            nullable: false
+            default: false
+            column: has_shortresults
+        has_textresults:
+            type: boolean
+            nullable: false
+            default: false
+            column: has_textresults
+
+        publicDate: 
+            type: datetime
+            nullable: false
+            column: public_date
+            gedmo:
+                - versioned
+        deletedAt:
+            type: date
+            nullable: true
+            gedmo:
+                - versioned
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+    oneToOne:
+        nameField:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+#                data_fields_id:
+                type_name_datafield_id:
+                    nullable: true
+                    referencedColumnName: id
+            orphanRemoval: false
+            fetch: EXTRA_LAZY
+            gedmo:
+                - versioned
+        sortField:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+#                data_fields_id:
+                sort_datafield_id:
+                    nullable: true
+                    referencedColumnName: id
+            orphanRemoval: false
+            fetch: EXTRA_LAZY
+            gedmo:
+                - versioned
+        backgroundImageField:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+#                data_fields_id:
+                background_image_datafield_id:
+                    nullable: true
+                    referencedColumnName: id
+            orphanRemoval: false
+            fetch: EXTRA_LAZY
+            gedmo:
+                - versioned
+    manyToOne:
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            fetch: EXTRA_LAZY
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+#                blameable:
+#                    on: create
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            fetch: EXTRA_LAZY
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+#                blameable:
+#                    on: update
+        renderPlugin:
+            targetEntity: RenderPlugin
+            cascade: {  }
+            inversedBy: dataType
+            joinColumns:
+                render_plugin_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            fetch: EXTRA_LAZY
+            gedmo:
+                - versioned
+    oneToMany:
+        themeDataType:
+            targetEntity: ThemeDataType
+            cascade: {  }
+            mappedBy: dataType
+            inversedBy: null
+            fetch: EXTRA_LAZY
+            joinColumns:
+                theme_data_type_id:
+                    referencedColumnName: id
+            gedmo:
+                - versioned
+        dataFields:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: dataType
+            inversedBy: null
+            fetch: EXTRA_LAZY
+            orderBy:
+                displayOrder: ASC
+                id: ASC
+            joinColumns:
+                data_fields_id:
+                    referencedColumnName: id
+            gedmo:
+                - versioned
+        themeElement:
+            targetEntity: ThemeElement
+            cascade: {  }
+            mappedBy: dataType
+            inversedBy: null
+            fetch: EXTRA_LAZY
+            orderBy: 
+                displayOrder: ASC
+                id: ASC
+            joinColumns:
+                theme_data_type_id:
+                    referencedColumnName: id
+            gedmo:
+                - versioned
+    lifecycleCallbacks: {  }

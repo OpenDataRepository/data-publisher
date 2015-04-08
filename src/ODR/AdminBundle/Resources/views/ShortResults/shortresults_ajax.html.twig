@@ -1,0 +1,15 @@
+{% spaceless %}
+
+{% set datatype = datatype_tree.datatype %}
+
+{% include 'ODRAdminBundle:ShortResults:shortresults_area.html.twig' with {'datatype_tree': datatype_tree, 'datarecord_tree': datarecord_tree} %}
+
+<script>
+
+$(function() {
+    $(".MenuDesignArea").remove();
+});
+
+</script>
+
+{% endspaceless %}

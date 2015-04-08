@@ -1,0 +1,32 @@
+{% macro input(datatype_tree, datarecord_tree, using_metadata, baseurl) %}
+
+{% set datatype = datatype_tree.datatype %}
+
+{% for dr_entry in datarecord_tree %}
+    {% set datarecord = dr_entry.datarecord %}
+
+    {% if datatype_tree.is_link == 1 %}
+        <linked_type>
+    {% elseif datatype_tree.top_level == false %}
+        <_{{ datatype.getxmlshortname }}_child>
+    {% endif %}
+
+    {% include 'ODRAdminBundle:XMLExport:xml_fields.html.twig' with {'datatype_tree': datatype_tree, 'dr_entry': dr_entry, 'using_metadata': using_metadata, 'baseurl': baseurl} %}
+
+    {% if using_metadata == true and datatype_tree.is_link == 0 %} {# shouldn't display for links? #}
+            <_datarecord_metadata>
+                {#<_internal_id>{{ datarecord.id }}</_internal_id>#}
+                <_external_id>{{ datarecord.getexternalid }}</_external_id>
+                <_create_date>{{ datarecord.created|date('Y-m-d H:i:s') }}</_create_date>
+                <_create_auth>{{ datarecord.getcreatedby.getuserextend.firstname }} {{ datarecord.getcreatedby.getuserextend.lastname }}</_create_auth>
+            </_datarecord_metadata>
+    {% endif %}
+
+    {% if datatype_tree.is_link == 1 %}
+        </linked_type>
+    {% elseif datatype_tree.top_level == false %}
+        </_{{ datatype.getxmlshortname }}_child>
+    {% endif %}
+{% endfor %}
+
+{% endmacro %}

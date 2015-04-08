@@ -1,0 +1,114 @@
+{% spaceless %}
+
+{% set datatype = datatype_tree.datatype %}
+{% set datarecord = dr_entry.datarecord %}
+{% set drf_list = dr_entry.datarecordfields %}
+{% set form_list = dr_entry.forms %}
+
+{% set can_edit_record = 0 %}
+{% set can_add_record = 0 %}
+{% set can_delete_record = 0 %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'edit' ] is defined %}
+    {% set can_edit_record = 1 %}
+{% endif %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'add' ] is defined %}
+    {% set can_add_record = 1 %}
+{% endif %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'delete' ] is defined %}
+    {% set can_delete_record = 1 %}
+{% endif %}
+
+
+{% if datatype.getdisplaytype == 1 or datatype.getdisplaytype == 2 %}
+    {% if datarecord.grandparent != null %}
+    <div id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools pure-u-1">
+        <span style="float: right;" rel="{{ datatype.id }}">
+            <i id="datarecord_{{ datarecord.id }}_public" class="fa fa-globe {% if datarecord.ispublic == false %}IconRed{% endif %} {% if datatype_tree.is_link == 0 and can_edit_record == 1 %}Pointer tooltip ODRPublicChildRecord{% endif %}" title="{% if datatype_tree.is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if datarecord.ispublic == false %}not {% endif %}Public" rel="{{ datarecord.id }}"></i>
+
+        {% if datatype_tree.is_link == 0 and can_delete_record == 1 %}
+            <i class="Pointer tooltip fa fa-times ODRDeleteChildRecord" title="Delete Child Record" rel="{{ datarecord.id }}"></i>
+        {% endif %}
+        </span>
+    </div>
+    {% endif %}
+{% endif %}
+
+{% for data in datatype_tree.theme_elements %}
+    {% set theme_element = data.theme_element %}
+
+    {#<div id="Element_{{ theme_element.id }}" class="ODRSortable">#}
+        <div class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.getcsswidthmed }} pure-u-xl-{{ theme_element.getcsswidthxl }}">
+        <div class="ODRInnerBox">
+
+        {% if data.datafields != null %}
+            {% for field in data.datafields %}
+
+                {% set theme_datafield = field.theme_datafield %}
+                {% set datafield = field.datafield %}
+                {% set datafield_id = datafield.id %}
+
+                {% set can_view_datafield = 0 %}
+                {% set can_edit_datafield = 0 %}
+                {% if datafield_permissions[ datafield.id ] is defined and datafield_permissions[ datafield.id ][ 'view' ] is defined %}
+                    {% set can_view_datafield = 1 %}
+                {% endif %}
+                {% if datafield_permissions[ datafield.id ] is defined and datafield_permissions[ datafield.id ][ 'edit' ] is defined %}
+                    {% set can_edit_datafield = 1 %}
+                {% endif %}
+
+                <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.getcsswidthmed }} pure-u-xl-{{ theme_datafield.getcsswidthxl }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}">
+
+                {% if datafield.fieldtype.typename == "Markdown" %}
+                    {% include 'ODRAdminBundle:Results:results_markdown.html.twig' with {'field': datafield} %}
+                {% elseif datatype_tree.is_link == 0 and can_view_datafield == 1 and can_edit_datafield == 1 %}
+                    {% include 'ODRAdminBundle:Record:record_datafield.html.twig' with {'fieldtheme': theme_datafield, 'field': datafield, 'datatype': datatype, 'datarecord': datarecord, 'datarecordfield': drf_list[datafield_id], 'form': form_list[datafield_id]} %}
+                {% elseif can_view_datafield == 1 %}
+                    {% include 'ODRAdminBundle:Results:results_datafield.html.twig' with {'fieldtheme': theme_datafield, 'field': datafield, 'datatype': datatype, 'datarecord': datarecord, 'datarecordfield': drf_list[datafield_id], 'form': form_list[datafield_id], 'public_only': false} %}
+                {% else %}
+                    {# user can't view or edit datafield, don't display anything #}
+                {% endif %}
+
+                </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->
+            {% endfor %}
+
+        {% elseif data.datatype != null %}
+            {% set childtype = data.datatype.datatype %}
+            {% set datarecord_children = [] %}
+            {% if dr_entry.child_datarecords[childtype.id] is defined %}
+                {% set datarecord_children = dr_entry.child_datarecords[childtype.id] %}
+            {% endif %}
+
+            <div class="ODRChildDatatype" id="ChildTypeWrapper_{{ childtype.id }}_{{ datarecord.id }}">
+{#
+                {% if data.datatype.is_link == 1 %}
+                    {% import "ODRAdminBundle:Results:results_childtype.html.twig" as mychildform %}
+                    {{ mychildform.input(data.datatype, datarecord_children, theme, false) }}
+                {% else %}
+#}
+                    {% import "ODRAdminBundle:Record:record_childtype.html.twig" as mychildform %}
+                    {{ mychildform.input(data.datatype, datarecord_children, theme, datatype_permissions, datafield_permissions) }}
+{#
+                {% endif %}
+#}
+                <div>
+                {% if data.datatype.is_link == 1 %}
+                    {% if can_edit_record == 1 %}
+                    <button class="pure-button pure-button-primary" type="button" onclick="LinkRecord({{ datatype.id }},{{ childtype.id }},{{ datarecord.id }});">Link {{ childtype.shortname }} record.</button>
+                    {% endif %}
+                {% elseif childtype.multiplerecordsperparent > 0 %}
+                    {% if can_add_record == 1 %}
+                    <button class="pure-button pure-button-primary" type="button" onclick="AddChildRecord({{ childtype.id }},{{ datarecord.id }},{{ datarecord.grandparent.id }});">Add {{ childtype.shortname }} record.</button>
+                    {% endif %}
+                {% endif %}
+                </div>
+            </div><!-- End of #ChildTypeWrapper_{{ childtype.id }}_{{ datarecord.id }} -->
+
+        {% endif %}
+
+        </div><!-- End of .ODRInnerBox -->
+        </div><!-- End of .ThemeElement -->
+    {#</div><!-- End of #Element_{{ theme_element.id }} -->#}
+
+{% endfor %}
+
+{% endspaceless %}

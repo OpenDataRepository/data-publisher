@@ -1,0 +1,179 @@
+ODR\AdminBundle\Entity\DataRecordFields:
+    type: entity
+    table: odr_data_record_fields
+    gedmo:
+        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        deletedAt:
+            type: date
+            nullable: true
+            gedmo:
+                - versioned
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+    manyToOne:
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            fetch: LAZY
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            fetch: LAZY
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        dataRecord:
+            targetEntity: DataRecord
+            cascade: {  }
+            mappedBy: dataRecord
+            inversedBy: dataRecordFields
+            fetch: LAZY
+            joinColumns:
+                data_record_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        dataField:
+            targetEntity: DataFields
+            cascade: {  }
+#            mappedBy: null
+            mappedBy: dataField
+#            inversedBy: null
+            inversedBy: dataRecordFields
+            fetch: LAZY
+            joinColumns:
+                data_field_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+    oneToOne:
+        boolean:
+            targetEntity: Boolean
+            cascade: {  }
+            mappedBy: dataRecordFields
+            fetch: LAZY
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+        integerValue:
+            targetEntity: IntegerValue
+            cascade: {  }
+            mappedBy: dataRecordFields
+            fetch: LAZY
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+        decimalValue:
+            targetEntity: DecimalValue
+            cascade: {  }
+            mappedBy: dataRecordFields
+            fetch: LAZY
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+        longText:
+            targetEntity: LongText
+            cascade: {  }
+            mappedBy: dataRecordFields
+            fetch: LAZY
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+        longVarchar:
+            targetEntity: LongVarchar
+            cascade: {  }
+            mappedBy: dataRecordFields
+            fetch: LAZY
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+        mediumVarchar:
+            targetEntity: MediumVarchar
+            cascade: {  }
+            mappedBy: dataRecordFields
+            fetch: LAZY
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+        shortVarchar:
+            targetEntity: ShortVarchar
+            cascade: {  }
+            mappedBy: dataRecordFields
+            fetch: LAZY
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+        datetimeValue:
+            targetEntity: DatetimeValue
+            cascade: {  }
+            mappedBy: dataRecordFields
+            fetch: LAZY
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+    oneToMany:
+        image:
+            targetEntity: Image
+            cascade: {  }
+            mappedBy: dataRecordFields
+            fetch: LAZY
+            orderBy:
+                displayorder: ASC
+                id: ASC
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+        file:
+            targetEntity: File
+            cascade: {  }
+            mappedBy: dataRecordFields
+            fetch: LAZY
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+#        xyzValue:
+#            targetEntity: DataRecordFields
+#            cascade: {  }
+#            mappedBy: dataRecordFields
+#            fetch: LAZY
+#            joinColumns:
+#                data_record_fields_id:
+#                    referencedColumnName: id
+        radioSelection:
+            targetEntity: RadioSelection
+            cascade: {  }
+            mappedBy: dataRecordFields
+            fetch: LAZY
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+    lifecycleCallbacks: {  }

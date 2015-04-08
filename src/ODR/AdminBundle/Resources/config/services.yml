@@ -1,0 +1,26 @@
+parameters:
+#    adminbundle.db.table_prefix: odr_
+#    odr_admin.example.class: ODR\AdminBundle\Example
+
+services:
+#    adminbundle.tblprefix_subscriber:
+#        class: ODR\AdminBundle\Subscriber\TablePrefixSubscriber
+#        arguments: [%adminbundle.db.table_prefix%]
+#        tags:
+#            - { name: doctrine.event_subscriber }
+#    odr_admin.example:
+#        class: %odr_admin.example.class%
+#        arguments: [@service_id, "plain_value", %parameter%]
+#    odr.twig.graph_extension:
+#        class: ODR\AdminBundle\Twig\GraphExtension
+#        tags:
+#            - { name: twig.extension }
+  odr.twig.plug_extension:
+      class: ODR\AdminBundle\Twig\PlugExtension
+      arguments: 
+          container: "@service_container"
+      tags:
+          - { name: twig.extension }
+
+  odr_search_controller:
+      class: ODR\OpenRepository\SearchBundle\Controller\DefaultController

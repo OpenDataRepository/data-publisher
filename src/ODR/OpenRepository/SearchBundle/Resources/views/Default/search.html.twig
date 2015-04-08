@@ -1,0 +1,534 @@
+{% spaceless %}
+
+<div class="pure-u-1 pure-u-md-1-3">
+
+    <div class="pure-u-sm-1-4"></div>
+    <form id="search_form" class="pure-form pure-u-sm-1-2 pure-u-md-7-8">
+
+    {% if searchable_datafields|length == 0 %}
+        <strong>This DataType has no searchable DataFields.</strong>
+    {% else %}
+        {#<input type="hidden" id="search_key" value="{{ search_key }}" />#}
+        {% for datatype_id,datatype in datatypes %}
+        <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />
+        {% endfor %}
+
+        <fieldset>
+            <div id="search_top">
+                <div class="pure-u-1">
+                    <input type="hidden" id="search_type" value="basic"/>
+                    <a class="ODRSearchHelper Pointer pure-u-1" onclick="changeSearch();">Open Advanced Search</a>
+                </div>
+                <div class="pure-u-1">
+                    <button class="pure-button pure-button pure-u-1-2 pure-u-lg-1-2" type="button" onclick="doReset();">Reset</button>
+                    <button class="pure-button pure-button-primary pure-u-1-2 pure-u-lg-1-2" type="submit">Search</button>
+                </div>
+            </div>
+        <fieldset>
+
+{#
+        <fieldset>
+            <div class="pure-u-1" style="display:none">
+                <label for="dropdown_1" class="pure-u-1-3">Search </label>
+                <select id="dropdown_1" class="pure-u-2-3" name="datatype_id" onchange="changeDatatype();">
+                {% for datatype_id,datatype in datatypes %}
+                    <option value="{{ datatype_id }}">{{ datatype.shortname }}</option>
+                {% endfor %}
+                </select>
+            </div>
+        </fieldset>
+#}
+
+        <fieldset>
+            <div class="pure-u-1">
+                <label for="textbox_general" class="pure-u-1-3">Search for: <i class="fa fa-lg fa-question-circle Pointer ODRSearchHelp"></i></label>
+                <input id="textbox_general" class="pure-u-2-3" type="text" name="general_string" {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %}/>
+            </div>
+            <div class="pure-u-1" id="ODRSearchHelp_div" style="display:none;">
+
+<table class="pure-table pure-table-striped">
+    <thead>
+        <tr>
+            <th>Search Term</th>
+            <th>Definition</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>item</td>
+            <td>Searches for datafields containing the word "item".</td>
+        </tr>
+        <tr>
+            <td>"item"</td>
+            <td>Searches for datafields containing only the word "item" and nothing else.</td>
+        </tr>
+        <tr>
+            <td>!item</td>
+            <td>Searches for datafields that does not contain "item".</td>
+        </tr>
+        <tr>
+            <td>!"item"</td>
+            <td>Searches for datafields that contain anything other than just the word "item".</td>
+        </tr>
+        <tr>
+            <td>a b</td>
+            <td>Searches for datafields containing both "a" and "b".</td>
+        </tr>
+        <tr>
+            <td>"a b" "c d"</td>
+            <td>Searches for datafields containing both the item "a b" and the item "c d".</td>
+        </tr>
+        <tr>
+            <td>a || b</td>
+            <td>Searches for datafields containing either "a", or "b", or both.</td>
+        </tr>
+        <tr>
+            <td>&gt;123</td>
+            <td>Searches for datafields containing a number greater than 123.</td>
+        </tr>
+        <tr>
+            <td>&lt;123</td>
+            <td>Searches for datafields containing a number less than 123.</td>
+        </tr>
+    </tbody>
+</table>
+
+            </div>
+        </fieldset>
+
+        {% for datatype_id,datatype in datatypes %}
+        <fieldset>
+            {% for datafield in searchable_datafields %}
+                {% set field_typename = datafield.getfieldtype.typename %}
+                <div class="ODRAdvSearch pure-u-1">
+                    <label for="textbox_{{ datafield.id }}" class="pure-u-1-3" title="{{ datafield.getdescription }}">{{ datafield.getfieldname }}:</label>
+                    {% if field_typename == "Boolean" %}
+                        <select class="ODRInput pure-u-2-3" id="select_{{ datafield.id }}" name="{{ datafield.id }}">
+                            <option value="">Any</option>
+                            <option value="0">Unselected</option>
+                            <option value="1">Selected</option>
+                        </select>
+
+                    {% elseif field_typename == "File" or field_typename == "Image" %}
+                        <select class="ODRInput pure-u-2-3" id="select_{{ datafield.id }}" name="{{ datafield.id }}">
+                            <option value="">Any</option>
+                            <option value="1">Has {{ field_typename }}s</option>
+                            <option value="0">Does not have {{ field_typename }}s</option>
+                        </select>
+
+                    {% elseif field_typename == 'DateTime' %}
+                        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datafield_{{ datafield.id }}_start" name="{{ datafield.id }}_start" value="" rel="datafield_{{ datafield.id }}" />
+
+                        </div>
+                    <div class="ODRAdvSearch pure-u-1">
+                        <label class="pure-u-1-3"></label>
+                        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datafield_{{ datafield.id }}_end" name="{{ datafield.id }}_end" value="" rel="datafield_{{ datafield.id }}" />
+                    {#</div>#}
+
+                    {% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}
+                        <select class="ODRInput pure-u-2-3" id="select_{{ datafield.id }}" name="{{ datafield.id }}" {% if field_typename == "Multiple Select" %}multiple size="7"{% endif %}>
+                            {% if field_typename == "Single Select" %}
+                            <option id="Option_0" value="">No Option Selected</option>
+                            {% endif %}
+
+                            {% for radio_option in datafield.getRadioOptions %}
+                            <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id }}">{{ radio_option.getOptionName }}</option>
+                            {% endfor %}
+                        </select>
+
+                        {% if field_typename == "Multiple Select" %}
+                        <span class="pure-u-1-3"></span>
+                        <span class="Pointer ODRClear pure-u-2-3"><u>Clear Selection</u></span>
+                        {% endif %}
+
+                    {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}
+                        <span class="pure-u-2-3" id="Input_{{ datafield.id }}" style="max-height:200px; overflow-y:auto; overflow-x:hidden;">
+                            {% if field_typename == "Single Radio" %}
+                            <label class="ODRFieldLabel pure-u-1" style="margin: 0.5em 0;">
+                                <input type="radio" name="{{ datafield.id }}" value="" class="ODRInput ODRDefaultOption" disabled />
+                                No Option Selected
+                            </label>
+                            {% endif %}
+                            {% for radio_option in datafield.getRadioOptions %}
+                            <label id="Label_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="pure-u-1" style="margin: 0.5em 0;">
+                                {% if field_typename == "Single Radio" %}
+                                <input id="Input_{{ radio_option.id }}" type="radio" name="{{ datafield.id }}" value="{{ radio_option.id }}" class="ODRInput" disabled />
+                                {% else %}
+                                <input id="Input_{{ radio_option.id }}" type="checkbox" name="{{ datafield.id }}" value="{{ radio_option.id }}" class="ODRInput ODRCheckbox" disabled />
+                                {% endif %}
+                                {{ radio_option.getOptionName }}
+                            </label>
+                            {% endfor %}
+                        </span>
+
+                    {% else %}
+                        <input type="text" class="ODRInput pure-u-2-3" id="textbox_{{ datafield.id }}" name="{{ datafield.id }}" />
+
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </fieldset>
+
+        {% if logged_in == true %}
+        <fieldset>
+            <div class="ODRAdvSearch pure-u-1">
+                <label class="pure-u-1-3">Modified Date:</label>
+                <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype.id }}_modify_start" name="modify_date_start" value="" rel="datatype_{{ datatype.id }}_modify" />
+            </div>
+            <div class="ODRAdvSearch pure-u-1">
+                <label class="pure-u-1-3"></label>
+                <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype.id }}_modify_end" name="modify_date_end" value="" rel="datatype_{{ datatype.id }}_modify" />
+            </div>
+
+            <div class="ODRAdvSearch pure-u-1">
+                <label class="pure-u-1-3">Modified By:</label>
+                <select class="ODRInput pure-u-2-3" id="select_modified_by" name="modified_by">
+                    <option {#value="-1"#}></option>
+                    {% for u in user_list %}
+                    <option value="{{ u.id }}">{{ u.getuserextend.firstname }} {{ u.getuserextend.lastname }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="ODRAdvSearch pure-u-1">
+                <label class="pure-u-1-3">Created Date:</label>
+                <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype.id }}_create_start" name="create_date_start" value="" rel="datatype_{{ datatype.id }}_create" />
+            </div>
+            <div class="ODRAdvSearch pure-u-1">
+                <label class="pure-u-1-3"></label>
+                <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype.id }}_create_end" name="create_date_end" value="" rel="datatype_{{ datatype.id }}_create" />
+            </div>
+
+            <div class="ODRAdvSearch pure-u-1">
+                <label class="pure-u-1-3">Created By:</label>
+                <select class="ODRInput pure-u-2-3" id="select_created_by" name="created_by">
+                    <option {#value="-1"#}></option>
+                    {% for u in user_list %}
+                    <option value="{{ u.id }}">{{ u.getuserextend.firstname }} {{ u.getuserextend.lastname }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="ODRAdvSearch pure-u-1">
+                <label class="pure-u-1-3">Public status:</label>
+                <select class="ODRInput pure-u-2-3" id="select_public" name="public">
+                    <option id="Option_0" value="">Any</option>
+                    <option id="Option_nonpublic" value="0">Non-public</option>
+                    <option id="Option_public" value="1">Public</option>
+                </select>
+            </div>
+        </fieldset>
+        {% endif %}
+
+        {% endfor %}
+
+        <fieldset>
+            <div class="pure-u-1">
+                <input type="hidden" id="search_type" value="basic"/>
+                <a class="ODRSearchHelper Pointer pure-u-1" onclick="changeSearch();">Open Advanced Search</a>
+            </div>
+            <div class="pure-u-1">
+                <button class="pure-button pure-button pure-u-1-2 pure-u-lg-1-2" type="button" onclick="doReset();">Reset</button>
+                <button class="pure-button pure-button-primary pure-u-1-2 pure-u-lg-1-2" type="submit">Search</button>
+            </div>
+        <fieldset>
+    {% endif %}
+    </form>
+    <div class="pure-u-sm-1-4"></div>
+
+    {% if linked_datatypes != null %}
+    <div class="pure-u-1">
+        {% for short_name,search_slug in linked_datatypes %}
+        <button class="pure-button pure-button-primary" type="button" onclick="searchRelated('{{ search_slug }}');">Search {{ short_name }}</button>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="pure-u-1 pure-u-md-2-3">
+    <img id="odr_bg" class="pure-img" />
+</div>
+
+<script>
+
+    $(function() {
+        $("#search_top").hide();
+        $(".ODRAdvSearch").hide();
+        $(".ODRInput").prop('disabled', true);
+
+        $("#search_form").unbind('submit');
+        $("#search_form").submit(function(event) {
+            event.preventDefault();
+            doSearch();
+        });
+
+        {% if search_string is defined and search_string != '' %}
+        // No need to set up rest of form, just do an immediate search
+        doSearch();
+        {% endif %}
+
+        $("#textbox_general").focus();
+
+        $(".ODRDatePicker").datepicker({
+            showOtherMonths: true,
+            selectOtherMonths: true,
+            changeMonth: true,
+            changeYear: true,
+            dateFormat: 'yy-mm-dd',
+
+            onSelect: function(dateText, inst) {
+                var field_id = $(this).attr('rel');
+
+                var start_date = $("#" + field_id + "_start").val();
+                var end_date = $("#" + field_id + "_end").val();
+//alert(start_date + ' ' + end_date);
+                if (end_date != '' && start_date != '') {
+                    if (start_date > end_date)
+                        $("#" + field_id + "_end").datepicker( "setDate", start_date );
+                    else if (end_date < start_date)
+                        $("#" + field_id + "_start").datepicker( "setDate", end_date );
+
+                    $("#" + field_id + "_start").datepicker( "option", "maxDate", end_date );
+                    $("#" + field_id + "_end").datepicker( "option", "minDate", start_date );
+                }
+                else if (start_date == '') {
+                    $("#" + field_id + "_start").datepicker( "option", "maxDate", end_date );
+                    $("#" + field_id + "_end").datepicker( "option", "minDate", null );
+                }
+                else if (end_date == '') {
+                    $("#" + field_id + "_start").datepicker( "option", "maxDate", null );
+                    $("#" + field_id + "_end").datepicker( "option", "minDate", start_date );
+                }
+
+            },
+            onClose: function() {
+                $(this).blur();
+            },
+            beforeShow: function(input, inst) {
+// http://stackoverflow.com/questions/4598850/how-do-you-add-buttons-to-a-jquery-datepicker-in-the-button-panel
+            }
+        });
+
+        $(".ODRClear").unbind('click');
+        $(".ODRClear").click(function() {
+            $(this).prev().children().each(function() {
+                $(this).removeAttr('selected');
+            });
+        });
+
+        $(".ODRSearchHelp").unbind('click');
+        $(".ODRSearchHelp").click(function() {
+            $("#ODRSearchHelp_div").slideToggle();
+        });
+    });
+
+    function searchRelated(search_slug) {
+        var url = '{{ site_baseurl }}' + '/' + search_slug;
+        window.location = url;
+    }
+
+    function changeSearch() {
+        if ( $("#search_type").val() === 'basic' ) {
+            $("#search_type").val('advanced');
+            $(".ODRSearchHelper").each(function() {
+                $(this).html('Close Advanced Search');
+            });
+
+            $(".ODRAdvSearch").removeAttr('style');
+            $(".ODRInput").prop('disabled', false);
+
+            $("#search_top").show();
+        }
+        else {
+            $("#search_type").val('basic');
+            $(".ODRSearchHelper").each(function() {
+                $(this).html('Open Advanced Search');
+            });
+
+            $(".ODRAdvSearch").hide();
+            $(".ODRInput").prop('disabled', true);
+
+            $("#search_top").hide();
+        }
+    }
+
+    function doReset() {
+        // Single/Multiple select fields
+        $("select.ODRInput").each(function() {
+            $(this).val("-1");
+        });
+
+        // Multiple radio fields
+        $(".ODRCheckbox").each(function() {
+            if ( $(this).is(':checked') )
+                $(this).trigger('click');
+        });
+
+        // Single radio fields
+        $(".ODRDefaultOption").trigger('click');
+
+        // general field
+        $("#textbox_general").val('');
+
+        // every other field
+        $("input.ODRInput").not(".hidden").each(function() {
+            if ( $(this).hasClass('ODRDatePicker') ) {
+                $(this).datepicker('setDate', '');
+            }
+            else {
+                $(this).val('');
+            }
+        });
+
+    }
+
+    function doSearch() {
+        var selected_datatype = $("#dropdown_1").val();
+
+        var search_key = '';
+        var prev_field = '';
+        $("#search_form input").each(function() {
+            var name = $(this).attr('name');
+            var type = $(this).attr('type');
+            var value = $(this).attr('value');
+
+            var divider = '|';
+
+            // Don't want empty values clogging the string
+            if (name == undefined || value == '')
+                return;
+
+            if (type == 'text' || type == 'hidden') {
+                prev_field = '';
+                value = encodeURIComponent(value);
+
+                if (search_key != '')
+                    search_key += divider;
+
+                search_key += name + '=' + value;
+            }
+            else if (type == 'radio') {
+                // Only care about this if the field is checked
+                prev_field = '';
+                if ( $(this).is(':checked') )
+                    search_key += divider + name + '=' + value;     // can only ever have one value, and never occurs at the start of search_key
+            }
+            else if (type == 'checkbox') {
+                // Only care about this if the field is checked
+                if ( $(this).is(':checked') ) {
+                    if (name != prev_field) {
+                        prev_field = name;
+                        search_key += divider + name + '=' + value;     // never occurs at the start of search_key
+                    }
+                    else {
+                        search_key += ',' + value;
+                    }
+                }
+            }
+//alert( 'name: ' + name + ' type: ' + type + ' value: ' + value );
+        });
+        $("#search_form select").each(function() {
+            var name = $(this).attr('name');
+
+            var divider = '|';
+
+            var prev_field = '';
+            $(this).children(':selected').each(function() {
+
+                var value = $(this).attr('value');
+                if (value == '')
+                    return;
+
+                if (name != prev_field) {
+                    prev_field = name;
+                    search_key += divider + name + '=' + value;
+                }
+                else {
+                    search_key += ',' + value;
+                }
+            });
+//alert( 'name: ' + name + ' value: ' + value );
+        });
+
+//alert( 'search_key: ' + search_key );
+//return;
+
+        // Request search results
+        var url = '{{ path( 'odr_search_results', { 'search_key': '' } ) }}';
+        url += search_key;
+
+        $("#loading-overlay").fadeIn();
+        $("#loading").html('<span>Searching...</span>');
+        $("#loading").fadeIn();
+
+        $.ajax({
+            type: 'GET',
+            url: url,
+            dataType: 'json',
+//data: search_key,
+            success: function(data, textStatus, jqXHR) {
+                if (data.r == 0) {
+                {% if source == "searching" %}
+                    // Now that the search has been performed and cached, render the results
+                    var url = '{{ path('odr_search_render', { 'search_key': '', 'offset': '1' } ) }}';
+                    url = url.substr(0, url.length-1);
+                    url += '/' + search_key + '/1';
+
+                    // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
+                    UpdateURL(url);
+
+                {% elseif source == "linking" %}
+                    var url = '{{ path('odr_search_render', { 'search_key': '', 'offset': '1', 'source': 'linking' } ) }}';
+                    url = url.substr(0, url.length-10);
+                    url += search_key + '/1/linking';
+
+                    // Render the html into the search_content div on this page
+                    $.ajax({
+                        type: 'GET',
+                        url: url,
+                        dataType: 'json',
+                        success: function(data, textStatus, jqXHR) {
+                            $(".search_content").html( data.d.html );
+                        }
+                    });
+                {% endif %}
+                }
+                else {
+                    alert( data.d );
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                $("#loading-overlay").fadeOut();
+                $("#loading").fadeOut();
+                $("#loading").html('<span>Loading...</span>');
+
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+{% if background_image_id != null %}
+<script>
+$(window).load(function() {    
+    // After the rest of the page is loaded, start loading the bg image
+    var url = "{{ path('odr_image_download', {'image_id': 0 }) }}";
+    url = url.substring(0, url.length-1);
+    url += "{{ background_image_id }}";
+
+    $("#odr_bg").attr('src', url);
+});
+</script>
+{% endif %}
+
+{% endspaceless %}

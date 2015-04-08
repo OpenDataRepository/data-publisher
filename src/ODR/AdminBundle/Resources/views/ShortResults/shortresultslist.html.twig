@@ -1,0 +1,119 @@
+{% spaceless %}
+<div class="ODRFormWrap"> 
+    <div class="header">
+    {% if datatype != null %}
+        {% if target == "results" %}
+            <h2>Display Records - {{ datatype.shortname }}</h2>
+        {% else %}
+            <h2>Edit Records - {{ datatype.shortname }}</h2>
+        {% endif %}
+    {% endif %}
+    </div>
+
+{% if count > 0 %}
+    <div class="ODRShortResult">
+    {{ html | raw }}
+    </div>
+{% else %}
+    <center>No Records found!</center>
+{% endif %}
+
+</div><!-- End of .ODRFormWrap -->
+
+{% set user_role = '' %}
+{% if user != 'anon.' %}
+    {% for role in user.getroles %}
+        {% if role == 'ROLE_SUPER_ADMIN' %}
+            {% set user_role = 'ROLE_SUPER_ADMIN' %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
+{% if user_role == 'ROLE_SUPER_ADMIN' and count > 0 %}
+<div style="margin-top:25px;">
+    <button class="pure-button pure-button-primary" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
+    &nbsp;&nbsp;&nbsp;
+    {#<button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>#}
+</div>
+{% endif %}
+
+<style type="text/css">
+    .ShortResults_offset {
+        min-height: 10px;
+    }
+</style>
+
+<script type="text/javascript">
+
+    $(function() {
+        $(".MenuDesignArea").remove();
+
+        var prevent_scroll = false;
+        ShortResults_initPage(prevent_scroll);
+    });
+
+    function ShortResults_initPage(prevent_scroll) {
+        $(".ODRFieldArea").each(function() {
+            var max_height = 0;
+
+            $(this).find(".ODRDataField").each(function() {
+                var position = $(this).position();
+                var element_offset = position.top + $(this).height();
+
+                if (element_offset > max_height)
+                    max_height = element_offset;
+            });
+
+            if (max_height > 0) {
+//                $(this).css('height', max_height + 'px');
+//                $(this).css('min-height', max_height + 'px');
+//                $(this).parents('.ChildDataType').css('height', max_height + 'px');
+            }
+        });
+
+{% if scroll_target != '' %}
+//alert( {{ scroll_target }} );
+        if (!prevent_scroll) {
+            var datarecord = '.DataRecord_' + {{ scroll_target }};
+            if ( $(datarecord) !== null && $(datarecord) !== undefined && $(datarecord).parent().prev().offset() !== null ) {
+                $('html, body').animate({
+                    scrollTop: $(datarecord).parent().prev().offset().top
+                }, 500);
+            }
+        }
+{% endif %}
+
+    }
+
+{% if count > 0 and user_role == 'ROLE_SUPER_ADMIN' %}
+    function doMassEdit() {
+        {% if search_key == '' %}
+        var url = '{{ path('odr_mass_edit_list', { 'datatype_id': 0 }) }}';
+        url = url.substr(0, url.length-1);
+        url += '{{ datatype.id }}';
+        {% else %}
+        var url = '{{ path('odr_mass_edit_searchlist', { 'datatype_id': 0, 'search_key': '' }) }}';
+        url = url.substr(0, url.length-2);
+        url += '{{ datatype.id }}' + '/' + '{{ search_key }}';
+        {% endif %}
+
+        UpdateURL(url);
+    }
+    function doCSVExport() {
+        {% if search_key == '' %}
+        var url = '{{ path('odr_csv_export_list', { 'datatype_id': 0 }) }}';
+        url = url.substr(0, url.length-1);
+        url += '{{ datatype.id }}';
+        {% else %}
+        var url = '{{ path('odr_csv_export_searchlist', { 'datatype_id': 0, 'search_key': '' }) }}';
+        url = url.substr(0, url.length-2);
+        url += '{{ datatype.id }}' + '/' + '{{ search_key }}';
+        {% endif %}
+
+        UpdateURL(url);
+    }
+{% endif %}
+</script>
+{% endspaceless %}
+
+{% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
+{{ js.write(target, search_key, offset) }}

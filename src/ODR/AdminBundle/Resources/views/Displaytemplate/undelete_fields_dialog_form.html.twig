@@ -1,0 +1,83 @@
+{% spaceless %}
+    <!-- Deleted Datafields Dialog Form -->
+    <form class="ODRUndeleteDatafieldsForm pure-form pure-form-aligned" action="{{ path('odr_design_undelete_datafield') }}" method="post" id="UndeleteFieldsForm">
+
+        <input type="hidden" id="undelete_datafield_id" name="datafield_id" value="" />
+
+        <fieldset>
+            <div class="pure-control-group" id="deleted_fields_table_container" style="overflow: auto; max-height: 500px;">
+                <table class="pure-table pure-table-bordered pure-table-striped">
+                    <thead><tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Field Type</th>
+                        <th>Deleted At</th>
+                        <th></th>
+                    </tr></thead>
+                    <tbody>
+                    {% for datafield in datafields %}
+                        <tr>
+                            <td>{{ datafield.fieldname }}</td>
+                            <td>{{ datafield.description }}</td>
+                            <td>{{ datafield.fieldtype.typename }}</td>
+                            <td>{{ datafield.deletedAt|date('Y-m-d') }}</td>
+                            <td><input class="pure-button pure-button-primary" type="button" onclick="undeleteField({{ datafield.id }});" value="Undelete"/></td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </fieldset>
+    </form>
+
+    <button type="button" class="pure-button ODRCancelButton">Cancel</button>
+
+    <script>
+        $(function() {
+            $( "#dialog_deleted_fields" ).dialog({
+                autoOpen: false,
+                modal: true,
+                width: 700,
+                open: function() {
+                    $(this).parent().css('overflow', 'visible');
+                },
+/*
+            }).find('button.submit').click(function(){
+                var $el = $(this).parents('.ui-dialog-content');
+                if ($el.validate().form()) {
+                    $el.find('form')[0].reset();
+                    $el.dialog('close');
+                }
+*/
+            }).find('.ODRCancelButton').click(function(){
+                var $el = $(this).parents('.ui-dialog-content');
+                $el.find('form')[0].reset();
+                $el.dialog('close');;
+            });
+
+            // Init Form
+            DeletedFieldsFormInit();
+        });
+/*
+        $(function() {
+            if(typeof(DeletedFieldsFormInit) !== "undefined") {
+                DeletedFieldsFormInit();
+            }
+        });
+*/
+        function undeleteField(field_id) {
+            if ( confirm('Are you sure...?') ) {
+                $("#undelete_datafield_id").val(field_id);
+
+                var $el = $('#dialog_deleted_fields');
+                if ($el.validate().form()) {
+                    $("#UndeleteFieldsForm").submit();
+    
+                    $el.find('form')[0].reset();
+                    $el.dialog('close');
+                }
+
+            }
+        }
+    </script>
+{% endspaceless %}

@@ -1,0 +1,95 @@
+ODR\OpenRepository\GraphBundle\Plugins\Graph:
+    name: Diffraction Graph 
+    datatype: true
+    version: 1.00
+    description: Copy/Paste of Raman Graph, for testing purposes.
+    required_fields:
+#        graph_type:
+#            name: Diffraction Graph
+#            description: A datatype containing a file, wavelength parameter, and orientation parameter.  One or more of these types may be used in this plot.
+#            type: datatype
+#            multiple: true
+#            fields: 
+        graph_file:
+            name: Graph File
+            description: A file containing XY values for plotting.
+            type: File
+    config_options:
+        graph_type:
+            name: Graph Type
+            type: string
+#            default: xy 
+            choices: xy||XY Scatter, line||Line, hbar||Horizontal Bar, vbar||Vertical Bar
+            description: Choose the graph type XY (scatter), Line, Horizontal Bar, or Vertical Bar.
+        x_axis_min:
+            name: X Axis Minimum
+            type: string
+            default: auto
+            description: Minimum X Value.  Defaults to "auto" which results in automatic calculation. 
+        x_axis_max:
+            name: X Axis Maximum
+            type: string
+            default: auto
+            description: Maximum X Value.  Defaults to "auto" which results in automatic calculation. 
+        x_axis_labels:
+            name: X Axis Labels
+            type: string
+            default: yes
+            choices: yes||no
+            description: Display numeric labels on the X axis.
+        x_axis_caption:
+            name: X Axis Caption
+            type: string
+            default: null
+            description: Enter a caption to display on the X axis.
+        x_axis_log:
+            name: X Axis Logarithmic
+            type: string
+            default: no
+            choices: yes||no
+            description: Choose to display on a logarithmic scale.
+        y_axis_min:
+            name: Y Axis Minimum
+            type: string
+            default: auto
+            description: Minimum Y Value.  Defaults to "auto" which results in automatic calculation. 
+        y_axis_max:
+            name: Y Axis Maximum
+            type: string
+            default: auto
+            description: Maximum Y Value.  Defaults to "auto" which results in automatic calculation. 
+        y_axis_labels:
+            name: Y Axis Labels
+            type: string
+            default: yes
+            choices: yes||no
+            description: Display numeric labels on the Y axis.
+        y_axis_caption:
+            name: Y Axis Caption
+            type: string
+            default: null
+            description: Enter a caption to display on the Y axis.
+        y_axis_log:
+            name: Y Axis Logarithmic
+            type: string
+            default: no
+            choices: yes||no
+            description: Choose to display on a logarithmic scale.
+        line_stroke:
+            name: Line Width
+            type: integer
+            default: 1
+            choices: 1||2||3||4||5
+            description: Set the width of the line or the pixel width of the markers.
+        line_colors:
+            name: Line Colors
+            type: string
+            default: black
+            description: Enter a comma-separated list of colors in HEX or web color names that will be used to color the lines and makers.
+        test:
+            name: Test Option
+            type: string
+            default: foo
+            choices: foo||bar||baz
+            description: Test option to differentiate from Raman Graph Plugin.
+

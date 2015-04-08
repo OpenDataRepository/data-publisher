@@ -1,0 +1,82 @@
+{% spaceless %}
+    <!-- Add Datatype Dialog -->
+    <div class="pure-form pure-g" style="display: none;" id="dialog_add_datatype" title="Add Datatype Dialog">
+        <div class="form_contents pure-u-1">
+        {% include 'ODRAdminBundle:Datatype:add_type_dialog_form.html.twig' with {'form': form} %} 
+        </div>
+    </div>
+	
+	<script>
+        $(function() {
+            AddDatatypeFormInit();
+        });
+
+        function AddDatatypeFormInit() {
+            // Initialize the form
+
+            $("#AddDatatypeForm").validationOptions({
+                submitHandler: function(form){
+                    var data = $(form).serialize();
+                    var url = $(form).attr('action');
+                    var dataType = "json";
+                    $.ajax({
+                        type: 'POST',
+                        url: url,
+                        data: data,
+                        dataType: dataType,
+                        success: function(data, textStatus, jqXHR) {
+                            if(data.r == 0) {
+                                window.location.reload();
+/*
+                                switch(data.t) {
+                                    case 'html':
+			                            $(form).parent().parent().find(".form_contents").html(data.d);
+                                    break;
+
+                                    case 'func':
+                                        // Call External Function
+                                        data.d.func(data);
+                                    break;
+                                }
+*/
+                            }
+                            else {
+                                // An error has occurred.
+                                // Show Error message dialog
+                                alert('error in form' + data.d);
+                            }
+
+                            $("#dialog_add_datatype").dialog('close');
+                        },
+                        complete: function(jqXHR, textStatus) {
+                            // Get the xdebugToken from response headers
+                            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                            // If the Sfjs object exists
+                            if (typeof Sfjs !== "undefined") {
+                                // Grab the toolbar element
+                                var currentElement = $('.sf-toolbar')[0];
+
+                                // Load the data of the given xdebug token into the current toolbar wrapper
+                                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                            }
+                        }
+                    });
+                },
+                invalidHandler: function(){
+                    // Custom invalid message here if needed
+                }
+            });
+{#
+        // - Validate
+        $("#AddDatatypeForm").validate({
+            submitHandler: function(form){
+                $(this).data('submit') ? $(this).data('submit')() : form.submit();
+            }
+        });
+#}
+    }
+
+	</script>
+	<!--  End of Add DataType Dialog -->
+{% endspaceless %}

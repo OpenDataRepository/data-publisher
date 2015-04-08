@@ -1,0 +1,9 @@
+parameters:
+#    odr_open_repository_search.example.class: ODR\OpenRepository\SearchBundle\Example
+
+services:
+#    odr_open_repository_search.example:
+#        class: %odr_open_repository_search.example.class%
+#        arguments: [@service_id, "plain_value", %parameter%]
+    odr_custom_controller:
+        class: ODR\AdminBundle\Controller\ODRCustomController

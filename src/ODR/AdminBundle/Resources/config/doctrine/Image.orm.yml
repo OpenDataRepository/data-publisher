@@ -1,0 +1,225 @@
+ODR\AdminBundle\Entity\Image:
+    type: entity
+    table: odr_image
+    gedmo:
+        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        original:
+            type: boolean
+            nullable: false
+            gedmo:
+                - versioned
+        displayorder:
+            type: integer
+            column: display_order
+            unsigned: false
+            gedmo:
+                - versioned
+        caption:
+            type: string
+            length: 96
+            fixed: false
+            nullable: true
+            gedmo:
+                - versioned
+        ext:
+            type: string
+            length: 8
+            fixed: false
+            nullable: true
+            column: ext
+            gedmo:
+                - versioned
+        originalFileName:
+            type: string
+            length: 128
+            fixed: false
+            nullable: true
+            column: original_file_name
+            gedmo:
+                - versioned
+        localFileName:
+            type: string
+            length: 128
+            fixed: false
+            nullable: true
+            column: local_file_name
+            gedmo:
+                - versioned
+        deletedAt:
+            type: date
+            nullable: true
+            gedmo:
+                - versioned
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        publicDate:
+            type: datetime
+            nullable: false
+            column: public_date
+            gedmo:
+                - versioned
+
+        encrypt_key:
+            type: string
+            nullable: true
+            length: 32
+            fixed: false
+            column: encrypt_key
+
+        external_id:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: external_id
+            gedmo:
+                - versioned
+        original_checksum:
+            type: string
+            nullable: true
+            length: 32
+            fixed: false
+            column: checksum
+            gedmo:
+                - versioned
+
+        imageWidth:
+            type: integer
+            column: image_width
+            nullable: true
+            unsigned: true
+            gedmo:
+                - versioned
+        imageHeight:
+            type: integer
+            column: image_height
+            nullable: true
+            unsigned: true
+            gedmo:
+                - versioned
+    oneToMany:
+        children:
+            targetEntity: Image
+            mappedBy: parent
+
+        ImageChecksum:
+            targetEntity: ImageChecksum
+            cascade: { }
+            mappedBy: Image
+            inversedBy: null
+            joinColumns:
+                image_checksum_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
+    manyToOne:
+        parent:
+            targetEntity: Image
+            inversedBy: children
+        dataField:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_field_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        fieldType:
+            targetEntity: FieldType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                field_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        dataRecord:
+            targetEntity: DataRecord
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_record_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        imageSize:
+            targetEntity: ImageSizes
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                image_size_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+#            gedmo:
+#                blameable:
+#                    on: update
+        dataRecordFields:
+            targetEntity: DataRecordFields
+            cascade: {  }
+            inversedBy: image
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+    lifecycleCallbacks: 
+        prePersist: [ preUpload ]
+        postPersist: [ upload ]
+        preUpdate: [ preUpload ]
+        postUpdate: [ upload ]
+        preRemove: [ storeFilenameForRemove ]
+        postRemove: [ removeUpload ]

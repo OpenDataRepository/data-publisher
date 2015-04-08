@@ -1,0 +1,157 @@
+            <table class="pure-table pure-table-striped">
+                <thead>
+                    <tr>
+                        <th>Type Name</th>
+                        <th>Number of Records</th>
+                        {#<th>Latest Addition</th>#}
+
+                        <th>Search Records</th>
+                        <th>List Records</th>
+                        <th>Edit Records</th>
+                        <th>Add Record</th>
+                        <th>Import Records</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for datatype in datatypes %}
+
+                    {# Pre-determine which permissions user has for this datatype... #}
+                    {% set can_edit_datarecord = false %}
+                    {% set can_add_datarecord = false %}
+                    {% set can_view_datatype = false %}
+                    {% set can_design_datatype = false %}
+
+                    {% if permissions[ datatype.id ] is defined %}
+                        {% if permissions[ datatype.id ][ 'edit' ] is defined or permissions[ datatype.id ][ 'child_edit' ] is defined %}
+                            {% set can_edit_datarecord = true %}
+                        {% endif %}
+                        {% if permissions[ datatype.id ][ 'add' ] is defined %}
+                            {% set can_add_datarecord = true %}
+                        {% endif %}
+                        {% if permissions[ datatype.id ][ 'view' ] is defined %}
+                            {% set can_view_datatype = true %}
+                        {% endif %}
+                        {% if permissions[ datatype.id ][ 'design' ] is defined %}
+                            {% set can_design_datatype = true %}
+                        {% endif %}
+                    {% endif %}
+
+                    {#{% if datatype.ispublic == true or can_view_datatype == true %}#}
+                    {% if can_view_datatype == true %}
+                    <tr>
+                        <td>{{ datatype.shortname }}</td>
+
+                        {# number of datatrecords for this datatype #}
+                        {% set datarecord_count = 0 %}
+                        {% set found = false %}
+                        {% for datatype_id, data in metadata %}
+                            {% if datatype_id == datatype.id %}
+                                {% set datarecord_count = data.count %}
+                                {% set found = true %}
+                                <td class="center">{{ datarecord_count }}</td>
+                                {#<td class="center">--</td>#}
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if found == false %}
+                            <td class="center">0</td>
+                            {#<td class="center">--</td>#}
+                        {% endif %}
+
+                        {# link to search this datatype #}
+                        {% if datatype.searchslug != '' and datarecord_count > 0 %}
+                            <td class="center"><a href="{{ path('odr_search', { 'search_slug': datatype.searchslug } ) }}" title="Search {{ datatype.shortname }} DataRecords"><i class="fa fa-lg fa-search"></i>&nbsp;Search Records</a></td>
+                        {% elseif can_design_datatype == false or datarecord_count == 0 %}
+                            <td class="center"></td>
+                        {% else %}
+                            <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
+                        {% endif %}
+
+                        {# view/edit links for this datatype #}
+                        {% if datarecord_count == 0 %}
+                            <td class="center"></td>
+                            <td class="center"></td>
+                        {% elseif (datatype.useshortresults == 1 and datatype.hasshortresults == true) or (datatype.useshortresults == 0 and datatype.hastextresults == true) %}
+                            <td class="center"><a class="address" href="#{{ path('odr_shortresults_list', { 'datatype_id': datatype.id, 'target': 'results' } ) }}" title="View {{ datatype.shortname }} DataRecords"><i class="fa fa-lg fa-list"></i>&nbsp;List Records</a></td>
+                            {% if can_edit_datarecord == true %}
+                                <td class="center"><a class="address" href="#{{ path('odr_shortresults_list', { 'datatype_id': datatype.id, 'target': 'record' } ) }}" title="Edit {{ datatype.shortname }} DataRecords"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit Records</a></td>
+                            {% else %}
+                                <td class="center"></td>
+                            {% endif %}
+                        {% elseif can_design_datatype == false %}
+                            <td class="center"></td>
+                            <td class="center"></td>
+                        {% elseif datatype.useshortresults == 1 and datatype.hasshortresults == false %}    {# user has design permission at this point #}
+                            <td class="center"><a class="address" href="#{{ path('odr_search_template_edit', { 'datatype_id': datatype.id, 'theme_id': 2 }) }}" title="Edit {{ datatype.shortname }} Search Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;ShortResults not designed!</a></td>
+                            <td class="center"><a class="address" href="#{{ path('odr_search_template_edit', { 'datatype_id': datatype.id, 'theme_id': 2 }) }}" title="Edit {{ datatype.shortname }} Search Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;ShortResults not designed!</a></td>
+                        {% elseif datatype.useshortresults == 0 and datatype.hastextresults == false %}     {# user has design permission at this point #}
+                            <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;TextResults not designed!</a></td>
+                            <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;TextResults not designed!</a></td>
+                        {% endif %}
+
+                        {# add/import links for this datatype #}
+                        {% if can_add_datarecord == true %}
+                            <td class="center"><a style="cursor:pointer;" onclick="addDataRecord({{ datatype.id }});"><i class="fa fa-lg fa-plus-circle"></i>&nbsp;Add New Record</a></td>
+                            <td class="center"><a style="cursor:pointer;" onclick="LoadContentFullAjax('{{ path('odr_xml_import', { 'type': 'datatype', 'id': datatype.id } ) }}');"><i class="fa fa-lg fa-upload"></i>&nbsp;Import Records</a></td>
+                        {% else %}
+                            <td class="center"></td>
+                            <td class="center"></td>
+                        {% endif %}
+                    </tr>
+                    {% endif %}
+                {% else %}
+                    <tr>
+                        {#<td colspan="6">No Data Types Found</td>#}
+                        <td colspan="5">No Data Types Found</td>
+                    </tr>
+                {% endfor %}
+
+                </tbody>
+            </table>
+
+            <script>
+                function addDataRecord(datatype_id) {
+                    if ( confirm('Are you sure you want to create a new Datarecord?') ) {
+                        var url = '{{ path('odr_record_add', { 'datatype_id': 0 }) }}';
+                        url = url.substring(0, (url.length - 1));
+                        url += datatype_id;
+
+                        var dataType = "json";
+                        $.ajax({
+                            cache: false,
+                            type: 'GET',
+                            url: url,
+                            dataType: dataType,
+                            success: function(data, textStatus, jqXHR) {
+                                if(data.r == 0) {
+                                    // Reload this area of the page
+                                    var datarecord_id = data.d.datarecord_id;
+
+                                    var url = '{{ path('odr_record_edit', { 'datarecord_id': 0 }) }}';
+                                    url = url.substring(0, (url.length-1));
+                                    url += datarecord_id;
+
+                                    UpdateURL(url);
+                                }
+                                else {
+                                    // Error occurred
+                                    alert( data.d );
+                                }
+                            },
+                            complete: function(jqXHR, textStatus) {
+                                // Get the xdebugToken from response headers
+                                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                                // If the Sfjs object exists
+                                if (typeof Sfjs !== "undefined") {
+                                    // Grab the toolbar element
+                                    var currentElement = $('.sf-toolbar')[0];
+
+                                    // Load the data of the given xdebug token into the current toolbar wrapper
+                                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                                }
+                            }
+                        });
+                    }
+                }
+            </script>

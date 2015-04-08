@@ -1,0 +1,173 @@
+<html>
+<head> 
+    <!-- NVD3 StyleSheet -->
+    <link rel="stylesheet" href="../js/mylibs/nvd3/nv.d3.css">
+    <script src="../js/mylibs/nvd3/d3.v3.min.js"></script>
+    <script src="../js/mylibs/nvd3/nv.d3.js"></script>
+</head>
+<body>
+
+<div id='{{ nv_chart_id }}' class="ODRGraph pure-u-1">
+  <svg class="pure-u-1" style="min-height: 500px; min-width: 1200px;"> </svg> 
+</div>
+
+
+<style type="text/css">
+    .nv-axisMaxMin,
+    .nv-y .tick {
+        display: none;
+    }
+</style>
+
+
+<script type="text/javascript">
+   
+if(!window.ODRGetGraphData) {
+
+    function ODRGetGraphData(filename, line_color, line_label) {
+        var txt;
+
+        var file_url = "{{ path('odr_file_download', {'file_id': '0'}) }}";
+        file_url = file_url.substr(0, file_url.length-1) + filename;
+
+        if(filename != "") {
+            $.ajax({
+                type: "GET",
+//                url: "/" + filename,
+                url: file_url,
+                cache: false,
+                dataType: "text",
+                async: false,
+                success : function(data) {
+                    txt = data;
+                }
+            });
+        
+            var line_data = [];
+            if(txt) {
+                var lines = txt.split(/\n/);
+                for(var i=0;i<lines.length;i = i+3) { 
+                    var line = lines[i];
+                    if(!line.match(/^#/) && (line.match(/^[0-9]/) || line.match(/^\.[0-9]/))) {
+                        var data = "";
+                        if(line.match(/,/)) {
+                            data = line.split(/,/);
+                        }
+                        else if(line.match(/\t/)) {
+                            data = line.split(/\t/);
+                        }
+
+                        if(undefined != data[0] && undefined != data[1]) {
+                            var xval = 0 + Number(data[0].trim());
+                            var yval = 0 + Number(data[1].trim());
+                            line_data.push({x: xval, y: yval})
+                        }   
+                    }   
+                }
+            }
+        
+            //Line chart data should be sent as an array of series objects.
+            var line = {
+                    values: line_data,      //values - represents the array of {x,y} data points
+                    key: line_label, //key  - the name of the series.
+                    color: line_color,  //color - optional: choose your own line color.
+                    area: false
+                };
+            return line;
+        }
+    }
+}
+
+if(!window.ODRNVGraph) {
+    function ODRNVGraph() {
+        this.chart = "";
+        this.chart_id = "";
+        this.data = new Array(); // Graph Data for the available files
+        this.ids = new Array(); // DRC_IDs to plot
+
+        this.x_axis_label = "";
+        this.y_axis_label = "";
+        this.GraphData = function(chart_obj) {
+            /* These lines are all chart setup.  Pick and choose which chart features ou want to utilize. */
+            if(window.nv) {
+                nv.addGraph(function() {
+                    this.chart = nv.models.lineChart()
+                        .margin({left: 100, right: 50})  //Adjust chart margins to give the x-axis some breathing room.
+                        .useInteractiveGuideline(true)  //We want nice looking tooltips and a guideline!
+                        .transitionDuration(350)  //how fast do you want the lines to transition?
+                        .showLegend(true)       //Show the legend, allowing users to turn on/off line series.
+                        .showYAxis(true)        //Show the y-axis
+                        .showXAxis(true)        //Show the x-axis
+                    ;
+                
+                    this.chart.xAxis     //Chart x-axis settings
+                        .axisLabel(chart_obj.x_axis_label)
+                        .tickFormat(d3.format(',r'));
+                
+                    this.chart.yAxis     //Chart y-axis settings
+                        .axisLabel(chart_obj.y_axis_label)
+                        .tickFormat(d3.format('.02f'));
+                    
+                    /* Done setting the chart up? Time to render it!*/
+                    var myData = new Array();   //You need data...
+                    $('#{{ nv_chart_id }}_GraphWrapper ul :checked').each(function() {
+                        if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {
+                            myData.push(chart_obj.data[$(this).val()]);
+                        }
+                    });
+                    // Select the <svg> element you want to render the chart in.   
+                    $('#' + chart_obj.chart_id + ' svg').html('');
+
+                    // Select the <svg> element you want to render the chart in.   
+                    d3.select('#' + chart_obj.chart_id + ' svg')  
+                        .datum(myData)         //Populate the <svg> element with chart data...
+                        .call(this.chart);          //Finally, render the chart!
+                    
+                    // Update the chart when window resizes.
+                    nv.utils.windowResize(function() { this.chart.update() });
+                    return this.chart;
+        
+                });
+            }
+        }
+    };
+}
+
+jQuery(function() {
+
+    // If not ODRNVGraph - load class
+    odr_nv_{{ nv_chart_id }} = new ODRNVGraph();
+
+    // Set the chart id
+    odr_nv_{{ nv_chart_id }}.chart_id = '{{ nv_chart_id }}';
+
+    // Get all Data
+    {% for drcid, file in nv_files %}
+        var file = '{{ file }}';
+        if(file != "") {
+            {% for mydrcid, pivot in nv_pivot %}
+                {% if mydrcid == drcid %}
+                    odr_nv_{{ nv_chart_id }}.data[{{ drcid}}] = ODRGetGraphData(file, '{{ line_colors[loop.index0] }}', '{{ pivot }}');
+                {% endif %}
+        {% endfor %}
+        }
+    {% endfor %}
+
+
+    odr_nv_{{ nv_chart_id }}.x_axis_label = '{{ plugin_options.x_axis_caption }}';
+    odr_nv_{{ nv_chart_id }}.y_axis_label = '{{ plugin_options.y_axis_caption }}';
+
+    // Plot selected graphs
+    // Get checked DRC IDs
+    odr_nv_{{ nv_chart_id }}.GraphData(odr_nv_{{ nv_chart_id }});
+    
+
+
+});
+
+</script>
+
+
+
+</body>
+</html>

@@ -1,0 +1,65 @@
+    <!-- Add DataType Dialog Form -->
+    <form class="ODRAddDatatypeForm pure-form pure-form-aligned full validate" id="AddDatatypeForm" action="{{ path('odr_add_types') }}" method="post">
+
+        {{ form_errors(form._token) }}
+        {{ form_widget(form._token) }}
+
+        <fieldset>
+            <div class="pure-control-group">
+                <label for="{{form.short_name.vars.id}}">
+                    <strong>{{form.short_name.vars.label}}</strong>
+                </label>
+                {{ form_errors(form.short_name) }}
+                {{ form_widget(form.short_name, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+            </div>
+            <div class="pure-control-group">
+                <label for="{{form.long_name.vars.id}}">
+                    <strong>{{form.long_name.vars.label}}</strong>
+                </label>
+                {{ form_errors(form.long_name) }}
+                {{ form_widget(form.long_name, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+            </div>
+        </fieldset>
+
+    </form>
+
+    <button type="button" class="pure-button ODRCancelButton">Cancel</button>
+    <button type="button" class="pure-button pure-button-primary ODRSubmitButton">Create DataType</button>
+
+    <script>
+        $(function() {
+
+            $("#dialog_add_datatype").dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                open: function() {
+                    $(this).parent().css('overflow', 'visible');
+                },
+            });
+            $("#dialog_add_datatype").find('.ODRSubmitButton').click(function() {
+                var $el = $(this).parents('.ui-dialog-content');
+//                if ($el.validate().form()) {
+                if ( $("#AddDatatypeForm").valid() ) {
+                    $("#AddDatatypeForm").submit();
+
+                    $el.find('form')[0].reset();
+                    $el.dialog('close');
+                }
+            });
+            $("#dialog_add_datatype").find('.ODRCancelButton').click(function() {
+                var $el = $(this).parents('.ui-dialog-content');
+
+                $el.find('form')[0].reset();
+                $el.dialog('close');
+            });
+{#
+            // Init Form
+            AddDataTypeFormInit();
+
+            if(typeof(AddDataTypeFormInit) !== "undefined") {
+                AddDataTypeFormInit();
+            }
+#}
+        });
+    </script>

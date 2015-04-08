@@ -1,0 +1,22 @@
+DataRecord:
+    type: entity
+    table: odr_data_record
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+    manyToOne:
+        dataType:
+            targetEntity: DataType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+    lifecycleCallbacks: {  }

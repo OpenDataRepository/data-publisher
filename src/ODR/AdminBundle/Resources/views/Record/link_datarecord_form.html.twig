@@ -1,0 +1,244 @@
+{% spaceless %}
+
+{% set remote_datatype = descendant_datatype %}
+{% if local_datarecord.datatype.id == descendant_datatype.id %}
+    {% set remote_datatype = ancestor_datatype %}
+{% endif %}
+
+<div class="link_datarecord_spacer">
+</div>
+<div>
+    <form action="{{ path('odr_link_records') }}" method="post" class="full validate" id="LinkDataRecordForm">
+        <input type="hidden" name="local_datarecord_id" value="{{ local_datarecord.id }}" />
+        <input type="hidden" name="ancestor_datatype_id" value="{{ ancestor_datatype.id }}" />
+        <input type="hidden" name="descendant_datatype_id" value="{{ descendant_datatype.id }}" />
+        <input type="hidden" name="allow_multiple_links" value="{% if allow_multiple_links == true %}1{% else %}0{% endif %}" />
+
+        {% for dr_id,val in linked_datarecords %}
+        <input type="hidden" id="dr_{{ dr_id }}" name="datarecords[{{ dr_id }}]" value="1" />
+        {% endfor %}
+    </form>
+
+    <h2>Currently Linked Datarecords - {{ remote_datatype.shortname }}</h2>
+    <button class="pure-button pure-button-primary" type="button" onclick="submitForm();">Save Changes</button>
+    <button class="pure-button pure-button-primary" type="button" onclick="returnToDatarecord();">Return to Datarecord</button>
+
+    <table id="TextResults_current" class="display {#pure-table pure-table-striped#}"></table>
+</div>
+
+</br></br></br>
+<button type="button" id="search_button" class="pure-button pure-button-primary" onclick="startSearch();">Search for {{ remote_datatype.shortname }} Datarecords to Link</button>
+</br></br>
+
+<div class="search_content pure-u-1"></div>
+
+</br></br>
+
+<style>
+    #TextResults_current_paginate > a {
+        margin: 5px;
+    }
+</style>
+
+<script>
+    var linked_datarecords = [];
+{% for dr,value in linked_datarecords %}
+    linked_datarecords.push({{ dr }});
+{% endfor %}
+
+    var illegal_datarecords = [];
+{% for dr,value in illegal_datarecords %}
+    illegal_datarecords.push({{ dr }});
+{% endfor %}
+
+    $(function() {
+        var dataset = {{ table_html | raw }};
+
+        var table = $("#TextResults_current").dataTable({
+
+            data: dataset,
+            columns: [{{ column_names | raw }}],
+            columnDefs: [
+                {
+                    targets: [ 0,1 ],
+                    searchable: false,
+                    visible: false,
+                }
+            ],
+//            ordering: false,
+            searching: false,
+            autoWidth: false,
+
+            processing: true,   // only displays a little "processing..." blurb
+            deferRender: true,
+            createdRow: function( row, data, index ) {
+            {% if allow_multiple_links == 1 %}
+                $(row).prepend('<td><input type="checkbox" class="dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');" /></td>');
+            {% else %}
+                $(row).prepend('<td><input type="radio" name="radio_group_orig" id="hidden_radio" style="display:none;"/><input type="radio" name="radio_group_orig" class="dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');" /></td>');
+            {% endif %}
+            },
+
+        });
+
+
+        // Sort table by default colunn
+//        table.fnSort( [ [2,'asc'] ] );    // doesn't want to work, probably because of the manual column addition...
+
+        // Ensure checkboxes have proper state on redraw of table
+        $(table).on('draw.dt', function() {
+            initCheckboxes("#TextResults_current");
+        });
+
+        {% if count > 0 %}
+        // Prepend a header for the checkbox column
+        $("#TextResults_current").children('thead').children('tr').prepend('<th rowspan="1" colspan="1">Linked?</th>');
+        {% endif %}
+
+        // Initial checking of linked checkboxes
+        initCheckboxes("#TextResults_current");
+    });
+
+    // For the current page of the given table, update state of all checkboxes
+    function initCheckboxes(table) {
+        $(table).find('input').each(function() {
+            var dr_id = parseInt($(this).attr('rel'));
+
+            if ( linked_datarecords.indexOf(dr_id) !== -1 )
+                $('.dr_' + dr_id).attr('checked', 'checked');
+            else
+                $('.dr_' + dr_id).removeAttr('checked');
+
+            if ( illegal_datarecords.indexOf(dr_id) !== -1 )
+                $('.dr_' + dr_id).attr('disabled', 'disabled');
+            else
+                $('.dr_' + dr_id).removeAttr('disabled');
+        });
+    }
+
+    // Handles check events from checkboxes
+    function LinkRecord(dr_id) {
+        var dr = "#dr_" + dr_id;
+
+        {% if allow_multiple_links == 1 %}
+        if ( $(dr).length > 0 ) {
+            // hidden input element exists, delete it
+            $(dr).remove();
+            // update internal javascript and html to reflect change
+            linked_datarecords.splice( linked_datarecords.indexOf(dr_id), 1 );  // remove single element
+            $('.dr_' + dr_id).removeAttr('checked');
+        }
+        else if ( $(dr).length == 0 ) {
+            // hidden input element does not exist, add it
+            $("#LinkDataRecordForm").append('<input type="hidden" id="dr_' + dr_id + '" name="datarecords[' + dr_id + ']" value="1" />');
+            // update internal javascript and html to reflect change
+            linked_datarecords.push(dr_id);
+            $('.dr_' + dr_id).prop('checked', true);
+        }
+        {% else %}
+        // Apparently don't need to worry about this function being called on an already selected element?
+
+        $("#LinkDataRecordForm").children('input').each(function() {
+            if ( $(this).attr('name').indexOf('datarecords[') !== -1 )
+                $(this).remove();
+        });
+        $("#LinkDataRecordForm").append('<input type="hidden" id="dr_' + dr_id + '" name="datarecords[' + dr_id + ']" value="1" />');
+
+        // update internal javascript and html to reflect change
+        linked_datarecords = [dr_id];
+        $("#hidden_radio").prop('checked', true);
+        $('.dr_' + dr_id).prop('checked', true);
+
+        {% endif %}
+    }
+
+    function returnToDatarecord() { // TODO - needs to actually work instead of just going back...
+        window.history.back();
+    }
+
+    function submitForm() {
+        var post_data = $("#LinkDataRecordForm").serialize();
+        var url = $("#LinkDataRecordForm").attr('action');
+        var dataType = "json";
+
+//alert(url);
+//return;
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            dataType: dataType,
+            data: post_data,
+            success: function(data, textStatus, xhr) {
+                if(data.r == 0) {
+                    // Force a reload of the page so stuff is guaranteed to display correctly
+                    window.location.reload();
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d.html);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function startSearch() {
+    {% if local_datarecord.datatype.id == ancestor_datatype.id %}
+        // Grab datarecords from descendant side
+        var url = '{{ path('odr_search_box', {'target_datatype_id': descendant_datatype.id } ) }}';
+    {% else %}
+        // Grab datarecords from ancestor side
+        var url = '{{ path('odr_search_box', {'target_datatype_id': ancestor_datatype.id } ) }}';
+    {% endif %}
+        var dataType = "json";
+
+//alert(url);
+//return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: dataType,
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    $("#search_button").html('Reset Search');
+                    $(".search_content").html( data.d.html );
+                }
+                else {
+                    alert(data.d.html);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+</script>
+
+{% endspaceless %}

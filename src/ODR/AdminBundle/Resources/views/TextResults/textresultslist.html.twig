@@ -1,0 +1,135 @@
+{% spaceless %}
+<div class="ODRFormWrap" {#style="min-height: 800px;"#}> 
+    <div class="grid_12">
+        <div class="box">
+            <div class="header">
+            {% if target == "results" %}
+                <h2>Display Records - {{ datatype.shortname }}</h2>
+            {% else %}
+                <h2>Edit Records - {{ datatype.shortname }}</h2>
+            {% endif %}
+            </div>
+            <div id="TextResults_wrapper">
+                <table id="TextResults" class="display"></table>
+            </div><!-- end of #TextResults_wrapper -->
+        </div>
+    </div><!-- End of .grid_12 -->
+
+</div><!-- End of .ODRFormWrap -->
+
+{% set user_role = '' %}
+{% if user != 'anon.' %}
+    {% for role in user.getroles %}
+        {% if role == 'ROLE_SUPER_ADMIN' %}
+            {% set user_role = 'ROLE_SUPER_ADMIN' %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
+{% if user_role == 'ROLE_SUPER_ADMIN' and count > 0 %}
+<div style="margin-top:25px;">
+    <button class="pure-button pure-button-primary" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
+    &nbsp;&nbsp;&nbsp;
+    {#<button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>#}
+</div>
+{% endif %}
+
+<script type="text/javascript">
+
+    $(function() {
+        $(".MenuDesignArea").remove();
+
+        var table = $("#TextResults").dataTable({
+
+            columns: [{{ column_names | raw }}],
+            columnDefs: [
+                {
+                    targets: [ 0,1 ],
+                    searchable: false,
+                    visible: false,
+                }
+            ],
+            order: [[1, 'asc']],
+//            ordering: false,
+            searching: false,
+            pageLength: {{ page_length }},
+            autoWidth: false,
+
+            // https://datatables.net/manual/server-side
+            processing: true,   // only displays a little "processing..." blurb
+            serverSide: true,
+            stateSave: true,
+            stateDuration: -1,  // use html5 session storage
+
+            ajax: {
+                url: "{{ path('odr_datatables_row_request') }}",
+                type: "POST",
+                data: {
+                    'datatype_id': {{ datatype.id }},
+                    'search_key': "{{ search_key }}",
+                },
+                complete: function() {
+{#
+/*
+//        $("#TextResults").dataTable().api().page({{ offset }} - 1).draw(false);
+                {% if scroll_target != '' %}
+
+                    var datarecord = '.DataRecord_' + {{ scroll_target }};
+                    if ( $(datarecord) !== null && $(datarecord) !== undefined ) {
+                        $('html, body').animate({
+                            scrollTop: $(datarecord).parent().prev().offset().top
+                        }, 500);
+                    }
+
+                {% endif %}
+*/
+#}
+                },
+            },
+
+
+            createdRow: function( row, data, index ) {
+                $(row).attr('onclick', 'loadDataRecord(' + data[0] + ');');
+                $(row).addClass('Pointer DataRecord_' + data[0]);
+            },
+
+        });
+
+//        $("#TextResults").dataTable().api().page({{ offset }} - 1).draw(false);
+
+    });
+
+{% if count > 0 and user_role == 'ROLE_SUPER_ADMIN' %}
+    function doMassEdit() {
+        {% if search_key == '' %}
+        var url = '{{ path('odr_mass_edit_list', { 'datatype_id': 0 }) }}';
+        url = url.substr(0, url.length-1);
+        url += '{{ datatype.id }}';
+        {% else %}
+        var url = '{{ path('odr_mass_edit_searchlist', { 'datatype_id': 0, 'search_key': '' }) }}';
+        url = url.substr(0, url.length-2);
+        url += '{{ datatype.id }}' + '/' + '{{ search_key }}';
+        {% endif %}
+
+        UpdateURL(url);
+    }
+    function doCSVExport() {
+        {% if search_key == '' %}
+        var url = '{{ path('odr_csv_export_list', { 'datatype_id': 0 }) }}';
+        url = url.substr(0, url.length-1);
+        url += '{{ datatype.id }}';
+        {% else %}
+        var url = '{{ path('odr_csv_export_searchlist', { 'datatype_id': 0, 'search_key': '' }) }}';
+        url = url.substr(0, url.length-2);
+        url += '{{ datatype.id }}' + '/' + '{{ search_key }}';
+        {% endif %}
+
+        UpdateURL(url);
+    }
+{% endif %}
+
+</script>
+{% endspaceless %}
+
+{% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
+{% set offset = '' %}   {# at the moment, offset is set to 1 by default, but not used by textresults #}
+{{ js.write(target, search_key, offset) }}

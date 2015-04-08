@@ -1,0 +1,73 @@
+<script>
+
+function setDatatypeIcons(id, icons) {
+    $.each(icons, function(key, value) {
+//alert('key: ' + key + ' value: ' + value);
+        var icon = $("#DataTypeTools_" + id).find("." + key);
+
+        // Currently, only render plugin and public datatype icons change
+        if (key == "ODRRenderPlugin") {
+/*
+            if (value == -1) {
+                $(icon).addClass('fa-muted').removeClass('ODRActiveIcon');
+                $(icon).attr('title', "Can't set RenderPlugin due to child Datatype");
+            }
+            else if (value == 0) {
+*/
+            if (value == 0) {
+                $(icon).removeClass('fa-muted ODRActiveIcon');
+                $(icon).attr('title', "RenderPlugin Settings");
+            }
+            else {
+                $(icon).removeClass('fa-muted').addClass('ODRActiveIcon');
+                $(icon).attr('title', "RenderPlugin Settings (using " + value + ")");
+            }
+        }
+        else if (key == "ODRPublicDatatype") {
+            if (value == 1) {
+                $(icon).addClass('ODRActiveIcon');
+                $(icon).attr('title', "Datatype is visible to public");
+            }
+            else if (value == 0) {
+                $(icon).removeClass('ODRActiveIcon');
+                $(icon).attr('title', "Datatype is not visible to public");
+            }
+        }
+        else if (key == "ODREditPermission") {
+            if (value == 1) {
+                $(icon).addClass('fa-unlock').removeClass('fa-lock');
+                $(icon).attr('title', "User is permitted to edit this Datatype");
+            }
+            else if (value == 0) {
+                $(icon).addClass('fa-lock').removeClass('fa-unlock');
+                $(icon).attr('title', "User is not permitted to edit this Datatype");
+            }
+        }
+    });
+}
+
+function setThemeElementIcons(id, icons) {
+    $.each(icons, function(key, value) {
+        var icon = $("#ThemeElementTools_" + id).find("." + key);
+
+        //
+        if (key == "ODRThemeElementVisible") {
+            if (value == 1) {
+                $(icon).removeClass('fa-eye-slash').addClass('fa-eye');
+                $(icon).attr('title', "ThemeElement is visible to public");
+            }
+            else if (value == 0) {
+                $(icon).removeClass('fa-eye').addClass('fa-eye-slash');
+                $(icon).attr('title', "ThemeElement is not visible to public");
+            }
+        }
+        else if (key == "ODRAddDatafield" || key == "ODRAddChildtype" || key == "ODRLinkDatatype" || key == "ODRDeleteThemeElement") {
+            if (value == 1)
+                $(icon).removeClass('fa-muted').removeClass('ODRActiveIcon');
+            else if (value == 0)
+                $(icon).addClass('fa-muted').removeClass('ODRActiveIcon');
+        }
+    });
+}
+
+</script>

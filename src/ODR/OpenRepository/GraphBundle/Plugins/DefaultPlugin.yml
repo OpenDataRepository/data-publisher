@@ -1,0 +1,9 @@
+ODR\OpenRepository\GraphBundle\Plugins\Graph:
+    name: Default Text Plugin
+    datatype: false
+    version: 1.00
+    override_fields: false
+    override_child: false
+    description: Default render for text
+    required_fields:
+    config_options:

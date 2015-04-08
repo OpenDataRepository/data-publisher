@@ -1,0 +1,26 @@
+# ODR/AdminBundle/Resources/config/validation.yml
+#ODR\AdminBundle\Entity\DataType:
+#    properties:
+#        short_name:
+#            - NotBlank: ~
+
+ODR\AdminBundle\Entity\File:
+    properties:
+        uploaded_file:
+            - File:
+                maxSize: 100M
+                maxSizeMessage: The uploaded file is too large. Allowed maximum size is {{ limit }}.
+                mimeTypes: [application/pdf, application/x-pdf, image/jpeg, image/jpg, image/png, image/gif, text/x-pascal, text/plain, application/msword, application/vnd.ms-excel, application/vnd.ms-powerpoint, image/vnd.adobe.photoshop, application/vnd.openxmlformats-officedocument.presentationml.presentation, application/vnd.openxmlformats-officedocument.presentationml.slideshow, application/vnd.openxmlformats-officedocument.presentationml.template, application/vnd.openxmlformats-officedocument.presentationml.slide, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.wordprocessingml.template, application/vnd.ms-excel.addin.macroEnabled.12, application/vnd.ms-excel.sheet.binary.macroEnabled.12, application/vnd.openxmlformats-officedocument.spreadsheetml.template, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/zip, application/x-rar-compressed ]
+                mimeTypesMessage: Please upload a valid file (plain text, PDF, JPG, GIF, PNG, CSV, DOC, DOCX, XLS, XLSX, PPT, PPTX, TIFF).
+                uploadIniSizeErrorMessage: The server settings limit this upload to a smaller size.
+
+ODR\AdminBundle\Entity\Image:
+    properties:
+        file:
+            - File:
+                maxSize: 100M
+                maxSizeMessage: The uploaded file is too large. Allowed maximum size is {{ limit }}.
+                mimeTypes: [application/pdf, application/x-pdf, image/jpeg, image/jpg, image/png, image/gif ]
+                mimeTypesMessage: Please upload a valid PDF, GIF, JPG or PNG file.
+                uploadIniSizeErrorMessage: The server settings limit this upload to a smaller size.
+

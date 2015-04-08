@@ -1,0 +1,7 @@
+parameters:
+#    odr_open_repository_api.example.class: ODR\OpenRepository\ApiBundle\Example
+
+services:
+#    odr_open_repository_api.example:
+#        class: %odr_open_repository_api.example.class%
+#        arguments: [@service_id, "plain_value", %parameter%]

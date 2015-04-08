@@ -1,0 +1,135 @@
+ODR\AdminBundle\Entity\RenderPlugin:
+    type: entity
+    table: odr_render_plugin
+    gedmo:
+        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        pluginName:
+            type: string
+            length: 32
+            fixed: false
+            nullable: false
+            column: plugin_name
+            gedmo:
+                - versioned
+        description:
+            type: text
+            fixed: false
+            nullable: true
+            column: description
+            gedmo:
+                - versioned
+        pluginClassName:
+            type: string
+            length: 128 
+            fixed: false
+            nullable: false
+            column: plugin_class_name
+            gedmo:
+                - versioned
+        active:
+            type: boolean
+            nullable: false
+            column: active
+            gedmo:
+                - versioned
+        overrideChild:
+            type: boolean
+            nullable: false
+            column: override_child
+            gedmo:
+                - versioned
+        overrideFields:
+            type: boolean
+            nullable: false
+            column: override_fields
+            gedmo:
+                - versioned
+        plugin_type:
+            type: smallint
+            default: 2
+            unsigned: false
+            nullable: false
+            column: plugin_type
+            gedmo:
+                - versioned
+        deletedAt:
+            type: date
+            nullable: true
+            gedmo:
+                - versioned
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+    oneToMany:
+        dataFields:
+            targetEntity: DataFields
+            mappedBy: renderPlugin
+            cascade: {  }
+        dataType:
+            targetEntity: DataType
+            mappedBy: renderPlugin
+            cascade: {  }
+
+        renderPluginInstance:
+            targetEntity: RenderPluginInstance
+            cascade: {  }
+            mappedBy: renderPlugin
+            inversedBy: null
+            fetch: LAZY
+            joinColumns:
+                render_plugin_instance_id:
+                    referencedColumnName: id
+
+        renderPluginFields:
+            targetEntity: RenderPluginFields
+            cascade: {  }
+            mappedBy: renderPlugin
+            inversedBy: null
+            fetch: LAZY
+            joinColumns:
+                render_plugin_fields_id:
+                    referencedColumnName: id
+
+    manyToOne:
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+#                blameable:
+#                    on: create
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+#                blameable:
+#                    on: update
+    lifecycleCallbacks: {  }

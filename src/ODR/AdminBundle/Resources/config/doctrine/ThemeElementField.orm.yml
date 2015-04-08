@@ -1,0 +1,95 @@
+ODR\AdminBundle\Entity\ThemeElementField:
+    type: entity
+    table: odr_theme_element_field
+    gedmo:
+        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        displayOrder:
+            type: integer
+            nullable: false
+            column: display_order
+            gedmo:
+                - versioned
+
+        deletedAt:
+            type: date
+            nullable: true
+            gedmo:
+                - versioned
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+    manyToOne:
+        themeElement:
+            targetEntity: ThemeElement
+            cascade: {  }
+            mappedBy: null
+            inversedBy: themeElementField
+            joinColumns:
+                theme_element_id:
+                    nullable: false
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        dataFields:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_fields_id:
+                    nullable: true 
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        dataType:
+            targetEntity: DataType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_type_id:
+                    nullable: true 
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+    lifecycleCallbacks: {  }

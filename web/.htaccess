@@ -1,0 +1,13 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    <IfModule mod_vhost_alias.c>
+        RewriteBase /
+    </IfModule>
+
+    rewriteCond %{REQUEST_FILENAME} !-f
+    rewriteRule ^(.*)$ app.php [QSA,L]
+</IfModule>
+
+php_flag xdebug.profiler_enable 0 
+#php_flag apc.stat 0 

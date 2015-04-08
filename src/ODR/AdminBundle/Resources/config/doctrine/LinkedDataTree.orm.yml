@@ -1,0 +1,86 @@
+ODR\AdminBundle\Entity\LinkedDataTree:
+    type: entity
+    table: odr_linked_data_tree
+    gedmo:
+        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        deletedAt:
+            type: date
+            nullable: true
+            gedmo:
+                - versioned
+        multipleRecordsPerParent:
+            type: boolean
+            nullable: false
+            column: multiple_records_per_parent
+            gedmo:
+                - versioned
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+    manyToOne:
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+#            gedmo:
+#                blameable:
+#                    on: update
+        ancestor:
+            targetEntity: DataRecord
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                ancestor_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        descendant:
+            targetEntity: DataRecord
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                descendant_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+    lifecycleCallbacks: {  }

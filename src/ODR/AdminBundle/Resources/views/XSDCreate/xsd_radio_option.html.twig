@@ -1,0 +1,66 @@
+{% spaceless %}
+
+{% set using_metadata = true %}
+
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+
+    <xsd:annotation>
+        <xsd:documentation xml:lang="en">
+        </xsd:documentation>
+    </xsd:annotation>
+
+    <!-- simple attribute definition -->
+    <xsd:complexType name="inline_attribute">
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="attr" type="xsd:string">
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+
+    <!-- more normal datetime string definition... -->
+    <xsd:simpleType name="normal_datetime">
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="([0-9]{4})-(0[0-9]|1[0-2])-(0[0-9]|1[0-9]|2[0-9]|3[0-1]) (0[0-9]|1[0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])" />
+        </xsd:restriction>
+    </xsd:simpleType>
+
+    <!-- definition of a radio object -->
+    <xsd:complexType name="option_type">
+        <xsd:all>
+            <xsd:element name="value" type="xsd:string" />
+        </xsd:all>
+    </xsd:complexType>
+
+    <!-- metadata definition for radio options -->
+    <xsd:complexType name="option_metadata_type">
+        <xsd:all>
+            <xsd:element name="_external_id" type="xsd:string" minOccurs="0" maxOccurs="1" />
+            <xsd:element name="_datafield_id" type="xsd:string" minOccurs="0" maxOccurs="1" fixed="{{ datafield.id }}"/>
+            <xsd:element name="_parent_id" type="xsd:string" minOccurs="0" maxOccurs="1" />
+            <xsd:element name="_create_date" type="normal_datetime" minOccurs="0" maxOccurs="1" />
+            <xsd:element name="_create_auth" type="xsd:string" minOccurs="0" maxOccurs="1" />
+        </xsd:all>
+    </xsd:complexType>
+
+    <!-- actual definition of the radio option -->
+    <xsd:complexType name="radio_option_type">
+        <xsd:all>
+            <xsd:element name="option_name" type="option_type" />
+            <xsd:element name="_option_metadata" type="option_metadata_type" minOccurs="0" maxOccurs="1" />
+        </xsd:all>
+    </xsd:complexType>
+
+    <!-- allow for multiple radio options -->
+    <xsd:element name="radio_options">
+        <xsd:complexType>
+            <xsd:sequence>
+                <xsd:element name="radio_option" type="radio_option_type" minOccurs="1" maxOccurs="unbounded" />
+            </xsd:sequence>
+        </xsd:complexType>
+    </xsd:element>
+
+</xsd:schema>
+
+{% endspaceless %}

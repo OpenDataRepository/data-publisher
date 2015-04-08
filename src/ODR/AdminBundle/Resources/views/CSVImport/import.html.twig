@@ -1,0 +1,218 @@
+{% spaceless %}
+
+<div class="header">
+    <h2>CSV Import for {{ datatype.shortname }}</h2>
+</div>
+
+<div class="content">
+    <button class="pure-button" onclick="cancelCSVUpload(false);">Cancel CSV Import...</button>
+    </br></br>
+
+    <form action="{{ path('odr_csv_upload', {'datatype_id': datatype.id}) }}" method="post" {{ form_enctype(form) }} class="pure-u-1" id="csvUploadForm">
+        <select name="csv_delimiter" id="delimiter_select">
+            <option value="">Select a delimiter...</option>
+            <option value="tab">{tab}</option>
+            <option value="space">{space}</option>
+            <option value="comma">{comma}</option>
+            <option value="semicolon">{semicolon}</option>
+            <option value="colon">{colon}</option>
+            <option value="pipe">{pipe}</option>
+        </select>
+
+        <div id="file_upload_div">
+            </br>
+            <span>Upload a CSV file...</span>
+            <div class="pure-u-1-24"></div>
+            <div class="pure-u-23-24">
+                {{ form_errors(form._token) }}
+                {{ form_widget(form._token) }}
+
+                {{ form_errors(form.uploaded_file) }}
+                {{ form_widget(form.uploaded_file, { 'attr': {'data-error-type': 'inline' } }) }}
+                <span id="csvUploadResult"></span>
+            </div>
+        </div>
+    </form>
+
+    <div id="layout_content">
+    </div>
+</div>
+
+<script>
+    $(function() {
+        $("#file_upload_div").hide();
+
+        $("#delimiter_select").unbind('change');
+        $("#delimiter_select").change(function() {
+            if ( $(this).val() == "" )
+                $("#file_upload_div").hide();
+            else
+                $("#file_upload_div").show();
+        });
+        $("#csvUploadForm").find("input[name='FileForm[uploaded_file]']").unbind('change');
+        $("#csvUploadForm").find("input[name='FileForm[uploaded_file]']").change(function() {
+            UploadCSVFile('csvUploadForm', $('#csvUploadForm').attr('action'), 'csvUploadResult');
+        });
+    });
+
+    function UploadCSVFile(form_id, action_url, div_id) {
+    //return;
+        // Create the iframe...
+        var form = document.getElementById(form_id);
+        var iframe = document.createElement("iframe");
+        iframe.setAttribute("id", "upload_iframe");
+        iframe.setAttribute("name", "upload_iframe");
+        iframe.setAttribute("width", "0");
+        iframe.setAttribute("height", "0");
+        iframe.setAttribute("border", "0");
+        iframe.setAttribute("style", "width: 0; height: 0; border: none;");
+
+        // Add to document...
+        form.parentNode.appendChild(iframe);
+        window.frames['upload_iframe'].name = "upload_iframe";
+
+        iframeId = document.getElementById("upload_iframe");
+
+        // Add event...
+        var eventHandler = function () {
+            if (iframeId.detachEvent) iframeId.detachEvent("onload", eventHandler);
+            else iframeId.removeEventListener("load", eventHandler, false);
+
+            // Message from server...
+            if (iframeId.contentDocument) {
+                content = iframeId.contentDocument.body.innerHTML;
+            } else if (iframeId.contentWindow) {
+                content = iframeId.contentWindow.document.body.innerHTML;
+            } else if (iframeId.document) {
+                content = iframeId.document.body.innerHTML;
+            }
+
+            //
+            content = content.replace(/<[^>]+>/g, '');
+            content = jQuery.parseJSON(content);
+            if (content.r == 1) {
+                alert( content.d );
+/*
+                //
+                (function($) {
+                    var results_div = $("#"+div_id);
+                    results_div.html('');
+
+                    var file_div = results_div.parent().find("div.customfile");
+                    file_div.removeClass('customfile-focus');
+
+                    file_div.find("span.customfile-feedback").html('No file selected...');
+                    file_div.find("span.customfile-button").html('Browse');
+
+                })(jQuery);
+*/
+                cancelCSVUpload(true);
+            }
+            else {
+                // Success
+                loadLayout();
+            }
+
+            // Del the iframe...
+            setTimeout('iframeId.parentNode.removeChild(iframeId)', 250);
+        }
+
+        if (iframeId.addEventListener) iframeId.addEventListener("load", eventHandler, true);
+        if (iframeId.attachEvent) iframeId.attachEvent("onload", eventHandler);
+
+        // Set properties of form...
+        form.setAttribute("target", "upload_iframe");
+        form.setAttribute("action", action_url);
+        form.setAttribute("method", "post");
+        form.setAttribute("enctype", "multipart/form-data");
+        form.setAttribute("encoding", "multipart/form-data");
+
+        // Submit the form...
+        form.submit();
+
+        document.getElementById(div_id).innerHTML = "Uploading...";
+    }
+
+    function loadLayout() {
+
+        var url = '{{ path('odr_csv_import_layout', {'datatype_id': datatype.id}) }}';
+
+        var dataType = "json";
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: dataType,
+            success: function(data, textStatus, jqXHR) {
+                if (data.r == 0) {
+                    $("#csvUploadForm").remove();
+                    $("#layout_content").append( data.d.html );
+                }
+                else {
+                    alert( data.d );
+                    cancelCSVUpload(true);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function cancelCSVUpload(force) {
+
+        if (force) {
+            doCancel();
+        }
+        else if ( confirm('are you sure?') ) {
+            doCancel();
+        }
+    }
+
+    function doCancel() {
+
+        var url = '{{ path('odr_csv_cancel_import') }}';
+
+        var dataType = "json";
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: dataType,
+            success: function(data, textStatus, jqXHR) {
+                if (data.r == 0) {
+//                    alert('csv import cancelled');
+                    window.location.reload();
+                }
+                else {
+                    alert( data.d );
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+{% endspaceless %}

@@ -1,0 +1,104 @@
+{% block navigation_top %}
+
+{% set level = 0 %}
+{% for role in user.getroles %}
+    {% if role == 'ROLE_SUPER_ADMIN' %}
+        {% set level = level + 4 %}
+    {% elseif role == 'ROLE_ADMIN' %}
+        {% set level = level + 2 %}
+    {% elseif role == 'ROLE_USER' %}
+        {% set level = level + 1 %}
+    {% endif %}
+{% endfor %}
+
+{% set has_datatype_admin = false %}
+{% if level == 7 %}
+    {% set has_datatype_admin = true %}
+{% else %}
+    {% for datatype_id, permissions in user_permissions %}
+        {% if user_permissions[ datatype_id ][ 'admin' ] is defined %}
+            {% set has_datatype_admin = true %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
+
+{#{% set baseurl =  site_baseurl ~ "/" ~ search_slug %}#}
+<!-- This div is used to indicate the original position of the scrollable nav -->
+<div class="vertical_spacer"></div>
+
+<nav class="pure-menu pure-menu-open">
+    <ul>
+        <li><a href="{{ path('odr_admin_homepage') }}"><i class="fa fa-lg fa-dashboard fa-fw"></i>Dashboard</a></li>
+        <li><a class="address" href="#{{ path('odr_self_profile_edit') }}"><i class="fa fa-lg fa-user fa-fw"></i>Profile</a></li>
+        <li class="pure-menu-separator"></li>
+
+        <li class="ODRMenuExpand Pointer">
+            <a><i class="fa fa-lg fa-tasks fa-fw"></i>Manage Data</a>
+            <ul>
+                <li><a class="address" href="#{{ path('odr_list_types', { 'section': 'records' } ) }}" title="List DataRecords"><i class="fa fa-lg fa-fw fa-list"></i>List Records</a></li>
+                {#<li><a href="{{ baseurl }}#{{ path('odr_list_types', { 'section': 'records' } ) }}" title="List DataRecords"><i class="fa fa-lg fa-fw fa-list"></i>List Records</a></li>#}
+            </ul>
+        </li>
+
+{#{% if level > 1 %}#}
+        <li class="ODRMenuExpand Pointer">
+            <a><i class="fa fa-lg fa-list-alt fa-fw"></i>Manage Data Types</a>
+            <ul>
+                <li><a class="address" href="#{{ path('odr_list_types', { 'section': 'design' } ) }}" title="List DataTypes"><i class="fa fa-lg fa-fw fa-cog"></i>List Types</a></li>
+                <!--<li><a class="address" href="#{{ path('admin_manage_plugins') }}" title="Manage Plugins"><span class="fa fa-lg fa-fw fa-cog"></span>Manage Plugins</a></li>-->
+                <!--<li><a class="address" href="#{{ path('admin_plugin_test') }}" title="Plugin TEST"><span class="fa fa-lg fa-fw fa-cog"></span>Plugin TEST</a></li>-->
+            </ul>
+        </li>
+{#{% endif %}#}
+
+{#{% if level > 3 %}#}
+{% if has_datatype_admin == true %}
+        <li class="ODRMenuExpand Pointer">
+            <a><i class="fa fa-lg fa-group fa-fw"></i>Manage Users</a>
+            <ul>
+                <li><a class="address" href="#{{ path('odr_user_list') }}" title="List Users"><i class="fa fa-lg fa-fw fa-cog"></i>List Users</a></li>
+            {% if level == 3 or level == 7 %}
+                <li><a class="address" href="#{{ path('odr_profile_edit', { 'user_id': 0 } ) }}" title="Add User"><i class="fa fa-lg fa-fw fa-cog"></i>Add User</a></li>
+            {% endif %}
+            {% if level == 7 %}
+                <li><a class="address" href="#{{ path('odr_manage_user_roles') }}" title="Manage Roles"><i class="fa fa-lg fa-fw fa-cog"></i>Manage Roles</a></li>
+                <li><a class="address" href="#{{ path('odr_quick_permissions') }}" title="Quick Permissions"><i class="fa fa-lg fa-fw fa-cog"></i>Quick Permissions</a></li>
+            {% endif %}
+            </ul>
+        </li>
+{% endif %}
+
+    </ul>
+</nav>
+
+<script type="text/javascript">
+    $(function() {
+//        $("li.ODRMenuExpand > ul").hide();
+        $("li.ODRMenuExpand > ul").removeAttr('style');
+        
+        $("li.ODRMenuExpand").unbind('click');
+        $("li.ODRMenuExpand").click(function() {
+            $("li.ODRMenuExpand > ul").hide();
+//            $(this).children("ul").show();
+            $(this).children("ul").css(
+                {
+                    'display': 'block',
+                    'top': '0px',
+                    'left': '0px',
+                    'visibility': 'visible',
+                    'position': 'relative',
+                }
+            );
+        });
+    });
+</script>
+
+<style type="text/css">
+    .ODRMenuExpand li {
+        margin-left: 10px;
+    }
+</style>
+
+{% endblock %}
+
+

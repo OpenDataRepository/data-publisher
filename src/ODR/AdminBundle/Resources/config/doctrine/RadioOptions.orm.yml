@@ -1,0 +1,130 @@
+ODR\AdminBundle\Entity\RadioOptions:
+    type: entity
+    table: odr_radio_options
+    gedmo:
+        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        value:
+            type: integer
+            unsigned: false
+            nullable: false
+            gedmo:
+                - versioned
+        optionName:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: option_name
+            gedmo:
+                - versioned
+        displayOrder:
+            type: integer
+            unsigned: false
+            nullable: false
+            column: display_order
+            gedmo:
+                - versioned
+        isDefault:
+            type: boolean
+            nullable: false
+            default: false
+            column: is_default
+            gedmo:
+                - versioned
+
+        external_id:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: external_id
+            gedmo:
+                - versioned
+
+#        external_id:
+#            type: integer
+#            unsigned: false
+#            nullable: false
+#            column: external_id
+#            gedmo:
+#                - versioned
+
+        deletedAt:
+            type: date
+            nullable: true
+            gedmo:
+                - versioned
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+
+    oneToMany:
+        children:
+            targetEntity: RadioOptions
+            mappedBy: parent
+            fetch: EXTRA_LAZY
+
+    manyToOne:
+        parent:
+            targetEntity: RadioOptions
+            inversedBy: children
+            fetch: EXTRA_LAZY
+            gedmo:
+                - versioned
+
+        dataFields:
+            targetEntity: DataFields
+            cascade: {  }
+#            mappedBy: dataFields
+            inversedBy: radioOptions
+            joinColumns:
+                data_fields_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+            gedmo:
+                - versioned
+#            gedmo:
+#                blameable:
+#                    on: update
+
+    lifecycleCallbacks: {  }

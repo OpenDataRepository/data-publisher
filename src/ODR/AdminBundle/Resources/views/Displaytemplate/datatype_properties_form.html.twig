@@ -1,0 +1,72 @@
+{% spaceless %}
+
+<div class="pure-u-3-4" style="visibility: hidden;">
+    <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
+</div>
+
+<form class="ODRDatatypePropertiesForm pure-form pure-form-aligned" {{ form_enctype(datatype_form) }} id="DatatypePropertiesForm_{{ datatype.id }}">
+    {{ form_errors(datatype_form._token) }}
+    {{ form_widget(datatype_form._token) }}
+    <fieldset>
+
+        <div class="pure-control-group">
+            <label for="{{datatype_form.short_name.vars.id}}">
+                <strong>{{datatype_form.short_name.vars.label}}</strong>
+            </label>
+            {{ form_errors(datatype_form.short_name) }}
+            {{ form_widget(datatype_form.short_name, { 'attr': {'class': 'required ODRDatatypeShortName', 'data-error-type': 'inline' } }) }}
+        </div>
+        <div class="pure-control-group">
+            <label for="{{datatype_form.long_name.vars.id}}">
+                <strong>{{datatype_form.long_name.vars.label}}</strong>
+            </label>
+            {{ form_errors(datatype_form.long_name) }}
+            {{ form_widget(datatype_form.long_name, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+        </div>
+        <div class="pure-control-group">
+            <label for="{{datatype_form.description.vars.id}}">
+                <strong>{{datatype_form.description.vars.label}}</strong>
+            </label>
+            {{ form_errors(datatype_form.description) }}
+            {{ form_widget(datatype_form.description, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+        </div>
+
+        <div class="pure-control-group">
+            <label for="{{datatype_form.nameField.vars.id}}">
+                <strong>{{datatype_form.nameField.vars.label}}</strong>
+            </label>
+            {{ form_errors(datatype_form.nameField) }}
+            {{ form_widget(datatype_form.nameField, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+        </div>
+
+        {#{% if is_top_level == 0 %}#}
+        <div class="pure-control-group">
+            <label for="{{datatype_form.multiple_records_per_parent.vars.id}}">
+                <strong>{{datatype_form.multiple_records_per_parent.vars.label}}</strong>
+            </label>
+            {{ form_errors(datatype_form.multiple_records_per_parent) }}
+            {{ form_widget(datatype_form.multiple_records_per_parent, { 'attr': {'style': 'width:auto'} }) }}
+        </div>
+        {#{% endif %}#}
+
+        <div class="pure-control-group">
+            <label for="{{datatype_form.display_type.vars.id}}">
+                <strong>{{datatype_form.display_type.vars.label}}</strong>
+            </label>
+            {{ form_errors(datatype_form.display_type) }}
+                {{ form_widget(datatype_form.display_type, { 'attr': {'style': 'width:auto'} }) }}
+
+{#
+            {% if datatype.renderplugin.id == 1 %}
+                {{ form_widget(datatype_form.display_type, { 'attr': {'style': 'width:auto'} }) }}
+            {% else %}
+                {{ form_widget(datatype_form.display_type, { 'attr': {'style': 'width:auto', 'disabled': 'disabled' } }) }}
+            {% endif %}
+#}
+        </div>
+
+    </fieldset>
+
+</form>
+
+{% endspaceless %}

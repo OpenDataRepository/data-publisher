@@ -1,0 +1,33 @@
+DataType:
+    type: entity
+    table: odr_data_type
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+        shortName:
+            type: string
+            length: 32
+            fixed: false
+            nullable: false
+            column: short_name
+        longName:
+            type: string
+            length: 128
+            fixed: false
+            nullable: false
+            column: long_name
+        description:
+            type: text 
+            fixed: false
+            nullable: true
+            column: description
+        multipleRecordsPerParent:
+            type: boolean
+            nullable: false
+            column: multiple_records_per_parent
+    lifecycleCallbacks: {  }

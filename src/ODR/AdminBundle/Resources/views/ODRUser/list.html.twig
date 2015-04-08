@@ -1,0 +1,177 @@
+{% spaceless %}
+
+{# Determine permissino level of the user doing the changing of permissions #}
+{% set admin_level = 0 %}
+{% for role in admin_user.getroles %}
+    {% if role == 'ROLE_SUPER_ADMIN' %}
+        {% set admin_level = admin_level + 4 %}
+    {% elseif role == 'ROLE_ADMIN' %}
+        {% set admin_level = admin_level + 2 %}
+    {% elseif role == 'ROLE_USER' %}
+        {% set admin_level = admin_level + 1 %}
+    {% endif %}
+{% endfor %}
+
+<div class="header">
+    <h2>User List</h2>
+</div>
+
+<div class="content">
+
+    <table class="pure-table pure-table-striped">
+        <thead>
+            <tr>
+                <th>User Name</th>
+                <th>Email</th>
+                <th>Edit Profile</th>
+                <th>Edit Permissions</th>
+                <th>Delete User</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for user in users %}
+            <tr>
+                <td>{{ user.getuserextend.firstname }}&nbsp;{{ user.getuserextend.lastname }}</td>
+                <td>{{ user.email }}</td>
+
+            {% if user.enabled == 1 %}
+                {% set target_is_super_admin = false %}
+                {% set target_is_admin = false %}
+                {% for role in user.getroles %}
+                    {% if role == "ROLE_SUPER_ADMIN" %}
+                        {% set target_is_super_admin = true %}
+                    {% endif %}
+                    {% if role == "ROLE_ADMIN" %}
+                        {% set target_is_admin = true %}
+                    {% endif %}
+                {% endfor %}
+
+                <td class="center">
+                    {% if user.id == admin_user.id %}
+                    <a class="address" href="#{{ path('odr_self_profile_edit') }}"><i class="fa fa-lg fa-user"></i>&nbsp;Edit Profile</a>
+                    {% elseif (admin_level == 3 and target_is_super_admin == false) or admin_level == 7 %}
+                    <a class="address" href="#{{ path('odr_profile_edit', { 'user_id': user.id } ) }}"><i class="fa fa-lg fa-user"></i>&nbsp;Edit Profile</a>
+                    {% endif %}
+                </td>
+
+                <td class="center">
+                {% if target_is_super_admin == true or (admin_level == 1 and target_is_admin == true) %}
+                    {# either target has all permissions by definition, or the user visiting this page has insufficient permissions...do nothing #}
+                {% else %}
+                    <a class="address" href="#{{ path('odr_manage_user_permissions', { 'user_id': user.id } ) }}"><i class="fa fa-lg fa-list"></i>&nbsp;Manage Permissions</a>
+                {% endif %}
+                </td>
+
+                <td class="center">
+                    {% if admin_level == 7 and user != admin_user %}
+                    <a style="cursor:pointer;" onclick="deleteUser({{ user.id }});"><i class="fa fa-lg fa-times"></i>&nbsp;Delete User</a>
+                    {% endif %}
+                </td>
+
+            {% else %}
+                <td class="center"></td>
+                <td class="center"></td>
+                <td class="center">
+                    {% if admin_level == 7 %}
+                    <a style="cursor:pointer;" onclick="undeleteUser({{ user.id }});"><i class="fa fa-lg fa-repeat"></i>&nbsp;Undelete User</a>
+                    {% endif %}
+                </td>
+            {% endif %}
+            </tr>
+
+        {% else %}
+            <tr>
+                <td colspan="5">No Users Found</td>
+           </tr>
+        {% endfor %}
+
+        </tbody>
+    </table>
+            
+</div><!-- End of .content -->
+
+<script>
+    function deleteUser(user_id) {
+        // Prevent an admin from deleting himself
+        if (user_id == {{ admin_user.id }}) {
+            alert("For safety reasons, an Admin can't delete his own profile.");
+            return;
+        }
+
+        if ( confirm("This will remove the user's permissions.") ) {
+            var url = '{{ path('odr_delete_user', { 'user_id': 0 } ) }}';
+            url = url.substring(0, (url.length - 1));
+            url += user_id;
+            var dataType = "json";
+
+            // Ajax Load Form in box
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: dataType,
+                success: function(data, textStatus, jqXHR) {
+                    if (data.r == 0) {
+                        alert("User Deleted");
+                        $('#content').html(data.d.html);
+                    }
+                    else {
+                        // TODO - no error message ability?
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        }
+    }
+
+    function undeleteUser(user_id) {
+        var url = '{{ path('odr_undelete_user', { 'user_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += user_id;
+        var dataType = "json";
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: dataType,
+            success: function(data, textStatus, jqXHR) {
+                if (data.r == 0) {
+                    alert("User Reinstated");
+                    $('#content').html(data.d.html);
+                }
+                else {
+                    // TODO - no error message ability?
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+</script>
+
+{% endspaceless %}

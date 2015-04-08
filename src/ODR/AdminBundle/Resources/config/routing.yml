@@ -1,0 +1,955 @@
+#-----------------------------------------
+# Basic routes
+odr_admin_homepage:
+    pattern:  /admin
+    defaults: { _controller: ODRAdminBundle:Default:index }
+
+odr_logout:
+    pattern:  /logout
+
+odr_dashboard:
+    defaults: { _controller: ODRAdminBundle:Default:dashboard }
+    pattern:  /admin/dashboard
+#-----------------------------------------
+
+#-----------------------------------------
+# ODRUser Controller
+# public routes to let users modify their own profile
+odr_self_profile_edit:
+    pattern:  /profile
+    defaults: { _controller: ODRAdminBundle:ODRUser:selfedit }
+
+odr_self_profile_save:
+    pattern:  /profile/save
+    defaults: { _controller: ODRAdminBundle:ODRUser:selfsave }
+    requirements: { _method: POST }
+#-----------------------------------------
+
+#-----------------------------------------
+# ODRUser Controller
+admin_user_register:
+    defaults: { _controller: FOSUserBundle:Registration:register }
+    pattern:  /admin/adduser
+
+odr_profile_edit:
+    pattern:  /admin/user/edit/{user_id}
+    defaults: { _controller: ODRAdminBundle:ODRUser:edit }
+    requirements:
+        user_id:  \d+
+
+odr_profile_save:
+    pattern:  /admin/user/save
+    defaults: { _controller: ODRAdminBundle:ODRUser:save }
+    requirements: { _method: POST }
+
+odr_user_list:
+    pattern:  /admin/user/list
+    defaults: { _controller: ODRAdminBundle:ODRUser:list }
+
+odr_manage_user_permissions:
+    pattern:  /admin/user/managepermissions/{user_id}
+    defaults: { _controller: ODRAdminBundle:ODRUser:managepermissions }
+    requirements:
+        user_id:  \d+
+
+odr_toggle_user_permission:
+    pattern:  /admin/user/togglepermission/{user_id}/{datatype_id}/{value}/{permission}
+    defaults: { _controller: ODRAdminBundle:ODRUser:togglepermission }
+    requirements:
+        user_id:  \d+
+        datatype_id:  \d+
+        value:  0|1
+        permission:  'edit|add|delete|view|design|admin|'
+
+odr_quick_permissions:
+    pattern:  /admin/user/quickpermissions/
+    defaults: { _controller: ODRAdminBundle:ODRUser:quickpermissions }
+
+odr_toggle_quick_permission:
+    pattern:  /admin/user/togglequickpermission/{datatype_id}/{value}/{permission}
+    defaults: { _controller: ODRAdminBundle:ODRUser:togglequickpermission }
+    requirements:
+        datatype_id:  \d+
+        value:  0|1
+        permission:  'edit|add|delete|view|design|admin|'
+
+odr_edit_datafield_permissions:
+    pattern:  /admin/user/datafieldpermissions/{user_id}/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:ODRUser:datafieldpermissions }
+    requirements:
+        user_id:  \d+
+        datatype_id:  \d+
+
+odr_save_datafield_permission:
+    pattern:  /admin/user/savedatafieldpermission/{user_id}/{datafield_id}/{permission}
+    defaults: { _controller: ODRAdminBundle:ODRUser:savedatafieldpermission }
+    requirements:
+        user_id:  \d+
+        datafield_id:  \d+
+        permission: '0|1|2'
+
+odr_manage_user_roles:
+    pattern:  /admin/user/manage/roles
+    defaults: { _controller: ODRAdminBundle:ODRUser:manageroles }
+    requirements:
+        user_id:  \d+
+
+odr_set_user_role:
+    pattern:  /admin/user/setrole/{user_id}/{role}
+    defaults: { _controller: ODRAdminBundle:ODRUser:setrole }
+    requirements:
+        user_id:  \d+
+        role:  'editor|designer|admin|'
+
+odr_delete_user:
+    pattern:  /admin/user/delete/{user_id}
+    defaults: { _controller: ODRAdminBundle:ODRUser:delete }
+    requirements:
+        user_id:  \d+
+
+odr_undelete_user:
+    pattern:  /admin/user/undelete/{user_id}
+    defaults: { _controller: ODRAdminBundle:ODRUser:undelete }
+    requirements:
+        user_id:  \d+
+
+odr_session_pagelength:
+    pattern:  /session/pagelength/{length}
+    defaults: { _controller:ODRAdminBundle:ODRUser:pagelength }
+    requirements:
+        length: 10|25|50|100
+
+#-----------------------------------------
+
+#-----------------------------------------
+# Render Plugin routes
+odr_render_plugin_dialog:
+    pattern:  /design/displaytemplate/plugindialog/{datatype_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:plugindialog }
+    requirements:
+        datatype_id:  \d+
+        datafield_id:  \d+
+
+odr_load_plugin_data:
+    pattern:  /design/displaytemplate/plugindata/{datatype_id}/{datafield_id}/{render_plugin_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:pluginsettings }
+    requirements:
+        datatype_id:  \d+
+        datafield_id:  \d+
+        render_plugin_id:  \d+
+
+odr_save_datatype_plugin:
+    pattern:  /design/displaytemplate/savedatatypeplugin
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:savedatatypeplugin }
+    requirements: { _method: POST }
+
+admin_manage_plugins:
+    pattern:  /admin/plugins
+    defaults: { _controller: ODRAdminBundle:Plugins:manage }
+
+admin_plugin_add:
+    pattern:  /admin/plugin/add
+    defaults: { _controller: ODRAdminBundle:Plugins:add }
+    requirements:
+        plugin_name:  \w+
+
+admin_plugin_map:
+    pattern:  /admin/plugin/map/{plugin_id}
+    defaults: { _controller: ODRAdminBundle:Plugins:map }
+    requirements:
+        plugin_id:  \d+
+
+admin_plugin_options:
+    pattern:  /admin/plugin/options/{plugin_id}
+    defaults: { _controller: ODRAdminBundle:Plugins:options }
+    requirements:
+        plugin_id:  \d+
+
+admin_plugin_test:
+    pattern:  /admin/plugintest
+    defaults: { _controller: ODRAdminBundle:Plugins:plugintest }
+#-----------------------------------------
+
+#-----------------------------------------
+# DataType Controller
+odr_list_types:
+    pattern:  /admin/type/list/{section}
+    defaults: { _controller: ODRAdminBundle:Datatype:list }
+    requirements:
+        section: design|records
+
+odr_add_types:
+    pattern:  /admin/type/add
+    defaults: { _controller: ODRAdminBundle:Datatype:add }
+    requirements: { _method: POST }
+
+odr_edit_type:
+    pattern:  /admin/type/edit/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Datatype:edit }
+    requirements:
+        datatype_id:  \d+
+
+odr_save_type:
+    pattern:  /admin/type/save
+    defaults: { _controller: ODRAdminBundle:Datatype:save }
+    requirements: { _method: POST }
+
+odr_recache_all:
+    pattern: /admin/type/recache_all
+    defaults: { _controller: ODRAdminBundle:Datatype:recacheall }
+#-----------------------------------------
+
+#-----------------------------------------
+# Displaytemplate Controller
+odr_design_display_template:
+    pattern:  /design/displaytemplate/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:design }
+    requirements:
+        datatype_id:  \d+
+odr_design_reload_child:
+    pattern: /design/displaytemplate/childreload/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:reloadchild }
+    requirements:
+        datatype_id: \d+
+odr_design_reload_theme_element:
+    pattern: /design/displaytemplate/themeelementreload/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:reloadthemeelement }
+    requirements:
+        theme_element_id: \d+
+odr_design_reload_datafield:
+    pattern: /design/displaytemplate/datafieldreload/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:reloaddatafield }
+    requirements:
+        datafield_id: \d+
+
+
+odr_nav_display_template:
+    pattern:  /design/datafields/nav/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:nav }
+    requirements:
+        datatype_id:  \d+
+
+odr_design_get_datatype_properties:
+    pattern:  /design/displaytemplate/gettypeproperties/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypeproperties }
+    requirements:
+        datatype_id:  \d+
+
+odr_design_get_link_datatypes:
+    pattern:  /design/displaytemplate/getlinktypes/{datatype_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:getlinktypes }
+    requirements:
+        datatype_id:  \d+
+        theme_element_id:  \d+
+
+odr_design_link_datatype:
+    pattern:  /design/displaytemplate/linktype
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:linktype }
+    requirements: { _method: POST }
+
+odr_design_get_datafield_properties:
+    pattern:  /design/displaytemplate/getdatafieldproperties/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldproperties }
+    requirements:
+        datafield_id:  \d+
+
+odr_design_get_theme_element_properties:
+    pattern:  /design/displaytemplate/themeelementproperties/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:themeelementproperties }
+    requirements:
+        theme_element_id:  \d+
+
+odr_design_save_theme_element_order:
+    pattern:  /design/displaytemplate/themeelementorder
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:themeelementorder }
+    requirements: { _method: POST }
+
+odr_design_save_datafield_order:
+    pattern:  /design/displaytemplate/datafieldorder/{initial_theme_element_id}/{ending_theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldorder }
+    methods: [POST]
+    requirements:
+        initial_theme_element_id: \d+
+        ending_theme_element_id: \d+
+
+odr_design_delete_theme_element:
+    pattern:  /design/displaytemplate/deletethemeelement/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:deletethemeelement }
+    requirements:
+        theme_element_id:  \d+
+
+odr_design_save_theme_datafield:
+    pattern:  /design/displaytemplate/savethemedatafield/{theme_datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:savethemedatafield }
+    methods: [POST]
+    requirements:
+        theme_datafield_id: \d+
+
+odr_design_delete_datafield:
+    pattern:  /design/displaytemplate/deletefield/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:deletefield }
+    requirements:
+        datafield_id:  \d+
+
+odr_design_get_deleted_datafields:
+    pattern:  /design/deleted/datafields/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:getdeleteddatafields }
+    requirements:
+        datatype_id:  \d+
+
+odr_design_undelete_datafield:
+    pattern:  /design/undelete/datafield
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:undeletedatafield }
+    requirements: { _method: POST }
+
+odr_design_delete_datatype:
+    pattern:  /design/displaytemplate/deletedatatype/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:deletedatatype }    # deals with both top-level and child datatypes
+    requirements:
+        datatype_id:  \d+
+
+odr_design_nav_slideout:
+    pattern:  /design/displaytemplate/navslideout
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:navslideout }
+
+odr_design_add_childtype:
+    pattern:  /design/displaytemplate/addchildtype/{datatype_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:addchildtype }
+    requirements:
+        datatype_id:  \d+
+        theme_element_id:  \d+
+
+odr_design_add_theme_element:
+    pattern:  /design/displaytemplate/addthemeelement/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:addthemeelement }
+    requirements:
+        datatype_id:  \d+
+
+odr_design_add_datafield:
+    pattern:  /design/displaytemplate/adddatafield/{datatype_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:adddatafield }
+    requirements:
+        datatype_id:  \d+
+        theme_element_id:  \d+
+
+odr_design_copy_datafield:
+    pattern:  /design/displaytemplate/copydatafield/{datatype_id}/{theme_element_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:copydatafield }
+    requirements:
+        datatype_id:  \d+
+        theme_element_id:  \d+
+        datafield_id:  \d+
+
+odr_design_get_radio_options:
+    pattern:  /design/displaytemplate/getradiooptions/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:getradiooptions }
+    requirements:
+        datafield_id: \d+
+odr_design_save_radio_option_name:
+    pattern:  /design/displaytemplate/saveradiooptionname/{radio_option_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:radiooptionname }
+    methods: [POST]
+    requirements:
+        radio_option_id: \d+
+odr_design_save_radio_option_order:
+    pattern:  /design/displaytemplate/saveradiooptionorder/{datafield_id}/{alphabetical_sort}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:radiooptionorder }
+    methods: [POST]
+    requirements:
+        datafield_id: \d+
+        alphabetical_sort: 0|1
+odr_design_add_radio_option:
+    pattern:  /design/displaytemplate/addradiooption/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:addradiooption }
+    requirements:
+        datafield_id:  \d+
+odr_design_default_radio_option:
+    pattern:  /design/displaytemplate/defaultradiooption/{radio_option_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:defaultradiooption }
+    requirements:
+        radio_option_id:  \d+
+odr_design_delete_radio_option:
+    pattern:  /design/displaytemplate/deleteradiooption/{radio_option_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:deleteradiooption }
+    requirements:
+        radio_option_id:  \d+
+
+
+odr_design_public_datatype:
+    pattern:  /design/displaytemplate/publictype/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:publictype }
+    requirements:
+        datatype_id:  \d+
+
+odr_design_visible_theme_element:
+    pattern:  /design/displaytemplate/themeelementvisible/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:themeelementvisible }
+    requirements:
+        datatype_id:  \d+
+
+#-----------------------------------------
+
+#-----------------------------------------
+# Searchtemplate Controller
+odr_search_template_reload_child:
+    pattern: /design/searchtemplate/childreload/{datatype_id}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloadchild }
+    requirements:
+        datatype_id: \d+
+        theme_id: \d+
+odr_search_template_reload_theme_element:
+    pattern: /design/searchtemplate/themeelementreload/{theme_element_id}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloadthemeelement }
+    requirements:
+        theme_element_id: \d+
+        theme_id: \d+
+odr_search_template_reload_datafield:
+    pattern: /design/searchtemplate/datafieldreload/{datafield_id}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloaddatafield }
+    requirements:
+        datafield_id: \d+
+        theme_id: \d+
+
+odr_search_template_edit:
+    pattern:  /design/searchtemplate/{datatype_id}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:design }
+    requirements:
+        datatype_id:  \d+
+        theme_id: \d+
+
+odr_search_template_get_datafield_properties:
+    pattern:  /design/searchtemplate/datafieldproperty/{datafield_id}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:datafieldproperties }
+    requirements:
+        datafield_id:  \d+
+        theme_id: \d+
+
+odr_search_template_save_theme_datafield:
+    pattern:  /design/searchtemplate/savethemedatafield/{theme_datafield_id}
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:savethemedatafield }
+    methods: [POST]
+    requirements:
+        theme_datafield_id:  \d+
+
+# This next route is used by TextResults
+odr_search_template_field_order:
+    pattern:  /design/searchtemplate/fieldorder/{unused_field_ids}/{used_field_ids}
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:fieldorder }
+    requirements:
+        unused_field_ids: '[\d\,]*'
+        used_field_ids: '[\d\,]*'
+
+odr_search_template_save_datafield_order:
+    pattern:  /design/searchtemplate/datafieldorder/{initial_theme_element_id}/{ending_theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:datafieldorder }
+    methods: [POST]
+    requirements:
+        initial_theme_element_id: \d+
+        ending_theme_element_id: \d+
+
+odr_search_template_add_datafield:
+    pattern:  /design/searchtemplate/addfield/{datafield_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:addfield }
+    requirements:
+        datafield_id: \d+
+        theme_element_id: \d+
+odr_search_template_remove_datafield:
+    pattern:  /design/searchtemplate/removefield/{datafield_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:removefield }
+    requirements:
+        datafield_id: \d+
+        theme_element_id: \d+
+
+odr_search_template_get_theme_element_properties:
+    pattern:  /design/searchtemplate/themeelementproperties/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:themeelementproperties }
+    requirements:
+        theme_element_id:  \d+
+odr_search_template_save_theme_element_order:
+    pattern:  /design/searchtemplate/themeelementorder
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:themeelementorder }
+    requirements: { _method: POST }
+
+odr_search_template_add_theme_element:
+    pattern:  /design/searchtemplate/addthemeelement/{datatype_id}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:addthemeelement }
+    requirements:
+        datatype_id:  \d+
+        theme_id:  \d+
+odr_search_template_delete_theme_element:
+    pattern:  /design/searchtemplate/deletethemeelement/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:deletethemeelement }
+    requirements:
+        theme_element_id:  \d+
+#-----------------------------------------
+
+#-----------------------------------------
+# Record Controller
+
+odr_record_edit:
+    pattern:  /edit/record/{datarecord_id}/{search_key}/{offset}
+    defaults: { _controller: ODRAdminBundle:Record:edit, search_key: '', offset: '' }
+    requirements:
+        datarecord_id:  \d+
+#        search_key: '[a-zA-Z0-9\-\_]{15}|'
+  # 15 characters or empty string
+        search_key: '[^\/]*'
+        offset: \d+
+
+odr_record_reload_child:
+    pattern: /edit/record/childreload/{datatype_id}/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Record:reloadchild }
+    requirements:
+        datatype_id: \d+
+        datarecord_id: \d+
+odr_record_reload_datafield:
+    pattern: /edit/record/datafieldreload/{datarecord_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Record:reloaddatafield }
+    requirements:
+        datarecord_id: \d+
+        datafield_id: \d+
+
+
+odr_record_save:
+    pattern:  /edit/record/save/{record_type}/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Record:update }
+    requirements:
+        datarecord_id:  \d+
+        record_type:  '[a-zA-Z]+'
+
+odr_record_public:
+    pattern:  /edit/record/public/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Record:publicdatarecord }
+    requirements:
+        datarecord_id:  \d+
+
+odr_record_add:
+    pattern:  /edit/record/add/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Record:add }
+    requirements:
+        datatype_id:  \d+
+
+odr_record_delete:
+    pattern:  /edit/record/delete/{datarecord_id}/{search_key}
+    defaults: { _controller: ODRAdminBundle:Record:delete }
+    requirements:
+        datarecord_id:  \d+
+#        search_key: '[a-zA-Z0-9\-\_]{15}|'
+  # 15 characters or empty
+        search_key: '[^\/]*'
+
+odr_record_addchild:
+    pattern:  /edit/record/addchildrecord/{datatype_id}/{parent_id}/{grandparent_id}
+    defaults: { _controller: ODRAdminBundle:Record:addchildrecord }
+    requirements:
+        datatype_id:  \d+
+        parent_id:  \d+
+        grandparent_id:  \d+
+
+odr_record_deletechild:
+    pattern:  /edit/record/deletechildrecord/{datarecord_id}/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Record:deletechildrecord }
+    requirements:
+        datarecord_id:  \d+
+        datatype_id:  \d+
+
+odr_record_radio_selection:
+    pattern:  /edit/record/radioselection/{data_record_field_id}/{radio_option_id}/{multiple}
+    defaults: { _controller: ODRAdminBundle:Record:radioselection }
+    requirements:
+        data_record_field_id:  \d+
+        radio_option_id:  \d+
+        multiple:  \d
+
+odr_record_delete_file:
+    pattern:  /edit/record/deletefile/{file_id}
+    defaults: { _controller: ODRAdminBundle:Record:deletefile }
+    requirements:
+        file_id:  \d+
+
+odr_record_public_file:
+    pattern:  /edit/record/publicfile/{file_id}
+    defaults: { _controller: ODRAdminBundle:Record:publicfile }
+    requirements:
+        file_id:  \d+
+
+odr_record_public_image:
+    pattern:  /edit/record/publicimage/{image_id}
+    defaults: { _controller: ODRAdminBundle:Record:publicimage }
+    requirements:
+        image_id:  \d+
+
+odr_record_delete_image:
+    pattern:  /edit/record/deleteimage/{image_id}
+    defaults: { _controller: ODRAdminBundle:Record:deleteimage }
+    requirements:
+        image_id:  \d+
+
+odr_record_save_image_order:
+    pattern:  /edit/record/saveimageorder
+    defaults: { _controller: ODRAdminBundle:Record:saveimageorder }
+    requirements: { _method: POST }
+
+odr_record_get_linkable_records:
+    pattern:  /edit/record/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Record:getlinkablerecords }
+    requirements:
+        ancestor_datatype_id:  \d+
+        descendant_datatype_id:  \d+
+        local_datarecord_id:  \d+
+
+odr_link_records:
+    pattern:  /edit/record/linkrecords
+    defaults: { _controller: ODRAdminBundle:Record:linkrecord }
+    requirements: { _method: POST }
+
+odr_record_get_field_history:
+    pattern:  /edit/record/history/{datarecordfield_id}/{entity_id}
+    defaults: { _controller: ODRAdminBundle:Record:getfieldhistory }
+    requirements:
+        datarecordfield_id:  \d+
+        entity_id:  \d+
+#-----------------------------------------
+
+#-----------------------------------------
+# Results Controller
+odr_results_view:
+    pattern:  /results/view/{datarecord_id}/{search_key}/{offset}
+    defaults: { _controller: ODRAdminBundle:Results:view, search_key: '', offset: '' }
+    requirements:
+        datarecord_id:  \d+
+#        search_key: '[a-zA-Z0-9\-\_]{15}|'
+  # 15 characters or empty string
+        search_key: '[^\/]*'
+        offset: \d+
+
+odr_file_download:
+    pattern:  /results/download/file/{file_id}
+    defaults: { _controller: ODRAdminBundle:Results:filedownload }
+    requirements:
+        file_id:  \d+
+
+odr_image_download:
+    pattern:  /results/download/image/{image_id}
+    defaults: { _controller: ODRAdminBundle:Results:imagedownload }
+    requirements:
+        image_id:  \d+
+
+#-----------------------------------------
+
+#-----------------------------------------
+# ShortResults Controller
+odr_shortresults_list:
+    pattern:  /shortresults/list/{datatype_id}/{target}/{offset}
+    defaults: { _controller: ODRAdminBundle:ShortResults:list, offset: 1 }
+    requirements:
+        datatype_id:  \d+
+        target: '[a-z]+'
+        offset: \d+
+
+odr_shortresults_reload:
+    pattern:  /shortresults/reload/{datarecord_id}/{force}
+    defaults: { _controller: ODRAdminBundle:ShortResults:reload, force: '' }
+    requirements:
+        datarecord_id: \d+
+        force: short|text
+
+odr_datatables_row_request:
+    pattern:  /beanstalk/datatables/rows
+    defaults: { _controller: ODRAdminBundle:ShortResults:datatablesrowrequest }
+    requirements: { _method: POST }
+
+#-----------------------------------------
+
+#-----------------------------------------
+# XSD Controller
+odr_xsd_generate_datatype:
+    pattern:  /admin/xsd/build/datatype/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:XSD:builddatatype }
+    requirements:
+        datatype_id:  \d+
+
+odr_xsd_generate_radiooption:
+    pattern:  /admin/xsd/build/radiooption/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:XSD:buildradiooption }
+    requirements:
+        datafield_id:  \d+
+
+odr_xsd_download:
+    pattern:  /admin/xsd/download/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:XSD:downloadXSD }
+    requirements:
+        datatype_id:  \d+
+#-----------------------------------------
+
+#-----------------------------------------
+# XML Controller
+odr_xml_import:
+    pattern:  /admin/xml/import/{type}/{id}
+    defaults: { _controller: ODRAdminBundle:XML:import }
+    requirements:
+        type:  'datatype|datafield'
+        id:  \d+
+
+odr_import_start:
+    pattern: /beanstalk/import_start
+    defaults: { _controller: ODRAdminBundle:XML:importstart }
+    requirements: { _method: POST }
+
+odr_validate_import:
+    pattern: /beanstalk/import_validate
+    defaults: { _controller: ODRAdminBundle:XML:importvalidate }
+    requirements: { _method: POST }
+
+odr_import_worker:
+    pattern: /beanstalk/import_worker
+    defaults: { _controller: ODRAdminBundle:XML:importworker }
+    requirements: { _method: POST }
+
+odr_import_file:
+    pattern: /beanstalk/import_file
+    defaults: { _controller: ODRAdminBundle:XML:importfile }
+    requirements: { _method: POST }
+
+
+odr_xml_export:
+    pattern:  /admin/xml/export/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:XML:export }
+    requirements:
+        datarecord_id: \d+
+
+odr_xml_download:
+    pattern:  /admin/xml/download/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:XML:downloadXML }
+    requirements:
+        datarecord_id: \d+
+#-----------------------------------------
+
+#-----------------------------------------
+# API stuff?
+odr_api_generate:
+    pattern:  /admin/api/generate
+    defaults: { _controller:ODRAdminBundle:Default:buildsitemap }
+
+odr_api_list_types:
+    pattern:  /api/list/types
+    defaults: { _controller: ODRAdminBundle:Datatype:getlist }
+
+odr_api_list_records:
+    pattern:  /api/list/records/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:ShortResults:recordlist }
+    requirements:
+        datatype_id: \d+
+
+odr_api_list_record:
+    pattern:  /api/get/record/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:XML:getXML }
+    requirements:
+        datarecord_id: \d+
+
+odr_api_map_datatype:
+    pattern:  /map/datatype/{datatype_id}/{datatype_name}
+    defaults: { _controller: ODRAdminBundle:ShortResults:map, datatype_name: '' }
+    requirements:
+        datatype_id: \d+
+        # does this need some sort of restriction for datatype name?  theoretically it's just discarded, but...
+
+odr_api_map_datarecord:
+    pattern:  /map/datarecord/{datarecord_id}/{datarecord_name}
+    defaults: { _controller: ODRAdminBundle:Results:map, datarecord_name: '' }
+    requirements:
+        datarecord_id: \d+
+        # does this need some sort of restriction for datarecord name?  theoretically it's just discarded, but...
+#-----------------------------------------
+
+#-----------------------------------------
+# Worker Controller
+odr_recache_type:
+    pattern: /beanstalk/recache_type
+    defaults: { _controller: ODRAdminBundle:Worker:recachetype }
+    requirements: { _method: POST }
+
+odr_recache_record:
+    pattern: /beanstalk/recache_record
+    defaults: { _controller: ODRAdminBundle:Worker:recacherecord }
+    requirements: { _method: POST }
+
+odr_migrate_field:
+    pattern: /beanstalk/migrate
+    defaults: { _controller: ODRAdminBundle:Worker:migrate }
+    requirements: { _method: POST }
+
+odr_start_rebuild_thumbnails:
+    pattern: /admin/rebuild_thumbnails
+    defaults: { _controller: ODRAdminBundle:Worker:startrebuildthumbnails }
+odr_rebuild_thumbnails:
+    pattern: /beanstalk/rebuild_thumbnails
+    defaults: { _controller: ODRAdminBundle:Worker:rebuildthumbnails }
+    requirements: { _method: POST }
+
+#-----------------------------------------
+
+#-----------------------------------------
+# CSVImport Controller
+odr_csv_import:
+    pattern: /edit/csv_import/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:CSVImport:import }
+    requirements:
+        datatype_id: \d+
+
+odr_csv_upload:
+    pattern: /edit/csv_import/upload/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:CSVImport:upload }
+    methods: [POST]
+    requirements: 
+        datatype_id: \d+
+
+odr_csv_cancel_import:
+    pattern: /edit/csv_import/cancel
+    defaults: { _controller: ODRAdminBundle:CSVImport:cancel }
+    
+odr_csv_import_layout:
+    pattern: /edit/csv_import/layout/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:CSVImport:layout }
+    requirements:
+        datatype_id: \d+
+
+odr_csv_import_process:
+    pattern: /edit/csv_import/process
+    defaults: { _controller: ODRAdminBundle:CSVImport:process }
+    requirements: { _method: POST }
+
+odr_csv_import_worker:
+    pattern: /beanstalk/csv_import/worker
+    defaults: { _controller: ODRAdminBundle:CSVImport:csvworker }
+    requirements: { _method: POST }
+
+#-----------------------------------------
+
+
+#-----------------------------------------
+# MassEdit Controller
+odr_mass_edit_list:
+    pattern: /admin/massedit/list/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:MassEdit:massEditList }
+    requirements:
+        datatype_id: \d+
+
+odr_mass_edit_searchlist:
+    pattern: /admin/massedit/searchlist/{datatype_id}/{search_key}
+    defaults: { _controller: ODRAdminBundle:MassEdit:massEdit }
+    requirements:
+        datatype_id: \d+
+#        search_key: '[a-zA-Z0-9\-\_]{15}|'
+#15 characters or empty string
+        search_key: '[^\/]*'
+
+
+odr_mass_update_start:
+    pattern: /admin/massedit/start
+    defaults: { _controller: ODRAdminBundle:MassEdit:massUpdate }
+    requirements: { _method: POST }
+
+odr_mass_update_worker:
+    pattern: /beanstalk/massedit
+    defaults: { _controller: ODRAdminBundle:MassEdit:massUpdateWorker }
+    requirements: { _method: POST }
+#-----------------------------------------
+
+
+#-----------------------------------------
+# CSVExport Controller
+odr_csv_export_list:
+    pattern: /admin/csvexport/list/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportList }
+    requirements:
+        datatype_id: \d+
+
+odr_csv_export_searchlist:
+    pattern: /admin/csvexport/searchlist/{datatype_id}/{search_key}
+    defaults: { _controller: ODRAdminBundle:CSVExport:csvExport }
+    requirements:
+        datatype_id: \d+
+#        search_key: '[a-zA-Z0-9\-\_]{15}|'
+#15 characters or empty string
+        search_key: '[^\/]*'
+
+
+odr_csv_export_start:
+    pattern: /admin/csvexport/start
+    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportStart }
+    requirements: { _method: POST }
+
+#odr_mass_update_worker:
+#    pattern: /beanstalk/massedit
+#    defaults: { _controller: ODRAdminBundle:MassEdit:massUpdateWorker }
+#    requirements: { _method: POST }
+
+odr_csv_download_page:
+    pattern:  /admin/csvexport/page/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:CSVExport:exportPage }
+    requirements:
+        datatype_id: \d+
+
+odr_csv_download:
+    pattern:  /admin/csvexport/download/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:CSVExport:downloadCSV }
+    requirements:
+        datatype_id: \d+
+
+#-----------------------------------------
+
+#-----------------------------------------
+# Other stuff
+odr_dt_check:
+    pattern: /admin/dt_check
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:dtcheck }
+odr_dr_check:
+    pattern: /admin/dr_check
+    defaults: { _controller: ODRAdminBundle:Worker:drcheck }
+odr_df_check:
+    pattern: /admin/df_check
+    defaults: { _controller: ODRAdminBundle:Worker:dfcheck }
+odr_drf_check:
+    pattern: /admin/drf_check
+    defaults: { _controller: ODRAdminBundle:Worker:drfcheck }
+odr_entity_check:
+    pattern: /admin/entity_check
+    defaults: { _controller: ODRAdminBundle:Worker:entitycheck }
+odr_permission_check:
+    pattern: /admin/permission_check
+    defaults: { _controller: ODRAdminBundle:ODRUser:permissioncheck }
+
+#odr_radio_check:
+#    pattern: /admin/radio/test
+#    defaults: { _controller:ODRAdminBundle:Worker:testradio }
+
+odr_start_encrypt:
+    pattern: /admin/encrypt/{object_type}
+    defaults: { _controller: ODRAdminBundle:Worker:startencrypt }
+    requirements:
+        object_type: 'file|File|image|Image'
+odr_force_encrypt:
+    pattern: /beanstalk/force_encrypt
+    defaults: { _controller: ODRAdminBundle:Worker:encrypt }
+    requirements: { _method: POST }
+
+odr_start_decrypt:
+    pattern: /admin/decrypt/{object_type}
+    defaults: { _controller: ODRAdminBundle:Worker:startdecrypt }
+    requirements:
+        object_type: 'file|File|image|Image'
+odr_force_decrypt:
+    pattern: /beanstalk/force_decrypt
+    defaults: { _controller: ODRAdminBundle:Worker:decrypt }
+    requirements: { _method: POST }
+
+#odr_test:
+#    pattern: /admin/test
+#    defaults: { _controller:ODRAdminBundle:XML:test }
+
+odr_save_datafield_search_order:
+    pattern:  /admin/save/datafieldorder/{datafield_ids}
+    defaults: { _controller: ODRAdminBundle:Searchtemplate:savedatafieldsearchorder }
+    requirements:
+        datafield_ids: '[\d\,]+'

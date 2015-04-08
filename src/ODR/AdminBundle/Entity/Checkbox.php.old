@@ -1,0 +1,315 @@
+<?php
+
+namespace ODR\AdminBundle\Entity;
+
+use Doctrine\ORM\Mapping as ORM;
+
+/**
+ * Checkbox
+ */
+class Checkbox
+{
+    /**
+     * @var integer
+     */
+    private $id;
+
+    /**
+     * @var integer
+     */
+    private $value;
+
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
+
+    /**
+     * @var \DateTime
+     */
+    private $created;
+
+    /**
+     * @var \DateTime
+     */
+    private $updated;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataFields
+     */
+    private $dataField;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\FieldType
+     */
+    private $fieldType;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataRecord
+     */
+    private $dataRecord;
+
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $createdBy;
+
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $updatedBy;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataRecordFields
+     */
+    private $dataRecordFields;
+
+
+    /**
+     * Get id
+     *
+     * @return integer 
+     */
+    public function getId()
+    {
+        return $this->id;
+    }
+
+    /**
+     * Set value
+     *
+     * @param integer $value
+     * @return Checkbox
+     */
+    public function setValue($value)
+    {
+        $this->value = $value;
+    
+        return $this;
+    }
+
+    /**
+     * Get value
+     *
+     * @return integer 
+     */
+    public function getValue()
+    {
+        return $this->value;
+    }
+
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return Checkbox
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+    
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+
+    /**
+     * Set created
+     *
+     * @param \DateTime $created
+     * @return Checkbox
+     */
+    public function setCreated($created)
+    {
+        $this->created = $created;
+    
+        return $this;
+    }
+
+    /**
+     * Get created
+     *
+     * @return \DateTime 
+     */
+    public function getCreated()
+    {
+        return $this->created;
+    }
+
+    /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return Checkbox
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+    
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime 
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
+    }
+
+    /**
+     * Set dataField
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $dataField
+     * @return Checkbox
+     */
+    public function setDataField(\ODR\AdminBundle\Entity\DataFields $dataField = null)
+    {
+        $this->dataField = $dataField;
+    
+        return $this;
+    }
+
+    /**
+     * Get dataField
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields 
+     */
+    public function getDataField()
+    {
+        return $this->dataField;
+    }
+
+    /**
+     * Set fieldType
+     *
+     * @param \ODR\AdminBundle\Entity\FieldType $fieldType
+     * @return Checkbox
+     */
+    public function setFieldType(\ODR\AdminBundle\Entity\FieldType $fieldType = null)
+    {
+        $this->fieldType = $fieldType;
+    
+        return $this;
+    }
+
+    /**
+     * Get fieldType
+     *
+     * @return \ODR\AdminBundle\Entity\FieldType 
+     */
+    public function getFieldType()
+    {
+        return $this->fieldType;
+    }
+
+    /**
+     * Set dataRecord
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecord $dataRecord
+     * @return Checkbox
+     */
+    public function setDataRecord(\ODR\AdminBundle\Entity\DataRecord $dataRecord = null)
+    {
+        $this->dataRecord = $dataRecord;
+    
+        return $this;
+    }
+
+    /**
+     * Get dataRecord
+     *
+     * @return \ODR\AdminBundle\Entity\DataRecord 
+     */
+    public function getDataRecord()
+    {
+        return $this->dataRecord;
+    }
+
+    /**
+     * Set createdBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
+     * @return Checkbox
+     */
+    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
+    {
+        $this->createdBy = $createdBy;
+    
+        return $this;
+    }
+
+    /**
+     * Get createdBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getCreatedBy()
+    {
+        return $this->createdBy;
+    }
+
+    /**
+     * Set updatedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return Checkbox
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+    
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
+    }
+
+    /**
+     * Set dataRecordFields
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
+     * @return Checkbox
+     */
+    public function setDataRecordFields(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields = null)
+    {
+        $this->dataRecordFields = $dataRecordFields;
+    
+        return $this;
+    }
+
+    /**
+     * Get dataRecordFields
+     *
+     * @return \ODR\AdminBundle\Entity\DataRecordFields 
+     */
+    public function getDataRecordFields()
+    {
+        return $this->dataRecordFields;
+    }
+
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->setValue(0);
+    }
+}

@@ -1,0 +1,12 @@
+    <!-- Add DataType Dialog Form -->
+    {# src/ODR/AdminBundle/Resources/views/Datatype/add_type_dialog_form.html.twig #}
+    Datatype created.
+
+    <script type="text/javascript">
+        $(function() {
+            // Reload List
+            LoadContentFullAjax( '{{ path('odr_list_types', { 'section': 'design' } ) }}' );
+
+            // Reload dialog form
+        });
+    </script>

@@ -1,0 +1,1055 @@
+
+/**
+* Open Data Repository Data Publisher
+* custom.css
+* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+* Released under the GPLv2
+*
+* Contains most of the custom CSS utilized by the site.
+*
+*/
+
+
+/* ********************************************* */
+/* The loading screen */
+
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    margin: 0 0 38px;
+}
+
+footer {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 38px;
+    background-color: #eee;
+    width: 100%;
+}
+
+
+#loading {
+    width: 280px;
+    height: 177px;
+
+    background: url('../img/elements/loading/bg.png');
+
+    position: fixed;
+    z-index: 999;
+
+    top: 50%;
+    left: 50%;
+
+    margin-top: -88.5px;
+    margin-left: -140px;
+
+    text-align: center;
+}
+
+#loading:after {
+    display: block;
+
+    height: 32px;
+    width: 32px;
+
+    position: absolute;
+    left: 50%;
+    top: 68px;
+
+    margin-left: -16px;
+    margin-top: -16px;
+
+    background: url('../img/elements/loading/spinner.gif');
+
+    content: ' ';
+}
+
+#loading-overlay {
+    position: fixed;
+
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+
+    background: rgba(0,0,0,0.5);
+    background: -webkit-radial-gradient(50% 50% , ellipse closest-corner, rgba(0, 0, 0, 0.3) 1%, rgba(0, 0, 0, 0.725) 100%) repeat scroll 0 0 transparent;
+    background: -moz-radial-gradient(50% 50% , ellipse closest-corner, rgba(0, 0, 0, 0.3) 1%, rgba(0, 0, 0, 0.725) 100%) repeat scroll 0 0 transparent;
+    background: -o-radial-gradient(50% 50% , ellipse closest-corner, rgba(0, 0, 0, 0.3) 1%, rgba(0, 0, 0, 0.725) 100%) repeat scroll 0 0 transparent;
+    background: -ms-radial-gradient(50% 50% , ellipse closest-corner, rgba(0, 0, 0, 0.3) 1%, rgba(0, 0, 0, 0.725) 100%) repeat scroll 0 0 transparent;
+    background: radial-gradient(50% 50% , ellipse closest-corner, rgba(0, 0, 0, 0.3) 1%, rgba(0, 0, 0, 0.725) 100%) repeat scroll 0 0 transparent;
+
+    z-index: 998;
+}
+
+#loading span {
+    display: inline-block;
+
+    position: relative;
+    top: 123px;
+}
+
+
+
+.Hide {
+    display: none;
+}
+
+#content {
+    border: none;
+}
+
+.box .content {
+    padding-left: 0px;
+    padding-right: 0px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+/* Search Results Table */
+#TextResults {
+    border-top: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+}
+#TextResults_length {
+    padding-top: 4px;
+    padding-right: 8px;
+}
+#TextResults_filter {
+    padding-left: 8px;
+    padding-bottom: 8px;
+}
+#TextResults_info {
+    padding-top: 8px;
+    padding-left: 8px;
+}
+#TextResults_paginate {
+    padding-top: 8px;
+    cursor: pointer;
+}
+#TextResults_paginate a:visited,
+#TextResults_paginate a:active,
+#TextResults_paginate a:hover,
+#TextResults_paginate a {
+    padding-right: 8px;
+}
+
+.dataTables_length {
+    float: right;
+}
+.dataTable {
+    width: 100%;
+}
+.dataTables_paginate {
+    float: right;
+}
+.dataTables_info {
+    float: left;
+}
+
+/* END Search Results Table */
+#main {
+    min-height: 80%;
+    border: none;
+    box-shadow: none;
+}
+
+.Pointer {
+    cursor: pointer;
+}
+.Cursor {
+    cursor: default;
+}
+
+.DataField {
+    position: absolute;
+    z-index: 20;
+    float: left;
+}
+
+.SpacerRight {
+    margin-right: 10px;
+}
+
+.SpacerLeft {
+    margin-left: 10px;
+}
+
+.SpacerTop {
+    margin-top: 10px;
+}
+
+.SpacerBottom {
+    margin-bottom: 10px;
+}
+
+.DragHandle {
+    font-size: 14px;
+    color: #b9b9b9;
+    float: right;
+    z-index: 4;
+    cursor: move;
+    position: absolute;
+    top: 3px;
+    left: 10px;
+}
+
+.ODRFormWrap {
+    margin-left: 10px; 
+    margin-right: 10px;
+    /* background-color: #FAFAFA; */
+    border: 0px solid #B9B9B9;
+    border-radius: 2px;
+    overflow: visible;
+}
+.ODRFormWrap .header {
+    /* margin-left: 14px; */
+    /* margin-bottom: 6px; */
+}
+
+
+header {
+    min-height: 30px;
+}
+
+header a {
+    display: none;
+}
+
+#ODRMenuLabel {
+    float: right;
+    padding-left: 6px;
+    padding-bottom: 22px;
+    color: #aaa;
+    font-size: 14px;
+    transform: rotate(90deg);
+    -webkit-transform: rotate(90deg);
+    -moz-transform: rotate(90deg);
+    -o-transform: rotate(90deg);
+    -ms-transform: rotate(90deg);
+}
+
+#ODRNav .top {
+    width: 215px;
+}
+
+#ODRNavWrapper {
+    position: fixed;
+    width: 230px;
+    top: 140px;
+    left: -230px;
+    z-index: 1000;
+
+    background: none;
+}
+
+#ODRNav {
+    position: relative;
+    top: 0px;
+    left: 0px;
+    overflow: hidden;
+    width: 245px;
+    background: #eee;
+    border-radius-top-right: 16px;
+    border-radius-bottom-right: 16px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    -webkit-transform: translate(0px, 0px);
+       -moz-transform: translate(0px, 0px);
+        -ms-transform: translate(0px, 0px);
+         -o-transform: translate(0px, 0px);
+            transform: translate(0px, 0px);
+    -webkit-transition: all 0.15s ease-out;
+       -moz-transition: all 0.15s ease-out;
+        -ms-transition: all 0.15s ease-out;
+         -o-transition: all 0.15s ease-out;
+            transition: all 0.15s ease-out;
+    box-shadow: 0 0 1px rgba(0, 0, 0, 0.1), 0 1px 8px rgba(0, 0, 0, 0.21);
+}
+
+#ODRNav:hover {
+    -webkit-transform: translate(200px, 0px);
+       -moz-transform: translate(200px, 0px);
+        -ms-transform: translate(200px, 0px);
+         -o-transform: translate(200px, 0px);
+            transform: translate(200px, 0px);
+}
+
+#ODRNav:hover {    
+    /* width: 500px; */
+    opacity: 1;    
+    -webkit-transition: all 0.15s ease-out;
+       -moz-transition: all 0.15s ease-out;
+        -ms-transition: all 0.15s ease-out;
+         -o-transition: all 0.15s ease-out;
+            transition: all 0.15s ease-out;
+}
+
+#ODRNavRight .top {
+    margin-left: 25px;
+}
+
+#ODRMenuLabelRight {
+    float: left;
+    color: #aaa;
+    font-size: 14px;
+    margin-top: 40px;
+    margin-left: -20px;
+    transform: rotate(-90deg);
+    -webkit-transform: rotate(-90deg);
+    -moz-transform: rotate(-90deg);
+    -o-transform: rotate(-90deg);
+    -ms-transform: rotate(-90deg);
+
+    /*position: fixed;*/
+}
+
+#ODRNavRightWrapper {
+    display: none;
+    position: fixed;
+    width: 425px;
+    top: 60px;
+    right: -400px;
+    z-index: 1000;
+
+    background: none;
+}
+
+.NavSlideOut {
+    position: relative;
+    overflow: hidden;
+    width: 450px;
+    min-height: 350px;
+    right: 0px;
+    background: #eee;
+    border-radius-top-right: 16px;
+    border-radius-bottom-right: 16px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+
+    -webkit-transition: all 0.15s ease-out;
+       -moz-transition: all 0.15s ease-out;
+        -ms-transition: all 0.15s ease-out;
+         -o-transition: all 0.15s ease-out;
+            transition: all 0.15s ease-out;
+    box-shadow: 0 0 1px rgba(0, 0, 0, 0.1), 0 1px 8px rgba(0, 0, 0, 0.21);
+}
+
+.tacked {
+    color: #666;
+}
+
+.StickOpen {
+    right: 400px;
+}
+
+.NavSlideOut:hover {
+    -webkit-transform-origin: 100% 50%;
+    -webkit-transform: translate(0px, 0px);
+    -moz-transform-origin: 100% 50%;
+    -moz-transform: translate(0px, 0px);
+    -ms-transform-origin: 100% 50%;
+    -ms-transform: translate(0px, 0px);
+    -o-transform-origin: 100% 50%;
+    -o-transform: translate(0px, 0px);
+    transform-origin: 100% 50%;
+    transform: translate(0px, 0px);
+    position: relative; 
+    right: 400px;    
+    opacity: 1;    
+    -webkit-transition: all 0.15s ease-out;
+       -moz-transition: all 0.15s ease-out;
+        -ms-transition: all 0.15s ease-out;
+         -o-transition: all 0.15s ease-out;
+            transition: all 0.15s ease-out;
+}
+
+#ODRNavRight ul {    
+    list-style-type: none;
+}
+
+aside:after {
+    background: none;
+}
+
+#toolbar {
+    /*height: 38px;*/
+    left: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 900;
+
+    background: none;
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.52);
+    /* background-image: -webkit-gradient(
+        linear,
+        left bottom,
+        left top,
+        color-stop(0.4, #5DD4FC),
+        color-stop(1, #F2FCFF)
+    );
+    background-image: -o-linear-gradient(top, #5DD4FC 40%, #F2FCFF 100%);
+    background-image: -moz-linear-gradient(top, #5DD4FC 40%, #F2FCFF 100%);
+    background-image: -webkit-linear-gradient(top, #5DD4FC 40%, #F2FCFF 100%);
+    background-image: -ms-linear-gradient(top, #5DD4FC 40%, #F2FCFF 100%);
+    background-image: linear-gradient(to top, #5DD4FC 40%, #F2FCFF 100%); 
+
+    background-image: -webkit-gradient(
+        linear,
+        left bottom,
+        left top,
+        color-stop(0, #D0F2FE),
+        color-stop(1, #F2FCFF)
+    );
+    background-image: -o-linear-gradient(top, #D0F2FE 0%, #F2FCFF 100%);
+    background-image: -moz-linear-gradient(top, #D0F2FE 0%, #F2FCFF 100%);
+    background-image: -webkit-linear-gradient(top, #D0F2FE 0%, #F2FCFF 100%);
+    background-image: -ms-linear-gradient(top, #D0F2FE 0%, #F2FCFF 100%);
+    background-image: linear-gradient(to top, #D0F2FE 0%, #F2FCFF 100%);
+    */ 
+
+    background-image: -webkit-gradient(
+        linear,
+        left bottom,
+        left top,
+        color-stop(0, #EBECF6),
+        color-stop(1, #F2FCFF)
+    );
+    background-image: -o-linear-gradient(top, #EBECF6 0%, #F2FCFF 100%);
+    background-image: -moz-linear-gradient(top, #EBECF6 0%, #F2FCFF 100%);
+    background-image: -webkit-linear-gradient(top, #EBECF6 0%, #F2FCFF 100%);
+    background-image: -ms-linear-gradient(top, #EBECF6 0%, #F2FCFF 100%);
+    background-image: linear-gradient(to top, #EBECF6 0%, #F2FCFF 100%);
+
+}
+
+
+#toolbar .right li.red > a,
+#toolbar .right li > a,
+ul.breadcrumb {
+    border: 1px solid #dddddd;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+#toolbar .right li.red > a,
+#toolbar .right li > a,
+ul.breadcrumb li a {
+    background: #dedede;
+    color: #888;
+    text-shadow: none;
+}
+
+#toolbar .right li.red > a:hover,
+#toolbar .right li > a:hover,
+ul.breadcrumb li a:hover {
+    background: #eeeeee;
+    color: #888;
+    text-shadow: none;
+}
+
+ul.breadcrumb li a:after,
+ul.breadcrumb li a:hover:active:after,
+ul.breadcrumb li a:hover:after {
+    background: none;
+}
+
+
+h1:after {
+    display: none;
+}
+
+#ElementDataWrapper {
+   padding-left: 4px; 
+}
+
+.DataType {
+    min-height: 250px;
+}
+
+.ChildDataType {
+
+}
+
+.ResultsDataTypeTools {
+    font-size: 18px;
+    color: #888;
+
+    float: right;
+    position: relative;
+    top: -38px;
+    line-height: 0px;
+
+    padding: 0px 0px 4px 0px;
+    z-index: 500;
+}
+
+.ResultsDataTypeTools span {
+    line-height: 0px;
+    margin-bottom: -1em;
+}
+
+.DataTypeTools {
+    font-size: 18px;
+    color: #888;
+/*
+    float: right;
+    width: 125px;
+    position: absolute;
+*/
+    /*top: 0px;*/
+    /*right: 100px;*/
+/*
+    right: 4%;
+    border-bottom-left-radius: 4px;
+    border-left: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+    background-color: #fff;
+    -webkit-box-shadow: -2px 2px 4px 0px rgba(0,0,0,0.05);
+    -moz-box-shadow: -2px 2px 4px 0px rgba(0,0,0,0.05);
+    box-shadow: -2px 2px 4px 0px rgba(0,0,0,0.05);
+    opacity: 0.85;
+*/
+    padding: 0px 0px 0px 0px;
+    z-index: 500;
+}
+
+.ODRThemeElement > .DataTypeTools {
+    margin: 5px 0px;
+}
+/*.DataTypeTools*/.tooltip {
+    float: left;
+    margin-top: 4px;
+    margin-right: 4px;
+    /*cursor: pointer;*/
+}
+.fa-muted {
+    cursor: not-allowed;
+    /*color: #aa0000;*/
+}
+.fa-faded {
+    color: #dddddd;
+}
+
+#dialog_add_datafield .row label {
+    width: 100px;
+}
+
+#dialog_add_datafield .row radio,
+#dialog_add_datafield .row select,
+#dialog_add_datafield .row input {
+}
+
+.DataField .row input:checkbox {
+    padding-top: 8px;
+}
+
+.ui-dialog .actions {
+    bottom: -20px;
+}
+
+.checkbox img {
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+    
+.ShortText {
+    max-height: 38px;
+}
+
+.SingleChild {
+    /* border: 1px solid rgba(44,44,44,0.3); */
+    padding: 10px 10px 10px 10px;
+}
+
+#main .shortcuts {
+    display: none;
+}
+
+.ui-resizable-helper { border: 1px dotted #99F; }
+.ui-sortable-placeholder { border: 1px dotted #99f; visibility: visible !important; height: 50px !important; }
+.ui-sortable-placeholder * { visibility: hidden; }
+.ui-state-highlight { height: 1.5em; line-height: 1.2em; }
+
+.accordion-content {
+    /* padding-top: 10px;
+    padding-bottom: 10px; */
+}
+
+.ui-accordion-header {
+    line-height: 24px;
+    font-weight: bold;
+    padding-left: 8px;
+}
+
+.ui-icon {
+    display: inline;
+}
+
+h1 span {
+    background: none;
+}
+
+form.no-box {
+    background: none;
+    border: none;
+}
+
+form .row {
+    border-top-width: 1px;
+}
+
+.ODRGraph {
+    border: 2px solid #eee;
+}
+/*
+.ODRPseudoField {
+    background-color: rgb(232,232,232);
+    border: 1px solid rgb(160,160,160);
+    border-radius: 3px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    padding: 5px 5px 5px 5px;
+    box-shadow: rgba(0, 0, 0, 0.219608) 0px 1px 1px 0px inset;
+}
+*/
+.gallery {
+    margin-right: 6px;
+}
+
+.ShortResults_offset {
+    background-color: #fff;
+}
+
+.ODRGraph {
+    background-color: white;
+    border: 1px solid #aaa;
+}
+
+#ODRLoginTable {
+    width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#ODRLoginTable tr {
+    margin-bottom: 8px;
+}
+
+#ODRLoginTable label {
+    padding-top: 6px;
+}
+
+#ODRPageSelect {
+    border: 1px solid black;
+    padding: 10px;
+}
+#ODRPagePopup {
+    background: #CCCCCC;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    display: none;
+    padding: 10px 13px;
+    z-index: 10;
+}
+
+
+.ODRFormHeader {
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.ODRFormHeader button {
+    padding: 10px;
+    margin: 5px;
+}
+
+
+.pure-g > div {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+/* Borders around top-level TEDs/Groups */
+.ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
+.ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
+.ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox {
+    /* background-color: rgba(0,0,0,0.045); */
+    box-sizing:border-box;
+    -moz-box-sizing:border-box;
+    -webkit-box-sizing:border-box; 
+    padding: 0.3em;
+    border: 3px solid rgba(185, 186, 246, 0.4); 
+    border-radius: 4px;
+}
+.ODRShortResult > .ODRShortResults > .DataRecordShort,
+.ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement,
+.ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement  {
+    box-sizing:border-box;
+    -moz-box-sizing:border-box;
+    -webkit-box-sizing:border-box; 
+    padding-right: 0.4em;
+    /* border: 1px solid rgba(185, 186, 246, 0.8); */
+}
+
+/*
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-md-1-3,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-md-2-3,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-md-1-4,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-md-2-4,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-md-3-4,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-xl-1-3,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-xl-2-3,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-xl-1-4,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .pure-u-xl-2-4 {
+    border: none;
+}
+*/
+
+.ODRFieldArea {
+    /* box-shadow: inset #0303B3 3px 3px 3px 3px; */
+}
+
+.ODRFieldWrapper {
+    margin-right: 0.25em;
+    margin-left: 0.25em;
+}
+
+.ODRPseudoField {
+    border: 1px solid #ddd;
+    padding: 0.48em 0.3em;
+    /* min-height: 18px; */ 
+    min-height: 1em;
+    line-height: normal;
+    margin-right: 1em;
+    -moz-box-shadow: inset 0 0 1px #aaa;
+    -webkit-box-shadow: inset 0 0 1px #aaa;
+    box-shadow: inset 0 0 1px #aaa;
+}
+.ODRPseudoField img {
+    width: 96%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.ODRRenderPluginField {
+    background: none; /* repeat scroll 0 0 rgb(238, 238, 238); */
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    box-shadow: 0 1px 3px #e6e6e6 inset;
+    font-size: 0.8em;
+}
+.ODRPad {
+    padding-left: 10px;
+}
+.pure-form label {
+    margin-left: 1em;
+    margin-right: 1em;
+}
+.pure-form input {
+    margin-left: 1em;
+    margin-right: 1em;
+}
+
+.ODRMenuRight > ul {
+    float: right;
+}
+
+.ODRCreatedBy {
+    margin-top: 0.4em;
+    font-size: 0.7em;
+    text-align: right;
+}
+
+.ODRBrowseTitle {
+    padding-right: 4em;
+}
+
+.ODRThemeElement {
+    margin-bottom: 10px;
+    min-height: 50px;
+}
+
+.ODRTable > thead > tr {
+    background: #dddddd;
+}
+.ODRTable > tbody > tr:nth-child(odd) {
+    background: #eeeeee;
+}
+.ODRTable > tbody > tr:nth-child(even) {
+    background: #dddddd;
+}
+.ODRTable td {
+    padding: 0px;
+}
+.ODRTable th {
+    padding: 0px;
+}
+
+.fa {
+    /*padding-right: 5px;*/
+    padding-left: 5px;
+}
+
+.ODRAccordionWrapper {
+    /* margin: 5px 5px 20px; */
+}
+.ODRAccordionWrapper > h3 {
+    padding: 0.78em 1.5em;
+}
+
+.ODRDataType {
+    /*margin-top: 30px;*/
+}
+
+.ODRDashboardHeader {
+    background: url("../img/elements/stats/bg.png") repeat-x scroll 0 0 #3a4454;
+    border-bottom: 1px solid #08192e;
+    box-sizing: border-box;
+    display: table;
+    margin: 30px 0 0;
+    padding: 22px 15px 24px;
+    table-layout: fixed;
+}
+
+.ODRDashboardHeader > div {
+    display: table-cell;
+    text-align: center;
+}
+
+.ODRDashboardHeader > div > strong {
+    color: #fff;
+    font-size: 25px;
+    font-weight: bold;
+    text-shadow: 0 1px 0 #000;
+
+    display: block;
+}
+
+.ODRDashboardHeader > div > small {
+    color: #7a828d;
+    font-size: 12px;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.75);
+
+    display: block;
+}
+
+
+
+
+
+
+/* Multi-select Dropdown */
+
+.ODRMultiDropdown dd, .ODRMultiDropdown dt {
+    margin:0px;
+    padding:0px;
+}
+.ODRMultiDropdown ul {
+    margin: -1px 0 0 0;
+}
+.ODRMultiDropdown dd {
+    position:relative;
+    top: -14px;
+}
+.ODRMultiDropdown span {
+    color:#fff;
+    text-decoration:none;
+    outline:none;
+    font-size: 12px;
+}
+.ODRMultiDropdown dt span {
+    background-color:#4F6877;
+    display:block;
+    padding: 8px 20px 5px 10px;
+    min-height: 25px;
+    line-height: 24px;
+    overflow: hidden;
+    border:0;
+    width:272px;
+}
+.ODRMultiDropdown dd ul {
+    background-color: #4F6877;
+    border:0;
+    color:#fff;
+    display:none;
+    left:0px;
+    padding: 2px 15px 2px 5px;
+    position:absolute;
+    top:12px;
+    width:290px;
+    list-style:none;
+    height: 100px;
+    overflow: auto;
+}
+.ODRMultiDropdown span.value {
+    display:none;
+}
+.ODRMultiDropdown dd ul li {
+    padding:5px;
+    display:block;
+}
+.ODRMultiDropdown dd ul li:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.ODRReloadDiv {
+    background-color: #cccccc;
+    opacity: 0.8;
+}
+.ODROverlayDiv {
+    position: absolute;
+    text-align: center;
+    vertical-align: middle;
+    z-index: 100;
+}
+
+.fa-globe {
+    color: #aaf;
+}
+
+.IconRed {
+    color: #f88;
+}
+
+
+.ODRResults label {
+    font-size: 0.8em;
+    font-weight: bold;
+    padding-left: 0.5em;
+}
+
+/* 
+.ODRResults input[readonly],
+.ODRResults textarea[readonly] {
+    font-size: 1em;
+    background-color: white;
+    border: none;
+    padding: 6px 4px 4px 4px;
+}
+*/
+
+.ui-state-active,
+.ui-state-default {
+    border: none;
+}
+
+.pure-table,
+.pure-table thead,
+.pure-table tbody,
+.pure-table tr,
+.pure-table td {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.truncate,
+.pure-table td {
+/*
+    white-space: nowrap;
+*/
+    overflow: hidden;
+    text-overflow: hidden;
+}
+
+.FRight {
+    float: right;
+}
+
+.PadRight {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+    padding-right: 0.8em;
+}
+
+.PadLeftNormal {
+    margin-left: 1em;
+}
+
+/* ODR Image Gallery */
+.ODRImageGallery {
+    position: relative;
+}
+
+.ODRImageGallery label {
+    position: absolute;
+    top: -4px;
+    left: 0px;
+    z-index: 400;
+    width: 100%;
+    text-align: center;
+    background: rgba(255,255,255, 0.7);
+}
+
+.ODRImageGalleryImage {
+    margin-top: 1.6em;
+}
+
+.ODRImageGalleryImage .ODRImage img {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.ODRGalleryLeftArrow {
+    color: #888;
+    padding: 0.3em 0.3em 0.3em 0em;
+    background: rgba(255,255,255, 0.7);
+    border-top-right-radius: 20px;
+    border-bottom-right-radius: 20px;
+    position: absolute;
+    left: 0;
+    margin-top: 30%;
+    z-index: 100;
+}
+
+.ODRGalleryRightArrow {
+    color: #888;
+    padding: 0.3em 0em 0.3em 0.3em;
+    background: rgba(255,255,255, 0.7);
+    border-top-left-radius: 20px;
+    border-bottom-left-radius: 20px;
+    position: absolute;
+    right: 0;
+    margin-top: 30%;
+    z-index: 100;
+}
+
+.ODRBrowseLabels {
+    font-size: 0.6em;
+}
+
+.pure-skin-odr .pure-button {
+    padding-top: 0.4em;
+    padding-bottom: 0.4em;
+}
+
+.ODRReference {
+    font-size: 0.8em;
+    padding-left: 0.8em;
+    padding-top: 0.3em;
+    padding-bottom: 1.4em;
+}
+
+.ODRListDisplayHeader {
+    padding-left: 1.4em;
+    padding-top: 0.8em;
+    padding-bottom: 0.8em;
+    margin-bottom: 0.4em;
+}
+
+
+.ODRInputError {
+    color: red;
+}
+

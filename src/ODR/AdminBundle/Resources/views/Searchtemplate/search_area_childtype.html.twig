@@ -1,0 +1,23 @@
+{% macro input(normal_datatype_tree, search_datatype_tree, normal_theme, search_theme) %}
+{% spaceless %}
+
+{% set datatype = normal_datatype_tree.datatype %}
+
+{#{% include 'ODRAdminBundle:Searchtemplate:child_style.html.twig' with {'datatype': datatype, 'theme': normal_theme} %}#}
+<div class="ODRDataType" id="DataType_{{ datatype.id }}" rel="{{ normal_datatype_tree.theme_datatype.id }}">
+
+    <div class="header">
+        <h3>Available DataFields for {{ datatype.shortname }}</h3>
+    </div>
+
+    <div class="ODRFieldArea" id="FieldArea_{{ datatype.id }}">
+        {% include 'ODRAdminBundle:Searchtemplate:search_area_fieldarea.html.twig' with {'datatype_tree': normal_datatype_tree, 'theme': normal_theme} %}
+    </div><!-- End of #FieldArea_{{ datatype.id }} -->
+
+    {% import 'ODRAdminBundle:Searchtemplate:search_area_childtype_design.html.twig' as search_form %}
+    {{ search_form.input(normal_datatype_tree, search_datatype_tree, normal_theme, search_theme) }}
+
+</div><!-- End of #DataType_{{ datatype.id }} -->
+
+{% endspaceless %}
+{% endmacro %}

@@ -1,0 +1,270 @@
+{% spaceless %}
+
+{% set datatype = datatype_tree.datatype %}
+<h1 class="grid_12 no-margin-top-phone">
+    <span>Mass Update &raquo; {{ datatype.shortname }}</span>
+</h1>
+
+<form id="massedit_form" style="display:none;" action="{{ path('odr_mass_update_start') }}">
+    <input type="hidden" value="{{ search_checksum }}" name="search_checksum"/>
+    <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
+</form>
+
+<div>
+    <select id="public_select" class="SelectGroup">
+        <option value="-1">Make all Datarecords non-public</option>
+        <option value="0" selected>Don't change public status</option>
+        <option value="1">Make all Datarecords public</option>
+    </select>
+    </br></br>
+</div>
+
+<div>
+    <button class="pure-button pure-button-primary" type="button" onclick="doMassUpdate();">Save Changes</button>
+</div>
+
+{% include 'ODRAdminBundle:MassEdit:massedit_area.html.twig' with {'datatype_tree': datatype_tree, 'datafield_permissions': datafield_permissions} %}
+
+{% endspaceless %}
+
+<script>
+
+$(function() {
+    initPage();
+    window.scrollTo(0,0);
+});
+
+
+function initPage() {
+
+    // Hide all TEDs without input fields
+    $(".ODRThemeElement").each(function() {
+        var found = false;
+        $(this).find("input").each(function() {
+            found = true;
+            return;
+        });
+
+        if (!found)
+            $(this).hide();
+    });
+
+    $(".ODRDatePicker").datepicker({
+        dateFormat: 'yy-mm-dd',
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "1800:+10",
+        onClose: function() {
+            $(this).blur();
+        }
+    });
+
+    $(".ODRDatePicker_clear").unbind('click');
+    $(".ODRDatePicker_clear").click(function() {
+        $(this).parent().parent().find(".ODRDatePicker").datepicker('setDate', null);
+//        var form_id = $(this).parent().parent().parent().parent().attr('id');
+//        SaveRecordData('#' + form_id, '');
+    });
+
+}
+
+function doMassUpdate() {
+
+    if ( !confirm('Are you sure you want to make this edit to multiple datarecords?') )
+        return;
+
+    // Public status
+    var val = $("#public_select").val();
+    if (val !== '' && val !== '0') {
+        var element = $("<input>", {id: "Value_public", type: "hidden", value: val, name: "datarecord_public"});
+        $("#massedit_form").append(element);
+    }
+
+    // Checkboxes
+    $(".ODRBoolean").each(function() {
+        // Grab the ID of the field
+        var datafield_id_data = $(this).attr('id').split('_');
+        var datafield_id = datafield_id_data[1];
+
+        // Remove any value for this datafield currently stored in the form
+        if ( $("#Value_" + datafield_id) !== null )
+            $("#Value_" + datafield_id).remove();
+
+        // Save any value currently in this datafield
+        var val = $(this).val();
+        if (val !== '' && val !== '-1') {
+            var element = $("<input>", {id: "Value_" + datafield_id, type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            $("#massedit_form").append(element);
+        }
+    });
+
+    // Single Selects
+    $(".ODRSingleSelect").each(function() {
+        // Grab the ID of the field
+        var datafield_id_data = $(this).attr('id').split('_');
+        var datafield_id = datafield_id_data[1];
+
+        // Remove any value for this datafield currently stored in the form
+        if ( $("#Value_" + datafield_id) !== null )
+            $("#Value_" + datafield_id).remove();
+
+        // Save any value currently in this datafield
+        var val = $(this).val();
+        if (val !== '' && val !== '0') {
+            var element = $("<input>", {id: "Value_" + datafield_id, type: "hidden", value: 1, name: "datafields[" + datafield_id + "][" + val + "]"});
+            $("#massedit_form").append(element);
+        }
+    });
+
+
+/*
+    // Multiple Radio/Select
+    $(".InputResizable .ODRMultipleSelect").each(function() {
+        // Grab the ID of the field
+        var id_data = $(this).attr('id').split('_');
+        var id = id_data[1];
+        var radio_option_id = id_data[2];
+
+        // Remove any value for this datafield currently stored in the form
+        if ( $("#Value_" + id) !== null )
+            $("#Value_" + id).remove();
+
+        // Save any value currently in this datafield
+        var val = $(this).val().trim();
+        if (val !== '' && val !== '-1') {
+            var element = $("<input>", {id: "Value_" + id, type: "hidden", value: val, name: "datafields[" + id + "][" + radio_option_id + "]"});
+            $("#massedit_form").append(element);
+        }
+    });
+*/
+
+    // Single Radio
+    $(".ODRSingleRadio").each(function() {
+        // Grab the ID of the field
+        var datafield_id = $(this).attr('rel');
+
+        // Save any value currently in this datafield
+//        var val = -1;
+        $(this).find(".ODRRadioOption").each(function() {
+            if ( $(this).is(":checked") ) {
+
+                // Remove any value for this datafield currently stored in the form
+                if ( $("#Value_" + datafield_id) !== null )
+                    $("#Value_" + datafield_id).remove();
+
+                var radio_option_id = $(this).attr('rel');
+                if ( radio_option_id != 0 ) {
+                    var element = $("<input>", {id: "Value_" + datafield_id, type: "hidden", value: 1, name: "datafields[" + datafield_id + "][" + radio_option_id + "]"});
+                    $("#massedit_form").append(element);
+                }
+            }
+        });
+/*
+        if (val !== '' && val !== -1) {
+            var element = $("<input>", {id: "Value_" + datafield_id, type: "hidden", value: val, name: "datafields[" + datafield_id + "][" + radio_option_id + "]"});
+            $("#massedit_form").append(element);
+        }
+*/
+    });
+
+    // Datetime fields
+    $(".ODRDatePicker").each(function() {
+        // Grab the ID of the field
+        var datafield_id_data = $(this).parent().attr('id').split('_');
+        var datafield_id = datafield_id_data[1];
+
+        // Remove any value for this datafield currently stored in the form
+        if ( $("#Value_" + datafield_id) !== null )
+            $("#Value_" + datafield_id).remove();
+
+        // Save any value currently in this datafield
+        var val = $(this).val().trim();
+        if (val !== '') {
+            var element = $("<input>", {id: "Value_" + datafield_id, type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            $("#massedit_form").append(element);
+        }
+    });
+
+
+    // Paragraph fields
+    $(".ODRParagraphField").each(function() {
+        // Grab the ID of the field
+        var datafield_id_data = $(this).parent().attr('id').split('_');
+        var datafield_id = datafield_id_data[1];
+
+        // Remove any value for this datafield currently stored in the form
+        if ( $("#Value_" + datafield_id) !== null )
+            $("#Value_" + datafield_id).remove();
+
+        // Save any value currently in this datafield
+        var val = $(this).html().trim();
+        if (val !== '') {
+            var element = $("<input>", {id: "Value_" + datafield_id, type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            $("#massedit_form").append(element);
+        }
+    });
+
+
+    // Everything else
+    $(".ODRField").each(function() {
+        // Grab the ID of the field
+        var datafield_id_data = $(this).parent().attr('id').split('_');
+        var datafield_id = datafield_id_data[1];
+
+        // Remove any value for this datafield currently stored in the form
+        if ( $("#Value_" + datafield_id) !== null )
+            $("#Value_" + datafield_id).remove();
+
+        // Save any value currently in this datafield
+        var val = $(this).val().trim();
+        if (val !== '') {
+            var element = $("<input>", {id: "Value_" + datafield_id, type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            $("#massedit_form").append(element);
+        }
+    });
+
+
+    var data = $("#massedit_form").serialize();
+    var url = $("#massedit_form").attr('action');
+
+    $.ajax({
+        type: 'POST',
+        url: url,
+        data: data,
+        dataType: 'json',
+        success: function(data, textStatus, jqXHR) {
+            if ( data.r == 0 ) {
+                alert( 'Mass Update in progress' );
+{#
+                // Now that the search has been performed and cached, render the results
+//                var url = '{{ path('odr_search_render', { 'search_key': '', 'offset': '1' } ) }}';
+//                url = url.substr(0, url.length-1);
+//                url += '/' + "{{ search_key }}" + '/1';
+
+                // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
+                UpdateURL(url);
+#}
+window.history.back();
+            }
+            else {
+                alert( data.d );
+                alert( 'There was an error...no changes made' );
+            }
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
+    });
+
+}
+</script>

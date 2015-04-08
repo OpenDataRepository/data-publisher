@@ -1,0 +1,143 @@
+{% spaceless %}
+
+{% set datatype = datatype_tree.datatype %}
+<h1 class="grid_12 no-margin-top-phone">
+    <span>CSV Export &raquo; {{ datatype.shortname }}</span>
+</h1>
+
+<form id="csvexport_form" style="display:none;" action="{{ path('odr_csv_export_start') }}">
+    <input type="hidden" value="{{ search_checksum }}" name="search_checksum"/>
+    <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
+</form>
+
+<div>
+    <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Export</button>
+</div>
+
+{% include 'ODRAdminBundle:CSVExport:csvexport_area.html.twig' with {'datatype_tree': datatype_tree} %}
+
+{% endspaceless %}
+
+<style>
+    .ODRUnselectedDatafield {
+        background-color: #ff0000;
+        opacity: 0.4;
+    }
+    .ODRSelectedDatafield {
+    }
+</style>
+
+<script>
+
+$(function() {
+    initPage();
+    window.scrollTo(0,0);
+});
+
+
+function initPage() {
+
+    // Hide all TEDs without input fields
+    $(".ODRThemeElement").each(function() {
+        var found = false;
+        $(this).find("input").each(function() {
+            found = true;
+            return;
+        });
+
+        if (!found)
+            $(this).hide();
+    });
+
+    // Attach an overlay div of sorts over each datafield 
+    $(".ODROverlayDiv").each(function() {
+        // Need dimensions of parent div...
+        var height = $(this).parent().css('height');
+        var width = $(this).parent().css('width');
+
+        // Apply dimensions of parent div to loading div
+        $(this).css({"height": height, "line-height": height, "width": width});
+
+        $(this).attr('title', "This datafield will not be exported");
+    });
+
+    $(".ODRCSVExport").unbind('click');
+    $(".ODRCSVExport").click(function() {
+        if ( $(this).hasClass('ODRUnselectedDatafield') ) {
+            $(this).attr('title', 'This datafield will be exported');
+            $(this).removeClass('ODRUnselectedDatafield').addClass('ODRSelectedDatafield');
+        }
+        else {
+            $(this).attr('title', 'This datafield will not be exported');
+            $(this).addClass('ODRUnselectedDatafield').removeClass('ODRSelectedDatafield');
+        }
+    });
+}
+
+function doCSVExport() {
+
+    if ( !confirm('Are you sure you want to export?') )
+        return;
+
+    // Delete any datafields already marked for export so a new list can be constructed
+    $(".ODRExportEntry").remove();
+
+    // Grab which fields to export
+    var do_export = false;
+    $(".ODRCSVExport").each(function() {
+        if ( $(this).hasClass('ODRSelectedDatafield') ) {
+            // Grab the ID of the field
+            var datafield_id = $(this).attr('rel');
+
+            do_export = true;
+            var element = $("<input>", {id: "Field_" + datafield_id + "_export", class: "ODRExportEntry", type: "hidden", value: datafield_id, name: "datafields[]"});
+            $("#csvexport_form").append(element);
+        }
+    });
+
+    if ( !do_export ) {
+        alert( 'No datafields selected for export' );
+        return;
+    }
+
+    var data = $("#csvexport_form").serialize();
+    var url = $("#csvexport_form").attr('action');
+
+    $.ajax({
+        type: 'POST',
+        url: url,
+        data: data,
+        dataType: 'json',
+        success: function(data, textStatus, jqXHR) {
+            if ( data.r == 0 ) {
+//                alert( 'CSV Export in progress' );
+
+                // Now that the search has been performed and cached, render the results
+                var url = '{{ path('odr_csv_download_page', { 'datatype_id': 0 } ) }}';
+                url = url.substr(0, url.length-1);
+                url += '{{ datatype.id }}';
+
+                // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
+                UpdateURL(url);
+            }
+            else {
+                alert( 'Error: ' + data.d );
+            }
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
+    });
+
+}
+</script>

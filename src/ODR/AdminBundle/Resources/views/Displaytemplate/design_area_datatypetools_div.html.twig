@@ -1,0 +1,22 @@
+{% spaceless %}
+
+{% if datatype_tree.is_link == 0 and datatype_tree.fieldarea_reload == 0 %}   {# always display unless this is a linked type #}
+<span id="DataTypeTools_{{ datatype.id }}" class="DataTypeTools" style="float:right;">
+    <i class="Pointer tooltip fa fa-info-circle ODRDatatypeProperties" title="DataType Properties" rel="{{ datatype.id }}"></i>
+    <i class="Pointer tooltip fa fa-edit ODRAddThemeElement" title="Add Group Box" rel="{{ datatype.id }}"></i>
+    {% if datatype_tree.top_level == 0 %} {# not allowed to delete top-level datatypes from here #}
+        <i class="Pointer tooltip fa fa-trash-o ODRDeleteDatatype" title="Delete DataType" rel="{{ datatype.id }}"></i>
+    {% endif %}
+    <i class="Pointer tooltip fa fa-undo ODRUndeleteFields" title="Undelete Datafields" rel="{{ datatype.id }}"></i>
+
+    {% if datatype.renderplugin.id != 1 %}
+        <i class="Pointer tooltip fa fa-bar-chart-o ODRRenderPlugin ODRActiveIcon" title="RenderPlugin Settings (using {{ datatype.renderplugin.pluginname }})" rel="{{ datatype.id }}"></i>
+    {% else %}
+        <i class="Pointer tooltip fa fa-bar-chart-o ODRRenderPlugin" title="RenderPlugin Settings" rel="{{ datatype.id }}"></i>
+    {% endif %}
+
+    <i class="Pointer tooltip fa fa-globe {% if datatype.ispublic %}ODRActiveIcon{% endif %} ODRPublicDatatype" title="Datatype {% if not datatype.ispublic %}not {% endif %}visible to Public" rel="{{ datatype.id }}"></i>
+</span>
+{% endif %}
+
+{% endspaceless %}

@@ -1,0 +1,68 @@
+    <!-- Link DataType Dialog Form -->
+    <form class="ODRLinkDatatypeForm pure-form pure-form-aligned full validate" id="LinkDatatypeForm" action="{{ path('odr_design_link_datatype') }}" method="post">
+
+        <input type="hidden" name="theme_element_id" value="{{ theme_element.id }}" />
+        <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
+        <input type="hidden" name="previous_remote_datatype" value="{% if remote_datatype != null %}{{ remote_datatype.id }}{% endif %}" />
+
+        <fieldset>
+            <div class="pure-control-group">
+                <label for="selected_datatype">
+                    <strong>DataType Short Name:</strong>
+                </label>
+                <select name="selected_datatype" id="selected_datatype">
+                    <option value=""></option>
+                {% for datatype in linkable_datatypes %}
+                    {% if remote_datatype != null and remote_datatype.id == datatype.id %}
+                    <option value="{{ datatype.id }}" selected>{{ datatype.shortname }}</option>
+                    {% else %}
+                    <option value="{{ datatype.id }}">{{ datatype.shortname }}</option>
+                    {% endif %}
+                {% endfor %}
+                </select>
+            </div>
+        </fieldset>
+    </form>
+
+    <button type="button" class="pure-button ODRCancelButton">Cancel</button>
+    <button type="button" class="pure-button pure-button-primary ODRSubmitButton">Link Data Type</button>
+
+    <script>
+        $(function() {
+
+            $("#dialog_link_datatype").dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                open: function() {
+                    $(this).parent().css('overflow', 'visible');
+                },
+            });
+            $("#dialog_link_datatype").find('.ODRSubmitButton').click(function() {
+                var $el = $(this).parents('.ui-dialog-content');
+//                if ($el.validate().form()) {
+                if ( $("#LinkDatatypeForm").valid() ) {
+                    $("#LinkDatatypeForm").submit();
+
+                    $el.find('form')[0].reset();
+                    $el.dialog('close');
+                }
+            });
+            $("#dialog_link_datatype").find('.ODRCancelButton').click(function() {
+                var $el = $(this).parents('.ui-dialog-content');
+
+                $el.find('form')[0].reset();
+                $el.dialog('close');
+            });
+
+            // Init Form
+            LinkDataTypeFormInit();
+        });
+/*
+        $(function() {
+            if(typeof(LinkDataTypeFormInit) !== "undefined") {
+                LinkDataTypeFormInit();
+            }
+        });
+*/
+    </script>

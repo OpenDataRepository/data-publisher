@@ -1,0 +1,72 @@
+{% spaceless %}
+	<!-- Link DataType Dialog -->
+	<div class="pure-form pure-g" style="display: none;" id="dialog_deleted_fields" title="View Deleted Datafields">
+        <div class="form_contents pure-u-1">
+        </div>
+	</div><!-- End #dialog_deleted_fields -->
+	
+	<script>
+
+    function DeletedFieldsFormInit() {
+        // Initialize the form
+        $("#UndeleteFieldsForm").validationOptions({
+            submitHandler: function(form){
+                var data = $(form).serialize();
+                var url = $(form).attr('action');
+//alert( url );
+//return;
+                var dataType = "json";
+                $.ajax({
+                    type: 'POST',
+                    url: url,
+                    data: data,
+                    dataType: dataType,
+                    success: function(data, textStatus, jqXHR) {
+                        if(data.r == 0) {
+                            // Clear right slideout
+                            $("#ElementData").html("");
+
+                            // Have to reload theme element because don't know what kind of datafield it is?
+                            var theme_element_id = data.d.theme_element_id;
+                            ReloadThemeElement(theme_element_id);
+                        }
+                        else {
+                            // An error has occurred.
+                            // Show Error message dialog
+                            alert(data.d);
+                        }
+
+                        $("#dialog_deleted_fields").dialog('close');
+                    },
+                    complete: function(jqXHR, textStatus) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+                    }
+                });
+            },
+            invalidHandler: function(){
+                // Custom invalid message here if needed
+            }
+        });
+
+{#
+        // - Validate
+        $("#UndeleteFieldsForm").validate({
+            submitHandler: function(form){
+                $(this).data('submit') ? $(this).data('submit')() : form.submit();
+            }
+        });
+#}
+    }
+
+	</script>
+{% endspaceless %}
