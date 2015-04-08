@@ -3,15 +3,15 @@ parameters:
     database_driver: pdo_mysql
     database_host: localhost
     database_port: null
-    database_name: [ DATABASE NAME ]
-    database_user: [ DATABASE USER ] 
-    database_password: [ DATABASE PASS ]
+    database_name: [[ DATABASE NAME ]]
+    database_user: [[ DATABASE USER ]] 
+    database_password: [[ DATABASE PASS ]]
     mailer_transport: smtp
     mailer_host: localhost
     mailer_user: null
     mailer_password: null
     locale: en
-    secret: [ ENTER A LONG RANDOM STRING HERE WITH NO SPACES ]
+    secret: [[ ENTER A LONG RANDOM STRING HERE WITH NO SPACES ]]
     odr_plugins:
         graph_plugin:
             name: 'Graph Plugin'
@@ -33,10 +33,10 @@ parameters:
         -
             host: 127.0.0.1
             port: 11211
-    site_baseurl: [ Site Baseurl 'http://mydomain.com/' ]
-    memcached_key_prefix: [ Unique Key for Site - a simple prefix style text snippet - ie: mydomain_key ]
+    site_baseurl: [[ Site Baseurl 'http://mydomain.com/' ]]
+    memcached_key_prefix: [[ Unique Key for Site - a simple prefix style text snippet - ie: mydomain_key ]]
     session_memcached_expire: 3600
-    session_memcached_prefix: [ Session Key Name for Session Storage ]
+    session_memcached_prefix: [[ Session Key Name for Session Storage ]]
     session_memcached_host: 127.0.0.1
     session_memcached_port: 11211
-    beanstalk_api_key: [ Unique Random String for your Beanstalk Queues ]
+    beanstalk_api_key: [[ Unique Random String for your Beanstalk Queues ]]

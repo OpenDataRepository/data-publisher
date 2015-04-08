@@ -25,7 +25,7 @@ security:
                 provider: fos_userbundle
                 csrf_provider: form.csrf_provider
             remember_me:
-                key:      [ ENTER RANDOM KEY HERE - Text String ]
+                key:      [[ ENTER RANDOM KEY HERE - Text String ]]
                 lifetime: 1209600
                 path:     /
                 domain:   ~
