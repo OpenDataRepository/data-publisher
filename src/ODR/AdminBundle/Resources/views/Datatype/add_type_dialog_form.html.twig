@@ -6,18 +6,18 @@
 
         <fieldset>
             <div class="pure-control-group">
-                <label for="{{form.short_name.vars.id}}">
-                    <strong>{{form.short_name.vars.label}}</strong>
+                <label for="{{form.shortName.vars.id}}">
+                    <strong>{{form.shortName.vars.label}}</strong>
                 </label>
-                {{ form_errors(form.short_name) }}
-                {{ form_widget(form.short_name, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+                {{ form_errors(form.shortName) }}
+                {{ form_widget(form.shortName, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
             </div>
             <div class="pure-control-group">
-                <label for="{{form.long_name.vars.id}}">
-                    <strong>{{form.long_name.vars.label}}</strong>
+                <label for="{{form.longName.vars.id}}">
+                    <strong>{{form.longName.vars.label}}</strong>
                 </label>
-                {{ form_errors(form.long_name) }}
-                {{ form_widget(form.long_name, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+                {{ form_errors(form.longName) }}
+                {{ form_widget(form.longName, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
             </div>
 
             <div style="display: none">

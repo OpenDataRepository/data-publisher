@@ -20,7 +20,7 @@ class DatatypeForm extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
         $builder->add(
-            'short_name', 
+            'shortName', 
             'text', 
             array(
                 'required' => true,
@@ -29,7 +29,7 @@ class DatatypeForm extends AbstractType
         );
 
         $builder->add(
-            'long_name', 
+            'longName', 
             'text', 
             array(
                 'required' => true,
