@@ -350,7 +350,7 @@ class ODRUserController extends ODRCustomController
             if ( isset($post['user_id']) )
                 $user_id = intval($post['user_id']);
 
-            if ($email == '' || $first_password = '' || $second_password = '') {
+            if ($email == '' || $first_password == '' || $second_password == '') {
                 $fail = true;
                 $error = "bad form";
             }
