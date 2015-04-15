@@ -33,10 +33,11 @@ class DatatypeForm extends AbstractType
             'text', 
             array(
                 'required' => true,
-                'label'  => 'Long Name',
+                'label'  => 'Full TypeName',
             )
         );
 
+/*
         $builder->add(
             'description', 
             'text', 
@@ -45,7 +46,8 @@ class DatatypeForm extends AbstractType
                 'label'  => 'Description',
             )
         );
-
+*/
+/*
         $builder->add(
             'multiple_records_per_parent',
             'checkbox',
@@ -54,7 +56,8 @@ class DatatypeForm extends AbstractType
                 'label'  => 'Multiple Allowed?',
             )
         );
-
+*/
+/*
         $builder->add(
             'public_date',
             'checkbox',
@@ -63,6 +66,7 @@ class DatatypeForm extends AbstractType
                 'label'  => 'Public?',
             )
         );
+*/
     }
     
     public function getName() {

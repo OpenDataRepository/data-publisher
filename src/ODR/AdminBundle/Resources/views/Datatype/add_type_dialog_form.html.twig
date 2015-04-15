@@ -19,6 +19,11 @@
                 {{ form_errors(form.long_name) }}
                 {{ form_widget(form.long_name, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
             </div>
+
+            <div style="display: none">
+            {{ form_rest(form) }}
+            </div>
+
         </fieldset>
 
     </form>

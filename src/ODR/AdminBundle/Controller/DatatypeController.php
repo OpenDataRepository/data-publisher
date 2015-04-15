@@ -22,6 +22,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\UserPermissions;
 // Forms
+use ODR\AdminBundle\Form\DatatypeForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -98,31 +99,9 @@ class DatatypeController extends ODRCustomController
             }
 //print_r($metadata);
 
-
-            // TODO - this looks ancient...can it be done better?
-            // Populate new DataType form for adding a new datatype
+            // Create new DataType form
             $datatype = new DataType();
-            $form = $this->createFormBuilder($datatype)
-                ->add(
-                    'short_name',
-                    'text',
-                    array(
-                        'required' => true,
-                        'label'  => 'Short Name',
-                    )
-                )->add(
-                    'long_name',
-                    'text',
-                    array(
-                        'required' => true,
-                        'label'  => 'Full Type Name',
-                    )
-                )->add('multiple_records_per_parent', 'checkbox',
-                    array(
-                        'label'  => 'Allow Children?',
-                    )
-                )->getForm();
-
+            $form = $this->createForm(new DatatypeForm($datatype), $datatype);
 
             // Render and return the html
             $return['d'] = array(
@@ -277,24 +256,9 @@ class DatatypeController extends ODRCustomController
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
             $admin = $this->container->get('security.context')->getToken()->getUser();
 
-            // Poplulate new DataType form
+            // Create new DataType form
             $datatype = new DataType();
-   
-            // TODO - this looks ancient...can it be done better? 
-            $form = $this->createFormBuilder($datatype)
-                ->add('short_name', 'text', array(
-                    'required' => true,
-                    'label'  => 'Short Name',
-                ))
-                ->add('long_name', 'text', array(
-                    'required' => true,
-                    'label'  => 'Full Type Name',
-                ))
-                // ->add('description', 'text')
-                ->add('multiple_records_per_parent', 'checkbox', array(
-                    'label'  => 'Allow Children?',
-                ))
-                ->getForm();
+            $form = $this->createForm(new DatatypeForm($datatype), $datatype);
 
             // Verify 
             if ($request->getMethod() == 'POST') {

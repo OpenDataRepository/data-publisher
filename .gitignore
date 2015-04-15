@@ -13,6 +13,7 @@
 # Parameters
 /app/config/parameters.yml
 /app/config/parameters.ini
+/app/config/security.yml
 
 # Managed by Composer
 /app/bootstrap.php.cache
@@ -32,3 +33,4 @@
 
 # Composer PHAR
 /composer.phar
+

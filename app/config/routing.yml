@@ -1,6 +1,6 @@
-jp_graph:
-    resource: "@jpGraphBundle/Resources/config/routing.yml"
-    prefix:   /
+#jp_graph:
+#    resource: "@jpGraphBundle/Resources/config/routing.yml"
+#    prefix:   /
 
 odr_open_repository_graph:
     resource: "@ODROpenRepositoryGraphBundle/Resources/config/routing.yml"

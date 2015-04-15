@@ -28,7 +28,7 @@ class AppKernel extends Kernel
             new ODR\OpenRepository\GraphBundle\ODROpenRepositoryGraphBundle(),
 //            new Xlab\pChartBundle\XlabpChartBundle(),
             new drymek\PheanstalkBundle\drymekPheanstalkBundle(),
-            new ODR\OpenRepository\jpGraphBundle\jpGraphBundle(),
+//            new ODR\OpenRepository\jpGraphBundle\jpGraphBundle(),
             new dterranova\Bundle\CryptoBundle\dterranovaCryptoBundle(),
             new Knp\Bundle\MarkdownBundle\KnpMarkdownBundle(),
         );

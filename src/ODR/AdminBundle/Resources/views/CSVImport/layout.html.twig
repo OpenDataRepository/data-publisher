@@ -1,5 +1,11 @@
 {% spaceless %}
 
+    <button type="button" class="pure-button" onclick="selectAllFields();">Select All</button>
+    &nbsp;&nbsp;
+    <button type="button" class="pure-button" onclick="deselectAllFields();">Deselect All</button>
+
+    </br></br>
+
     <form id="csv_import_form">
         <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />
 
@@ -92,6 +98,29 @@
             }
         });
     });
+
+    function selectAllFields() {
+        $(".import_checkbox").each(function() {
+            if ( !$(this).is(':checked') ) {
+                $(this).trigger('click');
+            }
+        });
+    }
+
+
+    function deselectAllFields() {
+        $(".import_checkbox").each(function() {
+            if ( $(this).is(':checked') ) {
+                $(this).trigger('click');
+            }
+        });
+
+        $(".external_id_checkbox").each(function() {
+            if ( $(this).is(':checked') ) {
+                $(this).trigger('click');
+            }
+        });
+    }
 
     function startImport() {
 
