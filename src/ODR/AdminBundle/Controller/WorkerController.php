@@ -284,7 +284,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                 $dest_entity = $dest_repository->findOneBy( array('dataField' => $datafield->getId(), 'dataRecordFields' => $drf->getId()) );
                 if ($dest_entity == null ) {
                     // Create a new storage entity for the destination if none exists
-                    $dest_entity = parent::ODR_addStorageEntity($em, $user, $drf->getDataRecord(), $drf, $datafield);
+                    $dest_entity = parent::ODR_addStorageEntity($em, $user, $drf->getDataRecord(), $datafield);
                     $ret .= '>> >> [new '.$new_typeclass.']  ';
                 }
                 else {
@@ -598,6 +598,9 @@ print '</pre>';
      */
     public function drfcheckAction(Request $request)
     {
+        $delete_entities = true;
+        $delete_entities = false;
+
         $deleted_entities = array();
         $em = $this->getDoctrine()->getManager();
         $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
@@ -681,17 +684,29 @@ print '<pre>';
                         case 'LongVarchar':
                         case 'LongText':
                         case 'IntegerValue':
-                            $old_value = $old_drf->getAssociatedEntity()->getValue();
-                            $new_value = $new_drf->getAssociatedEntity()->getValue();
-                            if ( strcmp($old_value, $new_value) !== 0 )
-                                print '-- -- old value: "'.$old_value.'" new value: "'.$new_value.'"'."\n";
-                            else
-                                print '-- -- values are identical'."\n";
-
-                            if ( $old_value == '' && $new_value != '' )
+                            if ($old_drf->getAssociatedEntity() == null) {
+                                // old drf doesn't point to a storage entity, get rid of it
                                 $delete_new_drf = false;
-                            else if ( $old_str != '' && $new_str != '' )
-                                $skip = true;
+                                print '-- -- no old value'."\n";
+                            }
+                            else if ($new_drf->getAssociatedEntity() == null) {
+                                // new drf doesn't point to a storage entity, get rid of it
+                                $delete_new_drf = true;
+                                print '-- -- no new value'."\n";
+                            }
+                            else {
+                                $old_value = $old_drf->getAssociatedEntity()->getValue();
+                                $new_value = $new_drf->getAssociatedEntity()->getValue();
+                                if ( strcmp($old_value, $new_value) !== 0 )
+                                    print '-- -- old value: "'.$old_value.'" new value: "'.$new_value.'"'."\n";
+                                else
+                                    print '-- -- values are identical'."\n";
+
+                                if ( $old_value == '' && $new_value != '' )
+                                    $delete_new_drf = false;
+                                else if ( $old_value != '' && $new_value != '' )
+                                    $skip = true;
+                            }
 
                             break;
 
@@ -701,22 +716,18 @@ print '<pre>';
                             break;
                     }
 
-                    if (!$skip) {
+                    if ($delete_entities && !$skip) {
                         if ($delete_new_drf) {
-/*
                             $deleted_entities[] = $new_drf->getId();
                             $em->remove($new_drf);
                             print '-- >> new drf deleted'."\n";
-*/
                         }
                         else {
-/*
                             $deleted_entities[] = $old_drf->getId();
                             $em->remove($old_drf);
                             print '-- >> old drf deleted'."\n";
-*/
                         }
-//                        $em->flush();
+                        $em->flush();
                     }
 
                 }
@@ -761,7 +772,7 @@ print $entity."\n";
             $prev_dr = $prev_df = $prev_e = $prev_value = null;
             $i = 0;
             foreach ($iterableResult as $result) {
-//print_r($result);
+print_r($result);
                 $row = $result[$i];
                 $current_dr = $row['dr_id'];
                 $current_df = $row['df_id'];

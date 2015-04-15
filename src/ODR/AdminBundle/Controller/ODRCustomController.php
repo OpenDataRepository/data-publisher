@@ -1416,13 +1416,12 @@ $save_permissions = false;
         foreach($datatype->getDataFields() as $datafield) {
             // Create a datarecordfield entry for every datafield of the datatype
             $datarecordfield = self::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
-
-            // TODO - are these two needed?
-//            $em->flush();
-//            $em->refresh($datarecordfields);
+            // Need to flush/refresh so ODR_addStorageEntity() doesn't create a new drf entry
+            $em->flush();
+            $em->refresh($datarecordfield);
 
             // Create initial storage entity if necessary
-            self::ODR_addStorageEntity($em, $user, $datarecord, $datarecordfield, $datafield);
+            self::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
 
             // Create radio_selection entities so searching works immediately
             $typename = $datafield->getFieldType()->getTypeName();
@@ -1503,12 +1502,11 @@ $save_permissions = false;
      * @param Manager $em
      * @param User $user                        The user requesting the creation of this entity
      * @param DataRecord $datarecord            
-     * @param DataRecordFields $datarecordfield 
      * @param DataFields $datafield             
      *
      * @return mixed
      */
-    protected function ODR_addStorageEntity($em, $user, $datarecord, $datarecordfield, $datafield)
+    protected function ODR_addStorageEntity($em, $user, $datarecord, $datafield)
     {
         $my_obj = null;
 
@@ -1520,8 +1518,15 @@ $save_permissions = false;
             // Create Instance of field
             $my_obj = new $classname();
             $my_obj->setDataRecord($datarecord);
-            $my_obj->setDataRecordFields($datarecordfield);
             $my_obj->setDataField($datafield);
+
+            $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
+            if ($drf == null) {
+                $drf = self::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
+                $em->persist($drf);
+            }
+            $my_obj->setDataRecordFields($drf);
+
             $my_obj->setFieldType($field_type);
             if ($field_type->getTypeClass() == 'DatetimeValue')
                 $my_obj->setValue( new \DateTime('0000-00-00 00:00:00') );
@@ -1533,7 +1538,7 @@ $save_permissions = false;
 
             // TODO - is this necessary?
             // Attach the new object to the associated datarecordfield entity
-            self::saveToDataRecordField($em, $datarecordfield, $field_type->getTypeClass(), $my_obj);
+            self::saveToDataRecordField($em, $drf, $field_type->getTypeClass(), $my_obj);
         }
 
         return $my_obj;
@@ -2491,7 +2496,7 @@ if ($debug)
                     $datarecordfield = self::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
 
                     // Create initial storage entity if necessary
-                    self::ODR_addStorageEntity($em, $user, $datarecord, $datarecordfield, $datafield);
+                    self::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
 
                     $datarecord->addDataRecordField($datarecordfield);   // $datarecord gets the right objects, but the properties of one of them aren't set... 
                 }
@@ -2518,7 +2523,7 @@ if ($debug)
 if ($debug)
     print "-- -- creating new \"".$classname."\" for datarecordfield\n";
 
-                self::ODR_addStorageEntity($em, $user, $datarecordfield->getDataRecord(), $datarecordfield, $datafield);
+                self::ODR_addStorageEntity($em, $user, $datarecordfield->getDataRecord(), $datafield);
             }
 
             // Need to ensure that entries in odr_image_sizes exist for images...

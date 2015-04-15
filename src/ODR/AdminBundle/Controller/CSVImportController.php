@@ -745,6 +745,13 @@ return;
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+                        if ($entity == null) {
+                            $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                            $em->persist($entity);
+                            $em->flush($entity);
+                            $em->refresh($entity);
+                            $status .= '    -- >> created new '.$typeclass."\n";
+                        }
 
                         // TODO - validation on these? or should it happen earlier...
 
@@ -767,6 +774,13 @@ return;
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+                        if ($entity == null) {
+                            $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                            $em->persist($entity);
+                            $em->flush($entity);
+                            $em->refresh($entity);
+                            $status .= '    -- >> created new '.$typeclass."\n";
+                        }
 
                         // Save value from csv file
                         $entity->setValue( intval($column_data) );
@@ -778,6 +792,13 @@ return;
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+                        if ($entity == null) {
+                            $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                            $em->persist($entity);
+                            $em->flush($entity);
+                            $em->refresh($entity);
+                            $status .= '    -- >> created new '.$typeclass."\n";
+                        }
 
                         // Save value from csv file
                         $entity->setValue( floatval($column_data) );
@@ -789,6 +810,13 @@ return;
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+                        if ($entity == null) {
+                            $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                            $em->persist($entity);
+                            $em->flush($entity);
+                            $em->refresh($entity);
+                            $status .= '    -- >> created new '.$typeclass."\n";
+                        }
 
                         // TODO - validation on these? or should it happen earlier...
 
@@ -802,6 +830,13 @@ return;
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+                        if ($entity == null) {
+                            $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                            $em->persist($entity);
+                            $em->flush($entity);
+                            $em->refresh($entity);
+                            $status .= '    -- >> created new '.$typeclass."\n";
+                        }
 
                         // Save value from csv file...different formats are already taken care of courtesy of the bundle used for csv importing
                         $datetime = new \DateTime($column_data);
