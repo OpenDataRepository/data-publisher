@@ -877,7 +877,7 @@ $save_permissions = false;
 //            $str = "<h2>Permission Denied</h2>";
 
         $return = array();
-        $return['r'] = '';
+        $return['r'] = 1;
         $return['t'] = 'html';
         $return['d'] = array(
             'html' => $str

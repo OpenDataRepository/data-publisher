@@ -1781,7 +1781,12 @@ print '</pre>';
             if ( $local_datatype == null )
                 return parent::deletedEntityError('DataType');
 
-            $remote_datatype = $repo_datatype->find($remote_datatype_id);
+            $remote_datatype = null;
+            if ($remote_datatype_id !== '')
+                $remote_datatype = $repo_datatype->find($remote_datatype_id);   // Looking to create a link
+            else
+                $remote_datatype = $repo_datatype->find($previous_remote_datatype_id);   // Looking to remove a link
+
             if ( $remote_datatype == null )
                 return parent::deletedEntityError('DataType');
 

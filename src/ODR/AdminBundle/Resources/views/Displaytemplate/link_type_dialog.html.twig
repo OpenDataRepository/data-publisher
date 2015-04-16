@@ -55,7 +55,10 @@
                         else {
                             // An error has occurred.
                             // Show Error message dialog
-                            alert(data.d);
+                            if (data.t == 'html')
+                                alert(data.d.html);
+                            else
+                                alert(data.d);
                         }
 
                         $("#dialog_link_datatype").dialog('close');
