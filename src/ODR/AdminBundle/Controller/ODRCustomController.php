@@ -190,6 +190,9 @@ class ODRCustomController extends Controller
                     'target' => $target,
                     'search_key' => $search_key,
                     'offset' => $offset,
+
+                    // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
+                    'all_datarecords' => $datarecords,
                 )
             );
         }

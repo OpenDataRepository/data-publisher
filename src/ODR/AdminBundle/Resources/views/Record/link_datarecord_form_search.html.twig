@@ -6,6 +6,7 @@
 </br></br>
 <div id="TextResults_link_div">
     <button class="pure-button" type="button" onclick="selectAll();">Select All</button>
+    &nbsp;
     <button class="pure-button" type="button" onclick="deselectAll();">Deselect All</button>
 </div>
 
@@ -16,7 +17,12 @@
 </style>
 
 <script>
+    // Need to be able to store all datarecords returned from the search incase "Select All" is clicked
+    var all_datarecords = [];
+
     $(function() {
+        all_datarecords = [{% for num,dr_id in all_datarecords %}{{ dr_id }},{% endfor %}];
+
         var allow_multiple_links = $("#LinkDataRecordForm").children('input[name="allow_multiple_links"]').val();
         if (allow_multiple_links == 0)
             $("#TextResults_link_div").remove();
@@ -43,9 +49,6 @@
                 data: {
                     'datatype_id': {{ datatype.id }},
                     'search_key': "{{ search_key }}",
-                },
-                complete: function() {
-                    //
                 }
             },
 
@@ -68,9 +71,6 @@
         // Prepend a header for the checkbox column
         $("#TextResults_search").children('thead').children('tr').prepend('<th rowspan="1" colspan="1">Linked?</th>');
     });
-
-    // Need to be able to store all datarecords returned from the search incase "Select All" is clicked
-    var all_datarecords = [];
 
     function selectAll() {
         // Add hidden input elements for all currently unselected datarecords

@@ -41,15 +41,8 @@
 </style>
 
 <script>
-    var linked_datarecords = [];
-{% for dr,value in linked_datarecords %}
-    linked_datarecords.push({{ dr }});
-{% endfor %}
-
-    var illegal_datarecords = [];
-{% for dr,value in illegal_datarecords %}
-    illegal_datarecords.push({{ dr }});
-{% endfor %}
+    var linked_datarecords = [{% for dr,value in linked_datarecords %}{{ dr }},{% endfor %}];
+    var illegal_datarecords = [{% for dr,value in illegal_datarecords %}{{ dr }},{% endfor %}];
 
     $(function() {
         var dataset = {{ table_html | raw }};
