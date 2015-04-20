@@ -678,6 +678,36 @@ print '<pre>';
 
                             break;
 
+                        case 'DatetimeValue':
+                            if ($old_drf->getAssociatedEntity() == null) {
+                                // old drf doesn't point to a storage entity, get rid of it
+                                $delete_new_drf = false;
+                                print '-- -- no old value'."\n";
+                            }
+                            else if ($new_drf->getAssociatedEntity() == null) {
+                                // new drf doesn't point to a storage entity, get rid of it
+                                $delete_new_drf = true;
+                                print '-- -- no new value'."\n";
+                            }
+                            else {
+                                $old_value = $old_drf->getAssociatedEntity()->getValue();
+                                $old_value = $old_value->format('Y-m-d');
+                                $new_value = $new_drf->getAssociatedEntity()->getValue();
+                                $new_value = $new_value->format('Y-m-d');
+
+                                if ( strcmp($old_value, $new_value) !== 0 )
+                                    print '-- -- old value: "'.$old_value.'" new value: "'.$new_value.'"'."\n";
+                                else
+                                    print '-- -- values are identical'."\n";
+
+                                if ( $old_value == '-0001-11-30' && $new_value != '-0001-11-30' )
+                                    $delete_new_drf = false;
+                                else if ( $old_value != '-0001-11-30' && $new_value != '-0001-11-30' )
+                                    $skip = true;
+                            }
+
+                            break;
+
                         case 'Boolean':
                         case 'ShortVarchar':
                         case 'MediumVarchar':
@@ -716,18 +746,30 @@ print '<pre>';
                             break;
                     }
 
-                    if ($delete_entities && !$skip) {
+                    if (!$skip) {
                         if ($delete_new_drf) {
                             $deleted_entities[] = $new_drf->getId();
-                            $em->remove($new_drf);
-                            print '-- >> new drf deleted'."\n";
+                            if ($delete_entities) {
+                                $em->remove($new_drf);
+                                print '-- >> new drf deleted'."\n";
+                            }
+                            else {
+                                print '-- >> new drf would be deleted'."\n";
+                            }
                         }
                         else {
                             $deleted_entities[] = $old_drf->getId();
-                            $em->remove($old_drf);
-                            print '-- >> old drf deleted'."\n";
+                            if ($delete_entities) {
+                                $em->remove($old_drf);
+                                print '-- >> old drf deleted'."\n";
+                            }
+                            else {
+                                print '-- >> old drf would be deleted'."\n";
+                            }
                         }
-                        $em->flush();
+
+                        if ($delete_entities)
+                            $em->flush();
                     }
 
                 }
@@ -737,7 +779,11 @@ print '<pre>';
             }
         }
 
-print "\n".'Deleted these entities...'."\n";
+if ($delete_entities)
+   print "\n".'Deleted these drf entities...'."\n";
+else
+   print "\n".'Would deleted these drf entities...'."\n";
+
 print_r($deleted_entities);
 print '</pre>';
     }
@@ -745,6 +791,7 @@ print '</pre>';
 
     /**
      * Debug function...check for duplicate storage entities (those with the same datarecord/datafield key pair)
+     * TODO ...
      * 
      * @param Request $request
      * 
@@ -755,42 +802,49 @@ print '</pre>';
         $em = $this->getDoctrine()->getManager();
 
 print '<pre>';
-        $entities = array('Boolean', /*'File', 'Image',*/ 'IntegerValue', 'LongText', 'LongVarchar', 'MediumVarchar', /*'Radio',*/ 'ShortVarchar'/*, 'DatetimeValue', 'DecimalValue'*/);
-//        $entities = array('Boolean');
+        $entities = array('Boolean', /*'File', 'Image',*/ 'IntegerValue', 'LongText', 'LongVarchar', 'MediumVarchar', /*'Radio',*/ 'ShortVarchar', 'DatetimeValue', 'DecimalValue');
         foreach ($entities as $entity) {
+            $em->getFilters()->disable('softdeleteable');
             $query = $em->createQuery(
-               'SELECT e.id AS e_id, df.id AS df_id, dr.id AS dr_id, e.value AS value
+               'SELECT e.id AS e_id, dr.id AS dr_id, df.id AS df_id, e.value AS value, drf.id AS drf_id, drf.deletedAt AS drf_deletedAt
                 FROM ODRAdminBundle:'.$entity.' e
-                JOIN ODRAdminBundle:DataFields AS df WITH e.dataField = df
                 JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
+                JOIN ODRAdminBundle:DataRecord AS df WITH e.dataField = df
                 JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                WHERE e.deletedAt IS NULL AND df.deletedAt IS NULL AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
-                ORDER BY dr.id, df.id');
+                WHERE e.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL AND drf.deletedAt IS NOT NULL
+                ORDER BY dr.id, df_id, e.id');
             $iterableResult = $query->iterate();
 print $entity."\n";
 
             $prev_dr = $prev_df = $prev_e = $prev_value = null;
             $i = 0;
             foreach ($iterableResult as $result) {
-print_r($result);
+//print_r($result);
                 $row = $result[$i];
-                $current_dr = $row['dr_id'];
-                $current_df = $row['df_id'];
-                $current_e = $row['e_id'];
-                $current_value = $row['value'];
+                $e_id = $row['e_id'];
+                $dr_id = $row['dr_id'];
+                $df_id = $row['df_id'];
+                $drf_id = $row['drf_id'];
 
-                if ($prev_dr !== null && $prev_dr === $current_dr && $prev_df === $current_df) {
-                    print 'Datarecord '.$current_dr.' Datafield '.$current_df.' has duplicate values'."\n";
-                    print '-- '.$prev_e.': "'.$prev_value.'"  '.$current_e.':"'.$current_value.'"'."\n";
+                $drf_deletedAt = $row['drf_deletedAt'];
+                $drf_deletedAt = $drf_deletedAt->format('Y-m-d');
+
+                $value = '';
+                if ($entity == 'DatetimeValue') {
+                    $e = $row['value'];
+                    $value = $e->format('Y-m-d');
+                }
+                else {
+                    $value = $row['value'];
                 }
 
-                $prev_dr = $current_dr;
-                $prev_df = $current_df;
-                $prev_e = $current_e;
-                $prev_value = $current_value;
+                print 'Datarecord '.$dr_id.' Datafield '.$df_id."\n";
+                print '-- entity '.$e_id.' points to deleted drf '.$drf_id."\n";
 
                 $i++;
             }
+
+            $em->getFilters()->enable('softdeleteable');
 print "\n\n";
         }
 print '</pre>';
