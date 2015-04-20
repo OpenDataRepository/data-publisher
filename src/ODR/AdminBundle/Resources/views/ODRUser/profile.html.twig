@@ -92,7 +92,7 @@
                             alert(data.d.error);
                         }
                         else if (data.r == 3) {
-                            alert("user already exists...redirecting to their permissions page");
+                            alert( data.d.message + "...redirecting to their permissions page" );
                             UpdateURL( data.d.url );
                         }
                         else {

@@ -316,6 +316,7 @@ class ODRUserController extends ODRCustomController
         // Error reporting
         $fail = false;
         $error = '';
+        $message = '';
         $redirect = false;
         $url = '';
 
@@ -369,12 +370,12 @@ class ODRUserController extends ODRCustomController
 
             if ( $target_user->hasRole('ROLE_SUPER_ADMIN') ) {
                 $fail = true;
-                $error = "username already exists";
+                $error = 'User already exists';
             }
             else {
                 $fail = true;
                 $redirect = true;
-                $error = "username already exists...";
+                $message = 'User already exists';
 
                 // redirect to the manage permissions page for the target user so the admin can change the target user's permissions
                 $router = $this->container->get('router');
@@ -434,7 +435,7 @@ class ODRUserController extends ODRCustomController
                 $datatrees = $em->getRepository('ODRAdminBundle:DataTree')->findAll();
                 $tmp_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
 
-                // TODO - top level datatype
+                // TODO - parent::getTopLevelDatatypes() returns array if integers, want array of DataTypes...
                 // Locate the IDs of all datatypes that are descended from another datatype
                 $descendants = array();
                 foreach ($datatrees as $datatree) {
@@ -450,14 +451,20 @@ class ODRUserController extends ODRCustomController
 
                 // Create default permissions for this user for each of the datatypes
                 foreach ($datatypes as $datatype) {
-                    self::permissionsExistence($user, $user, $datatype, null);  // user is going to need permission entities eventually, upon user create is as good a place as any for them
+                    self::permissionsExistence($user, $admin_user, $datatype, null);  // user is going to need permission entities eventually, upon user create is as good a place as any for them
                 }
+
+                $redirect = true;
+                $message = 'User created';
+                // redirect to the manage permissions page for the target user so the admin can change the target user's permissions
+                $router = $this->container->get('router');
+                $url = $router->generate('odr_manage_user_permissions', array('user_id' => $user->getId()));
             }
         }
 
         if ($redirect) {
             $return['r'] = 3;
-            $return['d'] = array('url' => $url);
+            $return['d'] = array('message' => $message, 'url' => $url);
         }
         else if ($fail) {
             // Grab the specified user
@@ -517,7 +524,7 @@ class ODRUserController extends ODRCustomController
             $user_manager = $this->container->get('fos_user.user_manager');
             $user_list = $user_manager->findUsers();
 
-            // Reduce user list to those that possess a view permission to datatypes the admin, excluding super admins
+            // Reduce user list to those that possess a view permission to datatypes this user has admin permissions for, excluding super admins
             if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') ) {
                 $tmp = array();
                 foreach ($user_list as $user) {
@@ -749,14 +756,14 @@ class ODRUserController extends ODRCustomController
     /**
      * Ensures the user permissions table has rows linking the given user and datatype...TODO
      * 
-     * @param User $user                         The User receiving the permissions
-     * @param User $admin                        The admin User which triggered this function
-     * @param DataType $datatype                 Which DataType these permissions are for
-     * @param UserPermission $parent_permissions The permissions applied to the parent DataType
+     * @param User $user               The User receiving the permissions
+     * @param User $admin              The admin User which triggered this function
+     * @param DataType $datatype       Which DataType these permissions are for
+     * @param mixed $parent_permission null if $datatype is top-level, otherwise the $user's UserPermissions object for this $datatype's parent
      * 
      * @return none
      */
-    private function permissionsExistence($user, $admin, $datatype, $parent_permissions)
+    private function permissionsExistence($user, $admin, $datatype, $parent_permission)
     {
         // Grab required objects
         $em = $this->getDoctrine()->getManager();
@@ -764,10 +771,10 @@ class ODRUserController extends ODRCustomController
         $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
 
         // Look up the user's permissions for this datatype
-        $user_permissions = $repo_user_permissions->findOneBy( array('user_id' => $user, 'dataType' => $datatype) );
+        $user_permission = $repo_user_permissions->findOneBy( array('user_id' => $user, 'dataType' => $datatype) );
 
         // Verify a permissions object exists for this user/datatype
-        if ($user_permissions === null) {
+        if ($user_permission === null) {
             $user_permission = new UserPermissions();
             $user_permission->setUserId($user);
             $user_permission->setDataType($datatype);
@@ -775,9 +782,9 @@ class ODRUserController extends ODRCustomController
 
             $default = 0;
             if ($user->hasRole('ROLE_SUPER_ADMIN'))
-                $default = 1;   // Admins can edit/add/delete/design everything, no exceptions
+                $default = 1;   // SuperAdmins can edit/add/delete/design everything, no exceptions
 
-            if ($parent_permissions === null) {
+            if ($parent_permission === null) {
                 // If this is a top-level datatype, use the defaults
                 $user_permission->setCanEditRecord($default);
                 $user_permission->setCanAddRecord($default);
@@ -788,11 +795,11 @@ class ODRUserController extends ODRCustomController
             }
             else {
                 // If this is a childtype, use the parent's permissions as defaults
-                $user_permission->setCanEditRecord( $parent_permissions->getCanEditRecord() );
-                $user_permission->setCanAddRecord( $parent_permissions->getCanAddRecord() );
-                $user_permission->setCanDeleteRecord( $parent_permissions->getCanDeleteRecord() );
-                $user_permission->setCanViewType( $parent_permissions->getCanViewType() );
-                $user_permission->setCanDesignType( $parent_permissions->getCanDesignType() );
+                $user_permission->setCanEditRecord( $parent_permission->getCanEditRecord() );
+                $user_permission->setCanAddRecord( $parent_permission->getCanAddRecord() );
+                $user_permission->setCanDeleteRecord( $parent_permission->getCanDeleteRecord() );
+                $user_permission->setCanViewType( $parent_permission->getCanViewType() );
+                $user_permission->setCanDesignType( $parent_permission->getCanDesignType() );
                 $user_permission->setIsTypeAdmin( 0 );      // DON'T set admin permissions on childtype
             }
 
@@ -800,13 +807,13 @@ class ODRUserController extends ODRCustomController
         }
 
         // Locate any children of this datatype
-        $datatrees = $repo_datatree->findAll();
+        $datatrees = $repo_datatree->findBy( array('ancestor' => $datatype->getId(), 'is_link' => 0) );
         foreach ($datatrees as $datatree) {
-            if (($datatree->getIsLink() == 0) && ($datatree->getAncestor() == $datatype))
-                // Ensure the user has permission objects for them as well
-                self::permissionsExistence($user, $admin, $datatree->getDescendant(), $user_permissions);
+            // Ensure the user has permission objects for them as well
+            self::permissionsExistence($user, $admin, $datatree->getDescendant(), $user_permission);
         }
 
+        // TODO - if a top-level datatype has childtypes, this flush will end up executing multiple times
         // Commit all the changes
         $em->flush();
     }
