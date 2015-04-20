@@ -111,11 +111,13 @@ class RecordController extends ODRCustomController
 
 
             $radio_selections = $em->getRepository('ODRAdminBundle:RadioSelection')->findBy( array('dataRecordFields' => $datarecordfield->getId()) );
-            $repo_radio_options = $em->getRepository('ODRAdminBundle:RadioOptions');
-            $radio_option = $repo_radio_options->find($radio_option_id);
-            if ( $radio_option == null )
-                return parent::deletedEntityError('RadioOption');
 
+            if ($radio_option_id != "0") {
+                $repo_radio_options = $em->getRepository('ODRAdminBundle:RadioOptions');
+                $radio_option = $repo_radio_options->find($radio_option_id);
+                if ( $radio_option == null )
+                    return parent::deletedEntityError('RadioOption');
+            }
 
             // Go through all the radio selections
             $found = false;
@@ -1619,42 +1621,6 @@ if ($debug) {
             $table_html = parent::renderTextResultsList($datarecord_list, $remote_datatype, $request);
             $table_html = json_encode($table_html);
 //print_r($table_html);
-/*
-            $table_html = '';
-//            foreach ($datarecords as $num => $dr_id) {
-            foreach ($linked_datarecords as $dr_id => $value) {
-                // Attempt to load the datarecord from the cache...
-                $data = $memcached->get($memcached_prefix.'.data_record_short_text_form_'.$dr_id);
-
-                // No caching in dev environment
-                if ($this->container->getParameter('kernel.environment') === 'dev')
-                    $data = null;
-
-                if ($data != null) {    // TODO - right datatype?  need to change this anyways due to using array of entities...
-//                if ($data != null && $data['revision'] >= $descendant_datatype->getRevision()) {    // TODO - right datatype?  need to change this anyways due to using array of entities...
-                    // ...if the html exists, append to the current list and continue
-                    $table_html .= $data['html'];
-if ($debug)
-    print 'datarecord '.$dr_id." cached\n";
-                }
-                else {
-                    // ...otherwise, render a blank entry as a stopgap measure
-                    $datarecord = $repo_datarecord->find($dr_id);
-//                    $html = $templating->render( 'ODRAdminBundle:TextResults:textresults_blank.html.twig', array('datatype' => $datarecord->getDataType(), 'datarecord' => $datarecord, 'theme' => $theme) );
-                    $html = parent::Text_GetDisplayData($request, $dr_id);
-                    $table_html .= $html;
-
-if ($debug)
-    print 'datarecord '.$dr_id." uncached\n";
-
-                    // Since one of the memcached entries was null, schedule the datarecord for a memcached update...unless it's dev
-                    if ($this->container->getParameter('kernel.environment') !== 'dev') {
-                        $options = array();
-                        parent::updateDatarecordCache($datarecord->getId(), $options);
-                    }
-                }
-            }
-*/
 
             // Grab the column names for the datatables plugin
             $column_names = parent::getDatatablesColumnNames($remote_datatype->getId());
