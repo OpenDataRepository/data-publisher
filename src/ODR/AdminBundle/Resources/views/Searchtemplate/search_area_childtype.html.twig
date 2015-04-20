@@ -1,4 +1,5 @@
-{% macro input(normal_datatype_tree, search_datatype_tree, normal_theme, search_theme) %}
+{#{% macro input(normal_datatype_tree, search_datatype_tree, normal_theme, search_theme) %}#}
+{% macro input(normal_datatype_tree, search_datatype_tree) %}
 {% spaceless %}
 
 {% set datatype = normal_datatype_tree.datatype %}
@@ -11,11 +12,13 @@
     </div>
 
     <div class="ODRFieldArea" id="FieldArea_{{ datatype.id }}">
-        {% include 'ODRAdminBundle:Searchtemplate:search_area_fieldarea.html.twig' with {'datatype_tree': normal_datatype_tree, 'theme': normal_theme} %}
+        {#{% include 'ODRAdminBundle:Searchtemplate:search_area_fieldarea.html.twig' with {'datatype_tree': normal_datatype_tree, 'theme': normal_theme} %}#}
+        {% include 'ODRAdminBundle:Searchtemplate:search_area_fieldarea.html.twig' with {'datatype_tree': normal_datatype_tree} %}
     </div><!-- End of #FieldArea_{{ datatype.id }} -->
 
     {% import 'ODRAdminBundle:Searchtemplate:search_area_childtype_design.html.twig' as search_form %}
-    {{ search_form.input(normal_datatype_tree, search_datatype_tree, normal_theme, search_theme) }}
+    {#{{ search_form.input(normal_datatype_tree, search_datatype_tree, normal_theme, search_theme) }}#}
+    {{ search_form.input(normal_datatype_tree, search_datatype_tree) }}
 
 </div><!-- End of #DataType_{{ datatype.id }} -->
 

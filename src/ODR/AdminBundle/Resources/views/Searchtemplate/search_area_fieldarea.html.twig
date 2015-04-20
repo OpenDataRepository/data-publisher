@@ -3,21 +3,22 @@
 {% set datatype = datatype_tree.datatype %}
 
 <div id="ThemeElement_0" class="ODRThemeElement pure-u-1">
+    <div class="ODRInnerBox">
 
-{% for data in datatype_tree.theme_elements %}
-    {% set element = data.theme_element %}
+    {% for data in datatype_tree.theme_elements %}
+        {% set element = data.theme_element %}
 
+        {% if data.datafields != null %}
+            {# render all datafields in this theme element #}
+            {% for datafield in data.datafields %}
+                {% if datafield.datafield.fieldtype.typename != "Markdown" %}
+                    {% include 'ODRAdminBundle:Searchtemplate:search_area_datafield.html.twig' with {'fieldtheme': datafield.theme_datafield, 'field': datafield.datafield} %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
 
-    {% if data.datafields != null %}
-        {# render all datafields in this theme element #}
-        {% for datafield in data.datafields %}
-            {% if datafield.datafield.fieldtype.typename != "Markdown" %}
-                {% include 'ODRAdminBundle:Searchtemplate:search_area_datafield.html.twig' with {'fieldtheme': datafield.theme_datafield, 'field': datafield.datafield} %}
-            {% endif %}
-        {% endfor %}
-    {% endif %}
-
-{% endfor %}
+    {% endfor %}
+    </div><!-- end of .ODRInnerBox -->
 
 </div><!-- end of #ThemeElement_0 -->
 

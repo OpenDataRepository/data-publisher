@@ -1,13 +1,9 @@
 
-<div class="ODRFormWrap pure-u-1">
+<div class="ODRFormWrap ODRDesign pure-u-1">
 
     {% import "ODRAdminBundle:Searchtemplate:search_area_childtype.html.twig" as mychildform %}
-    {{ mychildform.input(normal_datatype_tree, search_datatype_tree, normal_theme, search_theme) }}
+    {#{{ mychildform.input(normal_datatype_tree, search_datatype_tree, normal_theme, search_theme) }}#}
+    {{ mychildform.input(normal_datatype_tree, search_datatype_tree) }}
 
 </div><!-- End of .ODRFormWrap -->
 
-<script type="text/javascript">
-    $(function() {
-//        initForms();
-    });
-</script>

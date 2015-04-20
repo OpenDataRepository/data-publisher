@@ -1,4 +1,5 @@
-{% macro input(normal_datatype_tree, search_datatype_tree, normal_theme, search_theme) %}
+{#{% macro input(normal_datatype_tree, search_datatype_tree, normal_theme, search_theme) %}#}
+{% macro input(normal_datatype_tree, search_datatype_tree) %}
 {% spaceless %}
 
 {% set datatype = search_datatype_tree.datatype %}
@@ -11,11 +12,10 @@
         <i class="Pointer tooltip fa fa-edit AddThemeElement" title="Add Group Box" rel="{{ datatype.id }}"></i>
     </span></div>
 
-    <div id="search_form_template_area">
-        <div class="ODRFieldArea ODRDesignArea" id="FieldArea_{{ datatype.id }}_design">
-            {% include 'ODRAdminBundle:Searchtemplate:search_area_fieldarea_design.html.twig' with {'datatype_tree': search_datatype_tree, 'theme': search_theme} %}
-        </div><!-- End of #FieldArea_{{ datatype.id }}_design -->
-    </div>
+    <div class="ODRFieldArea ODRDesignArea" id="FieldArea_{{ datatype.id }}_design">
+        {#{% include 'ODRAdminBundle:Searchtemplate:search_area_fieldarea_design.html.twig' with {'datatype_tree': search_datatype_tree, 'theme': search_theme} %}#}
+        {% include 'ODRAdminBundle:Searchtemplate:search_area_fieldarea_design.html.twig' with {'datatype_tree': search_datatype_tree} %}
+    </div><!-- End of #FieldArea_{{ datatype.id }}_design -->
 
 {% endspaceless %}
 {% endmacro %}

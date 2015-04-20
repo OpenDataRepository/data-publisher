@@ -5,22 +5,23 @@
 {% for data in datatype_tree.theme_elements %}
     {% set element = data.theme_element %}
 
-    {#{% include 'ODRAdminBundle:Searchtemplate:element_style_design.html.twig' with {'element': element, 'theme': theme} %}#}
     <div id="ThemeElement_{{ element.id }}" class="ODRThemeElement ODRDesignElement pure-u-1 pure-u-md-{{ element.getcsswidthmed }} pure-u-xl-{{ element.getcsswidthxl }}">
+        <div class="ODRInnerBox">
 
-        <div id="ThemeElementTools_{{ element.id }}" class="DataTypeTools pure-u-23-24"><span style="float:right;">
-            <i class="Pointer tooltip fa fa-info-circle ThemeElementProperties" title="ThemeElement Properties" rel="{{ element.id }}"></i>
-            <i class="Pointer tooltip fa fa-trash-o {% if data.datafields != null or data.datatype != null %}fa-muted{% endif %} DeleteThemeElement" title="Delete ThemeElement" rel="{{ element.id }}"></i>
-        </span></div>
+            <div id="ThemeElementTools_{{ element.id }}" class="DataTypeTools {#pure-u-23-24#} pure-u-1"><span style="float:right;">
+                <i class="Pointer tooltip fa fa-info-circle ThemeElementProperties" title="ThemeElement Properties" rel="{{ element.id }}"></i>
+                <i class="Pointer tooltip fa fa-trash-o {% if data.datafields != null or data.datatype != null %}fa-muted{% endif %} DeleteThemeElement" title="Delete ThemeElement" rel="{{ element.id }}"></i>
+            </span></div>
 
-        {% if data.datafields != null %}
-            {# render all datafields in this theme element #}
-            {% for datafield in data.datafields %}
-                {% if datafield.theme_datafield.active == 1 and datafield.datafield.fieldtype.typename != "Markdown" %}
-                    {% include 'ODRAdminBundle:Searchtemplate:search_area_datafield_design.html.twig' with {'fieldtheme': datafield.theme_datafield, 'field': datafield.datafield} %}
-                {% endif %}
-            {% endfor %}
-        {% endif %}
+            {% if data.datafields != null %}
+                {# render all datafields in this theme element #}
+                {% for datafield in data.datafields %}
+                    {% if datafield.theme_datafield.active == 1 and datafield.datafield.fieldtype.typename != "Markdown" %}
+                        {% include 'ODRAdminBundle:Searchtemplate:search_area_datafield_design.html.twig' with {'fieldtheme': datafield.theme_datafield, 'field': datafield.datafield} %}
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </div><!-- End of .ODRInnerBox -->
 
     </div><!-- End of #ThemeElement_{{ element.id }}_design -->
 

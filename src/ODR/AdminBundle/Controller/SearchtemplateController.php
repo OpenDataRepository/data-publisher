@@ -161,8 +161,12 @@ class SearchtemplateController extends ODRCustomController
 
             // Save changes
             $em->flush();
+            $em->refresh($theme_element);
 
-            // search_ajax.html.twig calls ReloadChild()
+            // Return the new theme element's id
+            $return['d'] = array(
+                'theme_element_id' => $theme_element->getId(),
+            );
 
             // Schedule the cache for an update
             $options = array();
