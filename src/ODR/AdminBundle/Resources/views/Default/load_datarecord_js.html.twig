@@ -53,16 +53,18 @@
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     var datarecord_id = data.d.datarecord_id;
-                    var force = data.d.force;
+//                    var force = data.d.force;
 
-                    if (force == 'short')
+//                    if (force == 'short')
                         insertShortResults(data, datarecord_id);
+/*
                     else if (force == 'text')
                         insertTextResults(data, datarecord_id);
                     else if (data.d.use_shortresults == 1)
                         insertShortResults(data, datarecord_id);
                     else
                         insertTextResults(data, datarecord_id);
+*/
                 }
                 else {
                     // An error has occurred.
@@ -111,7 +113,7 @@
         var prevent_scroll = true;
         ShortResults_initPage(prevent_scroll);
     }
-
+/*
     function insertTextResults(data, datarecord_id) {
         var table = $("#TextResults").dataTable();
 
@@ -125,5 +127,6 @@
         var row = table.fnGetPosition( $('tr.DataRecord_' + datarecord_id)[0] );
         table.fnUpdate(data_array, row);
     }
+*/
 </script>
 {% endmacro %}

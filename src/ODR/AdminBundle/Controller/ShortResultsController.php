@@ -229,24 +229,25 @@ class ShortResultsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                return parent::deletedEntityError();
+                return parent::deletedEntityError('DataRecord');
             $datatype = $datarecord->getDataType();
             if ($datatype == null)
-                return parent::deletedEntityError();
+                return parent::deletedEntityError('DataType');
 
 
             // Attempt to load the datarecord from the cache...
             $html = '';
             $data = null;
-            if ($force == 'short')
+//            if ($force == 'short')
                 $data = $memcached->get($memcached_prefix.'.data_record_short_form_'.$datarecord->getId());
+/*
             else if ($force == 'text')
                 $data = $memcached->get($memcached_prefix.'.data_record_short_text_form_'.$datarecord->getId());
             else if ($datatype->getUseShortResults() == 1)
                 $data = $memcached->get($memcached_prefix.'.data_record_short_form_'.$datarecord->getId());
             else
                 $data = $memcached->get($memcached_prefix.'.data_record_short_text_form_'.$datarecord->getId());
-
+*/
 
             // No caching in dev environment
             if ($this->container->getParameter('kernel.environment') === 'dev')
@@ -255,10 +256,11 @@ class ShortResultsController extends ODRCustomController
             if ($data == null/* || $data['revision'] < $datatype->getRevision()*/) {
                 // ...otherwise, ensure all the entities exist before rendering and caching the short form of the DataRecord
                 parent::verifyExistence($datatype, $datarecord);
-                if ($force == 'short') {
+//                if ($force == 'short') {
                     $html = parent::Short_GetDisplayData($request, $datarecord->getId());
                     $data = array( 'revision' => $datatype->getRevision(), 'html' => $html );
                     $memcached->set($memcached_prefix.'.data_record_short_form_'.$datarecord->getId(), $data, 0);
+/*
                 }
                 else if ($force == 'text') {
                     $html = parent::Text_GetDisplayData($request, $datarecord->getId());
@@ -275,15 +277,19 @@ class ShortResultsController extends ODRCustomController
                     $data = array( 'revision' => $datatype->getRevision(), 'html' => $html );
                     $memcached->set($memcached_prefix.'.data_record_short_text_form_'.$datarecord->getId(), $data, 0);
                 }
-
+*/
                 // Update all cache entries for this datarecord
                 $options = array();
                 parent::updateDatarecordCache($datarecord->getId(), $options);
             }
+            else {
+                // If the memcache entry exists, grab the html
+                $html = $data['html'];
+            }
 
             $return['d'] = array(
-                'force' => $force,
-                'use_shortresults' => $datatype->getUseShortResults(),
+//                'force' => $force,
+//                'use_shortresults' => $datatype->getUseShortResults(),
                 'datarecord_id' => $datarecord_id,
                 'html' => $html,
             );
