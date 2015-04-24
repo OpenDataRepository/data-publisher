@@ -18,7 +18,6 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entites
-use ODR\AdminBundle\StoredRecord;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
