@@ -325,20 +325,49 @@ class CSVImportController extends ODRCustomController
             $reader->setHeaderRowNumber(0);
 
             // Get the first row of the csv file
+            $line_num = 0;
             $first_row = array();
+            $json_errors = array();
             foreach ($reader as $row) {
+                $line_num++;
+
                 // Save the contents of the header row so column names can be extracted
                 $first_row = $row;
 
                 // Loop through the rest of the file...this will let the CsvReader pick up some of the possible errors
 //                break;
 
-                // TODO - attempt to json_encode each line to catch utf-8 errors here
+                // Attempt to json_encode each line to catch utf-8 errors here
+                $result = json_encode($row);
+
+                switch (json_last_error()) {
+                    case JSON_ERROR_NONE:
+                    break;
+                    case JSON_ERROR_CTRL_CHAR:
+                        $json_errors['Unexpected control character found'][] = $line_num;
+                    break;
+                    case JSON_ERROR_UTF8:
+                        $json_errors['Malformed UTF-8 characters'][] = $line_num;
+                    break;
+                    default:
+                        $json_errors['Unknown error'][] = $line_num;
+                    break;
+                }
             }
 
             // TODO - better error messages?
             // TODO - more strenuous error checking?
-            if ( count($reader->getErrors()) > 0 ) {
+            if ( count($json_errors) > 0 ) {
+                $str = '';
+                foreach($json_errors as $error => $lines) {
+                    $str .= '"'.$error.'" on lines ';
+                    foreach ($lines as $key => $line)
+                        $str .= $line.',';
+                    $str .= "\n\n";
+                }
+                throw new \Exception($str);
+            }
+            else if (count($reader->getErrors()) > 0 ) {
 //                $errors = print_r($reader->getErrors(), true);
 //                throw new \Exception( $errors );
 
