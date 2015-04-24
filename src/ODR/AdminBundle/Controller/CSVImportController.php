@@ -18,6 +18,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entites
 use ODR\AdminBundle\StoredRecord;
+use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
@@ -324,7 +325,6 @@ class CSVImportController extends ODRCustomController
             $reader = new CsvReader($csv_file, $delimiter);
             $reader->setHeaderRowNumber(0);
 
-
             // Get the first row of the csv file
             $first_row = array();
             foreach ($reader as $row) {
@@ -333,6 +333,8 @@ class CSVImportController extends ODRCustomController
 
                 // Loop through the rest of the file...this will let the CsvReader pick up some of the possible errors
 //                break;
+
+                // TODO - attempt to json_encode each line to catch utf-8 errors here
             }
 
             // TODO - better error messages?
@@ -601,9 +603,21 @@ print 'datafield mapping: ';
 print_r($new_mapping);
 return;
 */
+            // ----------------------------------------
+            // Get/create an entity to track the progress of this csv import
+            $job_type = 'csv_import';
+            $target_entity = 'datatype_'.$datatype->getId();
+            $description = 'Importing data into DataType '.$datatype_id.'...';
+            $restrictions = '';
+            $total = ($reader->count() - 1);
+            $reuse_existing = false;
+
+            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+            $tracked_job_id = $tracked_job->getId();
+
 
             // ------------------------------
-            // Get the first row of the csv file
+            // Create a beanstalk job for each row of the csv file
             $count = 0;
             foreach ($reader as $row) {
                 // Skip first row
@@ -614,6 +628,8 @@ return;
                 // Queue each line for import by a worker process...
                 $payload = json_encode(
                     array(
+                        'tracked_job_id' => $tracked_job_id,
+
                         'api_key' => $beanstalk_api_key,
                         'url' => $url,
                         'memcached_prefix' => $memcached_prefix,    // debug purposes only
@@ -625,6 +641,7 @@ return;
                         'user_id' => $user->getId(),
                     )
                 );
+
                 $pheanstalk->useTube('csv_import')->put($payload);
             }
 
@@ -660,10 +677,11 @@ return;
 //print_r($post);
 //return;
 
-            if ( !isset($post['mapping']) || !isset($post['line']) || !isset($post['datatype_id']) || !isset($post['user_id']) || !isset($post['api_key']) )
+            if ( !isset($post['tracked_job_id']) || !isset($post['mapping']) || !isset($post['line']) || !isset($post['datatype_id']) || !isset($post['user_id']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid job data');
 
             // Pull data from the post
+            $tracked_job_id = $post['tracked_job_id'];
             $mapping = $post['mapping'];
             $line = $post['line'];
             $datatype_id = $post['datatype_id'];
@@ -892,10 +910,33 @@ return;
                     }
                 }
             }
+
+            // ----------------------------------------
+            // Update the job tracker if necessary
+            if ($tracked_job_id !== -1) {
+                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+
+                $total = $tracked_job->getTotal();
+                $count = $tracked_job->incrementCurrent($em);
+
+                if ($count >= $total)
+                    $tracked_job->setCompleted( new \DateTime() );
+
+                $em->persist($tracked_job);
+//                $em->flush();
+//$ret .= '  Set current to '.$count."\n";
+            }
+
             $em->flush();
 
+
+            // ----------------------------------------
             // Rebuild the list of sorted datarecords, since the datarecord order may have changed
             $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
+            // Schedule the datarecord for an update
+            $options = array();
+            parent::updateDatarecordCache($datarecord->getId(), $options);
+
 
             $return['d'] = $status;
         }

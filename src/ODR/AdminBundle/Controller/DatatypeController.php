@@ -19,6 +19,7 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\UserPermissions;
 // Forms
@@ -593,28 +594,44 @@ class DatatypeController extends ODRCustomController
             // Insert the jobs into the queue
             $current_time = new \DateTime();
             foreach ($datatypes as $datatype) {
+                // ----------------------------------------
                 // Increment the datatype revision number so the worker processes will recache the datarecords
+                $datatype_id = $datatype->getId();
                 $revision = $datatype->getRevision();
                 $datatype->setRevision( $revision + 1 );
                 $em->persist($datatype);
                 $em->flush();
 
-                // Grab all non-datarecords of each datatype
+                // Grab all non-deleted datarecords of each datatype
                 $query = $em->createQuery(
-                   'SELECT dr.id
+                   'SELECT dr.id AS dr_id
                     FROM ODRAdminBundle:DataRecord dr
                     WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
-                )->setParameters( array('dataType' => $datatype) );
+                )->setParameters( array('dataType' => $datatype_id) );
                 $results = $query->getArrayResult();
 
+                // ----------------------------------------
+                // Get/create an entity to track the progress of this datatype recache
+                $job_type = 'recache';
+                $target_entity = 'datatype_'.$datatype_id;
+                $description = 'Recache of DataType '.$datatype_id;
+                $restrictions = $datatype->getRevision();
+                $total = count($results);
+                $reuse_existing = true;
+
+                $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+                $tracked_job_id = $tracked_job->getId();
+
+                // ----------------------------------------
                 // Schedule each of those datarecords for an update
                 foreach ($results as $result) {
-                    $datarecord_id = $result['id'];
+                    $datarecord_id = $result['dr_id'];
 
                     // Insert the new job into the queue
                     $priority = 1024;   // should be roughly default priority
                     $payload = json_encode(
                         array(
+                            "tracked_job_id" => $tracked_job_id,
                             "datarecord_id" => $datarecord_id,
                             "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
                             "memcached_prefix" => $memcached_prefix,    // debug purposes only

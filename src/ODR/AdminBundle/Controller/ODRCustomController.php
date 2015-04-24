@@ -18,6 +18,7 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entites
+use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementField;
@@ -893,17 +894,18 @@ $save_permissions = false;
      * Notifies beanstalk to schedule a rebuild of all cached versions of all DataRecords of this DataType.
      * Usually called after a changes is made via DisplayTemplate or SearchTemplate.
      * 
-     * @param integer $id    The database id of the DataType that needs to be rebuilt.
-     * @param array $options 
+     * @param integer $datatype_id The database id of the DataType that needs to be rebuilt.
+     * @param array $options       
      * 
      * @return TODO
      */
-    public function updateDatatypeCache($id, $options = array())
+    public function updateDatatypeCache($datatype_id, $options = array())
     {
 
 //print "call to update datatype cache\n";
 //return;
 
+        // ----------------------------------------
         // Grab necessary objects
         $em = $this->getDoctrine()->getManager();
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
@@ -918,7 +920,6 @@ $save_permissions = false;
         // Generate the url for cURL to use
         $url = $this->container->getParameter('site_baseurl');
 //        if ( $this->container->getParameter('kernel.environment') === 'dev') { $url .= './app_dev.php'; }
-//        $url .= $router->generate('odr_recache_type');
         $url .= $router->generate('odr_recache_record');
 
         // Attempt to get the user
@@ -929,6 +930,7 @@ $save_permissions = false;
         if ($user === 'anon.')
             $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find(3);
 
+        // ----------------------------------------
         // Get the top-most parent of the datatype scheduled for update
         $query = $em->createQuery(
            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
@@ -949,9 +951,10 @@ $save_permissions = false;
 //print_r($parent_of);
 
         // Grab the top-most parent of this datatype
-        while ( isset($parent_of[$id]) )
-            $id = $parent_of[$id];
+        while ( isset($parent_of[$datatype_id]) )
+            $datatype_id = $parent_of[$datatype_id];
 
+        // ----------------------------------------
         // Grab options
         $mark_as_updated = false;
         $force_shortresults_recache = false;
@@ -964,12 +967,12 @@ $save_permissions = false;
             $force_textresults_recache = true;
 
 
+        // ----------------------------------------
         // Mark this datatype as updated
         $current_time = new \DateTime();
-        $datatype = $repo_datatype->find($id);
+        $datatype = $repo_datatype->find($datatype_id);
         if ($datatype == null)
             return self::deletedEntityError('DataType');
-
 
         $em->refresh($datatype);
 //print 'refreshed datatype '.$datatype->getId().' ('.$datatype->getShortName().')'."\n";
@@ -979,19 +982,36 @@ $save_permissions = false;
             $datatype->setRevision( $datatype->getRevision() + 1 );
             $em->persist($datatype);
             $em->flush();
+            $em->refresh($datatype);
         }
 
         // TODO - invalidate XSD file somehow?
 
-        // Locate all datarecords of this datatype and schedule them for an update
+        // ----------------------------------------
+        // Locate all datarecords of this datatype
         $query = $em->createQuery(
-           'SELECT dr.id
+           'SELECT dr.id AS dr_id
             FROM ODRAdminBundle:DataRecord dr
             WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
-        )->setParameters( array('dataType' => $datatype) );
+        )->setParameters( array('dataType' => $datatype->getId()) );
         $results = $query->getResult();
+
+        // ----------------------------------------
+        // Get/create an entity to track the progress of this datatype recache
+        $job_type = 'recache';
+        $target_entity = 'datatype_'.$datatype_id;
+        $description = 'Recache of DataType '.$datatype_id;
+        $restrictions = $datatype->getRevision();
+        $total = count($results);
+        $reuse_existing = true;
+
+        $tracked_job = self::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+        $tracked_job_id = $tracked_job->getId();
+
+        // ----------------------------------------
+        // Schedule all of these datarecords for an update
         foreach ($results as $num => $result) {
-            $datarecord_id = $result['id'];
+            $datarecord_id = $result['dr_id'];
 
             if ($force_shortresults_recache)
                 $memcached->delete($memcached_prefix.'.data_record_short_form_'.$datarecord_id);
@@ -1002,6 +1022,7 @@ $save_permissions = false;
             $priority = 1024;   // should be roughly default priority
             $payload = json_encode(
                 array(
+                    "tracked_job_id" => $tracked_job_id,
                     "datarecord_id" => $datarecord_id,
                     "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
                     "memcached_prefix" => $memcached_prefix,    // debug purposes only
@@ -1014,6 +1035,7 @@ $save_permissions = false;
             $pheanstalk->useTube('recache_type')->put($payload, $priority, $delay);
         }
 
+        // ----------------------------------------
         // Notify any datarecords linking to this record that they need to update too
         $query = $em->createQuery(
            'SELECT DISTINCT grandparent.id AS grandparent_id
@@ -1038,6 +1060,7 @@ $save_permissions = false;
             $priority = 1024;   // should be roughly default priority
             $payload = json_encode(
                 array(
+                    "tracked_job_id" => -1,     // don't track job status for single datarecord recache
                     "datarecord_id" => $grandparent_id,
                     "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
                     "memcached_prefix" => $memcached_prefix,    // debug purposes only
@@ -1149,6 +1172,7 @@ $save_permissions = false;
         $priority = 1024;   // should be roughly default priority
         $payload = json_encode(
             array(
+                "tracked_job_id" => -1,     // don't track job status for single datarecord recache
                 "datarecord_id" => $datarecord->getId(),
                 "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
                 "memcached_prefix" => $memcached_prefix,    // debug purposes only
@@ -1186,6 +1210,7 @@ $save_permissions = false;
             $priority = 1024;   // should be roughly default priority
             $payload = json_encode(
                 array(
+                    "tracked_job_id" => -1,     // don't track job status for single datarecord recache
                     "datarecord_id" => $grandparent_id,
                     "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
                     "memcached_prefix" => $memcached_prefix,    // debug purposes only
@@ -1323,6 +1348,52 @@ $save_permissions = false;
 //print 'sorted_datarecords: '.$sorted_datarecords."\n";
 
         return $sorted_datarecords;
+    }
+
+    /**
+     * Gets or creates a TrackedJob entity in the database for use by background processes
+     * 
+     * @param EntityManager $em
+     * @param User $user              The user to use if a new TrackedJob is to be created
+     * @param string $job_type        A label used to indicate which type of job this is  e.g. 'recache', 'import', etc.
+     * @param string $target_entity   Which entity this job is operating on
+     * @param string $description     A brief description of what the TrackedJob is doing
+     * @param string $restrictions    TODO - ...additional info/restrictions attached to the job
+     * @param integer $total          ...how many pieces the job is broken up into?
+     * @param boolean $reuse_existing TODO - multi-user concerns
+     * 
+     * @return TODO
+     */
+    protected function ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing = false)
+    {
+        $tracked_job = null;
+        if ($reuse_existing)
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity) );
+        else
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity, 'completed' => null) );
+
+        if ($tracked_job == null) {
+            $tracked_job = new TrackedJob();
+            $tracked_job->setJobType($job_type);
+            $tracked_job->setTargetEntity($target_entity);
+            $tracked_job->setCreatedBy($user);
+        }
+        else {
+            $tracked_job->setCreated( new \DateTime() );
+        }
+
+        $tracked_job->setDescription($description);
+        $tracked_job->setRestrictions($restrictions);
+
+        $tracked_job->setCompleted(null);
+        $tracked_job->setCurrent(0);                // TODO - possible desynch, though haven't spotted one yet
+        $tracked_job->setTotal($total);
+        $em->persist($tracked_job);
+        $em->flush();
+
+//        $tracked_job->resetCurrent($em);          // TODO - potential fix for possible desynch mentioned earlier
+        $em->refresh($tracked_job);
+        return $tracked_job;
     }
 
 
@@ -2408,6 +2479,9 @@ $start = microtime(true);
 $debug = true;
 $debug = false;
 
+if ($debug)
+    print '<pre>';
+
         // Verify the existence of all fields in this datatype/datarecord first
         self::verifyExistence_worker($datatype, $datarecord, $debug);
 
@@ -2416,23 +2490,41 @@ $debug = false;
         $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 //        $childrecords = $repo_datarecord->findByGrandparent($datarecord);
 
+        // Verify the existence of all fields in all the child datarecords
         $query = $em->createQuery(
             'SELECT dr
             FROM ODRAdminBundle:DataRecord dr
             JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
             WHERE dr.deletedAt IS NULL AND dt.deletedAt IS NULL
-            AND dr.grandparent = :datarecord_id AND dr.id != :datarecord_id')
-            ->setParameter('datarecord_id', $datarecord->getId());
+            AND dr.grandparent = :grandparent AND dr.id != :datarecord'
+        )->setParameters( array('grandparent' => $datarecord->getId(), 'datarecord' => $datarecord->getId()) );
         $childrecords = $query->getResult();
 
-        // Verify the existence of all fields in all the child datarecords
         foreach ($childrecords as $childrecord) {
             $childtype = $childrecord->getDataType();
             self::verifyExistence_worker($childtype, $childrecord, $debug);
         }
 
-if ($debug)
+        // Verify the existence of all fields in all linked datarecords
+        $query = $em->createQuery(
+           'SELECT descendant
+            FROM ODRAdminBundle:DataRecord AS ancestor
+            JOIN ODRAdminBundle:LinkedDataTree AS dt WITH dt.ancestor = ancestor
+            JOIN ODRAdminBundle:DataRecord AS descendant WITH dt.descendant = descendant
+            WHERE ancestor = :ancestor
+            AND ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+        )->setParameters( array('ancestor' => $datarecord->getId()) );
+        $linked_datarecords = $query->getResult();
+
+        foreach ($linked_datarecords as $linked_datarecord) {
+            $linked_datatype = $linked_datarecord->getDataType();
+            self::verifyExistence_worker($linked_datatype, $linked_datarecord, $debug);
+        }
+
+if ($debug) {
     print 'verifyExistence() completed in '.(microtime(true) - $start)."\n";
+    print '</pre>';
+}
 
     }
 
@@ -2466,6 +2558,7 @@ if ($debug)
 $start = microtime(true);
 if ($debug)
     print "\n---------------\nattempting to verify datarecord ".$datarecord->getId()." of datatype ".$datatype->getId()."...\n";
+
 
         $datarecordfield_array = array();
         foreach ($datarecord->getDataRecordFields() as $datarecordfield) {

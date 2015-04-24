@@ -19,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entites
 use ODR\AdminBundle\StoredRecord;
+use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
@@ -66,10 +67,11 @@ class WorkerController extends ODRCustomController
 
         try {
             $post = $_POST;
-            if ( !isset($post['datarecord_id']) || !isset($post['api_key']) || !isset($post['scheduled_at']) )
+            if ( !isset($post['tracked_job_id']) || !isset($post['datarecord_id']) || !isset($post['api_key']) || !isset($post['scheduled_at']) )
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
+            $tracked_job_id = intval($post['tracked_job_id']);
             $datarecord_id = $post['datarecord_id'];
             $api_key = $post['api_key'];
             $scheduled_at = \DateTime::createFromFormat('Y-m-d H:i:s', $post['scheduled_at']);
@@ -86,14 +88,20 @@ class WorkerController extends ODRCustomController
 
             $em = $this->get('doctrine')->getManager();
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
 
+            // TODO - get rid of $block
+
+            // ----------------------------------------
             // Grab necessary objects
             $block = false;
             $datarecord = $repo_datarecord->find($datarecord_id);
+            $datatype_id = null;
 
             $ret = '';
             if ($datarecord == null) {
@@ -108,8 +116,40 @@ class WorkerController extends ODRCustomController
                     $ret = 'RecacheRecordCommand.php: Recache request involving DataRecord '.$datarecord_id.' requires deleted DataType, skipping';
                     $block = true;
                 }
+
+                $datatype_id = $datatype->getId();
             }
 
+
+            // ----------------------------------------
+            if (!$block) {
+                // See if there are migration jobs in progress for this datatype
+                $tracked_job = $repo_tracked_job->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
+                if ($tracked_job !== null) {
+                    $target_entity = $tracked_job->getTargetEntity();
+                    $tmp = explode('_', $target_entity);
+                    $datafield_id = $tmp[1];
+
+                    $ret = 'RecacheRecordCommand.php: Datafield '.$datafield_id.' is currently being migrated to a different fieldtype...'."\n";
+                    $return['r'] = 2;
+                    $block = true;
+                }
+            }
+
+            $tracked_job = null;
+            $tracked_job_target = null;
+            if (!$block) {
+                // TODO - can this get moved to later, or does it have to stay here...STAYS HERE, UNTIL SYSTEM NEEDS TO GET TORN APART
+                // Stores tracked job target incase ODRCustomController:updateDatatypeCache() starts another update while this action is running
+                if ($tracked_job_id !== -1) {
+                    $tracked_job = $repo_tracked_job->find($tracked_job_id);
+                    if ($tracked_job !== null)
+                        $tracked_job_target = $tracked_job->getRestrictions();
+                }
+            }
+
+
+            // ----------------------------------------
             if (!$block) {
                 // Determine if the datarecord is missing any memcached entries
                 $oldest_revision = null;
@@ -170,11 +210,33 @@ $logger->info('WorkerController::recacherecordAction()  Attempting to recache Da
 
 $ret .= '>> Recached DataRecord '.$datarecord->getId().' to datatype revision '.$current_revision."\n";
 $logger->info('WorkerController::recacherecordAction() >> Recached DataRecord '.$datarecord->getId().' to datatype revision '.$datatype->getRevision());
+
+                    // Update the job tracker if necessary
+                    if ($tracked_job_id !== -1 && $tracked_job !== null) {
+
+                        $em->refresh($tracked_job);
+
+$ret .= '  original tracked_job_target: '.$tracked_job_target.'  current tracked_job_target: '.$tracked_job->getRestrictions()."\n";
+
+                        if ( $tracked_job !== null && intval($tracked_job_target) == intval($tracked_job->getRestrictions()) ) {
+                            $total = $tracked_job->getTotal();
+                            $count = $tracked_job->incrementCurrent($em);
+
+                            if ($count >= $total)
+                                $tracked_job->setCompleted( new \DateTime() );
+                        
+                            $em->persist($tracked_job);
+                            $em->flush();
+$ret .= '  Set current to '.$count."\n";
+                        }
+                    }
+
                 }
                 else {
 $ret = '>> Ignored update request for DataRecord '.$datarecord->getId()."\n";
 $logger->info('WorkerController::recacherecordAction() >> Ignored update request for DataRecord '.$datarecord->getId());
                 }
+
             }
 
             $return['d'] = $ret;
@@ -208,10 +270,11 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
         try {
             $post = $_POST;
 //print_r($post);
-            if ( !isset($post['datarecord_id']) || !isset($post['datafield_id']) || !isset($post['user_id']) || !isset($post['old_fieldtype_id']) || !isset($post['new_fieldtype_id']) || !isset($post['api_key']) )
+            if ( !isset($post['tracked_job_id']) || !isset($post['datarecord_id']) || !isset($post['datafield_id']) || !isset($post['user_id']) || !isset($post['old_fieldtype_id']) || !isset($post['new_fieldtype_id']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
+            $tracked_job_id = $post['tracked_job_id'];
             $datarecord_id = $post['datarecord_id'];
             $datafield_id = $post['datafield_id'];
             $user_id = $post['user_id'];
@@ -339,14 +402,32 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
             else {
                 $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";
             }
-//------------------------------------------------------
+
+            // ----------------------------------------
+            // Update the job tracker if necessary
+            if ($tracked_job_id !== -1) {
+                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+
+                $total = $tracked_job->getTotal();
+                $count = $tracked_job->incrementCurrent($em);
+
+                if ($count >= $total)
+                    $tracked_job->setCompleted( new \DateTime() );
+
+                $em->persist($tracked_job);
+                $em->flush();
+$ret .= '  Set current to '.$count."\n";
+            }
+
+/*
+            // ----------------------------------------
             // Schedule the datarecord for an update
             $options = array();
             parent::updateDatarecordCache($datarecord_id, $options);
 
             $logger->info('WorkerController:migrateAction()  >> scheduled DataRecord '.$datarecord_id.' for update');
             $ret .= '>> scheduled DataRecord '.$datarecord_id.' for update'."\n";
-
+*/
             $return['d'] = $ret;
         }
         catch (\Exception $e) {
@@ -362,14 +443,17 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 
 
     /**
-     * Called by a background process to begin rebuilding the thumbnails of all uploaded images on the site.
+     * Begins the process of rebuilding the image thumbnails for a specific datatype.
      * 
+     * @param integer $datatype_id Which datatype should have all its image thumbnails rebuilt
      * @param Request $request
      * 
      * @return TODO
      */
-    public function startrebuildthumbnailsAction(Request $request)
+    public function startrebuildthumbnailsAction($datatype_id, Request $request)
     {
+        // TODO - wrap in try/catch
+
         // Grab necessary objects
         $em = $this->getDoctrine()->getManager();
         $pheanstalk = $this->get('pheanstalk');
@@ -378,6 +462,18 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
         $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
         $api_key = $this->container->getParameter('beanstalk_api_key');
 
+        // --------------------
+        // Determine user privileges
+        $user = $this->container->get('security.context')->getToken()->getUser();
+        $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+        // TODO - check for permissions
+
+
+        $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+        if ($datatype == null)
+            return parent::deletedEntityError('DataType');
+
+        // ----------------------------------------
         // Generate the url for cURL to use
         $url = $this->container->getParameter('site_baseurl');
         $url .= $router->generate('odr_rebuild_thumbnails');
@@ -385,23 +481,39 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
         // Grab a list of all full-size images on the site
         $query = $em->createQuery(
            'SELECT e.id
-            FROM ODRAdminBundle:Image e
-            WHERE e.parent IS NULL');
-        $results = $query->getResult();
+            FROM ODRAdminBundle:Image AS e
+            JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
+            WHERE dr.dataType = :datatype AND e.parent IS NULL
+            AND e.deletedAt IS NULL AND dr.deletedAt IS NULL'
+        )->setParameters( array('datatype' => $datatype_id) );
+        $results = $query->getArrayResult();
 
 //print_r($results);
 //return;
 
-//$count = 0;
+        // ----------------------------------------
+        // Get/create an entity to track the progress of this thumbnail rebuild
+        $job_type = 'rebuild_thumbnails';
+        $target_entity = 'datatype_'.$datatype_id;
+        $description = 'Rebuild of all image thumbnails for DataType '.$datatype_id;
+        $restrictions = '';
+        $total = count($results);
+        $reuse_existing = false;
+
+        $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+        $tracked_job_id = $tracked_job->getId();
+
+
+        // ----------------------------------------
         $object_type = 'image';
         foreach ($results as $num => $result) {
             $object_id = $result['id'];
-//$count++;
 
             // Insert the new job into the queue
             $priority = 1024;   // should be roughly default priority
             $payload = json_encode(
                 array(
+                    "tracked_job_id" => $tracked_job_id,
                     "object_type" => $object_type,
                     "object_id" => $object_id,
                     "memcached_prefix" => $memcached_prefix,    // debug purposes only
@@ -412,9 +524,6 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 
             $delay = 1;
             $pheanstalk->useTube('rebuild_thumbnails')->put($payload, $priority, $delay);
-
-//if ($count > 2)
-//return;
         }
 
     }
@@ -435,10 +544,11 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 
         try {
             $post = $_POST;
-            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
+            if ( !isset($post['tracked_job_id']) || !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
+            $tracked_job_id = $post['tracked_job_id'];
             $object_type = $post['object_type'];
             $object_id = $post['object_id'];
             $api_key = $post['api_key'];
@@ -448,17 +558,39 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
 
-            // Ensure the full-size image existss
+            // ----------------------------------------
+            // Ensure the full-size image exists
             parent::decryptObject($object_id, $object_type);
 
             $em = $this->getDoctrine()->getManager();
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
             $img = $repo_image->find($object_id);
 
+            if ($img == null)
+                throw new \Exception('Image '.$object_id.' has been deleted');
+
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
             $user = $repo_user->find(2);    // TODO
 
+            // Recreate the thumbnail from the full-sized image
             parent::resizeImages($img, $user);
+
+
+            // ----------------------------------------
+            // Update the job tracker if necessary
+            if ($tracked_job_id !== -1) {
+                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+
+                $total = $tracked_job->getTotal();
+                $count = $tracked_job->incrementCurrent($em);
+
+                if ($count >= $total)
+                    $tracked_job->setCompleted( new \DateTime() );
+
+                $em->persist($tracked_job);
+                $em->flush();
+//$ret .= '  Set current to '.$count."\n";
+            }
 
             $return['d'] = '>> Rebuilt thumbnails for '.$object_type.' '.$object_id."\n";
         }

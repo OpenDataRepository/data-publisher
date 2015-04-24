@@ -1022,7 +1022,7 @@ if ($debug)
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
-            $return['d'] = 'Error 0x82377020 ' . $e->getMessage();
+            $return['d'] = 'Error 0x84230230 ' . $e->getMessage();
         }
     
         $response = new Response(json_encode($return));  

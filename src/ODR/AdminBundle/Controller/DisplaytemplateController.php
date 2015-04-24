@@ -20,6 +20,7 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
@@ -3090,6 +3091,12 @@ if ($debug)
                 }
             }
 
+            // Also prevent a datatfield's fieldtype from being changed if a migration is in progress
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype->getId(), 'completed' => null) );
+            if ($tracked_job !== null)
+                $prevent_fieldtype_change = true;
+
+
             // Populate new DataFields form
             $datafield_form = $this->createForm(new UpdateDatafieldsForm(), $datafield);
             $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm(), $theme_datafield);
@@ -3114,6 +3121,7 @@ if ($debug)
 */
 
                 // Deal with change of fieldtype
+                $old_fieldtype = $new_fieldtype = null;
                 $migrate_data = false;
                 $extra_fields = $request->request->get('DataFieldsForm');
                 $normal_fields = $request->request->get('DatafieldsForm');
@@ -3162,50 +3170,6 @@ if ($debug)
                                 break;
                         }
                     }
-
-
-                    // If we need to migrate the data...
-                    if ($migrate_data) {
-                        // Grab necessary stuff for pheanstalk...
-                        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-                        $api_key = $this->container->getParameter('beanstalk_api_key');
-                        $pheanstalk = $this->get('pheanstalk');
-
-                        $url = $this->container->getParameter('site_baseurl');
-                        $url .= $this->container->get('router')->generate('odr_migrate_field');
-
-                        // Locate all datarecords of this datatype and schedule them for an update
-                        $query = $em->createQuery(
-                           'SELECT dr.id
-                            FROM ODRAdminBundle:DataRecord dr
-                            WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
-                        )->setParameters( array('dataType' => $datatype) );
-                        $results = $query->getResult();
-                        foreach ($results as $num => $result) {
-                            $datarecord_id = $result['id'];
-
-                            // Insert the new job into the queue
-                            $priority = 1024;   // should be roughly default priority
-                            $payload = json_encode(
-                                array(
-                                    "user_id" => $user->getId(),
-                                    "datarecord_id" => $datarecord_id,
-                                    "datafield_id" => $datafield->getId(),
-                                    "old_fieldtype_id" => $old_fieldtype_id,
-                                    "new_fieldtype_id" => $new_fieldtype_id,
-//                                    "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                                    "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                                    "url" => $url,
-                                    "api_key" => $api_key,
-                                )
-                            );
-
-                            $pheanstalk->useTube('migrate_datafields')->put($payload);
-                        }
-
-                        // TODO - Lock the datatype so no more edits?
-                        // TODO - Lock other stuff?
-                    }
                 }
 
                 // Save old fieldtype incase it somehow got changed when it shouldn't...
@@ -3219,8 +3183,10 @@ if ($debug)
 //print_r($errors);
 
                 // If not allowed to change fieldtype, ensure the datafield always has the old fieldtype
-                if ($prevent_fieldtype_change)
+                if ($prevent_fieldtype_change) {
                     $datafield->setFieldType( $old_fieldtype );
+                    $migrate_data = false;
+                }
 
                 $return['t'] = "html";
                 if ($datafield_form->isValid()) {
@@ -3280,7 +3246,64 @@ if ($debug)
 */
 
                     // If datafields are getting migrated, then the datatype will get updated
-                    if (!$migrate_data) {
+                    if ($migrate_data) {
+                        // Grab necessary stuff for pheanstalk...
+                        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+                        $api_key = $this->container->getParameter('beanstalk_api_key');
+                        $pheanstalk = $this->get('pheanstalk');
+
+                        $url = $this->container->getParameter('site_baseurl');
+                        $url .= $this->container->get('router')->generate('odr_migrate_field');
+
+                        // Locate all datarecords of this datatype and schedule them for an update
+                        $query = $em->createQuery(
+                           'SELECT dr.id
+                            FROM ODRAdminBundle:DataRecord dr
+                            WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
+                        )->setParameters( array('dataType' => $datatype) );
+                        $results = $query->getResult();
+
+                        // ----------------------------------------
+                        // Get/create an entity to track the progress of this datafield migration
+                        $job_type = 'migrate';
+                        $target_entity = 'datafield_'.$datafield->getId();
+                        $description = 'Migragtion of DataField '.$datafield->getId().' from "'.$old_fieldtype->getTypeName().'" to "'.$new_fieldtype->getTypeName().'"';
+                        $restrictions = 'datatype_'.$datafield->getDataType()->getId();
+                        $total = count($results);
+                        $reuse_existing = false;
+
+                        $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+                        $tracked_job_id = $tracked_job->getId();
+
+
+                        // ----------------------------------------
+                        foreach ($results as $num => $result) {
+                            $datarecord_id = $result['id'];
+
+                            // Insert the new job into the queue
+                            $priority = 1024;   // should be roughly default priority
+                            $payload = json_encode(
+                                array(
+                                    "tracked_job_id" => $tracked_job_id,
+                                    "user_id" => $user->getId(),
+                                    "datarecord_id" => $datarecord_id,
+                                    "datafield_id" => $datafield->getId(),
+                                    "old_fieldtype_id" => $old_fieldtype_id,
+                                    "new_fieldtype_id" => $new_fieldtype_id,
+//                                    "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
+                                    "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                                    "url" => $url,
+                                    "api_key" => $api_key,
+                                )
+                            );
+
+                            $pheanstalk->useTube('migrate_datafields')->put($payload);
+                        }
+
+                        // TODO - Lock the datatype so no more edits?
+                        // TODO - Lock other stuff?
+                    }
+//                    else {
                         $datatype = $datafield->getDataType();
 
                         $options = array();
@@ -3290,7 +3313,7 @@ if ($debug)
                             $options['force_textresults_recache'] = true;
 
                         parent::updateDatatypeCache($datatype->getId(), $options);
-                    }
+//                    }
                 }
                 else {
 //print_r($datafield_form->getErrors());
@@ -3327,7 +3350,7 @@ if ($debug)
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
-            $return['d'] = 'Error 0x82377020 ' . $e->getMessage();
+            $return['d'] = 'Error 0x87705206 ' . $e->getMessage();
         }
     
         $response = new Response(json_encode($return));  

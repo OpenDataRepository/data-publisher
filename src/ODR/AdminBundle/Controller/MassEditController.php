@@ -18,6 +18,7 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementField;
@@ -353,7 +354,7 @@ if ($debug)
             $search_controller->setContainer($this->container);
 
 
-            // TODO - assumes search exists
+            // TODO - this assumes that the search result exists in the session...
             // Grab the list of saved searches and attempt to locate the desired search
             $saved_searches = $session->get('saved_searches');
             $search_params = $saved_searches[$search_checksum];
@@ -373,6 +374,20 @@ $datarecords = explode(',', $datarecords);
 //print_r($datarecords);
 //return;
 
+            // ----------------------------------------
+            // Get/create an entity to track the progress of this mass edit
+            $job_type = 'mass_edit';
+            $target_entity = 'datatype_'.$datatype_id;
+            $description = 'Mass Edit of DataType '.$datatype_id;
+            $restrictions = '';
+            $total = count($datarecords);
+            $reuse_existing = false;
+
+            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+            $tracked_job_id = $tracked_job->getId();
+
+
+            // ----------------------------------------
             // Deal with datarecord public status first, if needed
             $updated = false;
             foreach ($datarecords as $num => $datarecord_id) {
@@ -396,6 +411,7 @@ $datarecords = explode(',', $datarecords);
                         $em->persist($datarecord);
                 }
             }
+
             // Finish dealing with datarecord public status if necessary
             if ($updated) {
                 $em->flush();
@@ -407,6 +423,8 @@ $datarecords = explode(',', $datarecords);
                     parent::updateDatarecordCache($datarecord_id, $options);
             }
 
+
+            // ----------------------------------------
             foreach ($datarecords as $num => $datarecord_id) {
                 foreach ($datafields as $datafield_id => $value) {
                     $drf = $repo_datarecordfields->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );
@@ -415,6 +433,7 @@ $datarecords = explode(',', $datarecords);
                     $priority = 1024;   // should be roughly default priority
                     $payload = json_encode(
                         array(
+                            "tracked_job_id" => $tracked_job_id,
                             "user_id" => $user->getId(),
                             "datarecordfield_id" => $drf->getId(),
                             "value" => $value,
@@ -424,9 +443,8 @@ $datarecords = explode(',', $datarecords);
                         )
                     );
 
-//print_r($payload);
-
-                    $pheanstalk->useTube('mass_edit')->put($payload);
+                    $delay = 5;
+                    $pheanstalk->useTube('mass_edit')->put($payload, $priority, $delay);
 
                 }
             }
@@ -465,10 +483,11 @@ $datarecords = explode(',', $datarecords);
             $ret = '';
             $post = $_POST;
 //$ret = print_r($post, true);
-            if ( !isset($post['user_id']) || !isset($post['datarecordfield_id']) || !isset($post['value']) || !isset($post['api_key']) )
+            if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecordfield_id']) || !isset($post['value']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
+            $tracked_job_id = $post['tracked_job_id'];
             $user_id = $post['user_id'];
             $datarecordfield_id = $post['datarecordfield_id'];
             $value = $post['value'];
@@ -491,106 +510,159 @@ $datarecords = explode(',', $datarecords);
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
 
+
+            // ----------------------------------------
             $user = $repo_user->find($user_id);
             $datarecordfield = $repo_datarecordfield->find($datarecordfield_id);
+            if ($datarecordfield == null)
+                throw new \Exception('MassEditCommand.php: DataRecordField '.$datarecordfield_id.' is deleted, skipping');
+
             $datarecord = $datarecordfield->getDataRecord();
+            if ($datarecord == null)
+                throw new \Exception('MassEditCommand.php: DataRecordField '.$datarecordfield_id.' refers to deleted DataRecord, skipping');
+
             $datafield = $datarecordfield->getDataField();
+            if ($datafield == null)
+                throw new \Exception('MassEditCommand.php: DataRecordField '.$datarecordfield_id.' refers to deleted DataField, skipping');
 
-            $field_typeclass = $datafield->getFieldType()->getTypeClass();
-            $field_typename = $datafield->getFieldType()->getTypeName();
-            if ($field_typeclass == 'Radio') {
-                // Grab all selection objects attached to this radio object
-                $radio_selections = array();
-                $tmp = $repo_radio_selection->findBy( array('dataRecordFields' => $datarecordfield->getId()) );
-                foreach ($tmp as $radio_selection)
-                    $radio_selections[ $radio_selection->getRadioOption()->getId() ] = $radio_selection;
+            $datatype = $datarecord->getDataType();
+            if ($datatype == null)
+                throw new \Exception('MassEditCommand.php: DataRecordField '.$datarecordfield_id.' refers to deleted DataType, skipping');
 
-                // Set radio_selection objects to the desired state        
-                $selected = $radio_option_id = null;
-                foreach ($value as $id => $val) {
-                    $radio_option_id = $id;
-                    $selected = $val;
+            $datatype_id = $datatype->getId();
 
-                    if ( !isset($radio_selections[$radio_option_id]) ) {
-                        $radio_option = $repo_radio_option->find($radio_option_id);
 
-                        $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, $selected);
+            // ----------------------------------------
+            // See if there are migrations jobs in progress for this datatype
+            $block = false;
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null) {
+                $target_entity = $tracked_job->getTargetEntity();
+                $tmp = explode('_', $target_entity);
+                $datafield_id = $tmp[1];
+
+                $ret = 'MassEditCommand.php: Datafield '.$datafield_id.' is currently being migrated to a different fieldtype...'."\n";
+                $return['r'] = 2;
+                $block = true;
+            }
+
+
+            // ----------------------------------------
+            if (!$block) {
+                $field_typeclass = $datafield->getFieldType()->getTypeClass();
+                $field_typename = $datafield->getFieldType()->getTypeName();
+                if ($field_typeclass == 'Radio') {
+                    // Grab all selection objects attached to this radio object
+                    $radio_selections = array();
+                    $tmp = $repo_radio_selection->findBy( array('dataRecordFields' => $datarecordfield->getId()) );
+                    foreach ($tmp as $radio_selection)
+                        $radio_selections[ $radio_selection->getRadioOption()->getId() ] = $radio_selection;
+
+                    // Set radio_selection objects to the desired state        
+                    $selected = $radio_option_id = null;
+                    foreach ($value as $id => $val) {
+                        $radio_option_id = $id;
+                        $selected = $val;
+
+                        if ( !isset($radio_selections[$radio_option_id]) ) {
+                            $radio_option = $repo_radio_option->find($radio_option_id);
+
+                            $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, $selected);
 $ret .= 'created radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...setting selected to '.$selected."\n";
-                    }
-                    else {
-                        $radio_selection = $radio_selections[$radio_option_id];
-                        if ( $selected != $radio_selection->getSelected() ) {
-                            $radio_selection->setSelected($selected);
-                            $radio_selection->setUpdatedBy($user);
-                            $em->persist($radio_selection);
-$ret .= 'found radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...setting selected to '.$selected."\n";
                         }
                         else {
+                            $radio_selection = $radio_selections[$radio_option_id];
+                            if ( $selected != $radio_selection->getSelected() ) {
+                                $radio_selection->setSelected($selected);
+                                $radio_selection->setUpdatedBy($user);
+                                $em->persist($radio_selection);
+$ret .= 'found radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...setting selected to '.$selected."\n";
+                            }
+                            else {
 $ret .= 'not changing radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...current selected status to desired status'."\n";
+                            }
+
+                            // Need to keep track of which radio_selection was modified for Single Radio/Select
+                            unset( $radio_selections[$radio_option_id] );
                         }
-
-                        // Need to keep track of which radio_selection was modified for Single Radio/Select
-                        unset( $radio_selections[$radio_option_id] );
                     }
-                }
 
-                // If only a single selection is allowed, deselect the other existing radio_selection objects
-                if ( $field_typename == "Single Radio" || $field_typename == "Single Select" ) {
-                    foreach ($radio_selections as $radio_option_id => $radio_selection) {
-                        if ( $radio_selection->getSelected() != 0 ) {
-                            $radio_selection->setSelected(0);
-                            $radio_selection->setUpdatedBy($user);
-                            $em->persist($radio_selection);
+                    // If only a single selection is allowed, deselect the other existing radio_selection objects
+                    if ( $field_typename == "Single Radio" || $field_typename == "Single Select" ) {
+                        foreach ($radio_selections as $radio_option_id => $radio_selection) {
+                            if ( $radio_selection->getSelected() != 0 ) {
+                                $radio_selection->setSelected(0);
+                                $radio_selection->setUpdatedBy($user);
+                                $em->persist($radio_selection);
 $ret .= 'deselecting radio_option_id '.$radio_option_id.' for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
+                            }
                         }
                     }
                 }
-            }
-            else if ($field_typeclass == 'DatetimeValue') {
-                // Save the value in the referenced entity
-                $entity = $datarecordfield->getAssociatedEntity();
+                else if ($field_typeclass == 'DatetimeValue') {
+                    // Save the value in the referenced entity
+                    $entity = $datarecordfield->getAssociatedEntity();
 
-                if ( $entity->getValue()->format('Y-m-d') !== $value ) {
+                    if ( $entity->getValue()->format('Y-m-d') !== $value ) {
 $ret .= 'setting datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$entity->getValue()->format('Y-m-d').'" to "'.$value."\"\n";
-                    $entity->setValue(new \DateTime($value));
-                    $entity->setUpdatedBy($user);
-                    $em->persist($entity);
-                }
-                else {
+                        $entity->setValue(new \DateTime($value));
+                        $entity->setUpdatedBy($user);
+                        $em->persist($entity);
+                    }
+                    else {
 $ret .= 'not changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$entity->getValue()->format('Y-m-d').'" identical to desired value "'.$value."\"\n";
-                }
+                    }
 
-            }
-            else {
-                // Save the value in the referenced entity
-                $entity = $datarecordfield->getAssociatedEntity();
-
-                if ( $entity->getValue() !== $value ) {
-$ret .= 'setting datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$entity->getValue().'" to "'.$value."\"\n";
-                    $entity->setValue($value);
-                    $entity->setUpdatedBy($user);
-                    $em->persist($entity);
                 }
                 else {
+                    // Save the value in the referenced entity
+                    $entity = $datarecordfield->getAssociatedEntity();
+
+                    if ( $entity->getValue() !== $value ) {
+$ret .= 'setting datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$entity->getValue().'" to "'.$value."\"\n";
+                        $entity->setValue($value);
+                        $entity->setUpdatedBy($user);
+                        $em->persist($entity);
+                    }
+                    else {
 $ret .= 'not changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$entity->getValue().'" identical to desired value "'.$value.'"'."\n";
+                    }
                 }
-            }
 
-            $em->flush();
 
-            // Determine whether short/textresults needs to be updated
-            $options = array();
-            $options['user_id'] = $user->getId();
-            $options['mark_as_updated'] = true;
-            if ( parent::inShortResults($datafield) )
-                $options['force_shortresults_recache'] = true;
-            if ( $datafield->getDisplayOrder() != -1 )
-                $options['force_textresults_recache'] = true;
+                // ----------------------------------------
+                // Update the job tracker if necessary
+                if ($tracked_job_id !== -1) {
+                    $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
 
-            // Recache this datarecord
-            parent::updateDatarecordCache($datarecord->getId(), $options);
+                    $total = $tracked_job->getTotal();
+                    $count = $tracked_job->incrementCurrent($em);
+
+                    if ($count >= $total)
+                        $tracked_job->setCompleted( new \DateTime() );
+
+                    $em->persist($tracked_job);
+//                    $em->flush();
+$ret .= '  Set current to '.$count."\n";
+                }
+
+                $em->flush();
+
+                // ----------------------------------------
+                // Determine whether short/textresults needs to be updated
+                $options = array();
+                $options['user_id'] = $user->getId();
+                $options['mark_as_updated'] = true;
+                if ( parent::inShortResults($datafield) )
+                    $options['force_shortresults_recache'] = true;
+                if ( $datafield->getDisplayOrder() != -1 )
+                    $options['force_textresults_recache'] = true;
+
+                // Recache this datarecord
+                parent::updateDatarecordCache($datarecord->getId(), $options);
 $ret .=  "---------------\n";
-$return['d'] = $ret;
+                $return['d'] = $ret;
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;

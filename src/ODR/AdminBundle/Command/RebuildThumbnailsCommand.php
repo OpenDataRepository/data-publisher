@@ -69,6 +69,7 @@ class RebuildThumbnailsCommand extends ContainerAwareCommand
 
                 // Create the required parameters to send
                 $parameters = array(
+                    'tracked_job_id' => $data->tracked_job_id,
                     'object_type' => $data->object_type,
                     'object_id' => $data->object_id,
                     'api_key' => $data->api_key

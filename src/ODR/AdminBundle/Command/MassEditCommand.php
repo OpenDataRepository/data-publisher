@@ -62,7 +62,8 @@ $output->writeln($e->getMessage());
                 // Delete the job so the queue hopefully doesn't hang
                 $pheanstalk->delete($job);
             }
-
+/*
+            // TODO - move this check inside MassEditController?  since commands can't have database connections...
             // Check to see if there's any datafields that need migrating
             while (true) {
                 try {
@@ -79,7 +80,7 @@ $output->writeln($e->getMessage());
                     break;
                 }
             }
-
+*/
             try {
                 // Get Job Data
                 $data = json_decode($job->getData()); 
@@ -95,6 +96,7 @@ $output->writeln($e->getMessage());
 
                 // Create the required parameters to send
                 $parameters = array(
+                    'tracked_job_id' => $data->tracked_job_id,
                     'datarecordfield_id' => $data->datarecordfield_id,
                     'user_id' => $data->user_id,
                     'value' => $data->value,
@@ -115,29 +117,40 @@ $output->writeln($e->getMessage());
                 );
 
                 // Send the request
+                $delete_job = true;
                 if( ! $ret = curl_exec($ch)) {
                     throw new \Exception( curl_error($ch) );
                 }
-
-                // Do things with the response returned by the controller?
-                $result = json_decode($ret);
-                if ( isset($result->r) && isset($result->d) ) {
-                    if ( $result->r == 0 )
-                        $output->writeln( $result->d );
-                    else
-                        throw new \Exception( $result->d );
-                }
                 else {
-                    // Should always be a json return...
-                    throw new \Exception( print_r($ret, true) );
-                }
+                    // Do things with the response returned by the controller?
+                    $result = json_decode($ret);
+                    if ( isset($result->r) && isset($result->d) ) {
+                        if ( $result->r == 0 ) {
+                            $output->writeln( $result->d );
+                        }
+                        else if ( $result->r == 1 ) {
+                            throw new \Exception( $result->d );
+                        }
+                        else if ( $result->r == 2 ) {
+                            $output->writeln( $result->d );
+                            $delete_job = false;
+                        }
+                    }
+                    else {
+                        // Should always be a json return...
+                        throw new \Exception( print_r($ret, true) );
+                    }
 //$logger->debug('MigrateCommand.php: curl results...'.print_r($result, true));
 
-                // Done with this cURL object
-                curl_close($ch);
+                    // Done with this cURL object
+                    curl_close($ch);
 
-                // Dealt with the job
-                $pheanstalk->delete($job);
+                    // Dealt with the job
+                    if ($delete_job)
+                        $pheanstalk->delete($job);
+                    else
+                        $pheanstalk->release($job, 2048, 10);   // release job back into queue as lower priority, on a 10 second delay
+                }
 
                 // Sleep for a bit
                 usleep(200000);

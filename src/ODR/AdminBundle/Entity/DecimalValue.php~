@@ -57,6 +57,11 @@ class DecimalValue
     }
 
     /**
+     * @var float
+     */
+    private $value;
+
+    /**
      * Save value
      *
      * @param decimal $value
@@ -67,6 +72,9 @@ class DecimalValue
         $value = strval(trim($value));
         $base = 0;
         $exponent = 0;
+
+        // Save the approximation for searching purposes
+        $this->value = floatval($value);
 
         // Preserve negative
         $negative = false;
@@ -494,4 +502,5 @@ class DecimalValue
     {
         return $this->base;
     }
+
 }

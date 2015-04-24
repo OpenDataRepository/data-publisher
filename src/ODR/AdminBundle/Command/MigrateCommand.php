@@ -71,6 +71,7 @@ class MigrateCommand extends ContainerAwareCommand
 
                 // Create the required parameters to send
                 $parameters = array(
+                    'tracked_job_id' => $data->tracked_job_id,
                     'datarecord_id' => $data->datarecord_id,
                     'datafield_id' => $data->datafield_id,
                     'user_id' => $data->user_id,

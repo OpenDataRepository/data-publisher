@@ -1,0 +1,77 @@
+ODR\AdminBundle\Entity\TrackedJob:
+    type: entity
+    table: odr_tracked_job
+#    gedmo:
+#        loggable: true
+#        soft_deleteable:
+#            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        job_type:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+
+        target_entity:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+
+        description:
+            type: string
+            length: 255
+            fixed: false
+            nullable: false
+
+        restrictions:
+            type: string
+            length: 255
+            fixed: false
+            nullable: true
+
+        current:
+            type: integer
+            unsigned: false
+            nullable: false
+            default: 0
+
+        total:
+            type: integer
+            unsigned: false
+            nullable: false
+            default: 0
+
+        completed:
+            type: datetime
+            default: null
+            nullable: true
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+
+    manyToOne:
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+

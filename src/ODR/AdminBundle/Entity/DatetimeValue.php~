@@ -112,6 +112,22 @@ class DatetimeValue
     }
 
     /**
+     * Get string value
+     *
+     * @return string
+     */
+    public function getStringValue()
+    {
+        $date = $this->value;
+//        $value = $date->format('Y-m-d H:i:s');
+        $value = $date->format('Y-m-d');
+        if ( strpos($value, '-0001-11-30') !== false )
+            $value = '0000-00-00';
+
+        return $value;
+    }
+
+    /**
      * Set deletedAt
      *
      * @param \DateTime $deletedAt

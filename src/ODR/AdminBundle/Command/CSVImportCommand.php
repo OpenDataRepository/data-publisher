@@ -72,7 +72,15 @@ class CSVImportCommand extends ContainerAwareCommand
 $output->writeln($data->url);
 
                 // Create the required url and the parameters to send
-                $parameters = array('external_id_column' => $data->external_id_column, 'datatype_id' => $data->datatype_id, 'mapping' => $data->mapping, 'line' => $data->line, 'api_key' => $data->api_key, 'user_id' => $data->user_id);
+                $parameters = array(
+                    'tracked_job_id' => $data->tracked_job_id,
+                    'external_id_column' => $data->external_id_column,
+                    'datatype_id' => $data->datatype_id,
+                    'mapping' => $data->mapping,
+                    'line' => $data->line,
+                    'api_key' => $data->api_key,
+                    'user_id' => $data->user_id
+                );
 
                 // Set the options for the POST request
                 curl_setopt_array($ch, array(
