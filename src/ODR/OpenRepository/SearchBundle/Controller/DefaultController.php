@@ -21,7 +21,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\AdminBundle\Controller\ODRCustomController;
 
 // Entites
-use ODR\AdminBundle\StoredRecord;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
@@ -892,6 +891,17 @@ if ($debug) {
                     $modify_date_start = '1980-01-01 00:00:00';
                 if ($modify_date_end == null)
                     $modify_date_end = '2200-01-01 00:00:00';
+                else {
+                    // Selecting a modify date start of, say, 2015-04-26 and a modify date end of 2015-04-28...gives the impression that the search will return everything created between the "26th" and the "28th", inclusive.
+                    // However, to actually include results from the "28th", the end date needs to be changed to 2015-04-29...therefore, increment the end date by 1 day so search results match human expectations
+                    $modify_date_end = new \DateTime($modify_date_end);
+
+                    $modify_date_end->add(new \DateInterval('P1D'));
+                    $modify_date_end = $modify_date_end->format('Y-m-d H:i:s');
+
+if ($debug)
+    print 'changing $modify_date_end to '.$modify_date_end."\n";
+                }
 
                 $using_metadata = true;
                 $query_str .= ' AND grandparent.updated BETWEEN :modified_date_start AND :modified_date_end';
@@ -904,6 +914,17 @@ if ($debug) {
                     $create_date_start = '1980-01-01 00:00:00';
                 if ($create_date_end == null)
                     $create_date_end = '2200-01-01 00:00:00';
+                else {
+                    // Selecting a create date start of, say, 2015-04-26 and a create date end of 2015-04-28...gives the impression that the search will return everything modified between the "26th" and the "28th", inclusive.
+                    // However, to actually include results from the "28th", the end date needs to be changed to 2015-04-29...therefore, increment the end date by 1 day so search results match human expectations
+                    $create_date_end = new \DateTime($create_date_end);
+
+                    $create_date_end->add(new \DateInterval('P1D'));
+                    $create_date_end = $create_date_end->format('Y-m-d H:i:s');
+
+if ($debug)
+    print 'changing $create_date_end to '.$create_date_end."\n";
+                }
 
                 $using_metadata = true;
                 $query_str .= ' AND grandparent.created BETWEEN :created_date_start AND :created_date_end';
@@ -1020,6 +1041,19 @@ if ($debug) {
                             $end = '2200-01-01 00:00:00';
                         else if ($start == '')
                             $start = '1980-01-01 00:00:00';
+
+/*
+                        // Unlike create/modify dates, DateTime field values currently have no hour/minute/second component...therefore, for the time being, no adjustment to the $end value is necessary to match human expectations
+                        if ($start == $end) {
+                            $end = new \DateTime($end);
+
+                            $end->add(new \DateInterval('P1D'));
+                            $end = $end->format('Y-m-d H:i:s');
+
+if ($debug)
+    print '$start and $end values for DataField '.$datafield->getId().' are identical, changing $end to '.$end."\n";
+                        }
+*/
 
                         $query = $em->createQuery(
                            'SELECT grandparent.id
