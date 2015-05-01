@@ -214,13 +214,13 @@ class ResultsController extends ODRCustomController
             $cache_html = '';
             // If user is not logged in and datarecord is not public
             if ($user === 'anon.' && !$datarecord->isPublic()) {
-                /* do nothing */
+                return parent::permissionDeniedError();
             }
             else {
                 // Display the public version unless the user is logged in and has view permissions
                 $public_only = true;
                 if ( $user !== 'anon.' && $has_view_permission )
-                    $public_only= false;
+                    $public_only = false;
 
 
                 // ----------------------------------------
