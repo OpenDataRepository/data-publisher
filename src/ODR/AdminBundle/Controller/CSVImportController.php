@@ -325,7 +325,7 @@ class CSVImportController extends ODRCustomController
             $reader->setHeaderRowNumber(0);
 
             // Get the first row of the csv file
-            $line_num = 0;
+            $line_num = 1;
             $first_row = array();
             $json_errors = array();
             foreach ($reader as $row) {
