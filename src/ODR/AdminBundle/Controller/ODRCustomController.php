@@ -1367,6 +1367,8 @@ $save_permissions = false;
     protected function ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing = false)
     {
         $tracked_job = null;
+
+        // TODO - more flexible way of doing this?
         if ($reuse_existing)
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity) );
         else

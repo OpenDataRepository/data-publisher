@@ -883,24 +883,40 @@ odr_csv_export_start:
     defaults: { _controller: ODRAdminBundle:CSVExport:csvExportStart }
     requirements: { _method: POST }
 
-#odr_mass_update_worker:
-#    pattern: /beanstalk/massedit
-#    defaults: { _controller: ODRAdminBundle:MassEdit:massUpdateWorker }
-#    requirements: { _method: POST }
+odr_csv_export_construct:
+    pattern: /beanstalk/csvexport/construct
+    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportConstruct }
+    requirements: { _method: POST }
 
-odr_csv_download_page:
-    pattern:  /admin/csvexport/page/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:CSVExport:exportPage }
-    requirements:
-        datatype_id: \d+
+odr_csv_export_worker:
+    pattern: /beanstalk/csvexport/worker
+    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportWorker }
+    requirements: { _method: POST }
+
+odr_csv_export_finalize:
+    pattern: /beanstalk/csvexport/finalize
+    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportFinalize }
+    requirements: { _method: POST }
+
+
+#odr_csv_download_page:
+#    pattern:  /admin/csvexport/page/{datatype_id}
+#    defaults: { _controller: ODRAdminBundle:CSVExport:exportPage }
+#    requirements:
+#        datatype_id: \d+
 
 odr_csv_download:
-    pattern:  /admin/csvexport/download/{datatype_id}
+    pattern:  /admin/csvexport/download/{user_id}/{tracked_job_id}
     defaults: { _controller: ODRAdminBundle:CSVExport:downloadCSV }
     requirements:
-        datatype_id: \d+
+        user_id: \d+
+        tracked_job_id: \d+
 
 #-----------------------------------------
+# JobController
+odr_job_list:
+    pattern:  /admin/jobs/list
+    defaults: { _controller: ODRAdminBundle:Job:list }
 
 #-----------------------------------------
 # Other stuff

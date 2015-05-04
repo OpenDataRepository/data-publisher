@@ -1,0 +1,56 @@
+ODR\AdminBundle\Entity\TrackedExport:
+    type: entity
+    table: odr_tracked_export
+#    gedmo:
+#        loggable: true
+#        soft_deleteable:
+#            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        random_key:
+            type: string
+            length: 32
+            fixed: false
+            nullable: false
+
+        finalize:
+            type: boolean
+            nullable: false
+            default: false
+
+#        created:
+#            type: datetime
+#            gedmo:
+#                timestampable:
+#                    on: create
+
+    manyToOne:
+        trackedJob:
+            targetEntity: TrackedJob
+            cascade: {  }
+            mappedBy: null
+            inversedBy: trackedExport
+            joinColumns:
+                tracked_job_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
+#        createdBy:
+#            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+#            cascade: {  }
+#            mappedBy: null
+#            inversedBy: null
+#            joinColumns:
+#                createdBy:
+#                    referencedColumnName: id
+#            orphanRemoval: false
+

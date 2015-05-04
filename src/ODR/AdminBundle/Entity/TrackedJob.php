@@ -314,4 +314,49 @@ class TrackedJob
 
         return $results[0]['current'];
     }
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $trackedExport;
+
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->trackedExport = new \Doctrine\Common\Collections\ArrayCollection();
+    }
+
+    /**
+     * Add trackedExport
+     *
+     * @param \ODR\AdminBundle\Entity\TrackedExport $trackedExport
+     * @return TrackedJob
+     */
+    public function addTrackedExport(\ODR\AdminBundle\Entity\TrackedExport $trackedExport)
+    {
+        $this->trackedExport[] = $trackedExport;
+
+        return $this;
+    }
+
+    /**
+     * Remove trackedExport
+     *
+     * @param \ODR\AdminBundle\Entity\TrackedExport $trackedExport
+     */
+    public function removeTrackedExport(\ODR\AdminBundle\Entity\TrackedExport $trackedExport)
+    {
+        $this->trackedExport->removeElement($trackedExport);
+    }
+
+    /**
+     * Get trackedExport
+     *
+     * @return \Doctrine\Common\Collections\Collection 
+     */
+    public function getTrackedExport()
+    {
+        return $this->trackedExport;
+    }
 }

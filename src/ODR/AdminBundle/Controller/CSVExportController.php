@@ -2,7 +2,7 @@
 
 /**
 * Open Data Repository Data Publisher
-* MassEdit Controller
+* CSVExport Controller
 * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
@@ -18,7 +18,8 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\AdminBundle\Entity\TrackedExport;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementField;
 use ODR\AdminBundle\Entity\ThemeDataField;
@@ -298,7 +299,7 @@ if ($debug)
 
 
     /**
-     * Spawns a pheanstalk job for each datarecord-datafield pair modified by the mass update.
+     * Begins the process of mass exporting to a csv file, by creating a beanstalk job containing which datafields to export for each datarecord being exported 
      * 
      * @param Request $request
      * 
@@ -339,8 +340,8 @@ if ($debug)
             $api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
 
-//            $url = $this->container->getParameter('site_baseurl');
-//            $url .= $this->container->get('router')->generate('odr_mass_update_worker');
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $this->container->get('router')->generate('odr_csv_export_construct');
 
             // --------------------
             // Determine user privileges
@@ -360,11 +361,10 @@ if ($debug)
                     throw new \Exception('bad post request');
             }
 
-            $search_controller = $this->get('odr_search_controller', $request);
-            $search_controller->setContainer($this->container);
-
 
             // TODO - assumes search exists
+            $search_controller = $this->get('odr_search_controller', $request);
+            $search_controller->setContainer($this->container);
             // Grab the list of saved searches and attempt to locate the desired search
             $saved_searches = $session->get('saved_searches');
             $search_params = $saved_searches[$search_checksum];
@@ -379,13 +379,120 @@ if ($debug)
                 return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
             }
 
-$datarecords = explode(',', $datarecords);
+            $datarecords = explode(',', $datarecords);
+//print_r($datarecords);
+//print_r($datafields);
+//return;
 
-print_r($datarecords);
-print_r($datafields);
-return;
+            // ----------------------------------------
+            // Get/create an entity to track the progress of this datatype recache
+            $job_type = 'csv_export';
+            $target_entity = 'datatype_'.$datatype_id;
+            $description = 'Exporting data from DataType '.$datatype_id;
+            $restrictions = '';
+            $total = count($datarecords);
+            $reuse_existing = false;
 
-            // -------------------------
+            // Determine if this user already has an export job going for this datatype
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity, 'createdBy' => $user->getId(), 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('You already have an export job going for this datatype...wait until that one finishes before starting a new one');
+            else
+                $tracked_job = self::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+
+            $tracked_job_id = $tracked_job->getId();
+
+
+            // ----------------------------------------
+            // Create a beanstalk job for each of these datarecords
+            foreach ($datarecords as $num => $datarecord_id) {
+
+                $priority = 1024;   // should be roughly default priority
+                $payload = json_encode(
+                    array(
+                        'tracked_job_id' => $tracked_job_id,
+                        'user_id' => $user->getId(),
+                        'datarecord_id' => $datarecord_id,
+                        'datafields' => $datafields,
+                        'memcached_prefix' => $memcached_prefix,    // debug purposes only
+                        'datatype_id' => $datatype_id,              // debug purposes only?
+                        'url' => $url,
+                        'api_key' => $api_key,
+                    )
+                );
+
+//print_r($payload);
+
+                $delay = 1; // one second
+                $pheanstalk->useTube('csv_export_start')->put($payload, $priority, $delay);
+            }
+
+            // TODO - Notify user that job has begun?
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x24397429 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+
+    }
+
+
+    /**
+     * Given a datarecord id and a list of datafield ids, builds a line of csv data used by Ddeboer\DataImport\Writer\CsvWriter later
+     * 
+     * @param Request $request
+     * 
+     * @return an empty Symfony JSON response, unless an error occurred.
+     */
+    public function csvExportConstructAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+//print_r($post);
+//return;
+
+            if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecord_id']) || !isset($post['datatype_id']) || !isset($post['datafields']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $tracked_job_id = intval($post['tracked_job_id']);
+            $user_id = $post['user_id'];
+            $datarecord_id = $post['datarecord_id'];
+            $datatype_id = $post['datatype_id'];
+            $datafields = $post['datafields'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->get('pheanstalk');
+            $logger = $this->get('logger');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+
+            $em = $this->get('doctrine')->getManager();
+            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+
+            // TODO - permissions?
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $this->container->get('router')->generate('odr_csv_export_worker');
+
+
+            // ----------------------------------
             // Load FieldTypes of the datafields
             $query = $em->createQuery(
                'SELECT df.id AS df_id, df.fieldName AS fieldname, ft.typeClass AS typeclass, ft.typeName AS typename
@@ -394,107 +501,104 @@ return;
                 WHERE df IN (:datafields)'
             )->setParameters( array('datafields' => $datafields) );
             $results = $query->getArrayResult();
-//print_r($result);
-
+//print_r($results);
 
             $typeclasses = array();
-            $datafield_names = array('0' => '_external_id');
             foreach ($results as $num => $result) {
                 $typeclass = $result['typeclass'];
                 $typename = $result['typename'];
 
                 if ($typeclass !== 'Radio' && $typeclass !== 'File' && $typeclass !== 'Image' && $typename !== 'Markdown') {
-                    $typeclasses[ $result['df_id'] ] = $result['typeclass'];
-                    $datafield_names[ $result['df_id'] ] = $result['fieldname'];
+                    if ( !isset($typeclasses[ $result['typeclass'] ]) )
+                        $typeclasses[ $result['typeclass'] ] = array();
+
+                    $typeclasses[ $result['typeclass'] ][] = $result['df_id'];
                 }
             }
 
-            // -------------------------
-            // Build a query in an attempt to do this all at once?
-            $parameters = array('datarecords' => $datarecords/*, 'datafields' => $datafields*/);
-
-            $query_str = 'SELECT dr.id AS dr_id, dr.external_id AS external_id, ';
-            foreach ($datafields as $num => $datafield_id)
-                $query_str .= 'df_'.$datafield_id.'.value AS df_'.$datafield_id.'_value, ';
-            $query_str = substr($query_str, 0, strlen($query_str)-2).' ';
-
-            $query_str .= 'FROM ODRAdminBundle:DataRecord AS dr ';
-            foreach ($datafields as $num => $datafield_id)
-                $query_str .= 'JOIN ODRAdminBundle:'.$typeclasses[$datafield_id].' AS df_'.$datafield_id.' WITH df_'.$datafield_id.'.dataRecord = dr ';
-
-            $query_str .= 'WHERE dr IN (:datarecords) ';
-            foreach ($datafields as $num => $datafield_id)
-                $query_str .= 'AND df_'.$datafield_id.'.dataField = '.$datafield_id.' ';
-
-            $query_str .= 'AND dr.deletedAt IS NULL ';
-            foreach ($datafields as $num => $datafield_id)
-                $query_str .= 'AND df_'.$datafield_id.'.deletedAt IS NULL ';
-
-//print $query_str."\n";
-
-            // Run the query
-            $query = $em->createQuery($query_str)->setMaxResults(5)->setParameters($parameters);
-            $results = $query->getArrayResult();
-
-//print_r($results);
+//print_r($typeclasses);
 //return;
 
-            // -------------------------
-            // Write the header line
-            // https://github.com/ddeboer/data-import/blob/master/src/Ddeboer/DataImport/Writer/CsvWriter.php
-            $delimiter = "\t";
-            $enclosure = "\"";
-            $writer = new CsvWriter($delimiter, $enclosure);
+            // ----------------------------------
+            // Need to grab external id for this datarecord
+            $query = $em->createQuery(
+               'SELECT dr.external_id AS external_id
+                FROM ODRAdminBundle:DataRecord AS dr
+                WHERE dr.id = :datarecord AND dr.deletedAt IS NULL'
+            )->setParameters( array('datarecord' => $datarecord_id) );
+            $result = $query->getArrayResult();
+            $external_id = $result[0]['external_id'];
 
-            $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/xml_export/';
-            $writer->setStream( fopen($csv_export_path.'Datatype_'.$datatype_id.'.csv', 'w') );
-            $writer->writeItem( $datafield_names );
 
-            // Write the rest of the file
-            foreach ($results as $num => $result) {
-                $tmp = array( $result['external_id'] );
+            // ----------------------------------
+            // Grab data for each of the datafields selected for export
+            $datarecord_data = array();
+            foreach ($typeclasses as $typeclass => $df_list) {
+                $query = $em->createQuery(
+                   'SELECT df.id AS df_id, e.value AS value
+                    FROM ODRAdminBundle:'.$typeclass.' AS e
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
+                    JOIN ODRAdminBundle:DataFields AS df WITH e.dataField = df
+                    JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
+                    WHERE dr.id = :datarecord AND df.id IN (:datafields) AND ft.typeClass = :typeclass
+                    AND e.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL'
+                )->setParameters( array('datarecord' => $datarecord_id, 'datafields' => $df_list, 'typeclass' => $typeclass) );
+                $results = $query->getArrayResult();
 
-                foreach ($datafields as $num => $datafield_id) {
-                    if ($typeclasses[$datafield_id] == 'DatetimeValue') {
-                        $val = $result['df_'.$datafield_id.'_value'];
-                        $tmp[] = $val->format('Y-m-d H:i:s');
+                foreach ($results as $num => $result) {
+                    $df_id = $result['df_id'];
+                    $value = $result['value'];
+
+                    if ($typeclass == 'DatetimeValue') {
+                        $date = $value->format('Y-m-d');
+                        if ( strpos($date, '-0001-11-30') !== false )
+                            $date = '0000-00-00';
+
+                        $datarecord_data[$df_id] = $date;
                     }
                     else {
-                        $tmp[] = $result['df_'.$datafield_id.'_value'];
+                        $datarecord_data[$df_id] = $value;
                     }
                 }
-
-                $writer->writeItem($tmp);
             }
-            $writer->finish();
-/*
-            foreach ($datarecords as $num => $datarecord_id) {
-                foreach ($datafields as $datafield_id => $value) {
-                    $drf = $repo_datarecordfields->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );
 
-                    // Create a new pheanstalk job
-                    $priority = 1024;   // should be roughly default priority
-                    $payload = json_encode(
-                        array(
-                            "user_id" => $user->getId(),
-                            "datarecordfield_id" => $drf->getId(),
-                            "value" => $value,
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                            "url" => $url,
-                            "api_key" => $api_key,
-                        )
-                    );
+            // Sort by datafield id to ensure columns are always in same order in csv file
+            ksort($datarecord_data);
+//print_r($datarecord_data);
+//return;
+
+            $line = array();
+            $line[] = $external_id;
+
+            foreach ($datarecord_data as $df_id => $data)
+                $line[] = $data;
+
+//print_r($line);
+//return;
+
+            // ----------------------------------------
+            // Create a beanstalk job for this datarecord
+            $priority = 1024;   // should be roughly default priority
+            $payload = json_encode(
+                array(
+                    'tracked_job_id' => $tracked_job_id,
+                    'user_id' => $user_id,
+                    'datarecord_id' => $datarecord_id,
+                    'datatype_id' => $datatype_id,
+                    'datafields' => $datafields,
+                    'line' => $line,
+                    'memcached_prefix' => $memcached_prefix,    // debug purposes only
+                    'url' => $url,
+                    'api_key' => $api_key,
+                )
+            );
 
 //print_r($payload);
 
-                    $pheanstalk->useTube('mass_edit')->put($payload);
+            $delay = 1; // one second
+            $pheanstalk->useTube('csv_export_worker')->put($payload, $priority, $delay);
 
-                }
-            }
-*/
-
-//            $router = $this->get('router');
-//            $return['d'] = array( 'url' => $router->generate('odr_search_render', array('search_key' => $search_key, 'offset' => 1, 'source' => 'searching')) );
+            $return['d'] = '';
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -510,14 +614,13 @@ return;
 
 
     /**
-     * Called by the mass update worker processes to update a datarecord-datafield pair to a new value. 
+     * Writes a line of csv data to a file
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return an empty Symfony JSON response, unless an error occurred.
      */
-/*
-    public function massUpdateWorkerAction(Request $request)
+    public function csvExportWorkerAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -525,16 +628,19 @@ return;
         $return['d'] = '';
 
         try {
-            $ret = '';
             $post = $_POST;
-//$ret = print_r($post, true);
-            if ( !isset($post['user_id']) || !isset($post['datarecordfield_id']) || !isset($post['value']) || !isset($post['api_key']) )
+//print_r($post);
+//return;
+
+            if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['line']) || !isset($post['datafields']) || !isset($post['random_key']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
+            $tracked_job_id = intval($post['tracked_job_id']);
             $user_id = $post['user_id'];
-            $datarecordfield_id = $post['datarecordfield_id'];
-            $value = $post['value'];
+            $line = $post['line'];
+            $datafields = $post['datafields'];
+            $random_key = $post['random_key'];
             $api_key = $post['api_key'];
 
             // Load symfony objects
@@ -546,126 +652,336 @@ return;
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
             $em = $this->get('doctrine')->getManager();
-            $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
-            $repo_datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields');
-            $repo_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions');
-            $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
+            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+
+            // TODO - permissions?
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
 
-            $user = $repo_user->find($user_id);
-            $datarecordfield = $repo_datarecordfield->find($datarecordfield_id);
-            $datarecord = $datarecordfield->getDataRecord();
-            $datafield = $datarecordfield->getDataField();
+            // ----------------------------------------
+            // Ensure the random key is stored in the database for later retrieval by the finalization process
+            $tracked_export = $em->getRepository('ODRAdminBundle:TrackedExport')->findOneBy( array('random_key' => $random_key) );
+            if ($tracked_export == null) {
+                // ...TECHNICALLY, THIS IS OVERKILL BECAUSE $random_key IS UNIQUE...
+                // TODO - CURRENTLY WORKS, BUT MIGHT WANT TO LOOK INTO AN OFFICIAL MUTEX...
 
-            $field_typeclass = $datafield->getFieldType()->getTypeClass();
-            $field_typename = $datafield->getFieldType()->getTypeName();
-            if ($field_typeclass == 'Radio') {
-                // Grab all selection objects attached to this radio object
-                $radio_selections = array();
-                $tmp = $repo_radio_selection->findBy( array('dataRecordFields' => $datarecordfield->getId()) );
-                foreach ($tmp as $radio_selection)
-                    $radio_selections[ $radio_selection->getRadioOption()->getId() ] = $radio_selection;
+                $query =
+                   'INSERT INTO odr_tracked_export (random_key, tracked_job_id)
+                    SELECT * FROM (SELECT :random_key, :tj_id) AS tmp
+                    WHERE NOT EXISTS (
+                        SELECT random_key FROM odr_tracked_export WHERE random_key = :random_key AND tracked_job_id = :tj_id
+                    ) LIMIT 1;';
+                $params = array('random_key' => $random_key, 'tj_id' => $tracked_job_id);
+                $conn = $em->getConnection();
+                $rowsAffected = $conn->executeUpdate($query, $params);
 
-                // Set radio_selection objects to the desired state        
-                $selected = $radio_option_id = null;
-                foreach ($value as $id => $val) {
-                    $radio_option_id = $id;
-                    $selected = $val;
-
-                    if ( !isset($radio_selections[$radio_option_id]) ) {
-                        $radio_option = $repo_radio_option->find($radio_option_id);
-
-                        $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, $selected);
-$ret .= 'created radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...setting selected to '.$selected."\n";
-                    }
-                    else {
-                        $radio_selection = $radio_selections[$radio_option_id];
-                        if ( $selected != $radio_selection->getSelected() ) {
-                            $radio_selection->setSelected($selected);
-                            $radio_selection->setUpdatedBy($user);
-                            $em->persist($radio_selection);
-$ret .= 'found radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...setting selected to '.$selected."\n";
-                        }
-                        else {
-$ret .= 'not changing radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...current selected status to desired status'."\n";
-                        }
-
-                        // Need to keep track of which radio_selection was modified for Single Radio/Select
-                        unset( $radio_selections[$radio_option_id] );
-                    }
-                }
-
-                // If only a single selection is allowed, deselect the other existing radio_selection objects
-                if ( $field_typename == "Single Radio" || $field_typename == "Single Select" ) {
-                    foreach ($radio_selections as $radio_option_id => $radio_selection) {
-                        if ( $radio_selection->getSelected() != 0 ) {
-                            $radio_selection->setSelected(0);
-                            $radio_selection->setUpdatedBy($user);
-                            $em->persist($radio_selection);
-$ret .= 'deselecting radio_option_id '.$radio_option_id.' for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
-                        }
-                    }
-                }
+//print 'rows affected: '.$rowsAffected."\n";
             }
-            else if ($field_typeclass == 'DatetimeValue') {
-                // Save the value in the referenced entity
-                $entity = $datarecordfield->getAssociatedEntity();
 
-                if ( $entity->getValue()->format('Y-m-d') !== $value ) {
-$ret .= 'setting datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$entity->getValue()->format('Y-m-d').'" to "'.$value."\"\n";
-                    $entity->setValue(new \DateTime($value));
-                    $entity->setUpdatedBy($user);
-                    $em->persist($entity);
-                }
-                else {
-$ret .= 'not changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$entity->getValue()->format('Y-m-d').'" identical to desired value "'.$value."\"\n";
-                }
+            // Open the indicated file
+            $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/csv_export/';
+            $filename = 'f_'.$random_key.'.csv';
+            $handle = fopen($csv_export_path.'tmp/'.$filename, 'a');
+            if ($handle !== false) {
+                // Write the line given to the file
+                // https://github.com/ddeboer/data-import/blob/master/src/Ddeboer/DataImport/Writer/CsvWriter.php
+                $delimiter = "\t";
+                $enclosure = "\"";
+                $writer = new CsvWriter($delimiter, $enclosure);
 
+                $writer->setStream($handle);
+                $writer->writeItem($line);
+
+                // Close the file
+                fclose($handle);
             }
             else {
-                // Save the value in the referenced entity
-                $entity = $datarecordfield->getAssociatedEntity();
+                // Unable to open file
+                throw new \Exception('could not open csv export file...');
+            }
 
-                if ( $entity->getValue() !== $value ) {
-$ret .= 'setting datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$entity->getValue().'" to "'.$value."\"\n";
-                    $entity->setValue($value);
-                    $entity->setUpdatedBy($user);
-                    $em->persist($entity);
+
+            // ----------------------------------------
+            // Update the job tracker if necessary
+            $completed = false;
+            if ($tracked_job_id !== -1) {
+                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+
+                $total = $tracked_job->getTotal();
+                $count = $tracked_job->incrementCurrent($em);
+
+                if ($count >= $total) {
+                    $tracked_job->setCompleted( new \DateTime() );
+                    $completed = true;
+                }
+
+                $em->persist($tracked_job);
+                $em->flush();
+//print '  Set current to '.$count."\n";
+            }
+
+
+            // ----------------------------------------
+            // If this was the last line to write to be written to a file for this particular export...
+            // NOTE - incrementCurrent()'s current implementation can't guarantee that only a single process will enter this block...so have to ensure that only one process starts the finalize step
+            $random_keys = array();
+            if ($completed) {
+                // Make a hash from all the random keys used
+                $query = $em->createQuery(
+                   'SELECT te.id AS id, te.random_key AS random_key
+                    FROM ODRAdminBundle:TrackedExport AS te
+                    WHERE te.trackedJob = :tracked_job AND te.finalize = 0
+                    ORDER BY te.id'
+                )->setParameters( array('tracked_job' => $tracked_job_id) );
+                $results = $query->getArrayResult();
+
+                // Due to ORDER BY, every process entering this section should compute the same $random_key_hash
+                $random_key_hash = '';
+                foreach ($results as $num => $result) {
+                    $random_keys[ $result['id'] ] = $result['random_key'];
+                    $random_key_hash .= $result['random_key'];
+                }
+                $random_key_hash = md5($random_key_hash);
+//print $random_key_hash."\n";
+
+
+                // Attempt to insert this hash back into the database...
+                // TODO - CURRENTLY WORKS, BUT MIGHT WANT TO LOOK INTO AN OFFICIAL MUTEX...
+                $query =
+                   'INSERT INTO odr_tracked_export (random_key, tracked_job_id, finalize)
+                    SELECT * FROM (SELECT :random_key_hash, :tj_id, :finalize) AS tmp
+                    WHERE NOT EXISTS (
+                        SELECT random_key FROM odr_tracked_export WHERE random_key = :random_key_hash AND tracked_job_id = :tj_id AND finalize = :finalize
+                    ) LIMIT 1;';
+                $params = array('random_key_hash' => $random_key_hash, 'tj_id' => $tracked_job_id, 'finalize' => true);
+                $conn = $em->getConnection();
+                $rowsAffected = $conn->executeUpdate($query, $params);
+
+//print 'rows affected: '.$rowsAffected."\n";
+
+                if ($rowsAffected == 1) {
+                    // This is the first process to attempt to insert this key...it will be in charge of creating the information used to concatenate the temporary files together
+                    $completed = true;
                 }
                 else {
-$ret .= 'not changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$entity->getValue().'" identical to desired value "'.$value.'"'."\n";
+                    // This is not the first process to attempt to insert this key, do nothing so multiple finalize jobs aren't created
+                    $completed = false;
                 }
             }
 
-            $em->flush();
 
-            // Determine whether short/textresults needs to be updated
-            $options = array();
-            $options['user_id'] = $user->getId();
-            $options['mark_as_updated'] = true;
-            if ( parent::inShortResults($datafield) )
-                $options['force_shortresults_recache'] = true;
-            if ( $datafield->getDisplayOrder() != -1 )
-                $options['force_textresults_recache'] = true;
+            // ----------------------------------------
+            if ($completed) {
+                // Determine the contents of the header line
+                $header_line = array(0 => '_external_id');
+                $query = $em->createQuery(
+                   'SELECT df.id AS id, df.fieldName AS fieldName
+                    FROM ODRAdminBundle:DataFields AS df
+                    WHERE df.id IN (:datafields) AND df.deletedAt IS NULL'
+                )->setParameters( array('datafields' => $datafields) );
+                $results = $query->getArrayResult();
+                foreach ($results as $num => $result) {
+                    $df_id = $result['id'];
+                    $df_name = $result['fieldName'];
 
-            // Recache this datarecord
-            parent::updateDatarecordCache($datarecord->getId(), $options);
-$ret .=  "---------------\n";
-$return['d'] = $ret;
+                    $header_line[$df_id] = $df_name;
+                }
+
+                // Sort by datafield id so order of header columns matches order of data
+                ksort($header_line);
+
+//print_r($header_line);
+
+                // Make a "final" file for the export, and insert the header line
+                $final_filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
+                $final_file = fopen($csv_export_path.$final_filename, 'w');
+
+                if ($final_file !== false) {
+                    $delimiter = "\t";
+                    $enclosure = "\"";
+                    $writer = new CsvWriter($delimiter, $enclosure);
+
+                    $writer->setStream($final_file);
+                    $writer->writeItem($header_line);
+                }
+                else {
+                    throw new \Exception('could not open csv export file...b');
+                }
+
+                fclose($final_file);
+
+                // ----------------------------------------
+                // Now that the "final" file exists, need to splice the temporary files together into it
+                $url = $this->container->getParameter('site_baseurl');
+                $url .= $this->container->get('router')->generate('odr_csv_export_finalize');
+
+                // 
+                $priority = 1024;   // should be roughly default priority
+                $payload = json_encode(
+                    array(
+                        'tracked_job_id' => $tracked_job_id,
+                        'final_filename' => $final_filename,
+                        'random_keys' => $random_keys,
+
+                        'user_id' => $user_id,
+                        'memcached_prefix' => $memcached_prefix,    // debug purposes only
+                        'url' => $url,
+                        'api_key' => $api_key,
+                    )
+                );
+
+//print_r($payload);
+
+                $delay = 1; // one second
+                $pheanstalk->useTube('csv_export_finalize')->put($payload, $priority, $delay);
+            }
+
+            $return['d'] = '';
         }
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
-            $return['d'] = 'Error 0x61395739 ' . $e->getMessage();
+            $return['d'] = 'Error 0x302421399 ' . $e->getMessage();
         }
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+
     }
-*/
+
+
+    /**
+     * Takes a list of temporary files used for csv exporting, and appends each of their contents to a "final" export file
+     * 
+     * @param Request $request
+     * 
+     * @return an empty Symfony JSON response, unless an error occurred.
+     */
+    public function csvExportFinalizeAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+//print_r($post);
+//return;
+
+            if ( !isset($post['tracked_job_id']) || !isset($post['final_filename']) || !isset($post['random_keys']) || !isset($post['user_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $tracked_job_id = intval($post['tracked_job_id']);
+            $user_id = $post['user_id'];
+            $final_filename = $post['final_filename'];
+            $random_keys = $post['random_keys'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->get('pheanstalk');
+            $logger = $this->get('logger');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+
+            $em = $this->get('doctrine')->getManager();
+            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+
+            // TODO - permissions?
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+
+
+            // -----------------------------------------
+            // Append the contents of one of the temporary files to the final file
+            $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/csv_export/';
+            $final_file = fopen($csv_export_path.$final_filename, 'a');
+
+            // Go through and append the contents of each of the temporary files to the "final" file
+            $tracked_export_id = null;
+            foreach ($random_keys as $tracked_export_id => $random_key) {
+                $tmp_filename = 'f_'.$random_key.'.csv';
+                $str = file_get_contents($csv_export_path.'tmp/'.$tmp_filename);
+//print $str."\n\n";
+
+                if ( fwrite($final_file, $str) === false )
+                    print 'could not write to "'.$csv_export_path.$final_filename.'"'."\n";
+
+                // Done with this intermediate file, get rid of it
+                if ( unlink($csv_export_path.'tmp/'.$tmp_filename) === false )
+                    print 'could not unlink "'.$csv_export_path.'tmp/'.$tmp_filename.'"'."\n";
+
+                $tracked_export = $em->getRepository('ODRAdminBundle:TrackedExport')->find($tracked_export_id);
+                $em->remove($tracked_export);
+                $em->flush();
+
+                fclose($final_file);
+
+                // Only want to append the contents of a single temporary file to the final file at a time
+                break;
+            }
+
+
+            // -----------------------------------------
+            // Done with this temporary file
+            unset($random_keys[$tracked_export_id]);
+
+            if ( count($random_keys) >= 1 ) {
+                // Create another beanstalk job to get another file fragment appended to the final file
+                $url = $this->container->getParameter('site_baseurl');
+                $url .= $this->container->get('router')->generate('odr_csv_export_finalize');
+
+                // 
+                $priority = 1024;   // should be roughly default priority
+                $payload = json_encode(
+                    array(
+                        'tracked_job_id' => $tracked_job_id,
+                        'final_filename' => $final_filename,
+                        'random_keys' => $random_keys,
+
+                        'user_id' => $user_id,
+                        'memcached_prefix' => $memcached_prefix,    // debug purposes only
+                        'url' => $url,
+                        'api_key' => $api_key,
+                    )
+                );
+
+//print_r($payload);
+
+                $delay = 1; // one second
+                $pheanstalk->useTube('csv_export_finalize')->put($payload, $priority, $delay);
+            }
+            else {
+                // Remove finalize marker from ODRAdminBundle:TrackedExport
+                $tracked_export = $em->getRepository('ODRAdminBundle:TrackedExport')->findOneBy( array('trackedJob' => $tracked_job_id) );  // should only be one left
+                $em->remove($tracked_export);
+                $em->flush();
+
+                // TODO - Notify user that export is ready
+            }
+
+            $return['d'] = '';
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x32439779 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+
+    }
+
+
 
     /**
      * Renders a page to download a CSV file from TODO
@@ -726,38 +1042,44 @@ $return['d'] = $ret;
     /**         
      * Sidesteps symfony to set up an CSV file download...TODO 
      * 
-     * @param integer $datatype_id TODO
+     * @param integer $user_id TODO
+     * @param integer $tracked_job_id TODO
      * @param Request $request
      *          
      * @return TODO
      */
-    public function downloadCSVAction($datatype_id, Request $request) {
+    public function downloadCSVAction($user_id, $tracked_job_id, Request $request) {
         $return = array();
         $return['r'] = 0;
-        $return['t'] = 'html';
+        $return['t'] = '';
         $return['d'] = ''; 
             
         $response = new Response();
         
         try {
-            $xml_export_path = dirname(__FILE__).'/../../../../web/uploads/xml_export/';
-            $filename = 'Datatype_'.$datatype_id.'.csv';
-            
-            $handle = fopen($xml_export_path.$filename, 'r');
+            // TODO - permissions
+
+            $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/csv_export/';
+            $filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
+
+            $handle = fopen($csv_export_path.$filename, 'r');
             if ($handle !== false) {
         
                 // Set up a response to send the file back
                 $response->setPrivate();
-                $response->headers->set('Content-Type', mime_content_type($xml_export_path.$filename));
-                $response->headers->set('Content-Length', filesize($xml_export_path.$filename));
+                $response->headers->set('Content-Type', mime_content_type($csv_export_path.$filename));
+                $response->headers->set('Content-Length', filesize($csv_export_path.$filename));
                 $response->headers->set('Content-Disposition', 'attachment; filename="'.$filename.'";');
     
                 $response->sendHeaders();
 
-                $content = file_get_contents($xml_export_path.$filename);   // using file_get_contents() because apparently readfile() tacks on # of bytes read at end of file for firefox
+                $content = file_get_contents($csv_export_path.$filename);   // using file_get_contents() because apparently readfile() tacks on # of bytes read at end of file for firefox
                 $response->setContent($content);
 
                 fclose($handle);
+            }
+            else {
+                throw new \Exception('Could not open requested file');
             }
         }
         catch (\Exception $e) {

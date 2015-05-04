@@ -110,18 +110,20 @@ function doCSVExport() {
         dataType: 'json',
         success: function(data, textStatus, jqXHR) {
             if ( data.r == 0 ) {
-//                alert( 'CSV Export in progress' );
+                alert( 'CSV Export in progress' );
 
+{#
                 // Now that the search has been performed and cached, render the results
                 var url = '{{ path('odr_csv_download_page', { 'datatype_id': 0 } ) }}';
                 url = url.substr(0, url.length-1);
                 url += '{{ datatype.id }}';
+#}
 
                 // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
-                UpdateURL(url);
+//                UpdateURL(url);
             }
             else {
-                alert( 'Error: ' + data.d );
+                alert( data.d );
             }
         },
         complete: function(jqXHR, textStatus) {

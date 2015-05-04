@@ -61,6 +61,18 @@ ODR\AdminBundle\Entity\TrackedJob:
                 timestampable:
                     on: create
 
+    oneToMany:
+        trackedExport:
+            targetEntity: TrackedExport
+            cascade: {  }
+            mappedBy: trackedJob
+            inversedBy: null
+            joinColumns:
+                tracked_job_id:
+                    referencedColumnName: id
+#            gedmo:
+#                - versioned
+
     manyToOne:
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
