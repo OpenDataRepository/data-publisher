@@ -2320,9 +2320,12 @@ if ($debug)
                 $repo_entity = $em->getRepository("ODR\\AdminBundle\\Entity\\".$type_class);
                 $entity = $repo_entity->find($entity_id);
 
+                // Get all log entries in array format for this entity from gedmo
+                $all_log_entries = array();
                 $repo_logging = $em->getRepository('Gedmo\Loggable\Entity\LogEntry');
-                $all_log_entries = $repo_logging->getLogEntries($entity);
-                $log_entries = array();
+                $all_log_entries = $repo_logging->getLogEntriesQuery($entity)->getArrayResult();
+//print_r($all_log_entries);
+//return;
 
                 $user_manager = $this->container->get('fos_user.user_manager');
                 $all_users = $user_manager->findUsers();
@@ -2331,17 +2334,24 @@ if ($debug)
                     $users[ $user->getUsername() ] = $user;
                 }
 
+
+                $log_entries = array();
                 foreach ($all_log_entries as $entry) {
-                    $data = $entry->getData();
+                    $data = $entry['data'];
 //print_r($data);
 //return;
 
                     // Due to log entries not being identical, need to create a new array so the templating doesn't get confused
                     $tmp = array();
-                    $tmp['id'] = $entry->getId();
-                    $tmp['version'] = $entry->getVersion();
-                    $tmp['loggedat'] = $entry->getLoggedAt();
-                    $tmp['user'] = $users[ $entry->getUsername() ];
+                    $tmp['id'] = $entry['id'];
+                    $tmp['version'] = $entry['version'];
+                    $tmp['loggedat'] = $entry['loggedAt'];
+
+                    $username = $entry['username'];
+                    if ( isset($users[$username]) )
+                        $tmp['user'] = $users[$username];
+                    else
+                        $tmp['user'] = '';
 
                     if ( $type_class == 'DatetimeValue' ) {
                         // Null values in the log entries screw up the datetime to string formatter
@@ -2434,7 +2444,7 @@ if ($debug)
                                 'record_type' => $type_class,
                                 'data_record_field_id' => $drf->getId(),
                                 'datarecord_id' => $drf->getDataRecord()->getId(),
-                                'field_id' => $entity_id,
+                                'entity_id' => $entity_id,
                                 'form' => $form->createView()
                             )
                         )

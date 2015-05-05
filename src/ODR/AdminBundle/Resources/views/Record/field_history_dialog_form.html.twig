@@ -1,7 +1,7 @@
 {% spaceless %}
     <!-- Field History Dialog Form -->
     <form class="ODRDatafieldHistoryForm pure-form pure-form-aligned" action="{{ path('odr_record_save', {'record_type': record_type, 'datarecord_id': datarecord_id }) }}" method="post" id="DatafieldHistoryForm">
-        <input type="hidden" name="id" value="{{ field_id }}" />
+        <input type="hidden" name="id" value="{{ entity_id }}" />
         <input type="hidden" name="ObjType" value="{{ record_type }}" />
 
         {{ form_errors(form.createdBy) }}
@@ -113,10 +113,13 @@
                 var element = "{{ record_type }}Form_value";
                 $("#DatafieldHistoryForm > #" + element).val(previous_value);
 
-                if ( "{{ record_type }}" == "DatetimeValue" )
+                if ( "{{ record_type }}" == "DatetimeValue" ) {
                     $("#EditDataRecordFieldsForm_{{ data_record_field_id }} .ODRDatePicker").datepicker( "setDate", previous_value );
-                else
+                }
+                else {
                     $("#EditDataRecordFieldsForm_{{ data_record_field_id }} #" + element).val(previous_value);
+                    $("#Form_{{ data_record_field_id }}").val(previous_value);
+                }
 
                 var $el = $('#dialog_field_history');
                 if ($el.validate().form()) {
