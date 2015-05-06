@@ -101,6 +101,13 @@ class DisplaytemplateController extends ODRCustomController
                 return parent::permissionDeniedError("edit");
             // --------------------
 
+            // --------------------
+            // TODO - better way of handling this
+            // Prevent deletion of datafields if a csv import is in progress, as this could screw the importing over
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype->getId(), 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('Preventing deletion of any DataField for this DataType, because a CSV Import for this DataType is in progress...');
+
 
             // Determine if shortresults needs to be recached as a result of this deletion
             $options = array();
@@ -351,6 +358,7 @@ class DisplaytemplateController extends ODRCustomController
             }
             // --------------------
 
+            // TODO - warn about deleting datatype when jobs are in progress
 
             // Don't delete this datatype if it's set as the default search
 //            if ($datatype->getIsDefaultSearchDatatype() == true)

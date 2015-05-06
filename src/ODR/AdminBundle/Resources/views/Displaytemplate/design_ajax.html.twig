@@ -186,51 +186,6 @@ function initPage() {
         var datafield_id = 0;
 
         openPluginSettingsDialog(datafield_id, datatype_id);
-/*
-        var url  = '{{ path('odr_render_plugin_dialog', {'datatype_id': 0, 'datafield_id': 0 } ) }}';
-        url = url.substring(0,(url.length - 3));
-        url += datatype_id + '/' + datafield_id;
-//alert( url );
-//return;
-
-        var dataType = "json";
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: dataType,
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    switch(data.t) {
-                        case 'html':
-                            $("#dialog_plugin_settings .form_contents").html(data.d.html);
-                            $("#dialog_plugin_settings").dialog( "open" );
-                        break;
-                    }
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-*/
     });
 
 
@@ -457,6 +412,11 @@ function initPage() {
 //                            setDatatypeIcons(parent_datatype_id, {"ODRRenderPlugin": 0});
 */
                     }
+                    else {
+                        // An error has occurred.
+                        // Show Error message dialog
+                        alert(data.d);
+                    }
                 },
                complete: function(jqXHR, textStatus) {
                     // Get the xdebugToken from response headers
@@ -555,6 +515,11 @@ function initPage() {
                     $("#ElementData").fadeIn('fast'); 
                     InitDatatypePropertiesForm();
                 }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
             },
             complete: function(jqXHR, textStatus) {
                  // Get the xdebugToken from response headers
@@ -600,6 +565,11 @@ function initPage() {
                     $("#ElementData").html(data.d);
                     $("#ElementData").fadeIn('fast');
                     InitThemeElementPropertiesForm();
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
                 }
             },
             complete: function(jqXHR, textStatus) {
@@ -1054,6 +1024,11 @@ function SetupDataFields() {
                         $("#ElementData").fadeIn('fast'); 
                         InitDatafieldPropertiesForm();
                     }
+                    else {
+                        // An error has occurred.
+                        // Show Error message dialog
+                        alert(data.d);
+                    }
                 },
                 complete: function(jqXHR, textStatus) {
                      // Get the xdebugToken from response headers
@@ -1351,6 +1326,7 @@ function InitSlideout() {
             else {
                 // An error has occurred.
                 // Show Error message dialog
+                alert(data.d);
             }
         },
 /*
@@ -1710,6 +1686,8 @@ function CopyDatafield(datafield_id) {
                 ReloadThemeElement(theme_element_id);
             }
             else {
+                // An error has occurred.
+                // Show Error message dialog
                 alert(data.d);
             }
         },
@@ -1764,6 +1742,11 @@ function DeleteDatafield(datafield_id) {
                     var icons = {"ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
                     setThemeElementIcons(theme_element_id, icons);
                 }
+            }
+            else {
+                // An error has occurred.
+                // Show Error message dialog
+                alert(data.d);
             }
         },
         complete: function(jqXHR, textStatus) {

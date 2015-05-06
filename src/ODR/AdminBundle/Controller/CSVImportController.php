@@ -90,6 +90,19 @@ class CSVImportController extends ODRCustomController
             // --------------------
 
 
+            // --------------------
+            // TODO - better way of handling this, if possible
+            // Block csv imports if there's already one in progress for this datatype
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+            // Also block if there's a datafield migration in place
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+
+
+            // --------------------
             // Create a File form object for the user to upload a csv file through Symfony
             $obj_classname = "ODR\\AdminBundle\\Entity\\File";
             $form_classname = "\\ODR\\AdminBundle\\Form\\FileForm";
@@ -168,6 +181,19 @@ class CSVImportController extends ODRCustomController
             // --------------------
 
 
+            // --------------------
+            // TODO - better way of handling this, if possible
+            // Block csv imports if there's already one in progress for this datatype
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+            // Also block if there's a datafield migration in place
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+
+
+            // --------------------
             // Ensure the file uploaded correctly
             $form_classname = "\\ODR\\AdminBundle\\Form\\FileForm";
             $my_obj = new File();
@@ -278,6 +304,19 @@ class CSVImportController extends ODRCustomController
             // --------------------
 
 
+            // --------------------
+            // TODO - better way of handling this, if possible
+            // Block csv imports if there's already one in progress for this datatype
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+            // Also block if there's a datafield migration in place
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+
+
+            // --------------------
             // Grab all datafields belonging to that datatype
 //            $datafields = $datatype->getDataFields();
             $query = $em->createQuery(
@@ -505,6 +544,19 @@ class CSVImportController extends ODRCustomController
             // --------------------
 
 
+            // --------------------
+            // TODO - better way of handling this, if possible
+            // Block csv imports if there's already one in progress for this datatype
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+            // Also block if there's a datafield migration in place
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+
+
+            // --------------------
             // Grab fieldtype mapping for datafields this import is going to create, if the user chose to create new datafields
             $fieldtype_mapping = null;
             if ( isset($post['fieldtype_mapping']) )
