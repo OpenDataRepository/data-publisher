@@ -915,8 +915,14 @@ odr_csv_download:
 #-----------------------------------------
 # JobController
 odr_job_list:
-    pattern:  /admin/jobs/list
+    pattern:  /jobs/list
     defaults: { _controller: ODRAdminBundle:Job:list }
+
+odr_job_refresh:
+    pattern:  /jobs/refresh/{job_type}
+    defaults: { _controller: ODRAdminBundle:Job:refresh }
+    requirements:
+        job_type: '|recache|migrate|mass_edit|rebuild_thumbnails|csv_import|csv_export'
 
 #-----------------------------------------
 # Other stuff

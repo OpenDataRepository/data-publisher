@@ -1,0 +1,217 @@
+{% spaceless %}
+
+<div class="content">
+
+    <div class="header">
+        <h2>Job List</h2>
+    </div>
+
+    <div class="ODRAccordionWrapper ODRFormAccordion {#Pointer#}">
+
+    {% for job_type, job_name in jobs %}
+        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+            <span class="ui-icon ui-icon-triangle-1-s"></span>
+            <a>{{ job_name }}</a>
+            <span class="Pointer" style="float:right"><i class="fa fa-lg fa-pause ODRJobTrackingToggle" title="Displaying snapshot of job progress" rel="{{ job_type }}"></i></span>
+        </h3>
+
+        {% if job_type == 'recache' %}
+            {% include 'ODRAdminBundle:Job:recache.html.twig' %}
+        {% elseif job_type == 'csv_export' %}
+            {% include 'ODRAdminBundle:Job:csv_export.html.twig' %}
+        {% else %}
+        <div class="accordion-content ODRJobList_general_wrapper" rel="{{ job_type }}">
+            <table id="ODRJobList_{{ job_type }}" class="display">
+                <thead>
+                    <tr>
+                        <th>Started At</th>
+                        <th>Started By</th>
+                        <th>Description</th>
+                        <th>Progress</th>
+                        <th>Time Elapsed</th>
+                        <th>ETA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+    {% endfor %}
+
+    </div><!-- end of .ODRAccordionWrapper -->
+</div><!-- End of .content -->
+
+<style>
+    .accordion-content {
+        margin-bottom: 15px;
+    }
+
+/*
+    .ODRProgressBar {
+        width: 300px;
+    }
+*/
+    .ui-progressbar {
+        position: relative;
+        min-width: 300px;
+    }
+
+    .ODRProgressBarLabel {
+        position: absolute;
+        left: 45%;
+        top: 4px;
+        font-weight: bold;
+        text-shadow: 1px 1px 0 #fff;
+    }
+</style>
+
+<script>
+    $(function() {
+        var window_intervals = {};
+        {% for job_type, job_name in jobs %}
+        window_intervals["{{ job_type }}"] = window.clearInterval( window.ODRJobTracking_{{ job_type }}_interval );
+        {% endfor %}
+
+        $(".ODRJobTrackingToggle").unbind('click');
+        $(".ODRJobTrackingToggle").click(function() {
+            var job_type = $(this).attr('rel');
+            var delay = 10000;
+
+            if ( $(this).hasClass("fa-pause") ) {
+                // Switch to refresh icon
+                $(this).addClass('fa-refresh').removeClass('fa-pause');
+                $(this).attr('title', 'Refreshing job progress every ' + (delay / 1000) + ' seconds');
+
+                // Start polling the server for updates every 10 seconds
+                window_intervals[ job_type ] = window.clearInterval( window_intervals[ job_type ] );
+                window_intervals[ job_type ] = window.setInterval( '$("#ODRJobList_' + job_type + '").DataTable().ajax.reload();', delay);
+            }
+            else {
+                // Switch to pause icon
+                $(this).addClass('fa-pause').removeClass('fa-refresh');
+                $(this).attr('title', 'Displaying snapshot of job progress');
+
+                // Stop polling the server for updates
+                window_intervals[ job_type ] = window.clearInterval( window_intervals[ job_type ] );
+            }
+        });
+
+
+        $(".ODRJobList_general_wrapper").each(function() {
+            var job_type = $(this).attr('rel');
+            var ajax_url = "{{ path('odr_job_refresh',{'job_type': ''}) }}";
+            ajax_url += job_type;
+
+            var table = $("#ODRJobList_" + job_type).dataTable({
+                columns: [
+                    { "data": "started_at" },
+                    { "data": "started_by" },
+                    { "data": "description" },
+                    {
+                        "data": "progress",
+                        "render": function(data, type, full, meta) {
+                            return '<div class="ODRProgressBar" max_value="' + data.total + '" current_value="' + data.current + '"><div class="ODRProgressBarLabel"></div></div>';
+                        }
+                    },
+                    { "data": "time_elapsed" },
+                    { "data": "eta" },
+                ],
+
+                lengthChange: false,
+                info: false,
+                ordering: false,
+                searching: false,
+                paging: false,
+//                autoWidth: false,
+
+                // https://datatables.net/manual/server-side
+                processing: true,   // only displays a little "processing..." blurb
+//                serverSide: true,
+
+                ajax: {
+                    url: ajax_url,
+                    type: "GET",
+                    dataSrc: "d",
+                    complete: function() {
+                        if (typeof doProgressBars == 'function')
+                            doProgressBars();
+                    }
+                },
+                
+            });
+        });
+
+    });
+
+    function doProgressBars() {
+        $(".ODRProgressBar").each(function() {
+            var current_value = parseInt( $(this).attr('current_value') );
+            var max_value = $(this).attr('max_value');
+
+            var progress_label = $(this).children(".ODRProgressBarLabel").first();
+
+            $(this).progressbar('destroy');
+            $(this).progressbar({
+                value: current_value,
+                max: max_value,
+                create: function() {
+                    progress_label.text( current_value + '/' + max_value );
+                },
+                change: function() {
+                    progress_label.text( current_value + '/' + max_value );
+                },
+            });
+        });
+    }
+
+{#
+    function deleteUser(user_id) {
+        // Prevent an admin from deleting himself
+        if (user_id == {{ admin_user.id }}) {
+            alert("For safety reasons, an Admin can't delete his own profile.");
+            return;
+        }
+
+        if ( confirm("This will remove the user's permissions.") ) {
+            var url = '{{ path('odr_delete_user', { 'user_id': 0 } ) }}';
+            url = url.substring(0, (url.length - 1));
+            url += user_id;
+            var dataType = "json";
+
+            // Ajax Load Form in box
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: dataType,
+                success: function(data, textStatus, jqXHR) {
+                    if (data.r == 0) {
+                        alert("User Deleted");
+                        $('#content').html(data.d.html);
+                    }
+                    else {
+                        // TODO - no error message ability?
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        }
+    }
+#}
+</script>
+
+{% endspaceless %}

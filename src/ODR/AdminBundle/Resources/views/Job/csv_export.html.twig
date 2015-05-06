@@ -1,0 +1,79 @@
+{% spaceless %}
+
+<div class="accordion-content ODRJobList_wrapper" rel="{{ job_type }}">
+    <table id="ODRJobList_{{ job_type }}" class="display">
+        <thead>
+            <tr>
+                <th>Started At</th>
+                <th>Started By</th>
+                <th>Description</th>
+                <th>Progress</th>
+                <th>Time Elapsed</th>
+                <th>ETA</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    $(function() {
+        // Setup...
+        var job_type = "{{ job_type }}";
+        var ajax_url = "{{ path('odr_job_refresh',{'job_type': ''}) }}";
+        ajax_url += job_type;
+
+        var table = $("#ODRJobList_" + job_type).dataTable({
+            columns: [
+                { "data": "started_at" },
+                { "data": "started_by" },
+                { "data": "description" },
+                {
+                    "data": "progress",
+                    "render": function(data, type, full, meta) {
+                        return '<div class="ODRProgressBar" max_value="' + data.total + '" current_value="' + data.current + '"><div class="ODRProgressBarLabel"></div></div>';
+                    }
+                },
+                { "data": "time_elapsed" },
+                {
+                    "data": "eta",
+                    "render": function(data, type, row, meta) {
+                        if (data == 'Done') {
+                            var url = "{{ path('odr_csv_download', {'user_id': 0, 'tracked_job_id': 0}) }}";
+                            url = url.substr(0, url.length-3);
+                            url += row.user_id + '/' + row.tracked_job_id;
+
+                            return '<a target="_blank" href="' + url + '">Download</a>';
+                        }
+                        else {
+                            return data;
+                        }
+                    }
+                },
+            ],
+
+            lengthChange: false,
+            info: false,
+            ordering: false,
+            searching: false,
+            paging: false,
+
+            // https://datatables.net/manual/server-side
+            processing: true,   // only displays a little "processing..." blurb
+
+            ajax: {
+                url: ajax_url,
+                type: "GET",
+                dataSrc: "d",
+                complete: function() {
+                    if (typeof doProgressBars == 'function')
+                        doProgressBars();
+                }
+            },
+                
+        });
+    });
+</script>
+
+{% endspaceless %}
