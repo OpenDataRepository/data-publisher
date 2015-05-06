@@ -1475,16 +1475,44 @@ class ODRUserController extends ODRCustomController
 
         try {
             // --------------------
-            // Ensure user has permissions to be doing this
-            $admin = $this->container->get('security.context')->getToken()->getUser();
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
-                return parent::permissionDeniedError();
-            // --------------------
-
             // Grab the user from their id
             $em = $this->getDoctrine()->getManager();
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
             $user = $repo_user->find($user_id);
+
+            // Ensure user has permissions to be doing this
+            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+
+            // Require admin user to have at least admin role to do this...
+            if ( $admin_user->hasRole('ROLE_ADMIN') ) {
+
+                // If target user is super admin, not allowed to do this
+                if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+                    return parent::permissionDeniedError();
+
+                // Grab permissions of both target user and admin
+                $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request, false);
+                $user_permissions = parent::getPermissionsArray($user->getId(), $request, false);
+
+                $allow = false;
+                foreach ($admin_permissions as $datatype_id => $permission) {
+                    if ( isset($permission['admin']) && $permission['admin'] == 1 ) {
+                        // allow this permissions change if the admin user has an "is_type_admin" permission and the target user has a "can_view_type" for the same datatype
+                        if ( isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['view']) && $user_permissions[$datatype_id]['view'] == 1 ) {
+                            $allow = true;
+                            break;
+                        }
+                    }
+                }
+
+                // If not allowed, block access
+                if (!$allow)
+                    return parent::permissionDeniedError();
+            }
+            else {
+                return parent::permissionDeniedError();
+            }
+            // --------------------
 
             // Grab the datatype that's being modified
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
@@ -1492,12 +1520,6 @@ class ODRUserController extends ODRCustomController
             if ( $datatype == null )
                 return parent::deletedEntityError('Datatype');
 
-            // Grab datatype-level permissions for the specified user
-            $datatype_permissions = parent::getPermissionsArray($user_id, $request, false);     // get permissions for $user_id, not the $admin calling the function
-
-            // Grab datafield-level permissions for this user/datatype
-//            $repo_datafield_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');
-//            $datafield_permissions = $repo_datafield_permissions->findBy( array('user_id' => $user_id, 'dataType' => $datatype_id) );
 
             // Build the tree used for rendering the datatype
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
@@ -1516,6 +1538,8 @@ if ($debug)
 if ($debug)
     print '<pre>';
 
+            // Grab datatype-level permissions for the specified user
+            $datatype_permissions = parent::getPermissionsArray($user_id, $request, false);     // get permissions for $user_id, not the $admin calling the function
             // Grab the datafield-level permissions for this user
             $datafield_permissions = parent::getDatafieldPermissionsArray($user_id, $request);
 
@@ -1564,12 +1588,6 @@ if ($debug)
 
         try {
             // --------------------
-            // Ensure user has permissions to be doing this
-            $admin = $this->container->get('security.context')->getToken()->getUser();
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
-                return parent::permissionDeniedError();
-            // --------------------
-
             // Grab the user from their id
             $em = $this->getDoctrine()->getManager();
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
@@ -1578,6 +1596,44 @@ if ($debug)
             // Grab the datafield that's being modified
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $datafield = $repo_datafield->find($datafield_id);
+
+            if ($datafield == null)
+                return parent::deletedEntityError('DataField');
+
+            $datatype = $datafield->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
+
+            // Ensure user has permissions to be doing this
+            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+
+            // Require user to have at least admin role to do this...
+            if ( $admin_user->hasRole('ROLE_ADMIN') ) {
+
+                // If target user is super admin, not allowed to do this
+                if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+                    return parent::permissionDeniedError();
+
+                // Grab permissions of both target user and admin
+                $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request, false);
+                $user_permissions = parent::getPermissionsArray($user->getId(), $request, false);
+
+                $allow = false;
+                if ( isset($admin_permissions[$datatype_id]) && isset($admin_permissions[$datatype_id]['admin']) && $admin_permissions[$datatype_id]['admin'] == 1 ) {
+                    if ( isset($admin_permissions[$datatype_id]) && isset($admin_permissions[$datatype_id]['view']) && $admin_permissions[$datatype_id]['view'] == 1 ) {
+                        $allow = true;
+                    }
+                }
+
+                // If not allowed, block access
+                if (!$allow)
+                    return parent::permissionDeniedError();
+            }
+            else {
+                return parent::permissionDeniedError();
+            }
+            // --------------------
 
             // Grab the UserFieldPermission object that's being modified
             $repo_user_field_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');

@@ -71,7 +71,7 @@
                 </td>
                 <td class="center">
                     <input id="edit_{{ datatype.id }}" onclick="togglePermission('edit_{{ datatype.id }}');" type="checkbox" {% if force_enabled == true or permission.caneditrecord == 1 %}checked{% endif %} {% if force_enabled == true or permission.istypeadmin == 1 %}disabled title="User has admin permissions for this datatype"{% endif %}/>
-                    {% if admin_level == 7 %}<button type="button" {# class="pure-button pure-button-primary" #} style="float: right;" onclick="editDatafieldPermissions({{ datatype.id }});">datafields...</button>{% endif %}
+                    {% if admin_level >= 3 %}<button type="button" {# class="pure-button pure-button-primary" #} style="float: right;" onclick="editDatafieldPermissions({{ datatype.id }});">datafields...</button>{% endif %}
                 </td>
                 <td class="center">
                     <input id="add_{{ datatype.id }}" onclick="togglePermission('add_{{ datatype.id }}');" type="checkbox" {% if force_enabled == true or permission.canaddrecord == 1 %}checked{% endif %} {% if force_enabled == true or permission.istypeadmin == 1 %}disabled title="User has admin permissions for this datatype"{% endif %}/>
