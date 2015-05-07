@@ -2,24 +2,25 @@
 
 /**
 * Open Data Repository Data Publisher
-* TrackedExport Entity
+* TrackedCSVExport Entity
 * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
 *
-* The TrackedExport Entity is automatically generated from 
-* ./Resources/config/doctrine/TrackedExport.orm.yml
+* The TrackedCSVExport Entity is automatically generated from 
+* ./Resources/config/doctrine/TrackedCSVExport.orm.yml
 *
 */
+
 
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * TrackedExport
+ * TrackedCSVExport
  */
-class TrackedExport
+class TrackedCSVExport
 {
     /**
      * @var integer
@@ -30,6 +31,11 @@ class TrackedExport
      * @var string
      */
     private $random_key;
+
+    /**
+     * @var boolean
+     */
+    private $finalize;
 
     /**
      * @var \ODR\AdminBundle\Entity\TrackedJob
@@ -51,7 +57,7 @@ class TrackedExport
      * Set random_key
      *
      * @param string $randomKey
-     * @return TrackedExport
+     * @return TrackedCSVExport
      */
     public function setRandomKey($randomKey)
     {
@@ -71,10 +77,33 @@ class TrackedExport
     }
 
     /**
+     * Set finalize
+     *
+     * @param boolean $finalize
+     * @return TrackedCSVExport
+     */
+    public function setFinalize($finalize)
+    {
+        $this->finalize = $finalize;
+
+        return $this;
+    }
+
+    /**
+     * Get finalize
+     *
+     * @return boolean 
+     */
+    public function getFinalize()
+    {
+        return $this->finalize;
+    }
+
+    /**
      * Set trackedJob
      *
      * @param \ODR\AdminBundle\Entity\TrackedJob $trackedJob
-     * @return TrackedExport
+     * @return TrackedCSVExport
      */
     public function setTrackedJob(\ODR\AdminBundle\Entity\TrackedJob $trackedJob = null)
     {
@@ -92,5 +121,4 @@ class TrackedExport
     {
         return $this->trackedJob;
     }
-
 }

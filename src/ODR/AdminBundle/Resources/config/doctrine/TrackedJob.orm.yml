@@ -62,8 +62,19 @@ ODR\AdminBundle\Entity\TrackedJob:
                     on: create
 
     oneToMany:
-        trackedExport:
-            targetEntity: TrackedExport
+        trackedCSVExport:
+            targetEntity: TrackedCSVExport
+            cascade: {  }
+            mappedBy: trackedJob
+            inversedBy: null
+            joinColumns:
+                tracked_job_id:
+                    referencedColumnName: id
+#            gedmo:
+#                - versioned
+
+        trackedError:
+            targetEntity: TrackedError
             cascade: {  }
             mappedBy: trackedJob
             inversedBy: null

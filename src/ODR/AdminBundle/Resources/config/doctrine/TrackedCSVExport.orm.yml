@@ -1,6 +1,6 @@
-ODR\AdminBundle\Entity\TrackedExport:
+ODR\AdminBundle\Entity\TrackedCSVExport:
     type: entity
-    table: odr_tracked_export
+    table: odr_tracked_csv_export
 #    gedmo:
 #        loggable: true
 #        soft_deleteable:
@@ -36,7 +36,7 @@ ODR\AdminBundle\Entity\TrackedExport:
             targetEntity: TrackedJob
             cascade: {  }
             mappedBy: null
-            inversedBy: trackedExport
+            inversedBy: trackedCSVExport
             joinColumns:
                 tracked_job_id:
                     referencedColumnName: id

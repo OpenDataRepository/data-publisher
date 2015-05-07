@@ -12,6 +12,7 @@
 *
 */
 
+
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
@@ -67,10 +68,28 @@ class TrackedJob
     private $created;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $trackedCSVExport;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $trackedError;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
 
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->trackedCSVExport = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->trackedError = new \Doctrine\Common\Collections\ArrayCollection();
+    }
 
     /**
      * Get id
@@ -267,6 +286,72 @@ class TrackedJob
     }
 
     /**
+     * Add trackedCSVExport
+     *
+     * @param \ODR\AdminBundle\Entity\TrackedCSVExport $trackedCSVExport
+     * @return TrackedJob
+     */
+    public function addTrackedCSVExport(\ODR\AdminBundle\Entity\TrackedCSVExport $trackedCSVExport)
+    {
+        $this->trackedCSVExport[] = $trackedCSVExport;
+
+        return $this;
+    }
+
+    /**
+     * Remove trackedCSVExport
+     *
+     * @param \ODR\AdminBundle\Entity\TrackedCSVExport $trackedCSVExport
+     */
+    public function removeTrackedCSVExport(\ODR\AdminBundle\Entity\TrackedCSVExport $trackedCSVExport)
+    {
+        $this->trackedCSVExport->removeElement($trackedCSVExport);
+    }
+
+    /**
+     * Get trackedCSVExport
+     *
+     * @return \Doctrine\Common\Collections\Collection 
+     */
+    public function getTrackedCSVExport()
+    {
+        return $this->trackedCSVExport;
+    }
+
+    /**
+     * Add trackedError
+     *
+     * @param \ODR\AdminBundle\Entity\TrackedError $trackedError
+     * @return TrackedJob
+     */
+    public function addTrackedError(\ODR\AdminBundle\Entity\TrackedError $trackedError)
+    {
+        $this->trackedError[] = $trackedError;
+
+        return $this;
+    }
+
+    /**
+     * Remove trackedError
+     *
+     * @param \ODR\AdminBundle\Entity\TrackedError $trackedError
+     */
+    public function removeTrackedError(\ODR\AdminBundle\Entity\TrackedError $trackedError)
+    {
+        $this->trackedError->removeElement($trackedError);
+    }
+
+    /**
+     * Get trackedError
+     *
+     * @return \Doctrine\Common\Collections\Collection 
+     */
+    public function getTrackedError()
+    {
+        return $this->trackedError;
+    }
+
+    /**
      * Set createdBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
@@ -293,6 +378,7 @@ class TrackedJob
      * Increment current
      * Gets mysql to directly update the 'current' field, bypassing the caching mechanisms in the persist()/flush()/refresh() call chain in an attempt to ensure synchronization
      *
+     * @return integer The value of the 'current' field after the increment
      */
     public function incrementCurrent(\Doctrine\ORM\EntityManager $em)
     {
@@ -313,50 +399,5 @@ class TrackedJob
         $results = $query->getArrayResult();
 
         return $results[0]['current'];
-    }
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $trackedExport;
-
-    /**
-     * Constructor
-     */
-    public function __construct()
-    {
-        $this->trackedExport = new \Doctrine\Common\Collections\ArrayCollection();
-    }
-
-    /**
-     * Add trackedExport
-     *
-     * @param \ODR\AdminBundle\Entity\TrackedExport $trackedExport
-     * @return TrackedJob
-     */
-    public function addTrackedExport(\ODR\AdminBundle\Entity\TrackedExport $trackedExport)
-    {
-        $this->trackedExport[] = $trackedExport;
-
-        return $this;
-    }
-
-    /**
-     * Remove trackedExport
-     *
-     * @param \ODR\AdminBundle\Entity\TrackedExport $trackedExport
-     */
-    public function removeTrackedExport(\ODR\AdminBundle\Entity\TrackedExport $trackedExport)
-    {
-        $this->trackedExport->removeElement($trackedExport);
-    }
-
-    /**
-     * Get trackedExport
-     *
-     * @return \Doctrine\Common\Collections\Collection 
-     */
-    public function getTrackedExport()
-    {
-        return $this->trackedExport;
     }
 }

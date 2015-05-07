@@ -1,0 +1,49 @@
+ODR\AdminBundle\Entity\TrackedError:
+    type: entity
+    table: odr_tracked_error
+#    gedmo:
+#        loggable: true
+#        soft_deleteable:
+#            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        error_body:
+            type: text
+            nullable: false
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+
+    manyToOne:
+        trackedJob:
+            targetEntity: TrackedJob
+            cascade: {  }
+            mappedBy: null
+            inversedBy: trackedError
+            joinColumns:
+                tracked_job_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+

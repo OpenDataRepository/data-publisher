@@ -2,24 +2,25 @@
 
 /**
 * Open Data Repository Data Publisher
-* TrackedExport Entity
+* TrackedCSVExport Entity
 * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
 *
-* The TrackedExport Entity is automatically generated from 
-* ./Resources/config/doctrine/TrackedExport.orm.yml
+* The TrackedCSVExport Entity is automatically generated from 
+* ./Resources/config/doctrine/TrackedCSVExport.orm.yml
 *
 */
+
 
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * TrackedExport
+ * TrackedCSVExport
  */
-class TrackedExport
+class TrackedCSVExport
 {
     /**
      * @var integer
@@ -30,6 +31,11 @@ class TrackedExport
      * @var string
      */
     private $random_key;
+
+    /**
+     * @var boolean
+     */
+    private $finalize;
 
     /**
      * @var \ODR\AdminBundle\Entity\TrackedJob
@@ -51,7 +57,7 @@ class TrackedExport
      * Set random_key
      *
      * @param string $randomKey
-     * @return TrackedExport
+     * @return TrackedCSVExport
      */
     public function setRandomKey($randomKey)
     {
@@ -71,39 +77,10 @@ class TrackedExport
     }
 
     /**
-     * Set trackedJob
-     *
-     * @param \ODR\AdminBundle\Entity\TrackedJob $trackedJob
-     * @return TrackedExport
-     */
-    public function setTrackedJob(\ODR\AdminBundle\Entity\TrackedJob $trackedJob = null)
-    {
-        $this->trackedJob = $trackedJob;
-
-        return $this;
-    }
-
-    /**
-     * Get trackedJob
-     *
-     * @return \ODR\AdminBundle\Entity\TrackedJob 
-     */
-    public function getTrackedJob()
-    {
-        return $this->trackedJob;
-    }
-
-    /**
-     * @var boolean
-     */
-    private $finalize;
-
-
-    /**
      * Set finalize
      *
      * @param boolean $finalize
-     * @return TrackedExport
+     * @return TrackedCSVExport
      */
     public function setFinalize($finalize)
     {
@@ -120,5 +97,28 @@ class TrackedExport
     public function getFinalize()
     {
         return $this->finalize;
+    }
+
+    /**
+     * Set trackedJob
+     *
+     * @param \ODR\AdminBundle\Entity\TrackedJob $trackedJob
+     * @return TrackedCSVExport
+     */
+    public function setTrackedJob(\ODR\AdminBundle\Entity\TrackedJob $trackedJob = null)
+    {
+        $this->trackedJob = $trackedJob;
+
+        return $this;
+    }
+
+    /**
+     * Get trackedJob
+     *
+     * @return \ODR\AdminBundle\Entity\TrackedJob 
+     */
+    public function getTrackedJob()
+    {
+        return $this->trackedJob;
     }
 }

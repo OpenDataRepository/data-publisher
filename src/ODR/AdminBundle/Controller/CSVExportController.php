@@ -19,7 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\AdminBundle\Entity\TrackedExport;
+use ODR\AdminBundle\Entity\TrackedCSVExport;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementField;
 use ODR\AdminBundle\Entity\ThemeDataField;
@@ -661,16 +661,16 @@ if ($debug)
 
             // ----------------------------------------
             // Ensure the random key is stored in the database for later retrieval by the finalization process
-            $tracked_export = $em->getRepository('ODRAdminBundle:TrackedExport')->findOneBy( array('random_key' => $random_key) );
-            if ($tracked_export == null) {
+            $tracked_csv_export = $em->getRepository('ODRAdminBundle:TrackedCSVExport')->findOneBy( array('random_key' => $random_key) );
+            if ($tracked_csv_export == null) {
                 // ...TECHNICALLY, THIS IS OVERKILL BECAUSE $random_key IS UNIQUE...
                 // TODO - CURRENTLY WORKS, BUT MIGHT WANT TO LOOK INTO AN OFFICIAL MUTEX...
 
                 $query =
-                   'INSERT INTO odr_tracked_export (random_key, tracked_job_id)
+                   'INSERT INTO odr_tracked_csv_export (random_key, tracked_job_id)
                     SELECT * FROM (SELECT :random_key, :tj_id) AS tmp
                     WHERE NOT EXISTS (
-                        SELECT random_key FROM odr_tracked_export WHERE random_key = :random_key AND tracked_job_id = :tj_id
+                        SELECT random_key FROM odr_tracked_csv_export WHERE random_key = :random_key AND tracked_job_id = :tj_id
                     ) LIMIT 1;';
                 $params = array('random_key' => $random_key, 'tj_id' => $tracked_job_id);
                 $conn = $em->getConnection();
@@ -729,10 +729,10 @@ if ($debug)
             if ($completed) {
                 // Make a hash from all the random keys used
                 $query = $em->createQuery(
-                   'SELECT te.id AS id, te.random_key AS random_key
-                    FROM ODRAdminBundle:TrackedExport AS te
-                    WHERE te.trackedJob = :tracked_job AND te.finalize = 0
-                    ORDER BY te.id'
+                   'SELECT tce.id AS id, tce.random_key AS random_key
+                    FROM ODRAdminBundle:TrackedCSVExport AS tce
+                    WHERE tce.trackedJob = :tracked_job AND tce.finalize = 0
+                    ORDER BY tce.id'
                 )->setParameters( array('tracked_job' => $tracked_job_id) );
                 $results = $query->getArrayResult();
 
@@ -749,10 +749,10 @@ if ($debug)
                 // Attempt to insert this hash back into the database...
                 // TODO - CURRENTLY WORKS, BUT MIGHT WANT TO LOOK INTO AN OFFICIAL MUTEX...
                 $query =
-                   'INSERT INTO odr_tracked_export (random_key, tracked_job_id, finalize)
+                   'INSERT INTO odr_tracked_csv_export (random_key, tracked_job_id, finalize)
                     SELECT * FROM (SELECT :random_key_hash, :tj_id, :finalize) AS tmp
                     WHERE NOT EXISTS (
-                        SELECT random_key FROM odr_tracked_export WHERE random_key = :random_key_hash AND tracked_job_id = :tj_id AND finalize = :finalize
+                        SELECT random_key FROM odr_tracked_csv_export WHERE random_key = :random_key_hash AND tracked_job_id = :tj_id AND finalize = :finalize
                     ) LIMIT 1;';
                 $params = array('random_key_hash' => $random_key_hash, 'tj_id' => $tracked_job_id, 'finalize' => true);
                 $conn = $em->getConnection();
@@ -905,8 +905,8 @@ if ($debug)
             $final_file = fopen($csv_export_path.$final_filename, 'a');
 
             // Go through and append the contents of each of the temporary files to the "final" file
-            $tracked_export_id = null;
-            foreach ($random_keys as $tracked_export_id => $random_key) {
+            $tracked_csv_export_id = null;
+            foreach ($random_keys as $tracked_csv_export_id => $random_key) {
                 $tmp_filename = 'f_'.$random_key.'.csv';
                 $str = file_get_contents($csv_export_path.'tmp/'.$tmp_filename);
 //print $str."\n\n";
@@ -918,8 +918,8 @@ if ($debug)
                 if ( unlink($csv_export_path.'tmp/'.$tmp_filename) === false )
                     print 'could not unlink "'.$csv_export_path.'tmp/'.$tmp_filename.'"'."\n";
 
-                $tracked_export = $em->getRepository('ODRAdminBundle:TrackedExport')->find($tracked_export_id);
-                $em->remove($tracked_export);
+                $tracked_csv_export = $em->getRepository('ODRAdminBundle:TrackedCSVExport')->find($tracked_csv_export_id);
+                $em->remove($tracked_csv_export);
                 $em->flush();
 
                 fclose($final_file);
@@ -931,7 +931,7 @@ if ($debug)
 
             // -----------------------------------------
             // Done with this temporary file
-            unset($random_keys[$tracked_export_id]);
+            unset($random_keys[$tracked_csv_export_id]);
 
             if ( count($random_keys) >= 1 ) {
                 // Create another beanstalk job to get another file fragment appended to the final file
@@ -959,9 +959,9 @@ if ($debug)
                 $pheanstalk->useTube('csv_export_finalize')->put($payload, $priority, $delay);
             }
             else {
-                // Remove finalize marker from ODRAdminBundle:TrackedExport
-                $tracked_export = $em->getRepository('ODRAdminBundle:TrackedExport')->findOneBy( array('trackedJob' => $tracked_job_id) );  // should only be one left
-                $em->remove($tracked_export);
+                // Remove finalize marker from ODRAdminBundle:TrackedCSVExport
+                $tracked_csv_export = $em->getRepository('ODRAdminBundle:TrackedCSVExport')->findOneBy( array('trackedJob' => $tracked_job_id) );  // should only be one left
+                $em->remove($tracked_csv_export);
                 $em->flush();
 
                 // TODO - Notify user that export is ready
@@ -979,63 +979,6 @@ if ($debug)
         $response->headers->set('Content-Type', 'application/json');
         return $response;
 
-    }
-
-
-
-    /**
-     * Renders a page to download a CSV file from TODO
-     * 
-     * @param integer $datatype_id TODO
-     * @param Request $request
-     * 
-     * @return TODO
-     */
-    public function exportPageAction($datatype_id, Request $request) {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = 'html';
-        $return['d'] = '';
-
-        try {
-//            $em = $this->getDoctrine()->getManager();
-//            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-//            $datarecord = $repo_datarecord->find($datarecord_id);
-//            $datatype = $datarecord->getDataType();
-            $templating = $this->get('templating');
-
-//            $xml_export_path = dirname(__FILE__).'/../../../../web/uploads/xml_export/';
-//            $filename = 'DataRecord_'.$datarecord_id.'.xml';
-/*
-            $handle = fopen($xml_export_path.$filename, 'w');
-            if ($handle !== false) {
-                $content = parent::XML_GetDisplayData($request, $datarecord_id);
-                fwrite($handle, $content);
-                fclose($handle);
-*/
-                $return['d'] = array(
-                    'html' => $templating->render('ODRAdminBundle:CSVExport:csv_download.html.twig', array('datatype_id' => $datatype_id))
-                );
-/*
-            }
-            else {
-                // Shouldn't be an issue?
-                $return['r'] = 1;
-                $return['t'] = 'ex';
-                $return['d'] = 'Error 0x848128635 Could not open file at "'.$xml_export_path.$filename.'"';
-            }
-*/
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x848128635 ' . $e->getMessage();
-        }
-
-        // If error encountered, do a json return
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
     }
 
 

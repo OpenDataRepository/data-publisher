@@ -18,7 +18,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entites
 use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\AdminBundle\Entity\TrackedExport;
+use ODR\AdminBundle\Entity\TrackedCSVExport;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
