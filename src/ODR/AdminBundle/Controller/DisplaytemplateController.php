@@ -3100,7 +3100,7 @@ if ($debug)
             }
 
             // Also prevent a datatfield's fieldtype from being changed if a migration is in progress
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype->getId(), 'completed' => null) );
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'target_entity' => 'datafield_'.$datafield->getId(), 'completed' => null) );
             if ($tracked_job !== null)
                 $prevent_fieldtype_change = true;
 
@@ -3271,45 +3271,47 @@ if ($debug)
                         )->setParameters( array('dataType' => $datatype) );
                         $results = $query->getResult();
 
-                        // ----------------------------------------
-                        // Get/create an entity to track the progress of this datafield migration
-                        $job_type = 'migrate';
-                        $target_entity = 'datafield_'.$datafield->getId();
-                        $description = 'Migration of DataField '.$datafield->getId().' from "'.$old_fieldtype->getTypeName().'" to "'.$new_fieldtype->getTypeName().'"';
-                        $restrictions = 'datatype_'.$datafield->getDataType()->getId();
-                        $total = count($results);
-                        $reuse_existing = false;
+                        if ( count($results) > 0 ) {
+                            // ----------------------------------------
+                            // Get/create an entity to track the progress of this datafield migration
+                            $job_type = 'migrate';
+                            $target_entity = 'datafield_'.$datafield->getId();
+                            $description = 'Migration of DataField '.$datafield->getId().' from "'.$old_fieldtype->getTypeName().'" to "'.$new_fieldtype->getTypeName().'"';
+                            $restrictions = 'datatype_'.$datafield->getDataType()->getId();
+                            $total = count($results);
+                            $reuse_existing = false;
 
-                        $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
-                        $tracked_job_id = $tracked_job->getId();
+                            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+                            $tracked_job_id = $tracked_job->getId();
 
 
-                        // ----------------------------------------
-                        foreach ($results as $num => $result) {
-                            $datarecord_id = $result['id'];
+                            // ----------------------------------------
+                            foreach ($results as $num => $result) {
+                                $datarecord_id = $result['id'];
 
-                            // Insert the new job into the queue
-                            $priority = 1024;   // should be roughly default priority
-                            $payload = json_encode(
-                                array(
-                                    "tracked_job_id" => $tracked_job_id,
-                                    "user_id" => $user->getId(),
-                                    "datarecord_id" => $datarecord_id,
-                                    "datafield_id" => $datafield->getId(),
-                                    "old_fieldtype_id" => $old_fieldtype_id,
-                                    "new_fieldtype_id" => $new_fieldtype_id,
-//                                    "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                                    "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                                    "url" => $url,
-                                    "api_key" => $api_key,
-                                )
-                            );
+                                // Insert the new job into the queue
+                                $priority = 1024;   // should be roughly default priority
+                                $payload = json_encode(
+                                    array(
+                                        "tracked_job_id" => $tracked_job_id,
+                                        "user_id" => $user->getId(),
+                                        "datarecord_id" => $datarecord_id,
+                                        "datafield_id" => $datafield->getId(),
+                                        "old_fieldtype_id" => $old_fieldtype_id,
+                                        "new_fieldtype_id" => $new_fieldtype_id,
+//                                        "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
+                                        "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                                        "url" => $url,
+                                        "api_key" => $api_key,
+                                    )
+                                );
 
-                            $pheanstalk->useTube('migrate_datafields')->put($payload);
+                                $pheanstalk->useTube('migrate_datafields')->put($payload);
+                            }
+
+                            // TODO - Lock the datatype so no more edits?
+                            // TODO - Lock other stuff?
                         }
-
-                        // TODO - Lock the datatype so no more edits?
-                        // TODO - Lock other stuff?
                     }
 //                    else {
                         $datatype = $datafield->getDataType();

@@ -610,38 +610,40 @@ class DatatypeController extends ODRCustomController
                 )->setParameters( array('dataType' => $datatype_id) );
                 $results = $query->getArrayResult();
 
-                // ----------------------------------------
-                // Get/create an entity to track the progress of this datatype recache
-                $job_type = 'recache';
-                $target_entity = 'datatype_'.$datatype_id;
-                $description = 'Recache of DataType '.$datatype_id;
-                $restrictions = $datatype->getRevision();
-                $total = count($results);
-                $reuse_existing = true;
+                if ( count($results) > 0 ) {
+                    // ----------------------------------------
+                    // Get/create an entity to track the progress of this datatype recache
+                    $job_type = 'recache';
+                    $target_entity = 'datatype_'.$datatype_id;
+                    $description = 'Recache of DataType '.$datatype_id;
+                    $restrictions = $datatype->getRevision();
+                    $total = count($results);
+                    $reuse_existing = true;
 
-                $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
-                $tracked_job_id = $tracked_job->getId();
+                    $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+                    $tracked_job_id = $tracked_job->getId();
 
-                // ----------------------------------------
-                // Schedule each of those datarecords for an update
-                foreach ($results as $result) {
-                    $datarecord_id = $result['dr_id'];
+                    // ----------------------------------------
+                    // Schedule each of those datarecords for an update
+                    foreach ($results as $result) {
+                        $datarecord_id = $result['dr_id'];
 
-                    // Insert the new job into the queue
-                    $priority = 1024;   // should be roughly default priority
-                    $payload = json_encode(
-                        array(
-                            "tracked_job_id" => $tracked_job_id,
-                            "datarecord_id" => $datarecord_id,
-                            "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                            "url" => $url,
-                            "api_key" => $api_key,
-                        )
-                    );
+                        // Insert the new job into the queue
+                        $priority = 1024;   // should be roughly default priority
+                        $payload = json_encode(
+                            array(
+                                "tracked_job_id" => $tracked_job_id,
+                                "datarecord_id" => $datarecord_id,
+                                "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
+                                "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                                "url" => $url,
+                                "api_key" => $api_key,
+                            )
+                        );
 
-                    $delay = 5;
-                    $pheanstalk->useTube('recache_type')->put($payload, $priority, $delay);
+                        $delay = 5;
+                        $pheanstalk->useTube('recache_type')->put($payload, $priority, $delay);
+                    }
                 }
             }
         }

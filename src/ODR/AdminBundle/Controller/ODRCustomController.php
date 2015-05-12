@@ -928,7 +928,7 @@ $save_permissions = false;
         if ($token != NULL)
             $user = $token->getUser();
         if ($user === 'anon.')
-            $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find(3);
+            $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find(3);   // TODO - system user
 
         // ----------------------------------------
         // Get the top-most parent of the datatype scheduled for update
@@ -994,49 +994,51 @@ $save_permissions = false;
             FROM ODRAdminBundle:DataRecord dr
             WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
         )->setParameters( array('dataType' => $datatype->getId()) );
-        $results = $query->getResult();
+        $results = $query->getArrayResult();
 
-        // ----------------------------------------
-        // Get/create an entity to track the progress of this datatype recache
-        $job_type = 'recache';
-        $target_entity = 'datatype_'.$datatype_id;
-        $description = 'Recache of DataType '.$datatype_id;
-        $restrictions = $datatype->getRevision();
-        $total = count($results);
-        $reuse_existing = true;
+        if ( count($results) > 0 ) {
+            // ----------------------------------------
+            // Get/create an entity to track the progress of this datatype recache
+            $job_type = 'recache';
+            $target_entity = 'datatype_'.$datatype_id;
+            $description = 'Recache of DataType '.$datatype_id;
+            $restrictions = $datatype->getRevision();
+            $total = count($results);
+            $reuse_existing = true;
 
-        $tracked_job = self::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
-        $tracked_job_id = $tracked_job->getId();
+            $tracked_job = self::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+            $tracked_job_id = $tracked_job->getId();
 
-        // ----------------------------------------
-        // Schedule all of these datarecords for an update
-        foreach ($results as $num => $result) {
-            $datarecord_id = $result['dr_id'];
+            // ----------------------------------------
+            // Schedule all of these datarecords for an update
+            foreach ($results as $num => $result) {
+                $datarecord_id = $result['dr_id'];
 
-            if ($force_shortresults_recache)
-                $memcached->delete($memcached_prefix.'.data_record_short_form_'.$datarecord_id);
-            if ($force_textresults_recache)
-                $memcached->delete($memcached_prefix.'.data_record_short_text_form_'.$datarecord_id);
+                if ($force_shortresults_recache)
+                    $memcached->delete($memcached_prefix.'.data_record_short_form_'.$datarecord_id);
+                if ($force_textresults_recache)
+                    $memcached->delete($memcached_prefix.'.data_record_short_text_form_'.$datarecord_id);
 
-            // Insert the new job into the queue
-            $priority = 1024;   // should be roughly default priority
-            $payload = json_encode(
-                array(
-                    "tracked_job_id" => $tracked_job_id,
-                    "datarecord_id" => $datarecord_id,
-                    "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                    "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                    "url" => $url,
-                    "api_key" => $api_key,
-                )
-            );
+                // Insert the new job into the queue
+                $priority = 1024;   // should be roughly default priority
+                $payload = json_encode(
+                    array(
+                        "tracked_job_id" => $tracked_job_id,
+                        "datarecord_id" => $datarecord_id,
+                        "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
+                        "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                        "url" => $url,
+                        "api_key" => $api_key,
+                    )
+                );
 
-            $delay = 10;
-            $pheanstalk->useTube('recache_type')->put($payload, $priority, $delay);
+                $delay = 10;
+                $pheanstalk->useTube('recache_type')->put($payload, $priority, $delay);
+            }
         }
 
         // ----------------------------------------
-        // Notify any datarecords linking to this record that they need to update too
+        // Notify any datarecords linking to this datatype that they need to update too
         $query = $em->createQuery(
            'SELECT DISTINCT grandparent.id AS grandparent_id
             FROM ODRAdminBundle:DataRecord descendant

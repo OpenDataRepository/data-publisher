@@ -490,39 +490,40 @@ $ret .= '  Set current to '.$count."\n";
 //print_r($results);
 //return;
 
-        // ----------------------------------------
-        // Get/create an entity to track the progress of this thumbnail rebuild
-        $job_type = 'rebuild_thumbnails';
-        $target_entity = 'datatype_'.$datatype_id;
-        $description = 'Rebuild of all image thumbnails for DataType '.$datatype_id;
-        $restrictions = '';
-        $total = count($results);
-        $reuse_existing = false;
+        if ( count($results) > 0 ) {
+            // ----------------------------------------
+            // Get/create an entity to track the progress of this thumbnail rebuild
+            $job_type = 'rebuild_thumbnails';
+            $target_entity = 'datatype_'.$datatype_id;
+            $description = 'Rebuild of all image thumbnails for DataType '.$datatype_id;
+            $restrictions = '';
+            $total = count($results);
+            $reuse_existing = false;
 
-        $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
-        $tracked_job_id = $tracked_job->getId();
+            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+            $tracked_job_id = $tracked_job->getId();
 
+            // ----------------------------------------
+            $object_type = 'image';
+            foreach ($results as $num => $result) {
+                $object_id = $result['id'];
 
-        // ----------------------------------------
-        $object_type = 'image';
-        foreach ($results as $num => $result) {
-            $object_id = $result['id'];
+                // Insert the new job into the queue
+                $priority = 1024;   // should be roughly default priority
+                $payload = json_encode(
+                    array(
+                        "tracked_job_id" => $tracked_job_id,
+                        "object_type" => $object_type,
+                        "object_id" => $object_id,
+                        "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                        "url" => $url,
+                        "api_key" => $api_key,
+                    )
+                );
 
-            // Insert the new job into the queue
-            $priority = 1024;   // should be roughly default priority
-            $payload = json_encode(
-                array(
-                    "tracked_job_id" => $tracked_job_id,
-                    "object_type" => $object_type,
-                    "object_id" => $object_id,
-                    "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                    "url" => $url,
-                    "api_key" => $api_key,
-                )
-            );
-
-            $delay = 1;
-            $pheanstalk->useTube('rebuild_thumbnails')->put($payload, $priority, $delay);
+                $delay = 1;
+                $pheanstalk->useTube('rebuild_thumbnails')->put($payload, $priority, $delay);
+            }
         }
 
     }

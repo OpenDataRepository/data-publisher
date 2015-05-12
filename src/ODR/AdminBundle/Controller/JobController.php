@@ -125,7 +125,8 @@ class JobController extends ODRCustomController
 
         try {
             $user = $this->container->get('security.context')->getToken()->getUser();
-            $return['d'] = self::refreshJob($user, $job_type, $request);
+            if ($user !== 'anon.')
+                $return['d'] = self::refreshJob($user, $job_type, $request);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -270,29 +271,21 @@ class JobController extends ODRCustomController
         $str = '';
 
         $days = intval( $interval->format("%a") );
-        if ($days > 1)
-            $str .= $days.' days, ';
-        else if ($days == 1)
-            $str .= '1 day, ';
+        if ($days >= 1)
+            $str .= $days.'d ';
 
         $hours = intval( $interval->format("%h") );
-        if ($hours > 1)
-            $str .= $hours.' hours, ';
-        else if ($hour == 1)
-            $str .= '1 hour, ';
+        if ($hours >= 1)
+            $str .= $hours.'h ';
 
         $minutes = intval( $interval->format("%i") );
-        if ($minutes > 1)
-            $str .= $minutes.' minutes, ';
-        else if ($minutes == 1)
-            $str .= '1 minute, ';
+        if ($minutes >= 1)
+            $str .= $minutes.'m ';
 
         $seconds = intval( $interval->format("%s") );
-        if ($seconds > 1)
-            $str .= $seconds.' seconds, ';
-        else if ($seconds == 1)
-            $str .= '1 second, ';
+        if ($seconds >= 1)
+            $str .= $seconds.'s ';
 
-        return substr($str, 0, strlen($str)-2);
+        return substr($str, 0, strlen($str)-1);
     }
 }
