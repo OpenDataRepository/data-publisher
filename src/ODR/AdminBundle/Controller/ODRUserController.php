@@ -1319,6 +1319,7 @@ class ODRUserController extends ODRCustomController
                 return parent::permissionDeniedError();
             // --------------------
 
+            // TODO - have to go through $user_manager to delete a user??
             // Grab all the users
             $user_manager = $this->container->get('fos_user.user_manager');
             $users = $user_manager->findUsers();
@@ -1384,6 +1385,7 @@ class ODRUserController extends ODRCustomController
                 return parent::permissionDeniedError();
             // --------------------
 
+            // TODO - have to go through $user_manager to undelete a user??
             // Grab all the users
             $user_manager = $this->container->get('fos_user.user_manager');
             $users = $user_manager->findUsers();
@@ -1495,10 +1497,10 @@ class ODRUserController extends ODRCustomController
                 $user_permissions = parent::getPermissionsArray($user->getId(), $request, false);
 
                 $allow = false;
-                foreach ($admin_permissions as $datatype_id => $permission) {
+                foreach ($admin_permissions as $dt_id => $permission) {
                     if ( isset($permission['admin']) && $permission['admin'] == 1 ) {
                         // allow this permissions change if the admin user has an "is_type_admin" permission and the target user has a "can_view_type" for the same datatype
-                        if ( isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['view']) && $user_permissions[$datatype_id]['view'] == 1 ) {
+                        if ( isset($user_permissions[$dt_id]) && isset($user_permissions[$dt_id]['view']) && $user_permissions[$dt_id]['view'] == 1 ) {
                             $allow = true;
                             break;
                         }
