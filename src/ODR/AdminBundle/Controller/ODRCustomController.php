@@ -1386,6 +1386,8 @@ $save_permissions = false;
             $tracked_job->setCreated( new \DateTime() );
         }
 
+        $tracked_job->setStarted(null);
+
         $tracked_job->setDescription($description);
         $tracked_job->setRestrictions($restrictions);
 

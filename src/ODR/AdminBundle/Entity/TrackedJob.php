@@ -382,6 +382,7 @@ class TrackedJob
      */
     public function incrementCurrent(\Doctrine\ORM\EntityManager $em)
     {
+        // Directly update the 'current' field...
         $query =
            'UPDATE odr_tracked_job
             SET current = current + 1
@@ -390,14 +391,59 @@ class TrackedJob
         $conn = $em->getConnection();
         $rowsAffected = $conn->executeUpdate($query, $params);
 
+
         // Grab what the new value is, so it can be returned
         $query = $em->createQuery(
-           'SELECT tj.current AS current
+           'SELECT tj.current AS current, tj.started AS started
             FROM ODRAdminBundle:TrackedJob AS tj
             WHERE tj.id = :id'
         )->setParameters($params);
         $results = $query->getArrayResult();
 
-        return $results[0]['current'];
+        $curr_value = $results[0]['current'];
+        $start_time = $results[0]['started'];
+
+        // If job hasn't been marked as 'started' yet, do that
+        if ($start_time == null) {
+            $start_time = new \DateTime();
+            $query =
+               'UPDATE odr_tracked_job
+                SET started = :datetime
+                WHERE id = :id';
+            $params = array('id' => $this->id, 'datetime' => $start_time->format('Y-m-d H:i:s') );
+            $conn = $em->getConnection();
+            $rowsAffected = $conn->executeUpdate($query, $params);
+        }
+
+        return $curr_value;
+    }
+
+    /**
+     * @var \DateTime
+     */
+    private $started;
+
+
+    /**
+     * Set started
+     *
+     * @param \DateTime $started
+     * @return TrackedJob
+     */
+    public function setStarted($started)
+    {
+        $this->started = $started;
+
+        return $this;
+    }
+
+    /**
+     * Get started
+     *
+     * @return \DateTime 
+     */
+    public function getStarted()
+    {
+        return $this->started;
     }
 }

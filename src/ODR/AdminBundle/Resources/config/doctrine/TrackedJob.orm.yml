@@ -61,6 +61,11 @@ ODR\AdminBundle\Entity\TrackedJob:
                 timestampable:
                     on: create
 
+        started:
+            type: datetime
+            default: null
+            nullable: true
+
     oneToMany:
         trackedCSVExport:
             targetEntity: TrackedCSVExport

@@ -184,8 +184,8 @@ class JobController extends ODRCustomController
                 // ----------------------------------------
                 // Save data common to every job
                 $created = $tracked_job->getCreated();
-                $job['started_at'] = $created->format('Y-m-d H:i:s');
-                $job['started_by'] = $tracked_job->getCreatedBy()->getUserExtend()->getFirstName().' '.$tracked_job->getCreatedBy()->getUserExtend()->getLastName();
+                $job['created_at'] = $created->format('Y-m-d H:i:s');
+                $job['created_by'] = $tracked_job->getCreatedBy()->getUserExtend()->getFirstName().' '.$tracked_job->getCreatedBy()->getUserExtend()->getLastName();
                 $job['description'] = $tracked_job->getDescription();
 //                $job['total'] = $tracked_job->getTotal();
 //                $job['current'] = $tracked_job->getCurrent();
@@ -196,31 +196,37 @@ class JobController extends ODRCustomController
                 // ----------------------------------------
                 if ( $tracked_job->getCompleted() == null ) {
                     // If job is in progress, calculate an ETA if possible
-                    $start = $tracked_job->getCreated();
-                    $now = new \DateTime();
+                    $start = $tracked_job->getStarted();
+                    if ( $start == null ) {
+                        $job['time_elapsed'] = '0s';
+                        $job['eta'] = '...';
+                    }
+                    else {
+                        $now = new \DateTime();
 
-                    $interval = date_diff($start, $now);
-                    $job['time_elapsed'] = self::formatInterval( $interval );
+                        $interval = date_diff($start, $now);
+                        $job['time_elapsed'] = self::formatInterval( $interval );
 
-                    // TODO - better way of calculating this?
-                    $seconds_elapsed = intval($interval->format("%a"))*86400 + intval($interval->format("%h"))*3600 + intval($interval->format("%i"))*60 + intval($interval->format("%s"));
+                        // TODO - better way of calculating this?
+                        $seconds_elapsed = intval($interval->format("%a"))*86400 + intval($interval->format("%h"))*3600 + intval($interval->format("%i"))*60 + intval($interval->format("%s"));
 
-                    // Estimate completion time the easy way
-                    if ( intval($tracked_job->getCurrent()) !== 0 ) {
-                        $eta = intval( $seconds_elapsed * intval($tracked_job->getTotal()) / intval($tracked_job->getCurrent()) );
-                        $eta = $eta - $seconds_elapsed;
+                        // Estimate completion time the easy way
+                        if ( intval($tracked_job->getCurrent()) !== 0 ) {
+                            $eta = intval( $seconds_elapsed * intval($tracked_job->getTotal()) / intval($tracked_job->getCurrent()) );
+                            $eta = $eta - $seconds_elapsed;
 
-                        $curr_date = new \DateTime();
-                        $new_date = new \DateTime();
-                        $new_date = $new_date->add( new \DateInterval('PT'.$eta.'S') );
+                            $curr_date = new \DateTime();
+                            $new_date = new \DateTime();
+                            $new_date = $new_date->add( new \DateInterval('PT'.$eta.'S') );
 
-                        $interval = date_diff($curr_date, $new_date);
-                        $job['eta'] = self::formatInterval( $interval );
+                            $interval = date_diff($curr_date, $new_date);
+                            $job['eta'] = self::formatInterval( $interval );
+                        }
                     }
                 }
                 else {
                     // If job is completed, calculate how long it took to finish
-                    $start = $tracked_job->getCreated();
+                    $start = $tracked_job->getStarted();
                     $end = $tracked_job->getCompleted();
 
                     $interval = date_diff($start, $end);
