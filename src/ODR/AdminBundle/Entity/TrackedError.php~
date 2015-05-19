@@ -149,4 +149,32 @@ class TrackedError
     {
         return $this->createdBy;
     }
+    /**
+     * @var string
+     */
+    private $error_level;
+
+
+    /**
+     * Set error_level
+     *
+     * @param string $errorLevel
+     * @return TrackedError
+     */
+    public function setErrorLevel($errorLevel)
+    {
+        $this->error_level = $errorLevel;
+
+        return $this;
+    }
+
+    /**
+     * Get error_level
+     *
+     * @return string 
+     */
+    public function getErrorLevel()
+    {
+        return $this->error_level;
+    }
 }

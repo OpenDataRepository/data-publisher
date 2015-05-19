@@ -3276,12 +3276,12 @@ if ($debug)
                             // Get/create an entity to track the progress of this datafield migration
                             $job_type = 'migrate';
                             $target_entity = 'datafield_'.$datafield->getId();
-                            $description = 'Migration of DataField '.$datafield->getId().' from "'.$old_fieldtype->getTypeName().'" to "'.$new_fieldtype->getTypeName().'"';
+                            $additional_data = array('description' => 'Migration of DataField '.$datafield->getId().' from "'.$old_fieldtype->getTypeName().'" to "'.$new_fieldtype->getTypeName().'"');
                             $restrictions = 'datatype_'.$datafield->getDataType()->getId();
                             $total = count($results);
                             $reuse_existing = false;
 
-                            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+                            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
                             $tracked_job_id = $tracked_job->getId();
 
 

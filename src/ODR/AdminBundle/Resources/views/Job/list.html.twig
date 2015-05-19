@@ -19,6 +19,8 @@
             {% include 'ODRAdminBundle:Job:recache.html.twig' %}
         {% elseif job_type == 'csv_export' %}
             {% include 'ODRAdminBundle:Job:csv_export.html.twig' %}
+        {% elseif job_type == 'csv_import_validate' %}
+            {% include 'ODRAdminBundle:Job:csv_import_validate.html.twig' %}
         {% else %}
         <div class="accordion-content ODRJobList_general_wrapper" rel="{{ job_type }}">
             <table id="ODRJobList_{{ job_type }}" class="display">

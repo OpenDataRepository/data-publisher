@@ -66,18 +66,13 @@ class JobController extends ODRCustomController
         $return['d'] = '';
 
         try {
-/*
-            // Grab required objects
-            $em = $this->getDoctrine()->getManager();
-            $repo_tracked_jobs = $em->getRepository('ODRAdminBundle:TrackedJob');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-*/
 
             $jobs = array(
                 'recache' => 'Recaching',
                 'migrate' => 'DataField Migration',
                 'mass_edit' => 'Mass Updates',
 //                'rebuild_thumbnails'
+                'csv_import_validate' => 'CSV Validation',
                 'csv_import' => 'CSV Imports',
                 'csv_export' => 'CSV Exports',
 //                'xml_import'
@@ -116,7 +111,7 @@ class JobController extends ODRCustomController
      *
      * @return TODO
      */
-    public function refreshAction($job_type, Request $request)
+    public function refreshAction($job_type, $job_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -126,7 +121,7 @@ class JobController extends ODRCustomController
         try {
             $user = $this->container->get('security.context')->getToken()->getUser();
             if ($user !== 'anon.')
-                $return['d'] = self::refreshJob($user, $job_type, $request);
+                $return['d'] = self::refreshJob($user, $job_type, intval($job_id), $request);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -144,10 +139,11 @@ class JobController extends ODRCustomController
      * Builds and returns a JSON array of job data for a specific tracked_job type
      * 
      * @param string $job_type 
+     * @param integer $job_id Which TrackedJob to look at, or 0 to return all TrackedJobs
      *
      * @return TODO
      */
-    private function refreshJob($user, $job_type, Request $request)
+    private function refreshJob($user, $job_type, $job_id, Request $request)
     {
         // Get necessary objects
         $em = $this->getDoctrine()->getManager();
@@ -167,6 +163,11 @@ class JobController extends ODRCustomController
         if ($tracked_jobs !== null) {
             foreach ($tracked_jobs as $num => $tracked_job) {
                 $job = array();
+                $job['tracked_job_id'] = $tracked_job->getId();
+
+                if ($job_id !== 0 && $job['tracked_job_id'] !== $job_id)
+                    continue;
+
                 // ----------------------------------------
                 // Determine if user has privileges to view this job
                 $target_entity = $tracked_job->getTargetEntity();
@@ -186,12 +187,12 @@ class JobController extends ODRCustomController
                 $created = $tracked_job->getCreated();
                 $job['created_at'] = $created->format('Y-m-d H:i:s');
                 $job['created_by'] = $tracked_job->getCreatedBy()->getUserExtend()->getFirstName().' '.$tracked_job->getCreatedBy()->getUserExtend()->getLastName();
-                $job['description'] = $tracked_job->getDescription();
-//                $job['total'] = $tracked_job->getTotal();
-//                $job['current'] = $tracked_job->getCurrent();
                 $job['progress'] = array('total' => $tracked_job->getTotal(), 'current' => $tracked_job->getCurrent());
                 $job['tracked_job_id'] = $tracked_job->getId();
                 $job['eta'] = '...';
+
+                $additional_data = json_decode( $tracked_job->getAdditionalData(), true );
+                $job['description'] = $additional_data['description'];
 
                 // ----------------------------------------
                 if ( $tracked_job->getCompleted() == null ) {
@@ -259,8 +260,16 @@ class JobController extends ODRCustomController
             }
         }
 
-        // Return the job data
-        return $jobs;   // DON'T JSON_ENCODE HERE
+
+        // DON'T JSON_ENCODE HERE
+        if ($job_id == 0) {
+            // Return data for all jobs found
+            return $jobs;
+        }
+        else {
+            // User wanted specific job, don't wrap it in an array
+            return $jobs[0];
+        }
     }
 
 
@@ -292,6 +301,212 @@ class JobController extends ODRCustomController
         if ($seconds >= 1)
             $str .= $seconds.'s ';
 
-        return substr($str, 0, strlen($str)-1);
+        if ($str == '')
+            return '0s';
+        else
+            return substr($str, 0, strlen($str)-1);
     }
+
+
+    /**
+     * Builds and returns a JSON array of any TrackedError entities that exist for a given TrackedJob
+     * 
+     * @param integer $job_id Which TrackedJob to look at
+     * @param Request $request
+     *
+     * @return TODO
+     */
+    public function getjoberrorsAction($job_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Get necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            $repo_tracked_error = $em->getRepository('ODRAdminBundle:TrackedError');
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+            $return['d'] = parent::ODR_getTrackedErrorArray($em, $job_id);
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x34272215 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Deletes all TrackedErrors for a given TrackedJob
+     * 
+     * @param integer $job_id
+     * @param Request $request
+     *
+     * @return TODO
+     */
+    public function deletejoberrorsAction($job_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Get necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            $repo_tracked_error = $em->getRepository('ODRAdminBundle:TrackedError');
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'admin' ])) )   // TODO - probably needs to be changed...
+                return parent::permissionDeniedError("admin");
+            // --------------------
+
+
+            $tracked_job = $repo_tracked_job->find($job_id);
+            // Don't worry about a deleted TrackedJob...technically these TrackedErrors shouldn't exist anyways in that case
+//            if ($tracked_job == null)
+//                return parent::deletedEntityError('TrackedJob');
+
+            parent::ODR_deleteTrackedErrorsByJob($em, $job_id);
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x32791345 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Deletes a single TrackedJob entity
+     * 
+     * @param string $job_type 
+     * @param Request $request
+     *
+     * @return TODO
+     */
+    public function deletejobAction($job_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Get necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'admin' ])) )   // TODO - probably needs to be changed...
+                return parent::permissionDeniedError("admin");
+            // --------------------
+
+            // Delete any errors associated with this job
+            parent::ODR_deleteTrackedErrorsByJob($em, $job_id);
+
+            // Delete the job itself
+            $tracked_job = $repo_tracked_job->find($job_id);
+            if ($tracked_job !== null) {
+                $em->remove($tracked_job);
+                $em->flush();
+            }
+
+            // TODO 
+            $return['d'] = '';
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x32791345 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Deletes a single TrackedError entity...
+     * 
+     * @param string $job_type 
+     * @param Request $request
+     *
+     * @return TODO
+     */
+/*
+    public function deletetrackederrorAction($error_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Get necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $repo_tracked_error = $em->getRepository('ODRAdminBundle:TrackedError');
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'admin' ])) )    // TODO - probably needs to be changed
+                return parent::permissionDeniedError("admin");
+            // --------------------
+
+            $tracked_error = $repo_tracked_error->find($error_id);
+            if ($tracked_error !== null) {
+                $em->remove($tracked_error);
+                $em->flush();
+            }
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x32791345 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+*/
+
 }

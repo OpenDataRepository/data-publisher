@@ -817,10 +817,30 @@ odr_csv_import_layout:
     requirements:
         datatype_id: \d+
 
-odr_csv_import_process:
-    pattern: /edit/csv_import/process
-    defaults: { _controller: ODRAdminBundle:CSVImport:process }
+
+odr_csv_import_start_validate:
+    pattern: /edit/csv_import/start_validate
+    defaults: { _controller: ODRAdminBundle:CSVImport:startvalidate }
     requirements: { _method: POST }
+
+odr_csv_import_validate:
+    pattern: /beanstalk/csv_import/validate
+    defaults: { _controller: ODRAdminBundle:CSVImport:csvvalidate }
+    requirements: { _method: POST }
+
+odr_csv_import_validate_results:
+    pattern: /beanstalk/csv_import/validate_results/{tracked_job_id}
+    defaults: { _controller: ODRAdminBundle:CSVImport:validateresults }
+    requirements:
+        tracked_job_id: \d+
+
+
+odr_csv_import_start_worker:
+    pattern: /edit/csv_import/start_worker/{job_id}
+    defaults: { _controller: ODRAdminBundle:CSVImport:startworker }
+#    requirements: { _method: POST }
+    requirements:
+        job_id: \d+
 
 odr_csv_import_worker:
     pattern: /beanstalk/csv_import/worker
@@ -907,16 +927,42 @@ odr_csv_download:
         tracked_job_id: \d+
 
 #-----------------------------------------
-# JobController
+# Job Controller
 odr_job_list:
     pattern:  /jobs/list
     defaults: { _controller: ODRAdminBundle:Job:list }
 
 odr_job_refresh:
-    pattern:  /jobs/refresh/{job_type}
-    defaults: { _controller: ODRAdminBundle:Job:refresh }
+    pattern:  /jobs/refresh/{job_type}/{job_id}
+    defaults: { _controller: ODRAdminBundle:Job:refresh, job_id: 0 }
     requirements:
-        job_type: '|recache|migrate|mass_edit|rebuild_thumbnails|csv_import|csv_export'
+        job_type: '|recache|migrate|mass_edit|rebuild_thumbnails|csv_import|csv_import_validate|csv_export'
+        job_id: \d+
+
+odr_get_job_errors:
+    pattern:  /jobs/geterrors/{job_id}
+    defaults: { _controller: ODRAdminBundle:Job:getjoberrors }
+    requirements:
+        job_id: \d+
+
+odr_delete_job_errors:
+    pattern:  /jobs/delete_errors/{job_id}
+    defaults: { _controller: ODRAdminBundle:Job:deletejoberrors }
+    requirements:
+        job_id: \d+
+
+odr_delete_tracked_job:
+    pattern:  /jobs/delete_job/{job_id}
+    defaults: { _controller: ODRAdminBundle:Job:deletejob }
+    requirements:
+        job_id: \d+
+
+#odr_delete_tracked_error:
+#    pattern:  /jobs/delete_error/{error_id}
+#    defaults: { _controller: ODRAdminBundle:Job:deletetrackederror }
+#    requirements:
+#        error_id: \d+
+
 
 #-----------------------------------------
 # Other stuff

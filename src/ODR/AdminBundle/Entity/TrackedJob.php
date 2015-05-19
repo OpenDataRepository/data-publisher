@@ -40,11 +40,6 @@ class TrackedJob
     /**
      * @var string
      */
-    private $description;
-
-    /**
-     * @var string
-     */
     private $restrictions;
 
     /**
@@ -145,29 +140,6 @@ class TrackedJob
     public function getTargetEntity()
     {
         return $this->target_entity;
-    }
-
-    /**
-     * Set description
-     *
-     * @param string $description
-     * @return TrackedJob
-     */
-    public function setDescription($description)
-    {
-        $this->description = $description;
-
-        return $this;
-    }
-
-    /**
-     * Get description
-     *
-     * @return string 
-     */
-    public function getDescription()
-    {
-        return $this->description;
     }
 
     /**
@@ -445,5 +417,33 @@ class TrackedJob
     public function getStarted()
     {
         return $this->started;
+    }
+    /**
+     * @var string
+     */
+    private $additional_data;
+
+
+    /**
+     * Set additional_data
+     *
+     * @param string $additionalData
+     * @return TrackedJob
+     */
+    public function setAdditionalData($additionalData)
+    {
+        $this->additional_data = $additionalData;
+
+        return $this;
+    }
+
+    /**
+     * Get additional_data
+     *
+     * @return string 
+     */
+    public function getAdditionalData()
+    {
+        return $this->additional_data;
     }
 }

@@ -1,0 +1,22 @@
+{% spaceless %}
+
+<table class="ODRCSVImportErrors pure-table pure-table-striped">
+    <thead>
+        <tr>
+            <th>Line Number</th>
+            <th>Level</th>
+            <th>Message</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for error in error_messages %}
+        <tr>
+            <td>{{ error.error_body.line_num }}</td>
+            <td>{{ error.error_level }}</td>
+            <td>{{ error.error_body.message }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endspaceless %}

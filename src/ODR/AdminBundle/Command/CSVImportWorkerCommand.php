@@ -2,13 +2,14 @@
 
 /**
 * Open Data Repository Data Publisher
-* CSVExportWorker Command
+* CSVImportWorker Command
 * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
 *
 * This Symfony console command takes beanstalk jobs from the
-* csv_export_worker tube and passes the parameters to CSVExportController.
+* csv_import_worker tube and passes the parameters to CSVImportController
+* to import a line of data from a CSV file.
 *
 */
 
@@ -16,6 +17,7 @@ namespace ODR\AdminBundle\Command;
 
 //use Symfony\Component\Console\Command\Command;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+
 
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -26,15 +28,15 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-class CSVExportWorkerCommand extends ContainerAwareCommand
+class CSVImportWorkerCommand extends ContainerAwareCommand
 {
     protected function configure()
     {
         parent::configure();
 
         $this
-            ->setName('odr_csv_export:worker')
-            ->setDescription('Does the work of writing lines of CSV data to file');
+            ->setName('odr_csv_import:worker')
+            ->setDescription('Waits for an csv import request for a given datatype...');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -45,46 +47,41 @@ class CSVExportWorkerCommand extends ContainerAwareCommand
         $router = $container->get('router');
         $pheanstalk = $container->get('pheanstalk');
 
-        // TODO - generate a random number to use for identifying a file
-        $tokenGenerator = $container->get('fos_user.util.token_generator');
-        $random_id = substr($tokenGenerator->generateToken(), 0, 8);
-
         // Run command until manually stopped
         while (true) {
             $job = null;
             try {
                 // Wait for a job?
-                $job = $pheanstalk->watch('csv_export_worker')->ignore('default')->reserve();
+                $job = $pheanstalk->watch('csv_import_worker')->ignore('default')->reserve();
 
                 // Get Job Data
                 $data = json_decode($job->getData());
 
                 // 
-//                $str = 'CSVExportWorker request for DataType '.$data->datatype_id.' from '.$data->memcached_prefix.'...';
-                $str = 'CSVExportWorker request for DataRecord '.$data->datarecord_id.'...';
+                $str = 'CSV Import request for DataType '.$data->datatype_id.' from '.$data->memcached_prefix.'...';
 
                 $current_time = new \DateTime();
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );                
                 $output->writeln($str);
-//                $logger->info('CSVExportStartCommand.php: '.$str);
+                $logger->info('CSVImportWorkerCommand.php: '.$str);
 
                 // Need to use cURL to send a POST request...thanks symfony
                 $ch = curl_init();
 
 $output->writeln($data->url);
 
-                // TODO - determine filename
-                $random_key = $random_id.'_'.$data->datatype_id.'_'.$data->tracked_job_id;
-
                 // Create the required url and the parameters to send
                 $parameters = array(
                     'tracked_job_id' => $data->tracked_job_id,
                     'user_id' => $data->user_id,
-                    'delimiter' => $data->delimiter,
-                    'line' => $data->line,
-                    'datafields' => $data->datafields,
-                    'random_key' => $random_key,
+                    'datatype_id' => $data->datatype_id,
+
                     'api_key' => $data->api_key,
+
+                    'external_id_column' => $data->external_id_column,
+                    'column_delimiters' => $data->column_delimiters,
+                    'mapping' => $data->mapping,
+                    'line' => $data->line,
                 );
 
                 // Set the options for the POST request
@@ -117,7 +114,7 @@ $output->writeln($data->url);
                     // Should always be a json return...
                     throw new \Exception( print_r($ret, true) );
                 }
-//$logger->debug('CSVExportExportCommand.php: curl results...'.print_r($result, true));
+//$logger->debug('CSVImportWorkerCommand.php: curl results...'.print_r($result, true));
 
                 // Done with this cURL object
                 curl_close($ch);
@@ -128,7 +125,7 @@ $output->writeln($data->url);
             }
             catch (\Exception $e) {
                 $output->writeln($e->getMessage());
-                $logger->err('CSVExportWorkerCommand.php: '.$e->getMessage());
+                $logger->err('CSVImportWorkerCommand.php: '.$e->getMessage());
 
                 // Delete the job so the queue doesn't hang, in theory
                 $pheanstalk->delete($job);

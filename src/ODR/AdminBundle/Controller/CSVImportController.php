@@ -17,6 +17,7 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entites
+use ODR\AdminBundle\Entity\TrackedError;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
@@ -93,6 +94,9 @@ class CSVImportController extends ODRCustomController
             // --------------------
             // TODO - better way of handling this, if possible
             // Block csv imports if there's already one in progress for this datatype
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
                 throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
@@ -127,6 +131,10 @@ class CSVImportController extends ODRCustomController
                     array(
                         'datatype' => $datatype,
                         'form' => $form->createView(),
+
+                        'presets' => null,
+                        'errors' => null,
+                        'allow_import' => false,
                     )
                 )
             );
@@ -164,6 +172,7 @@ class CSVImportController extends ODRCustomController
             $post = $_POST;
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $session = $request->getSession();
 
             $datatype = $repo_datatype->find($datatype_id);
             if ( $datatype == null )
@@ -184,6 +193,9 @@ class CSVImportController extends ODRCustomController
             // --------------------
             // TODO - better way of handling this, if possible
             // Block csv imports if there's already one in progress for this datatype
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
                 throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
@@ -191,6 +203,35 @@ class CSVImportController extends ODRCustomController
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
                 throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+
+
+            // --------------------
+            // Store the desired delimiter in user's session
+            $csv_delimiter = $post['csv_delimiter'];
+            switch ($csv_delimiter) {
+                case 'tab':
+                    $csv_delimiter = "\t";
+                    break;
+                case 'space':
+                    $csv_delimiter = " ";
+                    break;
+                case 'comma':
+                    $csv_delimiter = ",";
+                    break;
+                case 'semicolon':
+                    $csv_delimiter = ";";
+                    break;
+                case 'colon':
+                    $csv_delimiter = ":";
+                    break;
+                case 'pipe':
+                    $csv_delimiter = "|";
+                    break;
+                default:
+                    throw new \Exception('Invalid Form');
+                    break;
+            }
+            $session->set('csv_delimiter', $csv_delimiter);
 
 
             // --------------------
@@ -216,7 +257,6 @@ class CSVImportController extends ODRCustomController
 
 
             // Store the filename in the user's session
-            $session = $request->getSession();
             if ( $session->has('csv_file') ) {
                 // delete the old file?
                 $filename = $session->get('csv_file');
@@ -226,31 +266,6 @@ class CSVImportController extends ODRCustomController
                 $session->remove('csv_file');
             }
             $session->set('csv_file', $tmp_filename.'.csv');
-
-
-            // Store the desired delimiter in user's session
-            $csv_delimiter = $post['csv_delimiter'];
-            switch ($csv_delimiter) {
-                case 'tab':
-                    $csv_delimiter = "\t";
-                    break;  
-                case 'space':
-                    $csv_delimiter = " ";
-                    break;
-                case 'comma':
-                    $csv_delimiter = ",";
-                    break;
-                case 'semicolon':
-                    $csv_delimiter = ";";
-                    break;
-                case 'colon':
-                    $csv_delimiter = ":";
-                    break;
-                case 'pipe':
-                    $csv_delimiter = "|";
-                    break;
-            }
-            $session->set('csv_delimiter', $csv_delimiter);
 
             // the iframe that uploaded the file will fire off another ajax call to layoutAction
         }
@@ -307,6 +322,9 @@ class CSVImportController extends ODRCustomController
             // --------------------
             // TODO - better way of handling this, if possible
             // Block csv imports if there's already one in progress for this datatype
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
                 throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
@@ -330,7 +348,7 @@ class CSVImportController extends ODRCustomController
 //exit();
 
             // Grab the FieldTypes that the csv importer can read data into
-            // TODO - any other fieldtypes?
+            // TODO - naming fieldtypes by number
             $fieldtype_array = array(
                 1, // boolean
 //                2, // file
@@ -342,9 +360,9 @@ class CSVImportController extends ODRCustomController
                 8, // single radio
                 9, // short varchar
                 11, // datetime
-//                13, // multiple radio
+                13, // multiple radio
                 14, // single select
-//                15, // multiple select
+                15, // multiple select
                 16, // decimal
 //                17, // markdown
             );
@@ -359,79 +377,98 @@ class CSVImportController extends ODRCustomController
             $csv_filename = $session->get('csv_file');
             $delimiter = $session->get('csv_delimiter');
 
+            // Apparently SplFileObject doesn't do this before opening the file...
+            ini_set('auto_detect_line_endings', TRUE);
+
             $csv_file = new \SplFileObject( $csv_import_path.$csv_filename );
+
+            // TODO - detect/block bad file uploads
+
             $reader = new CsvReader($csv_file, $delimiter);
-            $reader->setHeaderRowNumber(0);
+            $reader->setHeaderRowNumber(0);     // want associative array for the column names
 
             // Get the first row of the csv file
             $line_num = 1;
             $first_row = array();
-            $json_errors = array();
+            $encoding_errors = array();
+
             foreach ($reader as $row) {
                 $line_num++;
 
                 // Save the contents of the header row so column names can be extracted
-                $first_row = $row;
+                if ($line_num == 2)
+                    $first_row = $row;
 
                 // Loop through the rest of the file...this will let the CsvReader pick up some of the possible errors
 //                break;
 
-                // Attempt to json_encode each line to catch utf-8 errors here
-                $result = json_encode($row);
-
-                switch (json_last_error()) {
-                    case JSON_ERROR_NONE:
-                    break;
-                    case JSON_ERROR_CTRL_CHAR:
-                        $json_errors['Unexpected control character found'][] = $line_num;
-                    break;
-                    case JSON_ERROR_UTF8:
-                        $json_errors['Malformed UTF-8 characters'][] = $line_num;
-                    break;
-                    default:
-                        $json_errors['Unknown error'][] = $line_num;
-                    break;
+                // TODO - this eventually needs to be done via beanstalk
+                foreach ($row as $col_name => $col_data) {
+                    // Check each piece of data for encoding errors
+                    if ( mb_check_encoding($col_data, "utf-8") == false )       // this check needs to be performed prior to a json_encode
+                        $encoding_errors[$line_num][] = $col_name;
                 }
             }
 
-            // TODO - better error messages?
-            // TODO - more strenuous error checking?
-            if ( count($json_errors) > 0 ) {
-                $str = '';
-                foreach($json_errors as $error => $lines) {
-                    $str .= '"'.$error.'" on lines ';
-                    foreach ($lines as $key => $line)
-                        $str .= $line.',';
-                    $str .= "\n\n";
-                }
-                throw new \Exception($str);
-            }
-            else if (count($reader->getErrors()) > 0 ) {
-//                $errors = print_r($reader->getErrors(), true);
-//                throw new \Exception( $errors );
-
-                throw new \Exception('Error while attempting to read column names...');
-            }
-
+//print_r($encoding_errors);
 
             // Grab column names from first row
             $columns = array();
             foreach ($first_row as $column => $value)
                 $columns[] = $column;
 
+
+            // Notify of "syntax" errors in the csv file
+            $error_messages = array();
+            if ( count($encoding_errors) > 0 || count($reader->getErrors()) > 0 ) {
+
+                // Warn about invalid encoding
+                foreach ($encoding_errors as $line_num => $errors) {
+                    $str = ' the column "'.$errors[0].'"';
+                    if ( count($errors) > 1 )
+                        $str = ' the columns '.implode('", "', $errors);
+
+                    $error_messages[] = array( 'error_level' => 'Error', 'error_body' => array('line_num' => $line_num, 'message' => 'Invalid UTF-8 character in'.$str) );
+                }
+
+                // Warn about wrong number of columns
+                foreach ($reader->getErrors() as $line_num => $errors) {
+                    $error_messages[] = array( 'error_level' => 'Error', 'error_body' => array('line_num' => $line_num, 'message' => 'Found '.count($errors).' columns on this line, expected '.count($columns)) );
+                }
+            }
+
+//print_r($error_messages);
+
+
             // Render the page
             $templating = $this->get('templating');
-            $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:CSVImport:layout.html.twig',
-                    array(
-                        'columns' => $columns,
-                        'datatype' => $datatype,
-                        'datafields' => $datafields,
-                        'fieldtypes' => $fieldtypes,
+            if ( count($error_messages) == 0 ) {
+                // If no errors, render the column/datafield/fieldtype selection page
+                $return['d'] = array(
+                    'html' => $templating->render(
+                        'ODRAdminBundle:CSVImport:layout.html.twig',
+                        array(
+                            'columns' => $columns,
+                            'datatype' => $datatype,
+                            'datafields' => $datafields,
+                            'fieldtypes' => $fieldtypes,
+
+                            'presets' => null,
+                        )
                     )
-                )
-            );
+                );
+            }
+            else {
+                // If errors found, render a table listing which errors are found on what line
+                $return['d'] = array(
+                    'html' => $templating->render(
+                        'ODRAdminBundle:CSVImport:errors.html.twig',
+                        array(
+                            'error_messages' => $error_messages,
+                        )
+                    )
+                );
+            }
 
         }
         catch (\Exception $e) {
@@ -489,13 +526,13 @@ class CSVImportController extends ODRCustomController
 
 
     /**
-     * Reads a $_POST request for importing a CSV file, and creates a pheanstalk job to import each line in the file.
+     * Reads a $_POST request for importing a CSV file, and creates a beanstalk job to validate each line in the file.
      *
      * @param Request $request
      *
      * @return an empty Symfony JSON response, unless an error occurred.
      */
-    public function processAction(Request $request) {
+    public function startvalidateAction(Request $request) {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -508,10 +545,26 @@ class CSVImportController extends ODRCustomController
             if ( !isset($post['datafield_mapping']) || !isset($post['datatype_id']) )
                 throw new \Exception('Invalid Form');
 
+            // --------------------
             // Pull data from the post
             $datafield_mapping = $post['datafield_mapping'];
             $datatype_id = $post['datatype_id'];
 
+            // Grab fieldtype mapping for datafields this import is going to create, if the user chose to create new datafields
+            $fieldtype_mapping = null;
+            if ( isset($post['fieldtype_mapping']) )
+                $fieldtype_mapping = $post['fieldtype_mapping'];
+            // Grab which column was designated for use as an external_id, if possible
+            $external_id_column = null;
+            if ( isset($post['external_id_column']) )
+                $external_id_column = $post['external_id_column'];
+            // Get secondary delimiters to use for multiple select/radio columns, if they exist
+            $column_delimiters = array();
+            if ( isset($post['column_delimiters']) )
+                $column_delimiters = $post['column_delimiters'];
+
+
+            // --------------------
             // Load symfony objects
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
@@ -523,7 +576,7 @@ class CSVImportController extends ODRCustomController
 
             $router = $this->get('router');
             $url = $this->container->getParameter('site_baseurl');
-            $url .= $router->generate('odr_csv_import_worker');
+            $url .= $router->generate('odr_csv_import_validate');
 
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
@@ -531,7 +584,8 @@ class CSVImportController extends ODRCustomController
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
 
             $datatype = $repo_datatype->find($datatype_id);
-
+            if ($datatype == null)
+                throw new \Exception('Invalid Form');
 
             // --------------------
             // Determine user privileges
@@ -547,6 +601,9 @@ class CSVImportController extends ODRCustomController
             // --------------------
             // TODO - better way of handling this, if possible
             // Block csv imports if there's already one in progress for this datatype
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
                 throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
@@ -557,22 +614,70 @@ class CSVImportController extends ODRCustomController
 
 
             // --------------------
-            // Grab fieldtype mapping for datafields this import is going to create, if the user chose to create new datafields
-            $fieldtype_mapping = null;
-            if ( isset($post['fieldtype_mapping']) )
-                $fieldtype_mapping = $post['fieldtype_mapping'];
-            // Grab which column was designated for use as an external_id, if possible
-            $external_id_column = null;
-            if ( isset($post['external_id_column']) )
-                $external_id_column = $post['external_id_column'];
+            // Ensure that the datatype/fieldtype mappings and secondary column delimiters work
+            $fieldtype_mapping = array();
+            foreach ($datafield_mapping as $col_num => $datafield_id) {
+                if ($datafield_id == 'new') {
+                    // Since a new datafield will be created, ensure fieldtype exists
+                    if ( $fieldtype_mapping == null || !isset($fieldtype_mapping[$col_num]) )
+                        throw new \Exception('Invalid Form a');
 
+                    // If new datafield is multiple select/radio, ensure secondary delimiters exist
+                    if ($fieldtype_mapping[$col_num] == 13 || $fieldtype_mapping[$col_num] == 15) {   // TODO - naming fieldtypes by number
+                        if ( $column_delimiters == null || !isset($column_delimiters[$col_num]) )
+                            throw new \Exception('Invalid Form b');
+                    }
+                }
+                else {
+                    // Ensure datafield exists
+                    $datafield = $repo_datafield->find($datafield_id);
+                    if ($datafield == null)
+                        throw new \Exception('Invalid Form c');
+
+                    // Ensure fieldtype mapping entry exists
+                    $fieldtype_mapping[$col_num] = $datafield->getFieldType()->getId();
+
+                    // If datafield is a multiple select/radio field, ensure secondary delimiters exist
+                    $typename = $datafield->getFieldType()->getTypeName();
+                    if ($typename == "Multiple Select" || $typename == "Multiple Radio") {
+                        if ( $column_delimiters == null || !isset($column_delimiters[$col_num]) )
+                            throw new \Exception('Invalid Form d');
+                    }
+                }
+            }
+
+//return;
+
+            // ----------------------------------------
+            // Convert any secondary delimiters into character format
+            foreach ($column_delimiters as $df_id => $delimiter) {
+                switch ($delimiter) {
 /*
-print "External ID Column: ".$external_id_column."\n";
-print_r($datafield_mapping);
-print "\n";
-print_r($fieldtype_mapping);
-return;
+                    case 'tab':
+                        $column_delimiters[$df_id] = "\t";
+                        break;
+                    case 'space':
+                        $column_delimiters[$df_id] = " ";
+                        break;
+                    case 'comma':
+                        $column_delimiters[$df_id] = ",";
+                        break;
 */
+                    case 'semicolon':
+                        $column_delimiters[$df_id] = ";";
+                        break;
+                    case 'colon':
+                        $column_delimiters[$df_id] = ":";
+                        break;
+                    case 'pipe':
+                        $column_delimiters[$df_id] = "|";
+                        break;
+                    default:
+                        throw new \Exception('Invalid Form');
+                        break;
+                }
+            }
+
 
             // ------------------------------
             // Attempt to load csv file
@@ -583,9 +688,12 @@ return;
             $csv_filename = $session->get('csv_file');
             $delimiter = $session->get('csv_delimiter');
 
+            // Apparently SplFileObject doesn't do this before opening the file...
+            ini_set('auto_detect_line_endings', TRUE);
+
             $csv_file = new \SplFileObject( $csv_import_path.$csv_filename );
             $reader = new CsvReader($csv_file, $delimiter);
-//            $reader->setHeaderRowNumber(0);   // don't want associative array
+//            $reader->setHeaderRowNumber(0);   // don't want associative array, want actual names for $column_names
 
             // Grab headers from csv file incase a new datafield is created
             $headers = array();
@@ -594,25 +702,666 @@ return;
                 break;
             }
 
+            // Grab column names from first row
+            $column_names = array();
+            foreach ($headers as $column => $value)
+                $column_names[] = $value;
+
+//return;
+
+
+            // ----------------------------------------
+            // Compile all the data required for this csv import to store in the tracked job entity 
+            $additional_data = array(
+                'description' => 'Validating csv import data for DataType '.$datatype_id.'...',
+
+                'csv_filename' => $csv_filename,
+                'delimiter' => $delimiter,
+                'external_id_column' => $external_id_column,
+                'datafield_mapping' => $datafield_mapping,
+                'fieldtype_mapping' => $fieldtype_mapping,
+                'column_delimiters' => $column_delimiters,
+            );
+
+            // ----------------------------------------
+            // Get/create an entity to track the progress of this csv import
+            $job_type = 'csv_import_validate';
+            $target_entity = 'datatype_'.$datatype->getId();
+            $restrictions = '';
+            $total = ($reader->count() - 1);
+            $reuse_existing = false;
+//$reuse_existing = true;
+
+            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
+            $tracked_job_id = $tracked_job->getId();
+
+
+            // ------------------------------
             // If a column is marked as the external id column, go through and ensure that there are no duplicate values in that column
+            $need_flush = false;
+            $error_messages = array();
             if ($external_id_column !== null) {
-                $count = 0;
+
+                $line_num = 0;
                 $external_ids = array();
                 foreach ($reader as $row) {
-                    $count++;
+                    $line_num++;
                     $value = $row[$external_id_column];
                     if ( isset($external_ids[$value]) ) {
-                        // duplicate value, complain and abort
-                        throw new \Exception( 'Column '.$external_id_column.' ("'.$headers[$external_id_column].'") has a duplicate value "'.$value.'", on at least lines '.$external_ids[$value].' and '.$count );
+                        // Encountered duplicate value
+                        $error = array( 'line_num' => $line_num, 'message' => 'The field "'.$column_names[$external_id_column].'" is supposed to be unique, but value is a duplicate of line '.$external_ids[$value] );
+//print_r($error);
+
+                        // TODO - ...any way to make this use beanstalk?  don't really want it inline, but the checks for this error can't really be broken apart...
+                        $tracked_error = new TrackedError();
+                        $tracked_error->setTrackedJob($tracked_job);
+                        $tracked_error->setErrorLevel('Error');
+                        $tracked_error->setErrorBody( json_encode($error) );
+                        $tracked_error->setCreatedBy( $user );
+
+                        $need_flush = true;
+                        $em->persist($tracked_error);
                     }
                     else {
                         // ...otherwise, not found, just store the value
-                        $external_ids[$value] = $count;
+                        $external_ids[$value] = $line_num;
                     }
                 }
             }
 
-//print_r($headers);
+//$need_flush = false;
+            if ($need_flush)
+                $em->flush();
+
+
+            // ------------------------------
+            // Create a beanstalk job for each row of the csv file
+            $count = 0;
+            foreach ($reader as $row) {
+                // Skip first row
+                $count++;
+                if ($count == 1)
+                    continue;
+
+                // Queue each line for validation by a worker process...
+                $payload = json_encode(
+                    array(
+                        'tracked_job_id' => $tracked_job_id,
+                        'datatype_id' => $datatype->getId(),
+                        'user_id' => $user->getId(),
+
+                        'column_names' => $column_names,
+//                        'external_id_column' => $external_id_column,
+                        'datafield_mapping' => $datafield_mapping,
+                        'fieldtype_mapping' => $fieldtype_mapping,
+                        'column_delimiters' => $column_delimiters,
+                        'line_num' => $count,
+                        'line' => $row,
+
+                        'api_key' => $beanstalk_api_key,
+                        'url' => $url,
+                        'memcached_prefix' => $memcached_prefix,    // debug purposes only
+                    )
+                );
+
+                $pheanstalk->useTube('csv_import_validate')->put($payload);
+            }
+
+            $return['d'] = array('tracked_job_id' => $tracked_job_id);
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x232815634 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Called by worker processes to validate the data from each line of a CSV file
+     *
+     * @param Request $request
+     *
+     * @return TODO
+     */
+    public function csvvalidateAction(Request $request) {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+//print_r($post);
+//return;
+
+            if ( !isset($post['tracked_job_id']) || !isset($post['datatype_id']) || !isset($post['user_id'])
+                || !isset($post['column_names']) || !isset($post['datafield_mapping']) /*|| !isset($post['fieldtype_mapping'])*/ /*|| !isset($post['column_delimiters'])*/ 
+                || !isset($post['line_num']) || !isset($post['line']) || !isset($post['api_key']) ) {
+
+                throw new \Exception('Invalid job data');
+            }
+
+            // Pull data from the post
+            $tracked_job_id = $post['tracked_job_id'];
+            $column_names = $post['column_names'];
+            $datafield_mapping = $post['datafield_mapping'];
+            $line_num = $post['line_num'];
+            $line = $post['line'];
+            $datatype_id = $post['datatype_id'];
+            $user_id = $post['user_id'];
+            $api_key = $post['api_key'];
+
+            // Have to pull these separately because they might not exist
+            $fieldtype_mapping = array();
+            if ( isset($post['fieldtype_mapping']) )
+                $fieldtype_mapping = $post['fieldtype_mapping'];
+            $column_delimiters = array();
+            if ( isset($post['column_delimiters']) )
+                $column_delimiters = $post['column_delimiters'];
+
+            // Load symfony objects
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->get('pheanstalk');
+            $logger = $this->get('logger');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+
+            $em = $this->getDoctrine()->getManager();
+            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
+            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid job data');
+
+
+            $user = $repo_user->find($user_id);
+
+            // ----------------------------------------
+            // Attempt to validate each line of data against the desired datafield/fieldtype mapping
+            $need_flush = false;
+            foreach ($datafield_mapping as $column_num => $datafield_id) {
+                $value = trim( $line[$column_num] );
+                $length = mb_strlen($value, "utf-8");   // TODO - right function to use?
+
+                // Get typeclass of what this data will be imported into
+                $fieldtype = null;
+                if ($datafield_id == 'new')
+                    $fieldtype = $repo_fieldtype->find( $fieldtype_mapping[$column_num] );
+                else
+                    $fieldtype = $repo_datafield->find( $datafield_id )->getFieldType();
+
+                $error_level = 'Warning';
+                $error_body = array();
+                $typeclass = $fieldtype->getTypeClass();
+                switch ($typeclass) {
+                    case "Boolean":
+                        // TODO
+                        break;
+
+                    case "File":
+                    case "Image":
+                        // TODO 
+                        break;
+                    
+                    case "IntegerValue":
+                        if ($value !== '') {
+                            // Warn about invalid characters in an integer conversion
+                            $int_value = intval( $value );
+                            if ( strval($int_value) != $value )
+                                $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", but will be converted to the integer value "'.strval($int_value).'"' );
+                        }
+                        break;
+                    case "DecimalValue":
+                        if ($value !== '') {
+                            $float_value = floatval( $value );
+                            if ( strval($float_value) != $value ) 
+                                $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", but will be converted to the floating-point value "'.strval($float_value).'"' );
+                        }
+                        break;
+
+                    case "DatetimeValue":
+                        // TODO
+                        break;
+
+                    case "ShortVarchar":
+                        if ($length > 32) 
+                            $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a ShortVarchar field can only store 32 characters' );
+                        break;
+                    case "MediumVarchar":
+                        if ($length > 64)
+                            $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a MediumVarchar field can only store 64 characters' );
+                        break;
+                    case "LongVarchar":
+                        if ($length > 255)
+                            $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a LongVarchar field can only store 255 characters' );
+                        break;
+                    case "LongText":
+                        /* do nothing? */
+                        break;
+
+                    case "Radio":
+                        // Don't attempt to validate an empty string...there's just no options selected
+                        if ( $value == '' )
+                            break;
+
+                        if ( isset($column_delimiters[$column_num]) ) {
+                            // Due to validation in self::processAction(), this will exist when the datafield is a multiple select/radio...it won't exist if the datafield is a single select/radio
+
+                            // Check length of each option?
+                            $options = explode( $column_delimiters[$column_num], $value );
+                            foreach ($options as $option) {
+                                $option = trim($option);
+                                $option_length = mb_strlen($option, "utf-8");
+                                if ( $option_length == 0 )
+                                    $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" would create a blank radio option during import...' );
+                                else if ( $option_length > 64 )
+                                    $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 64 characters' );
+                            }
+                        }
+                        else {
+                            // Check length of option
+                            if ($length > 64)
+                                $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 64 characters' );
+                        }
+                        break;
+                }
+
+                if ( count($error_body) > 0 ) {
+//print_r($error_body);
+                    $tracked_error = new TrackedError();
+                    $tracked_error->setErrorLevel( $error_level );
+                    $tracked_error->setErrorBody( json_encode($error_body) );
+                    $tracked_error->setTrackedJob( $repo_tracked_job->find($tracked_job_id) );
+                    $tracked_error->setCreatedBy( $user );
+
+                    $em->persist($tracked_error);
+                    $need_flush = true;
+                }
+            }
+
+//$need_flush = false;
+            if ($need_flush)
+                $em->flush();
+
+            // ----------------------------------------
+            // Update the job tracker if necessary
+            if ($tracked_job_id !== -1) {
+                $tracked_job = $repo_tracked_job->find($tracked_job_id);
+
+                $total = $tracked_job->getTotal();
+                $count = $tracked_job->incrementCurrent($em);
+
+                if ($count >= $total)
+                    $tracked_job->setCompleted( new \DateTime() );
+
+                $em->persist($tracked_job);
+                $em->flush();
+            }
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x223285634 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Renders a page displaying results of csv validation
+     *
+     * @param integer $tracked_job_id
+     * @param Request $request
+     *
+     * @return a Symfony JSON response containing HTML TODO
+     */
+    public function validateresultsAction($tracked_job_id, Request $request) {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // ------------------------------
+            // Get necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
+            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            $repo_tracked_error = $em->getRepository('ODRAdminBundle:TrackedError');
+            $templating = $this->get('templating');
+
+
+            // ------------------------------
+            $tracked_job = $repo_tracked_job->find($tracked_job_id);
+            if ($tracked_job == null)
+                return parent::deletedEntityError('TrackedJob');
+            if ( $tracked_job->getJobType() !== "csv_import_validate" )
+                return parent::deletedEntityError('TrackedJob');
+
+            $presets = json_decode( $tracked_job->getAdditionalData(), true );
+            $target_entity = $tracked_job->getTargetEntity();
+            $tmp = explode('_', $target_entity);
+            $datatype_id = $tmp[1];
+
+            $datatype = $repo_datatype->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('DataType');
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+                return parent::permissionDeniedError("edit");
+
+            // TODO - permissions check may need to be more involved than just checking whether the user accessing this can edit the datatype...
+            // --------------------
+
+
+            // --------------------
+            // TODO - better way of handling this, if possible
+            // Block csv imports if there's already one in progress for this datatype
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+            // Also block if there's a datafield migration in place
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+
+
+            // --------------------
+            // Grab all datafields belonging to that datatype
+//            $datafields = $datatype->getDataFields();
+            $query = $em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields AS df
+                WHERE df.dataType = :datatype AND df.deletedAt IS NULL
+                ORDER BY df.fieldName'
+            )->setParameters( array('datatype' => $datatype->getId()) );
+            $datafields = $query->getResult();
+//print_r($results);
+//exit();
+
+            // --------------------
+            // Grab the FieldTypes that the csv importer can read data into
+            // TODO - naming fieldtypes by number
+            $fieldtype_array = array(
+                1, // boolean
+//                2, // file
+//                3, // image
+                4, // integer
+                5, // paragraph text
+                6, // long varchar
+                7, // medium varchar
+                8, // single radio
+                9, // short varchar
+                11, // datetime
+                13, // multiple radio
+                14, // single select
+                15, // multiple select
+                16, // decimal
+//                17, // markdown
+            );
+            $fieldtypes = $repo_fieldtype->findBy( array('id' => $fieldtype_array) );
+
+            // ----------------------------------------
+            // Convert any secondary delimiters into word format
+            foreach ($presets['column_delimiters'] as $df_id => $delimiter) {
+                switch ($delimiter) {
+/*
+                    case "\t":
+                        $presets['column_delimiters'][$df_id] = "tab";
+                        break;
+                    case ' ':
+                        $presets['column_delimiters'][$df_id] = "space";
+                        break;
+                    case ',':
+                        $presets['column_delimiters'][$df_id] = "comma";
+                        break;
+*/
+                    case ';':
+                        $presets['column_delimiters'][$df_id] = "semicolon";
+                        break;
+                    case ':':
+                        $presets['column_delimiters'][$df_id] = "colon";
+                        break;
+                    case '|':
+                        $presets['column_delimiters'][$df_id] = "pipe";
+                        break;
+                    default:
+                        throw new \Exception('Invalid Form');
+                        break;
+                }
+            }
+
+
+            // --------------------
+            // Read column names from the file
+            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
+            $csv_filename = $presets['csv_filename'];
+            $delimiter = $presets['delimiter'];
+
+            // Apparently SplFileObject doesn't do this before opening the file...
+            ini_set('auto_detect_line_endings', TRUE);
+
+            $csv_file = new \SplFileObject( $csv_import_path.$csv_filename );
+            $reader = new CsvReader($csv_file, $delimiter);
+            $reader->setHeaderRowNumber(0);     // want associative array
+
+            // Get the first row of the csv file
+            $line_num = 1;
+            $first_row = array();
+            foreach ($reader as $row) {
+                $line_num++;
+
+                // Save the contents of the header row so column names can be extracted
+                if ($line_num == 2) {
+                    $first_row = $row;
+                    break;
+                }
+            }
+
+            // Grab column names from first row
+            $columns = array();
+            foreach ($first_row as $column => $value)
+                $columns[] = $column;
+
+
+            // ------------------------------
+            // Get any errors reported for this job
+            $error_messages = parent::ODR_getTrackedErrorArray($em, $tracked_job_id);
+
+            // If some sort of serious error encountered, prevent importing?
+            $allow_import = true;
+            foreach ($error_messages as $message) {
+                if ( $message['error_level'] == 'Error' )
+                    $allow_import = false;
+            }
+
+//print_r($error_messages);
+//print_r($presets);
+//return;
+
+            // Render the page...
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:CSVImport:import.html.twig',
+                    array(
+                        'datatype' => $datatype,
+//                        'form' => $form->createView(),
+                        'form' => null,
+
+                        'presets' => $presets,
+                        'errors' => $error_messages,
+
+                        // These get passed to layout.html.twig
+                        'columns' => $columns,
+                        'datatype' => $datatype,
+                        'datafields' => $datafields,
+                        'fieldtypes' => $fieldtypes,
+
+                        'tracked_job_id' => $tracked_job_id,
+                        'allow_import' => $allow_import,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x469855647 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Given the id of a completed csv_import_validate job, begins the process of a csv import by creating a beanstalk job to import each line in the csv file.
+     *
+     * @param integer $job_id
+     * @param Request $request
+     *
+     * @return an empty Symfony JSON response, unless an error occurred.
+     */
+    public function startworkerAction($job_id, Request $request) {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // ------------------------------
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
+
+            // ------------------------------
+            // Load the data from the finished validation job
+            $tracked_job = $repo_tracked_job->find($job_id);
+            if ($tracked_job->getCompleted() == null)
+                throw new \Exception('Invalid job');
+
+            $job_data = json_decode( $tracked_job->getAdditionalData(), true );
+            $target_entity = $tracked_job->getTargetEntity();
+            $tmp = explode('_', $target_entity);
+            $datatype_id = $tmp[1];
+
+            $datatype = $repo_datatype->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('DataType');
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+                return parent::permissionDeniedError("edit");
+
+            // TODO - permissions check may need to be more involved than just checking whether the user accessing this can edit the datatype...
+            // --------------------
+
+
+            // --------------------
+            // TODO - better way of handling this, if possible
+            // Block csv imports if there's already one in progress for this datatype
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
+            // Also block if there's a datafield migration in place
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null)
+                throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
+
+            // Not going to need any of the TrackedError entries for this job anymore, get rid of them
+            parent::ODR_deleteTrackedErrorsByJob($em, $job_id);
+
+            // ------------------------------
+            // Load symfony objects
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->get('pheanstalk');
+            $logger = $this->get('logger');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $session = $request->getSession();
+
+            $router = $this->get('router');
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_csv_import_worker');
+
+            // ------------------------------
+            // Extract data from the tracked job
+            $external_id_column = intval($job_data['external_id_column']);
+            $datafield_mapping = $job_data['datafield_mapping'];
+            $fieldtype_mapping = $job_data['fieldtype_mapping'];
+            $column_delimiters = $job_data['column_delimiters'];
+
+//print_r($job_data);
+//return;
+
+            // --------------------
+            // Read column names from the file
+            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
+            $csv_filename = $job_data['csv_filename'];
+            $delimiter = $job_data['delimiter'];
+
+            // Apparently SplFileObject doesn't do this before opening the file...
+            ini_set('auto_detect_line_endings', TRUE);
+
+            $csv_file = new \SplFileObject( $csv_import_path.$csv_filename );
+            $reader = new CsvReader($csv_file, $delimiter);
+            $reader->setHeaderRowNumber(0);     // want associative array
+
+            // Get the first row of the csv file
+            $line_num = 1;
+            $first_row = array();
+            foreach ($reader as $row) {
+                $line_num++;
+
+                // Save the contents of the header row so column names can be extracted
+                if ($line_num == 2) {
+                    $first_row = $row;
+                    break;
+                }
+            }
+
+            // Grab column names from first row
+            $column_names = array();
+            foreach ($first_row as $column => $value)
+                $column_names[] = $column;
+
+//print_r($column_names);
 //return;
 
             // ------------------------------
@@ -630,10 +1379,10 @@ return;
                     if ($datafield == null)
                         throw new \Exception('Invalid Form');
 
-//print 'loaded existing datafield'."\n";
+//print 'loaded existing datafield '.$datafield_id."\n";
                     $logger->notice('Using existing datafield '.$datafield->getId().' "'.$datafield->getFieldName().'" for csv import of datatype '.$datatype->getId().' by '.$user->getId());
                 }
-                else {
+                else {  // $datafield_id == 'new'
                     // Grab desired fieldtype from post
                     if ( $fieldtype_mapping == null )
                         throw new \Exception('Invalid Form');
@@ -645,10 +1394,9 @@ return;
                     // Create new datafield
                     $datafield = parent::ODR_addDataFieldsEntry($em, $user, $datatype, $fieldtype, $render_plugin);
                     $created = true;
-//print 'created new datafield of fieldtype "'.$fieldtype->getTypeName().'"'."\n";
 
                     // Set the datafield's name, then persist/reload it
-                    $datafield->setFieldName( $headers[$column_id] );
+                    $datafield->setFieldName( $column_names[$column_id] );
                     $em->persist($datafield);
                     $em->flush($datafield);     // required, or can't get id
                     $em->refresh($datafield);
@@ -656,6 +1404,7 @@ return;
                     $new_datafields[] = $datafield;
 
                     $logger->notice('Created new datafield '.$datafield->getId().' "'.$datafield->getFieldName().'" for csv import of datatype '.$datatype->getId().' by '.$user->getId());
+//print 'created new datafield of fieldtype "'.$fieldtype->getTypeName().'" with name "'.$column_names[$column_id].'"'."\n";
                 }
 
                 // Store ID of target datafield
@@ -681,18 +1430,42 @@ return;
 /*
 print 'datafield mapping: ';
 print_r($new_mapping);
-return;
 */
+//return;
+
+
+            // ----------------------------------------
+            // Re-read the csv file so a beanstalk job can be created for each line in the file
+            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
+            $csv_filename = $job_data['csv_filename'];
+            $delimiter = $job_data['delimiter'];
+
+            // Apparently SplFileObject doesn't do this before opening the file...
+            ini_set('auto_detect_line_endings', TRUE);
+
+            $csv_file = new \SplFileObject( $csv_import_path.$csv_filename );
+            $reader = new CsvReader($csv_file, $delimiter);
+//            $reader->setHeaderRowNumber(0);   // don't want associative array
+
+            // Grab headers from csv file incase a new datafield is created
+            $headers = array();
+            foreach ($reader as $row) {
+                $headers = $row;
+                break;
+            }
+
+
             // ----------------------------------------
             // Get/create an entity to track the progress of this csv import
             $job_type = 'csv_import';
             $target_entity = 'datatype_'.$datatype->getId();
-            $description = 'Importing data into DataType '.$datatype_id.'...';
+            $additional_data = array('description' => 'Importing data into DataType '.$datatype_id.'...');
             $restrictions = '';
             $total = ($reader->count() - 1);
             $reuse_existing = false;
+//$reuse_existing = true;
 
-            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
             $tracked_job_id = $tracked_job->getId();
 
 
@@ -709,20 +1482,21 @@ return;
                 $payload = json_encode(
                     array(
                         'tracked_job_id' => $tracked_job_id,
+                        'user_id' => $user->getId(),
+                        'datatype_id' => $datatype->getId(),
 
                         'api_key' => $beanstalk_api_key,
                         'url' => $url,
                         'memcached_prefix' => $memcached_prefix,    // debug purposes only
 
                         'external_id_column' => $external_id_column,
+                        'column_delimiters' => $column_delimiters,
                         'mapping' => $new_mapping,
                         'line' => $row,
-                        'datatype_id' => $datatype->getId(),
-                        'user_id' => $user->getId(),
                     )
                 );
 
-                $pheanstalk->useTube('csv_import')->put($payload);
+                $pheanstalk->useTube('csv_import_worker')->put($payload);
             }
 
         }
@@ -762,11 +1536,15 @@ return;
 
             // Pull data from the post
             $tracked_job_id = $post['tracked_job_id'];
+            $user_id = $post['user_id'];
+            $datatype_id = $post['datatype_id'];
             $mapping = $post['mapping'];
             $line = $post['line'];
-            $datatype_id = $post['datatype_id'];
-            $user_id = $post['user_id'];
             $api_key = $post['api_key'];
+
+            $column_delimiters = null;
+            if ( isset($post['column_delimiters']) )
+                $column_delimiters = $post['column_delimiters'];
 
             // Load symfony objects
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -836,6 +1614,7 @@ return;
                     $datafield_id = $mapping[$column_num];
                     $datafield = $repo_datafield->find($datafield_id);
 
+                    $typename = $datafield->getFieldType()->getTypeName();
                     $typeclass = $datafield->getFieldType()->getTypeClass();
                     $classname = "ODR\\AdminBundle\\Entity\\".$typeclass;
 
@@ -850,8 +1629,6 @@ return;
                             $em->refresh($entity);
                             $status .= '    -- >> created new '.$typeclass."\n";
                         }
-
-                        // TODO - validation on these? or should it happen earlier...
 
                         // Save value from csv file
                         $checked = '';
@@ -916,8 +1693,6 @@ return;
                             $status .= '    -- >> created new '.$typeclass."\n";
                         }
 
-                        // TODO - validation on these? or should it happen earlier...
-
                         // Save value from csv file
                         $entity->setValue($column_data);
                         $em->persist($entity);
@@ -944,49 +1719,57 @@ return;
                         $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$datetime->format('Y-m-d H:i:s').'"...'."\n";
                     }
                     else if ($typeclass == 'Radio') {
-                        // TODO - csv file indicating multiple radio/select options selected for a single datarecord?
-
                         $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') ';
 
-                        // See if a radio_option entity with this name already exists
-                        $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('optionName' => $column_data, 'dataFields' => $datafield->getId()) );
-                        if ($radio_option == null) {
-                            // TODO - CURRENTLY WORKS, BUT MIGHT WANT TO LOOK INTO AN OFFICIAL MUTEX...
+                        // If multiple radio/select, get an array of all the options...
+                        $options = array($column_data);
+                        if ($typename == "Multiple Select" || $typename == "Multiple Radio")
+                            $options = explode( $column_delimiters[$column_num], $column_data );
 
-                            // define and execute a query to manually create the absolute minimum required for a RadioOption entity...
-                            $option_name = $column_data;
-                            $query = 
-                               'INSERT INTO odr_radio_options (option_name, data_fields_id)
-                                SELECT * FROM (SELECT :name, :df_id) AS tmp
-                                WHERE NOT EXISTS (
-                                    SELECT option_name FROM odr_radio_options WHERE option_name = :name AND data_fields_id = :df_id AND deletedAt IS NULL
-                                ) LIMIT 1;';
-                            $params = array('name' => $option_name, 'df_id' => $datafield->getId());
-                            $conn = $em->getConnection();
-                            $rowsAffected = $conn->executeUpdate($query, $params);
+                        foreach ($options as $num => $option_name) {
+                            // Don't look for or create a blank radio option
+                            if ( trim($option_name) == '' )
+                                continue;
 
-                            if ($rowsAffected > 0) {
-                                $logger->notice('Created new RadioOption ("'.$option_name.'") as part of csv import for datatype '.$datatype->getId().' by '.$user->getId());
-                                $status .= '...created new radio_option ("'.$option_name.'")';
+                            // See if a radio_option entity with this name already exists
+                            $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('optionName' => $option_name, 'dataFields' => $datafield->getId()) );
+                            if ($radio_option == null) {
+                                // TODO - CURRENTLY WORKS, BUT MIGHT WANT TO LOOK INTO AN OFFICIAL MUTEX...
+
+                                // define and execute a query to manually create the absolute minimum required for a RadioOption entity...
+                                $query = 
+                                   'INSERT INTO odr_radio_options (option_name, data_fields_id)
+                                    SELECT * FROM (SELECT :name, :df_id) AS tmp
+                                    WHERE NOT EXISTS (
+                                        SELECT option_name FROM odr_radio_options WHERE option_name = :name AND data_fields_id = :df_id AND deletedAt IS NULL
+                                    ) LIMIT 1;';
+                                $params = array('name' => $option_name, 'df_id' => $datafield->getId());
+                                $conn = $em->getConnection();
+                                $rowsAffected = $conn->executeUpdate($query, $params);
+
+                                if ($rowsAffected > 0) {
+                                    $logger->notice('Created new RadioOption ("'.$option_name.'") as part of csv import for datatype '.$datatype->getId().' by '.$user->getId());
+                                    $status .= '...created new radio_option ("'.$option_name.'")';
+                                }
+
+                                // Now that it exists, fill out the properties of a RadioOption entity that were skipped during the manual creation...
+                                $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('optionName' => $option_name, 'dataFields' => $datafield->getId()) );
+                                $radio_option->setCreatedBy($user);
+                                $radio_option->setCreated( new \DateTime() );
+                                $radio_option->setUpdatedBy($user);
+                                $radio_option->setUpdated( new \DateTime() );
+                                $radio_option->setExternalId(0);
+
+                                $em->persist($radio_option);
                             }
 
-                            // Now that it exists, fill out the properties of a RadioOption entity that were skipped during the manual creation...
-                            $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('optionName' => $option_name, 'dataFields' => $datafield->getId()) );
-                            $radio_option->setCreatedBy($user);
-                            $radio_option->setCreated( new \DateTime() );
-                            $radio_option->setUpdatedBy($user);
-                            $radio_option->setUpdated( new \DateTime() );
-                            $radio_option->setExternalId(0);
+                            // Now that the radio option is guaranteed to exist...
+                            $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
+                            $selected = 1;  // default to selected
+                            $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, $selected);
 
-                            $em->persist($radio_option);
+                            $status .= '...selected'."\n";
                         }
-
-                        // Now that the radio option is guaranteed to exist...
-                        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
-                        $selected = 1;  // default to selected
-                        $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, $selected);
-
-                        $status .= '...selected'."\n";
                     }
                 }
             }

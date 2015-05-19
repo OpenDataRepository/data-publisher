@@ -495,12 +495,12 @@ $ret .= '  Set current to '.$count."\n";
             // Get/create an entity to track the progress of this thumbnail rebuild
             $job_type = 'rebuild_thumbnails';
             $target_entity = 'datatype_'.$datatype_id;
-            $description = 'Rebuild of all image thumbnails for DataType '.$datatype_id;
+            $additional_data = array('description' => 'Rebuild of all image thumbnails for DataType '.$datatype_id);
             $restrictions = '';
             $total = count($results);
             $reuse_existing = false;
 
-            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
             $tracked_job_id = $tracked_job->getId();
 
             // ----------------------------------------

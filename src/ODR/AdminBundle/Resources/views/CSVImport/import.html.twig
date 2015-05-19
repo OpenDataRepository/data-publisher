@@ -4,12 +4,23 @@
     <h2>CSV Import for {{ datatype.shortname }}</h2>
 </div>
 
-<div class="content">
+{% if presets != null %}
+<div class="ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer">
+    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <span style="float: right;"><i class="fa fa-lg fa-caret-up"></i></span>
+        <a>Field Layout</a>
+    </h3>
+</div>
+{% endif %}
+
+<div class="content" style="margin: 10px;">
+    {% if form != null %}
     <button class="pure-button" onclick="cancelCSVUpload(false);">Cancel CSV Import...</button>
     </br></br>
+    {% endif %}
 
-    <form action="{{ path('odr_csv_upload', {'datatype_id': datatype.id}) }}" method="post" {{ form_enctype(form) }} class="pure-u-1" id="csvUploadForm">
-        <select name="csv_delimiter" id="delimiter_select">
+    <form {% if form != null %}action="{{ path('odr_csv_upload', {'datatype_id': datatype.id}) }}" method="post" {{ form_enctype(form) }}{% endif %} class="pure-u-1" id="csvUploadForm">
+        <select name="csv_delimiter" id="delimiter_select" {% if form == null %}disabled{% endif %}>
             <option value="">Select a delimiter...</option>
             <option value="tab">{tab}</option>
             <option value="space">{space}</option>
@@ -19,6 +30,7 @@
             <option value="pipe">{pipe}</option>
         </select>
 
+        {% if form != null %}
         <div id="file_upload_div">
             </br>
             <span>Upload a CSV file...</span>
@@ -32,16 +44,44 @@
                 <span id="csvUploadResult"></span>
             </div>
         </div>
+        {% endif %}
     </form>
 
     <div id="layout_content">
+    {% if presets != null %}
+        {% include 'ODRAdminBundle:CSVImport:layout.html.twig' with {'columns': columns, 'datatype': datatype, 'datafields': datafields, 'fieldtypes': fieldtypes, 'presets': presets} %}
+    {% endif %}
     </div>
 </div>
+
+{% if presets != null %}
+<div class="ODRAccordionWrapper ODRFormAccordion ODRCSVImportHeader Pointer">
+    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <span style="float: right;"><i class="fa fa-lg fa-caret-down"></i></span>
+        <a>Validation Errors</a>
+    </h3>
+</div>
+
+<div class="content" style="margin: 10px;">
+    {% if errors != null and errors|length > 0 %}
+        {% include 'ODRAdminBundle:CSVImport:errors.html.twig' with {'error_messages': errors} %}
+    {% else %}
+        <span>No errors found</span>
+    {% endif %}
+
+    {% if allow_import == true %}
+    <div>
+        <button id="import_button" class="pure-button pure-button-primary" onclick="doImport();">Start Import</button>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
 
 <script>
     $(function() {
         $("#file_upload_div").hide();
 
+        {% if presets == null %}
         $("#delimiter_select").unbind('change');
         $("#delimiter_select").change(function() {
             if ( $(this).val() == "" )
@@ -53,8 +93,52 @@
         $("#csvUploadForm").find("input[name='FileForm[uploaded_file]']").change(function() {
             UploadCSVFile('csvUploadForm', $('#csvUploadForm').attr('action'), 'csvUploadResult');
         });
+        {% else %}
+            var delimiter = "{{ presets.delimiter }}";
+            switch (delimiter) {
+                case "\t":
+                    delimiter = "tab";
+                    break;
+                case " ":
+                    delimiter = "space";
+                    break;
+                case ",":
+                    delimiter = "comma";
+                    break;
+                case ";":
+                    delimiter = "semicolon";
+                    break;
+                case ":":
+                    delimiter = "colon";
+                    break;
+                case "|":
+                    delimiter = "pipe";
+                    break;
+            }
+
+            $("#delimiter_select").val(delimiter);
+
+            $(".ODRCSVImportHeader").next().hide();
+
+            $(".ODRCSVImportHeader").unbind('click');
+            $(".ODRCSVImportHeader").click(function() {
+                if ( $(this).next().is(':hidden') ) {
+                    $(this).next().show();
+
+                    $(this).find('i').removeClass('fa-caret-up').addClass('fa-caret-down');
+                }
+                else {
+                    $(this).next().hide();
+
+                    $(this).find('i').addClass('fa-caret-up').removeClass('fa-caret-down');
+                }
+            });
+
+            $(".ODRCSVImportHeader").last().next().show();
+        {% endif %}
     });
 
+    {% if form != null %}
     function UploadCSVFile(form_id, action_url, div_id) {
     //return;
         // Create the iframe...
@@ -213,6 +297,51 @@
             }
         });
     }
+    {% endif %} {# if form != null #}
+
+    {% if allow_import == true %}
+    function doImport() {
+
+        var url = '{{ path('odr_csv_import_start_worker', {'job_id': tracked_job_id}) }}';
+//alert(url);
+//return;
+
+        var dataType = "json";
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: dataType,
+            success: function(data, textStatus, jqXHR) {
+                if (data.r == 0) {
+                    // ...
+                    alert('Beginning CSV Import...');
+                    var url = '{{ path('odr_job_list') }}';
+                    UpdateURL(url);
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert( data.d );
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+    {% endif %} {# if allow_import == true #}
+
 </script>
 
 {% endspaceless %}

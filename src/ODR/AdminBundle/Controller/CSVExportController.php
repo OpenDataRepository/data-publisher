@@ -18,6 +18,7 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\TrackedError;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\TrackedCSVExport;
 use ODR\AdminBundle\Entity\ThemeElement;
@@ -313,18 +314,21 @@ if ($debug)
         $return['d'] = '';
 
         try {
-            // Ensure post is valid
             $post = $_POST;
 //print_r($post);
 //return;
 
-            if ( !(isset($post['search_checksum']) && isset($post['datafields']) && isset($post['datatype_id'])) )
+            if ( !isset($post['search_checksum']) || !isset($post['datafields']) || !isset($post['datatype_id']) || !isset($post['csv_export_delimiter']) )
                 throw new \Exception('bad post request');
+
             $search_checksum = $post['search_checksum'];
-            $datafields = array();
-            if ( isset($post['datafields']) )
-                $datafields = $post['datafields'];
+            $datafields = $post['datafields'];
             $datatype_id = $post['datatype_id'];
+            $delimiter = $post['csv_export_delimiter'];
+
+            $secondary_delimiter = null;
+            if ( isset($post['csv_export_secondary_delimiter']) )
+                $secondary_delimiter = $post['csv_export_secondary_delimiter'];
 
             // TODO - ensure datafields belong to datatype?
 
@@ -361,6 +365,58 @@ if ($debug)
                     throw new \Exception('bad post request');
             }
 
+            // Translate delimiter from string to character
+            switch ($delimiter) {
+                case 'tab':
+                    $delimiter = "\t";
+                    break;
+                case 'space':
+                    $delimiter = " ";
+                    break;
+                case 'comma':
+                    $delimiter = ",";
+                    break;
+                case 'semicolon':
+                    $delimiter = ";";
+                    break;
+                case 'colon':
+                    $delimiter = ":";
+                    break;
+                case 'pipe':
+                    $delimiter = "|";
+                    break;
+                default:
+                    throw new \Exception('bad post request');
+                    break;
+            }
+            switch ($secondary_delimiter) {
+/*
+                case 'tab':
+                    $secondary_delimiter = "\t";
+                    break;
+                case 'space':
+                    $secondary_delimiter = " ";
+                    break;
+                case 'comma':
+                    $secondary_delimiter = ",";
+                    break;
+*/
+                case 'semicolon':
+                    $secondary_delimiter = ";";
+                    break;
+                case 'colon':
+                    $secondary_delimiter = ":";
+                    break;
+                case 'pipe':
+                    $secondary_delimiter = "|";
+                    break;
+                case null:
+                    break;
+                default:
+                    throw new \Exception('bad post request');
+                    break;
+            }
+
 
             // TODO - assumes search exists
             $search_controller = $this->get('odr_search_controller', $request);
@@ -384,50 +440,60 @@ if ($debug)
 //print_r($datafields);
 //return;
 
-            // ----------------------------------------
-            // Get/create an entity to track the progress of this datatype recache
-            $job_type = 'csv_export';
-            $target_entity = 'datatype_'.$datatype_id;
-            $description = 'Exporting data from DataType '.$datatype_id;
-            $restrictions = '';
-            $total = count($datarecords);
-            $reuse_existing = false;
+            if ( count($datarecords) > 0 ) {
+                // ----------------------------------------
+                // Get/create an entity to track the progress of this datatype recache
+                $job_type = 'csv_export';
+                $target_entity = 'datatype_'.$datatype_id;
+                $additional_data = array('description' => 'Exporting data from DataType '.$datatype_id);
+                $restrictions = '';
+                $total = count($datarecords);
+                $reuse_existing = false;
+//$reuse_existing = true;
 
-            // Determine if this user already has an export job going for this datatype
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity, 'createdBy' => $user->getId(), 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new \Exception('You already have an export job going for this datatype...wait until that one finishes before starting a new one');
-            else
-                $tracked_job = self::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+                // Determine if this user already has an export job going for this datatype
+                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity, 'createdBy' => $user->getId(), 'completed' => null) );
+                if ($tracked_job !== null)
+                    throw new \Exception('You already have an export job going for this datatype...wait until that one finishes before starting a new one');
+                else
+                    $tracked_job = self::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
 
-            $tracked_job_id = $tracked_job->getId();
+                $tracked_job_id = $tracked_job->getId();
 
 
-            // ----------------------------------------
-            // Create a beanstalk job for each of these datarecords
-            foreach ($datarecords as $num => $datarecord_id) {
+                // ----------------------------------------
+                // Create a beanstalk job for each of these datarecords
+                foreach ($datarecords as $num => $datarecord_id) {
 
-                $priority = 1024;   // should be roughly default priority
-                $payload = json_encode(
-                    array(
-                        'tracked_job_id' => $tracked_job_id,
-                        'user_id' => $user->getId(),
-                        'datarecord_id' => $datarecord_id,
-                        'datafields' => $datafields,
-                        'memcached_prefix' => $memcached_prefix,    // debug purposes only
-                        'datatype_id' => $datatype_id,              // debug purposes only?
-                        'url' => $url,
-                        'api_key' => $api_key,
-                    )
-                );
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+                            'tracked_job_id' => $tracked_job_id,
+                            'user_id' => $user->getId(),
+
+                            'delimiter' => $delimiter,
+                            'secondary_delimiter' => $secondary_delimiter,
+                            'datarecord_id' => $datarecord_id,
+                            'datafields' => $datafields,
+                            'memcached_prefix' => $memcached_prefix,    // debug purposes only
+                            'datatype_id' => $datatype_id,              // debug purposes only?
+                            'url' => $url,
+                            'api_key' => $api_key,
+                        )
+                    );
 
 //print_r($payload);
+//return;
 
-                $delay = 1; // one second
-                $pheanstalk->useTube('csv_export_start')->put($payload, $priority, $delay);
+                    $delay = 1; // one second
+                    $pheanstalk->useTube('csv_export_start')->put($payload, $priority, $delay);
+                }
+
+                // TODO - Notify user that job has begun?
             }
-
-            // TODO - Notify user that job has begun?
+            else {
+                throw new \Exception('No datarecords selected to export');
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -461,7 +527,7 @@ if ($debug)
 //print_r($post);
 //return;
 
-            if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecord_id']) || !isset($post['datatype_id']) || !isset($post['datafields']) || !isset($post['api_key']) )
+            if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecord_id']) || !isset($post['datatype_id']) || !isset($post['datafields']) || !isset($post['api_key']) || !isset($post['delimiter']) )
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
@@ -471,6 +537,11 @@ if ($debug)
             $datatype_id = $post['datatype_id'];
             $datafields = $post['datafields'];
             $api_key = $post['api_key'];
+            $delimiter = $post['delimiter'];
+
+            $secondary_delimiter = null;
+            if ( isset($post['secondary_delimiter']) )
+                $secondary_delimiter = $post['secondary_delimiter'];
 
             // Load symfony objects
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -483,7 +554,6 @@ if ($debug)
             $em = $this->get('doctrine')->getManager();
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
 
-            // TODO - permissions?
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
@@ -491,6 +561,8 @@ if ($debug)
             $url = $this->container->getParameter('site_baseurl');
             $url .= $this->container->get('router')->generate('odr_csv_export_worker');
 
+
+            $datarecord_data = array();
 
             // ----------------------------------
             // Load FieldTypes of the datafields
@@ -508,11 +580,21 @@ if ($debug)
                 $typeclass = $result['typeclass'];
                 $typename = $result['typename'];
 
-                if ($typeclass !== 'Radio' && $typeclass !== 'File' && $typeclass !== 'Image' && $typename !== 'Markdown') {
+                if ($typeclass !== 'File' && $typeclass !== 'Image' && $typename !== 'Markdown') {
                     if ( !isset($typeclasses[ $result['typeclass'] ]) )
                         $typeclasses[ $result['typeclass'] ] = array();
 
                     $typeclasses[ $result['typeclass'] ][] = $result['df_id'];
+
+                    if ($typeclass == 'Radio') {
+                        $datarecord_data[ $result['df_id'] ] = array();
+
+                        if ($secondary_delimiter == null)
+                            throw new \Exception('Invalid Form');
+                    }
+                    else {
+                        $datarecord_data[ $result['df_id'] ] = '';
+                    }
                 }
             }
 
@@ -527,38 +609,70 @@ if ($debug)
                 WHERE dr.id = :datarecord AND dr.deletedAt IS NULL'
             )->setParameters( array('datarecord' => $datarecord_id) );
             $result = $query->getArrayResult();
+//print_r($result);
             $external_id = $result[0]['external_id'];
 
 
             // ----------------------------------
             // Grab data for each of the datafields selected for export
-            $datarecord_data = array();
             foreach ($typeclasses as $typeclass => $df_list) {
-                $query = $em->createQuery(
-                   'SELECT df.id AS df_id, e.value AS value
-                    FROM ODRAdminBundle:'.$typeclass.' AS e
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
-                    JOIN ODRAdminBundle:DataFields AS df WITH e.dataField = df
-                    JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
-                    WHERE dr.id = :datarecord AND df.id IN (:datafields) AND ft.typeClass = :typeclass
-                    AND e.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL'
-                )->setParameters( array('datarecord' => $datarecord_id, 'datafields' => $df_list, 'typeclass' => $typeclass) );
-                $results = $query->getArrayResult();
+                if ($typeclass == 'Radio') {
+                    $query = $em->createQuery(
+                       'SELECT df.id AS df_id, ro.optionName AS option_name
+                        FROM ODRAdminBundle:RadioSelection AS rs
+                        JOIN ODRAdminBundle:RadioOptions AS ro WITH rs.radioOption = ro
+                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
+                        JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
+                        WHERE rs.selected = 1 AND drf.dataRecord = :datarecord AND df.id IN (:datafields)
+                        AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND df.deletedAt IS NULL'
+                    )->setParameters( array('datarecord' => $datarecord_id, 'datafields' => $df_list) );
+                    $results = $query->getArrayResult();
+//print_r($results);
 
-                foreach ($results as $num => $result) {
-                    $df_id = $result['df_id'];
-                    $value = $result['value'];
+                    foreach ($results as $num => $result) {
+                        $df_id = $result['df_id'];
+                        $option_name = $result['option_name'];
 
-                    if ($typeclass == 'DatetimeValue') {
-                        $date = $value->format('Y-m-d');
-                        if ( strpos($date, '-0001-11-30') !== false )
-                            $date = '0000-00-00';
-
-                        $datarecord_data[$df_id] = $date;
+                        $datarecord_data[$df_id][] = $option_name;
                     }
-                    else {
-                        $datarecord_data[$df_id] = $value;
+                }
+                else {
+                    $query = $em->createQuery(
+                       'SELECT df.id AS df_id, e.value AS value
+                        FROM ODRAdminBundle:'.$typeclass.' AS e
+                        JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
+                        JOIN ODRAdminBundle:DataFields AS df WITH e.dataField = df
+                        JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
+                        WHERE dr.id = :datarecord AND df.id IN (:datafields) AND ft.typeClass = :typeclass
+                        AND e.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL'
+                    )->setParameters( array('datarecord' => $datarecord_id, 'datafields' => $df_list, 'typeclass' => $typeclass) );
+                    $results = $query->getArrayResult();
+
+                    foreach ($results as $num => $result) {
+                        $df_id = $result['df_id'];
+                        $value = $result['value'];
+
+                        if ($typeclass == 'DatetimeValue') {
+                            $date = $value->format('Y-m-d');
+                            if ( strpos($date, '-0001-11-30') !== false )
+                                $date = '0000-00-00';
+
+                            $datarecord_data[$df_id] = $date;
+                        }
+                        else {
+                            $datarecord_data[$df_id] = $value;
+                        }
                     }
+                }
+            }
+
+            // Convert any Radio fields from an array into a string
+            foreach ($datarecord_data as $df_id => $data) {
+                if ( is_array($data) ) {
+                    if ( count($data) > 0 )
+                        $datarecord_data[$df_id] = implode($secondary_delimiter, $data);
+                    else
+                        $datarecord_data[$df_id] = '';
                 }
             }
 
@@ -573,7 +687,7 @@ if ($debug)
             foreach ($datarecord_data as $df_id => $data)
                 $line[] = $data;
 
-//print_r($line);
+print_r($line);
 //return;
 
             // ----------------------------------------
@@ -583,6 +697,7 @@ if ($debug)
                 array(
                     'tracked_job_id' => $tracked_job_id,
                     'user_id' => $user_id,
+                    'delimiter' => $delimiter,
                     'datarecord_id' => $datarecord_id,
                     'datatype_id' => $datatype_id,
                     'datafields' => $datafields,
@@ -632,7 +747,7 @@ if ($debug)
 //print_r($post);
 //return;
 
-            if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['line']) || !isset($post['datafields']) || !isset($post['random_key']) || !isset($post['api_key']) )
+            if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['line']) || !isset($post['datafields']) || !isset($post['random_key']) || !isset($post['api_key']) || !isset($post['delimiter']) )
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
@@ -642,6 +757,7 @@ if ($debug)
             $datafields = $post['datafields'];
             $random_key = $post['random_key'];
             $api_key = $post['api_key'];
+            $delimiter = $post['delimiter'];
 
             // Load symfony objects
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -654,7 +770,6 @@ if ($debug)
             $em = $this->get('doctrine')->getManager();
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
 
-            // TODO - permissions?
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
@@ -686,7 +801,7 @@ if ($debug)
             if ($handle !== false) {
                 // Write the line given to the file
                 // https://github.com/ddeboer/data-import/blob/master/src/Ddeboer/DataImport/Writer/CsvWriter.php
-                $delimiter = "\t";
+//                $delimiter = "\t";
                 $enclosure = "\"";
                 $writer = new CsvWriter($delimiter, $enclosure);
 
@@ -798,7 +913,7 @@ if ($debug)
                 $final_file = fopen($csv_export_path.$final_filename, 'w');
 
                 if ($final_file !== false) {
-                    $delimiter = "\t";
+//                    $delimiter = "\t";
                     $enclosure = "\"";
                     $writer = new CsvWriter($delimiter, $enclosure);
 
@@ -892,7 +1007,6 @@ if ($debug)
             $em = $this->get('doctrine')->getManager();
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
 
-            // TODO - permissions?
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
@@ -983,10 +1097,10 @@ if ($debug)
 
 
     /**         
-     * Sidesteps symfony to set up an CSV file download...TODO 
+     * Sidesteps symfony to set up an CSV file download...
      * 
-     * @param integer $user_id TODO
-     * @param integer $tracked_job_id TODO
+     * @param integer $user_id The user requesting the download
+     * @param integer $tracked_job_id The tracked job that stored the progress of the csv export
      * @param Request $request
      *          
      * @return TODO
@@ -1000,7 +1114,32 @@ if ($debug)
         $response = new Response();
         
         try {
-            // TODO - permissions
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+            if ($tracked_job == null)
+                return parent::deletedEntityError("Job");
+
+            $job_type = $tracked_job->getJobType();
+            if ($job_type !== 'csv_export')
+                return parent::deletedEntityError("Job");
+
+            $target_entity = $tracked_job->getTargetEntity();
+            $tmp = explode('_', $target_entity);
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find( $tmp[1] );
+            if ($datatype == null)
+                return parent::deletedEntityError("DataType");
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
+                return parent::permissionDeniedError();
+            // --------------------
+
 
             $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/csv_export/';
             $filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';

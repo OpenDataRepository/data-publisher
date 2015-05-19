@@ -14,6 +14,12 @@ ODR\AdminBundle\Entity\TrackedError:
             generator:
                 strategy: IDENTITY
 
+        error_level:
+            type: string
+            length: 32
+            nullable: false
+            fixed: false
+
         error_body:
             type: text
             nullable: false

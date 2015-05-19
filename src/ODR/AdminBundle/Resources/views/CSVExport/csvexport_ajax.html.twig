@@ -5,16 +5,57 @@
     <span>CSV Export &raquo; {{ datatype.shortname }}</span>
 </h1>
 
-<form id="csvexport_form" style="display:none;" action="{{ path('odr_csv_export_start') }}">
+<form id="csvexport_form" style="margin:10px;{#display:none;#}" action="{{ path('odr_csv_export_start') }}">
     <input type="hidden" value="{{ search_checksum }}" name="search_checksum"/>
     <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
+
+    <table><tbody>
+    <tr>
+        <td>Column delimiter: </td>
+        <td>
+            <select name="csv_export_delimiter" id="delimiter_select">
+                <option value="">Select a delimiter...</option>
+                <option value="tab">{tab}</option>
+                <option value="space">{space}</option>
+                <option value="comma">{comma}</option>
+                <option value="semicolon">{semicolon}</option>
+                <option value="colon">{colon}</option>
+                <option value="pipe">{pipe}</option>
+            </select>
+        </td>
+    </tr>
+    <tr>
+        <td>Multiple Radio/Select delimiter: </td>
+        <td>
+            <select name="csv_export_secondary_delimiter" id="secondary_delimiter_select" disabled title="Not needed, since no multiple radio/select field selected for export">
+                <option value="">Select a delimiter...</option>
+{#
+                <option value="tab">{tab}</option>
+                <option value="space">{space}</option>
+                <option value="comma">{comma}</option>
+#}
+                <option value="semicolon">{semicolon}</option>
+                <option value="colon">{colon}</option>
+                <option value="pipe">{pipe}</option>
+            </select>
+        </td>
+    </tr>
+    </tbody>
+    </table>
+
 </form>
 
-<div>
-    <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Export</button>
+<div style="margin: 10px;">
+    <button class="pure-button" type="button" onclick="selectAll();">Select All</button>
+    &nbsp;
+    <button class="pure-button" type="button" onclick="deselectAll();">Deselect All</button>
 </div>
 
 {% include 'ODRAdminBundle:CSVExport:csvexport_area.html.twig' with {'datatype_tree': datatype_tree} %}
+
+<div style="margin: 10px;">
+    <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Export</button>
+</div>
 
 {% endspaceless %}
 
@@ -66,18 +107,57 @@ function initPage() {
         if ( $(this).hasClass('ODRUnselectedDatafield') ) {
             $(this).attr('title', 'This datafield will be exported');
             $(this).removeClass('ODRUnselectedDatafield').addClass('ODRSelectedDatafield');
+
+            if ( $(this).hasClass('ODRSecondaryDelimiter') ) {
+                $("#secondary_delimiter_select").removeAttr('disabled');
+                $("#secondary_delimiter_select").removeAttr('title');
+            }
         }
         else {
             $(this).attr('title', 'This datafield will not be exported');
             $(this).addClass('ODRUnselectedDatafield').removeClass('ODRSelectedDatafield');
+
+            if ( $(this).hasClass('ODRSecondaryDelimiter') ) {
+                $("#secondary_delimiter_select").attr('disabled', 'disabled');
+                $("#secondary_delimiter_select").attr('title', 'This delimiter is not needed because no multiple radio/select field are selected for export');
+            }
         }
     });
 }
 
-function doCSVExport() {
+function selectAll() {
+    $(".ODRCSVExport").each(function() {
+        if ( $(this).hasClass('ODRUnselectedDatafield') )
+            $(this).trigger('click');
+    });
+}
 
-    if ( !confirm('Are you sure you want to export?') )
+function deselectAll() {
+    $(".ODRCSVExport").each(function() {
+        if ( $(this).hasClass('ODRSelectedDatafield') )
+            $(this).trigger('click');
+    });
+}
+
+function doCSVExport() {
+    // Require a delimiter before exporting...
+    if ( $("#delimiter_select").val() == '') {
+        alert('No column delimiter selected');
         return;
+    }
+    var delimiter = $("#delimiter_select").val();
+
+    // Require a secondary delimiter if a multiple radio/select field is being exported...
+    if ( !$("#secondary_delimiter_select").is(':disabled') && $("#secondary_delimiter_select").val() == '' ) {
+        alert('No multiple radio/select delimiter selected');
+        return;
+    }
+    var secondary_delimiter = $("#secondary_delimiter_select").val();
+
+    if ( delimiter == secondary_delimiter ) {
+        alert("Delimiters can't be the same");
+        return;
+    }
 
     // Delete any datafields already marked for export so a new list can be constructed
     $(".ODRExportEntry").remove();
@@ -100,6 +180,10 @@ function doCSVExport() {
         return;
     }
 
+    if ( !confirm('Are you sure you want to export?') )
+        return;
+
+
     var data = $("#csvexport_form").serialize();
     var url = $("#csvexport_form").attr('action');
 
@@ -110,17 +194,10 @@ function doCSVExport() {
         dataType: 'json',
         success: function(data, textStatus, jqXHR) {
             if ( data.r == 0 ) {
-                alert( 'CSV Export in progress' );
-
-{#
-                // Now that the search has been performed and cached, render the results
-                var url = '{{ path('odr_csv_download_page', { 'datatype_id': 0 } ) }}';
-                url = url.substr(0, url.length-1);
-                url += '{{ datatype.id }}';
-#}
-
                 // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
-//                UpdateURL(url);
+                alert( 'CSV Export in progress' );
+                var url = '{{ path('odr_job_list') }}';
+                UpdateURL(url);
             }
             else {
                 alert( data.d );

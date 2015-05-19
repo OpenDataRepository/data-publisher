@@ -1,9 +1,10 @@
 {% spaceless %}
 {% set field_typename = field.getfieldtype.typename %}
 
-{% if field_typename != "File" and field_typename != "Image" and field_typename != "Single Radio" and field_typename != "Multiple Radio" and field_typename != "Single Select" and field_typename != "Multiple Select" %}
+{#{% if field_typename != "File" and field_typename != "Image" and field_typename != "Single Radio" and field_typename != "Multiple Radio" and field_typename != "Single Select" and field_typename != "Multiple Select" %}#}
+{% if field_typename != "File" and field_typename != "Image" %}
 <div class="ODRDataField pure-u-1 pure-u-md-{{ fieldtheme.getcsswidthmed }} pure-u-xl-{{ fieldtheme.getcsswidthxl }}" id="Field_{{ field.id }}" >
-    <div id="Field_{{ field.id }}_overlay" class="ODRCSVExport {% if field_typename != "Markdown"%}Pointer ODROverlayDiv ODRUnselectedDatafield{% endif %}" rel="{{ field.id }}"></div>
+    <div id="Field_{{ field.id }}_overlay" class="ODRCSVExport {% if field_typename != "Markdown"%}Pointer ODROverlayDiv ODRUnselectedDatafield{% endif %}{% if field_typename == "Multiple Radio" or field_typename == "Multiple Select" %} ODRSecondaryDelimiter{% endif %}" rel="{{ field.id }}"></div>
 
     <form id="Form_DataField_{{ field.id }}" class="pure-u-1">
     <input type="hidden" name="theme_field_id" value="{{ fieldtheme.id }}" />
@@ -68,13 +69,14 @@
     </fieldset>
 
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}
-{#
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ field.id }}" class="ODRFieldLabel" title="{{ field.description }}">{{ field.fieldname }}</label>
+{#
             <span style="margin-left: 10px;">
                 <i id="Field_{{ field.id }}_radio_options" class="ODRRadioOptions Pointer fa fa-lg fa-cog" title="Edit Options" rel="{{ field.id }}"></i>
             </span>
+#}
         </span>
         {% for radio_option in field.getRadioOptions %}
             <label id="Option_{{ radio_option.id }}" for="Option_object_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ field.childrenperrow }}" style="margin: 0.5em 0;">
@@ -88,17 +90,17 @@
             <span id="Option_{{ radio_option.id }}_name">{{ radio_option.getOptionName }}</span>
             </label>
         {% endfor %}
-
     </fieldset>
-#}
+
     {% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}
-{#
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ field.id }}" class="ODRFieldLabel" title="{{ field.description }}">{{ field.fieldname }}</label>
+{#
             <span style="margin-left: 10px;">
                 <i id="Field_{{ field.id }}_radio_options" class="ODRRadioOptions Pointer fa fa-lg fa-cog" title="Edit Options" rel="{{ field.id }}"></i>
             </span>
+#}
         </span>
         <select id="SelectGroup_{{ field.id }}" class="{% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
         {% if field_typename == "Single Select" %}
@@ -110,7 +112,7 @@
         {% endfor %}
         </select>
     </fieldset>
-#}
+
     {% elseif field_typename == "DateTime" %}
     <fieldset>
         <label id="Label_{{ field.id }}" for="Input_{{ field.id }}" class="ODRFieldLabel">{{ field.fieldname }}</label>
@@ -128,7 +130,8 @@
     {% endif %}
     </form>
 
-{% if field_typename != "File" and field_typename != "Image" and field_typename != "Single Radio" and field_typename != "Multiple Radio" and field_typename != "Single Select" and field_typename != "Multiple Select" %}
+{#{% if field_typename != "File" and field_typename != "Image" and field_typename != "Single Radio" and field_typename != "Multiple Radio" and field_typename != "Single Select" and field_typename != "Multiple Select" %}#}
+{% if field_typename != "File" and field_typename != "Image" %}
 </div><!-- End of #Field_{{ field.id}} -->
 {% endif %}
 

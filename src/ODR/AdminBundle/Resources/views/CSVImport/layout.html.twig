@@ -1,10 +1,10 @@
 {% spaceless %}
 
-    <button type="button" class="pure-button" onclick="selectAllFields();">Select All</button>
-    &nbsp;&nbsp;
-    <button type="button" class="pure-button" onclick="deselectAllFields();">Deselect All</button>
-
-    </br></br>
+    <div style="margin: 10px 10px 10px 0px;">
+        <button type="button" class="pure-button" onclick="selectAllFields();">Select All</button>
+        &nbsp;
+        <button type="button" class="pure-button" onclick="deselectAllFields();">Deselect All</button>
+    </div>
 
     <form id="csv_import_form">
         <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />
@@ -17,27 +17,36 @@
                     <th>Import?</th>
                     <th>Map to datafield...</th>
                     <th>Fieldtype...</th>
+                    <th>Secondary Delimiter</th>
                 </tr>
             </thead>
             <tbody>
                 {% for column_id, column_name in columns %}
                 <tr>
                     <td>{{ column_name }}</td>
-                    <td><input type="checkbox" class="external_id_checkbox" name="external_id_column" value="{{ column_id }}" /></td>
-                    <td><input type="checkbox" class="import_checkbox" rel="{{ column_id }}" /></td>
+                    <td><input type="checkbox" id="external_id_checkbox_{{ column_id }}" class="external_id_checkbox" name="external_id_column" value="{{ column_id }}" /></td>
+                    <td><input type="checkbox" id="import_checkbox_{{ column_id }}" class="import_checkbox" rel="{{ column_id }}" /></td>
                     <td>
-                        <select id="column_{{ column_id }}" class="field_mapping" name="datafield_mapping[{{ column_id }}]" rel="{{ column_id }}" disabled>
+                        <select id="column_{{ column_id }}" class="datafield_mapping" name="datafield_mapping[{{ column_id }}]" rel="{{ column_id }}" disabled>
                             <option value="new">Create new datafield...</option>
                             {% for datafield in datafields %}
-                            <option value="{{ datafield.id }}">{{ datafield.fieldname }}</option>
+                            <option value="{{ datafield.id }}" rel="{{ datafield.fieldtype.id }}">{{ datafield.fieldname }}</option>
                             {% endfor %}
                         </select>
                     </td>
                     <td>
-                        <select id="column_{{ column_id }}_fieldtype" name="fieldtype_mapping[{{ column_id }}]" disabled>
+                        <select id="column_{{ column_id }}_fieldtype" class="fieldtype_mapping" name="fieldtype_mapping[{{ column_id }}]" rel="{{ column_id }}" disabled>
                             {% for fieldtype in fieldtypes %}
                             <option value="{{ fieldtype.id }}">{{ fieldtype.typename }}</option>
                             {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <select id="column_{{ column_id }}_delimiter" class="secondary_delimiter" name="column_delimiters[{{ column_id }}]" disabled>
+                            <option value="">Select a delimiter...</option>
+                            <option value="semicolon">{semicolon}</option>
+                            <option value="colon">{colon}</option>
+                            <option value="pipe">{pipe}</option>
                         </select>
                     </td>
                 </tr>
@@ -46,10 +55,14 @@
         </table>
     </form>
 
-    </br></br>
-    <button id="import_button" type="button" class="pure-button pure-button-primary" onclick="startImport();">Start Import</button>
+    <div style="margin-top: 10px;">
+        <button id="validate_button" type="button" class="pure-button pure-button-primary" onclick="validateImport();">Validate Import</button>
+    </div>
 
 <script>
+    var block_changes = false;
+    var change_block_str = 'You changed something in the field layout...either re-validate the import, or reload the page to undo your changes';
+
     $(function() {
         $(".import_checkbox").unbind('change');
         $(".import_checkbox").change(function() {
@@ -67,6 +80,9 @@
                 $("#column_" + column_id).attr('disabled', 'disabled');
                 $("#column_" + column_id + "_fieldtype").attr('disabled', 'disabled');
             }
+
+            if (block_changes)
+                $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
         });
 
         $(".external_id_checkbox").unbind('change');
@@ -84,19 +100,69 @@
             // If the desired checkbox was originally checked, re-check it
             if ( is_checked )
                 $(this).prop('checked', true);
+
+            if (block_changes)
+                $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
         });
 
-        $(".field_mapping").unbind('change');
-        $(".field_mapping").change(function() {
+        $(".datafield_mapping").unbind('change');
+        $(".datafield_mapping").change(function() {
             var column_id = $(this).attr('rel');
 
-            if ( $(this).val() == "new" ) {
+            var fieldtype_id = $(this).children('option:selected').attr('rel');
+            $("#column_" + column_id + "_fieldtype").val( fieldtype_id );
+
+            // Provide the option to select a fieldtype if the user wants a new datafield
+            if ( $(this).val() == "new" )
                 $("#column_" + column_id + "_fieldtype").removeAttr('disabled');
-            }
-            else {
+            else
                 $("#column_" + column_id + "_fieldtype").attr('disabled', 'disabled');
-            }
+
+            // Need to select a delimiter for multiple radio/select fields
+            if ( fieldtype_id == '13' || fieldtype_id == '15' )
+                $("#column_" + column_id + "_delimiter").removeAttr('disabled');
+            else
+                $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
+
+            if (block_changes)
+                $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
         });
+
+        $(".fieldtype_mapping").unbind('change');
+        $(".fieldtype_mapping").change(function() {
+            var column_id = $(this).attr('rel');
+
+            // Need to select a delimiter for multiple radio/select fields
+            if ( $(this).val() == '13' || $(this).val() == '15' )
+                $("#column_" + column_id + "_delimiter").removeAttr('disabled');
+            else
+                $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
+
+            if (block_changes)
+                $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
+        });
+
+{% if presets != null %}
+    {% if presets.external_id_column is defined %}
+        $("#external_id_checkbox_{{ presets.external_id_column }}").trigger('click');
+    {% endif %}
+    {% for column_id, target in presets.datafield_mapping %}
+        $("#import_checkbox_{{ column_id }}").trigger('click');
+        $("#column_{{ column_id }}").val("{{ target }}");
+        {% if target != "new" %}
+        $("#column_{{ column_id }}_fieldtype").attr('disabled', 'disabled');    // don't want this fieldtype selector to be enabled
+        {% endif %}
+    {% endfor %}
+    {% for column_id, target in presets.fieldtype_mapping %}
+        $("#column_{{ column_id }}_fieldtype").val("{{ target }}");
+    {% endfor %}
+    {% for column_id, target in presets.column_delimiters %}
+        $("#column_{{ column_id }}_delimiter").removeAttr('disabled');
+        $("#column_{{ column_id }}_delimiter").val("{{ target }}");
+    {% endfor %}
+
+        block_changes = true;
+{% endif %}
     });
 
     function selectAllFields() {
@@ -122,7 +188,8 @@
         });
     }
 
-    function startImport() {
+
+    function validateImport() {
 
         // If no checkboxes checked, no point doing any importing...
         var any_checked = false;
@@ -149,7 +216,7 @@
         // Notify when same datafield selected for two different columns
         var selections = [];
         var block_import = false;
-        $(".field_mapping:enabled").each(function() {
+        $(".datafield_mapping:enabled").each(function() {
             var selection = $(this).val();
             if (selection == 'new') {
                 // Don't care about situations where a new datafield has to be created
@@ -167,13 +234,24 @@
             }
         });
 
+        // Require all multiple select/radio fields to have a secondary delimiter
+        $(".secondary_delimiter:enabled").each(function() {
+            if ( $(this).val() == '' ) {
+                block_import = true;
+                alert( 'ERROR: Multiple Select/Radio fields MUST have a secondary delimiter selected' );
+                return false;
+            }
+        });
+
+
+        // If any of the conditions aren't met, don't proceed with import
         if (block_import)
             return;
 
         if ( confirm("Are you sure you want to import?") ) {
             var import_data = $("#csv_import_form").serialize();
 
-            var url = '{{ path('odr_csv_import_process') }}';
+            var url = '{{ path('odr_csv_import_start_validate') }}';
 
             var dataType = "json";
             $.ajax({
@@ -185,7 +263,9 @@
                 success: function(data, textStatus, jqXHR) {
                     if (data.r == 0) {
                         // ...
-                        alert('csv import in progress?');
+                        alert('Beginning validation of CSV Import...');
+                        var url = '{{ path('odr_job_list') }}';
+                        UpdateURL(url);
                     }
                     else {
                         // An error has occurred.
@@ -207,8 +287,8 @@
                     }
                 }
             });
-        }
 
+        }
     }
 </script>
 

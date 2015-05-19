@@ -26,10 +26,13 @@ ODR\AdminBundle\Entity\TrackedJob:
             fixed: false
             nullable: false
 
-        description:
-            type: string
-            length: 255
-            fixed: false
+#        description:
+#            type: string
+#            length: 255
+#            fixed: false
+#            nullable: false
+        additional_data:
+            type: text
             nullable: false
 
         restrictions:

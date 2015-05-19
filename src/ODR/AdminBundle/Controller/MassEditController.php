@@ -378,12 +378,12 @@ $datarecords = explode(',', $datarecords);
             // Get/create an entity to track the progress of this mass edit
             $job_type = 'mass_edit';
             $target_entity = 'datatype_'.$datatype_id;
-            $description = 'Mass Edit of DataType '.$datatype_id;
+            $additional_data = array('description' => 'Mass Edit of DataType '.$datatype_id);
             $restrictions = '';
             $total = count($datarecords);
             $reuse_existing = false;
 
-            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
             $tracked_job_id = $tracked_job->getId();
 
 

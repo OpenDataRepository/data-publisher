@@ -1001,12 +1001,12 @@ $save_permissions = false;
             // Get/create an entity to track the progress of this datatype recache
             $job_type = 'recache';
             $target_entity = 'datatype_'.$datatype_id;
-            $description = 'Recache of DataType '.$datatype_id;
+            $additional_data = array('description' => 'Recache of DataType '.$datatype_id);
             $restrictions = $datatype->getRevision();
             $total = count($results);
             $reuse_existing = true;
 
-            $tracked_job = self::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+            $tracked_job = self::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
             $tracked_job_id = $tracked_job->getId();
 
             // ----------------------------------------
@@ -1359,14 +1359,14 @@ $save_permissions = false;
      * @param User $user              The user to use if a new TrackedJob is to be created
      * @param string $job_type        A label used to indicate which type of job this is  e.g. 'recache', 'import', etc.
      * @param string $target_entity   Which entity this job is operating on
-     * @param string $description     A brief description of what the TrackedJob is doing
+     * @param array $additional_data  Additional data related to the TrackedJob
      * @param string $restrictions    TODO - ...additional info/restrictions attached to the job
      * @param integer $total          ...how many pieces the job is broken up into?
      * @param boolean $reuse_existing TODO - multi-user concerns
      * 
      * @return TODO
      */
-    protected function ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing = false)
+    protected function ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing = false)
     {
         $tracked_job = null;
 
@@ -1388,7 +1388,7 @@ $save_permissions = false;
 
         $tracked_job->setStarted(null);
 
-        $tracked_job->setDescription($description);
+        $tracked_job->setAdditionalData( json_encode($additional_data) );
         $tracked_job->setRestrictions($restrictions);
 
         $tracked_job->setCompleted(null);
@@ -1400,6 +1400,51 @@ $save_permissions = false;
 //        $tracked_job->resetCurrent($em);          // TODO - potential fix for possible desynch mentioned earlier
         $em->refresh($tracked_job);
         return $tracked_job;
+    }
+
+
+    /**
+     * Gets an array of TrackedError entities for a specified TrackedJob
+     *
+     * @param EntityManager $em
+     * @param integer $tracked_job_id
+     *
+     * @return TODO
+     */
+    protected function ODR_getTrackedErrorArray($em, $tracked_job_id)
+    {
+        $job_errors = array();
+
+        $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+        if ($tracked_job == null)
+            return parent::deletedEntityError('TrackedJob');
+
+        $tracked_errors = $em->getRepository('ODRAdminBundle:TrackedError')->findBy( array('trackedJob' => $tracked_job_id) );
+        foreach ($tracked_errors as $error)
+            $job_errors[ $error->getId() ] = array('error_level' => $error->getErrorLevel(), 'error_body' => json_decode( $error->getErrorBody(), true ));
+
+        return $job_errors;
+    }
+
+
+    /**
+     * Deletes all TrackedError entities associated with a specified TrackedJob
+     *
+     * @param EntityManager $em
+     * @param integer $tracked_job_id
+     *
+     * @return TODO
+     */
+    protected function ODR_deleteTrackedErrorsByJob($em, $tracked_job_id)
+    {
+        // Because there could potentially be thousands of errors for this TrackedJob, do a mass DQL deletion 
+        $query = $em->createQuery(
+           'DELETE FROM ODRAdminBundle:TrackedError AS te
+            WHERE te.trackedJob = :tracked_job'
+        )->setParameters( array('tracked_job' => $tracked_job_id) );
+        $rows = $query->execute();
+
+        return $rows;
     }
 
 
@@ -2027,7 +2072,7 @@ $save_permissions = false;
 $debug = true;
 $debug = false;
 if ($debug)
-    print 'datarecord '.$datarecord_id.'...'."\n";
+    print '<pre>datarecord '.$datarecord_id.'...'."\n";
 
         // Store the values in the correct display_order
         $value_list = array();
@@ -2097,8 +2142,10 @@ if ($debug)
         foreach ($value_list as $num => $val)
             $html[] = strval($val);
 
-if ($debug)
-    print $html."\n";
+if ($debug) {
+    print_r($html);
+    print "\n</pre>";
+}
 
         return $html;
     }

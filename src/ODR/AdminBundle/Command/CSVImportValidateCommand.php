@@ -2,14 +2,14 @@
 
 /**
 * Open Data Repository Data Publisher
-* CSVImport Command
+* CSVImportValidate Command
 * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
 *
 * This Symfony console command takes beanstalk jobs from the
-* csv_import tube and passes the parameters to CSVImportController
-* to import a line of data from a CSV file.
+* csv_import_validate tube and passes the parameters to
+* CSVImportController to validate a line of data from a CSV file.
 *
 */
 
@@ -28,15 +28,15 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-class CSVImportCommand extends ContainerAwareCommand
+class CSVImportValidateCommand extends ContainerAwareCommand
 {
     protected function configure()
     {
         parent::configure();
 
         $this
-            ->setName('odr_csv_import:start')
-            ->setDescription('Waits for an csv import request for a given datatype...');
+            ->setName('odr_csv_import:validate')
+            ->setDescription('Gets the server to validat a row of CSV data...');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -53,18 +53,18 @@ class CSVImportCommand extends ContainerAwareCommand
             try {
                 // Wait for a job?
 //                $job = $pheanstalk->watch($memcached_prefix.'_import_datatype')->ignore('default')->reserve();
-                $job = $pheanstalk->watch('csv_import')->ignore('default')->reserve();
+                $job = $pheanstalk->watch('csv_import_validate')->ignore('default')->reserve();
 
                 // Get Job Data
                 $data = json_decode($job->getData());
 
                 // 
-                $str = 'CSV Import request for DataType '.$data->datatype_id.' from '.$data->memcached_prefix.'...';
+                $str = 'CSV Import Validate request for DataType '.$data->datatype_id.' from '.$data->memcached_prefix.'...';
 
                 $current_time = new \DateTime();
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );                
                 $output->writeln($str);
-                $logger->info('CSVImportCommand.php: '.$str);
+                $logger->info('CSVImportValidateCommand.php: '.$str);
 
                 // Need to use cURL to send a POST request...thanks symfony
                 $ch = curl_init();
@@ -74,12 +74,18 @@ $output->writeln($data->url);
                 // Create the required url and the parameters to send
                 $parameters = array(
                     'tracked_job_id' => $data->tracked_job_id,
-                    'external_id_column' => $data->external_id_column,
                     'datatype_id' => $data->datatype_id,
-                    'mapping' => $data->mapping,
+                    'user_id' => $data->user_id,
+
+                    'column_names' => $data->column_names,
+//                    'external_id_column' => $data->external_id_column,
+                    'datafield_mapping' => $data->datafield_mapping,
+                    'fieldtype_mapping' => $data->fieldtype_mapping,
+                    'column_delimiters' => $data->column_delimiters,
+                    'line_num' => $data->line_num,
                     'line' => $data->line,
+
                     'api_key' => $data->api_key,
-                    'user_id' => $data->user_id
                 );
 
                 // Set the options for the POST request
@@ -112,7 +118,7 @@ $output->writeln($data->url);
                     // Should always be a json return...
                     throw new \Exception( print_r($ret, true) );
                 }
-//$logger->debug('ImportStartCommand.php: curl results...'.print_r($result, true));
+//$logger->debug('CSVImportValidateCommand.php: curl results...'.print_r($result, true));
 
                 // Done with this cURL object
                 curl_close($ch);
@@ -123,7 +129,7 @@ $output->writeln($data->url);
             }
             catch (\Exception $e) {
                 $output->writeln($e->getMessage());
-                $logger->err('CSVImportCommand.php: '.$e->getMessage());
+                $logger->err('CSVImportValidateCommand.php: '.$e->getMessage());
 
                 // Delete the job so the queue doesn't hang, in theory
                 $pheanstalk->delete($job);

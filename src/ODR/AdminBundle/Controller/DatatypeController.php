@@ -615,12 +615,12 @@ class DatatypeController extends ODRCustomController
                     // Get/create an entity to track the progress of this datatype recache
                     $job_type = 'recache';
                     $target_entity = 'datatype_'.$datatype_id;
-                    $description = 'Recache of DataType '.$datatype_id;
+                    $additional_data = array('description' => 'Recache of DataType '.$datatype_id);
                     $restrictions = $datatype->getRevision();
                     $total = count($results);
                     $reuse_existing = true;
 
-                    $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $description, $restrictions, $total, $reuse_existing);
+                    $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
                     $tracked_job_id = $tracked_job->getId();
 
                     // ----------------------------------------

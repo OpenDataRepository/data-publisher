@@ -2,13 +2,13 @@
 
 /**
 * Open Data Repository Data Publisher
-* ClearCSVImport Command
+* ClearCSVImportWorker Command
 * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
 *
 * This Symfony console command deletes beanstalk jobs from the
-* csv_import tube without executing them.
+* csv_import_worker tube without executing them.
 *
 */
 
@@ -28,7 +28,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 //class RefreshCommand extends Command
-class ClearCSVImportCommand extends ContainerAwareCommand
+class ClearCSVImportWorkerCommand extends ContainerAwareCommand
 {
 
     protected function configure()
@@ -36,8 +36,8 @@ class ClearCSVImportCommand extends ContainerAwareCommand
         parent::configure();
 
         $this
-            ->setName('odr_csv_import:clear')
-            ->setDescription('Deletes all jobs from the csv_import tube')
+            ->setName('odr_csv_import:clear_worker')
+            ->setDescription('Deletes all jobs from the csv_import_worker tube')
             ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the memcached_prefix to the tube name for deleting jobs');
     }
 
@@ -52,9 +52,9 @@ class ClearCSVImportCommand extends ContainerAwareCommand
         while (true) {
             // Wait for a job?
             if ($input->getOption('old'))
-                $job = $pheanstalk->watch($memcached_prefix.'_csv_import')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch($memcached_prefix.'_csv_import_worker')->ignore('default')->reserve(); 
             else
-                $job = $pheanstalk->watch('csv_import')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch('csv_import_worker')->ignore('default')->reserve(); 
 
             $data = json_decode($job->getData());
             $datatype_id = $data->datatype_id;
@@ -63,9 +63,9 @@ class ClearCSVImportCommand extends ContainerAwareCommand
             $pheanstalk->delete($job);
 
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted job for datatype '.$datatype_id.' from '.$memcached_prefix.'_csv_import');
+    $output->writeln( date('H:i:s').'  deleted job for datatype '.$datatype_id.' from '.$memcached_prefix.'_csv_import_worker');
 else
-    $output->writeln( date('H:i:s').'  deleted job for datatype '.$datatype_id.' from csv_import');
+    $output->writeln( date('H:i:s').'  deleted job for datatype '.$datatype_id.' from csv_import_worker');
 
             // Sleep for a bit
             usleep(100000); // sleep for 0.1 seconds
