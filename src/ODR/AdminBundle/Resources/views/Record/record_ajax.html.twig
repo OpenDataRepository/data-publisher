@@ -166,6 +166,13 @@ function initPage() {
             url += image_id;
 //alert( url );
 //return;
+            var tmp = $(this).parents(".ODRDataField").first().attr('id');
+            tmp = tmp.split('_');
+            var datarecord_id = tmp[1];
+            var datafield_id = tmp[2];
+
+//alert('datarecord: ' + datarecord_id + ', datafield: ' + datafield_id);
+//return;
 
             // Ajax Load Form in box
             var dataType = "json";
@@ -177,9 +184,10 @@ function initPage() {
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
                         // Will Cause removal from view
-                        $("#Image_"+image_id).remove();
-
-                        // Could use ReloadDatafield(), but this works
+                        if (data.d.need_reload == true)
+                            ReloadDatafield(datarecord_id, datafield_id);
+                        else
+                            $("#Image_"+image_id).remove();
                     }
                     else {
                         // An error has occurred.
@@ -217,6 +225,14 @@ function initPage() {
 //alert( url );
 //return;
 
+            var tmp = $(this).parents(".ODRDataField").first().attr('id');
+            tmp = tmp.split('_');
+            var datarecord_id = tmp[1];
+            var datafield_id = tmp[2];
+
+//alert('datarecord: ' + datarecord_id + ', datafield: ' + datafield_id);
+//return;
+
             var dataType = "json";
             $.ajax({
                 cache: false,
@@ -226,7 +242,10 @@ function initPage() {
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
                         // Remove file data from table area
-                        $("#File_" + file_id).remove();
+                        if (data.d.need_reload == true)
+                            ReloadDatafield(datarecord_id, datafield_id);
+                        else
+                            $("#File_" + file_id).remove();
                     }
                     else {
                         // An error has occurred.

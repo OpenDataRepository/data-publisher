@@ -219,7 +219,7 @@ class RecordController extends ODRCustomController
                 return parent::permissionDeniedError("create new DataRecords for");
             // --------------------
 
-    
+            // TODO - ???
             // Get default form theme (theme_type = "form"
             $query = $em->createQuery(
                 'SELECT t FROM ODRAdminBundle:Theme t WHERE t.isDefault = 1 AND t.templateType = :template_type'
@@ -665,6 +665,9 @@ class RecordController extends ODRCustomController
             // Refresh the cache entries for this datarecord
             parent::updateDatarecordCache($datarecord->getId(), $options);
 
+            // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
+            if ($datafield->getAllowMultipleUploads() == "0")
+                $return['d'] = array('need_reload' => true);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -972,6 +975,9 @@ class RecordController extends ODRCustomController
             // Refresh the cache entries for this datarecord
             parent::updateDatarecordCache($datarecord->getId(), $options);
 
+            // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
+            if ($datafield->getAllowMultipleUploads() == "0")
+                $return['d'] = array('need_reload' => true);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
