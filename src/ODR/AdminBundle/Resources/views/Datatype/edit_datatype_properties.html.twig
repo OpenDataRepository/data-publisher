@@ -13,7 +13,7 @@
                 <label for="namefield_select">Name Field:</label>
                 <select id="namefield_select" name="namefield" onchange="SaveNameField({{ datatype.id }});">
                     <option value="-1" {% if datatype.getnamefield == null %}selected{% endif %}>NONE</option>
-                    {% for datafield in available_namedatafields %}
+                    {% for datafield in name_datafields %}
                         <option value="{{ datafield.id }}" {% if datatype.getnamefield != null and datatype.getnamefield.id == datafield.id %}selected{% endif %}>{{ datafield.getfieldname }}</option>
                     {% endfor %}
                 </select>
@@ -23,11 +23,8 @@
                 <label for="sortfield_select">Sort Field:</label>
                 <select id="sortfield_select" name="sortfield" onchange="SaveSortField({{ datatype.id }});">
                     <option value="-1" {% if datatype.getsortfield == null %}selected{% endif %}>NONE</option>
-                    {% for datafield in datatype.getdatafields %}
-                        {% set typename = datafield.getfieldtype.gettypename %}
-                        {% if typename == "Integer" or typename == "Short Text" or typename == "Medium Text" or typename == "Long Text" or typename == "DateTime" %}
-                            <option value="{{ datafield.id }}" {% if datatype.getsortfield != null and datatype.getsortfield.id == datafield.id %}selected{% endif %}>{{ datafield.getfieldname }}</option>
-                        {% endif %}
+                    {% for datafield in sort_datafields %}
+                        <option value="{{ datafield.id }}" {% if datatype.getsortfield != null and datatype.getsortfield.id == datafield.id %}selected{% endif %}>{{ datafield.getfieldname }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -45,7 +42,7 @@
                 <label for="imagefield_select">Background Image Field:</label>
                 <select id="imagefield_select" name="imagefield" onchange="SaveImageField({{ datatype.id }});">
                     <option value="-1" {% if datatype.getbackgroundimagefield == null %}selected{% endif %}>NONE</option>
-                    {% for datafield in available_imagefields %}
+                    {% for datafield in image_datafields %}
                         <option value="{{ datafield.id }}" {% if datatype.getbackgroundimagefield != null and datatype.getbackgroundimagefield.id == datafield.id %}selected{% endif %}>{{ datafield.getfieldname }}</option>
                     {% endfor %}
                 </select>
@@ -62,42 +59,31 @@
         </fieldset>
     </form>
 
-{#
-        </br></br>
-#}
-        <div id="TextResults_design" class="row">
-            <div>
-                <h1>Available Fields</h1>
-            </div>
-            <div id="TextResults_start" class="TextResults_design">
-            {% for datafield in datatype.getdatafields %}
-                {% set typename = datafield.getfieldtype.gettypename %}
-                {% if typename == "Boolean" or typename == "Integer" or typename == "Short Text" or typename == "Medium Text" or typename == "Long Text" or typename == "Paragraph Text" or typename == "Single Radio" or typename == "Single Select" or typename == "DateTime" %}
-                    <div id="DataField_{{ datafield.id }}" class="DraggableField TextResults_DataField{% if datafield.getdisplayorder > 0 %} TextResults_hidden{% endif %}">{{ datafield.getfieldname }}</div>
-                {% endif %}
-            {% endfor %}
-            </div>
-
-            <div>
-                <h1>Field Order</h1>
-            </div>
-            <div id="TextResults_order" class="TextResults_design SortableArea SortableArea_design">
-            {% for datafield in datatype.getdatafields %}
-                {% set typename = datafield.getfieldtype.gettypename %}
-                {% if typename == "Boolean" or typename == "Integer" or typename == "Short Text" or typename == "Medium Text" or typename == "Long Text" or typename == "Paragraph Text" or typename == "Single Radio" or typename == "Single Select" or typename == "DateTime" %}
-                    {% if datafield.getdisplayorder > 0 %}<span id="DataField_{{ datafield.id }}_design" class="TextResults_DataField">{{ datafield.getfieldname }}</span>{% endif %}
-                {% endif %}
-            {% endfor %}
-            </div>
-
-            <div>
-                <h1>Do Not Display</h1>
-            </div>
-            <div id="TextResults_delete" class="TextResults_design SortableArea"></div>
+    <div id="TextResults_design" class="row">
+        <div>
+            <h1>Available Fields</h1>
         </div>
-{#
-    </form>
-#}
+        <div id="TextResults_start" class="TextResults_design">
+        {% for datafield in textresults_datafields %}
+            <div id="DataField_{{ datafield.id }}" class="DraggableField TextResults_DataField{% if datafield.getdisplayorder > 0 %} TextResults_hidden{% endif %}">{{ datafield.getfieldname }}</div>
+        {% endfor %}
+        </div>
+
+        <div>
+            <h1>Field Order</h1>
+        </div>
+        <div id="TextResults_order" class="TextResults_design SortableArea SortableArea_design">
+        {% for datafield in textresults_datafields %}
+            {% if datafield.getdisplayorder > 0 %}<span id="DataField_{{ datafield.id }}_design" class="TextResults_DataField">{{ datafield.getfieldname }}</span>{% endif %}
+        {% endfor %}
+        </div>
+
+        <div>
+            <h1>Do Not Display</h1>
+        </div>
+        <div id="TextResults_delete" class="TextResults_design SortableArea"></div>
+    </div>
+
 </div>
 
 <style type="text/css">
@@ -134,18 +120,10 @@ $(function() {
 
     $("#SaveDataTypeForm_{{ datatype.id }}").submit(function(event) {
         event.preventDefault();
-//        doSearch();
     });
 
     $("#saved").hide();
-
     $(".MenuDesignArea").remove();
-
-{#
-{% if datatype.getuseshortresults == 1 %}
-    $("#TextResults_design").hide();
-{% endif %}
-#}
 
     // Need to watch the search slug field...
     window.SearchSlugInterval_{{ datatype.id }} = null;

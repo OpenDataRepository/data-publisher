@@ -33,7 +33,7 @@
                             <td class="pure-u-1-24">&nbsp;</td>
 
                             <td class="pure-u-20-24" {% if file.originalfilename != null and field.getshortenfilename == 1 and file.originalfilename|length > 35 %}title="{{ file.originalfilename }}"{% endif %}>
-                                <a target="_blank" href="{{ path('odr_file_download', { 'file_id': file.id } ) }}">
+                                <a class="ODRDownload" target="_blank" href="{{ path('odr_file_download', { 'file_id': file.id } ) }}">
                                 {% if file.originalfilename == null %}
                                 File_{{ file.id }}.txt
                                 {% elseif field.getshortenfilename == 1 and file.originalfilename|length > 35 %}

@@ -399,26 +399,60 @@ class DatatypeController extends ODRCustomController
             // --------------------
 
 
-            // Determine which datafields can be name fields
+            // Grab datafields that this page needs
+            $query = $em->createQuery(
+               'SELECT df AS datafield, ft.typeName AS typename, ft.canBeNameField AS namefield
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
+                WHERE df.dataType = :datatype
+                AND df.deletedAt IS NULL AND ft.deletedAt IS NULL'
+            )->setParameters( array('datatype' => $datatype_id) );
+            $results = $query->getResult();
+//$results = $query->getArrayResult();
+//print_r($results);
+
             $name_datafields = array();
-            $datafields = $datatype->getDataFields();
-            foreach ($datafields as $df) {
-                // If not allowed to be a name field, skip to the next field...
-                if (!$df->getFieldType()->getCanBeNameField())
-                    continue;
+            $sort_datafields = array();
+            $image_datafields = array();
+            $textresults_datafields = array();
+            foreach ($results as $num => $result) {
+                $datafield = $result['datafield'];
+                $typename = $result['typename'];
+                $namefield = $result['namefield'];
 
-                // Otherwise, store the datafield
-                $name_datafields[] = $df;
+                if ($namefield == '1')
+                    $name_datafields[] = $datafield;
+
+                if ($typename == 'Image')
+                    $image_datafields[] = $datafield;
+
+                switch ($typename) {
+                    case 'DateTime':
+                    case 'Integer':
+                    case 'Short Text':
+                    case 'Medium Text':
+                    case 'Long Text':
+                        $sort_datafields[] = $datafield;
+                        $textresults_datafields[] = $datafield;
+                        break;
+
+                    case 'Boolean':
+                    case 'Paragraph Text':
+                    case 'Single Radio':
+                    case 'Single Select':
+                        $textresults_datafields[] = $datafield;
+                        break;
+
+                    case 'File':
+                        if ($datafield->getAllowMultipleUploads() == "0")
+//                        if ($datafield['allow_multiple_uploads'] == "0")
+                            $textresults_datafields[] = $datafield;
+                        break;
+
+                    default:
+                        break;
+                }
             }
-
-            // Determine which datafields are images, and store them for possible use as a background_image field
-            $available_imagefields = array();
-            //$datafields = $datatype->getDataFields();
-            foreach ($datafields as $df) {
-                if ($df->getFieldType()->getTypeClass() == 'Image')
-                    $available_imagefields[] = $df;
-            }
-
 
             // Render the edit page
             $templating = $this->get('templating');
@@ -428,8 +462,11 @@ class DatatypeController extends ODRCustomController
                     array(
                         'site_baseurl' => $site_baseurl,
                         'datatype' => $datatype,
-                        'available_namedatafields' => $name_datafields,
-                        'available_imagefields' => $available_imagefields,
+
+                        'name_datafields' => $name_datafields,
+                        'sort_datafields' => $sort_datafields,
+                        'image_datafields' => $image_datafields,
+                        'textresults_datafields' => $textresults_datafields,
                     )
                 )
             );

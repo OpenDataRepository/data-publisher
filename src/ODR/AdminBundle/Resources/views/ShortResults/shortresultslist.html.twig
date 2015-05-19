@@ -52,6 +52,14 @@
     });
 
     function ShortResults_initPage(prevent_scroll) {
+        //
+        $("a.ODRDownload").unbind('click');
+        $("a.ODRDownload").click(function(event) {
+            event.stopImmediatePropagation();
+//            return false;
+        });
+
+        // Hide empty fieldareas
         $(".ODRFieldArea").each(function() {
             var max_height = 0;
 

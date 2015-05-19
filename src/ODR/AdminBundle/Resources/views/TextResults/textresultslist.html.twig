@@ -68,24 +68,8 @@
                     'search_key': "{{ search_key }}",
                 },
                 complete: function() {
-{#
-/*
-//        $("#TextResults").dataTable().api().page({{ offset }} - 1).draw(false);
-                {% if scroll_target != '' %}
-
-                    var datarecord = '.DataRecord_' + {{ scroll_target }};
-                    if ( $(datarecord) !== null && $(datarecord) !== undefined ) {
-                        $('html, body').animate({
-                            scrollTop: $(datarecord).parent().prev().offset().top
-                        }, 500);
-                    }
-
-                {% endif %}
-*/
-#}
                 },
             },
-
 
             createdRow: function( row, data, index ) {
                 $(row).attr('onclick', 'loadDataRecord(' + data[0] + ');');
@@ -94,8 +78,22 @@
 
         });
 
-//        $("#TextResults").dataTable().api().page({{ offset }} - 1).draw(false);
+    });
 
+
+    $("#TextResults").on('draw.dt', function() {
+        // Attach required attributes to any <a> element in the table
+        $(this).find('a').each(function() {
+            $(this).addClass('ODRDownload');
+            $(this).attr('target', '_blank');
+        });
+
+        // Prevent the click handler for <tr> elements from firing if <a> is clicked
+        $("a.ODRDownload").unbind('click');
+        $("a.ODRDownload").click(function(event) {
+            event.stopImmediatePropagation();
+//            return false;
+        });
     });
 
 {% if count > 0 and user_role == 'ROLE_SUPER_ADMIN' %}

@@ -168,7 +168,10 @@ class ODRCustomController extends Controller
             // -----------------------------------
             // Grab the...
             $column_names = self::getDatatablesColumnNames($datatype->getId());
-
+/*
+print_r($column_names);
+print "\n\n";
+*/
             // Don't render the starting textresults list here, it'll always be loaded via ajax later
 
             // -----------------------------------
@@ -2036,7 +2039,7 @@ $save_permissions = false;
         // Do a query to locate the names of all datafields that can be in the table
         $em = $this->getDoctrine()->getManager();
         $query = $em->createQuery(
-           'SELECT df.fieldName
+           'SELECT df.fieldName AS field_name
             FROM ODRAdminBundle:DataFields AS df
             WHERE df.dataType = :datatype AND df.displayOrder > 0
             AND df.deletedAt IS NULL
@@ -2045,8 +2048,8 @@ $save_permissions = false;
 
         $results = $query->getArrayResult();
         foreach ($results as $num => $data) {
-            $name = $data['fieldName'];
-            $column_names .= '{"title":"'.$name.'"},';
+            $fieldname = $data['field_name'];
+            $column_names .= '{"title":"'.$fieldname.'"},';
         }
 
         return $column_names;
@@ -2068,6 +2071,7 @@ $save_permissions = false;
         $em = $this->getDoctrine()->getManager();
         $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
         $datarecord = $repo_datarecord->find($datarecord_id);
+        $router = $this->get('router');
 
 $debug = true;
 $debug = false;
@@ -2111,6 +2115,20 @@ if ($debug)
                             $value = 'YES';
                         else
                             $value = '';
+                    }
+                    else if ($field_typeclass == 'File') {
+                        $collection = $drf->getAssociatedEntity();
+
+                        $str = '';
+                        if ( isset($collection[0]) ) {
+                            // ...should only be one file in here anyways
+                            $file = $collection[0];
+
+                            $url = $router->generate('odr_file_download', array('file_id' => $file->getId()));
+                            $str = '<a href='.$url.'>'.$file->getOriginalFileName().'</a>'; // textresultslist.html.twig will add other required attributes because of str_replace later in this function
+                        }
+
+                        $value = $str;
                     }
                     else {
                         $value = $drf->getAssociatedEntity()->getValue();

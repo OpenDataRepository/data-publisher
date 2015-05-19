@@ -3076,6 +3076,7 @@ if ($debug)
                         if ( $datafield->getAllowMultipleUploads() == 0 ) {
                             // This datafield somehow managed to acquire multiple uploads without being set as such...fix that
                             $datafield->setAllowMultipleUploads(true);
+                            $datafield->setDisplayOrder(-1);
                             $em->persist($datafield);
                             $em->flush();
                         }
