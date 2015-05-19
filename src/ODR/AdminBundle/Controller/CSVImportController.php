@@ -615,24 +615,27 @@ class CSVImportController extends ODRCustomController
 
             // --------------------
             // Ensure that the datatype/fieldtype mappings and secondary column delimiters work
-            $fieldtype_mapping = array();
             foreach ($datafield_mapping as $col_num => $datafield_id) {
                 if ($datafield_id == 'new') {
                     // Since a new datafield will be created, ensure fieldtype exists
-                    if ( $fieldtype_mapping == null || !isset($fieldtype_mapping[$col_num]) )
-                        throw new \Exception('Invalid Form a');
+                    if ( $fieldtype_mapping == null )
+                        throw new \Exception('Invalid Form...no fieldtype_mapping');
+                    if ( !isset($fieldtype_mapping[$col_num]) )
+                        throw new \Exception('Invalid Form...$fieldtype_mapping['.$col_num.'] not set');
 
                     // If new datafield is multiple select/radio, ensure secondary delimiters exist
                     if ($fieldtype_mapping[$col_num] == 13 || $fieldtype_mapping[$col_num] == 15) {   // TODO - naming fieldtypes by number
-                        if ( $column_delimiters == null || !isset($column_delimiters[$col_num]) )
-                            throw new \Exception('Invalid Form b');
+                        if ( $column_delimiters == null )
+                            throw new \Exception('Invalid Form a...no column_delimiters');
+                        if ( !isset($column_delimiters[$col_num]) )
+                            throw new \Exception('Invalid Form a...$column_delimiters['.$col_num.'] not set');
                     }
                 }
                 else {
                     // Ensure datafield exists
                     $datafield = $repo_datafield->find($datafield_id);
                     if ($datafield == null)
-                        throw new \Exception('Invalid Form c');
+                        throw new \Exception('Invalid Form...deleted DataField');
 
                     // Ensure fieldtype mapping entry exists
                     $fieldtype_mapping[$col_num] = $datafield->getFieldType()->getId();
@@ -640,8 +643,10 @@ class CSVImportController extends ODRCustomController
                     // If datafield is a multiple select/radio field, ensure secondary delimiters exist
                     $typename = $datafield->getFieldType()->getTypeName();
                     if ($typename == "Multiple Select" || $typename == "Multiple Radio") {
-                        if ( $column_delimiters == null || !isset($column_delimiters[$col_num]) )
-                            throw new \Exception('Invalid Form d');
+                        if ( $column_delimiters == null )
+                            throw new \Exception('Invalid Form b...no column_delimiters');
+                        if ( !isset($column_delimiters[$col_num]) )
+                            throw new \Exception('Invalid Form b...$column_delimiters['.$col_num.'] not set');
                     }
                 }
             }
@@ -1749,7 +1754,7 @@ print_r($new_mapping);
 
                                 if ($rowsAffected > 0) {
                                     $logger->notice('Created new RadioOption ("'.$option_name.'") as part of csv import for datatype '.$datatype->getId().' by '.$user->getId());
-                                    $status .= '...created new radio_option ("'.$option_name.'")';
+                                    $status .= '    ...created new radio_option ("'.$option_name.'")';
                                 }
 
                                 // Now that it exists, fill out the properties of a RadioOption entity that were skipped during the manual creation...
@@ -1768,8 +1773,9 @@ print_r($new_mapping);
                             $selected = 1;  // default to selected
                             $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, $selected);
 
-                            $status .= '...selected'."\n";
+                            $status .= '...selected';
                         }
+                        $status .= "\n";
                     }
                 }
             }
