@@ -375,19 +375,24 @@ $datarecords = explode(',', $datarecords);
 //return;
 
             // ----------------------------------------
-            // Get/create an entity to track the progress of this mass edit
-            $job_type = 'mass_edit';
-            $target_entity = 'datatype_'.$datatype_id;
-            $additional_data = array('description' => 'Mass Edit of DataType '.$datatype_id);
-            $restrictions = '';
-            $total = count($datarecords);
-            $reuse_existing = false;
+            // If content of datafields was modified, get/create an entity to track the progress of this mass edit
+            // Don't create a TrackedJob if this mass_edit just changes public status
+            $tracked_job_id = -1;
+            if ( count($datafields) > 0 ) {
+                $job_type = 'mass_edit';
+                $target_entity = 'datatype_'.$datatype_id;
+                $additional_data = array('description' => 'Mass Edit of DataType '.$datatype_id);
+                $restrictions = '';
+                $total = count($datarecords);
+                $reuse_existing = false;
 
-            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
-            $tracked_job_id = $tracked_job->getId();
+                $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
+                $tracked_job_id = $tracked_job->getId();
+            }
 
 
             // ----------------------------------------
+            // TODO - need to change to DQL mass update
             // Deal with datarecord public status first, if needed
             $updated = false;
             foreach ($datarecords as $num => $datarecord_id) {
