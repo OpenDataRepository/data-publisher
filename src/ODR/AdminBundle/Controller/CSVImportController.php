@@ -1623,6 +1623,8 @@ print_r($new_mapping);
                     $typeclass = $datafield->getFieldType()->getTypeClass();
                     $classname = "ODR\\AdminBundle\\Entity\\".$typeclass;
 
+                    $column_data = trim($column_data);
+
                     if ($typeclass == 'Boolean') {
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
@@ -1733,7 +1735,8 @@ print_r($new_mapping);
 
                         foreach ($options as $num => $option_name) {
                             // Don't look for or create a blank radio option
-                            if ( trim($option_name) == '' )
+                            $option_name = trim($option_name);
+                            if ( $option_name == '' )
                                 continue;
 
                             // See if a radio_option entity with this name already exists
