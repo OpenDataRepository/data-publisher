@@ -250,10 +250,23 @@ class JobController extends ODRCustomController
                     $datatype_id = $tmp[1];
 
                     $datatype = $repo_datatype->find($datatype_id);
-                    $job['revision'] = $datatype->getRevision();
                     $job['description'] = 'CSV Export from Datatype "'.$datatype->getShortName().'"';
 //                    $job['datatype_id'] = $datatype_id;
                     $job['user_id'] = $tracked_job->getCreatedBy()->getId();
+                }
+                else if ($job_type == 'csv_import_validate') {
+                    $tmp = explode('_', $tracked_job->getTargetEntity());
+                    $datatype_id = $tmp[1];
+
+                    $datatype = $repo_datatype->find($datatype_id);
+                    $job['description'] = 'Validating csv import data for DataType "'.$datatype->getShortName().'"';
+                }
+                else if ($job_type == 'csv_import') {
+                    $tmp = explode('_', $tracked_job->getTargetEntity());
+                    $datatype_id = $tmp[1];
+
+                    $datatype = $repo_datatype->find($datatype_id);
+                    $job['description'] = 'Importing data into DataType "'.$datatype->getShortName().'"';
                 }
 
                 $jobs[] = $job;
@@ -327,7 +340,28 @@ class JobController extends ODRCustomController
             // Get necessary objects
             $em = $this->getDoctrine()->getManager();
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
-            $repo_tracked_error = $em->getRepository('ODRAdminBundle:TrackedError');
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+
+            // --------------------
+            // Get datatype from job
+            $tracked_job = $repo_tracked_job->find($job_id);
+            if ($tracked_job == null)
+                return parent::deletedEntityError('Job');
+
+            $job_type = $tracked_job->getJobType();
+            $tmp = '';
+            if ($job_type == 'migrate')
+                $tmp = $tracked_job->getRestrictions();
+            else
+                $tmp = $tracked_job->getTargetEntity();
+
+            $tmp = explode('_', $tmp);
+            $datatype_id = $tmp[1];
+
+            $datatype = $repo_datatype->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Job');
+
 
             // --------------------
             // Determine user privileges
@@ -372,7 +406,35 @@ class JobController extends ODRCustomController
             // Get necessary objects
             $em = $this->getDoctrine()->getManager();
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
-            $repo_tracked_error = $em->getRepository('ODRAdminBundle:TrackedError');
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+
+            // --------------------
+            // Get datatype from job
+            $tracked_job = $repo_tracked_job->find($job_id);
+            // Don't worry about a deleted TrackedJob...just delete any TrackedErrors for this job if they somehow still exist
+            if ($tracked_job == null) {
+//                return parent::deletedEntityError('Job');
+                parent::ODR_deleteTrackedErrorsByJob($em, $job_id);
+                return;
+            }
+
+            $job_type = $tracked_job->getJobType();
+            $tmp = '';
+            if ($job_type == 'migrate') 
+                $tmp = $tracked_job->getRestrictions();
+            else 
+                $tmp = $tracked_job->getTargetEntity();
+
+            $tmp = explode('_', $tmp);
+            $datatype_id = $tmp[1];
+
+            $datatype = $repo_datatype->find($datatype_id);
+            // If the Datatype is deleted, there's no point to this job...delete it
+            if ($datatype == null) {
+//                return parent::deletedEntityError('Job');
+                return self::deletejobAction($job_id, $request);
+            }
+
 
             // --------------------
             // Determine user privileges
@@ -384,14 +446,8 @@ class JobController extends ODRCustomController
                 return parent::permissionDeniedError("admin");
             // --------------------
 
-
-            $tracked_job = $repo_tracked_job->find($job_id);
-            // Don't worry about a deleted TrackedJob...technically these TrackedErrors shouldn't exist anyways in that case
-//            if ($tracked_job == null)
-//                return parent::deletedEntityError('TrackedJob');
-
+            // Delete all errors attached to this job
             parent::ODR_deleteTrackedErrorsByJob($em, $job_id);
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -424,16 +480,45 @@ class JobController extends ODRCustomController
             // Get necessary objects
             $em = $this->getDoctrine()->getManager();
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
             // --------------------
-            // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            // Get datatype from job
+            $tracked_job = $repo_tracked_job->find($job_id);
+            // Don't worry about a deleted TrackedJob...just delete any TrackedErrors for this job if they somehow still exist
+            if ($tracked_job == null) {
+//                return parent::deletedEntityError('Job');
+                parent::ODR_deleteTrackedErrorsByJob($em, $job_id);
+                return;
+            }
+
+            $job_type = $tracked_job->getJobType();
+            $tmp = '';
+            if ($job_type == 'migrate')
+                $tmp = $tracked_job->getRestrictions();
+            else
+                $tmp = $tracked_job->getTargetEntity();
+
+            $tmp = explode('_', $tmp);
+            $datatype_id = $tmp[1];
+
+            $datatype = $repo_datatype->find($datatype_id);
+            // If the Datatype is deleted, there's no point to this job...skip the permissions check and delete it
+            if ($datatype == null) {
+//                return parent::deletedEntityError('Job');
+                /* do nothing */
+            }
+            else {
+                // --------------------
+                // Determine user privileges
+                $user = $this->container->get('security.context')->getToken()->getUser();
+                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'admin' ])) )   // TODO - probably needs to be changed...
-                return parent::permissionDeniedError("admin");
-            // --------------------
+                // Ensure user has permissions to be doing this
+                if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'admin' ])) )   // TODO - probably needs to be changed...
+                    return parent::permissionDeniedError("admin");
+                // --------------------
+            }
 
             // Delete any errors associated with this job
             parent::ODR_deleteTrackedErrorsByJob($em, $job_id);

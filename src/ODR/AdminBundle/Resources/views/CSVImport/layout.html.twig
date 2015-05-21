@@ -235,6 +235,7 @@
             }
         });
 
+        // TODO - warn when secondary delimiter matches primary delimiter
         // Require all multiple select/radio fields to have a secondary delimiter
         $(".secondary_delimiter:enabled").each(function() {
             if ( $(this).val() == '' ) {
@@ -249,7 +250,7 @@
         if (block_import)
             return;
 
-        if ( confirm("Are you sure you want to import?") ) {
+        if ( confirm("Are you sure you want to validate this import?") ) {
             var import_data = $("#csv_import_form").serialize();
 
             var url = '{{ path('odr_csv_import_start_validate') }}';

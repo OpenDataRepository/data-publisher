@@ -945,17 +945,17 @@ odr_get_job_errors:
     requirements:
         job_id: \d+
 
-odr_delete_job_errors:
-    pattern:  /jobs/delete_errors/{job_id}
-    defaults: { _controller: ODRAdminBundle:Job:deletejoberrors }
-    requirements:
-        job_id: \d+
+#odr_delete_job_errors:
+#    pattern:  /jobs/delete_errors/{job_id}
+#    defaults: { _controller: ODRAdminBundle:Job:deletejoberrors }
+#    requirements:
+#        job_id: \d+
 
-odr_delete_tracked_job:
-    pattern:  /jobs/delete_job/{job_id}
-    defaults: { _controller: ODRAdminBundle:Job:deletejob }
-    requirements:
-        job_id: \d+
+#odr_delete_tracked_job:
+#    pattern:  /jobs/delete_job/{job_id}
+#    defaults: { _controller: ODRAdminBundle:Job:deletejob }
+#    requirements:
+#        job_id: \d+
 
 #odr_delete_tracked_error:
 #    pattern:  /jobs/delete_error/{error_id}
@@ -976,8 +976,10 @@ odr_df_check:
     pattern: /admin/df_check
     defaults: { _controller: ODRAdminBundle:Worker:dfcheck }
 odr_drf_check:
-    pattern: /admin/drf_check
+    pattern: /admin/drf_check/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Worker:drfcheck }
+    requirements:
+        datatype_id: \d+
 odr_entity_check:
     pattern: /admin/entity_check
     defaults: { _controller: ODRAdminBundle:Worker:entitycheck }

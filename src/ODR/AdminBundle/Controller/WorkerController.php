@@ -728,7 +728,7 @@ print '</pre>';
      * 
      * @return TODO
      */
-    public function drfcheckAction(Request $request)
+    public function drfcheckAction($datatype_id, Request $request)
     {
         $delete_entities = true;
         $delete_entities = false;
@@ -742,9 +742,10 @@ print '</pre>';
             FROM ODRAdminBundle:DataFields df
             JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
             JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
-            WHERE df.deletedAt IS NULL AND dt.deletedAt IS NULL
-            ORDER BY df.id');
-        $datafields = $query->getResult();
+            WHERE dt.id = :datatype AND df.deletedAt IS NULL AND dt.deletedAt IS NULL
+            ORDER BY df.id'
+        )->setParameters( array('datatype' => $datatype_id) );
+        $datafields = $query->getArrayResult();
 print '<pre>';
         foreach ($datafields as $tmp) {
             $datafield_id = $tmp['df_id'];

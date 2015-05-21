@@ -256,14 +256,17 @@ class CSVImportController extends ODRCustomController
             $my_obj->getUploadedFile()->move( $csv_import_path, $tmp_filename.'.csv' );
 
 
+            // TODO - need a better way to deal with uploaded csv files
             // Store the filename in the user's session
             if ( $session->has('csv_file') ) {
+/*
                 // delete the old file?
                 $filename = $session->get('csv_file');
                 if ( file_exists($csv_import_path.$filename) )
                     unlink($csv_import_path.$filename);
 
                 $session->remove('csv_file');
+*/
             }
             $session->set('csv_file', $tmp_filename.'.csv');
 
