@@ -29,6 +29,10 @@ parameters:
             name: 'Comment Plugin'
             filename: CommentPlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
+        url_plugin:
+            name: 'URL Field'
+            filename: URLPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
     memcached.servers:
         -
             host: 127.0.0.1

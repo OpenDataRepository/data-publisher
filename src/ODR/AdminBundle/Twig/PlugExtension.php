@@ -114,7 +114,7 @@ class PlugExtension extends \Twig_Extension
             }    
         }
         catch (\Exception $e) {
-            throw new \Exception("Error loading RenderPlugin \'".$render_plugin->getPluginName()."\' for obj ".$obj->getId());
+            throw new \Exception("Error loading RenderPlugin \'".$render_plugin->getPluginName()."\' for obj ".$obj->getId().'...'.$e->getMessage());
         }
     }
 

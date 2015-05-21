@@ -29,5 +29,11 @@ services:
         arguments:
             entityManager: "@doctrine.orm.entity_manager"
             templating: "@templating"
+    graph.urlplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\URLPlugin
+        arguments:
+            entityManager: "@doctrine.orm.entity_manager"
+            templating: "@templating"
+
     graph.defaultplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\DefaultPlugin

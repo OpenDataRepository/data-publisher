@@ -1,4 +1,4 @@
-ODR\OpenRepository\GraphBundle\Plugins\Graph:
+ODR\OpenRepository\GraphBundle\Plugins\Chemistry:
     name: Chemistry Field 
     datatype: false
     version: 1.00
