@@ -2133,6 +2133,7 @@ if ($debug)
                     else {
                         $value = $drf->getAssociatedEntity()->getValue();
                     }
+
                 }
                 else {
                     // Get the Render Plugin to return a string value for the table
@@ -2140,7 +2141,7 @@ if ($debug)
                     $value = $plugin->execute($drf, $render_plugin, '', 'TextResults');
                 }
 
-                $value = str_replace( array("'", '"', "\r", "\n"), array("\'", '\"', "", " "), $value);
+//                $value = str_replace( array("'", '"', "\r", "\n"), array("\'", '\"', "", " "), $value);   // This doesn't appear to be required anymore...
 
 if ($debug)
     print '-- -- storing value "'.$value.'" from datafield '.$datafield->getId().', display_order '.$display_order."\n";

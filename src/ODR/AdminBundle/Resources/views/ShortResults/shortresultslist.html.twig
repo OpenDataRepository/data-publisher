@@ -52,7 +52,15 @@
     });
 
     function ShortResults_initPage(prevent_scroll) {
-        //
+        // Attach required attributes to any <a> element in the table
+        $(".ODRShortResults").each(function() {
+            $(this).find('a').each(function() {
+                $(this).addClass('ODRDownload');
+                $(this).attr('target', '_blank');
+            });
+        });
+
+        // Prevent the click handler for <tr> elements from firing if <a> is clicked
         $("a.ODRDownload").unbind('click');
         $("a.ODRDownload").click(function(event) {
             event.stopImmediatePropagation();
