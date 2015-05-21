@@ -8,11 +8,6 @@ services:
             entityManager: "@doctrine.orm.entity_manager"
             templating: "@templating"
             logger: "@logger"
-    graph.diffractionplugin:
-        class: ODR\OpenRepository\GraphBundle\Plugins\DiffractionPlugin
-        arguments:
-            entityManager: "@doctrine.orm.entity_manager"
-            templating: "@templating"
     graph.referencesplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\ReferencesPlugin
         arguments:
