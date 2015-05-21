@@ -1053,3 +1053,6 @@ form .row {
     color: red;
 }
 
+#ElementData label {
+    color: black;
+}
