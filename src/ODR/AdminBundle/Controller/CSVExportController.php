@@ -589,7 +589,7 @@ if ($debug)
                     if ($typeclass == 'Radio') {
                         $datarecord_data[ $result['df_id'] ] = array();
 
-                        if ($secondary_delimiter == null)
+                        if ( ($typename == "Multiple Radio" || $typename == "Multiple Select") && $secondary_delimiter == null)
                             throw new \Exception('Invalid Form');
                     }
                     else {
@@ -651,6 +651,8 @@ if ($debug)
                     foreach ($results as $num => $result) {
                         $df_id = $result['df_id'];
                         $value = $result['value'];
+
+                        // TODO - special handling for boolean
 
                         if ($typeclass == 'DatetimeValue') {
                             $date = $value->format('Y-m-d');
