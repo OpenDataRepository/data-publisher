@@ -2199,6 +2199,8 @@ print '</pre>';
                     }
                 }
 
+//print_r($plugin_options);
+
                 // ------------------------------
                 $available_options = array();
                 $required_fields = array();
@@ -3026,12 +3028,19 @@ if ($debug)
             // --------------------
 
 
+            // --------------------
+            // Need to immediately force a reload of the right design slideout if certain fieldtypes change
+            $force_slideout_reload = false;
+            
+            // --------------------
             // Determine if shortresults may need to be recached
             $force_shortresults_recache = false;
             $search_theme_data_field = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield, 'theme' => 2) );   // TODO
             if ($search_theme_data_field !== null && $search_theme_data_field->getActive() == true)
                 $force_shortresults_recache = true;
 
+
+            // --------------------
             // Get relevant theme_datafield entry
             $query = $em->createQuery(
                'SELECT tdf
@@ -3051,6 +3060,8 @@ if ($debug)
                 }
             }
 */
+
+            // --------------------
             // Check to see whether the "allow multiple uploads" checkbox for file/image control needs to be disabled
             $has_multiple_uploads = 0;
             $typeclass = $datafield->getFieldType()->getTypeClass();
@@ -3086,6 +3097,8 @@ if ($debug)
                 }
             }
 
+
+            // --------------------
             // Prevent a datafield's fieldtype from being changed if it's being used by a render plugin
             $prevent_fieldtype_change = false;
             $render_plugin_map = $em->getRepository('ODRAdminBundle:RenderPluginMap')->findAll();
@@ -3106,10 +3119,11 @@ if ($debug)
                 $prevent_fieldtype_change = true;
 
 
+            // --------------------
             // Populate new DataFields form
             $datafield_form = $this->createForm(new UpdateDatafieldsForm(), $datafield);
             $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm(), $theme_datafield);
-            $templating = $this->get('templating');
+//            $templating = $this->get('templating');
             if ($request->getMethod() == 'POST') {
 /*
                 // Deal with the uniqueness checkbox
@@ -3129,6 +3143,7 @@ if ($debug)
                 }
 */
 
+                // --------------------
                 // Deal with change of fieldtype
                 $old_fieldtype = $new_fieldtype = null;
                 $migrate_data = false;
@@ -3160,11 +3175,11 @@ if ($debug)
                             case 'ShortVarchar':
                             case 'DecimalValue':
                                 break;
+
                             default:
                                 $migrate_data = false;
                                 break;
                         }
-
                         // ...to something that is also migrate-able
                         switch ($new_fieldtype->getTypeClass()) {
                             case 'IntegerValue':
@@ -3176,6 +3191,24 @@ if ($debug)
                                 break;
                             default:
                                 $migrate_data = false;
+                                break;
+                        }
+
+                        // If fieldtype got changed to/from Markdown, File, Image, or Radio...force a reload of the right slideout, because options on that slideout are different for these fieldtypes
+                        switch ($old_fieldtype->getTypeClass()) {
+                            case 'Radio':
+                            case 'File':
+                            case 'Image':
+                            case 'Markdown':
+                                $force_slideout_reload = true;
+                                break;
+                        }
+                        switch ($new_fieldtype->getTypeClass()) {
+                            case 'Radio':
+                            case 'File':
+                            case 'Image':
+                            case 'Markdown':
+                                $force_slideout_reload = true;
                                 break;
                         }
                     }
@@ -3195,8 +3228,11 @@ if ($debug)
                 if ($prevent_fieldtype_change) {
                     $datafield->setFieldType( $old_fieldtype );
                     $migrate_data = false;
+                    $force_slideout_reload = false;
                 }
 
+
+                // --------------------
                 $return['t'] = "html";
                 if ($datafield_form->isValid()) {
                     // Easier to deal with change of fieldtype and how it relates to searchable here
@@ -3221,6 +3257,7 @@ if ($debug)
                             break;
                     }
 
+                    // --------------------
                     // If this field is in shortresults, do another check to determine whether the shortrsults needs to be recached
                     if ($force_shortresults_recache) {
                         if ( $old_fieldname != $datafield->getFieldName() || $old_shortenfilename != $datafield->getShortenFilename() )
@@ -3254,6 +3291,7 @@ if ($debug)
                     else {
 */
 
+                    // --------------------
                     // If datafields are getting migrated, then the datatype will get updated
                     if ($migrate_data) {
                         // Grab necessary stuff for pheanstalk...
@@ -3326,10 +3364,12 @@ if ($debug)
                         parent::updateDatatypeCache($datatype->getId(), $options);
 //                    }
                 }
+
+            }   // <-- added
+/*
                 else {
 //print_r($datafield_form->getErrors());
-                    // Get Sizing Options for Sizing Block
-                    // Get Radio Option Form if Radio Type
+                    // Error in validating a returned datatype form
                     $return['d'] = $templating->render(
                         'ODRAdminBundle:Displaytemplate:datafield_properties_form.html.twig', 
                         array(
@@ -3344,6 +3384,7 @@ if ($debug)
                 }
             }
             else {
+                // Request not a POST
                 $return['d'] = $templating->render(
                     'ODRAdminBundle:Displaytemplate:datafield_properties_form.html.twig', 
                     array(
@@ -3356,7 +3397,34 @@ if ($debug)
                     )
                 );
             }
+*/
 
+
+            // --------------------
+            // Return the html for the right slideout if necessary
+            if ( $request->getMethod() == 'GET' || count($datafield_form->getErrors()) > 0 || $force_slideout_reload == true ) {
+                $em->refresh($datafield);
+                $em->refresh($theme_datafield);
+
+                $datafield_form = $this->createForm(new UpdateDatafieldsForm(), $datafield);
+                $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm(), $theme_datafield);
+                $templating = $this->get('templating');
+
+                $return['d'] = array(
+                    'force_slideout_reload' => $force_slideout_reload,
+                    'html' => $templating->render(
+                        'ODRAdminBundle:Displaytemplate:datafield_properties_form.html.twig', 
+                        array(
+                            'has_multiple_uploads' => $has_multiple_uploads,
+                            'prevent_fieldtype_change' => $prevent_fieldtype_change,
+                            'datafield' => $datafield,
+                            'datafield_form' => $datafield_form->createView(),
+                            'theme_datafield' => $theme_datafield,
+                            'theme_datafield_form' => $theme_datafield_form->createView(),
+                        )
+                    )
+                );
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
