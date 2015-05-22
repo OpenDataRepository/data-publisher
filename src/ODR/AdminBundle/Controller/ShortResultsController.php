@@ -637,6 +637,27 @@ class ShortResultsController extends ODRCustomController
                     foreach ($tmp as $key => $dr_id)
                         $list[] = $dr_id;
                 }
+                else if ($typeclass == 'File') {
+                    // Get the list of file names...have to left join the file table because datarecord id is required, but there may not always be a file uploaded
+                    $query = $em->createQuery(
+                       'SELECT f.originalFileName AS file_name, dr.id AS dr_id
+                        FROM ODRAdminBundle:DataRecord AS dr
+                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
+                        JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
+                        LEFT JOIN ODRAdminBundle:File AS f WITH f.dataRecordFields = drf
+                        WHERE dr.id IN (:datarecords) AND df.displayOrder = :display_order
+                        AND f.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL
+                        ORDER BY f.originalFileName '.$sort_dir
+                    )->setParameters( array('datarecords' => $list, 'display_order' => $sort_column) );
+                    $results = $query->getArrayResult();
+
+                    // TODO - sort in php instead of SQL?
+                    // Redo the list of datarecords based on the sorted order
+                    $list = array();
+                    foreach ($results as $num => $result) {
+                        $list[] = $result['dr_id'];
+                    }
+                }
                 else {
                     // Get SQL to sort the list of datarecords
                     $query = $em->createQuery(
