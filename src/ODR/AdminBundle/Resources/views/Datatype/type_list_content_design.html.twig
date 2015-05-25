@@ -23,9 +23,10 @@
     {% endif %}
 </div>
 
-<table class="pure-table pure-table-striped">
+<table id="ODRDatatypeList" class="{#pure-table pure-table-striped#}display dataTable">
     <thead>
         <tr>
+            <th></th>
             <th>Type Name</th>
             <th>Number of Records</th>
             <th>Search Layout</th>
@@ -34,9 +35,9 @@
             <th>Download Schema</th>
             <th>CSV Import</th>
 
-            {% if level > 1 %}
+            {#{% if level > 1 %}#}
             <th>Delete</th>
-            {% endif %}
+            {#{% endif %}#}
         </tr>
     </thead>
     <tbody>
@@ -64,6 +65,7 @@
         {#{% if datatype.ispublic == true or can_view_datatype == true %}#}
         {% if can_view_datatype == true %}
         <tr>
+            <td>{{ datatype.id }}</td>
             <td id="datatype_{{ datatype.id }}_name">{{ datatype.shortname }}</td>
 
             {% set found = false %}
@@ -109,15 +111,12 @@
 
             {% if level == 7 or is_type_admin == true %}
                 <td class="center"><a style="cursor:pointer;" onclick="deleteDataType({{ datatype.id }});"><i class="fa fa-lg fa-times"></i>&nbsp;Delete</a></td>
-            {% elseif level > 1 %}
+            {#{% elseif level > 1 %}#}
+            {% else %}
                 <td class="center"></td>
             {% endif %}
         </tr>
         {% endif %}
-    {% else %}
-        <tr>
-            <td colspan="6">No Data Types Found</td>
-        </tr>
     {% endfor %}
 
     </tbody>
@@ -130,6 +129,27 @@
             // Open the dialog to create a new datatype
             $("#dialog_add_datatype").dialog( "open" );
         });
+
+        $("#ODRDatatypeList").dataTable({
+            "columnDefs": [
+                {
+                    "targets": [0],
+                    "visible": false,
+                },
+                {
+                    "targets": [3,4,5,6,7,8],
+                    "orderable": false,
+                    "searchable": false,
+                }
+            ],
+            "paging": false,
+            "info": false,
+            "language": {
+                "emptyTable": "No Datatypes found"
+            }
+        });
+
+        $("#ODRDatatypeList").removeAttr('style');
     });
 
     function deleteDataType(datatype_id) {
