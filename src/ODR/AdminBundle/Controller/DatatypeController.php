@@ -517,6 +517,7 @@ class DatatypeController extends ODRCustomController
             $sortfield_id = $post['sortfield'];
             $namefield_id = $post['namefield'];
             $imagefield_id = $post['imagefield'];
+            $old_search_slug = $post['old_search_slug'];
             $search_slug = $post['search_slug'];
 
             // --------------------
@@ -551,10 +552,41 @@ class DatatypeController extends ODRCustomController
                 $datatype->setNameField(null);
             }
 
-            $datatype->setSearchSlug($search_slug);
- 
             $image_field = $repo_datafield->find($imagefield_id);
             $datatype->setBackgroundImageField($image_field);
+
+            // --------------------
+            // Ensure the search slug provided doesn't match one already in the database
+            if ($old_search_slug !== $search_slug) {
+                $query = $em->createQuery(
+                   'SELECT dt.id, dt.searchSlug AS dt_search_slug
+                    FROM ODRAdminBundle:DataType AS dt
+                    WHERE dt.searchSlug != :empty
+                    AND dt.deletedAt IS NULL'
+                )->setParameters( array( 'empty' => '') );
+                $results = $query->getArrayResult();
+//print_r($results);
+
+                $unique = true;
+                foreach ($results as $num => $result) {
+                    $dt_search_slug = $result['dt_search_slug'];
+
+                    if ($search_slug == $dt_search_slug) {
+                        $unique = false;
+                        break;
+                    }
+                }
+
+                if ($unique) {
+                    // If no other datatype has this search slug, save it
+                    $datatype->setSearchSlug($search_slug);
+                }
+                else {
+                    // Otherwise, notify the page that it needs to alert the user to this error
+                    // Don't stop the rest of the page from saving, though...
+                    $return['r'] = 2;
+                }
+            }
 
             // Save changes
             $em->flush();
