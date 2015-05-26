@@ -268,6 +268,14 @@ class JobController extends ODRCustomController
                     $datatype = $repo_datatype->find($datatype_id);
                     $job['description'] = 'Importing data into DataType "'.$datatype->getShortName().'"';
                 }
+                else if ($job_type == 'mass_edit') {
+                    $tmp = explode('_', $tracked_job->getTargetEntity());
+                    $datatype_id = $tmp[1];
+
+                    $datatype = $repo_datatype->find($datatype_id);
+                    $job['description'] = 'Mass Edit of DataType "'.$datatype->getShortName().'"';
+                }
+
 
                 $jobs[] = $job;
             }
