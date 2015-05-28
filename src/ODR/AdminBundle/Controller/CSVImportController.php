@@ -937,7 +937,13 @@ class CSVImportController extends ODRCustomController
                         break;
 
                     case "DatetimeValue":
-                        // TODO
+                        try {
+                            $tmp = new \DateTime($value);
+                        }
+                        catch (\Exception $e) {
+                            $error_level = 'Error';
+                            $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", which is not a valid Datetime value');
+                        }
                         break;
 
                     case "ShortVarchar":
@@ -1311,8 +1317,24 @@ class CSVImportController extends ODRCustomController
             if ($tracked_job !== null)
                 throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
 
+
+            // ----------------------------------------
+            // NOTE - Create the tracked job here to prevent a second upload from being scheduled while the first is creating datafields...
+            // Get/create an entity to track the progress of this csv import
+            $job_type = 'csv_import';
+            $target_entity = 'datatype_'.$datatype->getId();
+            $additional_data = array('description' => 'Importing data into DataType '.$datatype_id.'...');
+            $restrictions = '';
+            $total = ($reader->count() - 1);
+            $reuse_existing = false;
+//$reuse_existing = true;
+
+            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
+            $tracked_job_id = $tracked_job->getId();
+
             // Not going to need any of the TrackedError entries for this job anymore, get rid of them
             parent::ODR_deleteTrackedErrorsByJob($em, $job_id);
+
 
             // ------------------------------
             // Load symfony objects
@@ -1462,7 +1484,7 @@ print_r($new_mapping);
                 break;
             }
 
-
+/*
             // ----------------------------------------
             // Get/create an entity to track the progress of this csv import
             $job_type = 'csv_import';
@@ -1475,7 +1497,7 @@ print_r($new_mapping);
 
             $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
             $tracked_job_id = $tracked_job->getId();
-
+*/
 
             // ------------------------------
             // Create a beanstalk job for each row of the csv file
