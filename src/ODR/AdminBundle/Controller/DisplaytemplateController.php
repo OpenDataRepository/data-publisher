@@ -3315,7 +3315,7 @@ if ($debug)
                             // Get/create an entity to track the progress of this datafield migration
                             $job_type = 'migrate';
                             $target_entity = 'datafield_'.$datafield->getId();
-                            $additional_data = array('description' => 'Migration of DataField '.$datafield->getId().' from "'.$old_fieldtype->getTypeName().'" to "'.$new_fieldtype->getTypeName().'"');
+                            $additional_data = array('description' => '', 'old_fieldtype' => $old_fieldtype->getTypeName(), 'new_fieldtype' => $new_fieldtype->getTypeName());
                             $restrictions = 'datatype_'.$datafield->getDataType()->getId();
                             $total = count($results);
                             $reuse_existing = false;
