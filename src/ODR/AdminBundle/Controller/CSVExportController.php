@@ -640,11 +640,12 @@ if ($debug)
                     $query = $em->createQuery(
                        'SELECT df.id AS df_id, e.value AS value
                         FROM ODRAdminBundle:'.$typeclass.' AS e
-                        JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
-                        JOIN ODRAdminBundle:DataFields AS df WITH e.dataField = df
+                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                        JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                        JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
                         JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
                         WHERE dr.id = :datarecord AND df.id IN (:datafields) AND ft.typeClass = :typeclass
-                        AND e.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL'
+                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL'
                     )->setParameters( array('datarecord' => $datarecord_id, 'datafields' => $df_list, 'typeclass' => $typeclass) );
                     $results = $query->getArrayResult();
 
