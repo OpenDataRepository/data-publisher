@@ -1318,6 +1318,41 @@ class CSVImportController extends ODRCustomController
                 throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
 
 
+            // --------------------
+            // Read column names from the file
+            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
+            $csv_filename = $job_data['csv_filename'];
+            $delimiter = $job_data['delimiter'];
+
+            // Apparently SplFileObject doesn't do this before opening the file...
+            ini_set('auto_detect_line_endings', TRUE);
+
+            $csv_file = new \SplFileObject( $csv_import_path.$csv_filename );
+            $reader = new CsvReader($csv_file, $delimiter);
+            $reader->setHeaderRowNumber(0);     // want associative array
+
+            // Get the first row of the csv file
+            $line_num = 1;
+            $first_row = array();
+            foreach ($reader as $row) {
+                $line_num++;
+
+                // Save the contents of the header row so column names can be extracted
+                if ($line_num == 2) {
+                    $first_row = $row;
+                    break;
+                }
+            }
+
+            // Grab column names from first row
+            $column_names = array();
+            foreach ($first_row as $column => $value)
+                $column_names[] = $column;
+
+//print_r($column_names);
+//return;
+
+
             // ----------------------------------------
             // NOTE - Create the tracked job here to prevent a second upload from being scheduled while the first is creating datafields...
             // Get/create an entity to track the progress of this csv import
@@ -1358,40 +1393,6 @@ class CSVImportController extends ODRCustomController
             $column_delimiters = $job_data['column_delimiters'];
 
 //print_r($job_data);
-//return;
-
-            // --------------------
-            // Read column names from the file
-            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
-            $csv_filename = $job_data['csv_filename'];
-            $delimiter = $job_data['delimiter'];
-
-            // Apparently SplFileObject doesn't do this before opening the file...
-            ini_set('auto_detect_line_endings', TRUE);
-
-            $csv_file = new \SplFileObject( $csv_import_path.$csv_filename );
-            $reader = new CsvReader($csv_file, $delimiter);
-            $reader->setHeaderRowNumber(0);     // want associative array
-
-            // Get the first row of the csv file
-            $line_num = 1;
-            $first_row = array();
-            foreach ($reader as $row) {
-                $line_num++;
-
-                // Save the contents of the header row so column names can be extracted
-                if ($line_num == 2) {
-                    $first_row = $row;
-                    break;
-                }
-            }
-
-            // Grab column names from first row
-            $column_names = array();
-            foreach ($first_row as $column => $value)
-                $column_names[] = $column;
-
-//print_r($column_names);
 //return;
 
             // ------------------------------
