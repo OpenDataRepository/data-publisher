@@ -148,6 +148,7 @@ class JobController extends ODRCustomController
         // Get necessary objects
         $em = $this->getDoctrine()->getManager();
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+        $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
         $repo_tracked_jobs = $em->getRepository('ODRAdminBundle:TrackedJob');
         $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -268,6 +269,30 @@ class JobController extends ODRCustomController
                     $datatype = $repo_datatype->find($datatype_id);
                     $job['description'] = 'Importing data into DataType "'.$datatype->getShortName().'"';
                 }
+                else if ($job_type == 'mass_edit') {
+                    $tmp = explode('_', $tracked_job->getTargetEntity());
+                    $datatype_id = $tmp[1];
+
+                    $datatype = $repo_datatype->find($datatype_id);
+                    $job['description'] = 'Mass Edit of DataType "'.$datatype->getShortName().'"';
+                }
+                else if ($job_type == 'migrate') {
+                    $tmp = explode('_', $tracked_job->getTargetEntity());
+                    $datafield_id = $tmp[1];
+
+                    $old_fieldtype = $new_fieldtype = '';
+                    if ( isset($additional_data['old_fieldtype']) )
+                        $old_fieldtype = $additional_data['old_fieldtype'];
+                    if ( isset($additional_data['new_fieldtype']) )
+                        $new_fieldtype = $additional_data['new_fieldtype'];
+
+                    $datafield = $repo_datafield->find($datafield_id);
+                    if ($datafield == null)
+                        $job['description'] = 'Migration of currently deleted DataField '.$datafield_id.' from "'.$old_fieldtype.'" to "'.$new_fieldtype.'"';
+                    else
+                        $job['description'] = 'Migration of DataField "'.$datafield->getFieldName().'" from "'.$old_fieldtype.'" to "'.$new_fieldtype.'"';
+                }
+
 
                 $jobs[] = $job;
             }

@@ -30,10 +30,13 @@
             </div>
 
             <div class="pure-control-group">
-                <input type="hidden" id="old_search_slug" value="{{ datatype.getsearchslug }}" />
+                <input type="hidden" id="old_search_slug" name="old_search_slug" value="{{ datatype.getsearchslug }}" />
                 <label for="search_slug">Search Abbreviation:</label>
                 <span>
                     {{ site_baseurl ~ '/'}}<input type="text" id="new_search_slug" name="search_slug" value="{{ datatype.getsearchslug }}" maxlength="32" />
+                </span>
+                <span id="search_slug_error" style="display: none;">
+                    <i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;A Datatype with this abbreviation already exists!
                 </span>
             </div>
 
@@ -112,6 +115,9 @@
         padding: 10px;
         cursor: pointer;
         /*top: 25px;*/
+    }
+    #search_slug_error {
+        color: red;
     }
 </style>
 
@@ -312,7 +318,7 @@ function SaveSearchSlug(id) {
             $("#search_url").html(url);
 
             SubmitForm(id);
-            $("#old_search_slug").val( $("#new_search_slug").val() );
+//            $("#old_search_slug").val( $("#new_search_slug").val() );
         }
     }
     else {
@@ -338,6 +344,23 @@ function SubmitForm(id) {
                 setTimeout(function() {
                     $('#saved').fadeOut();
                 }, 1500);
+
+                $("#old_search_slug").val( $("#new_search_slug").val() );
+            }
+            else if(data.r == 2) {
+                $('#saved').fadeIn();
+                setTimeout(function() {
+                    $('#saved').fadeOut();
+                }, 1500);
+
+                $("#new_search_slug").attr('readonly', 'readonly');
+                $('#search_slug_error').fadeIn();
+                setTimeout(function() {
+                    $('#search_slug_error').fadeOut();
+                    $("#new_search_slug").val( $("#old_search_slug").val() );
+                    $("#new_search_slug").removeAttr('readonly');
+                }, 3000);
+
             }
             else {
                 // An error has occurred.

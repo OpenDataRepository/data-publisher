@@ -306,6 +306,10 @@
 //alert(url);
 //return;
 
+        // Attempt to prevent the browser from starting this import twice in a row...
+        $("#import_button").attr('disabled', 'disabled');
+        $("#import_button").html('Loading...');
+
         var dataType = "json";
         $.ajax({
             cache: false,

@@ -18,9 +18,10 @@
 
 <div class="content">
 
-    <table class="pure-table pure-table-striped">
+    <table id="ODRUserList" class="{#pure-table pure-table-striped#}display dataTable">
         <thead>
             <tr>
+                <th></th>
                 <th>User Name</th>
                 <th>Email</th>
                 <th>Edit Profile</th>
@@ -31,6 +32,7 @@
         <tbody>
         {% for user in users %}
             <tr>
+                <td>{{ user.id }}</td>
                 <td>{{ user.getuserextend.firstname }}&nbsp;{{ user.getuserextend.lastname }}</td>
                 <td>{{ user.email }}</td>
 
@@ -78,11 +80,6 @@
                 </td>
             {% endif %}
             </tr>
-
-        {% else %}
-            <tr>
-                <td colspan="5">No Users Found</td>
-           </tr>
         {% endfor %}
 
         </tbody>
@@ -91,6 +88,29 @@
 </div><!-- End of .content -->
 
 <script>
+    $(function() {
+        $("#ODRUserList").dataTable({
+            "columnDefs": [
+                {
+                    "targets": [0],
+                    "visible": false,
+                },
+                {
+                    "targets": [3,4,5],
+                    "orderable": false,
+                    "searchable": false,
+                }
+            ],
+            "paging": false,
+            "info": false,
+            "language": {
+                "emptyTable": "No Users found"
+            }
+        });
+
+        $("#ODRUserList").removeAttr('style');
+    });
+
     function deleteUser(user_id) {
         // Prevent an admin from deleting himself
         if (user_id == {{ admin_user.id }}) {

@@ -880,6 +880,13 @@ function SaveDatafieldProperty(datafield_id, reload_datafield) {
                 // Only reload datafield if necessary
                 if (reload_datafield == true)
                     ReloadDatafield(datafield_id);
+
+                if (data.d.force_slideout_reload == true) {
+                    $("#ElementData").html('');
+                    $("#ElementData").html(data.d.html);
+                    $("#ElementData").fadeIn('fast');
+                    InitDatafieldPropertiesForm();
+                }
             }
             else {
                 // An error has occurred.
@@ -1020,7 +1027,7 @@ function SetupDataFields() {
                 dataType: dataType,
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
-                        $("#ElementData").html(data.d); 
+                        $("#ElementData").html(data.d.html);
                         $("#ElementData").fadeIn('fast'); 
                         InitDatafieldPropertiesForm();
                     }
@@ -1728,8 +1735,9 @@ function DeleteDatafield(datafield_id) {
                 var id_data = $(theme_element).attr('id').split(/_/);
                 var theme_element_id = id_data[1];
 
-                // Don't want the datafield around anymore
+                // Don't want the datafield or its slideout around anymore
                 $("#Field_" + datafield_id).remove();
+                $("#ElementData").html('');
 
                 // Determine whether icons need to be un-muted due to deletion of datafield
                 var has_datafields = false;

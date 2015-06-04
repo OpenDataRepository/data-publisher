@@ -47,7 +47,7 @@
 
 <div class="content">
 
-    <table class="pure-table pure-table-striped">
+    <table id="ODRPermissionsList" class="{#pure-table pure-table-striped#}display dataTable">
         <thead>
             <tr>
                 <th>Type Name</th>
@@ -119,11 +119,6 @@
             </tr>
             {% endfor %}
             {% endif %}
-
-        {% else %}
-            <tr>
-                <td colspan="5">No Data Types Found</td>
-            </tr>
         {% endfor %}
 
         </tbody>
@@ -134,6 +129,18 @@
 <script>
     $(function() {
         $("#saved").hide();
+
+        $("#ODRPermissionsList").dataTable({
+            "ordering": false,
+            "searching": false,
+            "paging": false,
+            "info": false,
+            "language": {
+                "emptyTable": "No Datatypes found"
+            }
+        });
+
+        $("#ODRPermissionsList").removeAttr('style');
     });
 
     function togglePermission(id) {

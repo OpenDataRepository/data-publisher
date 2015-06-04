@@ -59,17 +59,7 @@
             {% else %}
                 {{ form_widget(datafield_form.field_type, { 'attr': {'class': 'required ODRDatafieldType', 'data-error-type': 'inline' } }) }}
             {% endif %}
-            <span id="field_type_meta" class="Cursor" title="
-            {% if typename == 'Long Text' %}
-                255 Character Limit
-            {% elseif typename == 'Medium Text' %}
-                64 Character Limit
-            {% elseif typename == 'Short Text' %}
-                32 Character Limit
-            {% elseif typename == 'Paragraph Text' %}
-                No Character Limit
-            {% endif %}
-            ">
+            <span id="field_type_meta" class="Cursor" title="{% if typename == 'Long Text' %}255{% elseif typename == 'Medium Text' %}64{% elseif typename == 'Short Text' %}32{% elseif typename == 'Paragraph Text' %}No{% endif %} Character Limit">
                 &nbsp;<i class="fa fa-question-circle fa-lg"></i>
             </span>
         </div>
