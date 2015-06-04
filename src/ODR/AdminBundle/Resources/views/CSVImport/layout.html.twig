@@ -18,6 +18,7 @@
                     <th>Map to datafield...</th>
                     <th>Fieldtype...</th>
                     <th>Secondary Delimiter</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -48,6 +49,8 @@
                             <option value="colon">{colon}</option>
                             <option value="pipe">{pipe}</option>
                         </select>
+                    </td>
+                    <td id="column_{{ column_id }}_meta">
                     </td>
                 </tr>
                 {% endfor %}
@@ -139,6 +142,18 @@
             else
                 $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
 
+            // Display some metadata about the selected fieldtype if needed
+            if ( $(this).val()  == '5' )
+                $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;No character limit');
+            else if ( $(this).val()  == '6' )
+                $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;255 character limit');
+            else if ( $(this).val()  == '7' )
+                $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;64 character limit');
+            else if ( $(this).val()  == '9' )
+                $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;32 character limit');
+            else
+                $("#column_" + column_id + "_meta").html('');
+
             if (block_changes)
                 $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
         });
@@ -156,9 +171,10 @@
     {% endfor %}
     {% for column_id, target in presets.fieldtype_mapping %}
         $("#column_{{ column_id }}_fieldtype").val("{{ target }}");
+        $("#column_{{ column_id }}_fieldtype").trigger('change');
     {% endfor %}
     {% for column_id, target in presets.column_delimiters %}
-        $("#column_{{ column_id }}_delimiter").removeAttr('disabled');
+//        $("#column_{{ column_id }}_delimiter").removeAttr('disabled');
         $("#column_{{ column_id }}_delimiter").val("{{ target }}");
     {% endfor %}
 
