@@ -23,12 +23,12 @@
 {% set user_role = '' %}
 {% if user != 'anon.' %}
     {% for role in user.getroles %}
-        {% if role == 'ROLE_SUPER_ADMIN' %}
-            {% set user_role = 'ROLE_SUPER_ADMIN' %}
+        {% if role == 'ROLE_ADMIN' %}
+            {% set user_role = 'ROLE_ADMIN' %}
         {% endif %}
     {% endfor %}
 {% endif %}
-{% if user_role == 'ROLE_SUPER_ADMIN' and count > 0 %}
+{% if user_role == 'ROLE_ADMIN' and count > 0 %}
 <div style="margin-top:25px;">
     <button class="pure-button pure-button-primary" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
     &nbsp;&nbsp;&nbsp;
@@ -100,7 +100,7 @@
 
     }
 
-{% if count > 0 and user_role == 'ROLE_SUPER_ADMIN' %}
+{% if count > 0 and user_role == 'ROLE_ADMIN' %}
     function doMassEdit() {
         {% if search_key == '' %}
         var url = '{{ path('odr_mass_edit_list', { 'datatype_id': 0 }) }}';
