@@ -651,6 +651,44 @@ print "\n\n";
 
 
     /**
+     * Utility function to returns the DataTree table in array format
+     *
+     * @param EntityManager $em
+     *
+     * @return array TODO
+     */
+    public function getDatatreeArray($em)
+    {
+        // 
+        $query = $em->createQuery(
+           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dt.is_link AS is_link
+            FROM ODRAdminBundle:DataType AS ancestor
+            JOIN ODRAdminBundle:DataTree AS dt WITH ancestor = dt.ancestor
+            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
+            WHERE ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND descendant.deletedAt IS NULL');
+        $results = $query->getArrayResult();
+
+        $datatree_array = array(
+//            'ancestor_of' => array(),
+          'descendant_of' => array(),
+        );
+        foreach ($results as $num => $result) {
+            $ancestor_id = $result['ancestor_id'];
+            $descendant_id = $result['descendant_id'];
+            $is_link = $result['is_link'];
+
+            if ( !isset($datatree_array['descendant_of'][$ancestor_id]) )
+                $datatree_array['descendant_of'][$ancestor_id] = '';
+
+            if ($is_link == 0)
+                $datatree_array['descendant_of'][$descendant_id] = $ancestor_id;
+        }
+
+        return $datatree_array;
+    }
+
+
+    /**
      * Builds an array of all datatype permissions possessed by the given user.
      * 
      * @param integer $user_id          The database id of the user to grab permissions for
@@ -662,13 +700,12 @@ print "\n\n";
     public function getPermissionsArray($user_id, Request $request, $save_permissions = true)
     {
         try {
+//$save_permissions = false;
             $session = $request->getSession();
             if ( !$save_permissions || !$session->has('permissions') ) {
-                // Permissions not set, need to build the array
+                // Permissions not set, need to build an array
                 $em = $this->getDoctrine()->getManager();
                 $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
-                $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-//                $user_permissions = $repo_user_permissions->findBy( array('user_id' => $user_id) );
 
                 $query = $em->createQuery(
                    'SELECT dt.id AS dt_id, up.can_view_type, up.can_edit_record, up.can_add_record, up.can_delete_record, up.can_design_type, up.is_type_admin
@@ -679,6 +716,9 @@ print "\n\n";
                 $results = $query->getArrayResult();
 //print_r($results);
 //return;
+
+                // Grab the contents of ODRAdminBundle:DataTree as an array
+                $datatree_array = self::getDatatreeArray($em);
 
                 $all_permissions = array();
                 foreach ($results as $result) {
@@ -696,13 +736,12 @@ print "\n\n";
                         $save = true;
 
                         // If this is a child datatype, then the user needs to be able to access the edit page of its eventual top-level parent datatype
-                        $datatree = $repo_datatree->findOneBy( array('descendant' => $datatype_id, 'is_link' => 0) );   // should never be more than one...
-                        while ($datatree !== null) {
-                            $ancestor = $datatree->getAncestor();
-                            $all_permissions[$ancestor->getId()]['child_edit'] = 1;
-
-                            $datatree = $repo_datatree->findOneBy( array('descendant' => $ancestor->getId(), 'is_link' => 0) );   // should never be more than one...
-                        }               
+                        $dt_id = $datatype_id;
+                        while ( isset($datatree_array['descendant_of'][$dt_id]) ) {
+                            $dt_id = $datatree_array['descendant_of'][$dt_id];
+                            if ($dt_id !== '')
+                                $all_permissions[$dt_id]['child_edit'] = 1;
+                        }
                     }
                     if ($result['can_add_record'] == 1) {
                         $all_permissions[$datatype_id]['add'] = 1;
@@ -731,7 +770,11 @@ print "\n\n";
                     // Save and return the permissions array
                     $session->set('permissions', $all_permissions);
                 }
-
+/*
+print '<pre>';
+print_r($all_permissions);
+print '</pre>';
+*/
                 return $all_permissions;
             }
             else {
@@ -935,27 +978,10 @@ $save_permissions = false;
 
         // ----------------------------------------
         // Get the top-most parent of the datatype scheduled for update
-        $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-            FROM ODRAdminBundle:DataTree dt
-            JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE dt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL AND dt.is_link = 0'
-        );
-        $results = $query->getResult();
-//print_r($results);
-        $parent_of = array();
-        foreach ($results as $result) {
-            $ancestor_id = $result['ancestor_id'];
-            $descendant_id = $result['descendant_id'];
+        $datatree_array = self::getDatatreeArray($em);
+        while ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '' )
+            $datatype_id = $datatree_array['descendant_of'][$datatype_id];
 
-            $parent_of[$descendant_id] = $ancestor_id;
-        }
-//print_r($parent_of);
-
-        // Grab the top-most parent of this datatype
-        while ( isset($parent_of[$datatype_id]) )
-            $datatype_id = $parent_of[$datatype_id];
 
         // ----------------------------------------
         // Grab options
@@ -1290,12 +1316,13 @@ $save_permissions = false;
             }
             else {
                 $field_typename = $sortfield->getFieldType()->getTypeName();
+                $field_typeclass = $sortfield->getFieldType()->getTypeClass();
 
                 // Create a query to return a collection of datarecord ids, sorted by the sortfield of the datatype
                 $query = $em->createQuery(
                     'SELECT dr.id, e.value
                      FROM ODRAdminBundle:DataRecord AS dr
-                     JOIN ODRAdminBundle:'.$sortfield->getFieldType()->getTypeClass().' AS e WITH e.dataRecord = dr
+                     JOIN ODRAdminBundle:'.$field_typeclass.' AS e WITH e.dataRecord = dr
                      WHERE dr.dataType = :datatype AND e.dataField = :datafield
                      AND dr.deletedAt IS NULL AND e.deletedAt IS NULL
                      ORDER BY e.value'

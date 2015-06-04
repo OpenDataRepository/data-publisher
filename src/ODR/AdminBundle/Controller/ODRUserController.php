@@ -874,36 +874,33 @@ class ODRUserController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
 
-            // Build the list of datatypes
-            $datatypes = null;
-            // Need to only return top-level datatypes
-            $datatrees = $repo_datatree->findAll();
-            $tmp_datatypes = $repo_datatype->findAll();
 
-            // TODO - top level datatypes?
-            // Locate the IDs of all datatypes that are descended from another datatype
-            $descendants = array();
+            // Need all datatypes, organized into top-level and child datatype arrays
+            $datatypes = array();
             $childtypes = array();
-            foreach ($datatrees as $datatree) {
-                if ($datatree->getIsLink() == 0) {
-                    $descendants[] = $datatree->getDescendant()->getId();
+            $datatree_array = parent::getDatatreeArray($em);
 
-                    $ancestor_id = $datatree->getAncestor()->getId();
-                    if ( !isset($childtypes[$ancestor_id]) )
-                        $childtypes[$ancestor_id] = array();
-                    $childtypes[$ancestor_id][] = $datatree->getDescendant();
-                }
-            }
-
-            // Only display the datatypes that aren't descended from another datatype
+            $tmp_datatypes = $repo_datatype->findAll();
             foreach ($tmp_datatypes as $tmp_datatype) {
-                if ( !in_array($tmp_datatype->getId(), $descendants) ) {
+                $dt_id = $tmp_datatype->getId();
+
+                if ( !isset($datatree_array['descendant_of'][$dt_id]) || $datatree_array['descendant_of'][$dt_id] == '' ) {
+                    // top-level datatype
                     $datatypes[] = $tmp_datatype;
 
-                    if ( !isset($childtypes[$tmp_datatype->getId()]) )
-                        $childtypes[$tmp_datatype->getId()] = null;
+                    if ( !isset($childtypes[$dt_id]) )
+                        $childtypes[$dt_id] = null;
+                }
+                else {
+                    // child datatype
+                    $ancestor_id = $datatree_array['descendant_of'][$dt_id];
+                    if ( !isset($childtypes[$ancestor_id]) || $childtypes[$ancestor_id] == null )
+                        $childtypes[$ancestor_id] = array();
+
+                    $childtypes[$ancestor_id][] = $tmp_datatype;
                 }
             }
+
 
             // Ensure the user has permission objects for all the datatypes
             foreach ($datatypes as $datatype)
@@ -970,41 +967,36 @@ class ODRUserController extends ODRCustomController
             $admin = $this->container->get('security.context')->getToken()->getUser();
 
             // Build the list of top-level datatypes
-            // TODO - isn't there a function in ODRCustomController for this?
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
 
-            // Build the list of datatypes
-            $datatypes = null;
-            // Need to only return top-level datatypes
-            $datatrees = $repo_datatree->findAll();
-            $tmp_datatypes = $repo_datatype->findAll();
-
-            // TODO - top level datatypes?
-            // Locate the IDs of all datatypes that are descended from another datatype
-            $descendants = array();
+            // Need all datatypes, organized into top-level and child datatype arrays
+            $datatypes = array();
             $childtypes = array();
-            foreach ($datatrees as $datatree) {
-                if ($datatree->getIsLink() == 0) {
-                    $descendants[] = $datatree->getDescendant()->getId();
+            $datatree_array = parent::getDatatreeArray($em);
 
-                    $ancestor_id = $datatree->getAncestor()->getId();
-                    if ( !isset($childtypes[$ancestor_id]) )
-                        $childtypes[$ancestor_id] = array();
-                    $childtypes[$ancestor_id][] = $datatree->getDescendant();
-                }
-            }
-
-            // Only display the datatypes that aren't descended from another datatype
+            $tmp_datatypes = $repo_datatype->findAll();
             foreach ($tmp_datatypes as $tmp_datatype) {
-                if ( !in_array($tmp_datatype->getId(), $descendants) ) {
+                $dt_id = $tmp_datatype->getId();
+
+                if ( !isset($datatree_array['descendant_of'][$dt_id]) || $datatree_array['descendant_of'][$dt_id] == '' ) {
+                    // top-level datatype
                     $datatypes[] = $tmp_datatype;
 
-                    if ( !isset($childtypes[$tmp_datatype->getId()]) )
-                        $childtypes[$tmp_datatype->getId()] = null;
+                    if ( !isset($childtypes[$dt_id]) )
+                        $childtypes[$dt_id] = null;
+                }
+                else {
+                    // child datatype
+                    $ancestor_id = $datatree_array['descendant_of'][$dt_id];
+                    if ( !isset($childtypes[$ancestor_id]) || $childtypes[$ancestor_id] == null )
+                        $childtypes[$ancestor_id] = array();
+
+                    $childtypes[$ancestor_id][] = $tmp_datatype;
                 }
             }
+
 
 //print 'build datatype arrays in '.(microtime(true) - $start)."\n";
 
