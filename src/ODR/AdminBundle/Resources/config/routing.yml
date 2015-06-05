@@ -1011,9 +1011,9 @@ odr_force_decrypt:
     defaults: { _controller: ODRAdminBundle:Worker:decrypt }
     requirements: { _method: POST }
 
-#odr_test:
-#    pattern: /admin/test
-#    defaults: { _controller:ODRAdminBundle:XML:test }
+odr_test:
+    pattern: /admin/test
+    defaults: { _controller:ODRAdminBundle:Worker:test }
 
 odr_save_datafield_search_order:
     pattern:  /admin/save/datafieldorder/{datafield_ids}

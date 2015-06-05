@@ -1683,10 +1683,18 @@ $save_permissions = false;
             $my_obj->setDataRecordFields($drf);
 
             $my_obj->setFieldType($field_type);
-            if ($field_type->getTypeClass() == 'DatetimeValue')
+            if ($field_type->getTypeClass() == 'DatetimeValue') {
                 $my_obj->setValue( new \DateTime('0000-00-00 00:00:00') );
-            else
+            }
+            else if ($field_type->getTypeClass() == 'DecimalValue') {
+                $my_obj->setBase(0);
+                $my_obj->setExponent(0);
+                $my_obj->setOriginalValue('0');
+                $my_obj->setValue(0);
+            }
+            else {
                 $my_obj->setValue("");
+            }
             $my_obj->setCreatedBy($user);
             $my_obj->setUpdatedBy($user);
             $em->persist($my_obj);
