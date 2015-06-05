@@ -1285,6 +1285,19 @@ function InitDatafieldPropertiesForm() {
                 // Datatype has no datarecords attached, or user doesn't care...save the change
                 SaveDatafieldProperty(datafield_id, true);  // reload datafield because fieldtype changed
                 save_datafield_xhr = true;
+
+                var str = '';
+                if (current_fieldtype == '5')
+                    str = 'No Character Limit';
+                else if (current_fieldtype == '6')
+                    str = '255 Character Limit';
+                else if (current_fieldtype == '7')
+                    str = '64 Character Limit';
+                else if (current_fieldtype == '9')
+                    str = '32 Character Limit';
+
+                if (str !== '')
+                    $("#field_type_meta").attr('title', str);
             }
             else {
                 // Revert back to old field type
