@@ -1485,20 +1485,6 @@ print_r($new_mapping);
                 break;
             }
 
-/*
-            // ----------------------------------------
-            // Get/create an entity to track the progress of this csv import
-            $job_type = 'csv_import';
-            $target_entity = 'datatype_'.$datatype->getId();
-            $additional_data = array('description' => 'Importing data into DataType '.$datatype_id.'...');
-            $restrictions = '';
-            $total = ($reader->count() - 1);
-            $reuse_existing = false;
-//$reuse_existing = true;
-
-            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
-            $tracked_job_id = $tracked_job->getId();
-*/
 
             // ------------------------------
             // Create a beanstalk job for each row of the csv file
@@ -1527,7 +1513,13 @@ print_r($new_mapping);
                     )
                 );
 
-                $pheanstalk->useTube('csv_import_worker')->put($payload);
+                // Randomize priority somewhat
+                $priority = 1024;
+                $num = rand(0, 400) - 200;
+                $priority += $num;
+
+                $delay = 5;
+                $pheanstalk->useTube('csv_import_worker')->put($payload, $priority, $delay);
             }
 
         }
