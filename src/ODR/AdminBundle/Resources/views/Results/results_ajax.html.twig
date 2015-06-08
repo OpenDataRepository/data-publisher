@@ -38,14 +38,14 @@ function initPage() {
         var count = 0;
         var images_per_row = parseInt( $("#imagestorage_" + datafield_id + "_" + datarecord_id).attr('rel') );
 
-        var width = $("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage").width();
-        var height = width * 0.75;
-        $("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage").css('width', width);
-        $("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage").css('height', height);
+//        var width = $("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage").width();
+//        var height = width * 0.75;
+//        $("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage").css('width', width);
+//        $("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage").css('height', height);
 
         $("#imagestorage_" + datafield_id + "_" + datarecord_id).children(".ODRImage").each(function() {
-            $(this).find("img").css('max-width', width);
-            $(this).find("img").css('max-height', height);
+//            $(this).find("img").css('max-width', width);
+//            $(this).find("img").css('max-height', height);
 
             if ( count < images_per_row ) {
                 $(this).remove().appendTo($("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage"));
