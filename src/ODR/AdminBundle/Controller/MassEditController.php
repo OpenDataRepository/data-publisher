@@ -168,7 +168,7 @@ class MassEditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - this block of code is effectively duplicated in multiple places...
+            // TODO - replace with parent::getSavedSearch()
             $encoded_search_key = '';
             $datarecords = '';
             if ($search_key !== '') {
@@ -354,7 +354,7 @@ if ($debug)
             $search_controller->setContainer($this->container);
 
 
-            // TODO - this assumes that the search result exists in the session...
+            // TODO - this assumes that the search result exists in the session...replace with parent::getSavedSearch() to ensure it exists, or throw an error if it doesn't?
             // Grab the list of saved searches and attempt to locate the desired search
             $saved_searches = $session->get('saved_searches');
             $search_params = $saved_searches[$search_checksum];

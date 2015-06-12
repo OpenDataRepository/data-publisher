@@ -49,6 +49,10 @@
 
         var prevent_scroll = false;
         ShortResults_initPage(prevent_scroll);
+
+        // Need a tab id in html5 sessionStorage if one doesn't exist
+        if ( !window.sessionStorage.getItem('ODR_tab_id') )
+            window.sessionStorage.setItem('ODR_tab_id', '{{ odr_tab_id }}');
     });
 
     function ShortResults_initPage(prevent_scroll) {
@@ -60,11 +64,10 @@
             });
         });
 
-        // Prevent the click handler for <tr> elements from firing if <a> is clicked
+        // Prevent the click handler for <tr> elements from firing if a file download href is clicked
         $("a.ODRDownload").unbind('click');
         $("a.ODRDownload").click(function(event) {
             event.stopImmediatePropagation();
-//            return false;
         });
 
         // Hide empty fieldareas

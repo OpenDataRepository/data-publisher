@@ -30,14 +30,6 @@
         // Initialize the datatables object
         var search_table = $("#TextResults_search").dataTable({
             columns: [{{ column_names | raw }}],
-            columnDefs: [
-                {
-                    targets: [ 0,1 ],
-                    searchable: false,
-                    visible: false,
-                }
-            ],
-//            ordering: false,
             searching: false,
             autoWidth: false,
 
@@ -49,6 +41,7 @@
                 data: {
                     'datatype_id': {{ datatype.id }},
                     'search_key': "{{ search_key }}",
+                    // Don't want anything done to this table to be saved, so don't send the tab id
                 }
             },
 
@@ -60,6 +53,31 @@
                     $(row).prepend('<td><input type="radio" name="radio_group" class="dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
             },
 
+        });
+
+        // Because this table is dynamic, it needs to check for potential changes in the number of columns that it loads via ajax...
+        $(search_table).on('xhr.dt', function(e, settings, json) {
+            // check number of columns in json array
+            var reload_page = false;
+            var original_num_columns = {{ num_columns }};
+
+            // If number of columns is different from what's expected, reload the page
+            if ( json.data[0].length !== original_num_columns )
+                reload_page = true;
+
+            // If the json data has fewer columns than expected, splice in enough columns so datatables doesn't throw an alert before reloading the page
+            if ( json.data[0].length < original_num_columns ) {
+                for (var i = 0; i < json.data.length; i++) {
+                    for (var j = json.data[i].length; j < original_num_columns; j++)
+                        json.data[i].push('');
+                }
+            }
+
+            // Reload the page if necessary
+            // TODO - better notification
+            if (reload_page)
+                alert('A designer user has changed the number of columns for this table...please reset and redo your search');
+//                window.location.reload();
         });
 
 

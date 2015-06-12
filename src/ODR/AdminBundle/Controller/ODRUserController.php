@@ -1436,8 +1436,28 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // Grab necessary objects
             $session = $request->getSession();
-            $session->set('shortresults_page_length', intval($length));
+
+            // Grab the tab's id, if it exists
+            $params = $request->query->all();
+            $odr_tab_id = '';
+            if ( isset($params['odr_tab_id']) )
+                $odr_tab_id = $params['odr_tab_id'];
+
+            if ($odr_tab_id !== '') {
+                // Store the change to this tab's page_length in the session
+                $page_length = intval($length);
+                $stored_tab_data = array();
+                if ( $session->has('stored_tab_data') )
+                    $stored_tab_data = $session->get('stored_tab_data');
+
+                if ( !isset($stored_tab_data[$odr_tab_id]) )
+                    $stored_tab_data[$odr_tab_id] = array();
+
+                $stored_tab_data[$odr_tab_id]['page_length'] = $page_length;
+                $session->set('stored_tab_data', $stored_tab_data);
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;

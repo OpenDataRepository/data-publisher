@@ -73,19 +73,17 @@ class ResultsController extends ODRCustomController
     {
         $return = array();
         $return['r'] = 0;
-        $return['t'] = "";
-        $return['d'] = "";
+        $return['t'] = '';
+        $return['d'] = '';
 
         try {
             // Get Current User
             $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $templating = $this->get('templating');
 
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $session = $request->getSession();
-            $router = $this->get('router');
 
             // Set up repositories
             $em = $this->getDoctrine()->getManager();
@@ -102,7 +100,7 @@ class ResultsController extends ODRCustomController
                 return parent::deletedEntityError('DataType');
 
 
-            // --------------------
+            // ----------------------------------------
             // Determine user privileges
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = array();
@@ -132,81 +130,97 @@ class ResultsController extends ODRCustomController
                 if ( !$datatype->isPublic() && !$has_view_permission )
                     return parent::permissionDeniedError('view');
             }
-            // --------------------
+            // ----------------------------------------
 
 
             // ----------------------------------------
             // If this datarecord is being viewed from a search result list, attempt to grab the list of datarecords from that search result
-            // TODO - this is duplicated across multiple controllers, and needs to get moved to a single location
+            $datarecord_list = '';
             $encoded_search_key = '';
-            $datarecords = '';
             if ($search_key !== '') {
-                $search_controller = $this->get('odr_search_controller', $request);
-                $search_controller->setContainer($this->container);
+                // 
+                $data = parent::getSavedSearch($search_key, $logged_in, $request);
+                $encoded_search_key = $data['encoded_search_key'];
+                $datarecord_list = $data['datarecord_list'];
 
-                if ( !$session->has('saved_searches') ) {
-                    // no saved searches at all for some reason, redo the search with the given search key...
-                    $search_controller->performSearch($search_key, $request);
+                // If the user is attempting to view a datarecord from a search that returned no results...
+                if ($encoded_search_key !== '' && $datarecord_list === '') {
+                    // ...get the search controller to redirect to "no results found" page
+                    $search_controller = $this->get('odr_search_controller', $request);
+                    return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
                 }
-
-                // Grab the list of saved searches and attempt to locate the desired search
-                $saved_searches = $session->get('saved_searches');
-                $search_checksum = md5($search_key);
-
-                if ( !isset($saved_searches[$search_checksum]) ) {
-                    // no saved search for this query, redo the search...
-                    $search_controller->performSearch($search_key, $request);
-
-                    // Grab the list of saved searches again
-                    $saved_searches = $session->get('saved_searches');
-                }
-
-                $search_params = $saved_searches[$search_checksum];
-                $was_logged_in = $search_params['logged_in'];
-
-                // If user's login status changed between now and when the search was run...
-                if ($was_logged_in !== $logged_in) {
-                    // ...run the search again 
-                    $search_controller->performSearch($search_key, $request);
-                    $saved_searches = $session->get('saved_searches');
-                    $search_params = $saved_searches[$search_checksum];
-                }
-
-                // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
-                $datarecords = $search_params['datarecords'];
-                $encoded_search_key = $search_params['encoded_search_key'];
             }
 
-            // If the user is attempting to view a datarecord from a search that returned no results...
-            if ($encoded_search_key !== '' && $datarecords === '') {
-                // ...get the search controller to redirect to "no results found" page
-                return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
+
+            // ----------------------------------------
+            // Grab the tab's id, if it exists
+            $params = $request->query->all();
+            $odr_tab_id = '';
+            if ( isset($params['odr_tab_id']) )
+                $odr_tab_id = $params['odr_tab_id'];
+
+            // Locate a sorted list of datarecords for search_header.html.twig if possible
+            if ( $session->has('stored_tab_data') && $odr_tab_id !== '' ) {
+                // Prefer the use of the sorted lists created during usage of the datatables plugin over the default list created during searching
+                $stored_tab_data = $session->get('stored_tab_data');
+
+                if ( isset($stored_tab_data[$odr_tab_id]) ) {
+                    // Grab datarecord list if it exists
+                    if ( isset($stored_tab_data[$odr_tab_id]['datarecord_list']) )
+                        $datarecord_list = $stored_tab_data[$odr_tab_id]['datarecord_list'];
+
+                    // Grab start/length from the datatables state object if it exists
+                    if ( isset($stored_tab_data[$odr_tab_id]['state']) ) {
+                        $start = intval($stored_tab_data[$odr_tab_id]['state']['start']);
+                        $length = intval($stored_tab_data[$odr_tab_id]['state']['length']);
+
+                        // Calculate which page datatables says it's on
+                        $datatables_page = 0;
+                        if ($start > 0)
+                            $datatables_page = $start / $length;
+                        $datatables_page++;
+
+                        // If the offset doesn't match the page, update it
+                        if ( $offset !== '' && intval($offset) !== intval($datatables_page) ) {
+                            $new_start = strval( (intval($offset) - 1) * $length );
+
+                            $stored_tab_data[$odr_tab_id]['state']['start'] = $new_start;
+                            $session->set('stored_tab_data', $stored_tab_data);
+                        }
+                    }
+                }
             }
 
 
             // ----------------------------------------
             // Build an array of values to use for navigating the search result list, if it exists
-            $search_header = parent::getSearchHeaderValues($datarecords, $datarecord->getId(), $request);
+            $header_html = '';
+            $search_header = parent::getSearchHeaderValues($datarecord_list, $datarecord->getId(), $request);
 
-            $redirect_path = $router->generate('odr_results_view', array('datarecord_id' => 0));    // blank path
-            $header_html = $templating->render(
-                'ODRAdminBundle:Results:results_header.html.twig',
-                array(
-                    'user_permissions' => $user_permissions,
-                    'datarecord' => $datarecord,
-                    'datatype' => $datatype,
+            if ( $search_header['search_result_current'] !== '' ) {
+                $router = $this->get('router');
+                $templating = $this->get('templating');
 
-                    // values used by search_header.html.twig 
-                    'offset' => $offset,
-                    'search_key' => $encoded_search_key,
-                    'page_length' => $search_header['page_length'],
-                    'next_datarecord' => $search_header['next_datarecord'],
-                    'prev_datarecord' => $search_header['prev_datarecord'],
-                    'search_result_current' => $search_header['search_result_current'],
-                    'search_result_count' => $search_header['search_result_count'],
-                    'redirect_path' => $redirect_path,
-                )
-            );
+                $redirect_path = $router->generate('odr_results_view', array('datarecord_id' => 0));    // blank path
+                $header_html = $templating->render(
+                    'ODRAdminBundle:Results:results_header.html.twig',
+                    array(
+                        'user_permissions' => $user_permissions,
+                        'datarecord' => $datarecord,
+                        'datatype' => $datatype,
+
+                        // values used by search_header.html.twig 
+                        'search_key' => $encoded_search_key,
+                        'offset' => $offset,
+                        'page_length' => $search_header['page_length'],
+                        'next_datarecord' => $search_header['next_datarecord'],
+                        'prev_datarecord' => $search_header['prev_datarecord'],
+                        'search_result_current' => $search_header['search_result_current'],
+                        'search_result_count' => $search_header['search_result_count'],
+                        'redirect_path' => $redirect_path,
+                    )
+                );
+            }
 
 
             // ----------------------------------------

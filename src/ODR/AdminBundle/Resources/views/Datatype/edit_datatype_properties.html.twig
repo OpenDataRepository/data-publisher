@@ -241,7 +241,7 @@ function SaveFieldOrder() {
     unused_field_ids = unused_field_ids.substring(0, unused_field_ids.length-1);
     used_field_ids = used_field_ids.substring(0, used_field_ids.length-1);
 
-    var url = '{{ path('odr_search_template_field_order', { 'unused_field_ids': 0, 'used_field_ids': 0 } ) }}';
+    var url = '{{ path('odr_textresults_field_order', { 'unused_field_ids': 0, 'used_field_ids': 0 } ) }}';
     url = url.substring(0, (url.length - 3));
     url += unused_field_ids + '/' + used_field_ids;
 

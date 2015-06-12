@@ -431,14 +431,6 @@ odr_search_template_save_theme_datafield:
     requirements:
         theme_datafield_id:  \d+
 
-# This next route is used by TextResults
-odr_search_template_field_order:
-    pattern:  /design/searchtemplate/fieldorder/{unused_field_ids}/{used_field_ids}
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:fieldorder }
-    requirements:
-        unused_field_ids: '[\d\,]*'
-        used_field_ids: '[\d\,]*'
-
 odr_search_template_save_datafield_order:
     pattern:  /design/searchtemplate/datafieldorder/{initial_theme_element_id}/{ending_theme_element_id}
     defaults: { _controller: ODRAdminBundle:Searchtemplate:datafieldorder }
@@ -485,14 +477,11 @@ odr_search_template_delete_theme_element:
 
 #-----------------------------------------
 # Record Controller
-
 odr_record_edit:
     pattern:  /edit/record/{datarecord_id}/{search_key}/{offset}
     defaults: { _controller: ODRAdminBundle:Record:edit, search_key: '', offset: '' }
     requirements:
         datarecord_id:  \d+
-#        search_key: '[a-zA-Z0-9\-\_]{15}|'
-  # 15 characters or empty string
         search_key: '[^\/]*'
         offset: \d+
 
@@ -534,8 +523,6 @@ odr_record_delete:
     defaults: { _controller: ODRAdminBundle:Record:delete }
     requirements:
         datarecord_id:  \d+
-#        search_key: '[a-zA-Z0-9\-\_]{15}|'
-  # 15 characters or empty
         search_key: '[^\/]*'
 
 odr_record_addchild:
@@ -591,12 +578,14 @@ odr_record_save_image_order:
     requirements: { _method: POST }
 
 odr_record_get_linkable_records:
-    pattern:  /edit/record/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}
-    defaults: { _controller: ODRAdminBundle:Record:getlinkablerecords }
+    pattern:  /edit/record/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}/{search_key}
+    defaults: { _controller: ODRAdminBundle:Record:getlinkablerecords, search_key: '' }
     requirements:
         ancestor_datatype_id:  \d+
         descendant_datatype_id:  \d+
         local_datarecord_id:  \d+
+        search_key: '[^\/]*'
+
 
 odr_link_records:
     pattern:  /edit/record/linkrecords
@@ -618,8 +607,6 @@ odr_results_view:
     defaults: { _controller: ODRAdminBundle:Results:view, search_key: '', offset: '' }
     requirements:
         datarecord_id:  \d+
-#        search_key: '[a-zA-Z0-9\-\_]{15}|'
-  # 15 characters or empty string
         search_key: '[^\/]*'
         offset: \d+
 
@@ -654,10 +641,37 @@ odr_shortresults_reload:
         datarecord_id: \d+
         force: short|text
 
+#-----------------------------------------
+
+#-----------------------------------------
+# TextResults Controller
+odr_textresults_field_order:
+    pattern:  /design/textresults/fieldorder/{unused_field_ids}/{used_field_ids}
+    defaults: { _controller: ODRAdminBundle:TextResults:fieldorder }
+    requirements:
+        unused_field_ids: '[\d\,]*'
+        used_field_ids: '[\d\,]*'
+
 odr_datatables_row_request:
     pattern:  /beanstalk/datatables/rows
-    defaults: { _controller: ODRAdminBundle:ShortResults:datatablesrowrequest }
+    defaults: { _controller: ODRAdminBundle:TextResults:datatablesrowrequest }
     requirements: { _method: POST }
+
+odr_datatables_state_save:
+    pattern:  /beanstalk/datatables/state_save
+    defaults: { _controller: ODRAdminBundle:TextResults:datatablesstatesave }
+    requirements: { _method: POST }
+
+odr_datatables_state_load:
+    pattern:  /beanstalk/datatables/state_load
+    defaults: { _controller: ODRAdminBundle:TextResults:datatablesstateload }
+    requirements: { _method: POST }
+
+odr_datatables_state_destroy:
+    pattern:  /beanstalk/datatables/state_destroy/{odr_tab_id}
+    defaults: { _controller: ODRAdminBundle:TextResults:datatablesstatedestroy }
+    requirements:
+        odr_tab_id: '[a-zA-Z0-9\-\_]{15}|'
 
 #-----------------------------------------
 
@@ -863,8 +877,6 @@ odr_mass_edit_searchlist:
     defaults: { _controller: ODRAdminBundle:MassEdit:massEdit }
     requirements:
         datatype_id: \d+
-#        search_key: '[a-zA-Z0-9\-\_]{15}|'
-#15 characters or empty string
         search_key: '[^\/]*'
 
 
@@ -893,8 +905,6 @@ odr_csv_export_searchlist:
     defaults: { _controller: ODRAdminBundle:CSVExport:csvExport }
     requirements:
         datatype_id: \d+
-#        search_key: '[a-zA-Z0-9\-\_]{15}|'
-#15 characters or empty string
         search_key: '[^\/]*'
 
 

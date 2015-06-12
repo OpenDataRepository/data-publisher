@@ -428,6 +428,10 @@ if ($debug) {
                     $user_list[] = $result['user'];
             }
 
+            // Generate a random key to identify this tab
+            $tokenGenerator = $this->container->get('fos_user.util.token_generator');
+            $odr_tab_id = substr($tokenGenerator->generateToken(), 0, 15);
+
 
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
@@ -449,6 +453,7 @@ if ($debug) {
                     'search_slug' => $search_slug,
                     'site_baseurl' => $site_baseurl,
                     'search_string' => $search_string,
+                    'odr_tab_id' => $odr_tab_id,
 
                     // required for background image
                     'background_image_id' => $background_image_id,

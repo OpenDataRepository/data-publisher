@@ -177,7 +177,7 @@ class CSVExportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - this block of code is effectively duplicated in multiple places...
+            // TODO - replace with parent::getSavedSearch()
             $encoded_search_key = '';
             $datarecords = '';
             if ($search_key !== '') {
@@ -418,7 +418,7 @@ if ($debug)
             }
 
 
-            // TODO - assumes search exists
+            // TODO - assumes search exists...replace with parent::getSavedSearch() to ensure it exists, or throw an error if it doesn't?
             $search_controller = $this->get('odr_search_controller', $request);
             $search_controller->setContainer($this->container);
             // Grab the list of saved searches and attempt to locate the desired search

@@ -27,6 +27,12 @@
     function returnToSearchResults() {
         var search_key = "{{ search_key }}";
         var offset = "{{ offset }}";
+        var current = {{ search_result_current }};
+        var page_length = {{ page_length }};
+
+        // Ensure offset exists
+        if ( offset == '' )
+            offset = Math.floor( (current-1) / page_length ) + 1;
 
         var url = '{{ path('odr_search_render', { 'search_key': '0' } ) }}';
         url = url.substring(0, (url.length-1));
@@ -46,6 +52,12 @@
 
         var current = {{ search_result_current }};
         var count = {{ search_result_count }};
+
+        // Ensure offset exists
+        if ( offset == '' )
+            offset = Math.floor( (current-1) / page_length ) + 1;
+
+//alert( 'offset: ' + offset + ' page_length: ' + page_length + ' current: ' + current + ' count: ' + count );
 
         if (direction == 'prev') {
             data_record_id = "{{ prev_datarecord }}";

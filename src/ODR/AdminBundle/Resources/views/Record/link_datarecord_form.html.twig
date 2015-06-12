@@ -48,17 +48,8 @@
         var dataset = {{ table_html | raw }};
 
         var table = $("#TextResults_current").dataTable({
-
             data: dataset,
             columns: [{{ column_names | raw }}],
-            columnDefs: [
-                {
-                    targets: [ 0,1 ],
-                    searchable: false,
-                    visible: false,
-                }
-            ],
-//            ordering: false,
             searching: false,
             autoWidth: false,
 
@@ -74,9 +65,6 @@
 
         });
 
-
-        // Sort table by default colunn
-//        table.fnSort( [ [2,'asc'] ] );    // doesn't want to work, probably because of the manual column addition...
 
         // Ensure checkboxes have proper state on redraw of table
         $(table).on('draw.dt', function() {
@@ -145,8 +133,17 @@
         {% endif %}
     }
 
-    function returnToDatarecord() { // TODO - needs to actually work instead of just going back...
-        window.history.back();
+    function returnToDatarecord() {
+        var url = '{{ path('odr_record_edit', {'datarecord_id': 0} ) }}';
+        url = url.substr(0, (url.length-1));
+        url += '{{ local_datarecord.id }}';
+{% if search_key != '' %}
+        url += '/' + '{{ search_key }}';
+{% endif %}
+
+//alert(url);
+//return;
+        UpdateURL(url);
     }
 
     function submitForm() {

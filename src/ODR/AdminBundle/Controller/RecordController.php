@@ -1442,11 +1442,12 @@ class RecordController extends ODRCustomController
      * @param integer $ancestor_datatype_id   The database id of the DataType that is being linked from
      * @param integer $descendant_datatype_id The database id of the DataType that is being linked to
      * @param integer $local_datarecord_id    The database id of the DataRecord being modified.
+     * @param string $search_key              The current search on this tab
      * @param Request $request
      * 
      * @return a Symfony JSON response containing HTML
      */
-    public function getlinkablerecordsAction($ancestor_datatype_id, $descendant_datatype_id, $local_datarecord_id, Request $request)
+    public function getlinkablerecordsAction($ancestor_datatype_id, $descendant_datatype_id, $local_datarecord_id, $search_key, Request $request)
     {
 
         $return = array();
@@ -1628,13 +1629,18 @@ if ($debug) {
 //print_r($table_html);
 
             // Grab the column names for the datatables plugin
-            $column_names = parent::getDatatablesColumnNames($remote_datatype->getId());
+            $column_data = parent::getDatatablesColumnNames($remote_datatype->getId());
+            $column_names = $column_data['column_names'];
+            $num_columns = $column_data['num_columns'];
+
 
             // Render the dialog box for this request
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Record:link_datarecord_form.html.twig',
                     array(
+                        'search_key' => $search_key,
+
                         'local_datarecord' => $local_datarecord,
                         'ancestor_datatype' => $ancestor_datatype,
                         'descendant_datatype' => $descendant_datatype,
@@ -1646,6 +1652,7 @@ if ($debug) {
                         'count' => count($linked_datarecords),
                         'table_html' => $table_html,
                         'column_names' => $column_names,
+                        'num_columns' => $num_columns,
                     )
                 )
             );
@@ -1971,12 +1978,13 @@ if ($debug)
      *
      * @param Request $request
      * @param integer $datarecord_id
+     * @param string $search_key
      * @param string $template_name
      * @param integer $child_datatype_id
      *
      * @return string
      */
-    private function GetDisplayData(Request $request, $datarecord_id, $template_name = 'default', $child_datatype_id = null)
+    private function GetDisplayData(Request $request, $datarecord_id, $search_key, $template_name = 'default', $child_datatype_id = null)
     {
         // Required objects
         $em = $this->getDoctrine()->getManager();
@@ -2128,6 +2136,8 @@ if ($debug)
         $html = $templating->render(
             $template,
             array(
+                'search_key' => $search_key,
+
                 'datatype_tree' => $datatype_tree,
                 'datarecord_tree' => $datarecord_tree,
                 'theme' => $theme,
@@ -2201,83 +2211,98 @@ if ($debug)
 
 
             // ----------------------------------------
-            // TODO - this block of code is duplicated at least 5 times across various controllers
+            // If this datarecord is being viewed from a search result list, attempt to grab the list of datarecords from that search result
+            $datarecord_list = '';
             $encoded_search_key = '';
-            $datarecords = '';
             if ($search_key !== '') {
-                $search_controller = $this->get('odr_search_controller', $request);
-                $search_controller->setContainer($this->container);
+                // 
+                $data = parent::getSavedSearch($search_key, $logged_in, $request);
+                $encoded_search_key = $data['encoded_search_key'];
+                $datarecord_list = $data['datarecord_list'];
 
-                if ( !$session->has('saved_searches') ) {
-                    // no saved searches at all for some reason, redo the search with the given search key...
-                    $search_controller->performSearch($search_key, $request);
+                // If the user is attempting to view a datarecord from a search that returned no results...
+                if ($encoded_search_key !== '' && $datarecord_list === '') {
+                    // ...get the search controller to redirect to "no results found" page
+                    $search_controller = $this->get('odr_search_controller', $request);
+                    return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
                 }
-
-                // Grab the list of saved searches and attempt to locate the desired search
-                $saved_searches = $session->get('saved_searches');
-                $search_checksum = md5($search_key);
-                if ( !isset($saved_searches[$search_checksum]) ) {
-                    // no saved search for this query, redo the search...
-                    $search_controller->performSearch($search_key, $request);
-
-                    // Grab the list of saved searches again
-                    $saved_searches = $session->get('saved_searches');
-                }
-
-                $search_params = $saved_searches[$search_checksum];
-                $was_logged_in = $search_params['logged_in'];
-
-                // If user's login status changed between now and when the search was run...
-                if ($was_logged_in !== $logged_in) {
-                    // ...run the search again 
-                    $search_controller->performSearch($search_key, $request);
-                    $saved_searches = $session->get('saved_searches');
-                    $search_params = $saved_searches[$search_checksum];
-                }
-
-                // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
-                $datarecords = $search_params['datarecords'];
-                $encoded_search_key = $search_params['encoded_search_key'];
             }
 
-
-            // If the user is attempting to view a datarecord from a search that returned no results...
-            if ($encoded_search_key !== '' && $datarecords === '') {
-                // ...redirect to "no results found" page
-                return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
-            }
 
             // ----------------------------------------
-            // If this edit request is coming from a search result...
-            $search_header = parent::getSearchHeaderValues($datarecords, $datarecord->getId(), $request);
+            // Grab the tab's id, if it exists
+            $params = $request->query->all();
+            $odr_tab_id = '';
+            if ( isset($params['odr_tab_id']) )
+                $odr_tab_id = $params['odr_tab_id'];
+
+            // Locate a sorted list of datarecords for search_header.html.twig if possible
+            if ( $session->has('stored_tab_data') && $odr_tab_id !== '' ) {
+                // Prefer the use of the sorted lists created during usage of the datatables plugin over the default list created during searching
+                $stored_tab_data = $session->get('stored_tab_data');
+                
+                if ( isset($stored_tab_data[$odr_tab_id]) ) {
+                    // Grab datarecord list if it exists
+                    if ( isset($stored_tab_data[$odr_tab_id]['datarecord_list']) )
+                        $datarecord_list = $stored_tab_data[$odr_tab_id]['datarecord_list'];
+
+                    // Grab start/length from the datatables state object if it exists
+                    if ( isset($stored_tab_data[$odr_tab_id]['state']) ) {
+                        $start = intval($stored_tab_data[$odr_tab_id]['state']['start']);
+                        $length = intval($stored_tab_data[$odr_tab_id]['state']['length']);
+
+                        // Calculate which page datatables claims it's on
+                        $datatables_page = 0;
+                        if ($start > 0)
+                            $datatables_page = $start / $length;
+                        $datatables_page++; 
+
+                        // If the offset doesn't match the page, update it
+                        if ( $offset !== '' && intval($offset) !== intval($datatables_page) ) {
+                            $new_start = strval( (intval($offset) - 1) * $length );
+
+                            $stored_tab_data[$odr_tab_id]['state']['start'] = $new_start;
+                            $session->set('stored_tab_data', $stored_tab_data);
+                        }
+                    }
+                }
+            }
 
 
-            // Render the record header separately
-            $templating = $this->get('templating');
-            $router = $this->get('router');
-            $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));
-            $record_header_html = $templating->render(
-                'ODRAdminBundle:Record:record_header.html.twig',
-                array(
-                    'datarecord' => $datarecord,
-                    'datatype' => $datatype,
-                    'datatype_permissions' => $user_permissions,
+            // ----------------------------------------
+            // Build an array of values to use for navigating the search result list, if it exists
+            $record_header_html = '';
+            $search_header = parent::getSearchHeaderValues($datarecord_list, $datarecord->getId(), $request);
 
-//                    'search_key' => $search_key,
-                    'search_key' => $encoded_search_key,
-                    'offset' => $offset,
-                    'page_length' => $search_header['page_length'],
-                    'next_datarecord' => $search_header['next_datarecord'],
-                    'prev_datarecord' => $search_header['prev_datarecord'],
-                    'search_result_current' => $search_header['search_result_current'],
-                    'search_result_count' => $search_header['search_result_count'],
-                    'redirect_path' => $redirect_path,
-                )
-            );
+            if ( $search_header['search_result_current'] !== '' ) {
+                $router = $this->get('router');
+                $templating = $this->get('templating');
+
+                $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));    // blank path
+                $record_header_html = $templating->render(
+                    'ODRAdminBundle:Record:record_header.html.twig',
+                    array(
+                        'datatype_permissions' => $user_permissions,
+                        'datarecord' => $datarecord,
+                        'datatype' => $datatype,
+
+                        // values used by search_header.html.twig 
+                        'search_key' => $encoded_search_key,
+                        'offset' => $offset,
+                        'page_length' => $search_header['page_length'],
+                        'next_datarecord' => $search_header['next_datarecord'],
+                        'prev_datarecord' => $search_header['prev_datarecord'],
+                        'search_result_current' => $search_header['search_result_current'],
+                        'search_result_count' => $search_header['search_result_count'],
+                        'redirect_path' => $redirect_path,
+                    )
+                );
+            }
+
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
-                'html' => $record_header_html.self::GetDisplayData($request, $datarecord->getId(), 'default'),
+                'html' => $record_header_html.self::GetDisplayData($request, $datarecord->getId(), $encoded_search_key, 'default'),
             );
 
             // Store which datarecord this is in the session so 
@@ -2323,6 +2348,7 @@ if ($debug)
                 $drf = $repo_datarecordfields->find($datarecordfield_id);
 
                 $type_class = $drf->getDataField()->getFieldType()->getTypeClass();
+//print $type_class."\n";
                 $repo_entity = $em->getRepository("ODR\\AdminBundle\\Entity\\".$type_class);
                 $entity = $repo_entity->find($entity_id);
 

@@ -95,12 +95,33 @@ class ODRCustomController extends Controller
         $session = $this->get('session');
         $repo_datarecord = $this->getDoctrine()->getManager()->getRepository('ODRAdminBundle:DataRecord');
 
-        // Get or set default page length   // TODO - rename
-        $page_length = 10;
-        if ( $session->has('shortresults_page_length') )
-            $page_length = $session->get('shortresults_page_length');
-        else
-            $session->set('shortresults_page_length', $page_length);
+        // Grab the tab's id, if it exists
+        $params = $request->query->all();
+        $odr_tab_id = '';
+        if ( isset($params['odr_tab_id']) ) {
+            // If the tab id exists, use that
+            $odr_tab_id = $params['odr_tab_id'];
+        }
+        else {
+            // ...otherwise, generate a random key to identify this tab
+            $tokenGenerator = $this->container->get('fos_user.util.token_generator');
+            $odr_tab_id = substr($tokenGenerator->generateToken(), 0, 15);
+        }
+
+        // Grab the page length for this tab from the session, if possible
+        $page_length = 100;
+        if ( $odr_tab_id !== '' && $session->has('stored_tab_data') ) {
+            $stored_tab_data = $session->get('stored_tab_data');
+            if ( isset($stored_tab_data[$odr_tab_id]) ) {
+                if ( isset($stored_tab_data[$odr_tab_id]['page_length']) ) {
+                    $page_length = $stored_tab_data[$odr_tab_id]['page_length'];
+                }
+                else {
+                    $stored_tab_data[$odr_tab_id]['page_length'] = $page_length;
+                    $session->set('stored_tab_data', $stored_tab_data);
+                }
+            }
+        }
 
         // Save how many datarecords were passed to this function
         $total_datarecords = count($datarecords);
@@ -126,6 +147,10 @@ class ODRCustomController extends Controller
         $final_html = '';
         if ( $theme->getId() == 2 ) {   // TODO - THIS HAS TO SUPPORT MORE THAN JUST ONE
             // -----------------------------------
+            // Ensure offset exists for shortresults list
+            if ( (($offset-1) * $page_length) > count($datarecords) )
+                $offset = 1;
+
             // Reduce datarecord_list to just the list that will get rendered
             $datarecord_list = array();
             $start = ($offset-1) * $page_length;
@@ -155,6 +180,7 @@ class ODRCustomController extends Controller
                     'html' => $html,
                     'scroll_target' => $scroll_target,
                     'user' => $user,
+                    'odr_tab_id' => $odr_tab_id,
 
                     // required for load_datarecord_js.html.twig
                     'target' => $target,
@@ -167,11 +193,14 @@ class ODRCustomController extends Controller
         else if ( $theme->getId() == 4 ) {  // TODO - THIS IS NOT AN OFFICIAL OR CORRECT USE OF THIS THEME
             // -----------------------------------
             // Grab the...
-            $column_names = self::getDatatablesColumnNames($datatype->getId());
+            $column_data = self::getDatatablesColumnNames($datatype->getId());
+            $column_names = $column_data['column_names'];
+            $num_columns = $column_data['num_columns'];
 /*
 print_r($column_names);
 print "\n\n";
 */
+
             // Don't render the starting textresults list here, it'll always be loaded via ajax later
 
             // -----------------------------------
@@ -186,6 +215,8 @@ print "\n\n";
                     'datatype' => $datatype,
                     'count' => $total_datarecords,
                     'column_names' => $column_names,
+                    'num_columns' => $num_columns,
+                    'odr_tab_id' => $odr_tab_id,
                     'page_length' => $page_length,
                     'scroll_target' => $scroll_target,
                     'user' => $user,
@@ -344,11 +375,27 @@ print "\n\n";
     {
         // Grab necessary objects
         $session = $request->getSession();
-        $page_length = 10;
-        if ( $session->has('shortresults_page_length') )
-            $page_length = $session->get('shortresults_page_length');
-        else
-            $session->set('shortresults_page_length', 10);
+
+        // Grab the tab's id, if it exists
+        $params = $request->query->all();
+        $odr_tab_id = '';
+        if ( isset($params['odr_tab_id']) )
+            $odr_tab_id = $params['odr_tab_id'];
+
+        // Grab the page length for this tab from the session, if possible
+        $page_length = 100;
+        if ( $odr_tab_id !== '' && $session->has('stored_tab_data') ) {
+            $stored_tab_data = $session->get('stored_tab_data');
+            if ( isset($stored_tab_data[$odr_tab_id]) ) {
+                if ( isset($stored_tab_data[$odr_tab_id]['page_length']) ) {
+                    $page_length = $stored_tab_data[$odr_tab_id]['page_length'];
+                }
+                else {
+                    $stored_tab_data[$odr_tab_id]['page_length'] = $page_length;
+                    $session->set('stored_tab_data', $stored_tab_data);
+                }
+            }
+        }
 
         // If only one page, don't bother with pagination block
         $num_pages = ceil( $num_datarecords / $page_length );
@@ -379,6 +426,61 @@ print "\n\n";
 
 
     /**
+     * Get (or create) a list of datarecords returned by searching on the given search key
+     *
+     * @param string $search_key
+     * @param boolean $logged_in Whether the user is logged in or not
+     * @param Request $request
+     *
+     * @return array TODO
+     */
+    protected function getSavedSearch($search_key, $logged_in, Request $request)
+    {
+        //
+        $session = $request->getSession();
+        $data = array('encoded_search_key' => '', 'datarecord_list' => '');
+
+        //
+        $search_controller = $this->get('odr_search_controller', $request);
+        $search_controller->setContainer($this->container);
+
+        if ( !$session->has('saved_searches') ) {
+            // No saved searches at all, redo the search with the given search key...
+            $search_controller->performSearch($search_key, $request);
+        }
+
+        // Grab the list of saved searches and attempt to locate the desired search
+        $saved_searches = $session->get('saved_searches');
+        $search_checksum = md5($search_key);
+
+        if ( !isset($saved_searches[$search_checksum]) ) {
+            // No saved search for this query, redo the search...
+            $search_controller->performSearch($search_key, $request);
+
+            // Grab the list of saved searches again
+            $saved_searches = $session->get('saved_searches');
+        }
+
+        $search_params = $saved_searches[$search_checksum];
+        $was_logged_in = $search_params['logged_in'];
+
+        // If user's login status changed between now and when the search was run...
+        if ($was_logged_in !== $logged_in) {
+            // ...run the search again 
+            $search_controller->performSearch($search_key, $request);
+            $saved_searches = $session->get('saved_searches');
+            $search_params = $saved_searches[$search_checksum];
+        }
+
+        // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
+        $data['datarecord_list'] = $search_params['datarecords'];
+        $data['encoded_search_key'] = $search_params['encoded_search_key'];
+
+        return $data;
+    }
+
+
+    /**
      * Determines values for the search header (next/prev/return to search results) of Results/Records when searching
      *
      * @param string $datarecord_list A comma-separated list of datarecord ids that satisfy the search TODO - why comma-separated?  just going to explode() them...
@@ -391,11 +493,27 @@ print "\n\n";
     {
         // Grab necessary objects
         $session = $request->getSession();
-        $page_length = 10;
-        if ( $session->has('shortresults_page_length') )
-            $page_length = $session->get('shortresults_page_length');
-        else
-            $session->set('shortresults_page_length', 10);
+
+        // Grab the tab's id, if it exists
+        $params = $request->query->all();
+        $odr_tab_id = '';
+        if ( isset($params['odr_tab_id']) )
+            $odr_tab_id = $params['odr_tab_id'];
+
+        // Grab the page length for this tab from the session, if possible
+        $page_length = 100;
+        if ( $odr_tab_id !== '' && $session->has('stored_tab_data') ) {
+            $stored_tab_data = $session->get('stored_tab_data');
+            if ( isset($stored_tab_data[$odr_tab_id]) ) {
+                if ( isset($stored_tab_data[$odr_tab_id]['page_length']) ) {
+                    $page_length = $stored_tab_data[$odr_tab_id]['page_length'];
+                }
+                else {
+                    $stored_tab_data[$odr_tab_id]['page_length'] = $page_length;
+                    $session->set('stored_tab_data', $stored_tab_data);
+                }
+            }
+        }
 
         $next_datarecord = '';
         $prev_datarecord = '';
@@ -2068,8 +2186,9 @@ $save_permissions = false;
     public function getDatatablesColumnNames($datatype_id)
     {
         // First and second columns are always datarecord id and sort value, respectively
-        $column_names  = '{"title":"datarecord_id"},';
-        $column_names .= '{"title":"datarecord_sortvalue"},';
+        $column_names  = '{"title":"datarecord_id","visible":false,"searchable":false},';
+        $column_names .= '{"title":"datarecord_sortvalue","visible":false,"searchable":false},';
+        $num_columns = 2;
 
         // Do a query to locate the names of all datafields that can be in the table
         $em = $this->getDoctrine()->getManager();
@@ -2085,9 +2204,10 @@ $save_permissions = false;
         foreach ($results as $num => $data) {
             $fieldname = $data['field_name'];
             $column_names .= '{"title":"'.$fieldname.'"},';
+            $num_columns++;
         }
 
-        return $column_names;
+        return array('column_names' => $column_names, 'num_columns' => $num_columns);
     }
 
 
