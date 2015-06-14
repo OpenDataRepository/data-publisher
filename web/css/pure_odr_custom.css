@@ -355,7 +355,7 @@ Forms Core
 .pure-skin-odr .pure-form input[type="color"],
 .pure-skin-odr .pure-form select,
 .pure-skin-odr .pure-form textarea {
-    padding: 0.48em 0.3em;
+    padding: 0.4em 0.2em 0.4em 0.4em;
     display: inline-block;
     border: 1px solid #e6e6e6;
     font-size: 0.8em;
@@ -370,6 +370,55 @@ Forms Core
     -moz-box-sizing: border-box;
     box-sizing: border-box;
     -webkit-font-smoothing: antialiased;
+}
+
+/* ===============  forms.css =================================*/
+.pure-skin-odr .pure-form .ODRShortResults input[type="text"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="password"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="email"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="url"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="date"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="month"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="time"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="datetime"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="datetime-local"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="week"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="number"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="search"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="tel"],
+.pure-skin-odr .pure-form .ODRShortResults input[type="color"],
+/* .pure-skin-odr .pure-form .ODRShortResults select, */
+.pure-skin-odr .pure-form .ODRShortResults textarea,
+.pure-skin-odr .pure-form .ODRResults input[type="text"],
+.pure-skin-odr .pure-form .ODRResults input[type="password"],
+.pure-skin-odr .pure-form .ODRResults input[type="email"],
+.pure-skin-odr .pure-form .ODRResults input[type="url"],
+.pure-skin-odr .pure-form .ODRResults input[type="date"],
+.pure-skin-odr .pure-form .ODRResults input[type="month"],
+.pure-skin-odr .pure-form .ODRResults input[type="time"],
+.pure-skin-odr .pure-form .ODRResults input[type="datetime"],
+.pure-skin-odr .pure-form .ODRResults input[type="datetime-local"],
+.pure-skin-odr .pure-form .ODRResults input[type="week"],
+.pure-skin-odr .pure-form .ODRResults input[type="number"],
+.pure-skin-odr .pure-form .ODRResults input[type="search"],
+.pure-skin-odr .pure-form .ODRResults input[type="tel"],
+.pure-skin-odr .pure-form .ODRResults input[type="color"],
+/* .pure-skin-odr .pure-form .ODRResults select, */
+.pure-skin-odr .pure-form .ODRResults textarea {
+    padding: 0.2em 0.2em 0.2em 0.2em;
+    display: inline-block;
+    border: none;
+    font-size: 0.8em;
+    box-shadow: none;
+    border-radius: 2px;
+    -webkit-transition: 0.3s linear border;
+    -moz-transition: 0.3s linear border;
+    -ms-transition: 0.3s linear border;
+    -o-transition: 0.3s linear border;
+    transition: 0.3s linear border;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
 }
 
 .pure-skin-odr .pure-form input[type="text"]:focus,
@@ -460,9 +509,9 @@ Forms Core
     height: auto;
 }
 .pure-skin-odr .pure-form label {
-    margin: 0.5em 0 0.2em;
+    margin: 0.3em 0 0.1em;
     /* color: #878787; */
-    font-size:90%;
+    font-size: 80%;
 }
 .pure-skin-odr .pure-form fieldset {
     margin: 0;
@@ -988,7 +1037,7 @@ h1 {
 
 body {
     min-width: 320px;
-    color: #777;
+    color: #555;
     line-height: 1.6;
 }
 
@@ -1075,7 +1124,7 @@ aside {
      margin: 0 auto;
      padding: 1em;
      text-align: center;
-     border-bottom: 1px solid #eee;
+     /* border-bottom: 1px solid #eee; */
      background: #fff;
  }
     .header h1 {
