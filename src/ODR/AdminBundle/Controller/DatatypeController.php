@@ -322,22 +322,18 @@ class DatatypeController extends ODRCustomController
                     $session->remove('permissions');
                     parent::getPermissionsArray($admin->getId(), $request);
 
-/*
-                    $return['d'] = $templating->render(
-                        'ODRAdminBundle:Datatype:add_type_dialog_success.html.twig', 
-                        array(
-                            'form' => $form->createView()
-                        )
-                    );
-*/
                 }
                 else {
+/*
                     $return['d'] = $templating->render(
                         'ODRAdminBundle:Datatype:add_type_dialog_form.html.twig', 
                         array(
                             'form' => $form->createView()
                         )
                     );
+*/
+                    $return['r'] = 1;
+                    $return['d'] = $form->getErrorsAsString();
                 }
             }
             else {
