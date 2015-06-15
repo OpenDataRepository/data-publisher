@@ -197,30 +197,28 @@ class ResultsController extends ODRCustomController
             $header_html = '';
             $search_header = parent::getSearchHeaderValues($datarecord_list, $datarecord->getId(), $request);
 
-            if ( $search_header['search_result_current'] !== '' ) {
-                $router = $this->get('router');
-                $templating = $this->get('templating');
+            $router = $this->get('router');
+            $templating = $this->get('templating');
 
-                $redirect_path = $router->generate('odr_results_view', array('datarecord_id' => 0));    // blank path
-                $header_html = $templating->render(
-                    'ODRAdminBundle:Results:results_header.html.twig',
-                    array(
-                        'user_permissions' => $user_permissions,
-                        'datarecord' => $datarecord,
-                        'datatype' => $datatype,
+            $redirect_path = $router->generate('odr_results_view', array('datarecord_id' => 0));    // blank path
+            $header_html = $templating->render(
+                'ODRAdminBundle:Results:results_header.html.twig',
+                array(
+                    'user_permissions' => $user_permissions,
+                    'datarecord' => $datarecord,
+                    'datatype' => $datatype,
 
-                        // values used by search_header.html.twig 
-                        'search_key' => $encoded_search_key,
-                        'offset' => $offset,
-                        'page_length' => $search_header['page_length'],
-                        'next_datarecord' => $search_header['next_datarecord'],
-                        'prev_datarecord' => $search_header['prev_datarecord'],
-                        'search_result_current' => $search_header['search_result_current'],
-                        'search_result_count' => $search_header['search_result_count'],
-                        'redirect_path' => $redirect_path,
-                    )
-                );
-            }
+                    // values used by search_header.html.twig 
+                    'search_key' => $encoded_search_key,
+                    'offset' => $offset,
+                    'page_length' => $search_header['page_length'],
+                    'next_datarecord' => $search_header['next_datarecord'],
+                    'prev_datarecord' => $search_header['prev_datarecord'],
+                    'search_result_current' => $search_header['search_result_current'],
+                    'search_result_count' => $search_header['search_result_count'],
+                    'redirect_path' => $redirect_path,
+                )
+            );
 
 
             // ----------------------------------------

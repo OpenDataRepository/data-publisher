@@ -2274,30 +2274,28 @@ if ($debug)
             $record_header_html = '';
             $search_header = parent::getSearchHeaderValues($datarecord_list, $datarecord->getId(), $request);
 
-            if ( $search_header['search_result_current'] !== '' ) {
-                $router = $this->get('router');
-                $templating = $this->get('templating');
+            $router = $this->get('router');
+            $templating = $this->get('templating');
 
-                $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));    // blank path
-                $record_header_html = $templating->render(
-                    'ODRAdminBundle:Record:record_header.html.twig',
-                    array(
-                        'datatype_permissions' => $user_permissions,
-                        'datarecord' => $datarecord,
-                        'datatype' => $datatype,
+            $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));    // blank path
+            $record_header_html = $templating->render(
+                'ODRAdminBundle:Record:record_header.html.twig',
+                array(
+                    'datatype_permissions' => $user_permissions,
+                    'datarecord' => $datarecord,
+                    'datatype' => $datatype,
 
-                        // values used by search_header.html.twig 
-                        'search_key' => $encoded_search_key,
-                        'offset' => $offset,
-                        'page_length' => $search_header['page_length'],
-                        'next_datarecord' => $search_header['next_datarecord'],
-                        'prev_datarecord' => $search_header['prev_datarecord'],
-                        'search_result_current' => $search_header['search_result_current'],
-                        'search_result_count' => $search_header['search_result_count'],
-                        'redirect_path' => $redirect_path,
-                    )
-                );
-            }
+                    // values used by search_header.html.twig 
+                    'search_key' => $encoded_search_key,
+                    'offset' => $offset,
+                    'page_length' => $search_header['page_length'],
+                    'next_datarecord' => $search_header['next_datarecord'],
+                    'prev_datarecord' => $search_header['prev_datarecord'],
+                    'search_result_current' => $search_header['search_result_current'],
+                    'search_result_count' => $search_header['search_result_count'],
+                    'redirect_path' => $redirect_path,
+                )
+            );
 
 
             $return['d'] = array(
