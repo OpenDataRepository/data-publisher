@@ -1675,7 +1675,11 @@ $save_permissions = false;
     {
         // Initial create
         $datarecord = new DataRecord();
+
         $datarecord->setExternalId('');
+        $datarecord->setNamefieldValue('');
+        $datarecord->setSortfieldValue('');
+
         $datarecord->setDataType($datatype);
         $datarecord->setCreatedBy($user);
         $datarecord->setUpdatedBy($user);
@@ -1912,11 +1916,12 @@ $save_permissions = false;
         $datafield->setUpdatedBy($user);
         $datafield->setDataType($datatype);
         $datafield->setFieldType($fieldtype);
-        $datafield->setRequired('0');
-        $datafield->setSearchable('0');
-        $datafield->setUserOnlySearch('0');
+        $datafield->setIsUnique(false);
+        $datafield->setRequired(false);
+        $datafield->setSearchable(0);
+        $datafield->setUserOnlySearch(false);
         $datafield->setRenderPlugin($renderplugin);
-        $datafield->setDisplayOrder('-1');
+        $datafield->setDisplayOrder(-1);
         $datafield->setChildrenPerRow(1);
         $datafield->setRadioOptionNameSort(0);
         if ( $fieldtype->getTypeClass() === 'File' || $fieldtype->getTypeClass() === 'Image' ) {
@@ -2309,10 +2314,10 @@ if ($debug)
         ksort($value_list);
 
         // Don't need to call twig just to do this one line...
-//        $html = "[\"".$datarecord_id."\",\"".$datarecord->getSortFieldValue()."\",".implode(',', $value_list)."],";
+//        $html = "[\"".$datarecord_id."\",\"".$datarecord->getSortfieldValue()."\",".implode(',', $value_list)."],";
         $html = array();
         $html[] = strval($datarecord_id);
-        $html[] = strval($datarecord->getSortFieldValue());
+        $html[] = strval($datarecord->getSortfieldValue());
         foreach ($value_list as $num => $val)
             $html[] = strval($val);
 
@@ -2954,136 +2959,6 @@ if ($debug)
         $em->persist($datarecordfields);
         $em->persist($my_obj);
         $em->flush();
-    }
-
-
-    /**
-     * NOT CURRENTLY USED
-     *
-     * Determines whether the values stored in all instances of a datafield are distinct from each other.
-     * If a new value for this datafield is given, then determines whether the new value already exists in a different datarecord.
-     * 
-     * @param DataFields $datafield         - the datafield that needs to have unique values across all instances
-     * @param array $new_value              - if not empty, then an array of values being added to instances of the datafield
-     * @param DataRecord $source_datarecord - if not null, the datarecord being modified
-     * 
-     * @return array - an array of all the elements of $new_value that weren't unique, otherwise an empty array
-     */
-    public function verifyUniqueness($datafield, $new_value = array(), $source_datarecord = null) {
-        // Grab entity manager
-        $em = $this->getDoctrine()->getManager();
-        $datatype = $datafield->getDataType();
-        $type_class = $datafield->getFieldType()->getTypeClass();
-
-        // Deal with the uniqueness checkbox
-        $uniqueness_failure = false;
-        $uniqueness_failure_value = '';
-        $old_value = '';
-
-        // $new_value could be a single value or an array of values
-        $field_values = array();
-        foreach ($new_value as $value)
-            $field_values[] = strtolower($value);
-//print print_r($field_values, true).'||';
-        $failed_values = array();
-/*
-        // Check to see if the values of that datafield across all datarecords are unique
-        $datarecords = $em->getRepository('ODRAdminBundle:DataRecord')->findByDataType($datatype);
-        foreach ($datarecords as $datarecord) {
-//print 'datarecord '.$datarecord->getId().': ';
-            // Grab all datarecordfields for this datarecord
-            $datarecordfields = $datarecord->getDataRecordFields();
-            foreach ($datarecordfields as $drf) {
-                // If the datarecordfield is from the sourcedatarecord, skip over it
-                if (($source_datarecord !== null) && ($source_datarecord->getId() === $datarecord->getId()))
-                    continue;
-
-                // Determine which datarecordfield matches the datafield in question
-                if ($drf->getDataField()->getId() == $datafield->getId()) {
-                    // Grab the value of the datarecordfield
-                    $value = '';
-                    switch ($datafield->getFieldType()->getTypeClass()) {
-                        case 'ShortVarchar':
-                        case 'MediumVarchar':
-                        case 'LongVarchar':
-                            $my_obj = self::loadFromDataRecordField($drf, $type_class);
-                            $value = $my_obj->getValue();
-                            break;
-
-                        case 'IntegerValue':
-                            $value = $drf->getIntegerValue()->getValue();
-                            $value = strval($value);
-                            break;
-
-                        case 'DecimalValue':
-                            $value = $drf->getDecimalValue()->getValue();
-                            $value = strval($value);
-                            break;
-                    }
-
-                    // Convert the value to lowercase and see if it's already in the array
-                    $lower_value = strtolower($value);
-//print 'checking '.$lower_value.'...';
-                    if ( in_array($lower_value, $field_values) ) {
-//print 'found||';
-                        // If so, can't set this field to unique
-//                        $uniqueness_failure = true;
-                        $failed_values[] = $value;
-                    }
-                    else {
-//print 'not found||';
-                        // If not, add to array and continue looking
-                        $field_values[] = $value;
-                    }
-                }
-            }
-        }
-*/
-
-        // Grab all existing values of this datafield
-        $query = $em->createQuery(
-            'SELECT dr.id, e.value
-             FROM ODRAdminBundle:'.$datafield->getFieldType()->getTypeClass().' e
-             JOIN ODRAdminBundle:DataRecord dr WITH e.dataRecord = dr
-             WHERE e.dataField = :dataField'
-        )->setParameters( array('dataField' => $datafield) );
-        $result = $query->getResult();
-
-        // Flatten the array
-        $current_values = array();
-        foreach ($result as $num => $data)
-            $current_values[ $data['id'] ] = strtolower($data['value']);
-
-        // If a source datarecord is specified, ensure that a new value won't collide with the current value in the source datarecord
-        if ($source_datarecord !== null)
-            unset( $current_values[$source_datarecord->getId()] );
-
-//print_r($current_values);
-
-        // 
-        $tmp_values = array();
-        $failed_values = array();
-        if ( count($new_value) == 0 ) {
-            // Just check that the values currently in the datafield don't collide with each other
-            foreach ($current_values as $id => $value) {
-                if ( !in_array($value, $tmp_values) )
-                    $tmp_values[] = $value;
-                else
-                    $failed_values[] = $value;
-            }
-        }
-        else {
-            // Verify that the values in $new_values don't collide with the values currently in the datafield
-            foreach ($new_value as $value) {
-                if ( in_array($value, $current_values) )
-                    $failed_values[] = $value;
-            }
-        }
-
-//print_r($failed_values);
-
-        // Return an array of the failed values, if any
-        return $failed_values;
     }
 
 

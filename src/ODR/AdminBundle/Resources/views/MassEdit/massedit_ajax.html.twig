@@ -49,6 +49,18 @@ function initPage() {
             $(this).hide();
     });
 
+    // Attach an overlay div of sorts over each datafield 
+    $(".ODROverlayDiv").each(function() {
+        // Need dimensions of parent div...
+        var height = $(this).parent().css('height');
+        var width = $(this).parent().css('width');
+
+        // Apply dimensions of parent div to loading div
+        $(this).css({"height": height, "line-height": height, "width": width});
+
+        $(this).attr('title', "This Datafield is marked as unique, and therefore can't be mass updated...multiple Datarecords would have the same value if that happened.");
+    });
+
     $(".ODRDatePicker").datepicker({
         dateFormat: 'yy-mm-dd',
         changeMonth: true,

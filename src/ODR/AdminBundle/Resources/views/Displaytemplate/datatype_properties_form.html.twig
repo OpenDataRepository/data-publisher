@@ -32,11 +32,29 @@
         </div>
 
         <div class="pure-control-group">
+            <label for="{{datatype_form.externalIdField.vars.id}}">
+                <strong>{{datatype_form.externalIdField.vars.label}}</strong>
+            </label>
+            {{ form_errors(datatype_form.externalIdField) }}
+            {{ form_widget(datatype_form.externalIdField, { 'attr': {'data-error-type': 'inline' } }) }}
+            <span style="color:black;">&nbsp;<i class="fa fa-lg fa-question-circle Cursor" title="The contents of the selected Datafield will be used preferentially to identify and update Datarecords during CSV/XML Importing.  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use."></i></span>
+        </div>
+        <div class="pure-control-group">
             <label for="{{datatype_form.nameField.vars.id}}">
                 <strong>{{datatype_form.nameField.vars.label}}</strong>
             </label>
             {{ form_errors(datatype_form.nameField) }}
-            {{ form_widget(datatype_form.nameField, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+            {{ form_widget(datatype_form.nameField, { 'attr': {'data-error-type': 'inline' } }) }}
+            <span style="color:black;">&nbsp;<i class="fa fa-lg fa-question-circle Cursor" title="The contents of the selected Datafield will be used as a logical 'name' to label the Datarecord in lists and various other places.  In the absence of an External ID value, the 'name' will be used to identify a Datarecord during CSV/XML Importing.  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use."></i></span>
+        </div>
+
+        <div class="pure-control-group">
+            <label for="{{datatype_form.sortField.vars.id}}">
+                <strong>{{datatype_form.sortField.vars.label}}</strong>
+            </label>
+            {{ form_errors(datatype_form.sortField) }}
+            {{ form_widget(datatype_form.sortField, { 'attr': {'data-error-type': 'inline' } }) }}
+            <span style="color:black;">&nbsp;<i class="fa fa-lg fa-question-circle Cursor" title="The contents of the selected Datafield will determine the default sorting order of the Datarecords of this Datatype."></i></span>
         </div>
 
         {#{% if is_top_level == 0 %}#}

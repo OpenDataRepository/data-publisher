@@ -47,6 +47,7 @@ use ODR\AdminBundle\Form\UpdateThemeDatafieldForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Form\FormError;
 
 // YAML Parsing
 use Symfony\Component\Yaml\Yaml;
@@ -1555,6 +1556,8 @@ print '</pre>';
             $datatype->setMultipleRecordsPerParent('1');
             $datatype->setRenderPlugin($render_plugin);
             $datatype->setUseShortResults('1');
+            $datatype->setExternalIdField(null);
+            $datatype->setNameField(null);
             $datatype->setSortField(null);
             $datatype->setDisplayType(0);
             $datatype->setRevision(0);
@@ -2915,15 +2918,18 @@ if ($debug)
         $return['d'] = '';
 
         try {
-
 //print_r( $_POST );
 //return;
             // Grab necessary objects
             $em = $this->getDoctrine()->getManager();
+/*
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+*/
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
-//            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('isDefault' => '1') );
 
             // --------------------
             // Determine user privileges
@@ -2935,24 +2941,50 @@ if ($debug)
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-/*
-            // Determine whether this datatype is "top-level" or not...top level datatypes can't have multiple_records_per_parent set to 1
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findByDescendant($datatype);
-            $is_top_level = true;
-            foreach ($datatree as $dt) {
-                if ($dt->getDescendant() == $datatype && $dt->getIsLink() == 0) {
-                    $is_top_level = false;
-                    break;
-                }
-            }
-*/
             // Populate new DataFields form
             $form = $this->createForm(new UpdateDataTypeForm($datatype), $datatype);
 
             if ($request->getMethod() == 'POST') {
+/*
+                // Check to see if external_id/name/sort field got changed
+                $post = $request->request->all();
+                $post = $post['UpdateDataTypeForm'];
+
+                $external_id_field = $post['externalIdField'];
+                $namefield = $post['nameField'];
+                $sortfield = $post['sortField'];
+
+                $old_external_field = $datatype->getExternalIdField();
+                if ($old_external_field !== null)
+                    $old_external_field = strval($old_external_field->getId());
+                $old_namefield = $datatype->getNameField();
+                if ($old_namefield !== null)
+                    $old_namefield = strval($old_namefield->getId());
+                $old_sortfield = $datatype->getSortField();
+                if ($old_sortfield !== null)
+                    $old_sortfield = strval($old_sortfield->getId());
+*/
+                // Bind the changes to the datatype
                 $form->bind($request, $datatype);
                 $return['t'] = "html";
                 if ($form->isValid()) {
+/*
+                    // If any of the external/name/sort datafields got changed, clear the relevant cache fields for datarecords of this datatype
+                    if ($old_external_field !== $external_id_field) {
+                        $query = $em->createQuery('UPDATE ODRAdminBundle:DataRecord AS dr SET dr.external_id = NULL WHERE dr.dataType = :datatype')->setParameters( array('datatype' => $datatype_id) );
+                        $num_updated = $query->execute();
+                    }
+                    if ($old_namefield !== $namefield) {
+                        $query = $em->createQuery('UPDATE ODRAdminBundle:DataRecord AS dr SET dr.namefield_value = NULL WHERE dr.dataType = :datatype')->setParameters( array('datatype' => $datatype_id) );
+                        $num_updated = $query->execute();
+                    }
+                    if ($old_sortfield !== $sortfield) {
+                        $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
+
+                        $query = $em->createQuery('UPDATE ODRAdminBundle:DataRecord AS dr SET dr.sortfield_value = NULL WHERE dr.dataType = :datatype')->setParameters( array('datatype' => $datatype_id) );
+                        $num_updated = $query->execute();
+                    }
+*/
                     // Save the changes made to the datatype
                     $datatype->setUpdatedBy($user);
                     $em->persist($datatype);
@@ -3050,16 +3082,7 @@ if ($debug)
             )->setParameters( array('datafield' => $datafield->getId()) );
             $result = $query->getResult();
             $theme_datafield = $result[0];
-/*
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy(array("isDefault" => "1"));
-            $themes = $datafield->getThemeDataField();
-            $field_theme = "";
-            foreach($themes as $mytheme) {
-                if($mytheme->getTheme()->getId() == $theme->getId()) {
-                    $field_theme = $mytheme;
-                }
-            }
-*/
+
 
             // --------------------
             // Check to see whether the "allow multiple uploads" checkbox for file/image control needs to be disabled
@@ -3123,25 +3146,7 @@ if ($debug)
             // Populate new DataFields form
             $datafield_form = $this->createForm(new UpdateDatafieldsForm(), $datafield);
             $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm(), $theme_datafield);
-//            $templating = $this->get('templating');
             if ($request->getMethod() == 'POST') {
-/*
-                // Deal with the uniqueness checkbox
-                $uniqueness_failure = false;
-                $uniqueness_failure_value = '';
-                $form_fields = $request->request->get('DataFieldsForm');
-                if ( isset($form_fields['is_unique']) ) {
-                    // Check to see if the values of that datafield across all datarecords are unique
-                    $failed_values = parent::verifyUniqueness($datafield);
-
-                    if ( count($failed_values) > 0 ) {
-                        // Notify of failure
-                        $uniqueness_failure = true;
-                        foreach ($failed_values as $failed_value)
-                            $uniqueness_failure_value = $failed_value;
-                    }
-                }
-*/
 
                 // --------------------
                 // Deal with change of fieldtype
@@ -3221,8 +3226,6 @@ if ($debug)
 
                 // Deal with the rest of the form
                 $datafield_form->bind($request, $datafield);
-//$errors = parent::ODR_getErrorMessages($form);
-//print_r($errors);
 
                 // If not allowed to change fieldtype, ensure the datafield always has the old fieldtype
                 if ($prevent_fieldtype_change) {
@@ -3231,6 +3234,16 @@ if ($debug)
                     $force_slideout_reload = false;
                 }
 
+                // If the datafield got set to unique...
+                if ( isset($normal_fields['is_unique']) && $normal_fields['is_unique'] == 1 ) {
+                    // ...if it has duplicate values, manually add an error to the Symfony form...this will conveniently cause the subsequent isValid() call to fail
+                    if ( !self::datafieldCanBeUnique($datafield) )
+                        $datafield_form->addError( new FormError("This Datafield can't be set to 'unique' because some Datarecords have duplicate values stored in this Datafield...click the gear icon to list which ones.") ); 
+                }
+/*
+$errors = parent::ODR_getErrorMessages($datafield_form);
+print_r($errors);
+*/
 
                 // --------------------
                 $return['t'] = "html";
@@ -3276,20 +3289,6 @@ if ($debug)
                     if ($datafield->getRadioOptionNameSort() == true) {
                         self::radiooptionorderAction($datafield->getId(), true, $request);  // TODO - might be race condition issue with design_ajax
                     }
-/*
-                    // If the verifications for the uniqueness checkbox failed...
-                    if ($uniqueness_failure) {
-                        // Set to not unique
-                        $datafield->setIsUnique(0);
-                        $em->persist($datafield);
-                        $em->flush();
-
-                        $return['r'] = 2;
-                        $return['t'] = "";
-                        $return['d'] = "Can't set the \"".$datafield->getFieldName()."\" DataField to be unique!\nAt least two DataRecords have duplicate values of \"".$uniqueness_failure_value."\".";
-                    }
-                    else {
-*/
 
                     // --------------------
                     // If datafields are getting migrated, then the datatype will get updated
@@ -3352,56 +3351,40 @@ if ($debug)
                             // TODO - Lock other stuff?
                         }
                     }
-//                    else {
-                        $datatype = $datafield->getDataType();
 
-                        $options = array();
-                        $options['mark_as_updated'] = true;
-                        $options['force_shortresults_recache'] = $force_shortresults_recache;
-                        if ($datafield->getDisplayOrder() != -1)
-                            $options['force_textresults_recache'] = true;
+                    $datatype = $datafield->getDataType();
 
-                        parent::updateDatatypeCache($datatype->getId(), $options);
-//                    }
+                    $options = array();
+                    $options['mark_as_updated'] = true;
+                    $options['force_shortresults_recache'] = $force_shortresults_recache;
+                    if ($datafield->getDisplayOrder() != -1)
+                        $options['force_textresults_recache'] = true;
+
+                    parent::updateDatatypeCache($datatype->getId(), $options);
                 }
-
-            }   // <-- added
-/*
                 else {
-//print_r($datafield_form->getErrors());
-                    // Error in validating a returned datatype form
-                    $return['d'] = $templating->render(
-                        'ODRAdminBundle:Displaytemplate:datafield_properties_form.html.twig', 
-                        array(
-                            'has_multiple_uploads' => $has_multiple_uploads,
-                            'prevent_fieldtype_change' => $prevent_fieldtype_change,
-                            'datafield' => $datafield,
-                            'datafield_form' => $datafield_form->createView(),
-                            'theme_datafield' => $theme_datafield,
-                            'theme_datafield_form' => $theme_datafield_form->createView(),
-                        )
-                    );
+                    // Form validation failed
+                    // TODO - fix parent::ODR_getErrorMessages() to be consistent enough to use
+                    $return['r'] = 1;
+                    $errors = $datafield_form->getErrors();
+
+                    $error_str = '';
+                    foreach ($errors as $num => $error)
+                        $error_str .= 'ERROR: '.$error->getMessage()."\n";
+
+                    $return['error'] = $error_str;
                 }
+
             }
-            else {
-                // Request not a POST
-                $return['d'] = $templating->render(
-                    'ODRAdminBundle:Displaytemplate:datafield_properties_form.html.twig', 
-                    array(
-                        'has_multiple_uploads' => $has_multiple_uploads,
-                        'prevent_fieldtype_change' => $prevent_fieldtype_change,
-                        'datafield' => $datafield,
-                        'datafield_form' => $datafield_form->createView(),
-                        'theme_datafield' => $theme_datafield,
-                        'theme_datafield_form' => $theme_datafield_form->createView(),
-                    )
-                );
-            }
-*/
 
 
             // --------------------
             // Return the html for the right slideout if necessary
+/*
+print count($datafield_form->getErrors())."\n";
+if ($force_slideout_reload)
+    print 'forcing reload'."\n";
+*/
             if ( $request->getMethod() == 'GET' || count($datafield_form->getErrors()) > 0 || $force_slideout_reload == true ) {
                 $em->refresh($datafield);
                 $em->refresh($theme_datafield);
@@ -3933,6 +3916,164 @@ if ($debug)
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x20228935656 '. $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Checks to see whether the given Datafield can be marked as unique or not.
+     *
+     * @param DataField $datafield 
+     *
+     * @return boolean true if the datafield has no duplicate values, false otherwise
+     */
+    private function datafieldCanBeUnique($datafield)
+    {
+        // Going to need these...
+        $datafield_id = $datafield->getId();
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+
+        // Only run queries if field can be set to unique
+        if ($typeclass !== 'IntegerValue' && $typeclass !== 'ShortVarchar' && $typeclass !== 'MediumVarchar')
+            return false;
+
+        // Determine how many values there are in the datafield...
+        $em = $this->getDoctrine()->getManager();
+        $query = $em->createQuery(
+           'SELECT COUNT(e.value)
+            FROM ODRAdminBundle:'.$typeclass.' AS e
+            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+            WHERE e.dataField = :datafield
+            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+        )->setParameters( array('datafield' => $datafield_id) );
+        $result = $query->getArrayResult();
+        $count = $result[0][1];
+
+        // Determine how many different values there are in the datafield...
+        $em = $this->getDoctrine()->getManager();
+        $query = $em->createQuery(
+           'SELECT COUNT( DISTINCT e.value )
+            FROM ODRAdminBundle:'.$typeclass.' AS e
+            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+            WHERE e.dataField = :datafield
+            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+        )->setParameters( array('datafield' => $datafield_id) );
+        $result = $query->getArrayResult();
+        $distinct_count = $result[0][1];
+
+        // If the previous two numbers are different, then there's a duplicated value somewhere
+        if ($distinct_count !== $count)
+            return false;
+        else
+            return true;
+    }
+
+
+    /**
+     * Given a Datafield, build a list of Datarecords (if any) that have identical values in that Datafield.
+     * TODO - create some sort of a "Reports" controller and move this there?
+     *
+     * @param integer $datafield_id
+     * @param Request $request
+     *
+     * @return TODO
+     */
+    public function analyzedatafielduniqueAction($datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+            $templating = $this->get('templating');
+
+            $datafield = $repo_datafield->find($datafield_id);
+            if ( $datafield == null )
+                return parent::deletedEntityError('DataField');
+
+            $datatype = $datafield->getDataType();
+            if ( $datatype == null )
+                return parent::deletedEntityError('DataType');
+
+
+            // Only run queries if field can be set to unique
+            $fieldtype = $datafield->getFieldType();
+            if ($fieldtype->getCanBeUnique() == '0')
+                throw new \Exception("This DataField can't be unique becase of its FieldType");
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+            // Build a query to determine which datarecords have duplicate values
+            $typeclass = $fieldtype->getTypeClass();
+            $query = $em->createQuery(
+               'SELECT dr.id AS dr_id, e.value AS value
+                FROM ODRAdminBundle:'.$typeclass.' AS e
+                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                WHERE e.dataField = :datafield
+                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+            )->setParameters( array('datafield' => $datafield_id) );
+            $results = $query->getArrayResult();
+//print_r($results);
+
+            // Convert the query results into an array grouped by value
+            $values = array();
+            foreach ($results as $num => $result) {
+                $dr_id = $result['dr_id'];
+                $value = $result['value'];
+
+                if ( !isset($values[$value]) ) {
+                    $values[$value] = array('count' => 1, 'dr_list' => array($dr_id));
+                }
+                else {
+                    $values[$value]['count'] += 1;
+                    $values[$value]['dr_list'][] = $dr_id;
+                }
+            }
+//print_r($values);
+
+            // Don't care about values which aren't duplicated
+            foreach ($values as $value => $data) {
+                if ( $data['count'] == 1 )
+                    unset($values[$value]);
+            }
+//print_r($values);
+
+            // Render and return a page detailing which datarecords have duplicate values...
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Displaytemplate:uniqueness_report.html.twig',
+                    array(
+                        'datafield' => $datafield,
+                        'user_permissions' => $user_permissions,
+                        'duplicate_values' => $values,
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x892357656 '. $e->getMessage();
         }
 
         $response = new Response(json_encode($return));

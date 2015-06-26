@@ -88,18 +88,17 @@ class UpdateDataTypeForm extends AbstractType
 
         $datatype = $this->datatype;
         $builder->add(
-            'nameField',
+            'externalIdField',
             'entity',
             array(
                 'class' => 'ODR\AdminBundle\Entity\DataFields',
                 'query_builder' => function(EntityRepository $er) use ($datatype) {
                     return $er->createQueryBuilder('df')
-                                ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'df.fieldType = ft')
-                                ->where('ft.canBeNameField = 1 AND df.dataType = ?1')
+                                ->where('df.is_unique = 1 AND df.dataType = ?1')
                                 ->setParameter(1, $datatype);
                 },
 
-                'label' => 'Name Field ?',
+                'label' => 'External ID Field',
                 'property' => 'field_name',
                 'expanded' => false,
                 'multiple' => false,
@@ -108,12 +107,53 @@ class UpdateDataTypeForm extends AbstractType
         );
 
 
+        $datatype = $this->datatype;
+        $builder->add(
+            'nameField',
+            'entity',
+            array(
+                'class' => 'ODR\AdminBundle\Entity\DataFields',
+                'query_builder' => function(EntityRepository $er) use ($datatype) {
+                    return $er->createQueryBuilder('df')
+                                ->where('df.is_unique = 1 AND df.dataType = ?1')
+                                ->setParameter(1, $datatype);
+                },
+
+                'label' => 'Name Field',
+                'property' => 'field_name',
+                'expanded' => false,
+                'multiple' => false,
+                'empty_value' => 'NONE',
+            )
+        );
+
+        $datatype = $this->datatype;
+        $builder->add(
+            'sortField',
+            'entity',
+            array(
+                'class' => 'ODR\AdminBundle\Entity\DataFields',
+                'query_builder' => function(EntityRepository $er) use ($datatype) {
+                    return $er->createQueryBuilder('df')
+                                ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'df.fieldType = ft')
+                                ->where('ft.canBeSortField = 1 AND df.dataType = ?1')
+                                ->setParameter(1, $datatype);
+                },
+
+                'label' => 'Sort Field',
+                'property' => 'field_name',
+                'expanded' => false,
+                'multiple' => false,
+                'empty_value' => 'NONE',
+            )
+        );
+
         $builder->add(
             'multiple_records_per_parent',
             'checkbox',
             array(
                 'required' => false,
-                'label'  => 'Multiple Allowed?',
+                'label'  => 'Multiple Allowed',
             )
         );
 
@@ -122,7 +162,7 @@ class UpdateDataTypeForm extends AbstractType
             'choice',
             array(
                 'choices' => array('0' => 'Accordion', '1' => 'Tabbed', '2' => 'Dropdown', '3' => 'List'),
-                'label'  => 'Display As ?',
+                'label'  => 'Display As',
                 'expanded' => false,
                 'multiple' => false,
                 'empty_value' => false

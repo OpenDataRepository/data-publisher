@@ -78,7 +78,7 @@ $output->writeln($data->url);
                     'user_id' => $data->user_id,
 
                     'column_names' => $data->column_names,
-//                    'external_id_column' => $data->external_id_column,
+                    'unique_columns' => $data->unique_columns,
                     'datafield_mapping' => $data->datafield_mapping,
                     'fieldtype_mapping' => $data->fieldtype_mapping,
                     'column_delimiters' => $data->column_delimiters,

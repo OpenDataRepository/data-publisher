@@ -10,23 +10,36 @@
 
         <fieldset>
             <div class="pure-control-group">
+                <label for="external_id_field_select">External ID Field:</label>
+                <select id="external_id_field_select" name="external_id_datafield" onchange="SaveExternalIdField({{ datatype.id }});">
+                    <option value="-1" {% if datatype.getexternalidfield == null %}selected{% endif %}>NONE</option>
+                    {% for datafield in unique_datafields %}
+                        <option value="{{ datafield.id }}" {% if datatype.getexternalidfield != null and datatype.getexternalidfield.id == datafield.id %}selected{% endif %}>{{ datafield.getfieldname }}</option>
+                    {% endfor %}
+                </select>
+                <span>&nbsp;<i class="fa fa-lg fa-question-circle Cursor" title="The contents of the selected Datafield will be used preferentially to identify and update Datarecords during CSV/XML Importing.  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use."></i></span>
+            </div>
+
+            <div class="pure-control-group">
                 <label for="namefield_select">Name Field:</label>
-                <select id="namefield_select" name="namefield" onchange="SaveNameField({{ datatype.id }});">
+                <select id="namefield_select" name="name_datafield" onchange="SaveNameField({{ datatype.id }});">
                     <option value="-1" {% if datatype.getnamefield == null %}selected{% endif %}>NONE</option>
-                    {% for datafield in name_datafields %}
+                    {% for datafield in unique_datafields %}
                         <option value="{{ datafield.id }}" {% if datatype.getnamefield != null and datatype.getnamefield.id == datafield.id %}selected{% endif %}>{{ datafield.getfieldname }}</option>
                     {% endfor %}
                 </select>
+                <span>&nbsp;<i class="fa fa-lg fa-question-circle Cursor" title="The contents of the selected Datafield will be used as a logical 'name' to label the Datarecord in lists and various other places.  In the absence of an External ID value, the 'name' will be used to identify a Datarecord during CSV/XML Importing.  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use."></i></span>
             </div>
 
             <div class="pure-control-group">
                 <label for="sortfield_select">Sort Field:</label>
-                <select id="sortfield_select" name="sortfield" onchange="SaveSortField({{ datatype.id }});">
+                <select id="sortfield_select" name="sort_datafield" onchange="SaveSortField({{ datatype.id }});">
                     <option value="-1" {% if datatype.getsortfield == null %}selected{% endif %}>NONE</option>
                     {% for datafield in sort_datafields %}
                         <option value="{{ datafield.id }}" {% if datatype.getsortfield != null and datatype.getsortfield.id == datafield.id %}selected{% endif %}>{{ datafield.getfieldname }}</option>
                     {% endfor %}
                 </select>
+                <span>&nbsp;<i class="fa fa-lg fa-question-circle Cursor" title="The contents of the selected Datafield will determine the default sorting order of the Datarecords of this Datatype."></i></span>
             </div>
 
             <div class="pure-control-group">
@@ -40,10 +53,9 @@
                 </span>
             </div>
 
-
             <div class="pure-control-group">
                 <label for="imagefield_select">Background Image Field:</label>
-                <select id="imagefield_select" name="imagefield" onchange="SaveImageField({{ datatype.id }});">
+                <select id="imagefield_select" name="image_datafield" onchange="SaveImageField({{ datatype.id }});">
                     <option value="-1" {% if datatype.getbackgroundimagefield == null %}selected{% endif %}>NONE</option>
                     {% for datafield in image_datafields %}
                         <option value="{{ datafield.id }}" {% if datatype.getbackgroundimagefield != null and datatype.getbackgroundimagefield.id == datafield.id %}selected{% endif %}>{{ datafield.getfieldname }}</option>
@@ -300,6 +312,11 @@ function SaveNameField(id) {
     SubmitForm(id);
 }
 
+function SaveExternalIdField(id) {
+
+    SubmitForm(id);
+}
+
 function SaveImageField(id) {
 
     SubmitForm(id);
@@ -339,7 +356,7 @@ function SubmitForm(id) {
         data: form_data,
         dataType: dataType,
         success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
+            if (data.r == 0) {
                 $('#saved').fadeIn();
                 setTimeout(function() {
                     $('#saved').fadeOut();
@@ -347,7 +364,7 @@ function SubmitForm(id) {
 
                 $("#old_search_slug").val( $("#new_search_slug").val() );
             }
-            else if(data.r == 2) {
+            else if (data.r == 2) {
                 $('#saved').fadeIn();
                 setTimeout(function() {
                     $('#saved').fadeOut();

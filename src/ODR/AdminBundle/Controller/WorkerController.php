@@ -150,6 +150,83 @@ class WorkerController extends ODRCustomController
 
             // ----------------------------------------
             if (!$block) {
+/*
+                // TODO 
+                $external_id_field = $datatype->getExternalIdField();
+                $namefield = $datatype->getNameField();
+                $sortfield = $datatype->getSortField();
+                
+                if ($external_id_field !== null) {
+                    $typeclass = $external_id_field->getFieldType()->getTypeClass();
+                
+                    $query = $em->createQuery(
+                       'SELECT e.value AS value
+                        FROM ODRAdminBundle:'.$typeclass.' AS e
+                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                        WHERE e.dataRecord = :datarecord AND e.dataField = :datafield
+                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL'
+                    )->setParameters( array('datarecord' => $datarecord_id, 'datafield' => $external_id_field->getId()) );
+                    $result = $query->getArrayResult();
+                    $current_value = $result[0]['value'];
+                
+                    if ($typeclass == 'DatetimeValue')
+                        $current_value = $current_value->format('Y-m-d');
+                
+                    if ($datarecord->getExternalId() !== $current_value) {
+                //print 'set external_id to '.$current_value."\n";
+                        $datarecord->setExternalId($current_value);
+                    }
+                }
+                
+                if ($namefield !== null) {
+                    $typeclass = $namefield->getFieldType()->getTypeClass();
+                
+                    $query = $em->createQuery(
+                       'SELECT e.value AS value
+                        FROM ODRAdminBundle:'.$typeclass.' AS e
+                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                        WHERE e.dataRecord = :datarecord AND e.dataField = :datafield
+                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL'
+                    )->setParameters( array('datarecord' => $datarecord_id, 'datafield' => $namefield->getId()) );
+                    $result = $query->getArrayResult();
+                    $current_value = $result[0]['value'];
+                
+                    if ($typeclass == 'DatetimeValue')
+                        $current_value = $current_value->format('Y-m-d');
+                
+                    if ($datarecord->getNamefieldValue() !== $current_value) {
+                //print 'set namefield_value to '.$current_value."\n";
+                        $datarecord->setNamefieldValue($current_value);
+                    }
+                }
+                
+                if ($sortfield !== null) {
+                    $typeclass = $sortfield->getFieldType()->getTypeClass();
+                
+                    $query = $em->createQuery(
+                       'SELECT e.value AS value
+                        FROM ODRAdminBundle:'.$typeclass.' AS e
+                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                        WHERE e.dataRecord = :datarecord AND e.dataField = :datafield
+                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL'
+                    )->setParameters( array('datarecord' => $datarecord_id, 'datafield' => $sortfield->getId()) );
+                    $result = $query->getArrayResult();
+                    $current_value = $result[0]['value'];
+                
+                    if ($typeclass == 'DatetimeValue')
+                        $current_value = $current_value->format('Y-m-d');
+                
+                    if ($datarecord->getSortfieldValue() !== $current_value) {
+                //print 'set sortfield_value to '.$current_value."\n";
+                        $datarecord->setSortfieldValue($current_value);
+                    }
+                }
+                
+                $em->persist($datarecord);
+                $em->flush();
+*/
+
+                // ----------------------------------------
                 // Determine if the datarecord is missing any memcached entries
                 $oldest_revision = null;
                 $missing_cache_entries = false;
@@ -241,6 +318,8 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
             $return['d'] = $ret;
         }
         catch (\Exception $e) {
+            // TODO - increment tracked job counter on error?
+
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x6642397853 ' . $e->getMessage();
@@ -430,6 +509,8 @@ $ret .= '  Set current to '.$count."\n";
             $return['d'] = $ret;
         }
         catch (\Exception $e) {
+            // TODO - increment tracked job counter on error?
+
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x6642397856: '.$e->getMessage()."\n".$ret;
@@ -595,6 +676,8 @@ $ret .= '  Set current to '.$count."\n";
             $return['d'] = '>> Rebuilt thumbnails for '.$object_type.' '.$object_id."\n";
         }
         catch (\Exception $e) {
+            // TODO - increment tracked job counter on error?
+
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x38472782 ' . $e->getMessage();
@@ -1296,6 +1379,5 @@ print '<pre>';
 print 'count: '.$count."\n";
 print '</pre>';
     }
-
 
 }

@@ -1963,7 +1963,7 @@ if ($write) {
 
             $datarecords = $repo_datarecord->findBy( array('dataType' => 43) );
             foreach ($datarecords as $datarecord) {
-                $datarecord->setExternalId( $datarecord->getNameFieldValue() );
+                $datarecord->setExternalId( $datarecord->getNamefieldValue() );
                 $em->persist($datarecord);
             }
             $em->flush();

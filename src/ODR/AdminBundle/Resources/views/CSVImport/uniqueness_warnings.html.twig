@@ -1,0 +1,162 @@
+{% spaceless %}
+
+    {% set external_id_field = datatype.getexternalidfield %}
+    {% set name_field = datatype.getnamefield %}
+
+    {% if external_id_field != null and name_field != null and external_id_field.id == name_field.id %}
+        {% set external_id_field = null %}
+    {% endif %}
+
+    <div class="csv_import_header pure-u-2-3">
+        {% if external_id_field == null and name_field == null %}
+            {# notify that the datatype doesn't have either type of identification field #}
+            <div class="pure-u-1">
+                <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+                <span>&nbsp;This Datatype doesn't have either an "External ID" Datafield or a "Name" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported will ALWAYS create new Datarecords.</span>
+            </div>
+
+        {% elseif external_id_field == null %}
+            {# since the datatype has no "external id" field, require "name" field #}
+            <div id="name_field_warning" class="pure-u-1">
+                <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+                <span>&nbsp;This Datatype's Name Datafield, "{{ name_field.getfieldname }}", is currently not mapped to a column of the CSV File...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported WILL create new Datarecords.</span>
+            </div>
+
+        {% elseif name_field == null %}
+            {# since the datatype has no "name" field, require "external id" field #}
+            <div id="external_id_field_warning" class="pure-u-1">
+                <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+                <span>&nbsp;This Datatype's External ID Datafield, "{{ external_id_field.getfieldname }}", is currently not mapped to a column of the CSV File...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported WILL create new Datarecords.</span>
+            </div>
+
+        {% else %}
+            {# need a single warning when neither field is set... #}
+            <div id="both_fields_warning" class="pure-u-1">
+                <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+                <span>&nbsp;Neither this Datatype's External ID Datafield, "{{ external_id_field.getfieldname }}", nor this Datatype's Name Datafield, "{{ name_field.getfieldname }}", are currently mapped to a column of the CSV File...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported WILL create new Datarecords, and both these Datafields will have multiple blank values.</span>
+            </div>
+
+            {# ...also need default empty unique datafield warnings #}
+            <div id="external_id_field_notice" class="pure-u-1 ODRHidden">
+                <span><i class="fa fa-lg fa-exclamation-circle"></i></span>
+                <span>&nbsp;This Datatype's External ID Datafield, "{{ external_id_field.getfieldname }}", is currently not mapped to a column of the CSV File...if any new Datarecords are created as a result of this import, this datafield will have multiple blank values.</span>
+            </div>
+            <div id="name_field_notice" class="pure-u-1 ODRHidden">
+                <span><i class="fa fa-lg fa-exclamation-circle"></i></span>
+                <span>&nbsp;This Datatype's Name Datafield, "{{ name_field.getfieldname }}", is currently not mapped to a column of the CSV File...if any new Datarecords are created as a result of this import, this datafield will have multiple blank values.</span>
+            </div>
+
+        {% endif %}
+
+        {# every other unique datafield needs a warning too #}
+        {% for df in datafields %}
+            {% if df.getisunique == 1 and external_id_field != df and name_field != df %}
+            <div id="datafield_{{ df.id }}_unique_notice" class="pure-u-1">
+                <span><i class="fa fa-lg fa-exclamation-circle"></i></span>
+                <span>&nbsp;The unique Datafield "{{ df.getfieldname }}" is currently not mapped to a column of the CSV File...if any new Datarecords are created as a result of this import, this datafield will have multiple blank values.</span>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+<style>
+    .ODRHidden {
+        display: none;
+    }
+</style>
+
+<script>
+    function updateHeaderWarnings() {
+{% if external_id_field == null and name_field == null %}
+        /* no external id or name datafield, do nothing for them*/
+{% elseif external_id_field == null %}
+        // Check to see if the name datafield is mapped to a csv column
+        var selected = false;
+        $(".datafield_mapping:enabled").each(function() {
+            var selected_df = $(this).children('option:selected').val();
+            if ( selected_df == "{{ name_field.id }}" )
+                selected = true;
+        });
+
+        // Display the warning based on whether it is
+        if (selected)
+            $("#name_field_warning").hide();
+        else
+            $("#name_field_warning").show();
+
+{% elseif name_field == null %}
+        // Check to see if the external id datafield is mapped to a csv column
+        var selected = false;
+        $(".datafield_mapping:enabled").each(function() {
+            var selected_df = $(this).children('option:selected').val();
+            if ( selected_df == "{{ external_id_field.id }}" )
+                selected = true;
+        });
+
+        // Display the warning based on whether it is
+        if (selected)
+            $("#external_id_field_warning").hide();
+        else
+            $("#external_id_field_warning").show();
+
+{% else %}
+        // Check to see if the name datafield is mapped to a csv column
+        var has_name_field = false;
+        $(".datafield_mapping:enabled").each(function() {
+            var selected_df = $(this).children('option:selected').val();
+            if ( selected_df == "{{ name_field.id }}" )
+                has_name_field = true;
+        });
+
+        // Check to see if the external id datafield is mapped to a csv column
+        var has_external_id_field = false;
+        $(".datafield_mapping:enabled").each(function() {
+            var selected_df = $(this).children('option:selected').val();
+            if ( selected_df == "{{ external_id_field.id }}" )
+                has_external_id_field = true;
+        });
+
+        // Default
+        $("#both_fields_warning").hide();
+        $("#external_id_field_notice").hide();
+        $("#name_field_notice").hide();
+
+        if (has_name_field && has_external_id_field) {
+            /* do nothing */
+        }
+        else if (has_name_field) {
+            // Name field is mapped
+            $("#external_id_field_notice").show();
+        }
+        else if (has_external_id_field) {
+            // External ID field is mapped
+            $("#name_field_notice").show();
+        }
+        else {
+            // Neither field is mapped
+            $("#both_fields_warning").show();
+        }
+{% endif %}
+
+        // Deal with unique datafields that aren't external id/name datafields
+        var datafield_usage = {};
+{% for df in datafields %}{% if df.getisunique == 1 %}
+        datafield_usage["{{ df.id }}"] = 0;
+{% endif %}{% endfor %}
+
+        $(".datafield_mapping:enabled").each(function() {
+            var selected_df = $(this).children('option:selected').val();
+            if ( datafield_usage[selected_df] !== undefined )
+                datafield_usage[selected_df] = 1;
+        });
+
+        jQuery.each(datafield_usage, function(key,value) {
+            if (value == 1)
+                $("#datafield_" + key + "_unique_notice").hide();
+            else
+                $("#datafield_" + key + "_unique_notice").show();
+        });
+    }
+</script>
+
+{% endspaceless %}

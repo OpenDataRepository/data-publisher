@@ -1,10 +1,15 @@
 {% spaceless %}
 
-    <div style="margin: 10px 10px 10px 0px;">
+    {% set external_id_field = datatype.getexternalidfield %}
+    {% set name_field = datatype.getnamefield %}
+
+    <div class="csv_import_header pure-u-1">
         <button type="button" class="pure-button" onclick="selectAllFields();">Select All</button>
         &nbsp;
         <button type="button" class="pure-button" onclick="deselectAllFields();">Deselect All</button>
     </div>
+
+    {% include 'ODRAdminBundle:CSVImport:uniqueness_warnings.html.twig' with {'datatype': datatype, 'datafields': datafields} %}
 
     <form id="csv_import_form">
         <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />
@@ -13,11 +18,11 @@
             <thead>
                 <tr id="header">
                     <th>Column Name</th>
-                    <th>Use as external ID</th>
                     <th>Import?</th>
+                    <th>Requre unique values?</th>
                     <th>Map to datafield...</th>
                     <th>Fieldtype...</th>
-                    <th>Secondary Delimiter</th>
+                    <th>Secondary Delimiter...</th>
                     <th></th>
                 </tr>
             </thead>
@@ -25,16 +30,24 @@
                 {% for column_id, column_name in columns %}
                 <tr>
                     <td>{{ column_name }}</td>
-                    <td><input type="checkbox" id="external_id_checkbox_{{ column_id }}" class="external_id_checkbox" name="external_id_column" value="{{ column_id }}" /></td>
                     <td><input type="checkbox" id="import_checkbox_{{ column_id }}" class="import_checkbox" rel="{{ column_id }}" /></td>
+
+                    <td>
+                        <input type="checkbox" id="column_{{ column_id }}_unique" class="unique_checkbox" name="unique_columns[{{ column_id }}]" value="1" disabled rel="{{ column_id }}" />
+                        <span class="inline_warning">&nbsp;<i class="fa fa-lg fa-exclamation-circle Cursor"></i>&nbsp;Datafield must have unique values</span>
+                    </td>
+
                     <td>
                         <select id="column_{{ column_id }}" class="datafield_mapping" name="datafield_mapping[{{ column_id }}]" rel="{{ column_id }}" disabled>
                             <option value="new">Create new datafield...</option>
                             {% for datafield in datafields %}
+                            {% if datafield.fieldtype.id in allowed_fieldtypes %}
                             <option value="{{ datafield.id }}" rel="{{ datafield.fieldtype.id }}">{{ datafield.fieldname }}</option>
+                            {% endif %}
                             {% endfor %}
                         </select>
                     </td>
+
                     <td>
                         <select id="column_{{ column_id }}_fieldtype" class="fieldtype_mapping" name="fieldtype_mapping[{{ column_id }}]" rel="{{ column_id }}" disabled>
                             {% for fieldtype in fieldtypes %}
@@ -42,6 +55,7 @@
                             {% endfor %}
                         </select>
                     </td>
+
                     <td>
                         <select id="column_{{ column_id }}_delimiter" class="secondary_delimiter" name="column_delimiters[{{ column_id }}]" disabled>
                             <option value="">Select a delimiter...</option>
@@ -50,8 +64,8 @@
                             <option value="pipe">{pipe}</option>
                         </select>
                     </td>
-                    <td id="column_{{ column_id }}_meta">
-                    </td>
+
+                    <td id="column_{{ column_id }}_meta"></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -62,48 +76,74 @@
         <button id="validate_button" type="button" class="pure-button pure-button-primary" onclick="validateImport();">Validate Import</button>
     </div>
 
+<style>
+    .csv_import_header {
+        margin: 10px 10px 10px 0px;
+    }
+    .inline_warning {
+        position: relative;
+        top: -3px;
+    }
+</style>
+
 <script>
     var block_changes = false;
-    var change_block_str = 'You changed something in the field layout...either re-validate the import, or reload the page to undo your changes';
+    var change_block_str = 'You have changed something in the field layout...either re-validate the import, or reload the page to undo your changes';
+
+    var unique_datafields = [];
+    var unique_fieldtypes = [];
 
     $(function() {
+{% for df in datafields %}{% if df.getisunique == 1 %}
+        unique_datafields.push("{{ df.id }}");
+{% endif %}{% endfor %}
+{% for ft in fieldtypes %}{% if ft.getcanbeunique == 1 %}
+        unique_fieldtypes.push("{{ ft.id }}");
+{% endif %}{% endfor %}
+
+        $(".inline_warning").hide();
+
         $(".import_checkbox").unbind('change');
         $(".import_checkbox").change(function() {
             var column_id = $(this).attr('rel');
 
             if ( $(this).is(':checked') ) {
-//                $("#column_" + column_id + "_external").removeAttr('disabled');
                 $("#column_" + column_id).removeAttr('disabled');
+                $("#column_" + column_id + "_unique").removeAttr('disabled');
 
                 if ( $("#column_" + column_id).val() == "new" )
                     $("#column_" + column_id + "_fieldtype").removeAttr('disabled');
+
+                // Warn about unique datafields
+                setUniqueWarnings(column_id, unique_datafields);
+                updateHeaderWarnings();
             }
             else {
-//                $("#column_" + column_id + "_external").attr('disabled', 'disabled');
                 $("#column_" + column_id).attr('disabled', 'disabled');
+
+                $("#column_" + column_id + "_unique").attr('disabled', 'disabled');
+                $("#column_" + column_id + "_unique").parent().find('.inline_warning').hide();
+                if ( $("#column_" + column_id + "_unique").is(':checked') )
+                    $("#column_" + column_id + "_unique").prop('checked', false);
+
                 $("#column_" + column_id + "_fieldtype").attr('disabled', 'disabled');
                 $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
+
+                // Warn about unique datafields
+//                setUniqueWarnings(column_id, unique_datafields);
+                updateHeaderWarnings();
             }
 
             if (block_changes)
                 $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
         });
 
-        $(".external_id_checkbox").unbind('change');
-        $(".external_id_checkbox").change(function() {
-            // Save the state of this checkbox
-            var is_checked = false;
-            if ( $(this).is(':checked') )
-                is_checked = true;
+        $(".unique_checkbox").unbind('click');
+        $(".unique_checkbox").click(function() {
+            var column_id = $(this).attr('rel');
 
-            // Uncheck all of these external_id checkboxes
-            $(".external_id_checkbox").each(function() {
-                $(this).prop('checked', false);
-            });
-
-            // If the desired checkbox was originally checked, re-check it
-            if ( is_checked )
-                $(this).prop('checked', true);
+            // Warn about unique datafields
+            setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
 
             if (block_changes)
                 $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
@@ -128,6 +168,11 @@
             else
                 $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
 
+            // Warn about unique datafields
+            setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
+            updateHeaderWarnings();
+            updateDatafieldMeta(column_id);
+
             if (block_changes)
                 $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
         });
@@ -143,25 +188,15 @@
                 $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
 
             // Display some metadata about the selected fieldtype if needed
-            if ( $(this).val()  == '5' )
-                $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;No character limit');
-            else if ( $(this).val()  == '6' )
-                $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;255 character limit');
-            else if ( $(this).val()  == '7' )
-                $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;64 character limit');
-            else if ( $(this).val()  == '9' )
-                $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;32 character limit');
-            else
-                $("#column_" + column_id + "_meta").html('');
+            setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
+            updateDatafieldMeta(column_id);
 
             if (block_changes)
                 $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
         });
 
 {% if presets != null %}
-    {% if presets.external_id_column is defined %}
-        $("#external_id_checkbox_{{ presets.external_id_column }}").trigger('click');
-    {% endif %}
+
     {% for column_id, target in presets.datafield_mapping %}
         $("#import_checkbox_{{ column_id }}").trigger('click');
         $("#column_{{ column_id }}").val("{{ target }}");
@@ -178,9 +213,100 @@
         $("#column_{{ column_id }}_delimiter").val("{{ target }}");
     {% endfor %}
 
+    {% for column_id, tmp in presets.unique_columns %}
+        if ( $("#column_{{ column_id }}_unique").is(':enabled') && !$("#column_{{ column_id }}_unique").is(':checked') ) {
+            $("#column_{{ column_id }}_unique").trigger('click');
+            setUniqueWarnings("{{ column_id }}", unique_datafields, unique_fieldtypes);
+        }
+    {% endfor %}
+
+        // Ensure header warnings are accurate
+        updateHeaderWarnings();
+
         block_changes = true;
 {% endif %}
     });
+
+    function updateDatafieldMeta(column_id) {
+
+        var fieldtype = "#column_" + column_id + "_fieldtype";
+
+        // Display some metadata about the selected fieldtype if needed
+        if ( $(fieldtype).val()  == '5' )
+            $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;No character limit');
+        else if ( $(fieldtype).val()  == '6' )
+            $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;255 character limit');
+        else if ( $(fieldtype).val()  == '7' )
+            $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;64 character limit');
+        else if ( $(fieldtype).val()  == '9' )
+            $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;32 character limit');
+        else
+            $("#column_" + column_id + "_meta").html('');
+
+    }
+
+    function setUniqueWarnings(column_id, unique_datafields) {
+        // Check if the "require unique" datafield is already checked
+        var is_checked = false;
+        if ( $("#column_" + column_id + "_unique").is(":checked") )
+            is_checked = true;
+
+        // Check if the datafield is marked as unique
+        var is_unique = false;
+        if ( $("#import_checkbox_" + column_id).is(':checked') ) {
+            var df_id = $("#column_" + column_id).children('option:selected').val();
+            if ( unique_datafields.indexOf(df_id) != -1 )
+                is_unique = true;
+        }
+
+        // Check if the fieldtype is allowed to be unique
+        var unique_block = false;
+        if ( $("#import_checkbox_" + column_id).is(':checked') ) {
+            var ft_id = $("#column_" + column_id + "_fieldtype").children('option:selected').val();
+            if ( unique_fieldtypes.indexOf(ft_id) == -1 )
+                unique_block = true;
+        }
+
+        var unique_checkbox = "#column_" + column_id + "_unique";
+        if ( unique_block ) {
+//alert('unique_block...checked: ' + is_checked);
+            // Fieldtype is not allowed to be unique...ensure "require unique" is unchecked
+            if (is_checked) {
+                $(unique_checkbox).prop('checked', false);
+                $(unique_checkbox).parent().find('.inline_warning').hide();
+            }
+
+            // Disable checkbox so it can't be checked
+            $(unique_checkbox).attr('disabled', 'disabled');            
+        }
+        else if ( is_unique ) {
+//alert('is_unique...checked: ' + is_checked);
+            // Datafield is marked as unique, ensure "require unique" is checked
+            if (!is_checked) {
+                $(unique_checkbox).prop('checked', true);
+                $(unique_checkbox).parent().find('.inline_warning').removeAttr('style');
+            }
+
+            // Disable checkbox so it can't be unchecked
+            $(unique_checkbox).attr('disabled', 'disabled');
+        }
+        else {
+//alert('enabling field');
+
+            if ( $(unique_checkbox).attr('disabled') == 'disabled' ) {
+                // checkbox was disabled...enable it
+                $(unique_checkbox).removeAttr('disabled');
+            }
+            else {
+                // checkbox was already enabled
+                if (is_checked)
+                    $(unique_checkbox).parent().find('.inline_warning').removeAttr('style');
+                else
+                    $(unique_checkbox).parent().find('.inline_warning').hide();
+            }
+        }
+
+    }
 
     function selectAllFields() {
         $(".import_checkbox").each(function() {
@@ -197,12 +323,6 @@
                 $(this).trigger('click');
             }
         });
-
-        $(".external_id_checkbox").each(function() {
-            if ( $(this).is(':checked') ) {
-                $(this).trigger('click');
-            }
-        });
     }
 
 
@@ -210,8 +330,8 @@
 
         // If no checkboxes checked, no point doing any importing...
         var any_checked = false;
-        $(".import_checkbox").each(function() {
-            if ( $(this).is(':checked') )
+        $(".import_checkbox:checked").each(function() {
+//            if ( $(this).is(':checked') )
                 any_checked = true;
         });
         if (!any_checked) {
@@ -219,16 +339,11 @@
             return;
         }
 
-        // Check for an external ID
-        var any_checked = false;
-        $(".external_id_checkbox").each(function() {
-            if ( $(this).is(':checked') )
-                any_checked = true;
+        // Remove disabled attribute from any checked unique checkboxes so they're included in the post
+        $(".unique_checkbox:checked").each(function() {
+            $(this).removeAttr('disabled');
         });
-        if (!any_checked) {
-            if ( !confirm("No \"external ID\" selected...Any data that is imported will NOT be able to be updated via CSV/XML at a later time.\nAre you sure you want to import?") )
-                return;
-        }
+
 
         // Notify when same datafield selected for two different columns
         var selections = [];
@@ -251,7 +366,7 @@
             }
         });
 
-        // TODO - warn when secondary delimiter matches primary delimiter
+        // TODO - warn when secondary delimiter matches primary delimiter?
         // Require all multiple select/radio fields to have a secondary delimiter
         $(".secondary_delimiter:enabled").each(function() {
             if ( $(this).val() == '' ) {

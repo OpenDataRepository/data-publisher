@@ -65,13 +65,22 @@ ODR\AdminBundle\Entity\FieldType:
             default: 1
             gedmo:
                 - versioned
-        canBeNameField:
+
+        canBeUnique:
             type: boolean
             nullable: false
-            column: can_be_name_field
+            column: can_be_unique
             default: false
             gedmo:
                 - versioned
+        canBeSortField:
+            type: boolean
+            nullable: false
+            column: can_be_sort_field
+            default: false
+            gedmo:
+                - versioned
+
         typeClass:
             type: string
             length: 45

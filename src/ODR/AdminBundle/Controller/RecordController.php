@@ -57,6 +57,7 @@ use ODR\AdminBundle\Form\IntegerValueForm;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\Form\FormError;
 
 
 class RecordController extends ODRCustomController
@@ -1200,7 +1201,9 @@ class RecordController extends ODRCustomController
                 return parent::deletedEntityError('DataType');
 
             $datatype_id = $datatype->getId();
-            $sortfield = $datatype->getSortField();
+            $external_id_datafield = $datatype->getExternalIdField();
+            $sort_datafield = $datatype->getSortField();
+            $name_datafield = $datatype->getNameField();
 
             $datafield_id = $_POST[$record_type.'Form']['data_field'];
             $datafield = $repo_datafield->find($datafield_id);
@@ -1269,55 +1272,63 @@ class RecordController extends ODRCustomController
 //print_r($_POST);
 //exit();
 
-            // Check to see if the field's new data has to be unique...and if so, enforce uniqueness
-            $uniqueness_failure = false;
-            $uniqueness_failure_msg = '';
+            // TODO - ...
+            $old_value = $new_value = '';
 
+            if ($record_type == 'File' || $record_type == 'Image') {
+                // Can't look up old/new values for these...
+                $new_value = 'a';
+            }
+            else {
+                // Grab the new value for the datafield
+                if ( isset($_POST[$record_type.'Form']['value']) )
+                    $new_value = $_POST[$record_type.'Form']['value'];
+
+                // Save the old value incase we have to revert
+                $drf = $my_obj->getDataRecordFields();
+                $tmp_obj = $drf->getAssociatedEntity();
+                $old_value = $tmp_obj->getValue();
+
+                if ($record_type == 'DatetimeValue')
+                    $old_value = $old_value->format('Y-m-d');
 /*
-            if ($datatype->getUniqueField() == $datafield) {
-                // Ensure the new value doesn't collide with any existing value
-                $new_value = $_POST[$record_type.'Form']['value'];
-                $failed_values = parent::verifyUniqueness($datafield, (array)$new_value, $datarecord);
-
-                // If a non-empty array was returned, the value collided
-                if ( count($failed_values) > 0 ) {
-                    // Garb the datarecordfield that holds the original piece of data
-                    $drf = $repo_datarecordfields->findOneBy( array("dataRecord" => $datarecord->getId(), "dataField" => $datafield->getId()) );
-
-                    // Determine which method to use to extract the old value
-                    $old_value = '';
-                    switch($record_type) {
-                        case 'DecimalValue':
-                        case 'IntegerValue':
-                        case 'ShortVarchar':
-                        case 'MediumVarchar':
-                        case 'LongVarchar':
-                        case 'LongText':
-                            $tmp_obj = parent::loadFromDataRecordField($drf, $record_type);
-                            $old_value = $tmp_obj->getValue();
-                            break;
-                    }
-
-                    $form_name = 'EditDataRecordFieldsForm_'.$_POST[$record_type.'Form']['data_record_fields'];
-
-                    // Build the error message
-                    $uniqueness_failure = true;
-                    $uniqueness_failure_msg = $form_name.'||'.$old_value.'||The datafield "'.$datafield->getFieldName().'" is marked as unique, but the value "'.$new_value.'" already exists in another datarecord!';
-                }
-            }
+print 'new: '.$new_value."\n";
+print 'old: '.$old_value."\n";
+if ( $new_value !== $old_value )
+    print 'no match'."\n";
+else
+    print 'match'."\n";
 */
-
-            if ($uniqueness_failure) {
-                // Notify of a uniqueness failure
-                $return['r'] = 2;
-                $return['t'] = '';
-                $return['d'] = $uniqueness_failure_msg;
             }
-            // $templating = $this->get('templating');
-            else if ($request->getMethod() == 'POST') {
+
+            // Only save if the new value is different from the old value
+            if ($new_value !== $old_value && $request->getMethod() == 'POST') {
                 $form->bind($request, $my_obj);
+
+                // If the datafield is marked as unique...
+                if ( $datafield->getIsUnique() == true ) {
+
+                    // Run a quick query to check whether the new value is a duplicate of an existing value 
+                    $query = $em->createQuery(
+                       'SELECT e.id
+                        FROM ODRAdminBundle:'.$record_type.' AS e
+                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                        JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                        WHERE e.dataField = :datafield AND e.value = :value
+                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                    )->setParameters( array('datafield' => $datafield->getId(), 'value' => $new_value) );
+                    $results = $query->getArrayResult();
+
+                    // If something got returned, add a Symfony error to the form so the subsequent isValid() call will fail
+                    if ( count($results) > 0 )
+                        $form->addError( new FormError('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield...reverting back to old value.') );
+                }
+
+                // Ensure the form has no errors
                 if ($form->isValid()) {
 
+                    // ----------------------------------------
+                    // File and Image datafields need work done prior to saving the storage entity
                     if ($record_type == 'Image' || $record_type == 'File') {
                         // Pre-persist
                         $my_obj->setLocalFileName('temp');
@@ -1332,16 +1343,17 @@ class RecordController extends ODRCustomController
                         $my_obj->setOriginalFileName($my_obj->getFile()->getClientOriginalName());
                         $my_obj->setOriginal('1');
                         $my_obj->setDisplayOrder(0);
-                        $my_obj->setPublicDate(new \DateTime('1980-01-01 00:00:00'));   // default to not public
+                        $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public    TODO - let user decide default status
                     }
                     else if ($record_type == 'File') {
                         // Move and store file
                         $my_obj->setOriginalFileName($my_obj->getUploadedFile()->getClientOriginalName());
                         $my_obj->setGraphable('1');
-                        $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // TODO - default to public?
+                        $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
                     }
 
-                    // Post Persist
+                    // ----------------------------------------
+                    // ...they also need some more work done after saving the storage entity
                     $em->persist($my_obj);
                     $em->flush();
 
@@ -1381,12 +1393,32 @@ class RecordController extends ODRCustomController
                         break;
                     }
 
-                    // Commit Changes
+/*
+                    // ----------------------------------------
+                    // If the field that got modified is the name/sort/external_id field for this datatype, update this datarecord's cache values to match the new value
+                    if ($name_datafield !== null && $name_datafield->getId() == $datafield->getId()) {
+                        $datarecord->setNamefieldValue( $new_value );
+                        $em->persist($datarecord);
+                    }
+                    if ($sort_datafield !== null && $sort_datafield->getId() == $datafield->getId()) {
+                        $datarecord->setSortfieldValue( $new_value );
+                        $em->persist($datarecord);
+
+                        // Since a sort value got changed, also delete the default sorted list of datarecords for this datatype
+                        $memcached->delete($memcached_prefix.'.data_type_'.$datatype_id.'_record_order');
+                    }
+                    if ($external_id_datafield !== null && $external_id_datafield->getId() == $datafield->getId()) {
+                        $datarecord->setExternalId( $new_value );
+                        $em->persist($datarecord);
+                    }
+*/
+                    // Save changes
                     $em->persist($my_obj);
                     $em->flush();
 
 
-                    // If the datafield needed to be reloaded (file/image), do it and return that?
+                    // ----------------------------------------
+                    // If the datafield needed to be reloaded (file/image), notify the ajax return of that
                     if ($need_datafield_reload) {
                         $return['r'] = 0;
                         $return['t'] = 'html';
@@ -1395,11 +1427,6 @@ class RecordController extends ODRCustomController
                             'datafield' => $datafield->getId()
                         );
                     }
-
-                    // If the field that got modified is the sort field for this datatype, delete the pre-sorted datarecord list ShortResults uses from memcached
-                    // This should force a resort next time the ShortResults for this datatype is accessed
-                    if ($sortfield !== null && $sortfield->getId() == $datafield->getId())
-                        $memcached->delete($memcached_prefix.'.data_type_'.$datatype_id.'_record_order');
 
                     // Determine whether ShortResults needs a recache
                     $options = array();
@@ -1413,6 +1440,7 @@ class RecordController extends ODRCustomController
                     parent::updateDatarecordCache($datarecord_id, $options);
                 }
                 else {
+/*
 //                    $errors = $this->getErrorMessages($form);
                     $errors = parent::ODR_getErrorMessages($form);
 //print_r($errors);   // TODO - what was the point of this?
@@ -1420,6 +1448,19 @@ class RecordController extends ODRCustomController
 //                    $error = $errors['file'][0];
 //                    $error = $errors['uploaded_file'][0];
                     throw new \Exception($errors);
+*/
+                    // Form validation failed
+                    // TODO - fix parent::ODR_getErrorMessages() to be consistent enough to use
+                    $return['r'] = 2;
+                    $return['old_value'] = $old_value;
+
+                    $errors = $form->getErrors();
+                    $error_str = '';
+                    foreach ($errors as $num => $error)
+                        $error_str .= 'ERROR: '.$error->getMessage()."\n";
+
+                    $return['error'] = $error_str;
+
                 }
             }
         }

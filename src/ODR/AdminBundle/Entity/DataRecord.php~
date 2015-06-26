@@ -7,7 +7,7 @@
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
 *
-* The DataRecord Entity is automatically generated from 
+* The DataRecord Entity is automatically generated from
 * ./Resources/config/doctrine/DataFields.orm.yml
 *
 * There are also several utility functions here to reduce
@@ -20,52 +20,35 @@ namespace ODR\AdminBundle\Entity;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * ODR\AdminBundle\Entity\DataRecord
+ * DataRecord
  */
 class DataRecord
 {
     /**
-     * @var integer $id
+     * @var integer
      */
     private $id;
 
     /**
-     * @var ODR\AdminBundle\Entity\DataType
+     * @var string
      */
-    private $dataType;
+    private $external_id;
 
     /**
-     * Get id
-     *
-     * @return integer 
+     * @var string
      */
-    public function getId()
-    {
-        return $this->id;
-    }
+    private $namefield_value;
 
     /**
-     * Set dataType
-     *
-     * @param ODR\AdminBundle\Entity\DataType $dataType
-     * @return DataRecord
+     * @var string
      */
-    public function setDataType(\ODR\AdminBundle\Entity\DataType $dataType = null)
-    {
-        $this->dataType = $dataType;
-    
-        return $this;
-    }
+    private $sortfield_value;
 
     /**
-     * Get dataType
-     *
-     * @return ODR\AdminBundle\Entity\DataType 
+     * @var \DateTime
      */
-    public function getDataType()
-    {
-        return $this->dataType;
-    }
+    private $publicDate;
+
     /**
      * @var \DateTime
      */
@@ -82,6 +65,31 @@ class DataRecord
     private $updated;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $dataRecordFields;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $grandchildren;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $children;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataRecord
+     */
+    private $parent;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataRecord
+     */
+    private $grandparent;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
@@ -91,6 +99,180 @@ class DataRecord
      */
     private $updatedBy;
 
+    /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $dataType;
+
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->dataRecordFields = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->grandchildren = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->children = new \Doctrine\Common\Collections\ArrayCollection();
+    }
+
+    /**
+     * Get id
+     *
+     * @return integer 
+     */
+    public function getId()
+    {
+        return $this->id;
+    }
+
+    /**
+     * Set external_id
+     *
+     * @param string $externalId
+     * @return DataRecord
+     */
+    public function setExternalId($externalId)
+    {
+        $this->external_id = $externalId;
+
+        return $this;
+    }
+
+    /**
+     * Get external_id
+     *
+     * @return string 
+     */
+    public function getExternalId()
+    {
+//        return $this->external_id;
+
+        $external_id_datafield = $this->getDataType()->getExternalIdField();
+        if ($external_id_datafield !== null) {
+            $typename = $external_id_datafield->getFieldType()->getTypeName();
+
+            foreach ($this->getDataRecordFields() as $drf) {
+                if ($drf->getDataField()->getId() == $external_id_datafield->getId()) {
+                    $value = $drf->getAssociatedEntity()->getValue();
+
+                    if ($typename == 'DateTime')
+                        return $value->format('Y-m-d H:i:s');
+                    else
+                        return $value;
+                }
+            }
+        }
+        else {
+//            return $this->getId();
+            return '';
+        }
+    }
+
+    /**
+     * Set namefield_value
+     *
+     * @param string $namefieldValue
+     * @return DataRecord
+     */
+    public function setNamefieldValue($namefieldValue)
+    {
+        $this->namefield_value = $namefieldValue;
+
+        return $this;
+    }
+
+    /**
+     * Get namefield_value
+     *
+     * @return string 
+     */
+    public function getNamefieldValue()
+    {
+//        return $this->namefield_value;
+
+        $name_datafield = $this->getDataType()->getNameField();
+        if ($name_datafield !== null) {
+            $typename = $name_datafield->getFieldType()->getTypeName();
+
+            foreach ($this->getDataRecordFields() as $drf) {
+                if ($drf->getDataField()->getId() == $name_datafield->getId()) {
+                    $value = $drf->getAssociatedEntity()->getValue();
+
+                    if ($typename == 'DateTime')
+                        return $value->format('Y-m-d H:i:s');
+                    else
+                        return $value;
+                }
+            }
+        }
+        else {
+            return $this->getId();
+        }
+    }
+
+    /**
+     * Set sortfield_value
+     *
+     * @param string $sortfieldValue
+     * @return DataRecord
+     */
+    public function setSortfieldValue($sortfieldValue)
+    {
+        $this->sortfield_value = $sortfieldValue;
+
+        return $this;
+    }
+
+    /**
+     * Get sortfield_value
+     *
+     * @return string 
+     */
+    public function getSortfieldValue()
+    {
+//        return $this->sortfield_value;
+
+        $sort_datafield = $this->getDataType()->getSortField();
+        if ($sort_datafield !== null) {
+            $typename = $sort_datafield->getFieldType()->getTypeName();
+
+            foreach ($this->getDataRecordFields() as $drf) {
+                if ($drf->getDataField()->getId() == $sort_datafield->getId()) {
+                    $value = $drf->getAssociatedEntity()->getValue();
+
+                    if ($typename == 'DateTime')
+                        return $value->format('Y-m-d H:i:s');
+                    else
+                        return $value;
+                }
+            }
+        }
+        else {
+            return $this->getId();
+        }
+    }
+
+    /**
+     * Set publicDate
+     *
+     * @param \DateTime $publicDate
+     * @return DataRecord
+     */
+    public function setPublicDate($publicDate)
+    {
+        $this->publicDate = $publicDate;
+
+        return $this;
+    }
+
+    /**
+     * Get publicDate
+     *
+     * @return \DateTime 
+     */
+    public function getPublicDate()
+    {
+        return $this->publicDate;
+    }
 
     /**
      * Set deletedAt
@@ -101,7 +283,7 @@ class DataRecord
     public function setDeletedAt($deletedAt)
     {
         $this->deletedAt = $deletedAt;
-    
+
         return $this;
     }
 
@@ -124,7 +306,7 @@ class DataRecord
     public function setCreated($created)
     {
         $this->created = $created;
-    
+
         return $this;
     }
 
@@ -147,7 +329,7 @@ class DataRecord
     public function setUpdated($updated)
     {
         $this->updated = $updated;
-    
+
         return $this;
     }
 
@@ -162,75 +344,15 @@ class DataRecord
     }
 
     /**
-     * Set createdBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
-     * @return DataRecord
-     */
-    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
-    {
-        $this->createdBy = $createdBy;
-    
-        return $this;
-    }
-
-    /**
-     * Get createdBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getCreatedBy()
-    {
-        return $this->createdBy;
-    }
-
-    /**
-     * Set updatedBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return DataRecord
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-    
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
-    }
-
-
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $dataRecordFields;
-
-    /**
-     * Constructor
-     */
-    public function __construct()
-    {
-        $this->dataRecordFields = new \Doctrine\Common\Collections\ArrayCollection();
-    }
-    
-    /**
      * Add dataRecordFields
      *
      * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
      * @return DataRecord
      */
-    public function addDataRecordFields(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields)
+    public function addDataRecordField(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields)
     {
         $this->dataRecordFields[] = $dataRecordFields;
-    
+
         return $this;
     }
 
@@ -239,7 +361,7 @@ class DataRecord
      *
      * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
      */
-    public function removeDataRecordFields(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields)
+    public function removeDataRecordField(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields)
     {
         $this->dataRecordFields->removeElement($dataRecordFields);
     }
@@ -253,280 +375,6 @@ class DataRecord
     {
         return $this->dataRecordFields;
     }
-
-    /**
-     * TODO: short description.
-     * 
-     * @return TODO
-     */
-    private function getDataRecordFieldsAsArray() {
-        $datarecordfields = array();
-        foreach($this->getDataRecordFields as $datarecordfield) {
-            $datarecordfields[$datarecordfield->getId()] = $datarecordfield->toArray();
-        }
-
-        return $datarecordfields;
-    }
-
-    /**
-     * TODO: short description.
-     * 
-     * @return TODO
-     */
-    public function toArray() 
-    {
-        $datarecord  = array();
-        $datarecord['id'] = $this->getId();
-        $datarecord['data_type_id'] = $this->getDataType()->getId();
-        $datarecord['parent_id'] = $this->getParentId();
-
-        return $datarecord;
-    }
-
-
-    /**
-     * @var \ODR\AdminBundle\Entity\DataRecord
-     */
-    private $grandparent;
-
-    /**
-     * Set grandparent
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecord $grandparent
-     * @return DataRecord
-     */
-    public function setGrandparent(\ODR\AdminBundle\Entity\DataRecord $grandparent = null)
-    {
-        $this->grandparent = $grandparent;
-    
-        return $this;
-    }
-
-    /**
-     * Get grandparent
-     *
-     * @return \ODR\AdminBundle\Entity\DataRecord 
-     */
-    public function getGrandparent()
-    {
-        return $this->grandparent;
-    }
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $children;
-
-
-    /**
-     * Add children
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecord $children
-     * @return DataRecord
-     */
-    public function addChildren(\ODR\AdminBundle\Entity\DataRecord $children)
-    {
-        $this->children[] = $children;
-    
-        return $this;
-    }
-
-    /**
-     * Remove children
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecord $children
-     */
-    public function removeChildren(\ODR\AdminBundle\Entity\DataRecord $children)
-    {
-        $this->children->removeElement($children);
-    }
-
-    /**
-     * Get children
-     *
-     * @return \Doctrine\Common\Collections\Collection 
-     */
-    public function getChildren()
-    {
-        return $this->children;
-    }
-
-    /**
-     * Add dataRecordFields
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
-     * @return DataRecord
-     */
-    public function addDataRecordField(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields)
-    {
-        $this->dataRecordFields[] = $dataRecordFields;
-    
-        return $this;
-    }
-
-    /**
-     * Remove dataRecordFields
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
-     */
-    public function removeDataRecordField(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields)
-    {
-        $this->dataRecordFields->removeElement($dataRecordFields);
-    }
-    /**
-     * @var \DateTime
-     */
-    private $publicDate;
-
-
-    /**
-     * Set publicDate
-     *
-     * @param \DateTime $publicDate
-     * @return DataRecord
-     */
-    public function setPublicDate($publicDate)
-    {
-        $this->publicDate = $publicDate;
-    
-        return $this;
-    }
-
-    /**
-     * Get publicDate
-     *
-     * @return \DateTime 
-     */
-    public function getPublicDate()
-    {
-        return $this->publicDate;
-    }
-
-    /**
-     * Is public
-     *
-     * @return boolean
-     */
-    public function isPublic()
-    {
-        if ($this->publicDate->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-            return false;
-        else
-            return true;
-    }
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $grandchildren;
-
-    /**
-     * @var \ODR\AdminBundle\Entity\DataRecord
-     */
-    private $parent;
-
-
-    /**
-     * Add grandchildren
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecord $grandchildren
-     * @return DataRecord
-     */
-    public function addGrandchildren(\ODR\AdminBundle\Entity\DataRecord $grandchildren)
-    {
-        $this->grandchildren[] = $grandchildren;
-    
-        return $this;
-    }
-
-    /**
-     * Remove grandchildren
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecord $grandchildren
-     */
-    public function removeGrandchildren(\ODR\AdminBundle\Entity\DataRecord $grandchildren)
-    {
-        $this->grandchildren->removeElement($grandchildren);
-    }
-
-    /**
-     * Get grandchildren
-     *
-     * @return \Doctrine\Common\Collections\Collection 
-     */
-    public function getGrandchildren()
-    {
-        return $this->grandchildren;
-    }
-
-    /**
-     * Set parent
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecord $parent
-     * @return DataRecord
-     */
-    public function setParent(\ODR\AdminBundle\Entity\DataRecord $parent = null)
-    {
-        $this->parent = $parent;
-    
-        return $this;
-    }
-
-    /**
-     * Get parent
-     *
-     * @return \ODR\AdminBundle\Entity\DataRecord 
-     */
-    public function getParent()
-    {
-        return $this->parent;
-    }
-
-    /**
-     * Utility function to return the value of this DataRecord's instance of the DataField used to provide unique "names" for DataRecords of this DataType
-     *
-     * @return string
-     */
-    public function getNameFieldValue()
-    {
-        $name_datafield = $this->getDataType()->getNameField();
-        if ($name_datafield !== null) {
-            foreach ($this->getDataRecordFields() as $drf) {
-                if ($drf->getDataField()->getId() == $name_datafield->getId()) {
-                    return $drf->getAssociatedEntity()->getValue();
-                }
-            }
-        }
-        else {
-            return $this->getId();
-        }
-    }
-
-    /**
-     * Utility function to return the value of this DataRecord's instance of the DataField used to provide sorting values for this DataType
-     *
-     * @return string
-     */
-    public function getSortFieldValue()
-    {
-        $sort_datafield = $this->getDataType()->getSortField();
-        if ($sort_datafield !== null) {
-            $typename = $sort_datafield->getFieldType()->getTypeName();
-
-            foreach ($this->getDataRecordFields() as $drf) {
-                if ($drf->getDataField()->getId() == $sort_datafield->getId()) {
-                    $value = $drf->getAssociatedEntity()->getValue();
-
-                    if ($typename == 'DateTime')
-                        return $value->format('Y-m-d H:i:s');
-                    else
-                        return $value;
-                }
-            }
-        }
-        else {
-            return $this->getId();
-        }
-    }
-
 
     /**
      * Add grandchildren
@@ -552,6 +400,16 @@ class DataRecord
     }
 
     /**
+     * Get grandchildren
+     *
+     * @return \Doctrine\Common\Collections\Collection 
+     */
+    public function getGrandchildren()
+    {
+        return $this->grandchildren;
+    }
+
+    /**
      * Add children
      *
      * @param \ODR\AdminBundle\Entity\DataRecord $children
@@ -573,32 +431,143 @@ class DataRecord
     {
         $this->children->removeElement($children);
     }
-    /**
-     * @var string
-     */
-    private $external_id;
-
 
     /**
-     * Set external_id
+     * Get children
      *
-     * @param string $externalId
+     * @return \Doctrine\Common\Collections\Collection 
+     */
+    public function getChildren()
+    {
+        return $this->children;
+    }
+
+    /**
+     * Set parent
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecord $parent
      * @return DataRecord
      */
-    public function setExternalId($externalId)
+    public function setParent(\ODR\AdminBundle\Entity\DataRecord $parent = null)
     {
-        $this->external_id = $externalId;
+        $this->parent = $parent;
 
         return $this;
     }
 
     /**
-     * Get external_id
+     * Get parent
      *
-     * @return string 
+     * @return \ODR\AdminBundle\Entity\DataRecord 
      */
-    public function getExternalId()
+    public function getParent()
     {
-        return $this->external_id;
+        return $this->parent;
     }
+
+    /**
+     * Set grandparent
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecord $grandparent
+     * @return DataRecord
+     */
+    public function setGrandparent(\ODR\AdminBundle\Entity\DataRecord $grandparent = null)
+    {
+        $this->grandparent = $grandparent;
+
+        return $this;
+    }
+
+    /**
+     * Get grandparent
+     *
+     * @return \ODR\AdminBundle\Entity\DataRecord 
+     */
+    public function getGrandparent()
+    {
+        return $this->grandparent;
+    }
+
+    /**
+     * Set createdBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
+     * @return DataRecord
+     */
+    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
+    {
+        $this->createdBy = $createdBy;
+
+        return $this;
+    }
+
+    /**
+     * Get createdBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getCreatedBy()
+    {
+        return $this->createdBy;
+    }
+
+    /**
+     * Set updatedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return DataRecord
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
+    }
+
+    /**
+     * Set dataType
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $dataType
+     * @return DataRecord
+     */
+    public function setDataType(\ODR\AdminBundle\Entity\DataType $dataType = null)
+    {
+        $this->dataType = $dataType;
+
+        return $this;
+    }
+
+    /**
+     * Get dataType
+     *
+     * @return \ODR\AdminBundle\Entity\DataType 
+     */
+    public function getDataType()
+    {
+        return $this->dataType;
+    }
+
+    /**
+     * Is public
+     *
+     * @return boolean
+     */
+    public function isPublic()
+    {
+        if ($this->publicDate->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+            return false;
+        else
+            return true;
+    }
+
 }

@@ -56,13 +56,14 @@ ODR\AdminBundle\Entity\DataFields:
             nullable: false
             gedmo:
                 - versioned
-#        is_unique:
-#            type: boolean
-#            nullable: false
-#            default: false
-#            column: is_unique
-#            gedmo:
-#                - versioned
+        is_unique:
+            type: boolean
+            nullable: false
+            default: false
+            column: is_unique
+            gedmo:
+                - versioned
+
         allow_multiple_uploads:
             type: boolean
             nullable: false

@@ -104,13 +104,26 @@ ODR\AdminBundle\Entity\DataType:
                 timestampable:
                     on: update
     oneToOne:
-        nameField:
+        externalIdField:
             targetEntity: DataFields
             cascade: {  }
             mappedBy: null
             inversedBy: null
             joinColumns:
 #                data_fields_id:
+                external_datafield_id:
+                    nullable: true
+                    referencedColumnName: id
+            orphanRemoval: false
+            fetch: EXTRA_LAZY
+            gedmo:
+                - versioned
+        nameField:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
                 type_name_datafield_id:
                     nullable: true
                     referencedColumnName: id
@@ -124,7 +137,6 @@ ODR\AdminBundle\Entity\DataType:
             mappedBy: null
             inversedBy: null
             joinColumns:
-#                data_fields_id:
                 sort_datafield_id:
                     nullable: true
                     referencedColumnName: id
@@ -138,7 +150,6 @@ ODR\AdminBundle\Entity\DataType:
             mappedBy: null
             inversedBy: null
             joinColumns:
-#                data_fields_id:
                 background_image_datafield_id:
                     nullable: true
                     referencedColumnName: id

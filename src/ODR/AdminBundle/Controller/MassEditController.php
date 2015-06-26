@@ -326,6 +326,7 @@ if ($debug)
             // Grab necessary objects
             $em = $this->getDoctrine()->getManager();
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
 
 //            $memcached = $this->get('memcached');
@@ -369,7 +370,15 @@ if ($debug)
                 return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
             }
 
-$datarecords = explode(',', $datarecords);
+            $datarecords = explode(',', $datarecords);
+
+            // ----------------------------------------
+            // Ensure no unique datafields managed to get marked for this mass update
+            foreach ($datafields as $df_id => $value) {
+                $df = $repo_datafield->find($df_id);
+                if ( $df->getIsUnique() == 1 )
+                    unset($datafields[$df_id]);
+            }
 
 //print '$datarecords: '.print_r($datarecords, true)."\n";
 //print '$datafields: '.print_r($datafields, true)."\n";
@@ -397,7 +406,7 @@ $datarecords = explode(',', $datarecords);
             // Deal with datarecord public status first, if needed
             $updated = false;
             if ( $datarecord_public !== null ) {
-                $query_str = 'UPDATE ODRAdminBundle:DataRecord AS dr SET dr.publicDate = :public_date, dr.updated = :updated, dr.updatedBy = :updated_by WHERE dr.id IN (:datarecords)';
+                $query_str = 'UPDATE ODRAdminBundle:DataRecord AS dr SET dr.publicDate = :public_date, dr.updated = :updated, dr.updatedBy = :updated_by WHERE dr.id IN (:datarecords)';    // TODO - doesn't update log
                 $parameters = array('datarecords' => $datarecords, 'other_date' => new \DateTime('2200-01-01 00:00:00'), 'updated' => new \DateTime(), 'updated_by' => $user->getId());
 
                 $updated = true;
@@ -438,7 +447,7 @@ $datarecords = explode(',', $datarecords);
             // ----------------------------------------
             foreach ($datarecords as $num => $datarecord_id) {
                 foreach ($datafields as $datafield_id => $value) {
-                    $drf = $repo_datarecordfields->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );
+                    $drf = $repo_datarecordfields->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );    // TODO - needs to be a single query performed earlier
 
                     // Create a new pheanstalk job
                     $priority = 1024;   // should be roughly default priority

@@ -895,12 +895,12 @@ function LinkRecord(ancestor_datatype_id, descendant_datatype_id, local_datareco
 
 function SaveRecordData(form_id, interval) {
 
-    var the_form = $(form_id);
-
+    // Clear the save interval
     if(interval != "") 
         interval = window.clearInterval(interval);
 
     // Determine save type
+    var the_form = $(form_id);
     var post_data = $(the_form).serialize();
 
     // Theme ID
@@ -927,23 +927,12 @@ function SaveRecordData(form_id, interval) {
 
             }
             else if (data.r == 2) {
-/*
-                // Uniqueness Error
-//                var icon = $(the_form).find(".valid-icon");
-//                icon.removeClass('valid-icon').addClass('error-icon');
+                // Revert back to old value
+                var tmp = form_id.split(/_/);
+                var drf_id = tmp[1];
+                $("#Form_" + drf_id).val( data.old_value );
 
-                // Grab the form that got changed
-                var tmp = data.d.split('||');
-                var the_form = '#' + tmp[0];
-
-                // Restore the old value
-                $(the_form).find("input[type='text']").val(tmp[1]);
-
-                // Show rest of error message
-                alert(tmp[2]);
-
-//                icon.fadeOut();
-*/
+                alert(data.error);
             }
             else {
                 // An error has occurred.

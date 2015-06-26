@@ -1,0 +1,100 @@
+{% spaceless %}
+
+{% set datatype = datafield.getdatatype %}
+<h2>List of duplicate values for Datafield "{{ datafield.fieldname }}" of Datatype "{{ datatype.shortname }}"</h2>
+
+{% if duplicate_values | length == 0 %}
+    <div class="ODRDatarecordListHeader">No duplicate values</div>
+{% else %}
+<div class="pure-u-1-2">
+    <table id="ODRReportList" class="display dataTable">
+        <thead>
+            <tr>
+                <th>Duplicated Value</th>
+                <th>Number of Datarecords</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set row_num = 1 %}
+            {% for value,data in duplicate_values %}
+            <tr>
+                <td>"{{ value }}"</td>
+                <td>{{ data['count'] }}</td>
+                <td class="Pointer ODRListExpand"><i class="fa fa-lg fa-caret-down ODRGrayIcon" rel="{{ row_num }}"></i></td>
+            </tr>
+            {% set row_num = row_num + 1 %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="pure-u-1-24"></div>
+
+{% set row_num = 1 %}
+{% for value,data in duplicate_values %}
+<div id="datarecord_list_{{ row_num }}" class="ODRDatarecordList pure-u-11-24">
+    <div class="pure-u-1 ODRDatarecordListHeader">Datarecords that have this value</div>
+    {% for dr_id in data['dr_list'] %}
+    <div class="pure-u-1-5">
+        <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ dr_id }}</a>
+    </div>
+    {% endfor %}
+</div>
+{% set row_num = row_num + 1 %}
+{% endfor %}
+
+{% endif %}
+
+<style>
+    .ODRDatarecordListHeader {
+        border-bottom: 1px solid #111111;
+        font-weight: bold;
+        padding: 10px 18px;
+    }
+    .ODRGrayIcon {
+        opacity: 0.4;
+    }
+</style>
+
+<script>
+    $(function() {
+        $("#ODRReportList").dataTable({
+            "searching": false,
+            "ordering": false,
+            "paging": false,
+            "info": false,
+        });
+
+        $("#ODRReportList").removeAttr('style');
+
+        $(".ODRDatarecordList").hide();
+
+        $(".ODRListExpand").unbind('click');
+        $(".ODRListExpand").click(function() {
+            // If clicking an already open datarecord list, don't run the block that will open it again
+            var self_click = false;
+            if ( $(this).children("i").hasClass('fa-caret-right') )
+                self_click = true;
+
+            // Reset any open datarecord lists
+            $(".ODRListExpand").children(".fa-caret-right").each(function() {   // should only return one
+                var row_num = $(this).attr('rel');
+                $("#datarecord_list_" + row_num).hide();
+
+                $(this).removeClass('fa-caret-right').addClass('fa-caret-down ODRGrayIcon');
+            });
+
+            if ( !self_click ) {
+                // Open the selected datarecord list
+                $(this).children("i").each(function() {     // should only return one
+                    var row_num = $(this).attr('rel');
+
+                    $("#datarecord_list_" + row_num).show();
+                    $(this).removeClass('fa-caret-down ODRGrayIcon').addClass('fa-caret-right');
+                });
+            }
+        });
+    });
+
+</script>
+{% endspaceless %}

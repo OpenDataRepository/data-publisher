@@ -253,6 +253,12 @@ odr_design_get_datafield_properties:
     requirements:
         datafield_id:  \d+
 
+odr_design_analyze_datafield_unique:
+    pattern:  /design/displaytemplate/analyze_datafield_unique/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:analyzedatafieldunique }
+    requirements:
+        datafield_id:  \d+
+
 odr_design_get_theme_element_properties:
     pattern:  /design/displaytemplate/themeelementproperties/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:themeelementproperties }

@@ -891,7 +891,13 @@ function SaveDatafieldProperty(datafield_id, reload_datafield) {
             else {
                 // An error has occurred.
                 // Show Error message dialog
-                alert(data.d);
+                alert(data.error);
+
+                // Forcibly reload slideout
+                $("#ElementData").html('');
+                $("#ElementData").html(data.d.html);
+                $("#ElementData").fadeIn('fast');
+                InitDatafieldPropertiesForm();
             }
         },
         complete: function(jqXHR, textStatus) {
@@ -1184,6 +1190,7 @@ function InitDatafieldPropertiesForm() {
         }
     });
 
+
     // Override the handler for the fieldtype selector
     $("#ElementData .ODRDatafieldPropertiesForm").find("#DatafieldsForm_field_type").each(function() {
         // Grab Datafield id
@@ -1199,6 +1206,7 @@ function InitDatafieldPropertiesForm() {
             var previous_fieldtype = $("#previous_fieldtype").val();
             var current_fieldtype = $("#DatafieldsForm_field_type").val();
 
+            // TODO - fieldtype numbers
             /*
                 1: boolean
                 2: file

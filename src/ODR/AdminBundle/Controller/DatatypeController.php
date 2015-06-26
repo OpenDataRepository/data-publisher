@@ -277,6 +277,8 @@ class DatatypeController extends ODRCustomController
 
                     // Set defaults for other stuff...
                     $datatype->setUseShortResults(1);
+                    $datatype->setExternalIdField(null);
+                    $datatype->setNameField(null);
                     $datatype->setSortField(null);
                     $datatype->setDisplayType(0);
                     $datatype->setRevision(0);
@@ -397,7 +399,7 @@ class DatatypeController extends ODRCustomController
 
             // Grab datafields that this page needs
             $query = $em->createQuery(
-               'SELECT df AS datafield, ft.typeName AS typename, ft.canBeNameField AS namefield
+               'SELECT df AS datafield, df.is_unique AS is_unique, ft.typeName AS typename, ft.canBeSortField AS can_be_sortfield
                 FROM ODRAdminBundle:DataFields AS df
                 JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
                 WHERE df.dataType = :datatype
@@ -407,35 +409,37 @@ class DatatypeController extends ODRCustomController
 //$results = $query->getArrayResult();
 //print_r($results);
 
-            $name_datafields = array();
+            $unique_datafields = array();
             $sort_datafields = array();
+
             $image_datafields = array();
             $textresults_datafields = array();
             foreach ($results as $num => $result) {
                 $datafield = $result['datafield'];
                 $typename = $result['typename'];
-                $namefield = $result['namefield'];
+                $is_unique = $result['is_unique'];
+                $can_be_sortfield = $result['can_be_sortfield'];
 
-                if ($namefield == '1')
-                    $name_datafields[] = $datafield;
-
+                // Classify various datafields...
+                if ($is_unique == '1')
+                    $unique_datafields[] = $datafield;
+                if ($can_be_sortfield == '1')
+                    $sort_datafields[] = $datafield;
                 if ($typename == 'Image')
                     $image_datafields[] = $datafield;
 
+                // Build a list of fields which can be displayed in TextResults
                 switch ($typename) {
                     case 'DateTime':
                     case 'Integer':
                     case 'Short Text':
                     case 'Medium Text':
                     case 'Long Text':
-                        $sort_datafields[] = $datafield;
-                        $textresults_datafields[] = $datafield;
-                        break;
-
                     case 'Boolean':
                     case 'Paragraph Text':
                     case 'Single Radio':
                     case 'Single Select':
+                    case 'Decimal':
                         $textresults_datafields[] = $datafield;
                         break;
 
@@ -459,7 +463,7 @@ class DatatypeController extends ODRCustomController
                         'site_baseurl' => $site_baseurl,
                         'datatype' => $datatype,
 
-                        'name_datafields' => $name_datafields,
+                        'unique_datafields' => $unique_datafields,
                         'sort_datafields' => $sort_datafields,
                         'image_datafields' => $image_datafields,
                         'textresults_datafields' => $textresults_datafields,
@@ -510,11 +514,17 @@ class DatatypeController extends ODRCustomController
 
             $datatype_id = $post['datatype_id'];
             $shortdisplay = $post['shortdisplay'];
-            $sortfield_id = $post['sortfield'];
-            $namefield_id = $post['namefield'];
-            $imagefield_id = $post['imagefield'];
             $old_search_slug = $post['old_search_slug'];
             $search_slug = $post['search_slug'];
+
+            $external_datafield_id = $post['external_id_datafield'];
+            $name_datafield_id = $post['name_datafield'];
+            $sort_datafield_id = $post['sort_datafield'];
+            $image_datafield_id = $post['image_datafield'];
+
+            $datatype = $repo_datatype->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
 
             // --------------------
             // Determine user privileges
@@ -526,32 +536,85 @@ class DatatypeController extends ODRCustomController
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-            $datatype = $repo_datatype->find($datatype_id);
 
-            // If the sort field was changed, clear the record order
-            $new_sortfield = null;
-            if ($sortfield_id !== '-1')
-                $new_sortfield = $repo_datafield->find($sortfield_id);
-                
-            if ( $datatype->getSortField() !== null && $datatype->getSortField()->getId() !== $sortfield_id )
+            $need_recache = false;
+
+            // ----------------------------------------
+            // Deal with external id datafield...
+            if ($external_datafield_id == '-1')
+                $external_datafield_id = null;
+
+            $old_external_datafield_id = null;
+            if ($datatype->getExternalIdField() !== null)
+                $old_external_datafield_id = strval( $datatype->getExternalIdField()->getId() );
+
+            if ($old_external_datafield_id !== $external_datafield_id) {
+                $need_recache = true;
+
+                if ($external_datafield_id == null)
+                    $datatype->setExternalIdField(null);
+                else
+                    $datatype->setExternalIdField( $repo_datafield->find($external_datafield_id) );
+
+                // Not caching this value currently?
+//                $query = $em->createQuery('UPDATE ODRAdminBundle:DataRecord AS dr SET dr.external_id = NULL WHERE dr.dataType = :datatype')->setParameters( array('datatype' => $datatype_id) );
+//                $num_updated = $query->execute();
+            }
+
+            // ----------------------------------------
+            // Deal with name datafield...
+            if ($name_datafield_id == '-1')
+                $name_datafield_id = null;
+
+            $old_name_datafield_id = null;
+            if ($datatype->getNameField() !== null) 
+                $old_name_datafield_id = strval( $datatype->getNameField()->getId() );
+
+            if ($old_name_datafield_id !== $name_datafield_id) {
+                $need_recache = true;
+
+                if ($name_datafield_id == null)
+                    $datatype->setNameField(null);
+                else
+                    $datatype->setNameField( $repo_datafield->find($name_datafield_id) );
+
+                // Not caching this value currently?
+//                $query = $em->createQuery('UPDATE ODRAdminBundle:DataRecord AS dr SET dr.namefield_value = NULL WHERE dr.dataType = :datatype')->setParameters( array('datatype' => $datatype_id) );
+//                $num_updated = $query->execute();
+            }
+
+            // ----------------------------------------
+            // Deal with sort datafield...
+            if ($sort_datafield_id == '-1')
+                $sort_datafield_id = null;
+
+            $old_sort_datafield_id = null;
+            if ($datatype->getSortField() !== null) 
+                $old_sort_datafield_id = strval( $datatype->getSortField()->getId() );
+
+            if ($old_sort_datafield_id !== $sort_datafield_id) {
+                $need_recache = true;
                 $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
 
-            $datatype->setUseShortResults($shortdisplay);
-            $datatype->setSortField($new_sortfield);
+                if ($sort_datafield_id == null)
+                    $datatype->setSortField(null);
+                else
+                    $datatype->setSortField( $repo_datafield->find($sort_datafield_id) );
 
-            if ($namefield_id !== '-1') {
-                $name_field = $repo_datafield->find($namefield_id);
-
-                $datatype->setNameField($name_field);
-            }
-            else {
-                $datatype->setNameField(null);
+                // Not caching this value currently?
+//                $query = $em->createQuery('UPDATE ODRAdminBundle:DataRecord AS dr SET dr.sortfield_value = NULL WHERE dr.dataType = :datatype')->setParameters( array('datatype' => $datatype_id) );
+//                $num_updated = $query->execute();
             }
 
-            $image_field = $repo_datafield->find($imagefield_id);
-            $datatype->setBackgroundImageField($image_field);
+            // ----------------------------------------
+            // Deal with background image datafield...
+            $image_datafield = null;
+            if ($image_datafield_id !== '-1')
+                $image_datafield = $repo_datafield->find($image_datafield_id);
+            $datatype->setBackgroundImageField($image_datafield);
 
-            // --------------------
+
+            // ----------------------------------------
             // Ensure the search slug provided doesn't match one already in the database
             if ($old_search_slug !== $search_slug) {
                 $query = $em->createQuery(
@@ -585,11 +648,14 @@ class DatatypeController extends ODRCustomController
             }
 
             // Save changes
+            $datatype->setUseShortResults($shortdisplay);
+            $em->persist($datatype);
             $em->flush();
 
-            // Schedule the cache for an update
-//            $mark_as_updated = false;
-//            parent::updateDatatypeCache($datatype->getId(), $mark_as_updated);
+            // Schedule the cache for an update if needed
+            if ($need_recache) {
+                parent::updateDatatypeCache($datatype->getId());
+            }
 
         }
         catch (\Exception $e) {
