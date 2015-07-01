@@ -1,4 +1,13 @@
 {% spaceless %}
+
+{% set can_edit_datarecord = false %}
+
+{% if user_permissions[ datatype.id ] is defined %}
+    {% if user_permissions[ datatype.id ][ 'edit' ] is defined or user_permissions[ datatype.id ][ 'child_edit' ] is defined %}
+        {% set can_edit_datarecord = true %}
+    {% endif %}
+{% endif %}
+
 <div class="ODRFormWrap" {#style="min-height: 800px;"#}> 
     <div class="grid_12">
         <div class="box">
@@ -26,7 +35,7 @@
     {% endfor %}
 {% endif %}
 {% if user_role == 'ROLE_ADMIN' and count > 0 %}
-<div style="margin-top:25px;">
+<div class="Cursor" style="margin-top:25px;">
     <button class="pure-button pure-button-primary" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
     &nbsp;&nbsp;&nbsp;
     <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>
@@ -42,7 +51,7 @@
 
         var table = $("#TextResults").dataTable({
 
-            columns: [{{ column_names | raw }}],
+            columns: [{{ column_names | raw }} {% if can_edit_datarecord %}{"title":"","searchable":false,"orderable":false}{% endif %}], {# column_names|raw already has trailing comma #}
             order: [[1, 'asc']],
             searching: false,
             pageLength: {{ page_length }},
@@ -55,7 +64,7 @@
             stateSave: true,
             stateSaveCallback: function(settings, data) {
                 // stateSaveParams apparently doesn't let you insert new data to send to the server...have to do it here
-                data.odr_tab_id = window.sessionStorage.getItem('ODR_tab_id');
+                data.odr_tab_id = window.sessionStorage.getItem('odr_tab_id');
 
                 $.ajax({
                     url: "{{ path('odr_datatables_state_save') }}",
@@ -66,7 +75,7 @@
             },
             stateLoadCallback: function(settings) {
                 var state;
-                var data = {odr_tab_id: window.sessionStorage.getItem('ODR_tab_id')};
+                var data = {odr_tab_id: window.sessionStorage.getItem('odr_tab_id')};
 
                 $.ajax({
                     url: "{{ path('odr_datatables_state_load') }}",
@@ -104,7 +113,7 @@
                 data: {
                     'datatype_id': {{ datatype.id }},
                     'search_key': "{{ search_key }}",
-                    'odr_tab_id': window.sessionStorage.getItem('ODR_tab_id'),
+                    'odr_tab_id': window.sessionStorage.getItem('odr_tab_id'),
                 },
             },
 
@@ -116,8 +125,8 @@
         });
 
         // Need a tab id in html5 sessionStorage if one doesn't exist
-        if ( !window.sessionStorage.getItem('ODR_tab_id') )
-            window.sessionStorage.setItem('ODR_tab_id', '{{ odr_tab_id }}');
+        if ( !window.sessionStorage.getItem('odr_tab_id') )
+            window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
     });
 
 
@@ -131,8 +140,16 @@
         var original_num_columns = {{ num_columns }};
 
         // If number of columns is different from what's expected, reload the page
-        if ( json.data[0].length !== original_num_columns )
+        if ( json.data[0].length !== original_num_columns ) {
             reload_page = true;
+        }
+{% if can_edit_datarecord %}
+        else {
+            for (var i = 0; i < json.data.length; i++) {
+                json.data[i].push('<span class="ODREditLink" rel="' + json.data[i][0] + '"><u>Edit<u></span>');
+            }
+        }
+{% endif %}
 
         // If the json data has fewer columns than expected, splice in enough columns so datatables doesn't throw an alert before reloading the page
         if ( json.data[0].length < original_num_columns ) {
@@ -146,6 +163,9 @@
         // TODO - notify user why page reloaded?
         if (reload_page)
             window.location.reload();
+
+//console.log(json);
+
     });
 
 
@@ -156,6 +176,16 @@
             $(this).addClass('ODRDownload');
             $(this).attr('target', '_blank');
         });
+
+{% if can_edit_datarecord %}
+        $(".ODREditLink").unbind('click');
+        $(".ODREditLink").click(function(event) {
+            // Don't load view mode for Datarecord
+            event.stopImmediatePropagation();
+            // Load edit mode of Datarecord instead
+            loadDataRecord( $(this).attr('rel'), 'edit' );
+        });
+{% endif %}
 
         // Prevent the click handler for <tr> elements from firing if <a> is clicked
         $("a.ODRDownload").unbind('click');

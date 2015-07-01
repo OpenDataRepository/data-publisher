@@ -187,9 +187,9 @@ class TextResultsController extends ODRCustomController
 //return;
 
             $odr_tab_id = '';
-            if ( isset($post['odr_tab_id']) && trim($post['odr_tab_id']) == '' )
+            if ( isset($post['odr_tab_id']) && trim($post['odr_tab_id']) !== '' )
                 $odr_tab_id = $post['odr_tab_id'];
-            
+
             $datatype_id = intval( $post['datatype_id'] );
             $draw = intval( $post['draw'] );    // intval because of recommendation by datatables documentation
             $start = intval( $post['start'] );
@@ -204,8 +204,10 @@ class TextResultsController extends ODRCustomController
 
             // Deal with page_length changes...
             $length = intval( $post['length'] );
-            if ( $odr_tab_id !== '' && $session->has('stored_tab_data') ) {
-                $stored_tab_data = $session->get('stored_tab_data');
+            if ($odr_tab_id !== '') {
+                $stored_tab_data = array();
+                if ( $session->has('stored_tab_data') )
+                    $stored_tab_data = $session->get('stored_tab_data');
                 $old_length = '';
 
                 // Save page_length for this tab if different or doesn't exist
@@ -393,6 +395,7 @@ class TextResultsController extends ODRCustomController
 
                 $stored_tab_data[$odr_tab_id]['datarecord_list'] = implode(',', $list);
                 $session->set('stored_tab_data', $stored_tab_data);
+//print_r($stored_tab_data);
             }
 
 

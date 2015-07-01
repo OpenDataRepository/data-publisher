@@ -59,6 +59,7 @@ class ShortResultsController extends ODRCustomController
      *
      * @return a Symfony JSON response containing HTML TODO
      */
+/*
     public function listAction($datatype_id, $target, $offset, Request $request)
     {
         $return = array();
@@ -198,7 +199,7 @@ class ShortResultsController extends ODRCustomController
         }
         return $response;  
     }
-
+*/
 
     /**
      * Returns the ShortResults/TextResults version of this datarecord...triggered when the user clicks a "reload html for this datarecord" button after a cache failure

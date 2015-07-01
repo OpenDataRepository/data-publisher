@@ -632,13 +632,13 @@ odr_image_download:
 
 #-----------------------------------------
 # ShortResults Controller
-odr_shortresults_list:
-    pattern:  /shortresults/list/{datatype_id}/{target}/{offset}
-    defaults: { _controller: ODRAdminBundle:ShortResults:list, offset: 1 }
-    requirements:
-        datatype_id:  \d+
-        target: '[a-z]+'
-        offset: \d+
+#odr_shortresults_list:
+#    pattern:  /shortresults/list/{datatype_id}/{target}/{offset}
+#    defaults: { _controller: ODRAdminBundle:ShortResults:list, offset: 1 }
+#    requirements:
+#        datatype_id:  \d+
+#        target: '[a-z]+'
+#        offset: \d+
 
 odr_shortresults_reload:
     pattern:  /shortresults/reload/{datarecord_id}/{force}

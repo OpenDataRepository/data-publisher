@@ -486,6 +486,7 @@ class RecordController extends ODRCustomController
 
             // Determine which url to redirect to
             $url = '';
+/*
             if ($search_key == '') {
                 // Not deleting from a search result list
                 if ( count($remaining) > 0 ) {
@@ -507,6 +508,18 @@ class RecordController extends ODRCustomController
                     // Redirect to search page
                     $url = $this->generateURL('odr_search');
                 }
+            }
+*/
+            if ($search_key == '')
+                $search_key = 'dt_id='.$datatype->getId();
+
+            if ( count($remaining) > 0 ) {
+                // Redirect to search list
+                $url = $this->generateURL('odr_search_render', array('search_key' => $search_key));
+            }
+            else {
+                // Redirect to search page
+                $url = $this->generateURL('odr_search');
             }
 
             $return['d'] = $url;
@@ -2281,7 +2294,7 @@ if ($debug)
             if ( $session->has('stored_tab_data') && $odr_tab_id !== '' ) {
                 // Prefer the use of the sorted lists created during usage of the datatables plugin over the default list created during searching
                 $stored_tab_data = $session->get('stored_tab_data');
-                
+
                 if ( isset($stored_tab_data[$odr_tab_id]) ) {
                     // Grab datarecord list if it exists
                     if ( isset($stored_tab_data[$odr_tab_id]['datarecord_list']) )

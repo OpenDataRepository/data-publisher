@@ -515,11 +515,11 @@
                 if (data.r == 0) {
                 {% if source == "searching" %}
                     // Overwrite any currently existing tab id, since a new search was performed
-                    if ( window.sessionStorage.getItem('ODR_tab_id') ) {
+                    if ( window.sessionStorage.getItem('odr_tab_id') ) {
                         // Tell the server to stop storing data for the old tab
                         // TODO - transfer page length?
                         var url = '{{ path('odr_datatables_state_destroy', { 'odr_tab_id': '' } ) }}';
-                        url += window.sessionStorage.getItem('ODR_tab_id');
+                        url += window.sessionStorage.getItem('odr_tab_id');
 
                         $.ajax({
                             type: 'GET',
@@ -527,7 +527,7 @@
                             dataType: 'json',
                         });
                     }
-                    window.sessionStorage.setItem('ODR_tab_id', '{{ odr_tab_id}}');
+                    window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
 
                     // Now that the search has been performed and cached, render the results
                     var url = '{{ path('odr_search_render', { 'search_key': '', 'offset': '1' } ) }}';

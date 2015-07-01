@@ -95,6 +95,10 @@ class ODRCustomController extends Controller
         $session = $this->get('session');
         $repo_datarecord = $this->getDoctrine()->getManager()->getRepository('ODRAdminBundle:DataRecord');
 
+        $user_permissions = array();
+        if ($user !== 'anon.')
+            $user_permissions = self::getPermissionsArray($user->getId(), $request);
+
         // Grab the tab's id, if it exists
         $params = $request->query->all();
         $odr_tab_id = '';
@@ -180,6 +184,7 @@ class ODRCustomController extends Controller
                     'html' => $html,
                     'scroll_target' => $scroll_target,
                     'user' => $user,
+                    'user_permissions' => $user_permissions,
                     'odr_tab_id' => $odr_tab_id,
 
                     // required for load_datarecord_js.html.twig
@@ -220,6 +225,7 @@ print "\n\n";
                     'page_length' => $page_length,
                     'scroll_target' => $scroll_target,
                     'user' => $user,
+                    'user_permissions' => $user_permissions,
 
                     // required for load_datarecord_js.html.twig
                     'target' => $target,
