@@ -34,7 +34,7 @@
         {% for user in users %}
             <tr {% if user.enabled == 0 %}class="ODRDeletedUser ODRHidden"{% endif %}>
                 <td>{{ user.id }}</td>
-                <td>{{ user.getuserextend.firstname }}&nbsp;{{ user.getuserextend.lastname }}</td>
+                <td>{{ user.getuserstring }}</td>
                 <td>{{ user.email }}</td>
 
             {% if user.enabled == 1 %}
@@ -159,7 +159,7 @@
             return;
         }
 
-        if ( confirm("This will remove the user's permissions.") ) {
+        if ( confirm("Are you sure you want to delete this user?") ) {
             var url = '{{ path('odr_delete_user', { 'user_id': 0 } ) }}';
             url = url.substring(0, (url.length - 1));
             url += user_id;

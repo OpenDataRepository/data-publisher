@@ -6,8 +6,8 @@
 
 {% if can_edit_record == 1 %}
 <div class="ODRCreatedBy pure-u-1 PadRight">
-    <strong>Created by: </strong>{{ datarecord.createdBy.getuserextend.firstname }} {{ datarecord.createdBy.getuserextend.lastname }} <strong>on</strong> {{ datarecord.created|date('Y-m-d h:m:s') }} (UTC-5)
-    <strong>Last Modified by: </strong>{{ datarecord.updatedBy.getuserextend.firstname }} {{ datarecord.updatedBy.getuserextend.lastname }} <strong>on</strong> {{ datarecord.updated|date('Y-m-d h:m:s') }} (UTC-5)
+    <strong>Created by: </strong>{{ datarecord.createdBy.getuserstring }} <strong>on</strong> {{ datarecord.created|date('Y-m-d h:m:s') }} (UTC-5)
+    <strong>Last Modified by: </strong>{{ datarecord.updatedBy.getuserstring }} <strong>on</strong> {{ datarecord.updated|date('Y-m-d h:m:s') }} (UTC-5)
 </div>
 {% endif %}
 

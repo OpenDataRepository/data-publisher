@@ -16,7 +16,7 @@
         <select class="ODRInput pure-u-2-3" id="select_modified_by" name="dt_{{ datatype_id }}_m_by">
             <option value=""></option>
             {% for u in user_list %}
-            <option value="{{ u.id }}">{{ u.getuserextend.firstname }} {{ u.getuserextend.lastname }}</option>
+            <option value="{{ u.id }}">{{ u.getuserstring }}</option>
             {% endfor %}
         </select>
     </div>
@@ -37,7 +37,7 @@
         <select class="ODRInput pure-u-2-3" id="select_created_by" name="dt_{{ datatype_id }}_c_by">
             <option value=""></option>
             {% for u in user_list %}
-            <option value="{{ u.id }}">{{ u.getuserextend.firstname }} {{ u.getuserextend.lastname }}</option>
+            <option value="{{ u.id }}">{{ u.getuserstring }}</option>
             {% endfor %}
         </select>
     </div>

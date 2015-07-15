@@ -46,7 +46,7 @@
                             
                             <td class="pure-u-3-24">
                                 <i class="Cursor tooltip fa fa-globe fa-lg ODRPublicFile {% if file.ispublic == 0 %}fa-muted{% endif %}" title="{% if file.ispublic == 0 %}File is not public{% else %}Public since {{ file.publicdate|date('Y-m-d') }}{% endif %}" rel="{{ file.id }}"></i>
-                                <i class="Cursor tooltip fa fa-calendar fa-lg" title="Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy.userextend.firstname ~ ' ' ~ file.createdBy.userextend.lastname }}"></i>
+                                <i class="Cursor tooltip fa fa-calendar fa-lg" title="Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy.getuserstring }}"></i>
                                 {#<a><i class="Pointer tooltip fa fa-trash-o fa-lg ODRDeleteFile" title="Delete File" rel="{{ file.id }}"></i></a>#}
                             </td>
                         </tr>

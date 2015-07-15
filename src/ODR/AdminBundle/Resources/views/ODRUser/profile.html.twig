@@ -1,122 +1,124 @@
 {% spaceless %}
-{#
-<div class="grid_12">
-    <div class="box">
-#}
-        <div class="header">
-            <h2>User Profile{% if user_extend != null %} > {{ user_extend.firstname }} {{ user_extend.lastname }}{% elseif user != null %} > {{ user.username }}{% endif %}
-                <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
-            </h2>
+
+<div class="header">
+    <h2>User Profile{% if target_user != null %} - {{ target_user.getuserstring }}{% endif %}
+        <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
+    </h2>
+</div>
+
+<form class="ODRUserProfileForm pure-form pure-form-aligned" {{ form_enctype(profile_form) }} id="ODRUserProfileForm_{{ target_user.id }}">
+    {{ form_widget(profile_form.user_id) }}
+    {{ form_errors(profile_form._token) }}
+    {{ form_widget(profile_form._token) }}
+    <fieldset>
+
+        <div class="pure-control-group">
+            <label for="{{ profile_form.email.vars.id }}">
+                <strong>{{ profile_form.email.vars.label }}</strong>
+            </label>
+            {{ form_errors(profile_form.email) }}
+            {{ form_widget(profile_form.email, { 'attr': {'class': 'required', 'data-error-type': 'inline', 'disabled': 'disabled'} }) }}
         </div>
 
-        <div class="pure-u-1">
+{% if current_user.id == target_user.id %}
+        <div class="pure-control-group">
+            <a class="address" href="{{ path('fos_user_change_password') }}" >Change Password</a>
+        </div>
+{% endif %}
 
-            <form class="pure-form pure-form-aligned" id="profile_form" {#action="{{ path('odr_profile_save') }}" method="POST"#}>
-                <input type="hidden" id="odr_profile_form__token" name="odr_profile_form[_token]" value="{{ token }}" />
-                <input type="hidden" id="odr_profile_form_user_id" name="odr_profile_form[user_id]" {% if user != null %}value="{{ user.id }}"{% endif %} />
+        <div>&nbsp;</div>
 
-                {#<div id="odr_profile_form">}#}
-                <fieldset>
-                    <div class="pure-control-group">
-                        <label for="odr_profile_form_username" class="required">Username:</label>
-                        <input id="odr_profile_form_username" type="text" name="odr_profile_form[username]" required="required" {% if user != null %}value="{{ user.username }}" disabled{% endif %} />
-                    </div>
-
-                    <div class="pure-control-group">
-                        <label for="odr_profile_form_firstname" class="required">First name:</label>
-                        <input id="odr_profile_form_firstname" type="text" name="odr_profile_form[firstname]" required="required" {% if user_extend != null %}value="{{ user_extend.firstname }}"{% endif %} />
-                    </div>
-
-                    <div class="pure-control-group">
-                        <label for="odr_profile_form_lastname" class="required">Last name:</label>
-                        <input id="odr_profile_form_lastname" type="text" name="odr_profile_form[lastname]" required="required" {% if user_extend != null %}value="{{ user_extend.lastname }}"{% endif %} />
-                    </div>
-
-                    <div class="pure-control-group">
-                        <label for="odr_profile_form_email" class="required">Email:</label>
-                        <input id="odr_profile_form_email" type="email" name="odr_profile_form[email]" required="required" {% if user != null %}value="{{ user.email }}"{% endif %} />
-                    </div>
-
-                    <div class="pure-control-group">
-                        <label for="odr_profile_form_plainPassword_first" class="required">Password:</label>
-                        <input id="odr_profile_form_plainPassword_first" type="password" name="odr_profile_form[plainPassword][first]" required="required" />
-                    </div>
-
-                    <div class="pure-control-group">
-                        <label for="odr_profile_form_plainPassword_second" class="required">Confirm Password:</label>
-                        <input id="odr_profile_form_plainPassword_second" type="password" name="odr_profile_form[plainPassword][second]" required="required" />
-                    </div>
-
-                </fieldset>
-
-                <input class="pure-button pure-button-primary" type="button" value="Save" onclick="verifyProfileForm();" />
-            </form>
+        <div class="pure-control-group">
+            <label for="{{ profile_form.firstName.vars.id }}">
+                <strong>{{ profile_form.firstName.vars.label }}</strong>
+            </label>
+            {{ form_errors(profile_form.firstName) }}
+            {{ form_widget(profile_form.firstName, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
+        </div>
+        <div class="pure-control-group">
+            <label for="{{ profile_form.lastName.vars.id }}">
+                <strong>{{ profile_form.lastName.vars.label }}</strong>
+            </label>           
+            {{ form_errors(profile_form.lastName) }}
+            {{ form_widget(profile_form.lastName, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
         </div>
 
-        <script>
-            $(function() {
-                $("#saved").hide();
-            });
+        <div>&nbsp;</div>
 
-            function verifyProfileForm() {
-                if ( $("#odr_profile_form_username").value == '' || $("#odr_profile_form_email").value == '' ) {
-                    alert('Username and Email fields are required!');
-                    $("#odr_profile_form_plainPassword_first").value = '';
-                    $("#odr_profile_form_plainPassword_second").value = '';
-                    return;
+        <div class="pure-control-group">
+            <label for="{{ profile_form.institution.vars.id }}">
+                <strong>{{ profile_form.institution.vars.label }}</strong>
+            </label>
+            {{ form_errors(profile_form.institution) }}
+            {{ form_widget(profile_form.institution, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
+        </div>
+        <div class="pure-control-group">
+            <label for="{{ profile_form.position.vars.id }}">
+                <strong>{{ profile_form.position.vars.label }}</strong>
+            </label>
+            {{ form_errors(profile_form.position) }}
+            {{ form_widget(profile_form.position, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
+        </div>
+        <div class="pure-control-group">
+            <label for="{{ profile_form.phoneNumber.vars.id }}">
+                <strong>{{ profile_form.phoneNumber.vars.label }}</strong>
+            </label>
+            {{ form_errors(profile_form.phoneNumber) }}
+            {{ form_widget(profile_form.phoneNumber, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
+        </div>
+
+    </fieldset>
+
+    <input class="pure-button pure-button-primary" type="button" value="Save" onclick="saveProfileForm();" />
+
+</form>
+
+<script>
+    $(function() {
+        $("#saved").hide();
+    });
+
+    function saveProfileForm() {
+
+{% if self_edit == 'true' %}
+        var url = "{{ path('odr_self_profile_save') }}";
+{% else %}
+        var url = "{{ path('odr_profile_save') }}";
+{% endif %}
+
+        $.ajax({
+            url: url,
+            type: 'post',
+            dataType: 'json',
+            data: $("#ODRUserProfileForm_{{ target_user.id }}").serialize(),
+            success: function(data, textStatus, jqXHR) {
+                if (data.r == 0) {
+                    $('#saved').fadeIn();
+                    setTimeout(function() {
+                        $('#saved').fadeOut();
+                    }, 2500);
                 }
+                else {
+                    // Error in form
+                    alert(data.d.html);
+//                    window.location.reload();
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
-                {% if self_edit == 'true' %}
-                    var url = "{{ path('odr_self_profile_save') }}";
-                {% else %}
-                    var url = "{{ path('odr_profile_save') }}";
-                {% endif %}
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
 
-                $.ajax({
-                    url: url,
-                    type: 'post',
-                    dataType: 'json',
-                    data: $("#profile_form").serialize(),
-                    success: function(data, textStatus, jqXHR) {
-
-                        if (data.r == 0) {
-                            $('#saved').fadeIn();
-                            setTimeout(function() {
-                                $('#saved').fadeOut();
-                            }, 1500);
-
-                            // Redirect to the user list
-//                            $.address.value("{{ path('odr_user_list') }}");
-                        }
-                        else if (data.r == 2) {
-                            alert(data.d.error);
-                        }
-                        else if (data.r == 3) {
-                            alert( data.d.message + "...redirecting to their permissions page" );
-                            UpdateURL( data.d.url );
-                        }
-                        else {
-                            alert(data.d.html);
-                        }
-                    },
-                    complete: function(jqXHR, textStatus) {
-                        // Get the xdebugToken from response headers
-                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                        // If the Sfjs object exists
-                        if (typeof Sfjs !== "undefined") {
-                            // Grab the toolbar element
-                            var currentElement = $('.sf-toolbar')[0];
-
-                            // Load the data of the given xdebug token into the current toolbar wrapper
-                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                        }
-                    }
-                });
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
             }
-        </script>
-{#
-    </div><!-- End of .box -->
-</div><!-- End of .grid_12 -->
-#}
+        });
+    }
+</script>
+
 {% endspaceless %}

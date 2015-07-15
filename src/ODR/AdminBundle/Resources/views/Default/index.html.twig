@@ -7,11 +7,7 @@
 
 {% set current_user = '' %}
 {% if user != null %}
-    {% if user.userextend != null %}
-        {% set current_user = user.userextend.firstname ~ " " ~ user.userextend.lastname %}
-    {% else %}
-        {% set current_user = user.username %}
-    {% endif %}
+    {% set current_user = user.getuserstring %}
 {% endif %}
 
 {% set header_left_title = 'Dashboard' %}

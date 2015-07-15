@@ -108,6 +108,9 @@ fos_user:
     db_driver: orm # other valid values are 'mongodb', 'couchdb' and 'propel'
     firewall_name: main
     user_class: ODR\OpenRepository\UserBundle\Entity\User
+    change_password:
+        form:
+            type: odr_user_change_password
 
 drymek_pheanstalk: ~
 

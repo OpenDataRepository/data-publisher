@@ -17,7 +17,7 @@
                 <tr id="datarecordchild_{{ drf.id }}" class="pure-u-1">
                     <td class="pure-u-1-4">{{ drf.getAssociatedEntity.getUpdated|date("Y-m-d") }}</td>
                     <td class="pure-u-1-2">{{ drf|plug(drf.getdatafield.getrenderplugin,'', 'TextResults')|raw }}</td>
-                    <td class="pure-u-1-4">{{ drf.getAssociatedEntity.getUpdatedBy.getUserExtend.getFirstName }}&nbsp;{{ drf.getAssociatedEntity.getUpdatedBy.getUserExtend.getLastName }}</td>
+                    <td class="pure-u-1-4">{{ drf.getAssociatedEntity.getUpdatedBy.getUserString }}</td>
                 </tr>
                 {% endif %}
             {% endfor %}

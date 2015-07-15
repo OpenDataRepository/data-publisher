@@ -27,9 +27,18 @@ odr_self_profile_save:
 
 #-----------------------------------------
 # ODRUser Controller
-admin_user_register:
-    defaults: { _controller: FOSUserBundle:Registration:register }
-    pattern:  /admin/adduser
+admin_new_user_create:
+    pattern:  /admin/new_user/create
+    defaults: { _controller: ODRAdminBundle:ODRUser:createnew }
+
+admin_new_user_check:
+    pattern:  /admin/new_user/check
+    defaults: { _controller: ODRAdminBundle:ODRUser:checknew }
+    requirements: { _method: POST }
+
+admin_new_user_save:
+    pattern: /admin/new_user/save
+    defaults: { _controller: ODRAdminBundle:ODRUser:savenew }
 
 odr_profile_edit:
     pattern:  /admin/user/edit/{user_id}

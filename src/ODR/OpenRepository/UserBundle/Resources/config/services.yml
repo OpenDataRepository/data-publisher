@@ -2,6 +2,21 @@ parameters:
 #    odr_open_repository_user.example.class: ODR\OpenRepository\UserBundle\Example
 
 services:
-#    odr_open_repository_user.example:
-#        class: %odr_open_repository_user.example.class%
-#        arguments: [@service_id, "plain_value", %parameter%]
+    # override of change password form
+    odr_user.change_password.form.type:
+        class: ODR\OpenRepository\UserBundle\Form\Type\ChangePasswordFormType
+        tags:
+            - { name: form.type, alias: odr_user_change_password }
+
+    # event listeners
+    odr_user.password_resetting:
+        class: ODR\OpenRepository\UserBundle\EventListener\PasswordResettingListener
+        arguments: [@router, site_baseurl]
+        tags:
+            - { name: kernel.event_subscriber }
+    odr_user.change_password:
+        class: ODR\OpenRepository\UserBundle\EventListener\ChangePasswordListener
+        arguments: [@router, site_baseurl]
+        tags:
+            - { name: kernel.event_subscriber }
+
