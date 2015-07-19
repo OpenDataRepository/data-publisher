@@ -1812,12 +1812,16 @@ print_r($new_mapping);
                 $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
             }
             else {
+                // Mark datarecord as updated
+                $datarecord->setUpdated( new \DateTime() );
+                $datarecord->setUpdatedBy($user);
+                $em->persist($datarecord);
+
                 $status = "\n".'Found existing datarecord ('.$datarecord->getId().') for csv import of datatype '.$datatype_id.'...'."\n";
                 $logger->notice('Using existing datarecord ('.$datarecord->getId().') pointed to by '.$source.' "'.$value.'" for csv import of datatype '.$datatype_id.' by '.$user->getId());
             }
 
             // TODO - don't need to refresh datarecord?  but have to refresh created datafield from earler?
-
 
             // All datarecordfield and storage entities should be created now...
 
@@ -1929,8 +1933,10 @@ print_r($new_mapping);
                         }
 
                         // Save value from csv file...different formats are already taken care of courtesy of the bundle used for csv importing
-                        $datetime = new \DateTime($column_data);
-                        $entity->setValue($datetime);
+                        if ($column_data !== '') {
+                            $datetime = new \DateTime($column_data);
+                            $entity->setValue($datetime);
+                        }
                         $em->persist($entity);
 
                         $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$datetime->format('Y-m-d H:i:s').'"...'."\n";
