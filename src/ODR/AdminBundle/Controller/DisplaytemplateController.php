@@ -3311,11 +3311,19 @@ print_r($errors);
 
                         if ( count($results) > 0 ) {
                             // ----------------------------------------
+                            // Need to determine the top-level datatype this datafield belongs to, so other background processes won't attempt to render any part of it and disrupt the migration
+                            $top_level_datatype_id = $datafield->getDataType()->getId();
+                            $datatree_array = parent::getDatatreeArray($em);
+
+                            while ($datatree_array['descendant_of'][$top_level_datatype_id] !== '')
+                                $top_level_datatype_id = $datatree_array['descendant_of'][$top_level_datatype_id];
+
+
                             // Get/create an entity to track the progress of this datafield migration
                             $job_type = 'migrate';
                             $target_entity = 'datafield_'.$datafield->getId();
                             $additional_data = array('description' => '', 'old_fieldtype' => $old_fieldtype->getTypeName(), 'new_fieldtype' => $new_fieldtype->getTypeName());
-                            $restrictions = 'datatype_'.$datafield->getDataType()->getId();
+                            $restrictions = 'datatype_'.$top_level_datatype_id;
                             $total = count($results);
                             $reuse_existing = false;
 
@@ -3352,7 +3360,7 @@ print_r($errors);
                         }
                     }
 
-                    $datatype = $datafield->getDataType();
+//                    $datatype = $datafield->getDataType();
 
                     $options = array();
                     $options['mark_as_updated'] = true;
@@ -3360,7 +3368,8 @@ print_r($errors);
                     if ($datafield->getDisplayOrder() != -1)
                         $options['force_textresults_recache'] = true;
 
-                    parent::updateDatatypeCache($datatype->getId(), $options);
+//                    parent::updateDatatypeCache($datatype->getId(), $options);
+                    parent::updateDatatypeCache($top_level_datatype_id, $options);
                 }
                 else {
                     // Form validation failed
