@@ -3360,7 +3360,7 @@ print_r($errors);
                         }
                     }
 
-//                    $datatype = $datafield->getDataType();
+                    $datatype = $datafield->getDataType();
 
                     $options = array();
                     $options['mark_as_updated'] = true;
@@ -3368,8 +3368,7 @@ print_r($errors);
                     if ($datafield->getDisplayOrder() != -1)
                         $options['force_textresults_recache'] = true;
 
-//                    parent::updateDatatypeCache($datatype->getId(), $options);
-                    parent::updateDatatypeCache($top_level_datatype_id, $options);
+                    parent::updateDatatypeCache($datatype->getId(), $options);
                 }
                 else {
                     // Form validation failed
