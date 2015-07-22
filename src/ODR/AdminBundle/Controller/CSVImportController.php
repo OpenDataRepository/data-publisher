@@ -77,7 +77,7 @@ class CSVImportController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $datatype = $repo_datatype->find($datatype_id);
 
-            if ( $datatype== null )
+            if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
             // --------------------
@@ -405,7 +405,7 @@ class CSVImportController extends ODRCustomController
                 // Loop through the rest of the file...this will let the CsvReader pick up some of the possible errors
 //                break;
 
-                // TODO - this eventually needs to be done via beanstalk
+                // TODO - this eventually needs to be done via beanstalk?  but can't json_encode the data unless is passes this check...
                 foreach ($row as $col_name => $col_data) {
                     // Check each piece of data for encoding errors
                     if ( mb_check_encoding($col_data, "utf-8") == false )       // this check needs to be performed prior to a json_encode
@@ -455,6 +455,7 @@ class CSVImportController extends ODRCustomController
                             'datatype' => $datatype,
                             'datafields' => $datafields,
                             'fieldtypes' => $fieldtypes,
+                            'allowed_fieldtypes' => $fieldtype_array,
 
                             'presets' => null,
                         )
@@ -553,14 +554,14 @@ class CSVImportController extends ODRCustomController
             $datafield_mapping = $post['datafield_mapping'];
             $datatype_id = $post['datatype_id'];
 
+            // Get datafields where uniqueness will be checked for/enforced
+            $unique_columns = array();
+            if ( isset($post['unique_columns']) )
+                $unique_columns = $post['unique_columns'];
             // Grab fieldtype mapping for datafields this import is going to create, if the user chose to create new datafields
             $fieldtype_mapping = null;
             if ( isset($post['fieldtype_mapping']) )
                 $fieldtype_mapping = $post['fieldtype_mapping'];
-            // Grab which column was designated for use as an external_id, if possible
-            $external_id_column = null;
-            if ( isset($post['external_id_column']) )
-                $external_id_column = $post['external_id_column'];
             // Get secondary delimiters to use for multiple select/radio columns, if they exist
             $column_delimiters = array();
             if ( isset($post['column_delimiters']) )
@@ -616,7 +617,7 @@ class CSVImportController extends ODRCustomController
                 throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
 
 
-            // --------------------
+            // ----------------------------------------
             // Ensure that the datatype/fieldtype mappings and secondary column delimiters work
             foreach ($datafield_mapping as $col_num => $datafield_id) {
                 if ($datafield_id == 'new') {
@@ -657,7 +658,7 @@ class CSVImportController extends ODRCustomController
 //return;
 
             // ----------------------------------------
-            // Convert any secondary delimiters into character format
+            // Convert any secondary delimiters from words to a single character
             foreach ($column_delimiters as $df_id => $delimiter) {
                 switch ($delimiter) {
 /*
@@ -683,6 +684,30 @@ class CSVImportController extends ODRCustomController
                     default:
                         throw new \Exception('Invalid Form');
                         break;
+                }
+            }
+
+            // Prevent fieldtypes that can't be unique from being checked for uniqueness
+            foreach ($unique_columns as $column_id => $tmp) {
+                if ( isset($datafield_mapping[$column_id]) ) {
+                    $df_id = $datafield_mapping[$column_id];
+                    if ($df_id == 'new') {
+                        // Ensure the fieldtype for the new datafield can be unique
+                        $ft_id = $fieldtype_mapping[$column_id];
+                        $fieldtype = $repo_fieldtype->find($ft_id);
+                        if ($fieldtype->getCanBeUnique() != '1')
+                            unset( $unique_columns[$column_id] );
+                    }
+                    else {
+                        // Ensure this datafield can be unique
+                        $datafield = $repo_datafield->find($df_id);
+                        if ($datafield->getFieldType()->getCanBeUnique() != '1')
+                            unset( $unique_columns[$column_id] );
+                    }
+                }
+                else {
+                    // Silently ignore it 
+                    unset( $unique_columns[$column_id] );
                 }
             }
 
@@ -717,7 +742,6 @@ class CSVImportController extends ODRCustomController
 
 //return;
 
-
             // ----------------------------------------
             // Compile all the data required for this csv import to store in the tracked job entity 
             $additional_data = array(
@@ -725,7 +749,7 @@ class CSVImportController extends ODRCustomController
 
                 'csv_filename' => $csv_filename,
                 'delimiter' => $delimiter,
-                'external_id_column' => $external_id_column,
+                'unique_columns' => $unique_columns,
                 'datafield_mapping' => $datafield_mapping,
                 'fieldtype_mapping' => $fieldtype_mapping,
                 'column_delimiters' => $column_delimiters,
@@ -745,19 +769,24 @@ class CSVImportController extends ODRCustomController
 
 
             // ------------------------------
+            // All Datafields marked as unique need to have no duplicates in the import file...
+            // ...unique datafields which aren't serving as the external id/name datafields for a datatype also need to ensure they're not colliding with values currently in the database
+            // External id/name datafields are excluded from this second criteria because those are used as keys to update existing Datarecords
+
             // If a column is marked as the external id column, go through and ensure that there are no duplicate values in that column
             $need_flush = false;
             $error_messages = array();
-            if ($external_id_column !== null) {
+            foreach ($unique_columns as $column_num => $tmp) {
 
                 $line_num = 0;
-                $external_ids = array();
+                $unique_values = array();
+//$reader = new CsvReader($csv_file, $delimiter);
                 foreach ($reader as $row) {
                     $line_num++;
-                    $value = $row[$external_id_column];
-                    if ( isset($external_ids[$value]) ) {
+                    $value = $row[$column_num];
+                    if ( isset($unique_values[$value]) ) {
                         // Encountered duplicate value
-                        $error = array( 'line_num' => $line_num, 'message' => 'The field "'.$column_names[$external_id_column].'" is supposed to be unique, but value is a duplicate of line '.$external_ids[$value] );
+                        $error = array( 'line_num' => $line_num, 'message' => 'The field "'.$column_names[$column_num].'" is supposed to be unique, but value is a duplicate of line '.$unique_values[$value] );
 //print_r($error);
 
                         // TODO - ...any way to make this use beanstalk?  don't really want it inline, but the checks for this error can't really be broken apart...
@@ -772,7 +801,7 @@ class CSVImportController extends ODRCustomController
                     }
                     else {
                         // ...otherwise, not found, just store the value
-                        $external_ids[$value] = $line_num;
+                        $unique_values[$value] = $line_num;
                     }
                 }
             }
@@ -799,7 +828,7 @@ class CSVImportController extends ODRCustomController
                         'user_id' => $user->getId(),
 
                         'column_names' => $column_names,
-//                        'external_id_column' => $external_id_column,
+                        'unique_columns' => $unique_columns,
                         'datafield_mapping' => $datafield_mapping,
                         'fieldtype_mapping' => $fieldtype_mapping,
                         'column_delimiters' => $column_delimiters,
@@ -842,13 +871,15 @@ class CSVImportController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
+        $tracked_job_id = -1;
+
         try {
             $post = $_POST;
 //print_r($post);
 //return;
 
-            if ( !isset($post['tracked_job_id']) || !isset($post['datatype_id']) || !isset($post['user_id'])
-                || !isset($post['column_names']) || !isset($post['datafield_mapping']) /*|| !isset($post['fieldtype_mapping'])*/ /*|| !isset($post['column_delimiters'])*/ 
+            if ( !isset($post['tracked_job_id']) || !isset($post['datatype_id']) || !isset($post['user_id']) || !isset($post['column_names']) || !isset($post['datafield_mapping'])
+              /*|| !isset($post['unique_columns']) || !isset($post['fieldtype_mapping'])*/ /*|| !isset($post['column_delimiters'])*/ 
                 || !isset($post['line_num']) || !isset($post['line']) || !isset($post['api_key']) ) {
 
                 throw new \Exception('Invalid job data');
@@ -865,6 +896,9 @@ class CSVImportController extends ODRCustomController
             $api_key = $post['api_key'];
 
             // Have to pull these separately because they might not exist
+            $unique_columns = array();
+            if ( isset($post['unique_columns']) )
+                $unique_columns = $post['unique_columns'];
             $fieldtype_mapping = array();
             if ( isset($post['fieldtype_mapping']) )
                 $fieldtype_mapping = $post['fieldtype_mapping'];
@@ -882,6 +916,7 @@ class CSVImportController extends ODRCustomController
 
 
             $em = $this->getDoctrine()->getManager();
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
@@ -890,15 +925,17 @@ class CSVImportController extends ODRCustomController
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid job data');
 
-
             $user = $repo_user->find($user_id);
+            $datatype = $repo_datatype->find($datatype_id);
+            if ($datatype == null)
+                throw new \Exception('Datatype is deleted!');
 
             // ----------------------------------------
             // Attempt to validate each line of data against the desired datafield/fieldtype mapping
             $need_flush = false;
             foreach ($datafield_mapping as $column_num => $datafield_id) {
                 $value = trim( $line[$column_num] );
-                $length = mb_strlen($value, "utf-8");   // TODO - right function to use?
+                $length = mb_strlen($value, "utf-8");   // TODO - is this the right function to use?
 
                 // Get typeclass of what this data will be imported into
                 $fieldtype = null;
@@ -907,8 +944,8 @@ class CSVImportController extends ODRCustomController
                 else
                     $fieldtype = $repo_datafield->find( $datafield_id )->getFieldType();
 
-                $error_level = 'Warning';
-                $error_body = array();
+                // Check for errors specifically related to this fieldtype
+                $errors = array();
                 $typeclass = $fieldtype->getTypeClass();
                 switch ($typeclass) {
                     case "Boolean":
@@ -924,15 +961,29 @@ class CSVImportController extends ODRCustomController
                         if ($value !== '') {
                             // Warn about invalid characters in an integer conversion
                             $int_value = intval( $value );
-                            if ( strval($int_value) != $value )
-                                $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", but will be converted to the integer value "'.strval($int_value).'"' );
+                            if ( strval($int_value) != $value ) {
+                                $errors[] = array(
+                                    'level' => 'Warning',
+                                    'body' => array(
+                                        'line_num' => $line_num,
+                                        'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", but will be converted to the integer value "'.strval($int_value).'"'
+                                    )
+                                );
+                            }
                         }
                         break;
                     case "DecimalValue":
                         if ($value !== '') {
                             $float_value = floatval( $value );
-                            if ( strval($float_value) != $value ) 
-                                $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", but will be converted to the floating-point value "'.strval($float_value).'"' );
+                            if ( strval($float_value) != $value )  {
+                                $errors[] = array(
+                                    'level' => 'Warning',
+                                    'body' => array(
+                                        'line_num' => $line_num,
+                                        'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", but will be converted to the floating-point value "'.strval($float_value).'"',
+                                    ),
+                                );
+                            }
                         }
                         break;
 
@@ -941,22 +992,48 @@ class CSVImportController extends ODRCustomController
                             $tmp = new \DateTime($value);
                         }
                         catch (\Exception $e) {
-                            $error_level = 'Error';
-                            $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", which is not a valid Datetime value');
+                            $errors[] = array(
+                                'level' => 'Error',
+                                'body' => array(
+                                    'line_num' => $line_num,
+                                    'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", which is not a valid Datetime value',
+                                ),
+                            );
                         }
                         break;
 
                     case "ShortVarchar":
-                        if ($length > 32) 
-                            $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a ShortVarchar field can only store 32 characters' );
+                        if ($length > 32) {
+                            $errors[] = array(
+                                'level' => 'Warning',
+                                'body' => array(
+                                    'line_num' => $line_num,
+                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a ShortVarchar field can only store 32 characters',
+                                ),
+                            );
+                        }
                         break;
                     case "MediumVarchar":
-                        if ($length > 64)
-                            $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a MediumVarchar field can only store 64 characters' );
+                        if ($length > 64) {
+                            $errors[] = array(
+                                'level' => 'Warning',
+                                'body' => array(
+                                    'line_num' => $line_num,
+                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a MediumVarchar field can only store 64 characters',
+                                ),
+                            );
+                        }
                         break;
                     case "LongVarchar":
-                        if ($length > 255)
-                            $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a LongVarchar field can only store 255 characters' );
+                        if ($length > 255) {
+                            $errors[] = array(
+                                'level' => 'Warning',
+                                'body' => array(
+                                    'line_num' => $line_num,
+                                    'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a LongVarchar field can only store 255 characters',
+                                ),
+                            );
+                        }
                         break;
                     case "LongText":
                         /* do nothing? */
@@ -975,25 +1052,81 @@ class CSVImportController extends ODRCustomController
                             foreach ($options as $option) {
                                 $option = trim($option);
                                 $option_length = mb_strlen($option, "utf-8");
-                                if ( $option_length == 0 )
-                                    $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" would create a blank radio option during import...' );
-                                else if ( $option_length > 64 )
-                                    $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 64 characters' );
+                                if ( $option_length == 0 ) {
+                                    $errors[] = array(
+                                        'level' => 'Warning',
+                                        'body' => array(
+                                            'line_num' => $line_num,
+                                            'message' => 'Column "'.$column_names[$column_num].'" would create a blank radio option during import...',
+                                        ),
+                                    );
+                                }
+                                else if ( $option_length > 64 ) {
+                                    $errors[] = array(
+                                        'level' => 'Warning',
+                                        'body' => array(
+                                            'line_num' => $line_num,
+                                            'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 64 characters',
+                                        ),
+                                    );
+                                }
                             }
                         }
                         else {
                             // Check length of option
-                            if ($length > 64)
-                                $error_body = array( 'line_num' => $line_num, 'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 64 characters' );
+                            if ($length > 64) {
+                                $errors[] = array(
+                                    'level' => 'Warning',
+                                    'body' => array(
+                                        'line_num' => $line_num,
+                                        'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 64 characters',
+                                    ),
+                                );
+                            }
                         }
                         break;
                 }
 
-                if ( count($error_body) > 0 ) {
-//print_r($error_body);
+                // Check for duplicate values in unique columns if they're mapping to a pre-existing datafield
+                if ( isset($unique_columns[$column_num]) && $datafield_id !== 'new' ) {
+                    // Skip if this column is mapped to the external id/name datafield for this datatype
+                    $external_id_field = $datatype->getExternalIdField();
+                    $name_field = $datatype->getNameField();
+
+                    if ( ($external_id_field !== null && $external_id_field->getId() == $datafield_id) || ($name_field !== null && $name_field->getId() == $datafield_id) ) {
+                        /* don't check whether the value collides with an existing value for either of these datafields...if it did, the importer would be unable to update existing datarecords */
+                    }
+                    else {
+                        // Run a quick query to check whether the new value from the import is a duplicate of an existing value 
+                        $query = $em->createQuery(
+                           'SELECT dr.id AS dr_id
+                            FROM ODRAdminBundle:'.$typeclass.' AS e
+                            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                            WHERE e.dataField = :datafield AND e.value = :value
+                            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                        )->setParameters( array('datafield' => $datafield_id, 'value' => $value) );
+                        $results = $query->getArrayResult();
+
+                        if ( count($results) > 0 ) {
+                            $dr_id = $results[0]['dr_id'];  // TODO - notify of multiple datarecords sharing blank values?
+                            $errors[] = array(
+                                'level' => 'Warning',
+                                'body' => array(
+                                    'line_num' => $line_num,
+                                    'message' => 'Column "'.$column_names[$column_num].'" is mapped to a unique datafield, but its value "'.$value.'" already exists in Datarecord '.$dr_id, 
+                                ),
+                            );
+                        }
+                    }
+                }
+
+                // Save any errors found
+                foreach ($errors as $error) {
+//print_r($error);
                     $tracked_error = new TrackedError();
-                    $tracked_error->setErrorLevel( $error_level );
-                    $tracked_error->setErrorBody( json_encode($error_body) );
+                    $tracked_error->setErrorLevel( $error['level'] );
+                    $tracked_error->setErrorBody( json_encode($error['body']) );
                     $tracked_error->setTrackedJob( $repo_tracked_job->find($tracked_job_id) );
                     $tracked_error->setCreatedBy( $user );
 
@@ -1023,6 +1156,21 @@ class CSVImportController extends ODRCustomController
 
         }
         catch (\Exception $e) {
+
+            // Update the job tracker even if an error occurred...right? TODO
+            if ($tracked_job_id !== -1) {
+                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+
+                $total = $tracked_job->getTotal();
+                $count = $tracked_job->incrementCurrent($em);
+
+                if ($count >= $total)
+                    $tracked_job->setCompleted( new \DateTime() );
+
+                $em->persist($tracked_job);
+                $em->flush();
+            }
+
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x223285634 ' . $e->getMessage();
@@ -1105,7 +1253,6 @@ class CSVImportController extends ODRCustomController
 
             // --------------------
             // Grab all datafields belonging to that datatype
-//            $datafields = $datatype->getDataFields();
             $query = $em->createQuery(
                'SELECT df
                 FROM ODRAdminBundle:DataFields AS df
@@ -1233,6 +1380,7 @@ class CSVImportController extends ODRCustomController
                         'datatype' => $datatype,
                         'datafields' => $datafields,
                         'fieldtypes' => $fieldtypes,
+                        'allowed_fieldtypes' => $fieldtype_array,
 
                         'tracked_job_id' => $tracked_job_id,
                         'allow_import' => $allow_import,
@@ -1354,13 +1502,14 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
-            // NOTE - Create the tracked job here to prevent a second upload from being scheduled while the first is creating datafields...
+            // NOTE - Create the tracked job here to prevent a second upload from being scheduled while the first is creating datafields...hopefully...
             // Get/create an entity to track the progress of this csv import
             $job_type = 'csv_import';
             $target_entity = 'datatype_'.$datatype->getId();
             $additional_data = array('description' => 'Importing data into DataType '.$datatype_id.'...');
             $restrictions = '';
-            $total = ($reader->count() - 1);
+//            $total = ($reader->count() - 1);
+            $total = $reader->count();
             $reuse_existing = false;
 //$reuse_existing = true;
 
@@ -1387,7 +1536,7 @@ class CSVImportController extends ODRCustomController
 
             // ------------------------------
             // Extract data from the tracked job
-            $external_id_column = intval($job_data['external_id_column']);
+            $unique_columns = $job_data['unique_columns'];
             $datafield_mapping = $job_data['datafield_mapping'];
             $fieldtype_mapping = $job_data['fieldtype_mapping'];
             $column_delimiters = $job_data['column_delimiters'];
@@ -1428,6 +1577,9 @@ class CSVImportController extends ODRCustomController
 
                     // Set the datafield's name, then persist/reload it
                     $datafield->setFieldName( $column_names[$column_id] );
+                    if ( isset($unique_columns[$column_id]) )
+                        $datafield->setIsUnique(1);
+
                     $em->persist($datafield);
                     $em->flush($datafield);     // required, or can't get id
                     $em->refresh($datafield);
@@ -1485,20 +1637,6 @@ print_r($new_mapping);
                 break;
             }
 
-/*
-            // ----------------------------------------
-            // Get/create an entity to track the progress of this csv import
-            $job_type = 'csv_import';
-            $target_entity = 'datatype_'.$datatype->getId();
-            $additional_data = array('description' => 'Importing data into DataType '.$datatype_id.'...');
-            $restrictions = '';
-            $total = ($reader->count() - 1);
-            $reuse_existing = false;
-//$reuse_existing = true;
-
-            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
-            $tracked_job_id = $tracked_job->getId();
-*/
 
             // ------------------------------
             // Create a beanstalk job for each row of the csv file
@@ -1520,14 +1658,20 @@ print_r($new_mapping);
                         'url' => $url,
                         'memcached_prefix' => $memcached_prefix,    // debug purposes only
 
-                        'external_id_column' => $external_id_column,
+//                        'external_id_column' => $external_id_column,
                         'column_delimiters' => $column_delimiters,
                         'mapping' => $new_mapping,
                         'line' => $row,
                     )
                 );
 
-                $pheanstalk->useTube('csv_import_worker')->put($payload);
+                // Randomize priority somewhat
+                $priority = 1024;
+                $num = rand(0, 400) - 200;
+                $priority += $num;
+
+                $delay = 5;
+                $pheanstalk->useTube('csv_import_worker')->put($payload, $priority, $delay);
             }
 
         }
@@ -1556,6 +1700,8 @@ print_r($new_mapping);
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
+
+        $tracked_job_id = -1;
 
         try {
             $post = $_POST;
@@ -1596,29 +1742,67 @@ print_r($new_mapping);
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid job data');
 
-            $datatype = $repo_datatype->find($datatype_id);
             $user = $repo_user->find($user_id);
+            $datatype = $repo_datatype->find($datatype_id);
+            if ($datatype == null)
+                throw new \Exception('Datatype is deleted!');
 
-            // Attempt to grab external id to use for locating datarecord
+            // Attempt to locate an existing datarecord
             $status = '';
-            $external_id = null;
             $datarecord = null;
-            if ( isset($post['external_id_column']) ) {
-                $external_id_column = $post['external_id_column'];
-                $external_id = $line[$external_id_column];
+            $external_id_field = $datatype->getExternalIdField();
+            $name_field = $datatype->getNameField();
 
-                $datarecord = $repo_datarecord->findOneBy( array('dataType' => $datatype->getId(), 'external_id' => $external_id) );
+            $source = '';
+            $value = '';
+            $typeclass = '';
+            $datafield_id = '';
+            // Try to first locate the name field value...
+            if ($name_field !== null) {
+                $source = 'Name datafield';
+                $datafield_id = $name_field->getId();
+                $typeclass = $name_field->getFieldType()->getTypeClass();
+                foreach ($mapping as $column_num => $df_id) {
+                    if ($df_id == $datafield_id)
+                        $value = $line[$column_num];
+                }
             }
+
+            // Try to locate the external id field value...purposefully overwrite the value from the name field because...
+            if ($external_id_field !== null) {
+                $source = 'External ID datafield';
+                $datafield_id = $external_id_field->getId();
+                $typeclass = $external_id_field->getFieldType()->getTypeClass();
+                foreach ($mapping as $column_num => $df_id) {
+                    if ($df_id == $datafield_id)
+                        $value = $line[$column_num];
+                }
+            }
+
+            if ($value !== '' && $datafield_id !== '') {
+                // Run a quick query to check whether the value from the file is a duplicate of an existing value 
+                $query = $em->createQuery(
+                   'SELECT dr
+                    FROM ODRAdminBundle:'.$typeclass.' AS e
+                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                    WHERE e.dataField = :datafield AND e.value = :value
+                    AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                )->setParameters( array('datafield' => $datafield_id, 'value' => $value) );
+                $results = $query->getResult();
+
+                $datarecord = $results[0];
+//print $datarecord->getId()."\n";
+            }
+
+//return;
+
 
             if ($datarecord == null) {
                 // Create a new datarecord, since one doesn't exist
                 $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
                 $datarecord->setParent($datarecord);
                 $datarecord->setGrandparent($datarecord);
-
-                // Set external id if possible
-                if ($external_id !== null)
-                    $datarecord->setExternalId($external_id);
 
                 $em->persist($datarecord);
                 $status = "\n".'Created new datarecord for csv import of datatype '.$datatype_id.'...'."\n";
@@ -1628,12 +1812,16 @@ print_r($new_mapping);
                 $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
             }
             else {
+                // Mark datarecord as updated
+                $datarecord->setUpdated( new \DateTime() );
+                $datarecord->setUpdatedBy($user);
+                $em->persist($datarecord);
+
                 $status = "\n".'Found existing datarecord ('.$datarecord->getId().') for csv import of datatype '.$datatype_id.'...'."\n";
-                $logger->notice('Using existing datarecord ('.$datarecord->getId().') pointed to by external_id "'.$external_id.'" for csv import of datatype '.$datatype_id.' by '.$user->getId());
+                $logger->notice('Using existing datarecord ('.$datarecord->getId().') pointed to by '.$source.' "'.$value.'" for csv import of datatype '.$datatype_id.' by '.$user->getId());
             }
 
             // TODO - don't need to refresh datarecord?  but have to refresh created datafield from earler?
-
 
             // All datarecordfield and storage entities should be created now...
 
@@ -1745,8 +1933,10 @@ print_r($new_mapping);
                         }
 
                         // Save value from csv file...different formats are already taken care of courtesy of the bundle used for csv importing
-                        $datetime = new \DateTime($column_data);
-                        $entity->setValue($datetime);
+                        if ($column_data !== '') {
+                            $datetime = new \DateTime($column_data);
+                            $entity->setValue($datetime);
+                        }
                         $em->persist($entity);
 
                         $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$datetime->format('Y-m-d H:i:s').'"...'."\n";
@@ -1842,6 +2032,21 @@ print_r($new_mapping);
             // TODO - ???
             $status = str_replace('</br>', "\n", $status);
             print $status;
+
+
+            // Update the job tracker even if an error occurred...right? TODO
+            if ($tracked_job_id !== -1) {
+                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+
+                $total = $tracked_job->getTotal();
+                $count = $tracked_job->incrementCurrent($em);
+
+                if ($count >= $total)
+                    $tracked_job->setCompleted( new \DateTime() );
+
+                $em->persist($tracked_job);
+                $em->flush();
+            }
 
             $return['r'] = 1;
             $return['t'] = 'ex';

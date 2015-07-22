@@ -168,7 +168,7 @@ class MassEditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - this block of code is effectively duplicated in multiple places...
+            // TODO - replace with parent::getSavedSearch()
             $encoded_search_key = '';
             $datarecords = '';
             if ($search_key !== '') {
@@ -319,13 +319,14 @@ if ($debug)
                 $datafields = $post['datafields'];
             $datatype_id = $post['datatype_id'];
 
-            $datarecord_public = null;
+            $datarecord_public = 0;
             if ( isset($post['datarecord_public']) )
                 $datarecord_public = $post['datarecord_public'];
 
             // Grab necessary objects
             $em = $this->getDoctrine()->getManager();
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
 
 //            $memcached = $this->get('memcached');
@@ -354,7 +355,7 @@ if ($debug)
             $search_controller->setContainer($this->container);
 
 
-            // TODO - this assumes that the search result exists in the session...
+            // TODO - this assumes that the search result exists in the session...replace with parent::getSavedSearch() to ensure it exists, or throw an error if it doesn't?
             // Grab the list of saved searches and attempt to locate the desired search
             $saved_searches = $session->get('saved_searches');
             $search_params = $saved_searches[$search_checksum];
@@ -369,21 +370,31 @@ if ($debug)
                 return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
             }
 
-$datarecords = explode(',', $datarecords);
+            $datarecords = explode(',', $datarecords);
 
-//print_r($datarecords);
+            // ----------------------------------------
+            // Ensure no unique datafields managed to get marked for this mass update
+            foreach ($datafields as $df_id => $value) {
+                $df = $repo_datafield->find($df_id);
+                if ( $df->getIsUnique() == 1 )
+                    unset($datafields[$df_id]);
+            }
+
+//print '$datarecords: '.print_r($datarecords, true)."\n";
+//print '$datafields: '.print_r($datafields, true)."\n";
 //return;
+
 
             // ----------------------------------------
             // If content of datafields was modified, get/create an entity to track the progress of this mass edit
             // Don't create a TrackedJob if this mass_edit just changes public status
             $tracked_job_id = -1;
-            if ( count($datafields) > 0 ) {
+            if ( count($datafields) > 0 && count($datarecords) > 0 ) {
                 $job_type = 'mass_edit';
                 $target_entity = 'datatype_'.$datatype_id;
                 $additional_data = array('description' => 'Mass Edit of DataType '.$datatype_id);
                 $restrictions = '';
-                $total = count($datarecords);
+                $total = count($datarecords) * count($datafields);
                 $reuse_existing = false;
 
                 $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
@@ -392,47 +403,51 @@ $datarecords = explode(',', $datarecords);
 
 
             // ----------------------------------------
-            // TODO - need to change to DQL mass update
             // Deal with datarecord public status first, if needed
             $updated = false;
-            foreach ($datarecords as $num => $datarecord_id) {
+            if ( $datarecord_public !== null ) {
+                $query_str = 'UPDATE ODRAdminBundle:DataRecord AS dr SET dr.publicDate = :public_date, dr.updated = :updated, dr.updatedBy = :updated_by WHERE dr.id IN (:datarecords)';    // TODO - doesn't update log
+                $parameters = array('datarecords' => $datarecords, 'other_date' => new \DateTime('2200-01-01 00:00:00'), 'updated' => new \DateTime(), 'updated_by' => $user->getId());
 
-                if ( $datarecord_public !== null ) {
-                    $datarecord = $repo_datarecord->find($datarecord_id);
-                    if ( $datarecord->isPublic() && $datarecord_public == '-1' ) {
-                        $updated = true;
-//print 'setting datarecord '.$datarecord_id.' to non-public'."\n";
-                        $datarecord->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
-                        $datarecord->setUpdatedBy($user);
-                    }
-                    else if ( !$datarecord->isPublic() && $datarecord_public == '1' ) {
-                        $updated = true;
-//print 'setting datarecord '.$datarecord_id.' to public'."\n";
-                        $datarecord->setPublicDate(new \DateTime());
-                        $datarecord->setUpdatedBy($user);
-                    }
+                $updated = true;
+                if ($datarecord_public == '-1') {
+                    $query_str .= ' AND dr.publicDate != :other_date';
+                    $parameters['public_date'] = new \DateTime('2200-01-01 00:00:00');
+                }
+                else if ($datarecord_public == '1') {
+                    $query_str .= ' AND dr.publicDate = :other_date';
+                    $parameters['public_date'] = new \DateTIme();
+                }
+                else {
+                    $updated = false;
+                }
 
-                    if ($updated)
-                        $em->persist($datarecord);
+//print $query_str."\n";
+//print_r($parameters);
+
+                if ($updated) {
+                    $query = $em->createQuery($query_str)->setParameters( $parameters );
+                    $num_updated = $query->execute();
+//print '$num_updated: '.$num_updated."\n";
                 }
             }
 
             // Finish dealing with datarecord public status if necessary
             if ($updated) {
                 $em->flush();
-                $options = array();
-                $options['mark_as_updated'] = true;
+//                $options = array();
+//                $options['mark_as_updated'] = true;
 
                 // Refresh the cache entries for these datarecords
-                foreach ($datarecords as $num => $datarecord_id)
-                    parent::updateDatarecordCache($datarecord_id, $options);
+//                foreach ($datarecords as $num => $datarecord_id)
+//                    parent::updateDatarecordCache($datarecord_id, $options);
             }
 
 
             // ----------------------------------------
             foreach ($datarecords as $num => $datarecord_id) {
                 foreach ($datafields as $datafield_id => $value) {
-                    $drf = $repo_datarecordfields->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );
+                    $drf = $repo_datarecordfields->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );    // TODO - needs to be a single query performed earlier
 
                     // Create a new pheanstalk job
                     $priority = 1024;   // should be roughly default priority

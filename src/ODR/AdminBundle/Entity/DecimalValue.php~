@@ -69,12 +69,8 @@ class DecimalValue
      */
     public function setValue($value)
     {
+        // Shouldn't matter, but...
         $value = strval(trim($value));
-        $base = 0;
-        $exponent = 0;
-
-        // Save the approximation for searching purposes
-        $this->value = floatval($value);
 
         // Preserve negative
         $negative = false;
@@ -83,7 +79,7 @@ class DecimalValue
             $value = substr($value, 1);
         }
 
-        // Always remove leading zeros from left side
+        // Always remove leading zeros
         $leading = 0;
         for ($i = 0; $i < strlen($value)-1; $i++) {
             if ( substr($value, $i, 1) == '0' )
@@ -94,17 +90,7 @@ class DecimalValue
         $value = substr($value, $leading);
 
         $period = strpos($value, '.');
-        if ( $period === false ) {
-            // Remove trailing zeros from base and compress
-            for ($i = strlen($value)-1; $i > 0; $i--) {
-                if ( substr($value, $i, 1) == '0' )
-                    $exponent++;
-                else
-                    break;
-            }
-            $base = intval( substr($value, 0, strlen($value)-$exponent) );
-        }
-        else {
+        if ( $period !== false ) {
             // Break into right/left halves based on period
             $left = substr($value, 0, $period);
             $right = substr($value, $period+1);
@@ -118,34 +104,32 @@ class DecimalValue
                     break;
             }
             $right = substr($right, 0, strlen($right)-$trailing);
-                
-            if ( intval($left) == 0 ) {
-                // If number is purely fractional...i.e. -1 < x < 1...convert right side to int to get rid of zeros between decimal point and rest of number
-                $base = intval($right);
-            }
-            else {
-                // ...otherwise, just get rid of the decimal point
-                $base = $left.$right;
-            }
 
-            // Exponent is always negative in this case
-            $exponent = intval( '-'.strlen($right) );
+            // If nothing remaining on the left side, default to 0
+            if ($left == '')
+                $left = '0';
+
+            // If nothing remaining on the right side, default to the left side...otherwise, recombine the two halves
+            if ($right == '' || $right == '0')
+                $value = $left;
+            else
+                $value = $left.'.'.$right;
         }
 
-        // Re-apply negative
-        if ($negative)
-            $base = '-'.$base;
+        // Re-apply negative if necessary
+        if ($value == '')
+            $value = 0;
+        else if ($negative && $value !== '0')
+            $value = '-'.$value;
 
-        // If value was zero, ensure everything is zero
-        if ( intval($base) == 0 )
-            $base = $exponent = 0;
-
-        // Save the results
-        $this->base = intval($base);
-        $this->exponent = intval($exponent);
+        // Save the fixed string
+        $this->original_value = $value;
+        // Save the approximation for searching purposes
+        $this->value = floatval($value);
 
         return $this;
     }
+
 
     /**
      * Compute value
@@ -156,11 +140,14 @@ class DecimalValue
     {
         $value = 0;
 
+        $original_value = $this->original_value;
         $base = $this->base;
         $exponent = $this->exponent;
 
-        $value = self::DecimalToString( $base, $exponent );
-        return $value;
+        if ($original_value !== '')
+            return $original_value;
+        else
+            return self::DecimalToString( $base, $exponent );
     }
 
     /**
@@ -503,4 +490,32 @@ class DecimalValue
         return $this->base;
     }
 
+    /**
+     * @var string
+     */
+    private $original_value;
+
+
+    /**
+     * Set original_value
+     *
+     * @param string $originalValue
+     * @return DecimalValue
+     */
+    public function setOriginalValue($originalValue)
+    {
+        $this->original_value = $originalValue;
+
+        return $this;
+    }
+
+    /**
+     * Get original_value
+     *
+     * @return string 
+     */
+    public function getOriginalValue()
+    {
+        return $this->original_value;
+    }
 }

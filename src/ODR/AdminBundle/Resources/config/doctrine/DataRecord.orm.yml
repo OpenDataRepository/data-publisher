@@ -14,21 +14,33 @@ ODR\AdminBundle\Entity\DataRecord:
             generator:
                 strategy: IDENTITY
 
-#        revision:
-#            type: integer
-#            unsigned: true
-#            nullable: false
-#            default: 0
-#            column: revision
-
         external_id:
             type: string
-            length: 64
+            length: 255
             fixed: false
             nullable: false
+#            default: ''
             column: external_id
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
+        namefield_value:
+            type: string
+            length: 255
+            fixed: false
+            nullable: false
+#            default: ''
+            column: namefield_value
+#            gedmo:
+#                - versioned
+        sortfield_value:
+            type: string
+            length: 255
+            fixed: false
+            nullable: false
+#            default: ''
+            column: sortfield_value
+#            gedmo:
+#                - versioned
 
         publicDate:
             type: datetime

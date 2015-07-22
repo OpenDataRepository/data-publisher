@@ -8,10 +8,7 @@
     {% if searchable_datafields|length == 0 %}
         <strong>This DataType has no searchable DataFields.</strong>
     {% else %}
-        {#<input type="hidden" id="search_key" value="{{ search_key }}" />#}
-        {% for datatype_id,datatype in datatypes %}
-        <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />
-        {% endfor %}
+        <input type="hidden" id="datatype_id" name="dt_id" value="{{ target_datatype.id }}" />
 
         <fieldset>
             <div id="search_top">
@@ -24,203 +21,90 @@
                     <button class="pure-button pure-button-primary pure-u-1-2 pure-u-lg-1-2" type="submit">Search</button>
                 </div>
             </div>
-        <fieldset>
-
-{#
-        <fieldset>
-            <div class="pure-u-1" style="display:none">
-                <label for="dropdown_1" class="pure-u-1-3">Search </label>
-                <select id="dropdown_1" class="pure-u-2-3" name="datatype_id" onchange="changeDatatype();">
-                {% for datatype_id,datatype in datatypes %}
-                    <option value="{{ datatype_id }}">{{ datatype.shortname }}</option>
-                {% endfor %}
-                </select>
-            </div>
         </fieldset>
-#}
 
         <fieldset>
             <div class="pure-u-1">
                 <label for="textbox_general" class="pure-u-1-3">Search for: <i class="fa fa-lg fa-question-circle Pointer ODRSearchHelp"></i></label>
-                <input id="textbox_general" class="pure-u-2-3" type="text" name="general_string" {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %}/>
+                <input id="textbox_general" class="pure-u-2-3" type="text" name="gen" {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %}/>
             </div>
+
             <div class="pure-u-1" id="ODRSearchHelp_div" style="display:none;">
+                {% include 'ODROpenRepositorySearchBundle:Default:search_help.html.twig' %}
+            </div>
+        </fieldset>
 
-<table class="pure-table pure-table-striped">
-    <thead>
-        <tr>
-            <th>Search Term</th>
-            <th>Definition</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>item</td>
-            <td>Searches for datafields containing the word "item".</td>
-        </tr>
-        <tr>
-            <td>"item"</td>
-            <td>Searches for datafields containing only the word "item" and nothing else.</td>
-        </tr>
-        <tr>
-            <td>!item</td>
-            <td>Searches for datafields that does not contain "item".</td>
-        </tr>
-        <tr>
-            <td>!"item"</td>
-            <td>Searches for datafields that contain anything other than just the word "item".</td>
-        </tr>
-        <tr>
-            <td>a b</td>
-            <td>Searches for datafields containing both "a" and "b".</td>
-        </tr>
-        <tr>
-            <td>"a b" "c d"</td>
-            <td>Searches for datafields containing both the item "a b" and the item "c d".</td>
-        </tr>
-        <tr>
-            <td>a || b</td>
-            <td>Searches for datafields containing either "a", or "b", or both.</td>
-        </tr>
-        <tr>
-            <td>&gt;123</td>
-            <td>Searches for datafields containing a number greater than 123.</td>
-        </tr>
-        <tr>
-            <td>&lt;123</td>
-            <td>Searches for datafields containing a number less than 123.</td>
-        </tr>
-    </tbody>
-</table>
+        {# render target datatype first #}
+        <fieldset>
+            <div class="ODRAdvSearch_header {#pure-u-1#}">
+                <span>{{ target_datatype.getshortname }}</span>
+                <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
+            </div>
+            <div class="ODRAdvSearch_default">
+            {% if searchable_datafields[ target_datatype.id ] is defined %}
+                {% for datafield in searchable_datafields[ target_datatype.id ] %}
+                    {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with { 'datafield': datafield } %}
+                {% endfor %}
+            {% endif %}
+
+            {# created/modified by, created/modified date, public status of child datarecord #}
+            {% if logged_in == true %}
+                {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with { 'datatype_id': target_datatype.id, 'user_list': user_list } %}
+            {% endif %}
 
             </div>
         </fieldset>
 
-        {% for datatype_id,datatype in datatypes %}
-        <fieldset>
-            {% for datafield in searchable_datafields %}
-                {% set field_typename = datafield.getfieldtype.typename %}
-                <div class="ODRAdvSearch pure-u-1">
-                    <label for="textbox_{{ datafield.id }}" class="pure-u-1-3" title="{{ datafield.getdescription }}">{{ datafield.getfieldname }}:</label>
-                    {% if field_typename == "Boolean" %}
-                        <select class="ODRInput pure-u-2-3" id="select_{{ datafield.id }}" name="{{ datafield.id }}">
-                            <option value="">Any</option>
-                            <option value="0">Unselected</option>
-                            <option value="1">Selected</option>
-                        </select>
-
-                    {% elseif field_typename == "File" or field_typename == "Image" %}
-                        <select class="ODRInput pure-u-2-3" id="select_{{ datafield.id }}" name="{{ datafield.id }}">
-                            <option value="">Any</option>
-                            <option value="1">Has {{ field_typename }}s</option>
-                            <option value="0">Does not have {{ field_typename }}s</option>
-                        </select>
-
-                    {% elseif field_typename == 'DateTime' %}
-                        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datafield_{{ datafield.id }}_start" name="{{ datafield.id }}_start" value="" rel="datafield_{{ datafield.id }}" />
-
-                        </div>
-                    <div class="ODRAdvSearch pure-u-1">
-                        <label class="pure-u-1-3"></label>
-                        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datafield_{{ datafield.id }}_end" name="{{ datafield.id }}_end" value="" rel="datafield_{{ datafield.id }}" />
-                    {#</div>#}
-
-                    {% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}
-                        <select class="ODRInput pure-u-2-3" id="select_{{ datafield.id }}" name="{{ datafield.id }}" {% if field_typename == "Multiple Select" %}multiple size="7"{% endif %}>
-                            {% if field_typename == "Single Select" %}
-                            <option id="Option_0" value="">No Option Selected</option>
-                            {% endif %}
-
-                            {% for radio_option in datafield.getRadioOptions %}
-                            <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id }}">{{ radio_option.getOptionName }}</option>
-                            {% endfor %}
-                        </select>
-
-                        {% if field_typename == "Multiple Select" %}
-                        <span class="pure-u-1-3"></span>
-                        <span class="Pointer ODRClear pure-u-2-3"><u>Clear Selection</u></span>
-                        {% endif %}
-
-                    {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}
-                        <span class="pure-u-2-3" id="Input_{{ datafield.id }}" style="max-height:200px; overflow-y:auto; overflow-x:hidden;">
-                            {% if field_typename == "Single Radio" %}
-                            <label class="ODRFieldLabel pure-u-1" style="margin: 0.5em 0;">
-                                <input type="radio" name="{{ datafield.id }}" value="" class="ODRInput ODRDefaultOption" disabled />
-                                No Option Selected
-                            </label>
-                            {% endif %}
-                            {% for radio_option in datafield.getRadioOptions %}
-                            <label id="Label_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="pure-u-1" style="margin: 0.5em 0;">
-                                {% if field_typename == "Single Radio" %}
-                                <input id="Input_{{ radio_option.id }}" type="radio" name="{{ datafield.id }}" value="{{ radio_option.id }}" class="ODRInput" disabled />
-                                {% else %}
-                                <input id="Input_{{ radio_option.id }}" type="checkbox" name="{{ datafield.id }}" value="{{ radio_option.id }}" class="ODRInput ODRCheckbox" disabled />
-                                {% endif %}
-                                {{ radio_option.getOptionName }}
-                            </label>
-                            {% endfor %}
-                        </span>
-
-                    {% else %}
-                        <input type="text" class="ODRInput pure-u-2-3" id="textbox_{{ datafield.id }}" name="{{ datafield.id }}" />
-
-                    {% endif %}
+        {# render children of target datatype next #}
+        {% for child_datatype_id, datafield_list in related_datatypes['child_datatypes'] %}
+            {% if target_datatype.id != child_datatype_id and searchable_datafields[child_datatype_id] is defined %}
+            <fieldset>
+                <div class="ODRAdvSearch_header {#pure-u-1#}">
+                    <span>{{ searchable_datafields[ child_datatype_id ][0].getdatatype.getshortname }}</span>
+                    <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
                 </div>
-            {% endfor %}
-        </fieldset>
+                {#<div class="pure-u-1-24"></div>#}
+                <div class="ODRAdvSearch_content {#pure-u-23-24#} pure-u-1">
+                {% for datafield in searchable_datafields[ child_datatype_id ] %}
+                    {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with { 'datafield': datafield } %}
+                {% endfor %}
 
-        {% if logged_in == true %}
-        <fieldset>
-            <div class="ODRAdvSearch pure-u-1">
-                <label class="pure-u-1-3">Modified Date:</label>
-                <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype.id }}_modify_start" name="modify_date_start" value="" rel="datatype_{{ datatype.id }}_modify" />
-            </div>
-            <div class="ODRAdvSearch pure-u-1">
-                <label class="pure-u-1-3"></label>
-                <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype.id }}_modify_end" name="modify_date_end" value="" rel="datatype_{{ datatype.id }}_modify" />
-            </div>
-
-            <div class="ODRAdvSearch pure-u-1">
-                <label class="pure-u-1-3">Modified By:</label>
-                <select class="ODRInput pure-u-2-3" id="select_modified_by" name="modified_by">
-                    <option {#value="-1"#}></option>
-                    {% for u in user_list %}
-                    <option value="{{ u.id }}">{{ u.getuserextend.firstname }} {{ u.getuserextend.lastname }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="ODRAdvSearch pure-u-1">
-                <label class="pure-u-1-3">Created Date:</label>
-                <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype.id }}_create_start" name="create_date_start" value="" rel="datatype_{{ datatype.id }}_create" />
-            </div>
-            <div class="ODRAdvSearch pure-u-1">
-                <label class="pure-u-1-3"></label>
-                <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype.id }}_create_end" name="create_date_end" value="" rel="datatype_{{ datatype.id }}_create" />
-            </div>
-
-            <div class="ODRAdvSearch pure-u-1">
-                <label class="pure-u-1-3">Created By:</label>
-                <select class="ODRInput pure-u-2-3" id="select_created_by" name="created_by">
-                    <option {#value="-1"#}></option>
-                    {% for u in user_list %}
-                    <option value="{{ u.id }}">{{ u.getuserextend.firstname }} {{ u.getuserextend.lastname }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="ODRAdvSearch pure-u-1">
-                <label class="pure-u-1-3">Public status:</label>
-                <select class="ODRInput pure-u-2-3" id="select_public" name="public">
-                    <option id="Option_0" value="">Any</option>
-                    <option id="Option_nonpublic" value="0">Non-public</option>
-                    <option id="Option_public" value="1">Public</option>
-                </select>
-            </div>
-        </fieldset>
-        {% endif %}
-
+                {# created/modified by, created/modified date, public status of child datarecord #}
+                {% if logged_in == true %}
+                    {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with { 'datatype_id': child_datatype_id, 'user_list': user_list } %}
+                {% endif %}
+                </div>
+            </fieldset>
+            {% endif %}
         {% endfor %}
+
+        {# render linked datatypes last #}
+        {% for linked_datatype_id in related_datatypes['linked_datatypes'] %}
+            {% if searchable_datafields[linked_datatype_id] is defined %}
+            <fieldset>
+                <div class="ODRAdvSearch_header {#pure-u-1#}">
+                    <span>{{ searchable_datafields[ linked_datatype_id ][0].getdatatype.getshortname }}</span>
+                    <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
+                </div>
+                {#<div class="pure-u-1-24"></div>#}
+                <div class="ODRAdvSearch_content {#pure-u-23-24#} pure-u-1">
+                {% for datafield in searchable_datafields[ linked_datatype_id ] %}
+                    {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with { 'datafield': datafield } %}
+                {% endfor %}
+
+                {# created/modified by, created/modified date, public status of datarecord #}
+                {# don't display metadata for linked datatypes...for now... #}
+{#
+                {% if logged_in == true %}
+                    {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with { 'datatype_id': linked_datatype_id, 'user_list': user_list } %}
+                {% endif %}
+#}
+
+                </div>
+            </fieldset>
+            {% endif %}
+        {% endfor %}
+
 
         <fieldset>
             <div class="pure-u-1">
@@ -233,31 +117,76 @@
             </div>
         <fieldset>
     {% endif %}
+
     </form>
     <div class="pure-u-sm-1-4"></div>
-
-{#
-    {% if linked_datatypes != null %}
-    <div class="pure-u-1">
-        {% for short_name,search_slug in linked_datatypes %}
-        <button class="pure-button pure-button-primary" type="button" onclick="searchRelated('{{ search_slug }}');">Search {{ short_name }}</button>
-        {% endfor %}
-    </div>
-    {% endif %}
-#}
 </div>
 
 <div class="pure-u-1 pure-u-md-2-3">
     <img id="odr_bg" class="pure-img" />
 </div>
 
+<style>
+    .ODRAdvSearch_header {
+        font-weight: bold;
+        background: #e3e3e3 url("../../img/external/jquery-ui/ui-bg_flat_65_e3e3e3_40x100.png") repeat-x scroll 50% 50%;
+        padding: 0.5em;
+        cursor: pointer;
+    }
+    .ODRAdvSearch_caret {
+        margin-top: 0.25em;
+        float: right;
+    }
+    .ODRAdvSearch_content {
+        /*background: #eeeeee;*/
+        display: inline;
+    }
+    .ODRRadioSearchDiv {
+        max-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    .ODRRadioLabel {
+        margin: 0.5em 0;
+    }
+
+    .fa {
+        padding: 0px;
+    }
+    .ODRTristateCheckbox > .fa-ban {
+        color: red;
+    }
+    .ODRTristateCheckbox > .fa-check {
+        color: green;
+    }
+    .ODRTristateCheckbox {
+        cursor: pointer;
+        border: 2px solid #666;
+        border-radius: 5px;
+        height: 1.5em;
+        width: 1.5em;
+        display: inline-block;
+    }
+    .ODRTristateCheckbox > .fa {
+        line-height: 1.25em;
+        margin-left: 0.25em;
+    }
+    .ODRTristateCheckbox:hover, .ODRTristateCheckbox:active, .ODRTristateCheckbox:focus {
+        background: #9cd4d4;
+    }
+    .ODRSelectAll,.ODRDeselectAll,.ODRClearAll {
+        cursor: pointer;
+        font-size: 90%;
+    }
+</style>
+
 <script>
 
     $(function() {
         $("#search_top").hide();
-        $(".ODRAdvSearch").hide();
         $(".ODRInput").prop('disabled', true);
 
+        // Prevent normal form behavior
         $("#search_form").unbind('submit');
         $("#search_form").submit(function(event) {
             event.preventDefault();
@@ -269,8 +198,145 @@
         doSearch();
         {% endif %}
 
+
+        // Setup accordions
+        $(".ODRAdvSearch_header").unbind('click');
+        $(".ODRAdvSearch_header").click(function() {
+            var content_div = $(this).next();
+
+            if ( $(content_div).hasClass('ODRCollapse') ) {
+                // Show all textfields
+                $(content_div).removeClass('ODRCollapse');
+                $(content_div).children().each(function() {
+                    $(this).slideDown(200);
+                });
+
+                $(this).find('i').removeClass('fa-caret-down').addClass('fa-caret-up');
+            }
+            else {
+                // Hide all empty textfields
+                $(content_div).addClass('ODRCollapse');
+                $(content_div).find('.ODRInput').not('.ODRDatePicker').each(function() {
+                    if ( $(this).val() == '' )
+                        $(this).parent().slideUp(200);
+                });
+
+                // Datepickers need special treatment...
+                $(content_div).find(".ODRDatePicker[name$='_s']").each(function() {
+                    var rel = $(this).attr('rel');
+
+                    // If nothing in start and nothing in end, hide this datafield
+                    if ( $(this).val() == '' && $('#' + rel + '_end').val() == '' )
+                        $(this).parent().slideUp(200);
+                });
+
+                // Radio fields also need special treatment...
+                $(content_div).find('.ODRRadioSearchDiv').each(function() {
+                    // Search for a selection made in this radio field
+                    var selected = false;
+                    $(this).find('i').each(function() {
+                        if ( $(this).hasClass('fa-check') || $(this).hasClass('fa-ban') ) {
+                            selected = true;
+                            return false;
+                        }
+                    });
+
+                    // If nothing selected, hide this datafield
+                    if ( !selected )
+                        $(this).parent().slideUp(200);
+                });
+
+                $(this).find('i').removeClass('fa-caret-up').addClass('fa-caret-down');
+            }
+        });
+
+        // Open first accordion (should be target datatype)
+        $(".ODRAdvSearch_header").trigger('click');
+        $(".ODRAdvSearch_default").prev().trigger('click');
+        $(".ODRAdvSearch_header").parent().hide();
+
+        // Tristate checkbox
+        $(".ODRTristateCheckbox").unbind('click');
+        $(".ODRTristateCheckbox").click(function() {
+            // Grab data about the option being clicked
+            var icon = $(this).children('i').first();
+            var input = $(this).children('input').first();
+            var radio_option_id = $(input).attr('rel');
+
+            if ( $(icon).hasClass('fa-check') ) {
+                // Currently selected, change to deselected
+                $(this).attr('title', 'Search for Datarecords where this option is unselected');
+                $(icon).removeClass('fa-check').addClass('fa-ban');
+                $(input).val( '-' + radio_option_id );
+            }
+            else if ( $(icon).hasClass('fa-ban') ) {
+                // Currently deselected, change to blank
+                $(this).removeAttr('title');
+                $(icon).removeClass('fa-ban');
+                $(input).val('');
+            }
+            else {
+                // If only a single radio/select, uncheck all other options
+                if ( $(this).attr('rel') == 'single') {
+                    $(this).parent().parent().find('.fa-check').each(function() {
+                        $(this).parent().removeAttr('title');
+                        $(this).removeClass('fa-check');
+                        $(this).next().val('');
+                    });
+                }
+
+                // Currently blank, change to selected
+                $(this).attr('title', 'Search for Datarecords where this option is selected');
+                $(icon).addClass('fa-check');
+                $(input).val( radio_option_id );
+            }
+        });
+
+        // Shortcut to select all options of a Multiple Radio/Select datafield
+        $(".ODRSelectAll").unbind('click');
+        $(".ODRSelectAll").click(function() {
+            var datafield_id = $(this).attr('rel');
+
+            $("#Input_" + datafield_id).find('i.fa').each(function() {
+                if ( !$(this).hasClass('fa-check') ) {
+                    $(this).parent().attr('title', 'Search for Datarecords where this option is selected');
+                    $(this).removeClass('fa-ban').addClass('fa-check');
+                    $(this).next().val( $(this).next().attr('rel') );
+                }
+            });
+        });
+
+        // Shortcut to deselect all options of a Radio/Select datafield
+        $(".ODRDeselectAll").unbind('click');
+        $(".ODRDeselectAll").click(function() {
+            var datafield_id = $(this).attr('rel');
+
+            $("#Input_" + datafield_id).find('i.fa').each(function() {
+                if ( !$(this).hasClass('fa-ban') ) {
+                    $(this).parent().attr('title', 'Search for Datarecords where this option is unselected');
+                    $(this).removeClass('fa-check').addClass('fa-ban');
+                    $(this).val( '-' + $(this).next().attr('rel') );
+                }
+            });
+        });
+
+        // Shortcut to clear all options of a Radio/Select datafield
+        $(".ODRClearAll").unbind('click');
+        $(".ODRClearAll").click(function() {
+            var datafield_id = $(this).attr('rel');
+
+            $("#Input_" + datafield_id).find('i.fa').each(function() {
+                if ( $(this).hasClass('fa-check') || $(this).hasClass('fa-ban') ) {
+                    $(this).parent().removeAttr('title');
+                    $(this).removeClass('fa-ban fa-check');
+                    $(this).next().val('');
+                }
+            });
+        });
+
         $("#textbox_general").focus();
 
+        // Set up datepicker datafields
         $(".ODRDatePicker").datepicker({
             showOtherMonths: true,
             selectOtherMonths: true,
@@ -311,43 +377,34 @@
             }
         });
 
-        $(".ODRClear").unbind('click');
-        $(".ODRClear").click(function() {
-            $(this).prev().children().each(function() {
-                $(this).removeAttr('selected');
-            });
-        });
-
+        // Slide out the help menu
         $(".ODRSearchHelp").unbind('click');
         $(".ODRSearchHelp").click(function() {
             $("#ODRSearchHelp_div").slideToggle();
         });
     });
 
-    function searchRelated(search_slug) {
-        var url = '{{ site_baseurl }}' + '/' + search_slug;
-        window.location = url;
-    }
-
     function changeSearch() {
         if ( $("#search_type").val() === 'basic' ) {
+            // Show all advanced search datafields
             $("#search_type").val('advanced');
             $(".ODRSearchHelper").each(function() {
                 $(this).html('Close Advanced Search');
             });
 
-            $(".ODRAdvSearch").removeAttr('style');
+            $(".ODRAdvSearch_header").parent().removeAttr('style'); // show() uses display:block..don't want that
             $(".ODRInput").prop('disabled', false);
 
             $("#search_top").show();
         }
         else {
+            // Hide all advanced search datafields
             $("#search_type").val('basic');
             $(".ODRSearchHelper").each(function() {
                 $(this).html('Open Advanced Search');
             });
 
-            $(".ODRAdvSearch").hide();
+            $(".ODRAdvSearch_header").parent().hide();
             $(".ODRInput").prop('disabled', true);
 
             $("#search_top").hide();
@@ -355,22 +412,15 @@
     }
 
     function doReset() {
-        // Single/Multiple select fields
-        $("select.ODRInput").each(function() {
-            $(this).val("-1");
-        });
-
-        // Multiple radio fields
-        $(".ODRCheckbox").each(function() {
-            if ( $(this).is(':checked') )
-                $(this).trigger('click');
-        });
-
-        // Single radio fields
-        $(".ODRDefaultOption").trigger('click');
+        // radio fields
+        $(".ODRTristateCheckbox").removeAttr('title');
+        $(".ODRTristateCheckbox > .fa").removeClass('fa-check').removeClass('fa-ban');
 
         // general field
         $("#textbox_general").val('');
+
+        // select fields
+        $("select.ODRInput").val('');
 
         // every other field
         $("input.ODRInput").not(".hidden").each(function() {
@@ -385,71 +435,64 @@
     }
 
     function doSearch() {
-        var selected_datatype = $("#dropdown_1").val();
-
+        //
         var search_key = '';
         var prev_field = '';
-        $("#search_form input").each(function() {
+        var divider = '|';
+
+        var datatype_id = $("#datatype_id").val();
+        search_key = $("#datatype_id").attr('name') + '=' + datatype_id;
+        
+        if ( $("#textbox_general").val() !== '' )
+            search_key += divider + $("#textbox_general").attr('name') + '=' + encodeURIComponent( $("#textbox_general").val() );
+
+        $("#search_form .ODRInput").each(function() {
             var name = $(this).attr('name');
             var type = $(this).attr('type');
             var value = $(this).attr('value');
-
-            var divider = '|';
 
             // Don't want empty values clogging the string
             if (name == undefined || value == '')
                 return;
 
-            if (type == 'text' || type == 'hidden') {
-                prev_field = '';
-                value = encodeURIComponent(value);
+            value = encodeURIComponent(value);
 
-                if (search_key != '')
-                    search_key += divider;
-
-                search_key += name + '=' + value;
-            }
-            else if (type == 'radio') {
-                // Only care about this if the field is checked
-                prev_field = '';
-                if ( $(this).is(':checked') )
-                    search_key += divider + name + '=' + value;     // can only ever have one value, and never occurs at the start of search_key
-            }
-            else if (type == 'checkbox') {
-                // Only care about this if the field is checked
-                if ( $(this).is(':checked') ) {
-                    if (name != prev_field) {
-                        prev_field = name;
-                        search_key += divider + name + '=' + value;     // never occurs at the start of search_key
-                    }
-                    else {
-                        search_key += ',' + value;
-                    }
-                }
-            }
-//alert( 'name: ' + name + ' type: ' + type + ' value: ' + value );
+            if (search_key != '')
+                search_key += divider;
+            search_key += name + '=' + value;
         });
-        $("#search_form select").each(function() {
-            var name = $(this).attr('name');
+        $(".ODRRadioSearchDiv").each(function() {
 
-            var divider = '|';
+            var data = $(this).attr('id').split(/_/);
+            var datafield_id = data[1];
 
-            var prev_field = '';
-            $(this).children(':selected').each(function() {
+            var str = '';
+            if (search_key != '')
+                str = divider;
+            str += datafield_id + '=';
 
+            var first_selection = true;
+            var has_selections = false;
+
+            $(this).find('input').each(function() {
+                // Grab the radio_option_id
                 var value = $(this).attr('value');
                 if (value == '')
                     return;
 
-                if (name != prev_field) {
-                    prev_field = name;
-                    search_key += divider + name + '=' + value;
+                has_selections = true;
+
+                if (!first_selection) {
+                    str += ',' + value;
                 }
                 else {
-                    search_key += ',' + value;
+                    first_selection = false;
+                    str += value;
                 }
             });
-//alert( 'name: ' + name + ' value: ' + value );
+
+            if (has_selections)
+                search_key += str;
         });
 
 //alert( 'search_key: ' + search_key );
@@ -471,6 +514,21 @@
             success: function(data, textStatus, jqXHR) {
                 if (data.r == 0) {
                 {% if source == "searching" %}
+                    // Overwrite any currently existing tab id, since a new search was performed
+                    if ( window.sessionStorage.getItem('odr_tab_id') ) {
+                        // Tell the server to stop storing data for the old tab
+                        // TODO - transfer page length?
+                        var url = '{{ path('odr_datatables_state_destroy', { 'odr_tab_id': '' } ) }}';
+                        url += window.sessionStorage.getItem('odr_tab_id');
+
+                        $.ajax({
+                            type: 'GET',
+                            url: url,
+                            dataType: 'json',
+                        });
+                    }
+                    window.sessionStorage.setItem('odr_tab_id', '{{ odr_tab_id }}');
+
                     // Now that the search has been performed and cached, render the results
                     var url = '{{ path('odr_search_render', { 'search_key': '', 'offset': '1' } ) }}';
                     url = url.substr(0, url.length-1);

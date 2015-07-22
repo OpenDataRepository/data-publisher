@@ -44,7 +44,7 @@
                             
                             <td class="pure-u-4-24">
                                 <i class="Cursor FRight tooltip fa fa-globe fa-lg ODRPublicFile {% if file.ispublic == 0 %}IconRed{% endif %}" title="{% if file.ispublic == 0 %}File is not public{% else %}Public since {{ file.publicdate|date('Y-m-d') }}{% endif %}" rel="{{ file.id }}"></i>
-                                <i class="Cursor FRight tooltip fa fa-calendar fa-lg" title="Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy.userextend.firstname ~ ' ' ~ file.createdBy.userextend.lastname }}"></i>
+                                <i class="Cursor FRight tooltip fa fa-calendar fa-lg" title="Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy.getuserstring }}"></i>
                             </td>
                         </tr>
                         {% endif %}
@@ -71,12 +71,10 @@
                     {% set has_image = true %}
 
                     {% if oimage.ispublic == 1 or public_only == false %}   {# don't display non-public images to the public #}
-                    <div id="Image_{{ oimage.id }}" class="ODRImage pure-u-1-{{ field.childrenperrow }} {#pure-u-md-1-{{ field.childrenperrow }}#}" rel="{{ image.id }}">    {# rel is the id of the thumbnail, id attr is the id of the full-size image #}
-                        {#<div class="pure-u-1">#}
-                            <a class="pure-u-1" target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ oimage.caption }}">
-                                <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}" title="{% if image.originalfilename != null %}{{ image.originalfilename }}{% else %}Image_{{ image.id }}.{{ image.ext }}{% endif %}" />
-                            </a>
-                        {#</div>#}
+                    <div id="Image_{{ oimage.id }}" class="ODRImage pure-u-1-{{ field.childrenperrow }}"  rel="{{ image.id }}">    {# rel is the id of the thumbnail, id attr is the id of the full-size image #}
+                        <a class="{#pure-u-23-24#}pure-u-1" target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ oimage.caption }}">
+                            <img class="pure-u-1{#pure-img#}" src="{{ path('odr_image_download', {'image_id': image.id}) }}" title="{% if image.originalfilename != null %}{{ image.originalfilename }}{% else %}Image_{{ image.id }}.{{ image.ext }}{% endif %}" {#style="max-width: {{ oimage.imageWidth }}px; max-height: {{ oimage.imageHeight }}px;"#} />
+                        </a>
                     </div>
                     {% endif %}
 

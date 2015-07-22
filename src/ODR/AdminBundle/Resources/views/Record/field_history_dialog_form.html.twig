@@ -46,7 +46,7 @@
                             <td class="center">{{ log_entry.id }}</td>
                             <td class="center">{{ log_entry.version }}</td>
                             <td class="center">{{ log_entry.loggedat|date("Y-m-d H:i:s") }}</td>
-                            <td class="center">{% if log_entry.user != null %}{{ log_entry.user.getuserextend.firstname }} {{ log_entry.user.getuserextend.lastname }}{% endif %}</td>
+                            <td class="center">{% if log_entry.user != null %}{{ log_entry.user.getuserstring }}{% endif %}</td>
                         {% if record_type == "DatetimeValue" %}
                             <td id="version_{{ log_entry.version }}" class="center">{% if log_entry.value == null %}{% else %}{{ log_entry.value }}{% endif %}</td>
                         {% else %}

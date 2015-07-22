@@ -18,7 +18,7 @@
                 {#<_internal_id>{{ datarecord.id }}</_internal_id>#}
                 <_external_id>{{ datarecord.getexternalid }}</_external_id>
                 <_create_date>{{ datarecord.created|date('Y-m-d H:i:s') }}</_create_date>
-                <_create_auth>{{ datarecord.getcreatedby.getuserextend.firstname }} {{ datarecord.getcreatedby.getuserextend.lastname }}</_create_auth>
+                <_create_auth>{% if datarecord.getcreatedby != null %}{{ datarecord.getcreatedby.getuserstring }}{% endif %}</_create_auth>
             </_datarecord_metadata>
     {% endif %}
 

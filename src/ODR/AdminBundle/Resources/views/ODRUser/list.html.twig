@@ -17,6 +17,7 @@
 </div>
 
 <div class="content">
+    <button type="button" id="deleted_user_toggle" class="pure-button" onclick="toggleDeletedUsers();" rel="Hide">Show deleted users</button>
 
     <table id="ODRUserList" class="{#pure-table pure-table-striped#}display dataTable">
         <thead>
@@ -31,9 +32,9 @@
         </thead>
         <tbody>
         {% for user in users %}
-            <tr>
+            <tr {% if user.enabled == 0 %}class="ODRDeletedUser ODRHidden"{% endif %}>
                 <td>{{ user.id }}</td>
-                <td>{{ user.getuserextend.firstname }}&nbsp;{{ user.getuserextend.lastname }}</td>
+                <td>{{ user.getuserstring }}</td>
                 <td>{{ user.email }}</td>
 
             {% if user.enabled == 1 %}
@@ -87,6 +88,12 @@
             
 </div><!-- End of .content -->
 
+<style>
+    .ODRHidden {
+        display: none;
+    }
+</style>
+
 <script>
     $(function() {
         $("#ODRUserList").dataTable({
@@ -109,7 +116,41 @@
         });
 
         $("#ODRUserList").removeAttr('style');
+        redoRowClasses();
     });
+
+    function redoRowClasses() {
+        var count = 0;
+        $("#ODRUserList tbody tr").each(function() {
+            if ( !$(this).hasClass('ODRHidden') ) {
+                count++;
+                if ( count % 2 == 0 )
+                    $(this).removeClass('odd').addClass('even');
+                else
+                    $(this).removeClass('even').addClass('odd');
+            }
+        });
+    }
+
+    function toggleDeletedUsers() {
+        var action = $("#deleted_user_toggle").attr('rel');
+        $("#deleted_user_toggle").html( action + " deleted users");
+
+        if (action == "Hide") {
+            $("#deleted_user_toggle").attr('rel', 'Show');
+            $("#ODRUserList tbody tr.ODRDeletedUser").each(function() {
+                $(this).removeClass('ODRHidden');
+            });
+        }
+        else {
+            $("#deleted_user_toggle").attr('rel', 'Hide');
+            $("#ODRUserList tbody tr.ODRDeletedUser").each(function() {
+                $(this).addClass('ODRHidden');
+            });
+        }
+
+        redoRowClasses();
+    }
 
     function deleteUser(user_id) {
         // Prevent an admin from deleting himself
@@ -118,7 +159,7 @@
             return;
         }
 
-        if ( confirm("This will remove the user's permissions.") ) {
+        if ( confirm("Are you sure you want to delete this user?") ) {
             var url = '{{ path('odr_delete_user', { 'user_id': 0 } ) }}';
             url = url.substring(0, (url.length - 1));
             url += user_id;

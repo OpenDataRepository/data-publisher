@@ -187,7 +187,7 @@ class JobController extends ODRCustomController
                 // Save data common to every job
                 $created = $tracked_job->getCreated();
                 $job['created_at'] = $created->format('Y-m-d H:i:s');
-                $job['created_by'] = $tracked_job->getCreatedBy()->getUserExtend()->getFirstName().' '.$tracked_job->getCreatedBy()->getUserExtend()->getLastName();
+                $job['created_by'] = $tracked_job->getCreatedBy()->getUserString();
                 $job['progress'] = array('total' => $tracked_job->getTotal(), 'current' => $tracked_job->getCurrent());
                 $job['tracked_job_id'] = $tracked_job->getId();
                 $job['eta'] = '...';
@@ -196,7 +196,7 @@ class JobController extends ODRCustomController
                 $job['description'] = $additional_data['description'];
 
                 // ----------------------------------------
-                if ( $tracked_job->getCompleted() == null ) {
+                if ( $tracked_job->getCompleted() == null || $tracked_job->getStarted() == null ) {
                     // If job is in progress, calculate an ETA if possible
                     $start = $tracked_job->getStarted();
                     if ( $start == null ) {

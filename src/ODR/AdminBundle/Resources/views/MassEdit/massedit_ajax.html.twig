@@ -49,6 +49,18 @@ function initPage() {
             $(this).hide();
     });
 
+    // Attach an overlay div of sorts over each datafield 
+    $(".ODROverlayDiv").each(function() {
+        // Need dimensions of parent div...
+        var height = $(this).parent().css('height');
+        var width = $(this).parent().css('width');
+
+        // Apply dimensions of parent div to loading div
+        $(this).css({"height": height, "line-height": height, "width": width});
+
+        $(this).attr('title', "This Datafield is marked as unique, and therefore can't be mass updated...multiple Datarecords would have the same value if that happened.");
+    });
+
     $(".ODRDatePicker").datepicker({
         dateFormat: 'yy-mm-dd',
         changeMonth: true,
@@ -70,13 +82,16 @@ function initPage() {
 
 function doMassUpdate() {
 
-    if ( !confirm('Are you sure you want to make this edit to multiple datarecords?') )
+    if ( !confirm('Are you sure you want to make these edits to multiple datarecords?') )
         return;
+
+    // Remove any already-existing input elements added by this function
+    $(".massedit_form_input").remove();
 
     // Public status
     var val = $("#public_select").val();
-    if (val !== '' && val !== '0') {
-        var element = $("<input>", {id: "Value_public", type: "hidden", value: val, name: "datarecord_public"});
+    if (val == '-1' || val == '1') {
+        var element = $("<input>", {id: "Value_public", class: "massedit_form_input", type: "hidden", value: val, name: "datarecord_public"});
         $("#massedit_form").append(element);
     }
 
@@ -93,7 +108,7 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val();
         if (val !== '' && val !== '-1') {
-            var element = $("<input>", {id: "Value_" + datafield_id, type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
@@ -111,14 +126,14 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val();
         if (val !== '' && val !== '0') {
-            var element = $("<input>", {id: "Value_" + datafield_id, type: "hidden", value: 1, name: "datafields[" + datafield_id + "][" + val + "]"});
+            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: 1, name: "datafields[" + datafield_id + "][" + val + "]"});
             $("#massedit_form").append(element);
         }
     });
 
 
 /*
-    // Multiple Radio/Select
+    // TODO - Multiple Radio/Select
     $(".InputResizable .ODRMultipleSelect").each(function() {
         // Grab the ID of the field
         var id_data = $(this).attr('id').split('_');
@@ -132,7 +147,7 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val().trim();
         if (val !== '' && val !== '-1') {
-            var element = $("<input>", {id: "Value_" + id, type: "hidden", value: val, name: "datafields[" + id + "][" + radio_option_id + "]"});
+            var element = $("<input>", {id: "Value_" + id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + id + "][" + radio_option_id + "]"});
             $("#massedit_form").append(element);
         }
     });
@@ -154,7 +169,7 @@ function doMassUpdate() {
 
                 var radio_option_id = $(this).attr('rel');
                 if ( radio_option_id != 0 ) {
-                    var element = $("<input>", {id: "Value_" + datafield_id, type: "hidden", value: 1, name: "datafields[" + datafield_id + "][" + radio_option_id + "]"});
+                    var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: 1, name: "datafields[" + datafield_id + "][" + radio_option_id + "]"});
                     $("#massedit_form").append(element);
                 }
             }
@@ -180,7 +195,7 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val().trim();
         if (val !== '') {
-            var element = $("<input>", {id: "Value_" + datafield_id, type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
@@ -199,7 +214,7 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).html().trim();
         if (val !== '') {
-            var element = $("<input>", {id: "Value_" + datafield_id, type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
@@ -218,11 +233,19 @@ function doMassUpdate() {
         // Save any value currently in this datafield
         var val = $(this).val().trim();
         if (val !== '') {
-            var element = $("<input>", {id: "Value_" + datafield_id, type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
 
+    if ( $("#massedit_form").children().length <= 2 ) {
+        alert('No changes made on page, aborting');
+        return;
+    }
+
+    var redirect = false;
+    if ( $("#massedit_form").children("[name^='datafields']").length > 0 )
+        redirect = true;
 
     var data = $("#massedit_form").serialize();
     var url = $("#massedit_form").attr('action');
@@ -234,9 +257,14 @@ function doMassUpdate() {
         dataType: 'json',
         success: function(data, textStatus, jqXHR) {
             if ( data.r == 0 ) {
-                alert( 'Mass Update in progress' );
-                var url = '{{ path('odr_job_list') }}';
-                UpdateURL(url);
+                if (redirect) {
+                    alert( 'Mass Update in progress' );
+                    var url = '{{ path('odr_job_list') }}';
+                    UpdateURL(url);
+                }
+                else {
+                    alert( 'Public status of Datarecords updated' );
+                }
             }
             else {
                 alert( data.d );

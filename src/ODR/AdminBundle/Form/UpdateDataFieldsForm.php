@@ -103,11 +103,21 @@ class UpdateDatafieldsForm extends AbstractType
             )
         );
 */
+
+        $builder->add(
+            'is_unique',
+            'checkbox',
+            array(
+                'label'  => 'Unique',
+                'required' => false
+            )
+        );
+
         $builder->add(
             'required', 
             'checkbox', 
             array(
-                'label'  => 'Required ?',
+                'label'  => 'Required',
                 'required' => false
             )
         );
@@ -117,7 +127,7 @@ class UpdateDatafieldsForm extends AbstractType
             'choice', 
             array(
                 'choices' => array('0' => 'No', '1' => 'General Only', '2' => 'Advanced'),
-                'label'  => 'Searchable ?',
+                'label'  => 'Searchable',
                 'expanded' => false,
                 'multiple' => false,
                 'empty_value' => false
@@ -128,7 +138,7 @@ class UpdateDatafieldsForm extends AbstractType
             'user_only_search',
             'checkbox',
             array(
-                'label'  => 'Only Searchable by Registered Users ?',
+                'label'  => 'Only Searchable by Registered Users',
                 'required' => false
             )
         );
@@ -137,7 +147,7 @@ class UpdateDatafieldsForm extends AbstractType
             'allow_multiple_uploads',
             'checkbox',
             array(
-                'label'  => 'Allow Multiple Uploads ?',
+                'label'  => 'Allow Multiple Uploads',
                 'required' => false
             )
         );
@@ -146,7 +156,7 @@ class UpdateDatafieldsForm extends AbstractType
             'shorten_filename',
             'checkbox',
             array(
-                'label'  => 'Shorten Displayed Filename ?',
+                'label'  => 'Shorten Displayed Filename',
                 'required' => false
             )
         );
@@ -155,7 +165,7 @@ class UpdateDatafieldsForm extends AbstractType
             'radio_option_name_sort',
             'checkbox',
             array(
-                'label'  => 'Sort Options Alphabetically ?',
+                'label'  => 'Sort Options Alphabetically',
                 'required' => false
             )
         );

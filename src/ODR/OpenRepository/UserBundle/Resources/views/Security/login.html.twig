@@ -5,43 +5,42 @@
     <div>{{ error.messageKey|trans(error.messageData, 'security') }}</div>
 {% endif %}
 
-<form action="{{ path("fos_user_security_check") }}" method="post">
+<form action="{{ path("fos_user_security_check") }}" method="post" class="pure-form {#pure-form-aligned#}">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
     <input type="hidden" id="target_path" name="_target_path" value="" />
 {#
     <input type="hidden" id="failure_path" name="_failure_path" value="" />
 #}
-    <table id="ODRLoginTable">
-    <tr>
-        <td>
-    <label for="username">{{ 'security.login.username'|trans({}, 'FOSUserBundle') }}</label>
-        </td>
-        <td>
-    <input type="text" id="username" name="_username" value="{{ last_username }}" required="required" />
-        </td>
-    </tr>
-    <tr> 
-        <td>
-    <label for="password">{{ 'security.login.password'|trans({}, 'FOSUserBundle') }}</label>
-        </td>
-        <td>
-        <input type="password" id="password" name="_password" required="required" />
-        </td>
-    </tr>
-    <tr>
-        <td colspan="2">
+    <fieldset>
+        <div class="pure-control-group">
+            <label for="username">{{ 'security.login.username'|trans({}, 'FOSUserBundle') }}</label>
+            <input type="text" id="username" name="_username" value="{{ last_username }}" required="required" />
+        </div>
+        <div class="pure-control-group">
+            <label for="password">{{ 'security.login.password'|trans({}, 'FOSUserBundle') }}</label>
+            <input type="password" id="password" name="_password" required="required" />
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <div class="pure-control-group">
             <input type="checkbox" id="remember_me" name="_remember_me" value="on" />
             <label for="remember_me">{{ 'security.login.remember_me'|trans({}, 'FOSUserBundle') }}</label>
             <input class="pure-button pure-button-primary" type="submit" id="_submit" name="_submit" value="{{ 'security.login.submit'|trans({}, 'FOSUserBundle') }}" />
-        </td>
-    </table>
+        </div>
+{% if not app.user %}
+        <div class="pure-control-group">
+            <a class="address" href="{{ path('fos_user_resetting_request') }}" >Forgot Password?</a>
+        </div>
+{% endif %}
+    </fieldset>
 </form>
 
-{#
-<!-- Grab Google CDN's jQuery, with a protocol relative URL; fall back to local if offline -->
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.js"></script>
-<script>window.jQuery || document.write('<script src="/js/libs/jquery-1.7.2.js"><\/script>')</script>
-#}
+<style>
+    .pure-control-group {
+        margin-top: 5px;
+    }
+</style>
 
 <script>
     $(function() {

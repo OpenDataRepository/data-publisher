@@ -57,6 +57,7 @@ use ODR\AdminBundle\Form\IntegerValueForm;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\Form\FormError;
 
 
 class RecordController extends ODRCustomController
@@ -485,6 +486,7 @@ class RecordController extends ODRCustomController
 
             // Determine which url to redirect to
             $url = '';
+/*
             if ($search_key == '') {
                 // Not deleting from a search result list
                 if ( count($remaining) > 0 ) {
@@ -506,6 +508,18 @@ class RecordController extends ODRCustomController
                     // Redirect to search page
                     $url = $this->generateURL('odr_search');
                 }
+            }
+*/
+            if ($search_key == '')
+                $search_key = 'dt_id='.$datatype->getId();
+
+            if ( count($remaining) > 0 ) {
+                // Redirect to search list
+                $url = $this->generateURL('odr_search_render', array('search_key' => $search_key));
+            }
+            else {
+                // Redirect to search page
+                $url = $this->generateURL('odr_search');
             }
 
             $return['d'] = $url;
@@ -1200,7 +1214,9 @@ class RecordController extends ODRCustomController
                 return parent::deletedEntityError('DataType');
 
             $datatype_id = $datatype->getId();
-            $sortfield = $datatype->getSortField();
+            $external_id_datafield = $datatype->getExternalIdField();
+            $sort_datafield = $datatype->getSortField();
+            $name_datafield = $datatype->getNameField();
 
             $datafield_id = $_POST[$record_type.'Form']['data_field'];
             $datafield = $repo_datafield->find($datafield_id);
@@ -1269,55 +1285,63 @@ class RecordController extends ODRCustomController
 //print_r($_POST);
 //exit();
 
-            // Check to see if the field's new data has to be unique...and if so, enforce uniqueness
-            $uniqueness_failure = false;
-            $uniqueness_failure_msg = '';
+            // TODO - ...
+            $old_value = $new_value = '';
 
+            if ($record_type == 'File' || $record_type == 'Image') {
+                // Can't look up old/new values for these...
+                $new_value = 'a';
+            }
+            else {
+                // Grab the new value for the datafield
+                if ( isset($_POST[$record_type.'Form']['value']) )
+                    $new_value = $_POST[$record_type.'Form']['value'];
+
+                // Save the old value incase we have to revert
+                $drf = $my_obj->getDataRecordFields();
+                $tmp_obj = $drf->getAssociatedEntity();
+                $old_value = $tmp_obj->getValue();
+
+                if ($record_type == 'DatetimeValue')
+                    $old_value = $old_value->format('Y-m-d');
 /*
-            if ($datatype->getUniqueField() == $datafield) {
-                // Ensure the new value doesn't collide with any existing value
-                $new_value = $_POST[$record_type.'Form']['value'];
-                $failed_values = parent::verifyUniqueness($datafield, (array)$new_value, $datarecord);
-
-                // If a non-empty array was returned, the value collided
-                if ( count($failed_values) > 0 ) {
-                    // Garb the datarecordfield that holds the original piece of data
-                    $drf = $repo_datarecordfields->findOneBy( array("dataRecord" => $datarecord->getId(), "dataField" => $datafield->getId()) );
-
-                    // Determine which method to use to extract the old value
-                    $old_value = '';
-                    switch($record_type) {
-                        case 'DecimalValue':
-                        case 'IntegerValue':
-                        case 'ShortVarchar':
-                        case 'MediumVarchar':
-                        case 'LongVarchar':
-                        case 'LongText':
-                            $tmp_obj = parent::loadFromDataRecordField($drf, $record_type);
-                            $old_value = $tmp_obj->getValue();
-                            break;
-                    }
-
-                    $form_name = 'EditDataRecordFieldsForm_'.$_POST[$record_type.'Form']['data_record_fields'];
-
-                    // Build the error message
-                    $uniqueness_failure = true;
-                    $uniqueness_failure_msg = $form_name.'||'.$old_value.'||The datafield "'.$datafield->getFieldName().'" is marked as unique, but the value "'.$new_value.'" already exists in another datarecord!';
-                }
-            }
+print 'new: '.$new_value."\n";
+print 'old: '.$old_value."\n";
+if ( $new_value !== $old_value )
+    print 'no match'."\n";
+else
+    print 'match'."\n";
 */
-
-            if ($uniqueness_failure) {
-                // Notify of a uniqueness failure
-                $return['r'] = 2;
-                $return['t'] = '';
-                $return['d'] = $uniqueness_failure_msg;
             }
-            // $templating = $this->get('templating');
-            else if ($request->getMethod() == 'POST') {
+
+            // Only save if the new value is different from the old value
+            if ($new_value !== $old_value && $request->getMethod() == 'POST') {
                 $form->bind($request, $my_obj);
+
+                // If the datafield is marked as unique...
+                if ( $datafield->getIsUnique() == true ) {
+
+                    // Run a quick query to check whether the new value is a duplicate of an existing value 
+                    $query = $em->createQuery(
+                       'SELECT e.id
+                        FROM ODRAdminBundle:'.$record_type.' AS e
+                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                        JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                        WHERE e.dataField = :datafield AND e.value = :value
+                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                    )->setParameters( array('datafield' => $datafield->getId(), 'value' => $new_value) );
+                    $results = $query->getArrayResult();
+
+                    // If something got returned, add a Symfony error to the form so the subsequent isValid() call will fail
+                    if ( count($results) > 0 )
+                        $form->addError( new FormError('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield...reverting back to old value.') );
+                }
+
+                // Ensure the form has no errors
                 if ($form->isValid()) {
 
+                    // ----------------------------------------
+                    // File and Image datafields need work done prior to saving the storage entity
                     if ($record_type == 'Image' || $record_type == 'File') {
                         // Pre-persist
                         $my_obj->setLocalFileName('temp');
@@ -1332,16 +1356,17 @@ class RecordController extends ODRCustomController
                         $my_obj->setOriginalFileName($my_obj->getFile()->getClientOriginalName());
                         $my_obj->setOriginal('1');
                         $my_obj->setDisplayOrder(0);
-                        $my_obj->setPublicDate(new \DateTime('1980-01-01 00:00:00'));   // default to not public
+                        $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public    TODO - let user decide default status
                     }
                     else if ($record_type == 'File') {
                         // Move and store file
                         $my_obj->setOriginalFileName($my_obj->getUploadedFile()->getClientOriginalName());
                         $my_obj->setGraphable('1');
-                        $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // TODO - default to public?
+                        $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
                     }
 
-                    // Post Persist
+                    // ----------------------------------------
+                    // ...they also need some more work done after saving the storage entity
                     $em->persist($my_obj);
                     $em->flush();
 
@@ -1381,12 +1406,32 @@ class RecordController extends ODRCustomController
                         break;
                     }
 
-                    // Commit Changes
+/*
+                    // ----------------------------------------
+                    // If the field that got modified is the name/sort/external_id field for this datatype, update this datarecord's cache values to match the new value
+                    if ($name_datafield !== null && $name_datafield->getId() == $datafield->getId()) {
+                        $datarecord->setNamefieldValue( $new_value );
+                        $em->persist($datarecord);
+                    }
+                    if ($sort_datafield !== null && $sort_datafield->getId() == $datafield->getId()) {
+                        $datarecord->setSortfieldValue( $new_value );
+                        $em->persist($datarecord);
+
+                        // Since a sort value got changed, also delete the default sorted list of datarecords for this datatype
+                        $memcached->delete($memcached_prefix.'.data_type_'.$datatype_id.'_record_order');
+                    }
+                    if ($external_id_datafield !== null && $external_id_datafield->getId() == $datafield->getId()) {
+                        $datarecord->setExternalId( $new_value );
+                        $em->persist($datarecord);
+                    }
+*/
+                    // Save changes
                     $em->persist($my_obj);
                     $em->flush();
 
 
-                    // If the datafield needed to be reloaded (file/image), do it and return that?
+                    // ----------------------------------------
+                    // If the datafield needed to be reloaded (file/image), notify the ajax return of that
                     if ($need_datafield_reload) {
                         $return['r'] = 0;
                         $return['t'] = 'html';
@@ -1395,11 +1440,6 @@ class RecordController extends ODRCustomController
                             'datafield' => $datafield->getId()
                         );
                     }
-
-                    // If the field that got modified is the sort field for this datatype, delete the pre-sorted datarecord list ShortResults uses from memcached
-                    // This should force a resort next time the ShortResults for this datatype is accessed
-                    if ($sortfield !== null && $sortfield->getId() == $datafield->getId())
-                        $memcached->delete($memcached_prefix.'.data_type_'.$datatype_id.'_record_order');
 
                     // Determine whether ShortResults needs a recache
                     $options = array();
@@ -1413,6 +1453,7 @@ class RecordController extends ODRCustomController
                     parent::updateDatarecordCache($datarecord_id, $options);
                 }
                 else {
+/*
 //                    $errors = $this->getErrorMessages($form);
                     $errors = parent::ODR_getErrorMessages($form);
 //print_r($errors);   // TODO - what was the point of this?
@@ -1420,6 +1461,19 @@ class RecordController extends ODRCustomController
 //                    $error = $errors['file'][0];
 //                    $error = $errors['uploaded_file'][0];
                     throw new \Exception($errors);
+*/
+                    // Form validation failed
+                    // TODO - fix parent::ODR_getErrorMessages() to be consistent enough to use
+                    $return['r'] = 2;
+                    $return['old_value'] = $old_value;
+
+                    $errors = $form->getErrors();
+                    $error_str = '';
+                    foreach ($errors as $num => $error)
+                        $error_str .= 'ERROR: '.$error->getMessage()."\n";
+
+                    $return['error'] = $error_str;
+
                 }
             }
         }
@@ -1442,11 +1496,12 @@ class RecordController extends ODRCustomController
      * @param integer $ancestor_datatype_id   The database id of the DataType that is being linked from
      * @param integer $descendant_datatype_id The database id of the DataType that is being linked to
      * @param integer $local_datarecord_id    The database id of the DataRecord being modified.
+     * @param string $search_key              The current search on this tab
      * @param Request $request
      * 
      * @return a Symfony JSON response containing HTML
      */
-    public function getlinkablerecordsAction($ancestor_datatype_id, $descendant_datatype_id, $local_datarecord_id, Request $request)
+    public function getlinkablerecordsAction($ancestor_datatype_id, $descendant_datatype_id, $local_datarecord_id, $search_key, Request $request)
     {
 
         $return = array();
@@ -1628,13 +1683,18 @@ if ($debug) {
 //print_r($table_html);
 
             // Grab the column names for the datatables plugin
-            $column_names = parent::getDatatablesColumnNames($remote_datatype->getId());
+            $column_data = parent::getDatatablesColumnNames($remote_datatype->getId());
+            $column_names = $column_data['column_names'];
+            $num_columns = $column_data['num_columns'];
+
 
             // Render the dialog box for this request
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Record:link_datarecord_form.html.twig',
                     array(
+                        'search_key' => $search_key,
+
                         'local_datarecord' => $local_datarecord,
                         'ancestor_datatype' => $ancestor_datatype,
                         'descendant_datatype' => $descendant_datatype,
@@ -1646,6 +1706,7 @@ if ($debug) {
                         'count' => count($linked_datarecords),
                         'table_html' => $table_html,
                         'column_names' => $column_names,
+                        'num_columns' => $num_columns,
                     )
                 )
             );
@@ -1971,12 +2032,13 @@ if ($debug)
      *
      * @param Request $request
      * @param integer $datarecord_id
+     * @param string $search_key
      * @param string $template_name
      * @param integer $child_datatype_id
      *
      * @return string
      */
-    private function GetDisplayData(Request $request, $datarecord_id, $template_name = 'default', $child_datatype_id = null)
+    private function GetDisplayData(Request $request, $datarecord_id, $search_key, $template_name = 'default', $child_datatype_id = null)
     {
         // Required objects
         $em = $this->getDoctrine()->getManager();
@@ -2128,6 +2190,8 @@ if ($debug)
         $html = $templating->render(
             $template,
             array(
+                'search_key' => $search_key,
+
                 'datatype_tree' => $datatype_tree,
                 'datarecord_tree' => $datarecord_tree,
                 'theme' => $theme,
@@ -2201,69 +2265,81 @@ if ($debug)
 
 
             // ----------------------------------------
-            // TODO - this block of code is duplicated at least 5 times across various controllers
+            // If this datarecord is being viewed from a search result list, attempt to grab the list of datarecords from that search result
+            $datarecord_list = '';
             $encoded_search_key = '';
-            $datarecords = '';
             if ($search_key !== '') {
-                $search_controller = $this->get('odr_search_controller', $request);
-                $search_controller->setContainer($this->container);
+                // 
+                $data = parent::getSavedSearch($search_key, $logged_in, $request);
+                $encoded_search_key = $data['encoded_search_key'];
+                $datarecord_list = $data['datarecord_list'];
 
-                if ( !$session->has('saved_searches') ) {
-                    // no saved searches at all for some reason, redo the search with the given search key...
-                    $search_controller->performSearch($search_key, $request);
+                // If the user is attempting to view a datarecord from a search that returned no results...
+                if ($encoded_search_key !== '' && $datarecord_list === '') {
+                    // ...get the search controller to redirect to "no results found" page
+                    $search_controller = $this->get('odr_search_controller', $request);
+                    return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
                 }
-
-                // Grab the list of saved searches and attempt to locate the desired search
-                $saved_searches = $session->get('saved_searches');
-                $search_checksum = md5($search_key);
-                if ( !isset($saved_searches[$search_checksum]) ) {
-                    // no saved search for this query, redo the search...
-                    $search_controller->performSearch($search_key, $request);
-
-                    // Grab the list of saved searches again
-                    $saved_searches = $session->get('saved_searches');
-                }
-
-                $search_params = $saved_searches[$search_checksum];
-                $was_logged_in = $search_params['logged_in'];
-
-                // If user's login status changed between now and when the search was run...
-                if ($was_logged_in !== $logged_in) {
-                    // ...run the search again 
-                    $search_controller->performSearch($search_key, $request);
-                    $saved_searches = $session->get('saved_searches');
-                    $search_params = $saved_searches[$search_checksum];
-                }
-
-                // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
-                $datarecords = $search_params['datarecords'];
-                $encoded_search_key = $search_params['encoded_search_key'];
             }
 
-
-            // If the user is attempting to view a datarecord from a search that returned no results...
-            if ($encoded_search_key !== '' && $datarecords === '') {
-                // ...redirect to "no results found" page
-                return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
-            }
 
             // ----------------------------------------
-            // If this edit request is coming from a search result...
-            $search_header = parent::getSearchHeaderValues($datarecords, $datarecord->getId(), $request);
+            // Grab the tab's id, if it exists
+            $params = $request->query->all();
+            $odr_tab_id = '';
+            if ( isset($params['odr_tab_id']) )
+                $odr_tab_id = $params['odr_tab_id'];
+
+            // Locate a sorted list of datarecords for search_header.html.twig if possible
+            if ( $session->has('stored_tab_data') && $odr_tab_id !== '' ) {
+                // Prefer the use of the sorted lists created during usage of the datatables plugin over the default list created during searching
+                $stored_tab_data = $session->get('stored_tab_data');
+
+                if ( isset($stored_tab_data[$odr_tab_id]) ) {
+                    // Grab datarecord list if it exists
+                    if ( isset($stored_tab_data[$odr_tab_id]['datarecord_list']) )
+                        $datarecord_list = $stored_tab_data[$odr_tab_id]['datarecord_list'];
+
+                    // Grab start/length from the datatables state object if it exists
+                    if ( isset($stored_tab_data[$odr_tab_id]['state']) ) {
+                        $start = intval($stored_tab_data[$odr_tab_id]['state']['start']);
+                        $length = intval($stored_tab_data[$odr_tab_id]['state']['length']);
+
+                        // Calculate which page datatables claims it's on
+                        $datatables_page = 0;
+                        if ($start > 0)
+                            $datatables_page = $start / $length;
+                        $datatables_page++; 
+
+                        // If the offset doesn't match the page, update it
+                        if ( $offset !== '' && intval($offset) !== intval($datatables_page) ) {
+                            $new_start = strval( (intval($offset) - 1) * $length );
+
+                            $stored_tab_data[$odr_tab_id]['state']['start'] = $new_start;
+                            $session->set('stored_tab_data', $stored_tab_data);
+                        }
+                    }
+                }
+            }
 
 
-            // Render the record header separately
-            $templating = $this->get('templating');
+            // ----------------------------------------
+            // Build an array of values to use for navigating the search result list, if it exists
+            $record_header_html = '';
+            $search_header = parent::getSearchHeaderValues($datarecord_list, $datarecord->getId(), $request);
+
             $router = $this->get('router');
-            $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));
+            $templating = $this->get('templating');
+
+            $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));    // blank path
             $record_header_html = $templating->render(
                 'ODRAdminBundle:Record:record_header.html.twig',
                 array(
+                    'datatype_permissions' => $user_permissions,
                     'datarecord' => $datarecord,
                     'datatype' => $datatype,
-                    'datatype_permissions' => $user_permissions,
 
-//                    'search_key' => $search_key,
+                    // values used by search_header.html.twig 
                     'search_key' => $encoded_search_key,
                     'offset' => $offset,
                     'page_length' => $search_header['page_length'],
@@ -2275,9 +2351,10 @@ if ($debug)
                 )
             );
 
+
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
-                'html' => $record_header_html.self::GetDisplayData($request, $datarecord->getId(), 'default'),
+                'html' => $record_header_html.self::GetDisplayData($request, $datarecord->getId(), $encoded_search_key, 'default'),
             );
 
             // Store which datarecord this is in the session so 
@@ -2323,6 +2400,7 @@ if ($debug)
                 $drf = $repo_datarecordfields->find($datarecordfield_id);
 
                 $type_class = $drf->getDataField()->getFieldType()->getTypeClass();
+//print $type_class."\n";
                 $repo_entity = $em->getRepository("ODR\\AdminBundle\\Entity\\".$type_class);
                 $entity = $repo_entity->find($entity_id);
 

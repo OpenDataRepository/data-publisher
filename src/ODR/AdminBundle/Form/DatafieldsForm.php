@@ -39,19 +39,6 @@ class DatafieldsForm extends AbstractType
             )
         );
 
-        /* Entity form with query 
-        $builder->add(
-            'item_status','
-            entity', 
-            array(
-                'class'=>'Surgeworks\AdminBundle\Entity\Status', 
-                'property'=>'status_name',
-                'query_builder' => function (\Surgeworks\AdminBundle\Entity\StatusRepository $repository)
-                {return $repository->createQueryBuilder('s')->where('s.status_type = ?1')->setParameter(1, 'basic')->add('orderBy', 's.sort_order ASC');} 
-            )
-        );
-        */
-
         $builder->add(
             'field_name', 
             'text', 
@@ -83,6 +70,14 @@ class DatafieldsForm extends AbstractType
             'text', 
             array(
                 'label'  => 'PHP Validator',
+            )
+        );
+
+        $builder->add(
+            'is_unique',
+            'checkbox',
+            array(
+                'label'  => 'Unique ?',
             )
         );
 

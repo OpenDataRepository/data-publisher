@@ -95,12 +95,37 @@ class ODRCustomController extends Controller
         $session = $this->get('session');
         $repo_datarecord = $this->getDoctrine()->getManager()->getRepository('ODRAdminBundle:DataRecord');
 
-        // Get or set default page length   // TODO - rename
-        $page_length = 10;
-        if ( $session->has('shortresults_page_length') )
-            $page_length = $session->get('shortresults_page_length');
-        else
-            $session->set('shortresults_page_length', $page_length);
+        $user_permissions = array();
+        if ($user !== 'anon.')
+            $user_permissions = self::getPermissionsArray($user->getId(), $request);
+
+        // Grab the tab's id, if it exists
+        $params = $request->query->all();
+        $odr_tab_id = '';
+        if ( isset($params['odr_tab_id']) ) {
+            // If the tab id exists, use that
+            $odr_tab_id = $params['odr_tab_id'];
+        }
+        else {
+            // ...otherwise, generate a random key to identify this tab
+            $tokenGenerator = $this->container->get('fos_user.util.token_generator');
+            $odr_tab_id = substr($tokenGenerator->generateToken(), 0, 15);
+        }
+
+        // Grab the page length for this tab from the session, if possible
+        $page_length = 100;
+        if ( $odr_tab_id !== '' && $session->has('stored_tab_data') ) {
+            $stored_tab_data = $session->get('stored_tab_data');
+            if ( isset($stored_tab_data[$odr_tab_id]) ) {
+                if ( isset($stored_tab_data[$odr_tab_id]['page_length']) ) {
+                    $page_length = $stored_tab_data[$odr_tab_id]['page_length'];
+                }
+                else {
+                    $stored_tab_data[$odr_tab_id]['page_length'] = $page_length;
+                    $session->set('stored_tab_data', $stored_tab_data);
+                }
+            }
+        }
 
         // Save how many datarecords were passed to this function
         $total_datarecords = count($datarecords);
@@ -126,6 +151,10 @@ class ODRCustomController extends Controller
         $final_html = '';
         if ( $theme->getId() == 2 ) {   // TODO - THIS HAS TO SUPPORT MORE THAN JUST ONE
             // -----------------------------------
+            // Ensure offset exists for shortresults list
+            if ( (($offset-1) * $page_length) > count($datarecords) )
+                $offset = 1;
+
             // Reduce datarecord_list to just the list that will get rendered
             $datarecord_list = array();
             $start = ($offset-1) * $page_length;
@@ -155,6 +184,8 @@ class ODRCustomController extends Controller
                     'html' => $html,
                     'scroll_target' => $scroll_target,
                     'user' => $user,
+                    'user_permissions' => $user_permissions,
+                    'odr_tab_id' => $odr_tab_id,
 
                     // required for load_datarecord_js.html.twig
                     'target' => $target,
@@ -167,11 +198,14 @@ class ODRCustomController extends Controller
         else if ( $theme->getId() == 4 ) {  // TODO - THIS IS NOT AN OFFICIAL OR CORRECT USE OF THIS THEME
             // -----------------------------------
             // Grab the...
-            $column_names = self::getDatatablesColumnNames($datatype->getId());
+            $column_data = self::getDatatablesColumnNames($datatype->getId());
+            $column_names = $column_data['column_names'];
+            $num_columns = $column_data['num_columns'];
 /*
 print_r($column_names);
 print "\n\n";
 */
+
             // Don't render the starting textresults list here, it'll always be loaded via ajax later
 
             // -----------------------------------
@@ -186,9 +220,12 @@ print "\n\n";
                     'datatype' => $datatype,
                     'count' => $total_datarecords,
                     'column_names' => $column_names,
+                    'num_columns' => $num_columns,
+                    'odr_tab_id' => $odr_tab_id,
                     'page_length' => $page_length,
                     'scroll_target' => $scroll_target,
                     'user' => $user,
+                    'user_permissions' => $user_permissions,
 
                     // required for load_datarecord_js.html.twig
                     'target' => $target,
@@ -344,11 +381,27 @@ print "\n\n";
     {
         // Grab necessary objects
         $session = $request->getSession();
-        $page_length = 10;
-        if ( $session->has('shortresults_page_length') )
-            $page_length = $session->get('shortresults_page_length');
-        else
-            $session->set('shortresults_page_length', 10);
+
+        // Grab the tab's id, if it exists
+        $params = $request->query->all();
+        $odr_tab_id = '';
+        if ( isset($params['odr_tab_id']) )
+            $odr_tab_id = $params['odr_tab_id'];
+
+        // Grab the page length for this tab from the session, if possible
+        $page_length = 100;
+        if ( $odr_tab_id !== '' && $session->has('stored_tab_data') ) {
+            $stored_tab_data = $session->get('stored_tab_data');
+            if ( isset($stored_tab_data[$odr_tab_id]) ) {
+                if ( isset($stored_tab_data[$odr_tab_id]['page_length']) ) {
+                    $page_length = $stored_tab_data[$odr_tab_id]['page_length'];
+                }
+                else {
+                    $stored_tab_data[$odr_tab_id]['page_length'] = $page_length;
+                    $session->set('stored_tab_data', $stored_tab_data);
+                }
+            }
+        }
 
         // If only one page, don't bother with pagination block
         $num_pages = ceil( $num_datarecords / $page_length );
@@ -379,6 +432,61 @@ print "\n\n";
 
 
     /**
+     * Get (or create) a list of datarecords returned by searching on the given search key
+     *
+     * @param string $search_key
+     * @param boolean $logged_in Whether the user is logged in or not
+     * @param Request $request
+     *
+     * @return array TODO
+     */
+    protected function getSavedSearch($search_key, $logged_in, Request $request)
+    {
+        //
+        $session = $request->getSession();
+        $data = array('encoded_search_key' => '', 'datarecord_list' => '');
+
+        //
+        $search_controller = $this->get('odr_search_controller', $request);
+        $search_controller->setContainer($this->container);
+
+        if ( !$session->has('saved_searches') ) {
+            // No saved searches at all, redo the search with the given search key...
+            $search_controller->performSearch($search_key, $request);
+        }
+
+        // Grab the list of saved searches and attempt to locate the desired search
+        $saved_searches = $session->get('saved_searches');
+        $search_checksum = md5($search_key);
+
+        if ( !isset($saved_searches[$search_checksum]) ) {
+            // No saved search for this query, redo the search...
+            $search_controller->performSearch($search_key, $request);
+
+            // Grab the list of saved searches again
+            $saved_searches = $session->get('saved_searches');
+        }
+
+        $search_params = $saved_searches[$search_checksum];
+        $was_logged_in = $search_params['logged_in'];
+
+        // If user's login status changed between now and when the search was run...
+        if ($was_logged_in !== $logged_in) {
+            // ...run the search again 
+            $search_controller->performSearch($search_key, $request);
+            $saved_searches = $session->get('saved_searches');
+            $search_params = $saved_searches[$search_checksum];
+        }
+
+        // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
+        $data['datarecord_list'] = $search_params['datarecords'];
+        $data['encoded_search_key'] = $search_params['encoded_search_key'];
+
+        return $data;
+    }
+
+
+    /**
      * Determines values for the search header (next/prev/return to search results) of Results/Records when searching
      *
      * @param string $datarecord_list A comma-separated list of datarecord ids that satisfy the search TODO - why comma-separated?  just going to explode() them...
@@ -391,11 +499,27 @@ print "\n\n";
     {
         // Grab necessary objects
         $session = $request->getSession();
-        $page_length = 10;
-        if ( $session->has('shortresults_page_length') )
-            $page_length = $session->get('shortresults_page_length');
-        else
-            $session->set('shortresults_page_length', 10);
+
+        // Grab the tab's id, if it exists
+        $params = $request->query->all();
+        $odr_tab_id = '';
+        if ( isset($params['odr_tab_id']) )
+            $odr_tab_id = $params['odr_tab_id'];
+
+        // Grab the page length for this tab from the session, if possible
+        $page_length = 100;
+        if ( $odr_tab_id !== '' && $session->has('stored_tab_data') ) {
+            $stored_tab_data = $session->get('stored_tab_data');
+            if ( isset($stored_tab_data[$odr_tab_id]) ) {
+                if ( isset($stored_tab_data[$odr_tab_id]['page_length']) ) {
+                    $page_length = $stored_tab_data[$odr_tab_id]['page_length'];
+                }
+                else {
+                    $stored_tab_data[$odr_tab_id]['page_length'] = $page_length;
+                    $session->set('stored_tab_data', $stored_tab_data);
+                }
+            }
+        }
 
         $next_datarecord = '';
         $prev_datarecord = '';
@@ -651,6 +775,44 @@ print "\n\n";
 
 
     /**
+     * Utility function to returns the DataTree table in array format
+     *
+     * @param EntityManager $em
+     *
+     * @return array TODO
+     */
+    public function getDatatreeArray($em)
+    {
+        // 
+        $query = $em->createQuery(
+           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dt.is_link AS is_link
+            FROM ODRAdminBundle:DataType AS ancestor
+            JOIN ODRAdminBundle:DataTree AS dt WITH ancestor = dt.ancestor
+            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
+            WHERE ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND descendant.deletedAt IS NULL');
+        $results = $query->getArrayResult();
+
+        $datatree_array = array(
+//            'ancestor_of' => array(),
+          'descendant_of' => array(),
+        );
+        foreach ($results as $num => $result) {
+            $ancestor_id = $result['ancestor_id'];
+            $descendant_id = $result['descendant_id'];
+            $is_link = $result['is_link'];
+
+            if ( !isset($datatree_array['descendant_of'][$ancestor_id]) )
+                $datatree_array['descendant_of'][$ancestor_id] = '';
+
+            if ($is_link == 0)
+                $datatree_array['descendant_of'][$descendant_id] = $ancestor_id;
+        }
+
+        return $datatree_array;
+    }
+
+
+    /**
      * Builds an array of all datatype permissions possessed by the given user.
      * 
      * @param integer $user_id          The database id of the user to grab permissions for
@@ -662,13 +824,12 @@ print "\n\n";
     public function getPermissionsArray($user_id, Request $request, $save_permissions = true)
     {
         try {
+//$save_permissions = false;
             $session = $request->getSession();
             if ( !$save_permissions || !$session->has('permissions') ) {
-                // Permissions not set, need to build the array
+                // Permissions not set, need to build an array
                 $em = $this->getDoctrine()->getManager();
                 $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
-                $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-//                $user_permissions = $repo_user_permissions->findBy( array('user_id' => $user_id) );
 
                 $query = $em->createQuery(
                    'SELECT dt.id AS dt_id, up.can_view_type, up.can_edit_record, up.can_add_record, up.can_delete_record, up.can_design_type, up.is_type_admin
@@ -679,6 +840,9 @@ print "\n\n";
                 $results = $query->getArrayResult();
 //print_r($results);
 //return;
+
+                // Grab the contents of ODRAdminBundle:DataTree as an array
+                $datatree_array = self::getDatatreeArray($em);
 
                 $all_permissions = array();
                 foreach ($results as $result) {
@@ -696,13 +860,12 @@ print "\n\n";
                         $save = true;
 
                         // If this is a child datatype, then the user needs to be able to access the edit page of its eventual top-level parent datatype
-                        $datatree = $repo_datatree->findOneBy( array('descendant' => $datatype_id, 'is_link' => 0) );   // should never be more than one...
-                        while ($datatree !== null) {
-                            $ancestor = $datatree->getAncestor();
-                            $all_permissions[$ancestor->getId()]['child_edit'] = 1;
-
-                            $datatree = $repo_datatree->findOneBy( array('descendant' => $ancestor->getId(), 'is_link' => 0) );   // should never be more than one...
-                        }               
+                        $dt_id = $datatype_id;
+                        while ( isset($datatree_array['descendant_of'][$dt_id]) ) {
+                            $dt_id = $datatree_array['descendant_of'][$dt_id];
+                            if ($dt_id !== '')
+                                $all_permissions[$dt_id]['child_edit'] = 1;
+                        }
                     }
                     if ($result['can_add_record'] == 1) {
                         $all_permissions[$datatype_id]['add'] = 1;
@@ -731,7 +894,11 @@ print "\n\n";
                     // Save and return the permissions array
                     $session->set('permissions', $all_permissions);
                 }
-
+/*
+print '<pre>';
+print_r($all_permissions);
+print '</pre>';
+*/
                 return $all_permissions;
             }
             else {
@@ -935,27 +1102,10 @@ $save_permissions = false;
 
         // ----------------------------------------
         // Get the top-most parent of the datatype scheduled for update
-        $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-            FROM ODRAdminBundle:DataTree dt
-            JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE dt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL AND dt.is_link = 0'
-        );
-        $results = $query->getResult();
-//print_r($results);
-        $parent_of = array();
-        foreach ($results as $result) {
-            $ancestor_id = $result['ancestor_id'];
-            $descendant_id = $result['descendant_id'];
+        $datatree_array = self::getDatatreeArray($em);
+        while ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '' )
+            $datatype_id = $datatree_array['descendant_of'][$datatype_id];
 
-            $parent_of[$descendant_id] = $ancestor_id;
-        }
-//print_r($parent_of);
-
-        // Grab the top-most parent of this datatype
-        while ( isset($parent_of[$datatype_id]) )
-            $datatype_id = $parent_of[$datatype_id];
 
         // ----------------------------------------
         // Grab options
@@ -1290,12 +1440,13 @@ $save_permissions = false;
             }
             else {
                 $field_typename = $sortfield->getFieldType()->getTypeName();
+                $field_typeclass = $sortfield->getFieldType()->getTypeClass();
 
                 // Create a query to return a collection of datarecord ids, sorted by the sortfield of the datatype
                 $query = $em->createQuery(
                     'SELECT dr.id, e.value
                      FROM ODRAdminBundle:DataRecord AS dr
-                     JOIN ODRAdminBundle:'.$sortfield->getFieldType()->getTypeClass().' AS e WITH e.dataRecord = dr
+                     JOIN ODRAdminBundle:'.$field_typeclass.' AS e WITH e.dataRecord = dr
                      WHERE dr.dataType = :datatype AND e.dataField = :datafield
                      AND dr.deletedAt IS NULL AND e.deletedAt IS NULL
                      ORDER BY e.value'
@@ -1530,7 +1681,11 @@ $save_permissions = false;
     {
         // Initial create
         $datarecord = new DataRecord();
+
         $datarecord->setExternalId('');
+        $datarecord->setNamefieldValue('');
+        $datarecord->setSortfieldValue('');
+
         $datarecord->setDataType($datatype);
         $datarecord->setCreatedBy($user);
         $datarecord->setUpdatedBy($user);
@@ -1656,10 +1811,18 @@ $save_permissions = false;
             $my_obj->setDataRecordFields($drf);
 
             $my_obj->setFieldType($field_type);
-            if ($field_type->getTypeClass() == 'DatetimeValue')
+            if ($field_type->getTypeClass() == 'DatetimeValue') {
                 $my_obj->setValue( new \DateTime('0000-00-00 00:00:00') );
-            else
+            }
+            else if ($field_type->getTypeClass() == 'DecimalValue') {
+                $my_obj->setBase(0);
+                $my_obj->setExponent(0);
+                $my_obj->setOriginalValue('0');
+                $my_obj->setValue(0);
+            }
+            else {
                 $my_obj->setValue("");
+            }
             $my_obj->setCreatedBy($user);
             $my_obj->setUpdatedBy($user);
             $em->persist($my_obj);
@@ -1759,11 +1922,12 @@ $save_permissions = false;
         $datafield->setUpdatedBy($user);
         $datafield->setDataType($datatype);
         $datafield->setFieldType($fieldtype);
-        $datafield->setRequired('0');
-        $datafield->setSearchable('0');
-        $datafield->setUserOnlySearch('0');
+        $datafield->setIsUnique(false);
+        $datafield->setRequired(false);
+        $datafield->setSearchable(0);
+        $datafield->setUserOnlySearch(false);
         $datafield->setRenderPlugin($renderplugin);
-        $datafield->setDisplayOrder('-1');
+        $datafield->setDisplayOrder(-1);
         $datafield->setChildrenPerRow(1);
         $datafield->setRadioOptionNameSort(0);
         if ( $fieldtype->getTypeClass() === 'File' || $fieldtype->getTypeClass() === 'Image' ) {
@@ -2033,8 +2197,9 @@ $save_permissions = false;
     public function getDatatablesColumnNames($datatype_id)
     {
         // First and second columns are always datarecord id and sort value, respectively
-        $column_names  = '{"title":"datarecord_id"},';
-        $column_names .= '{"title":"datarecord_sortvalue"},';
+        $column_names  = '{"title":"datarecord_id","visible":false,"searchable":false},';
+        $column_names .= '{"title":"datarecord_sortvalue","visible":false,"searchable":false},';
+        $num_columns = 2;
 
         // Do a query to locate the names of all datafields that can be in the table
         $em = $this->getDoctrine()->getManager();
@@ -2050,9 +2215,10 @@ $save_permissions = false;
         foreach ($results as $num => $data) {
             $fieldname = $data['field_name'];
             $column_names .= '{"title":"'.$fieldname.'"},';
+            $num_columns++;
         }
 
-        return $column_names;
+        return array('column_names' => $column_names, 'num_columns' => $num_columns);
     }
 
 
@@ -2154,10 +2320,10 @@ if ($debug)
         ksort($value_list);
 
         // Don't need to call twig just to do this one line...
-//        $html = "[\"".$datarecord_id."\",\"".$datarecord->getSortFieldValue()."\",".implode(',', $value_list)."],";
+//        $html = "[\"".$datarecord_id."\",\"".$datarecord->getSortfieldValue()."\",".implode(',', $value_list)."],";
         $html = array();
         $html[] = strval($datarecord_id);
-        $html[] = strval($datarecord->getSortFieldValue());
+        $html[] = strval($datarecord->getSortfieldValue());
         foreach ($value_list as $num => $val)
             $html[] = strval($val);
 
@@ -2799,136 +2965,6 @@ if ($debug)
         $em->persist($datarecordfields);
         $em->persist($my_obj);
         $em->flush();
-    }
-
-
-    /**
-     * NOT CURRENTLY USED
-     *
-     * Determines whether the values stored in all instances of a datafield are distinct from each other.
-     * If a new value for this datafield is given, then determines whether the new value already exists in a different datarecord.
-     * 
-     * @param DataFields $datafield         - the datafield that needs to have unique values across all instances
-     * @param array $new_value              - if not empty, then an array of values being added to instances of the datafield
-     * @param DataRecord $source_datarecord - if not null, the datarecord being modified
-     * 
-     * @return array - an array of all the elements of $new_value that weren't unique, otherwise an empty array
-     */
-    public function verifyUniqueness($datafield, $new_value = array(), $source_datarecord = null) {
-        // Grab entity manager
-        $em = $this->getDoctrine()->getManager();
-        $datatype = $datafield->getDataType();
-        $type_class = $datafield->getFieldType()->getTypeClass();
-
-        // Deal with the uniqueness checkbox
-        $uniqueness_failure = false;
-        $uniqueness_failure_value = '';
-        $old_value = '';
-
-        // $new_value could be a single value or an array of values
-        $field_values = array();
-        foreach ($new_value as $value)
-            $field_values[] = strtolower($value);
-//print print_r($field_values, true).'||';
-        $failed_values = array();
-/*
-        // Check to see if the values of that datafield across all datarecords are unique
-        $datarecords = $em->getRepository('ODRAdminBundle:DataRecord')->findByDataType($datatype);
-        foreach ($datarecords as $datarecord) {
-//print 'datarecord '.$datarecord->getId().': ';
-            // Grab all datarecordfields for this datarecord
-            $datarecordfields = $datarecord->getDataRecordFields();
-            foreach ($datarecordfields as $drf) {
-                // If the datarecordfield is from the sourcedatarecord, skip over it
-                if (($source_datarecord !== null) && ($source_datarecord->getId() === $datarecord->getId()))
-                    continue;
-
-                // Determine which datarecordfield matches the datafield in question
-                if ($drf->getDataField()->getId() == $datafield->getId()) {
-                    // Grab the value of the datarecordfield
-                    $value = '';
-                    switch ($datafield->getFieldType()->getTypeClass()) {
-                        case 'ShortVarchar':
-                        case 'MediumVarchar':
-                        case 'LongVarchar':
-                            $my_obj = self::loadFromDataRecordField($drf, $type_class);
-                            $value = $my_obj->getValue();
-                            break;
-
-                        case 'IntegerValue':
-                            $value = $drf->getIntegerValue()->getValue();
-                            $value = strval($value);
-                            break;
-
-                        case 'DecimalValue':
-                            $value = $drf->getDecimalValue()->getValue();
-                            $value = strval($value);
-                            break;
-                    }
-
-                    // Convert the value to lowercase and see if it's already in the array
-                    $lower_value = strtolower($value);
-//print 'checking '.$lower_value.'...';
-                    if ( in_array($lower_value, $field_values) ) {
-//print 'found||';
-                        // If so, can't set this field to unique
-//                        $uniqueness_failure = true;
-                        $failed_values[] = $value;
-                    }
-                    else {
-//print 'not found||';
-                        // If not, add to array and continue looking
-                        $field_values[] = $value;
-                    }
-                }
-            }
-        }
-*/
-
-        // Grab all existing values of this datafield
-        $query = $em->createQuery(
-            'SELECT dr.id, e.value
-             FROM ODRAdminBundle:'.$datafield->getFieldType()->getTypeClass().' e
-             JOIN ODRAdminBundle:DataRecord dr WITH e.dataRecord = dr
-             WHERE e.dataField = :dataField'
-        )->setParameters( array('dataField' => $datafield) );
-        $result = $query->getResult();
-
-        // Flatten the array
-        $current_values = array();
-        foreach ($result as $num => $data)
-            $current_values[ $data['id'] ] = strtolower($data['value']);
-
-        // If a source datarecord is specified, ensure that a new value won't collide with the current value in the source datarecord
-        if ($source_datarecord !== null)
-            unset( $current_values[$source_datarecord->getId()] );
-
-//print_r($current_values);
-
-        // 
-        $tmp_values = array();
-        $failed_values = array();
-        if ( count($new_value) == 0 ) {
-            // Just check that the values currently in the datafield don't collide with each other
-            foreach ($current_values as $id => $value) {
-                if ( !in_array($value, $tmp_values) )
-                    $tmp_values[] = $value;
-                else
-                    $failed_values[] = $value;
-            }
-        }
-        else {
-            // Verify that the values in $new_values don't collide with the values currently in the datafield
-            foreach ($new_value as $value) {
-                if ( in_array($value, $current_values) )
-                    $failed_values[] = $value;
-            }
-        }
-
-//print_r($failed_values);
-
-        // Return an array of the failed values, if any
-        return $failed_values;
     }
 
 

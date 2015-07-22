@@ -13,22 +13,35 @@ ODR\AdminBundle\Entity\DecimalValue:
             nullable: false
             generator:
                 strategy: IDENTITY
+
+        original_value:
+            type: string
+            length: 255
+            fixed: false
+            nullable: false
+            default: 0
+            gedmo:
+                - versioned
         value:
             type: float
             unsigned: false
             nullable: false
+            default: 0
             gedmo:
                 - versioned
+
         base:
             type: integer
             unsigned: false
             nullable: false
+            default: 0
             gedmo:
                 - versioned
         exponent:
             type: integer
             unsigned: false
             nullable: false
+            default: 0
             gedmo:
                 - versioned
         deletedAt:

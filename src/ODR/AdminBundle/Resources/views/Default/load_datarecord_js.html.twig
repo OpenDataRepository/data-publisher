@@ -2,17 +2,21 @@
 <script>
     var recaching = false;
 
-    function loadDataRecord(datarecord_id) {
-        var target = "{{ target }}";
+    function loadDataRecord(datarecord_id, target) {
+//        var target = "{{ target }}";
         var search_key = "{{ search_key }}";
         var offset = "{{ offset }}";
 
         var url = '';
         switch (target) {
-            case "results":
+//            case "results":
+            case 'view':
+            case undefined:
+            case '':
                 url = '{{ path('odr_results_view', { 'datarecord_id': 0, 'search_key': '', 'offset': '' }) }}';
                 break;
-            case "record":
+//            case "record":
+            case 'edit':
                 url = '{{ path('odr_record_edit', { 'datarecord_id': 0 }) }}';
                 break;            
         }
@@ -25,7 +29,6 @@
             if (offset !== '')
                 url += '/' + offset;
         }
-
 //alert(url);
 
         if (recaching == false) {

@@ -1,0 +1,54 @@
+{% spaceless %}
+
+    <div class="ODRAdvSearch_datafield pure-u-1">
+        <label class="pure-u-1-3">Modified Date:</label>
+        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype_id }}_modify_start" name="dt_{{ datatype_id }}_m_s" value="" rel="datatype_{{ datatype_id }}_modify" />
+{#
+    </div>
+    <div class="ODRAdvSearch_datafield pure-u-1">
+#}
+        <label class="pure-u-1-3"></label>
+        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype_id }}_modify_end" name="dt_{{ datatype_id }}_m_e" value="" rel="datatype_{{ datatype_id }}_modify" />
+    </div>
+
+    <div class="ODRAdvSearch_datafield pure-u-1">
+        <label class="pure-u-1-3">Modified By:</label>
+        <select class="ODRInput pure-u-2-3" id="select_modified_by" name="dt_{{ datatype_id }}_m_by">
+            <option value=""></option>
+            {% for u in user_list %}
+            <option value="{{ u.id }}">{{ u.getuserstring }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="ODRAdvSearch_datafield pure-u-1">
+        <label class="pure-u-1-3">Created Date:</label>
+        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype_id }}_create_start" name="dt_{{ datatype_id }}_c_s" value="" rel="datatype_{{ datatype_id }}_create" />
+{#
+    </div>
+    <div class="ODRAdvSearch_datafield pure-u-1">
+#}
+        <label class="pure-u-1-3"></label>
+        <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datatype_{{ datatype_id }}_create_end" name="dt_{{ datatype_id }}_c_e" value="" rel="datatype_{{ datatype_id }}_create" />
+    </div>
+
+    <div class="ODRAdvSearch_datafield pure-u-1">
+        <label class="pure-u-1-3">Created By:</label>
+        <select class="ODRInput pure-u-2-3" id="select_created_by" name="dt_{{ datatype_id }}_c_by">
+            <option value=""></option>
+            {% for u in user_list %}
+            <option value="{{ u.id }}">{{ u.getuserstring }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="ODRAdvSearch_datafield pure-u-1">
+        <label class="pure-u-1-3">Public status:</label>
+        <select class="ODRInput pure-u-2-3" id="select_public" name="dt_{{ datatype_id }}_pub">
+            <option id="Option_0" value="">Any</option>
+            <option id="Option_nonpublic" value="0">Non-public</option>
+            <option id="Option_public" value="1">Public</option>
+        </select>
+    </div>
+
+{% endspaceless %}

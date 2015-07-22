@@ -2,14 +2,19 @@
 
 /**
 * Open Data Repository Data Publisher
-* User Controller
+* ODRUser Controller
 * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
 *
-* The user controller handles everything related to users, profiles,
-* and their permissions.  Will eventually handle user groups too.
+* The user controller handles setting user roles/permissions, and
+* completely replaces the default FoS functionality for creating,
+* editing, and deleting users.
+* 
+* Password resetting and changing are handled by the ODR UserBundle,
+* which overrides the relevant sections of the FoS bundle.
 *
+* @see src\ODR\OpenRepository\UserBundle
 */
 
 namespace ODR\AdminBundle\Controller;
@@ -18,16 +23,249 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\ODRUserExtend;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\AdminBundle\Entity\UserPermissions;
 use ODR\AdminBundle\Entity\UserFieldPermissions;
 // Forms
+use Symfony\Component\Form\FormError;
+use ODR\AdminBundle\Form\ODRUserProfileForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+
 class ODRUserController extends ODRCustomController
 {
+
+    /**
+     * Renders a form to allow admins to create a new user
+     *
+     * @param Request $request
+     *
+     * @return a Symfony JSON response containing HTML
+     */
+    public function createnewAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // --------------------
+            // Ensure user has permissions to be doing this
+            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+
+            // User needs at least one "is_admin" permission to access this
+            $user_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
+            $admin_permissions = array();
+            foreach ($user_permissions as $datatype_id => $up) {
+                if ( isset($up['admin']) && $up['admin'] == '1' ) {
+                    $admin_permissions[ $datatype_id ] = $up;
+                }
+            }
+
+            if ( count($admin_permissions) == 0 )
+                return parent::permissionDeniedError();
+            // --------------------
+
+            // Create the form that will be used
+            $new_user = new ODRUser();
+            $form = $this->createForm(new ODRUserProfileForm($new_user), $new_user);
+
+            // Render and return the form
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:ODRUser:create.html.twig',
+                    array(
+                        'profile_form' => $form->createView(),
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x882775132 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Checks whether a given email address is already in use
+     *
+     * @param Request $request
+     *
+     * @return 0 if the email is not in use, otherwise returns the ID of the user that owns the email address
+     */
+    public function checknewAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // --------------------
+            // Ensure user has permissions to be doing this
+            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+
+            // User needs at least one "is_admin" permission to access this
+            $user_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
+            $admin_permissions = array();
+            foreach ($user_permissions as $datatype_id => $up) {
+                if ( isset($up['admin']) && $up['admin'] == '1' ) {
+                    $admin_permissions[ $datatype_id ] = $up;
+                }
+            }
+
+            if ( count($admin_permissions) == 0 )
+                return parent::permissionDeniedError();
+            // --------------------
+
+            // Attempt to find a user with this email address
+            $post = $request->request->all();
+            if ( !isset($post['email']) )
+                throw new \Exception('Invalid Form');
+
+            $email = $post['email'];
+            $user_manager = $this->container->get('fos_user.user_manager');
+            $user = $user_manager->findUserByEmail($email);
+
+            // If found, return their user id
+            if ($user !== null)
+                $return['d'] = $user->getId();
+            else
+                $return['d'] = 0;
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x822773532 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+    /**
+     * Uses the provided form to create a new user
+     *
+     * @param Request $request
+     *
+     * @return TODO
+     */
+    public function savenewAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $user_manager = $this->container->get('fos_user.user_manager');
+            $router = $this->get('router');
+
+            $post = $request->request->all();
+            if ( !isset($post['ODRUserProfileForm']) )
+                throw new \Exception('Invalid Form');
+
+            $post = $post['ODRUserProfileForm'];
+
+            // --------------------
+            // Ensure user has permissions to be doing this
+            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+
+            // User needs at least one "is_admin" permission to access this
+            $user_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
+            $admin_permissions = array();
+            foreach ($user_permissions as $datatype_id => $up) {
+                if ( isset($up['admin']) && $up['admin'] == '1' ) {
+                    $admin_permissions[ $datatype_id ] = $up;
+                }
+            }
+
+            if ( count($admin_permissions) == 0 )
+                return parent::permissionDeniedError();
+            // --------------------
+
+            // Ensure a user with the specified email doesn't already exist...
+            $email = $post['email'];
+            $user = $user_manager->findUserByEmail($email);
+            if ($user !== null) {
+                // If user already exists, just return the url to their permissions page
+                $url = $router->generate( 'odr_manage_user_permissions', array('user_id' => $user->getId()) );
+                $return['d'] = array('url' => $url);
+            }
+            else {
+                // Create a new user and bind the form to it
+                $new_user = new ODRUser();
+                $form = $this->createForm(new ODRUserProfileForm($new_user), $new_user);
+                $form->bind($request, $new_user);
+
+                // Password fields matching is handled by the Symfony Form 'repeated' field
+                // Password length and complexity is handled by the isPasswordValid() callback function in ODR\OpenRepository\UserBundle\Entity\User
+
+                // TODO - check for additional errors to throw?
+
+//$form->addError( new FormError("don't save form...") );
+
+                // If no errors...
+                if ( $form->isValid() ) {
+                    // Enable the user and give default roles
+                    $new_user->setEnabled(true);
+                    $new_user->addRole('ROLE_USER');
+
+                    // Save changes to the user
+                    $user_manager->updateUser($new_user);
+
+                    // Generate and return the URL to modify the new user's permissions
+                    $em->refresh($new_user);
+
+                    $url = $router->generate( 'odr_manage_user_permissions', array('user_id' => $new_user->getId()) );
+                    $return['d'] = array('url' => $url);
+
+                    // The new user is going to need permissions eventually...now is as good a time as any to create them
+                    $datatypes = parent::getTopLevelDatatypes();
+                    foreach ($datatypes as $num => $dt_id) {
+                        $datatype = $repo_datatype->find($dt_id);
+                        self::permissionsExistence($new_user, $admin_user, $datatype, null);
+                    }
+                }
+                else {
+                    $return['r'] = 1;
+                    $errors = $form->getErrors();
+
+                    $error_str = '';
+                    foreach ($errors as $num => $error)
+                        $error_str .= 'ERROR: '.$error->getMessage()."\n";
+
+                    $return['d'] = array('html' => $error_str);
+                }
+            }
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = array('html' => 'Error 0x217735332 ' . $e->getMessage());
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
 
     /**
      * Returns the profile editing HTML for a non-admin user
@@ -46,11 +284,9 @@ class ODRUserController extends ODRCustomController
         try {
             // Grab the specified user
             $user = $this->container->get('security.context')->getToken()->getUser();
-            $repo_user_extend = $this->getDoctrine()->getRepository('ODRAdminBundle:ODRUserExtend');
-            $user_extend = $repo_user_extend->findOneBy( array('user' => $user) );
 
-            // Do stuff for token? no idea
-            $token = '';
+            // Create a new form to edit the user
+            $form = $this->createForm(new ODRUserProfileForm($user), $user);
 
             // Render them in a list
             $templating = $this->get('templating');
@@ -58,10 +294,10 @@ class ODRUserController extends ODRCustomController
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:profile.html.twig',
                     array(
-                        'user' => $user,
-                        'user_extend' => $user_extend,
+                        'profile_form' => $form->createView(),
+                        'current_user' => $user,
+                        'target_user' => $user,
                         'self_edit' => 'true',
-                        'token' => $token
                     )
                 )
             );
@@ -140,15 +376,12 @@ class ODRUserController extends ODRCustomController
             if ($user_id !== '0' && $user == null)
                 return parent::deletedEntityError('User');
 
-            $repo_user_extend = $this->getDoctrine()->getRepository('ODRAdminBundle:ODRUserExtend');
-            $user_extend = $repo_user_extend->findOneBy( array('user' => $user) );
-
-            // Do stuff for token? no idea
-            $token = '';
-
             $self_edit = 'false';
             if ($admin->getid() == $user_id)
                 $self_edit = 'true';
+
+            // Create a new form to edit the user
+            $form = $this->createForm(new ODRUserProfileForm($user), $user);
 
             // Render them in a list
             $templating = $this->get('templating');
@@ -156,13 +389,14 @@ class ODRUserController extends ODRCustomController
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:profile.html.twig',
                     array(
-                        'user' => $user,
-                        'user_extend' => $user_extend,
+                        'profile_form' => $form->createView(),
+                        'current_user' => $admin,
+                        'target_user' => $user,
                         'self_edit' => $self_edit,
-                        'token' => $token
                     )
                 )
             );
+
 
         }
         catch (\Exception $e) {
@@ -179,7 +413,6 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Wrapper function that allows a non-admin user to save changes to his own profile.
-     * TODO: change to use symfony forms
      * 
      * @param Request $request
      * 
@@ -193,17 +426,18 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Grab the specified user
+            // Grab the current user
             $user = $this->container->get('security.context')->getToken()->getUser();
 
-            if ( isset($_POST['odr_profile_form']) && $user->getId() == $_POST['odr_profile_form']['user_id']) {
-                $post = $_POST['odr_profile_form'];
-                $return = self::saveProfile($post);
-            }
-            else {
-                $return['r'] = 2;
-                $return['d'] = array( 'error' => 'bad form' );
-            }
+//print_r($post);
+//return;
+            // Only allow this if the user is modifying their own profile
+            $post = $request->request->all();
+            if ( isset($post['ODRUserProfileForm']) && $user->getId() == $post['ODRUserProfileForm']['user_id'])
+                $return = self::saveProfile($request);
+            else
+                throw new \Exception('Invalid form');
+
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -219,7 +453,6 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Wrapper function that allows an admin user to save changes to any user's profile
-     * TODO: change to use symfony forms?
      * 
      * @param Request $request
      * 
@@ -233,17 +466,19 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Ensure a form got posted...
-            $post = array();
-            if ( isset($_POST['odr_profile_form']) )
-                $post = $_POST['odr_profile_form'];
-            else
-                return parent::permissionDeniedError();
-
             // Need to get the user id out of the form to check permissions...
-            $user_id = 0;
-            if ( isset($post['user_id']) )
-                $user_id = intval($post['user_id']);
+            $post = $request->request->all();
+//print_r($post);
+//return;
+            if ( !isset($post['ODRUserProfileForm']) )
+                throw new \Exception('Invalid Form');
+            $user_id = intval( $post['ODRUserProfileForm']['id'] );
+
+            $em = $this->getDoctrine()->getManager();
+            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
+            $user = $repo_user->find($user_id);
+            if ($user == null)
+                return parent::deletedEntityError('User');
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -283,8 +518,8 @@ class ODRUserController extends ODRCustomController
             }
             // --------------------
 
-            // Actually save the profile
-            $return = self::saveProfile($post);
+            // Save any changes to the profile
+            $return = self::saveProfile($request);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -300,184 +535,62 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Saves modifications to user profiles to the database.
-     * TODO: update to use symfony forms?
      * 
-     * @param array $post
+     * @param Request $request
      * 
      * @return TODO
      */
-    private function saveProfile($post)
+    private function saveProfile(Request $request)
     {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
 
-        // Error reporting
-        $fail = false;
-        $error = '';
-        $message = '';
-        $redirect = false;
-        $url = '';
-
-        // Going to need these
+        // Get required objects
         $em = $this->getDoctrine()->getManager();
         $user_manager = $this->container->get('fos_user.user_manager');
         $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
-        $repo_user_extend = $em->getRepository('ODRAdminBundle:ODRUserExtend');
 
-        $admin_user = $this->container->get('security.context')->getToken()->getUser();
+//        $admin_user = $this->container->get('security.context')->getToken()->getUser();
 
-        $username = '';
-        $firstname = '';
-        $lastname = '';
-        $email = '';
-        $first_password = '';
-        $second_password = '';
-        $token = '';
-        $user_id = 0;
+        // Grab which user is being modified
+        $post = $request->request->all();
+        if ( !isset($post['ODRUserProfileForm']) ) {
+            $return['r'] = 1;
+            $return['d'] = array('html' => 'Invalid Form');
+            return $return;
+        }
 
-        // Read the pieces of information
-        if ( isset($post['email']) && isset($post['plainPassword']) && isset($post['plainPassword']['first']) && isset($post['plainPassword']['second']) && isset($post['_token']) && isset($post['firstname']) && isset($post['lastname']) ) {
-            $email = $post['email'];
-            $first_password = $post['plainPassword']['first'];
-            $second_password = $post['plainPassword']['second'];
-            $token = $post['_token'];
-            $firstname = $post['firstname'];
-            $lastname = $post['lastname'];
+        $post = $post['ODRUserProfileForm'];
+        $target_user_id = intval( $post['user_id'] );
+        $target_user = $repo_user->find($target_user_id);
+        if ($target_user == null)
+            return parent::deletedEntityError('User');
 
-            if ( isset($post['username']) )
-                $username = $post['username'];
-            if ( isset($post['user_id']) )
-                $user_id = intval($post['user_id']);
+        $email = $target_user->getEmail();
 
-            if ($email == '' || $first_password == '' || $second_password == '') {
-                $fail = true;
-                $error = "bad form";
-            }
+        // Bind the request to a form
+        $form = $this->createForm(new ODRUserProfileForm($target_user), $target_user);
+        $form->bind($request, $target_user);
+
+        // TODO - check for additional errors to throw?
+
+        // If no errors...
+        if ( $form->isValid() ) {
+            // Save changes to the user
+            $target_user->setEmail($email);     // as of right now, form will reset the user's email/username because the field is disabled...set the email/username back to what they were
+            $user_manager->updateUser($target_user);
         }
         else {
-           $fail = true;
-           $error = "bad form";
-        }
+            $return['r'] = 1;
+            $errors = $form->getErrors();
 
-        if ($first_password !== $second_password) {
-            $fail = true;
-            $error = "passwords don't match";
-        }
-        else if ( $user_id == 0 && $user_manager->findUserByUsername($username) !== null) {
-            $target_user = $user_manager->findUserByUsername($username);
+            $error_str = '';
+            foreach ($errors as $num => $error)
+                $error_str .= 'ERROR: '.$error->getMessage()."\n";
 
-            if ( $target_user->hasRole('ROLE_SUPER_ADMIN') ) {
-                $fail = true;
-                $error = 'User already exists';
-            }
-            else {
-                $fail = true;
-                $redirect = true;
-                $message = 'User already exists';
-
-                // redirect to the manage permissions page for the target user so the admin can change the target user's permissions
-                $router = $this->container->get('router');
-                $url = $router->generate('odr_manage_user_permissions', array('user_id' => $target_user->getId()));
-            }
-        }
-
-        if (!$fail) {
-            // Everything is valid?
-            $user = null;
-            $user_extend = null;
-            if ($user_id != 0) {
-                $user = $repo_user->find($user_id);
-                if ($user == null)
-                    return parent::deletedEntityError('User');
-
-                $user_extend = $repo_user_extend->findOneBy( array('user' => $user) );
-                if ($user_extend == null) {
-                    $user_extend = new ODRUserExtend();
-                    $user_extend->setUser($user);
-                    $user->setUserExtend($user_extend);
-                }
-            }
-            else {
-                $user = $user_manager->createUser();
-                $user_extend = new ODRUserExtend();
-                $user_extend->setUser($user);
-                $user->setUserExtend($user_extend);
-            }
-
-            $user->setEmail($email);
-            if ($first_password != '') {
-                // Need to use this function to set salt/password
-                $user->setPlainPassword($first_password);
-            }
-
-            if ($user_id == 0) {
-                $user->setUsername($username);
-                $user->setEnabled(true);
-                $user->addRole('ROLE_USER');
-            }
-
-            $user_extend->setFirstName($firstname);
-            $user_extend->setLastName($lastname);
-
-            $em->persist($user_extend);
-            $user_manager->updateUser($user);
-            $em->flush();
-
-            // Create user_permission entries for the new user
-            if ($user_id == 0) {
-                // Reload user to make symfony happy...
-                $em->refresh($user);
-
-                // Need to grab all top-level datatypes...
-                $datatypes = null;
-                $datatrees = $em->getRepository('ODRAdminBundle:DataTree')->findAll();
-                $tmp_datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll();
-
-                // TODO - parent::getTopLevelDatatypes() returns array if integers, want array of DataTypes...
-                // Locate the IDs of all datatypes that are descended from another datatype
-                $descendants = array();
-                foreach ($datatrees as $datatree) {
-                    if ($datatree->getIsLink() == 0)
-                        $descendants[] = $datatree->getDescendant()->getId();
-                }
-
-                // Only save the datatypes that aren't descended from another datatype
-                foreach ($tmp_datatypes as $tmp_datatype) {
-                    if ( !in_array($tmp_datatype->getId(), $descendants) )
-                        $datatypes[] = $tmp_datatype;
-                }
-
-                // Create default permissions for this user for each of the datatypes
-                foreach ($datatypes as $datatype) {
-                    self::permissionsExistence($user, $admin_user, $datatype, null);  // user is going to need permission entities eventually, upon user create is as good a place as any for them
-                }
-
-                $redirect = true;
-                $message = 'User created';
-                // redirect to the manage permissions page for the target user so the admin can change the target user's permissions
-                $router = $this->container->get('router');
-                $url = $router->generate('odr_manage_user_permissions', array('user_id' => $user->getId()));
-            }
-        }
-
-        if ($redirect) {
-            $return['r'] = 3;
-            $return['d'] = array('message' => $message, 'url' => $url);
-        }
-        else if ($fail) {
-            // Grab the specified user
-//            $user = $repo_user->find($user_id);
-
-            // Do stuff for token? no idea
-            $token = '';
-
-            // Return the error
-            $return['r'] = 2;
-            $return['d'] = array(
-                'error' => $error,
-            );
+            $return['d'] = array('html' => $error_str);
         }
 
         return $return;
@@ -505,10 +618,9 @@ class ODRUserController extends ODRCustomController
 
             $em = $this->getDoctrine()->getManager();
             $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
-//            $user_permissions = $repo_user_permissions->findBy( array('user_id' => $admin_user) );
-            $user_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
             // User needs at least one "is_admin" permission to access this
+            $user_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
             $admin_permissions = array();
             foreach ($user_permissions as $datatype_id => $up) {
                 if ( isset($up['admin']) && $up['admin'] == '1' ) {
@@ -874,36 +986,33 @@ class ODRUserController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
 
-            // Build the list of datatypes
-            $datatypes = null;
-            // Need to only return top-level datatypes
-            $datatrees = $repo_datatree->findAll();
-            $tmp_datatypes = $repo_datatype->findAll();
 
-            // TODO - top level datatypes?
-            // Locate the IDs of all datatypes that are descended from another datatype
-            $descendants = array();
+            // Need all datatypes, organized into top-level and child datatype arrays
+            $datatypes = array();
             $childtypes = array();
-            foreach ($datatrees as $datatree) {
-                if ($datatree->getIsLink() == 0) {
-                    $descendants[] = $datatree->getDescendant()->getId();
+            $datatree_array = parent::getDatatreeArray($em);
 
-                    $ancestor_id = $datatree->getAncestor()->getId();
-                    if ( !isset($childtypes[$ancestor_id]) )
-                        $childtypes[$ancestor_id] = array();
-                    $childtypes[$ancestor_id][] = $datatree->getDescendant();
-                }
-            }
-
-            // Only display the datatypes that aren't descended from another datatype
+            $tmp_datatypes = $repo_datatype->findAll();
             foreach ($tmp_datatypes as $tmp_datatype) {
-                if ( !in_array($tmp_datatype->getId(), $descendants) ) {
+                $dt_id = $tmp_datatype->getId();
+
+                if ( !isset($datatree_array['descendant_of'][$dt_id]) || $datatree_array['descendant_of'][$dt_id] == '' ) {
+                    // top-level datatype
                     $datatypes[] = $tmp_datatype;
 
-                    if ( !isset($childtypes[$tmp_datatype->getId()]) )
-                        $childtypes[$tmp_datatype->getId()] = null;
+                    if ( !isset($childtypes[$dt_id]) )
+                        $childtypes[$dt_id] = null;
+                }
+                else {
+                    // child datatype
+                    $ancestor_id = $datatree_array['descendant_of'][$dt_id];
+                    if ( !isset($childtypes[$ancestor_id]) || $childtypes[$ancestor_id] == null )
+                        $childtypes[$ancestor_id] = array();
+
+                    $childtypes[$ancestor_id][] = $tmp_datatype;
                 }
             }
+
 
             // Ensure the user has permission objects for all the datatypes
             foreach ($datatypes as $datatype)
@@ -970,41 +1079,36 @@ class ODRUserController extends ODRCustomController
             $admin = $this->container->get('security.context')->getToken()->getUser();
 
             // Build the list of top-level datatypes
-            // TODO - isn't there a function in ODRCustomController for this?
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
 
-            // Build the list of datatypes
-            $datatypes = null;
-            // Need to only return top-level datatypes
-            $datatrees = $repo_datatree->findAll();
-            $tmp_datatypes = $repo_datatype->findAll();
-
-            // TODO - top level datatypes?
-            // Locate the IDs of all datatypes that are descended from another datatype
-            $descendants = array();
+            // Need all datatypes, organized into top-level and child datatype arrays
+            $datatypes = array();
             $childtypes = array();
-            foreach ($datatrees as $datatree) {
-                if ($datatree->getIsLink() == 0) {
-                    $descendants[] = $datatree->getDescendant()->getId();
+            $datatree_array = parent::getDatatreeArray($em);
 
-                    $ancestor_id = $datatree->getAncestor()->getId();
-                    if ( !isset($childtypes[$ancestor_id]) )
-                        $childtypes[$ancestor_id] = array();
-                    $childtypes[$ancestor_id][] = $datatree->getDescendant();
-                }
-            }
-
-            // Only display the datatypes that aren't descended from another datatype
+            $tmp_datatypes = $repo_datatype->findAll();
             foreach ($tmp_datatypes as $tmp_datatype) {
-                if ( !in_array($tmp_datatype->getId(), $descendants) ) {
+                $dt_id = $tmp_datatype->getId();
+
+                if ( !isset($datatree_array['descendant_of'][$dt_id]) || $datatree_array['descendant_of'][$dt_id] == '' ) {
+                    // top-level datatype
                     $datatypes[] = $tmp_datatype;
 
-                    if ( !isset($childtypes[$tmp_datatype->getId()]) )
-                        $childtypes[$tmp_datatype->getId()] = null;
+                    if ( !isset($childtypes[$dt_id]) )
+                        $childtypes[$dt_id] = null;
+                }
+                else {
+                    // child datatype
+                    $ancestor_id = $datatree_array['descendant_of'][$dt_id];
+                    if ( !isset($childtypes[$ancestor_id]) || $childtypes[$ancestor_id] == null )
+                        $childtypes[$ancestor_id] = array();
+
+                    $childtypes[$ancestor_id][] = $tmp_datatype;
                 }
             }
+
 
 //print 'build datatype arrays in '.(microtime(true) - $start)."\n";
 
@@ -1444,8 +1548,28 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // Grab necessary objects
             $session = $request->getSession();
-            $session->set('shortresults_page_length', intval($length));
+
+            // Grab the tab's id, if it exists
+            $params = $request->query->all();
+            $odr_tab_id = '';
+            if ( isset($params['odr_tab_id']) )
+                $odr_tab_id = $params['odr_tab_id'];
+
+            if ($odr_tab_id !== '') {
+                // Store the change to this tab's page_length in the session
+                $page_length = intval($length);
+                $stored_tab_data = array();
+                if ( $session->has('stored_tab_data') )
+                    $stored_tab_data = $session->get('stored_tab_data');
+
+                if ( !isset($stored_tab_data[$odr_tab_id]) )
+                    $stored_tab_data[$odr_tab_id] = array();
+
+                $stored_tab_data[$odr_tab_id]['page_length'] = $page_length;
+                $session->set('stored_tab_data', $stored_tab_data);
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1670,6 +1794,5 @@ if ($debug)
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
-
 
 }

@@ -39,7 +39,6 @@
                 // window.location.hash doesn't preserv url encoding...
                 var tmp = window.location.href.split('#');
                 var url = tmp[1];
-//alert('has hash on load: ' + url);
                 LoadContentFullAjax( url );
             }
             else {
@@ -53,7 +52,6 @@
         // Custom AJAX history stuff
         $(window).off("hashchange");
         $(window).on("hashchange", function(event) {
-//alert( a.b.c );
             // Needed?
             event.preventDefault();
 
@@ -63,34 +61,28 @@
             // If the hashchange event is manually triggered, event.original event won't be defined...
             var url = '';
             if ( event.originalEvent !== undefined && event.originalEvent.newURL !== undefined ) {
-//alert( 'event defined');
                 // Grab the URL from the hashchange event
                 var new_url = event.originalEvent.newURL.split('#');
                 url = new_url[1];
                 if ( url !== undefined ) {
                     // Load the URL as usual
-//alert( 'loading content' );
                     LoadContentFullAjax( url );
                 }
                 else {
                     // Attempt to move back/forward to the homepage...just refresh
 //                    location.replace("{{ path('odr_admin_homepage') }}");
-//alert( 'replacing url' );
                     location.replace( new_url[0] );
                 }
             }
             else {
-//alert( 'event undefined' );
                 // Grab the URL from the browser and reload it
                 url = window.location.hash.substr(1);
                 if ( url !== '' ) {
                     // Load the URL as usual
                     LoadContentFullAjax( url );
-//alert( 'loading content' );
                 }
                 else {
                     // Attempt to move back/forward to the homepage...just refresh
-//alert( 'redirecting to homepage' );
                     location.replace("{{ path('odr_admin_homepage') }}");
                 }
             }
@@ -128,30 +120,31 @@
     });
 
     function UpdateURL(url) {
-//alert('UpdateURL: ' + url);
         // Update the URL and hash
         var current_hash = window.location.hash.substr(1);
         if ( current_hash != url ) {
             // Just change the hash to the desired link
-//alert( 'changing hash' );
             window.location.hash = url;
         }
         else {
             // Force a hashchange event because we want the AJAX to fire again
-//alert( 'forcing hashchange' );
             $(window).hashchange();
         }
     }
 
     var xhr = null;
     function LoadContentFullAjax(url) {
-//alert('LoadContentFullAjax: ' + url);
         // Hide the properties menu
         $("#ODRNavRightWrapper").fadeOut('fast');
         $("#content").fadeTo(300, 0.15, function() {
             //
             if (xhr != null)
                 xhr.abort();
+
+            // Append the tab's id to the get request if it exists
+            var data = '';
+            if ( window.sessionStorage.getItem('odr_tab_id') )
+                data = {'odr_tab_id': window.sessionStorage.getItem('odr_tab_id')};
 
             // Load to Content area
             var dataType = "json";
@@ -160,9 +153,10 @@
                 type: 'GET',
                 url: url,
                 dataType: dataType,
+                data: data,
                 success: function(data, textStatus, jqXHR) {
                     if ((data.r == 0) || (data.r == 403)) {
-//alert(url);
+
                         $("#content").html(data.d.html);
                         $("#content").fadeTo(1000, 1.0);
 
@@ -196,7 +190,6 @@
     }
 
     function setupAccordions() {
-//return;
 
         // Setup Accordions
         $(".ODRFormAccordion").children("h3").each(function() {

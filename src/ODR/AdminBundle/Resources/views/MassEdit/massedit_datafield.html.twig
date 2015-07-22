@@ -2,6 +2,10 @@
 {% set field_typename = field.getfieldtype.typename %}
 {#<div class="ODRDataField pure-u-1 pure-u-md-{{ fieldtheme.getcsswidthmed }} pure-u-xl-{{ fieldtheme.getcsswidthxl }}" id="Field_{{ field.id }}" >#}
 
+{% if field.isunique == 1 %}
+<div id="Field_{{ field.id }}_overlay" class="ODROverlayDiv ODRReloadDiv"></div>
+{% endif %}
+
     <form id="Form_DataField_{{ field.id }}" class="pure-u-1">
     <input type="hidden" name="theme_field_id" value="{{ fieldtheme.id }}" />
 
@@ -169,5 +173,6 @@
 
     {% endif %}
     </form>
+
 {#</div><!-- End of #Field_{{ field.id}} -->#}
 {% endspaceless %}

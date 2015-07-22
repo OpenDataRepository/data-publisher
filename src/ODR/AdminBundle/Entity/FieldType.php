@@ -7,7 +7,7 @@
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
 *
-* The FieldType Entity is automatically generated from 
+* The FieldType Entity is automatically generated from
 * ./Resources/config/doctrine/FieldType.orm.yml
 *
 */
@@ -18,136 +18,69 @@ namespace ODR\AdminBundle\Entity;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * ODR\AdminBundle\Entity\FieldType
+ * FieldType
  */
 class FieldType
 {
     /**
-     * @var integer $id
+     * @var integer
      */
     private $id;
 
     /**
-     * @var string $typeName
+     * @var string
      */
     private $typeName;
 
     /**
-     * @var string $description
+     * @var string
+     */
+    private $position;
+
+    /**
+     * @var string
      */
     private $description;
 
     /**
-     * @var boolean $isImage
+     * @var boolean
      */
     private $isImage;
 
     /**
-     * @var boolean $hasBlob
+     * @var boolean
+     */
+    private $isFile;
+
+    /**
+     * @var boolean
+     */
+    private $allowMultiple;
+
+    /**
+     * @var boolean
      */
     private $hasBlob;
 
     /**
-     * Get id
-     *
-     * @return integer 
+     * @var boolean
      */
-    public function getId()
-    {
-        return $this->id;
-    }
+    private $insertOnCreate;
 
     /**
-     * Set typeName
-     *
-     * @param string $typeName
-     * @return FieldType
+     * @var boolean
      */
-    public function setTypeName($typeName)
-    {
-        $this->typeName = $typeName;
-    
-        return $this;
-    }
+    private $canBeUnique;
 
     /**
-     * Get typeName
-     *
-     * @return string 
+     * @var boolean
      */
-    public function getTypeName()
-    {
-        return $this->typeName;
-    }
+    private $canBeSortField;
 
     /**
-     * Set description
-     *
-     * @param string $description
-     * @return FieldType
+     * @var string
      */
-    public function setDescription($description)
-    {
-        $this->description = $description;
-    
-        return $this;
-    }
-
-    /**
-     * Get description
-     *
-     * @return string 
-     */
-    public function getDescription()
-    {
-        return $this->description;
-    }
-
-    /**
-     * Set isImage
-     *
-     * @param boolean $isImage
-     * @return FieldType
-     */
-    public function setIsImage($isImage)
-    {
-        $this->isImage = $isImage;
-    
-        return $this;
-    }
-
-    /**
-     * Get isImage
-     *
-     * @return boolean 
-     */
-    public function getIsImage()
-    {
-        return $this->isImage;
-    }
-
-    /**
-     * Set hasBlob
-     *
-     * @param boolean $hasBlob
-     * @return FieldType
-     */
-    public function setHasBlob($hasBlob)
-    {
-        $this->hasBlob = $hasBlob;
-    
-        return $this;
-    }
-
-    /**
-     * Get hasBlob
-     *
-     * @return boolean 
-     */
-    public function getHasBlob()
-    {
-        return $this->hasBlob;
-    }
+    private $typeClass;
 
     /**
      * @var \DateTime
@@ -176,186 +109,106 @@ class FieldType
 
 
     /**
-     * Set deletedAt
+     * Get id
      *
-     * @param \DateTime $deletedAt
+     * @return integer 
+     */
+    public function getId()
+    {
+        return $this->id;
+    }
+
+    /**
+     * Set typeName
+     *
+     * @param string $typeName
      * @return FieldType
      */
-    public function setDeletedAt($deletedAt)
+    public function setTypeName($typeName)
     {
-        $this->deletedAt = $deletedAt;
-    
+        $this->typeName = $typeName;
+
         return $this;
     }
 
     /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
-    }
-
-    /**
-     * Set created
-     *
-     * @param \DateTime $created
-     * @return FieldType
-     */
-    public function setCreated($created)
-    {
-        $this->created = $created;
-    
-        return $this;
-    }
-
-    /**
-     * Get created
-     *
-     * @return \DateTime 
-     */
-    public function getCreated()
-    {
-        return $this->created;
-    }
-
-    /**
-     * Set updated
-     *
-     * @param \DateTime $updated
-     * @return FieldType
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-    
-        return $this;
-    }
-
-    /**
-     * Get updated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
-    }
-
-    /**
-     * Set createdBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
-     * @return FieldType
-     */
-    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
-    {
-        $this->createdBy = $createdBy;
-    
-        return $this;
-    }
-
-    /**
-     * Get createdBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getCreatedBy()
-    {
-        return $this->createdBy;
-    }
-
-    /**
-     * Set updatedBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return FieldType
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-    
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
-    }
-    /**
-     * @var boolean
-     */
-    private $insertOnCreate;
-
-
-    /**
-     * Set insertOnCreate
-     *
-     * @param boolean $insertOnCreate
-     * @return FieldType
-     */
-    public function setInsertOnCreate($insertOnCreate)
-    {
-        $this->insertOnCreate = $insertOnCreate;
-    
-        return $this;
-    }
-
-    /**
-     * Get insertOnCreate
-     *
-     * @return boolean 
-     */
-    public function getInsertOnCreate()
-    {
-        return $this->insertOnCreate;
-    }
-    /**
-     * @var string
-     */
-    private $typeClass;
-
-
-    /**
-     * Set typeClass
-     *
-     * @param string $typeClass
-     * @return FieldType
-     */
-    public function setTypeClass($typeClass)
-    {
-        $this->typeClass = $typeClass;
-    
-        return $this;
-    }
-
-    /**
-     * Get typeClass
+     * Get typeName
      *
      * @return string 
      */
-    public function getTypeClass()
+    public function getTypeName()
     {
-        return $this->typeClass;
+        return $this->typeName;
     }
 
     /**
-     * @var boolean
+     * Set position
+     *
+     * @param string $position
+     * @return FieldType
      */
-    private $isFile;
+    public function setPosition($position)
+    {
+        $this->position = $position;
+
+        return $this;
+    }
 
     /**
-     * @var boolean
+     * Get position
+     *
+     * @return string 
      */
-    private $allowMultiple;
+    public function getPosition()
+    {
+        return $this->position;
+    }
 
+    /**
+     * Set description
+     *
+     * @param string $description
+     * @return FieldType
+     */
+    public function setDescription($description)
+    {
+        $this->description = $description;
+
+        return $this;
+    }
+
+    /**
+     * Get description
+     *
+     * @return string 
+     */
+    public function getDescription()
+    {
+        return $this->description;
+    }
+
+    /**
+     * Set isImage
+     *
+     * @param boolean $isImage
+     * @return FieldType
+     */
+    public function setIsImage($isImage)
+    {
+        $this->isImage = $isImage;
+
+        return $this;
+    }
+
+    /**
+     * Get isImage
+     *
+     * @return boolean 
+     */
+    public function getIsImage()
+    {
+        return $this->isImage;
+    }
 
     /**
      * Set isFile
@@ -366,7 +219,7 @@ class FieldType
     public function setIsFile($isFile)
     {
         $this->isFile = $isFile;
-    
+
         return $this;
     }
 
@@ -389,7 +242,7 @@ class FieldType
     public function setAllowMultiple($allowMultiple)
     {
         $this->allowMultiple = $allowMultiple;
-    
+
         return $this;
     }
 
@@ -402,60 +255,234 @@ class FieldType
     {
         return $this->allowMultiple;
     }
-    /**
-     * @var string
-     */
-    private $position;
-
 
     /**
-     * Set position
+     * Set hasBlob
      *
-     * @param string $position
+     * @param boolean $hasBlob
      * @return FieldType
      */
-    public function setPosition($position)
+    public function setHasBlob($hasBlob)
     {
-        $this->position = $position;
-    
+        $this->hasBlob = $hasBlob;
+
         return $this;
     }
 
     /**
-     * Get position
-     *
-     * @return string 
-     */
-    public function getPosition()
-    {
-        return $this->position;
-    }
-
-    /**
-     * @var boolean
-     */
-    private $canBeNameField;
-
-    /**
-     * Set canBeNameField
-     *
-     * @param boolean $canBeNameField
-     * @return FieldType
-     */
-    public function setCanBeNameField($canBeNameField)
-    {
-        $this->canBeNameField = $canBeNameField;
-    
-        return $this;
-    }
-
-    /**
-     * Get canBeNameField
+     * Get hasBlob
      *
      * @return boolean 
      */
-    public function getCanBeNameField()
+    public function getHasBlob()
     {
-        return $this->canBeNameField;
+        return $this->hasBlob;
+    }
+
+    /**
+     * Set insertOnCreate
+     *
+     * @param boolean $insertOnCreate
+     * @return FieldType
+     */
+    public function setInsertOnCreate($insertOnCreate)
+    {
+        $this->insertOnCreate = $insertOnCreate;
+
+        return $this;
+    }
+
+    /**
+     * Get insertOnCreate
+     *
+     * @return boolean 
+     */
+    public function getInsertOnCreate()
+    {
+        return $this->insertOnCreate;
+    }
+
+    /**
+     * Set canBeUnique
+     *
+     * @param boolean $canBeUnique
+     * @return FieldType
+     */
+    public function setCanBeUnique($canBeUnique)
+    {
+        $this->canBeUnique = $canBeUnique;
+
+        return $this;
+    }
+
+    /**
+     * Get canBeUnique
+     *
+     * @return boolean 
+     */
+    public function getCanBeUnique()
+    {
+        return $this->canBeUnique;
+    }
+
+    /**
+     * Set canBeSortField
+     *
+     * @param boolean $canBeSortField
+     * @return FieldType
+     */
+    public function setCanBeSortField($canBeSortField)
+    {
+        $this->canBeSortField = $canBeSortField;
+
+        return $this;
+    }
+
+    /**
+     * Get canBeSortField
+     *
+     * @return boolean 
+     */
+    public function getCanBeSortField()
+    {
+        return $this->canBeSortField;
+    }
+
+    /**
+     * Set typeClass
+     *
+     * @param string $typeClass
+     * @return FieldType
+     */
+    public function setTypeClass($typeClass)
+    {
+        $this->typeClass = $typeClass;
+
+        return $this;
+    }
+
+    /**
+     * Get typeClass
+     *
+     * @return string 
+     */
+    public function getTypeClass()
+    {
+        return $this->typeClass;
+    }
+
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return FieldType
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+
+    /**
+     * Set created
+     *
+     * @param \DateTime $created
+     * @return FieldType
+     */
+    public function setCreated($created)
+    {
+        $this->created = $created;
+
+        return $this;
+    }
+
+    /**
+     * Get created
+     *
+     * @return \DateTime 
+     */
+    public function getCreated()
+    {
+        return $this->created;
+    }
+
+    /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return FieldType
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime 
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
+    }
+
+    /**
+     * Set createdBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
+     * @return FieldType
+     */
+    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
+    {
+        $this->createdBy = $createdBy;
+
+        return $this;
+    }
+
+    /**
+     * Get createdBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getCreatedBy()
+    {
+        return $this->createdBy;
+    }
+
+    /**
+     * Set updatedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return FieldType
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
     }
 }

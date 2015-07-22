@@ -78,7 +78,7 @@ $output->writeln($data->url);
 
                     'api_key' => $data->api_key,
 
-                    'external_id_column' => $data->external_id_column,
+//                    'external_id_column' => $data->external_id_column,
                     'column_delimiters' => $data->column_delimiters,
                     'mapping' => $data->mapping,
                     'line' => $data->line,

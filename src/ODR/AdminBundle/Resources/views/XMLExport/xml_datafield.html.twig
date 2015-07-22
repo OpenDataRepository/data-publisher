@@ -24,7 +24,7 @@
                 {% if using_metadata == true %}
                 <_file_metadata>
                     <_create_date>{{ file.created|date('Y-m-d H:i:s') }}</_create_date>
-                    <_create_auth>{{ file.getcreatedby.getuserextend.firstname }} {{ file.getcreatedby.getuserextend.lastname }}</_create_auth>
+                    <_create_auth>{% if file.getcreatedby != null %}{{ file.getcreatedby.getuserstring }}{% endif %}</_create_auth>
                     <_public_date>{{ file.created|date('Y-m-d H:i:s') }}</_public_date>
                     <_external_id>{{ file.getexternalid }}</_external_id>
                 </_file_metadata>
@@ -53,7 +53,7 @@
                         <_image_metadata>
                             <_display_order>{{ image.displayorder }}</_display_order>
                             <_create_date>{{ oimage.created|date('Y-m-d H:i:s') }}</_create_date>
-                            <_create_auth>{{ oimage.getcreatedby.getuserextend.firstname }} {{ oimage.getcreatedby.getuserextend.lastname }}</_create_auth>
+                            <_create_auth>{% if oimage.getcreatedby != null %}{{ oimage.getcreatedby.getuserstring }}{% endif %}</_create_auth>
                             <_public_date>{{ oimage.created|date('Y-m-d H:i:s') }}</_public_date>
                             <_external_id>{{ oimage.getexternalid }}</_external_id>
                         </_image_metadata>
@@ -124,7 +124,7 @@
 #}
                             <_external_id>{{ radio_option.getexternalid }}</_external_id>
                             <_create_date>{{ radio_option.created|date('Y-m-d H:i:s') }}</_create_date>
-                            <_create_auth>{{ radio_option.getcreatedby.getuserextend.firstname }} {{ radio_option.getcreatedby.getuserextend.lastname }}</_create_auth>
+                            <_create_auth>{% if radio_option.getcreatedby != null %}{{ radio_option.getcreatedby.getuserstring }}{% endif %}</_create_auth>
                         </_radio_option_metadata>
                         {% endif %}
 

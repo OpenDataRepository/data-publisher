@@ -17,7 +17,7 @@
 
 {% block body %}
     <section id="content" class="container_12 clearfix">
-        <div id="login_wrapper" style="text-align:center;">
+        <div id="login_wrapper" style="text-align:center; margin-top:10px;">
             <div>
             {% if is_granted("IS_AUTHENTICATED_REMEMBERED") %}
                 {{ 'layout.logged_in_as'|trans({'%username%': app.user.username}, 'FOSUserBundle') }} |
@@ -32,6 +32,10 @@
             {% for key, message in app.session.flashbag.all() %}
             <div class="{{ key }}">
                 {{ message|trans({}, 'FOSUserBundle') }}
+{#
+{{ dump(key) }}
+{{ dump(message) }}
+#}
             </div>
             {% endfor %}
 

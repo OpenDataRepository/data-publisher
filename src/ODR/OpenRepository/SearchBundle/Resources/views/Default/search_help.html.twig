@@ -1,0 +1,48 @@
+{% spaceless %}
+<table class="pure-table pure-table-striped">
+    <thead>
+        <tr>
+            <th>Search Term</th>
+            <th>Definition</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>item</td>
+            <td>Searches for datafields containing the word "item".</td>
+        </tr>
+        <tr>
+            <td>"item"</td>
+            <td>Searches for datafields containing only the word "item" and nothing else.</td>
+        </tr>
+        <tr>
+            <td>!item</td>
+            <td>Searches for datafields that does not contain "item".</td>
+        </tr>
+        <tr>
+            <td>!"item"</td>
+            <td>Searches for datafields that contain anything other than just the word "item".</td>
+        </tr>
+        <tr>
+            <td>a b</td>
+            <td>Searches for datafields containing both "a" and "b".</td>
+        </tr>
+        <tr>
+            <td>"a b" "c d"</td>
+            <td>Searches for datafields containing both the item "a b" and the item "c d".</td>
+        </tr>
+        <tr>
+            <td>a || b</td>
+            <td>Searches for datafields containing either "a", or "b", or both.</td>
+        </tr>
+        <tr>
+            <td>&gt;123</td>
+            <td>Searches for datafields containing a number greater than 123.</td>
+        </tr>
+        <tr>
+            <td>&lt;123</td>
+            <td>Searches for datafields containing a number less than 123.</td>
+        </tr>
+    </tbody>
+</table>
+{% endspaceless %}

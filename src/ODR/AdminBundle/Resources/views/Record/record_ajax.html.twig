@@ -115,6 +115,8 @@ function initPage() {
         url = url.substring(0, (url.length - 3));
         url += datarecordfield_id + '/' + entity_id;
 
+// TODO - Radio fieldtype
+
 //alert( url );
 //return;
 
@@ -881,55 +883,24 @@ function LinkRecord(ancestor_datatype_id, descendant_datatype_id, local_datareco
     var url = '{{ path('odr_record_get_linkable_records', { 'ancestor_datatype_id': 0, 'descendant_datatype_id': 0, 'local_datarecord_id': 0 } ) }}';
     url = url.substring(0, (url.length - 5));
     url += ancestor_datatype_id + '/' + descendant_datatype_id + '/' + local_datarecord_id;
+{% if search_key != '' %}
+    url += '/' + '{{ search_key }}';
+{% endif %}
 
 //alert( url );
 //return;
 
     UpdateURL(url);
-    return;
-{#
-    // Ajax Load Form in box
-    var dataType = "json";
-    $.ajax({
-        cache: false,
-        type: 'GET',
-        url: url,
-        dataType: dataType,
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                $("#dialog_link_datarecord .form_contents").html(data.d.html);
-                $( "#dialog_link_datarecord" ).dialog( "open" );
-            }
-            else {
-                // Error occurred
-                alert( data.d );
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-            // Get the xdebugToken from response headers
-            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-            // If the Sfjs object exists
-            if (typeof Sfjs !== "undefined") {
-                // Grab the toolbar element
-                var currentElement = $('.sf-toolbar')[0];
-
-                // Load the data of the given xdebug token into the current toolbar wrapper
-                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-            }
-        }
-    });
-#}
 }
 
 function SaveRecordData(form_id, interval) {
 
-    var the_form = $(form_id);
-
+    // Clear the save interval
     if(interval != "") 
         interval = window.clearInterval(interval);
 
     // Determine save type
+    var the_form = $(form_id);
     var post_data = $(the_form).serialize();
 
     // Theme ID
@@ -956,23 +927,12 @@ function SaveRecordData(form_id, interval) {
 
             }
             else if (data.r == 2) {
-/*
-                // Uniqueness Error
-//                var icon = $(the_form).find(".valid-icon");
-//                icon.removeClass('valid-icon').addClass('error-icon');
+                // Revert back to old value
+                var tmp = form_id.split(/_/);
+                var drf_id = tmp[1];
+                $("#Form_" + drf_id).val( data.old_value );
 
-                // Grab the form that got changed
-                var tmp = data.d.split('||');
-                var the_form = '#' + tmp[0];
-
-                // Restore the old value
-                $(the_form).find("input[type='text']").val(tmp[1]);
-
-                // Show rest of error message
-                alert(tmp[2]);
-
-//                icon.fadeOut();
-*/
+                alert(data.error);
             }
             else {
                 // An error has occurred.

@@ -10,8 +10,11 @@
 
     <div class="DataRecordShort DataRecord_{{ datarecord.id }} Pointer" id="DataType_{{ datatype.id }}" rel="{{ theme_datatype.id }}" onclick="loadDataRecord({{ datarecord.id }});">
         <div class="Resizable">
+            <div class="ODREditLink" rel="{{ datarecord.id }}">
+                <u>Edit</u>
+            </div>
 
-            <div class="ODRFieldArea accordion-content" id="FieldArea_{{ datarecord.id }}">
+            <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
                 {% include 'ODRAdminBundle:ShortResults:shortresults_fields.html.twig' with {'datatype_tree': datatype_tree, 'dr_entry': dr_entry} %}
             </div><!-- End of #FieldArea_{{ datarecord.id }} -->
 

@@ -1,0 +1,59 @@
+{% spaceless %}
+
+    {% set field_typename = datafield.getfieldtype.typename %}
+    {% set field_typeclass = datafield.getfieldtype.typeclass %}
+
+    <div class="ODRAdvSearch_datafield pure-u-1">
+        <span class="pure-u-1-3">
+            <label for="datafield_{{ datafield.id }}" class="pure-u-1" title="{{ datafield.getdescription }}">{{ datafield.getfieldname }}:</label>
+            {% if field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
+                <span class="pure-u-1 ODRSelectAll" rel="{{ datafield.id }}">- <u>Select All</u></span>
+            {% endif %}
+            {% if field_typeclass == "Radio" %}
+                <span class="pure-u-1 ODRDeselectAll" rel="{{ datafield.id }}">- <u>Deselect All</u></span>
+                <span class="pure-u-1 ODRClearAll" rel="{{ datafield.id }}">- <u>Clear All</u></span>
+            {% endif %}
+        </span>
+
+        {% if field_typename == "Boolean" %}
+            <select class="ODRInput pure-u-2-3" id="datafield_{{ datafield.id }}" name="{{ datafield.id }}">
+                <option value="">Any</option>
+                <option value="0">Unselected</option>
+                <option value="1">Selected</option>
+            </select>
+
+        {% elseif field_typename == "File" or field_typename == "Image" %}
+            <select class="ODRInput pure-u-2-3" id="datafield_{{ datafield.id }}" name="{{ datafield.id }}">
+                <option value="">Any</option>
+                <option value="1">Has {{ field_typename }}s</option>
+                <option value="0">Does not have {{ field_typename }}s</option>
+            </select>
+
+        {% elseif field_typename == 'DateTime' %}
+            <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datafield_{{ datafield.id }}_start" name="{{ datafield.id }}_s" value="" rel="datafield_{{ datafield.id }}" />
+{#
+            </div>
+        <div class="ODRAdvSearch pure-u-1">
+#}
+            <label class="pure-u-1-3"></label>
+            <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datafield_{{ datafield.id }}_end" name="{{ datafield.id }}_e" value="" rel="datafield_{{ datafield.id }}" />
+
+        {% elseif field_typeclass == "Radio" %}
+            <span class="pure-u-2-3 ODRRadioSearchDiv" id="Input_{{ datafield.id }}">
+                {% for radio_option in datafield.getRadioOptions %}
+                <label id="Label_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="ODRRadioLabel pure-u-1">
+                    <span class="ODRTristateCheckbox" rel="{% if field_typename == "Single Radio" or field_typename == "Single Select" %}single{% else %}multiple{% endif %}">
+                        <i class="fa"></i>
+                        <input type="hidden" name="{{ datafield.id }}" rel="{{ radio_option.id }}" value="" />
+                    </span>
+                    {{ radio_option.getOptionName }}
+                </label>
+                {% endfor %}
+            </span>
+
+        {% else %}
+            <input type="text" class="ODRInput pure-u-2-3" id="datafield_{{ datafield.id }}" name="{{ datafield.id }}" />
+        {% endif %}
+    </div>
+
+{% endspaceless %}
