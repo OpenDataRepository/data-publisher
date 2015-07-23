@@ -30,20 +30,20 @@ ODR\AdminBundle\Entity\DecimalValue:
             gedmo:
                 - versioned
 
-        base:
-            type: integer
-            unsigned: false
-            nullable: false
-            default: 0
-            gedmo:
-                - versioned
-        exponent:
-            type: integer
-            unsigned: false
-            nullable: false
-            default: 0
-            gedmo:
-                - versioned
+#        base:
+#            type: integer
+#            unsigned: false
+#            nullable: false
+#            default: 0
+#            gedmo:
+#                - versioned
+#        exponent:
+#            type: integer
+#            unsigned: false
+#            nullable: false
+#            default: 0
+#            gedmo:
+#                - versioned
         deletedAt:
             type: date
             nullable: true

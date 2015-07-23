@@ -1342,42 +1342,4 @@ print '<pre>';
 print '</pre>';
     }
 
-
-    public function testAction(Request $request)
-    {
-        $em = $this->getDoctrine()->getManager();
-        $query = $em->createQuery(
-           'SELECT dv
-            FROM ODRAdminBundle:DataRecord AS dr
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-            JOIN ODRAdminBundle:DecimalValue AS dv WITH dv.dataRecordFields = drf
-            WHERE dv.value IS NOT NULL AND NOT (dv.base = 0 AND dv.exponent = 0) AND dv.original_value = :empty
-            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND dv.deletedAt IS NULL'
-        )->setParameters( array('empty' => "0") );
-        $iterableResult = $query->iterate();
-
-print '<pre>';
-        $count = 0;
-        foreach ($iterableResult as $row) {
-            $count++;
-
-            $dv = $row[0];
-            $value = $dv->getValue();
-            print $dv->getId().' >> '.$value."\n";
-            $dv->setValue($value);
-            $em->persist($dv);
-
-            if ( ($count % 20) == 0 ) {
-                $em->flush();
-                $em->clear();
-            }
-            
-        }
-
-        $em->flush();
-        $em->clear();
-print 'count: '.$count."\n";
-print '</pre>';
-    }
-
 }

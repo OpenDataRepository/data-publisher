@@ -10,9 +10,6 @@
 * The DecimalValue Entity is automatically generated from 
 * ./Resources/config/doctrine/DecimalValue.orm.yml
 *
-* Unlike other storage entities, getValue() and setValue() have
-* to calculate the value "stored" in here from a (base, exponent)
-* pair.
 */
 
 
@@ -138,64 +135,9 @@ class DecimalValue
      */
     public function getValue()
     {
-        $value = 0;
-
-        $original_value = $this->original_value;
-        $base = $this->base;
-        $exponent = $this->exponent;
-
-        if ($original_value !== '')
-            return $original_value;
-        else
-            return self::DecimalToString( $base, $exponent );
+        return $this->original_value;
     }
 
-    /**
-     * Convert decimal format to string, made available to controllers.
-     *
-     * @param integer $base
-     * @param integer $exponent
-     */
-    public static function DecimalToString($base, $exponent)
-    {
-        if ($exponent == 0) {
-            // No changes to base
-            $value = strval($base);
-        }
-        else if ( $exponent < 0 ) {
-            // Need to shift the decimal point to the left...
-            $negative = false;
-            if (intval($base) < 0) {
-                $negative = true;
-                $base = $base * -1;
-            }
-
-            $exponent = $exponent * -1;
-            $new_base = strval($base);
-            if ($exponent >= strlen($base)) {
-                // Need to prepend a number of zeros before the base
-                for ($i = strlen($new_base); $i < $exponent; $i++)
-                    $new_base = '0'.$new_base;
-                $value = '0.'.$new_base;
-            }
-            else {
-                // Insert a decimal point at the correct place
-                $value = substr($base, 0, strlen($base)-$exponent).'.'.substr($base, strlen($base)-$exponent);
-            }
-
-            // Append negative if it was dropped
-            if ($negative)
-               $value = '-'.$value;
-        }
-        else {
-            // Need to shift the decimal point to the right...append trailing zeros to base
-            $value = $base;
-            for ($i = 0; $i < $exponent; $i++)
-                $value.= '0';
-        }
-
-        return $value;
-    }
 
     /**
      * Set dataField
@@ -432,62 +374,6 @@ class DecimalValue
     public function getDataRecordFields()
     {
         return $this->dataRecordFields;
-    }
-
-    /**
-     * @var integer
-     */
-    private $exponent;
-
-    /**
-     * Set exponent
-     *
-     * @param integer $exponent
-     * @return DecimalValue
-     */
-    public function setExponent($exponent)
-    {
-        $this->exponent = $exponent;
-    
-        return $this;
-    }
-
-    /**
-     * Get exponent
-     *
-     * @return integer 
-     */
-    public function getExponent()
-    {
-        return $this->exponent;
-    }
-    /**
-     * @var integer
-     */
-    private $base;
-
-
-    /**
-     * Set base
-     *
-     * @param integer $base
-     * @return DecimalValue
-     */
-    public function setBase($base)
-    {
-        $this->base = $base;
-    
-        return $this;
-    }
-
-    /**
-     * Get base
-     *
-     * @return integer 
-     */
-    public function getBase()
-    {
-        return $this->base;
     }
 
     /**

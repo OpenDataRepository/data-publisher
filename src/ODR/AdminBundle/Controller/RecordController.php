@@ -2444,18 +2444,6 @@ if ($debug)
                         else
                             $tmp['value'] = '';
                     }
-                    else if ( $type_class == 'DecimalValue' ) {
-                        // Log entries denote changes to base and exponent separately
-                        $tmp['value'] = array();
-                        if ( isset($data['base']) )
-                            $tmp['value']['base'] = $data['base'];
-                        if ( isset($data['exponent']) )
-                            $tmp['value']['exponent'] = $data['exponent'];
-                        if ( isset($data['value']) ) {
-                            $tmp['value']['base'] = 0;
-                            $tmp['value']['exponent'] = 0;
-                        }
-                    }
                     else if ( isset($data['value']) ) {
                         // Otherwise, just store the value
                         $tmp['value'] = $data['value'];
@@ -2466,33 +2454,6 @@ if ($debug)
                     }
 
                     $log_entries[] = $tmp;
-                }
-//print_r($log_entries);
-
-                if ( $type_class == 'DecimalValue' ) {
-                    // Because changes to base/exponent stored separately, need to combine entries...
-                    $base = null;
-                    $exponent = null;
-                    for ($i = count($log_entries)-1; $i >= 0; $i--) {
-                        $value = $log_entries[$i]['value'];
-                        if ($base === null && $exponent === null) {
-                            // This should be the original creation of the entry, should always have base/exponent
-                            $base = $value['base'];
-                            $exponent = $value['exponent'];
-                            $log_entries[$i]['value'] = 0;
-                        }
-                        else {
-                            // Carry over or update the base
-                            if ( isset($value['base']) )
-                                $base = $value['base'];
-
-                            // Carry over or update the exponent
-                            if ( isset($value['exponent']) )
-                                $exponent = $value['exponent'];
-
-                            $log_entries[$i]['value'] = DecimalValue::DecimalToString($base, $exponent);
-                        }
-                    }
                 }
 //print "--------------------\n";
 //print_r($log_entries);
