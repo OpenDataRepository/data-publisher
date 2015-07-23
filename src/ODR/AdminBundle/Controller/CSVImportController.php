@@ -988,10 +988,9 @@ class CSVImportController extends ODRCustomController
                         break;
 
                     case "DatetimeValue":
-                        try {
-                            $tmp = new \DateTime($value);
-                        }
-                        catch (\Exception $e) {
+                        // TODO - more strenuous date checking
+                        $pattern = '/^(\d{1,4})$/'; // string consists solely of one to four digits
+                        if ( preg_match($pattern, $value) == 1 ) {
                             $errors[] = array(
                                 'level' => 'Error',
                                 'body' => array(
@@ -999,6 +998,20 @@ class CSVImportController extends ODRCustomController
                                     'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", which is not a valid Datetime value',
                                 ),
                             );
+                        }
+                        else {
+                            try {
+                                $tmp = new \DateTime($value);
+                            }
+                            catch (\Exception $e) {
+                                $errors[] = array(
+                                    'level' => 'Error',
+                                    'body' => array(
+                                        'line_num' => $line_num,
+                                        'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", which is not a valid Datetime value',
+                                    ),
+                                );
+                            }
                         }
                         break;
 
@@ -1936,10 +1949,13 @@ print_r($new_mapping);
                         if ($column_data !== '') {
                             $datetime = new \DateTime($column_data);
                             $entity->setValue($datetime);
+                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$datetime->format('Y-m-d H:i:s').'"...'."\n";
+                        }
+                        else {
+                            $entity->setValue(null);
+                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to ""...'."\n";
                         }
                         $em->persist($entity);
-
-                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$datetime->format('Y-m-d H:i:s').'"...'."\n";
                     }
                     else if ($typeclass == 'Radio') {
                         $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') ';
