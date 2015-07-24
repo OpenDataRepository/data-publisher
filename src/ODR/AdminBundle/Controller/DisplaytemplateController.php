@@ -1708,7 +1708,7 @@ print '</pre>';
             foreach ($datatype_entries as $datatype_entry) {
                 // TODO - ...
                 // Prevent user from linking to a datatype they can't view
-                if ( !(isset($user_permissions[ $datatype_entry->getId() ]) && $user_permissions[ $datatype_entry->getId() ]['view']) )
+                if ( !isset($user_permissions[ $datatype_entry->getId() ]) || !isset($user_permissions[ $datatype_entry->getId() ]['view']) )
                     continue;
 
                 $block = false;
@@ -1872,11 +1872,18 @@ print '</pre>';
                     $em->remove($datatree);
 
                 // Remove the linked datatree entries between these two datatypes as well
-                $linked_datatree = $repo_linked_datatree->findAll();
-                foreach ($linked_datatree as $ldt) {
-                    if ($ldt->getAncestor()->getDataType()->getId() == $local_datatype_id && $ldt->getDescendant()->getDataType()->getId() == $previous_remote_datatype_id)
-                        $em->remove($ldt);
-                }
+                $query = $em->createQuery(
+                   'SELECT ldt
+                    FROM ODRAdminBundle:LinkedDataTree AS ldt
+                    JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
+                    AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                )->setParameters( array('ancestor_datatype' => $local_datatype_id, 'descendant_datatype' => $previous_remote_datatype_id) );
+                $results = $query->getResult();
+
+                foreach ($results as $ldt) 
+                    $em->remove($ldt);
 
                 // Remove the theme_element_field entry
                 $theme_element_field = $repo_theme_element_field->findOneBy( array("themeElement" => $theme_element_id, "dataType" => $previous_remote_datatype_id) );
@@ -3943,10 +3950,11 @@ if ($debug)
     {
         // Going to need these...
         $datafield_id = $datafield->getId();
-        $typeclass = $datafield->getFieldType()->getTypeClass();
+        $fieldtype = $datafield->getFieldType();
+        $typeclass = $fieldtype->getTypeClass();
 
         // Only run queries if field can be set to unique
-        if ($typeclass !== 'IntegerValue' && $typeclass !== 'ShortVarchar' && $typeclass !== 'MediumVarchar')
+        if ($fieldtype->getCanBeUnique() == 0)
             return false;
 
         // Determine how many values there are in the datafield...
