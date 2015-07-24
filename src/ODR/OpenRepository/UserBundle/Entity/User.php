@@ -233,8 +233,14 @@ class User extends BaseUser
 
 
     /**
-     * Custom callback to validate the plainPassword?
+     * Custom callback to validate the plainPassword
      * @see http://symfony.com/doc/2.3/reference/constraints/Callback.html
+     *
+     * changes made to password rules should also be made in these files:
+     *  ODR\OpenRepository\UserBundle\Resources\views\ChangePassword\changePassword_content.html.twig
+     *  ODR\OpenRepository\UserBundle\Resources\views\Resetting\reset_content.html.twig
+     *  ODR\OpenRepository\UserBundle\Entity\User.php
+     *  ODR\AdminBundle\Resources\views\ODRUser\change_password.html.twig
      */
     public function isPasswordValid(ExecutionContextInterface $context)
     {

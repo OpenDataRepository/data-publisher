@@ -27,18 +27,30 @@ odr_self_profile_save:
 
 #-----------------------------------------
 # ODRUser Controller
-admin_new_user_create:
+odr_admin_new_user_create:
     pattern:  /admin/new_user/create
     defaults: { _controller: ODRAdminBundle:ODRUser:createnew }
 
-admin_new_user_check:
+odr_admin_new_user_check:
     pattern:  /admin/new_user/check
     defaults: { _controller: ODRAdminBundle:ODRUser:checknew }
     requirements: { _method: POST }
 
-admin_new_user_save:
+odr_admin_new_user_save:
     pattern: /admin/new_user/save
     defaults: { _controller: ODRAdminBundle:ODRUser:savenew }
+    requirements: { _method: POST }
+
+odr_admin_change_password:
+    pattern:  /admin/user/change_password/{user_id}
+    defaults: { _controller: ODRAdminBundle:ODRUser:changepassword }
+    requirements:
+        user_id:  \d+
+
+odr_admin_save_password:
+    pattern:  /admin/user/change_password/save
+    defaults: { _controller: ODRAdminBundle:ODRUser:savepassword }
+    requirements: { _method: POST }
 
 odr_profile_edit:
     pattern:  /admin/user/edit/{user_id}
@@ -215,6 +227,7 @@ odr_design_display_template:
     defaults: { _controller: ODRAdminBundle:Displaytemplate:design }
     requirements:
         datatype_id:  \d+
+
 odr_design_reload_child:
     pattern: /design/displaytemplate/childreload/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:reloadchild }

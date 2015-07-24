@@ -156,10 +156,10 @@ class User extends BaseUser
      */
     public function getUserString()
     {
-        if ($this->firstName !== '')
-            return $this->firstName.' '.$this->lastName;
-        else
+        if ($this->firstName == null || $this->firstName == '')
             return $this->email;
+        else
+            return $this->firstName.' '.$this->lastName;
     }
 
     /**
@@ -233,11 +233,21 @@ class User extends BaseUser
 
 
     /**
-     * Custom callback to validate the plainPassword?
+     * Custom callback to validate the plainPassword
      * @see http://symfony.com/doc/2.3/reference/constraints/Callback.html
+     *
+     * changes made to password rules should also be made in these files:
+     *  ODR\OpenRepository\UserBundle\Resources\views\ChangePassword\changePassword_content.html.twig
+     *  ODR\OpenRepository\UserBundle\Resources\views\Resetting\reset_content.html.twig
+     *  ODR\OpenRepository\UserBundle\Entity\User.php
+     *  ODR\AdminBundle\Resources\views\ODRUser\change_password.html.twig
      */
     public function isPasswordValid(ExecutionContextInterface $context)
     {
+        // Prevent profile edit form from complaining about bad password when nothing was actually submitted as a password
+        if ($this->plainPassword == null)
+            return;
+
         if ( preg_match('/[a-z]/', $this->plainPassword) !== 1 ) {
             $context->addViolationAt(
                 'plainPassword',

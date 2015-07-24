@@ -20,11 +20,13 @@
             {{ form_widget(profile_form.email, { 'attr': {'class': 'required', 'data-error-type': 'inline', 'disabled': 'disabled'} }) }}
         </div>
 
-{% if current_user.id == target_user.id %}
         <div class="pure-control-group">
+{% if current_user.id == target_user.id %}
             <a class="address" href="{{ path('fos_user_change_password') }}" >Change Password</a>
-        </div>
+{% else %}
+            <a class="address" href="#{{ path('odr_admin_change_password', {'user_id': target_user.id}) }}" >Change Password</a>
 {% endif %}
+        </div>
 
         <div>&nbsp;</div>
 
@@ -88,7 +90,7 @@
 
         $.ajax({
             url: url,
-            type: 'post',
+            type: 'POST',
             dataType: 'json',
             data: $("#ODRUserProfileForm_{{ target_user.id }}").serialize(),
             success: function(data, textStatus, jqXHR) {

@@ -29,6 +29,7 @@ use ODR\AdminBundle\Entity\UserFieldPermissions;
 // Forms
 use Symfony\Component\Form\FormError;
 use ODR\AdminBundle\Form\ODRUserProfileForm;
+use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -331,6 +332,11 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // Grab the specified user
+            $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
+            $user = $repo_user->find($user_id);
+            if ($user == null)
+                return parent::deletedEntityError('User');
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -350,12 +356,6 @@ class ODRUserController extends ODRCustomController
                 $allow = false;
                 foreach ($admin_permissions as $datatype_id => $permission) {
                     if ( isset($permission['admin']) && $permission['admin'] == 1 ) {
-                        // If $user_id is 0, this is a new user...allow if user has admin permissions for a datatype
-                        if ($user_id === '0') {
-                            $allow = true;
-                            break;
-                        }
-
                         // allow this profile edit if the admin user has an "is_type_admin" permission and the target user has a "can_view_type" for the same datatype
                         if ( isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['view']) && $user_permissions[$datatype_id]['view'] == 1 ) {
                             $allow = true;
@@ -369,12 +369,6 @@ class ODRUserController extends ODRCustomController
                     return parent::permissionDeniedError();
             }
             // --------------------
-
-            // Grab the specified user
-            $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
-            $user = $repo_user->find($user_id);
-            if ($user_id !== '0' && $user == null)
-                return parent::deletedEntityError('User');
 
             $self_edit = 'false';
             if ($admin->getid() == $user_id)
@@ -498,12 +492,6 @@ class ODRUserController extends ODRCustomController
                 $allow = false;
                 foreach ($admin_permissions as $datatype_id => $permission) {
                     if ( isset($permission['admin']) && $permission['admin'] == 1 ) { 
-                        // If $user_id is 0, this is a new user...allow if user has admin permissions for a datatype
-                        if ($user_id == '0') {
-                            $allow = true;
-                            break;
-                        }
-
                         // allow this profile edit if the admin user has an "is_type_admin" permission and the target user has a "can_view_type" for the same datatype
                         if ( isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['view']) && $user_permissions[$datatype_id]['view'] == 1 ) { 
                             $allow = true;
@@ -594,6 +582,194 @@ class ODRUserController extends ODRCustomController
         }
 
         return $return;
+    }
+
+
+    /**
+     * Returns the HTML for an admin user to change another user's password
+     * 
+     * @param integer $user_id The database id of the user to edit.
+     * @param Request $request
+     * 
+     * @return a Symfony JSON response containing HTML
+     */
+    public function changepasswordAction($user_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab the specified user
+            $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
+            $target_user = $repo_user->find($user_id);
+            if ($target_user == null)
+                return parent::deletedEntityError('User');
+
+            // --------------------
+            // Ensure user has permissions to be doing this
+            $admin = $this->container->get('security.context')->getToken()->getUser();
+
+            // Bypass all this sillyness if the user is a super admin, or doing this action to his own profile for some reason
+            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
+
+                // If user lacks super admin and admin roles, not allowed to do this
+                if ( !$admin->hasRole('ROLE_ADMIN') )
+                    return parent::permissionDeniedError();
+
+                // Grab permissions of both target user and admin
+                $admin_permissions = parent::getPermissionsArray($admin->getId(), $request, false);
+                $user_permissions = parent::getPermissionsArray($user_id, $request, false);
+
+                $allow = false;
+                foreach ($admin_permissions as $datatype_id => $permission) {
+                    if ( isset($permission['admin']) && $permission['admin'] == 1 ) {
+                        // allow this profile edit if the admin user has an "is_type_admin" permission and the target user has a "can_view_type" for the same datatype
+                        if ( isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['view']) && $user_permissions[$datatype_id]['view'] == 1 ) {
+                            $allow = true;
+                            break;
+                        }
+                    }
+                }
+
+                // If not allowed, block access
+                if (!$allow)
+                    return parent::permissionDeniedError();
+            }
+            // --------------------
+
+            // Create a new form to edit the user
+            $form = $this->createForm(new ODRAdminChangePasswordForm($target_user), $target_user);
+
+            // Render them in a list
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:ODRUser:change_password.html.twig',
+                    array(
+                        'form' => $form->createView(),
+                        'current_user' => $admin,
+                        'target_user' => $target_user,
+                    )
+                )
+            );
+
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x677153132 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Saves changes an admin makes to another user's password
+     *
+     * @param Request $request
+     *
+     * @return TODO
+     */
+    public function savepasswordAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
+            $user_manager = $this->container->get('fos_user.user_manager');
+            $router = $this->get('router');
+
+            $post = $request->request->all();
+            if ( !isset($post['ODRAdminChangePasswordForm']) )
+                throw new \Exception('Invalid Form');
+
+            // Locate the target user
+            $post = $post['ODRAdminChangePasswordForm'];
+            $target_user_id = intval( $post['user_id'] );
+            $target_user = $repo_user->find($target_user_id);
+            if ($target_user == null)
+                return parent::deletedEntityError('User');
+
+            // --------------------
+            // Ensure user has permissions to be doing this
+            $admin = $this->container->get('security.context')->getToken()->getUser();
+
+            // Bypass all this sillyness if the user is a super admin, or doing this action to his own profile for some reason
+            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $target_user_id ) {
+
+                // If user lacks super admin and admin roles, not allowed to do this
+                if ( !$admin->hasRole('ROLE_ADMIN') )
+                    return parent::permissionDeniedError();
+
+                // Grab permissions of both target user and admin
+                $admin_permissions = parent::getPermissionsArray($admin->getId(), $request, false);
+                $user_permissions = parent::getPermissionsArray($target_user_id, $request, false);
+
+                $allow = false;
+                foreach ($admin_permissions as $datatype_id => $permission) {
+                    if ( isset($permission['admin']) && $permission['admin'] == 1 ) {
+                        // allow this profile edit if the admin user has an "is_type_admin" permission and the target user has a "can_view_type" for the same datatype
+                        if ( isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['view']) && $user_permissions[$datatype_id]['view'] == 1 ) {
+                            $allow = true;
+                            break;
+                        }
+                    }
+                }
+
+                // If not allowed, block access
+                if (!$allow)
+                    return parent::permissionDeniedError();
+            }
+            // --------------------
+
+            // Bind form to user
+            $form = $this->createForm(new ODRAdminChangePasswordForm($target_user), $target_user);
+            $form->bind($request, $target_user);
+
+            // Password fields matching is handled by the Symfony Form 'repeated' field
+            // Password length and complexity is handled by the isPasswordValid() callback function in ODR\OpenRepository\UserBundle\Entity\User
+
+            // TODO - check for additional errors to throw?
+
+//$form->addError( new FormError("don't save form...") );
+
+            // If no errors...
+            if ( $form->isValid() ) {
+                // Save changes to the user
+                $user_manager->updateUser($target_user);
+            }
+            else {
+                $return['r'] = 1;
+                $errors = $form->getErrors();
+                $error_str = '';
+                foreach ($errors as $num => $error)
+                    $error_str .= 'ERROR: '.$error->getMessage()."\n";
+
+                $return['d'] = array('html' => $error_str);
+            }
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = array('html' => 'Error 0x213534325 ' . $e->getMessage());
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 

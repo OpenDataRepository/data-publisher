@@ -124,7 +124,7 @@
 
 
     function checkEmail() {
-        var url = "{{ path('admin_new_user_check') }}";
+        var url = "{{ path('odr_admin_new_user_check') }}";
         var email = $("#{{ profile_form.email.vars.id }}").val();
         email = email.trim();
 
@@ -188,7 +188,7 @@
             return;
         }
 
-        var url = "{{ path('admin_new_user_save') }}";
+        var url = "{{ path('odr_admin_new_user_save') }}";
 //alert(url);
 //return;
 
