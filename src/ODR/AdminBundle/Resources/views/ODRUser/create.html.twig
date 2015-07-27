@@ -8,8 +8,17 @@
 
 <form class="ODRUserProfileForm pure-form pure-form-aligned" {{ form_enctype(profile_form) }} id="ODRUserProfileForm">
     {#{{ form_widget(profile_form.id) }}#}
-    {{ form_errors(profile_form._token) }}
+    {#{{ form_errors(profile_form._token) }}#}
     {{ form_widget(profile_form._token) }}
+
+    <fieldset>
+        <div id="form_errors">
+            {{ form_errors(profile_form) }}
+            {{ form_errors(profile_form.plainPassword.first) }}
+        </div>
+        <div id="password_errors"></div>
+    </fieldset>
+
     <fieldset>
 
         <div class="pure-control-group">
@@ -84,6 +93,8 @@
     <input id="submitButton" class="pure-button pure-button-primary" type="button" />
 
 </form>
+
+{% include 'ODRAdminBundle:ODRUser:password_rules.html.twig' with {'form': profile_form} %}
 
 <script>
     $(function() {
@@ -185,6 +196,11 @@
 
         if ( !$("#ODRUserProfileForm").valid() ) {
             alert("Invalid form");
+            return;
+        }
+
+        if ( !ODR_isPasswordValid() ) {
+            alert('Password is not valid');
             return;
         }
 
