@@ -717,8 +717,8 @@ if ($debug) {
             $query = $em->createQuery(
                'SELECT dr.id AS dr_id
                 FROM ODRAdminBundle:DataRecord AS dr
-                WHERE dr.id IN (:datarecords) AND dr.deletedAt IS NULL'
-            )->setParameters( array('datarecords' => $datarecords) );
+                WHERE dr.id IN (:datarecords) AND dr.dataType = :datatype AND dr.deletedAt IS NULL'
+            )->setParameters( array('datarecords' => $datarecords, 'datatype' => $datatype->getId()) );
             $results = $query->getArrayResult();
 
             if ( count($results) < count($datarecords) ) {
@@ -1341,8 +1341,11 @@ if ($debug) {
                     }
                     else if ($typeclass == 'DatetimeValue') {
                         // Ensure correct versions of starting/ending date exist prior to searching
-                        $start = trim($search_string['start']);
-                        $end = trim($search_string['end']);
+                        $start = $end = '';
+                        if ( isset($search_string['s']) )    // if start date is set
+                            $start = trim($search_string['s']);
+                        if ( isset($search_string['e']) )    // if end date is set
+                            $end = trim($search_string['e']);
 
                         if ($start == '' && $end == '')
                             continue;
@@ -1899,7 +1902,7 @@ if ($debug) {
                             $pieces[] = '&&';
                             break;
                         case '!':
-                        case '-':
+//                        case '-':
                             // attempt to ignore the operator if not attached to a term
                             /*if ( $str[$i+1] !== ' ' )*/
                                 $pieces[] = '!';
