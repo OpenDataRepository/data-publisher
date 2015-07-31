@@ -248,6 +248,10 @@ class CSVImportController extends ODRCustomController
             // Move the uploaded file into a directory specifically for csv imports
             $tokenGenerator = $this->container->get('fos_user.util.token_generator');
             $tmp_filename = substr($tokenGenerator->generateToken(), 0, 12);
+            // TODO - other illegal first characters for filename?
+            if ( substr($tmp_filename, 0, 1) == '-' )
+                $tmp_filename = 'a'.substr($tmp_filename, 1);
+
 
             $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
             if ( !file_exists($csv_import_path) )
@@ -371,10 +375,12 @@ class CSVImportController extends ODRCustomController
             );
             $fieldtypes = $repo_fieldtype->findBy( array('id' => $fieldtype_array) );
 
-
             // Attempt to load the previously uploaded csv file
             if ( !$session->has('csv_file') )
                 throw new \Exception('No CSV file uploaded');
+
+            // Remove any completely blank columns from the file
+            self::removeBlankColumns($request);
 
             $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
             $csv_filename = $session->get('csv_file');
@@ -413,16 +419,20 @@ class CSVImportController extends ODRCustomController
                 }
             }
 
+//exit();
 //print_r($encoding_errors);
 
             // Grab column names from first row
+            $error_messages = array();
             $columns = array();
-            foreach ($first_row as $column => $value)
-                $columns[] = $column;
+            foreach ($first_row as $column => $value) {
+                if ($column == '')
+                    $error_messages[] = array( 'error_level' => 'Error', 'error_body' => array('line_num' => 0, 'message' => 'Column headers are not allowed to be blank') );
 
+                $columns[] = $column;
+            }
 
             // Notify of "syntax" errors in the csv file
-            $error_messages = array();
             if ( count($encoding_errors) > 0 || count($reader->getErrors()) > 0 ) {
 
                 // Warn about invalid encoding
@@ -484,6 +494,145 @@ class CSVImportController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     *  Because Excel on Macintosh computers apparently can't always manage to keep itself from 
+     *  exporting completely blank columns in the csv files it creates, there needs to be
+     *  a function to strip completely blank columns from csv files.
+     *
+     * @param Request $request
+     * 
+     * @return none
+     */
+    private function removeBlankColumns(Request $request) {
+        $session = $request->getSession();
+
+        // Attempt to load the previously uploaded csv file
+        if ( !$session->has('csv_file') )
+            throw new \Exception('No CSV file uploaded');
+
+        $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
+        $csv_filename = $session->get('csv_file');
+        $delimiter = $session->get('csv_delimiter');
+
+        // Apparently SplFileObject doesn't do this before opening the file...
+        ini_set('auto_detect_line_endings', TRUE);
+
+        $csv_file = new \SplFileObject( $csv_import_path.$csv_filename );
+        $csv_file->setFlags(
+            \SplFileObject::READ_CSV |
+            \SplFileObject::SKIP_EMPTY |
+            \SplFileObject::READ_AHEAD |
+            \SplFileObject::DROP_NEW_LINE
+        );
+        $csv_file->setCsvControl($delimiter);    // use default settings for enclosure and escape characters
+
+        // Read first row
+        $header_row = $csv_file->fgetcsv(); // automatically increments file pointer
+//print_r($header_row);
+
+        // Determine if any of the column headers are blank...
+        $blank_header = false;
+        $column_use = array();
+        for ($i = 0; $i < count($header_row); $i++) {
+            if ( $header_row[$i] !== '' )
+                $column_use[$i] = true;
+            else
+                $column_use[$i] = false;
+        }
+        foreach ($column_use as $column_id => $in_use) {
+            if ($in_use == false)
+                $blank_header = true;
+        }
+
+        // If none of the column headers are blank, then don't bother reading rest of file
+        if (!$blank_header) {
+//print 'early exit';
+            $csv_file = null;    // close SplFileObject?
+            return;
+        }
+
+        // Continue reading the file...
+        while ( $csv_file->valid() ) {
+            $row = $csv_file->fgetcsv();    // automatically increments file pointer
+            if ( count($row) == 0 )
+                continue;
+//print_r($row);
+
+            // If column mis-match, don't bother reading rest of file
+            if ( count($row) !== count($header_row) ) {
+//print 'column mismatch';
+                $csv_file = null;
+                return;
+            }
+
+            // If a column previously thought to be blank has a value in the row, update the array
+            foreach ($row as $column_id => $value) {
+                if ($value !== '' && $column_use[$column_id] == false)
+                    $column_use[$column_id] = true;
+            }
+        }
+
+        // Done reading file...
+        $rewrite_file = false;
+        foreach ($column_use as $column_id => $in_use) {
+            if (!$in_use) {
+//print 'column '.$column_id.' not in use'."\n";
+                $rewrite_file = true;
+            }
+        }
+
+        // If no completely blank columns...
+        if (!$rewrite_file) {
+//print "don't need to rewrite file";
+            $csv_file = null;
+            return;
+        }
+
+        // Need to rewrite file...create a new file
+        $tokenGenerator = $this->container->get('fos_user.util.token_generator');
+        $tmp_filename = substr($tokenGenerator->generateToken(), 0, 12);
+        // TODO - other illegal first characters for filename?
+        if ( substr($tmp_filename, 0, 1) == '-' )
+            $tmp_filename = 'a'.substr($tmp_filename, 1);
+        $tmp_filename .= '.csv';
+
+        $new_csv_file = fopen( $csv_import_path.$tmp_filename, 'w' );   // apparently SplFileObject doesn't have fputcsv()
+        $session->set('csv_file', $tmp_filename);
+
+        $blank_columns = array();
+        foreach ($column_use as $column_id => $in_use) {
+            if (!$in_use)
+                $blank_columns[] = $column_id;
+        }
+
+        // Rewind the file pointer to the **second** line of the csv file, then print out the header row without blank columns
+        $csv_file->rewind();
+        $new_header_row = $header_row;
+        foreach ($blank_columns as $num => $column_id)
+            unset($new_header_row[$column_id]);
+        fputcsv($new_csv_file, $new_header_row, $delimiter);
+
+        // Do the same for all the other rows in the file
+        while ( $csv_file->valid() ) {
+            $row = $csv_file->fgetcsv();    // automatically advances file pointer
+            if ( count($row) == 0 )
+                continue;
+
+            foreach ($blank_columns as $num => $column_id)
+                unset( $row[$column_id] );
+//print_r($row);
+
+            fputcsv($new_csv_file, $row, $delimiter);
+        }
+
+        // Done with both files
+        $csv_file = null;
+        unlink($csv_import_path.$csv_filename);
+        fclose($new_csv_file);
+        return;
     }
 
 
