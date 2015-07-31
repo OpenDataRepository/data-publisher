@@ -68,6 +68,10 @@ function initPage() {
         yearRange: "1800:+10",
         onClose: function() {
             $(this).blur();
+
+            // If a date was selected, ensure the 'clear all dates' checkbox is unchecked
+            if ( $(this).val() !== '' )
+                $(this).parent().parent().find('input').prop('checked', false);
         }
     });
 
@@ -193,9 +197,13 @@ function doMassUpdate() {
             $("#Value_" + datafield_id).remove();
 
         // Save any value currently in this datafield
+        var clear_all = $(this).parent().parent().find('input.ODRDatePicker_clearAll').prop('checked');
         var val = $(this).val().trim();
         if (val !== '') {
             var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            $("#massedit_form").append(element);
+        } else if (clear_all == true) {
+            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: '', name: "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
         }
     });
@@ -249,6 +257,8 @@ function doMassUpdate() {
 
     var data = $("#massedit_form").serialize();
     var url = $("#massedit_form").attr('action');
+//alert(url);
+//return;
 
     $.ajax({
         type: 'POST',

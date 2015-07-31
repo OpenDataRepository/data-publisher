@@ -161,15 +161,9 @@
         <div class="ODRPseudoField" id="Input_{{ field.id }}">
             <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly {% if can_edit_datafield == 0 %}disabled{% endif %}/>
         </div>
-        <div style="margin-bottom:5px;"><label class="ODRDatePicker_clear"><u>Clear Date</u></label></div>
+        <div style="float:left; margin:5px;"><label class="ODRDatePicker_clear Pointer"><input type="checkbox" class="ODRDatePicker_clearAll" name="" value="1" />&nbsp;Clear All Dates</label></div>
+        <div style="float:right; margin:5px;"><label class="ODRDatePicker_clear Pointer"><u>Clear</u></label></div>
     </fieldset>
-
-{#
-    {% elseif field_typename == "MassEdit" %}
-    <fieldset>
-        <div class="ODRPseudoField">{% if field.markdowntext != null %}{{ field.markdowntext|markdown }}{% endif %}</div>
-    </fieldset>
-#}
 
     {% endif %}
     </form>

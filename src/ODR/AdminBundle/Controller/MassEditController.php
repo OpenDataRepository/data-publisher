@@ -623,14 +623,22 @@ $ret .= 'deselecting radio_option_id '.$radio_option_id.' for datafield '.$dataf
                     // Save the value in the referenced entity
                     $entity = $datarecordfield->getAssociatedEntity();
 
-                    if ( $entity->getValue()->format('Y-m-d') !== $value ) {
+                    if ( $entity->getValue() !== null && $entity->getValue()->format('Y-m-d') !== $value ) {
 $ret .= 'setting datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$entity->getValue()->format('Y-m-d').'" to "'.$value."\"\n";
-                        $entity->setValue(new \DateTime($value));
+                        if ($value !== '')
+                            $entity->setValue(new \DateTime($value));
+                        else
+                            $entity->setValue(null);
+
                         $entity->setUpdatedBy($user);
                         $em->persist($entity);
                     }
                     else {
-$ret .= 'not changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$entity->getValue()->format('Y-m-d').'" identical to desired value "'.$value."\"\n";
+$old_value = null;
+if ($entity->getValue() !== null)
+    $old_value = $entity->getValue();
+
+$ret .= 'not changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$old_value->format('Y-m-d').'" identical to desired value "'.$value."\"\n";
                     }
 
                 }
