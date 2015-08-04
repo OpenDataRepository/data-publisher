@@ -275,12 +275,6 @@ odr_design_get_datafield_properties:
     requirements:
         datafield_id:  \d+
 
-odr_design_analyze_datafield_unique:
-    pattern:  /design/displaytemplate/analyze_datafield_unique/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:analyzedatafieldunique }
-    requirements:
-        datafield_id:  \d+
-
 odr_design_get_theme_element_properties:
     pattern:  /design/displaytemplate/themeelementproperties/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:themeelementproperties }
@@ -1000,6 +994,20 @@ odr_get_job_errors:
 #    defaults: { _controller: ODRAdminBundle:Job:deletetrackederror }
 #    requirements:
 #        error_id: \d+
+
+#-----------------------------------------
+# Reports Controller
+odr_design_analyze_datafield_unique:
+    pattern:  /design/displaytemplate/analyze_datafield_unique/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Reports:analyzedatafieldunique }
+    requirements:
+        datafield_id:  \d+
+
+odr_design_analyze_file_uploads:
+    pattern:  /design/displaytemplate/analyze_file_uploads/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Reports:analyzefileuploads }
+    requirements:
+        datafield_id:  \d+
 
 
 #-----------------------------------------

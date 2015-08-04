@@ -212,6 +212,14 @@ class DisplaytemplateController extends ODRCustomController
             $em->remove($radio_option);
             $em->flush();
 
+            // Delete all radio selection entities attached to the radio option
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:RadioSelection AS rs
+                SET rs.deletedAt = :now
+                WHERE rs.radioOption = :radio_option_id AND rs.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'radio_option_id' => $radio_option_id) );
+            $updated = $query->execute();
+
             // Schedule the cache for an update
             $options = array();
             $options['mark_as_updated'] = true;
@@ -3988,113 +3996,6 @@ if ($debug)
             return false;
         else
             return true;
-    }
-
-
-    /**
-     * Given a Datafield, build a list of Datarecords (if any) that have identical values in that Datafield.
-     * TODO - create some sort of a "Reports" controller and move this there?
-     *
-     * @param integer $datafield_id
-     * @param Request $request
-     *
-     * @return TODO
-     */
-    public function analyzedatafielduniqueAction($datafield_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Grab necessary objects
-            $em = $this->getDoctrine()->getManager();
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $templating = $this->get('templating');
-
-            $datafield = $repo_datafield->find($datafield_id);
-            if ( $datafield == null )
-                return parent::deletedEntityError('DataField');
-
-            $datatype = $datafield->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
-
-
-            // Only run queries if field can be set to unique
-            $fieldtype = $datafield->getFieldType();
-            if ($fieldtype->getCanBeUnique() == '0')
-                throw new \Exception("This DataField can't be unique becase of its FieldType");
-
-            // --------------------
-            // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-            // Build a query to determine which datarecords have duplicate values
-            $typeclass = $fieldtype->getTypeClass();
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id, e.value AS value
-                FROM ODRAdminBundle:'.$typeclass.' AS e
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                WHERE e.dataField = :datafield
-                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield_id) );
-            $results = $query->getArrayResult();
-//print_r($results);
-
-            // Convert the query results into an array grouped by value
-            $values = array();
-            foreach ($results as $num => $result) {
-                $dr_id = $result['dr_id'];
-                $value = $result['value'];
-
-                if ( !isset($values[$value]) ) {
-                    $values[$value] = array('count' => 1, 'dr_list' => array($dr_id));
-                }
-                else {
-                    $values[$value]['count'] += 1;
-                    $values[$value]['dr_list'][] = $dr_id;
-                }
-            }
-//print_r($values);
-
-            // Don't care about values which aren't duplicated
-            foreach ($values as $value => $data) {
-                if ( $data['count'] == 1 )
-                    unset($values[$value]);
-            }
-//print_r($values);
-
-            // Render and return a page detailing which datarecords have duplicate values...
-            $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:Displaytemplate:uniqueness_report.html.twig',
-                    array(
-                        'datafield' => $datafield,
-                        'user_permissions' => $user_permissions,
-                        'duplicate_values' => $values,
-                    )
-                )
-            );
-
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x892357656 '. $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
     }
 
 }

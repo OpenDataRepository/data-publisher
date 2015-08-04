@@ -1,0 +1,19 @@
+{% spaceless %}
+
+{% set datatype = datafield.getdatatype %}
+<h2>List of Datarecords with multiple uploaded files in Datafield "{{ datafield.fieldname }}" of Datatype "{{ datatype.shortname }}"</h2>
+
+{% if multiple_uploads | length == 0 %}
+    <div class="ODRDatarecordListHeader">No multiple uploads found</div>
+{% else %}
+
+{#<div class="pure-u-1 ODRDatarecordListHeader">Datarecords that have multiple uploads</div>#}
+{% for dr_id in multiple_uploads %}
+    <div class="pure-u-1-5">
+        <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ dr_id }}</a>
+    </div>
+{% endfor %}
+
+{% endif %}
+
+{% endspaceless %}
