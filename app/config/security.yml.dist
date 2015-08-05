@@ -70,10 +70,11 @@ security:
         - { path: ^/admin/user/managepermissions, role: ROLE_USER }
         - { path: ^/admin/user/togglepermission, role: ROLE_USER }
 
-        - { path: ^/admin/massedit, role: ROLE_SUPER_ADMIN }
+        - { path: ^/admin/massedit, role: ROLE_ADMIN }
         - { path: ^/admin/csvexport, role: ROLE_ADMIN }
 
-        - { path: ^/admin/adduser, role: ROLE_ADMIN }
+        - { path: ^/admin/new_user, role: ROLE_ADMIN }
+#        - { path: ^/admin/user/change_password, role: ROLE_ADMIN }
         - { path: ^/admin/user/edit, role: ROLE_ADMIN }
         - { path: ^/admin/user/save, role: ROLE_ADMIN }
 
