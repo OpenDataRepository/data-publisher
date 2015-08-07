@@ -829,11 +829,11 @@ class RecordController extends ODRCustomController
             if ( $image == null )
                 return parent::deletedEntityError('Image');
 
-            $datafield = $file->getDataField();
+            $datafield = $image->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
 
-            $datarecord = $file->getDataRecord();
+            $datarecord = $image->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
 
@@ -2216,7 +2216,7 @@ if ($debug)
      * 
      * @return a Symfony JSON response containing HTML
      */
-    public function editAction($datarecord_id, $search_key, $offset, Request $request) 
+    public function editAction($datarecord_id, $search_key, $offset, Request $request)
     {
         $return = array();
         $return['r'] = 0;

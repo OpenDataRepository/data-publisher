@@ -1815,8 +1815,6 @@ $save_permissions = false;
                 $my_obj->setValue( new \DateTime('0000-00-00 00:00:00') );
             }
             else if ($field_type->getTypeClass() == 'DecimalValue') {
-                $my_obj->setBase(0);
-                $my_obj->setExponent(0);
                 $my_obj->setOriginalValue('0');
                 $my_obj->setValue(0);
             }
