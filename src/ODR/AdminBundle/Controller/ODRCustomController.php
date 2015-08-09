@@ -1645,7 +1645,7 @@ $save_permissions = false;
 
 
     /**
-     * Creates and persists a new DataRecordField entity.
+     * Creates and persists a new DataRecordField entity, if one does not already exist for the given (DataRecord, DataField) pair.
      *
      * @param Manager $em            
      * @param User $user             The user requesting the creation of this entity
@@ -1656,17 +1656,32 @@ $save_permissions = false;
      */
     protected function ODR_addDataRecordField($em, $user, $datarecord, $datafield)
     {
-        // Initial create
-        $datarecordfield = new DataRecordFields();
-        $datarecordfield->setDataRecord($datarecord);
-        $datarecordfield->setDataField($datafield);
-        $datarecordfield->setCreatedBy($user);
-        $datarecordfield->setUpdatedBy($user);
+        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
+        if ($drf == null) {
+            $query =
+               'INSERT INTO odr_data_record_fields (data_record_id, data_field_id)
+                SELECT * FROM (SELECT :datarecord, :datafield) AS tmp
+                WHERE NOT EXISTS (
+                    SELECT id FROM odr_data_record_fields WHERE data_record_id = :datarecord AND data_field_id = :datafield AND deletedAt IS NULL
+                ) LIMIT 1;';
+            $params = array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId());
+            $conn = $em->getConnection();
+            $rowsAffected = $conn->executeUpdate($query, $params);
 
-        $em->persist($datarecordfield);
+            $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
+            $drf->setCreated( new \DateTime() );
+            $drf->setCreatedBy($user);
+            $drf->setUpdated( new \DateTime() );
+            $drf->setUpdatedBy($user);
 
-        return $datarecordfield;
+            $em->persist($drf);
+            $em->flush($drf);
+            $em->refresh($drf);
+        }
+
+        return $drf;
     }
+
 
     /**
      * Creates and persists a new DataRecord entity.
@@ -2859,48 +2874,8 @@ if ($debug)
             }
 
             // Need to ensure that entries in odr_image_sizes exist for images...
-            if ($type_class == 'Image') {
-                $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataFields' => $datafield->getId()) );
-                if ( count($image_sizes) == 0 ) {
-                    // Need to save changes
-                    $made_change = true;
-
-if ($debug)
-    print "-- -- creating default image sizes\n";
-                    // No image sizes exist for this datafield, create the two default ones
-                    $size = new ImageSizes();
-                    $size->setWidth(0);
-                    $size->setHeight(0);
-                    $size->setMinWidth(1024);
-                    $size->setMinHeight(768);
-                    $size->setMaxWidth(0);
-                    $size->setMaxHeight(0);
-                    $size->setFieldType( $datafield->getFieldType() );
-                    $size->setCreatedBy($user);
-                    $size->setUpdatedBy($user);
-                    $size->setDataFields($datafield);
-                    $size->setSizeConstraint('none');
-                    $size->setOriginal(1);
-                    $size->setImageType(null);
-                    $em->persist($size);
-
-                    $size = new ImageSizes();
-                    $size->setWidth(500);
-                    $size->setHeight(375);
-                    $size->setMinWidth(500);
-                    $size->setMinHeight(375);
-                    $size->setMaxWidth(500);
-                    $size->setMaxHeight(375);
-                    $size->setFieldType( $datafield->getFieldType() );
-                    $size->setCreatedBy($user);
-                    $size->setUpdatedBy($user);
-                    $size->setDataFields($datafield);
-                    $size->setSizeConstraint('both');
-                    $size->setOriginal(0);
-                    $size->setImageType('thumbnail');
-                    $em->persist($size);
-                }
-            }
+            if ($type_class == 'Image')
+                self::ODR_checkImageSizes($em, $user, $datafield);
         }
 
 if ($debug)
@@ -2909,6 +2884,110 @@ if ($debug)
         // Only flush if changes were made
         if ($made_change)
             $em->flush();
+    }
+
+
+    /**
+     * Ensures both ImageSizes entities for the given datafield exist.
+     *
+     * @param Manager $em
+     * @param User $user         The user requesting the creation of this entity
+     * @param DataFields $datafield
+     */
+    public function ODR_checkImageSizes($em, $user, $datafield)
+    {
+        // Attempt to load both ImageSize entities from the database
+        $query = $em->createQuery(
+           'SELECT image_size
+            FROM ODRAdminBundle:ImageSizes AS image_size
+            WHERE image_size.dataFields = :datafield
+            AND image_size.deletedAt IS NULL'
+        )->setParameters( array('datafield' => $datafield->getId()) );
+        $results = $query->getArrayResult();
+
+        // Determine if either are missing
+        $has_original = false;
+        $has_thumbnail = false;
+
+        foreach ($results as $num => $result) {
+            $original = $result['original'];
+            $image_type = $result['imagetype'];
+
+            if ( $original == true )
+                $has_original = true;
+            if ( $original == null && $image_type == 'thumbnail' )
+                $has_thumbnail = true;
+        }
+
+        if (!$has_original) {
+            // Create an ImageSize entity for the original image
+            $query =
+               'INSERT INTO odr_image_sizes (data_fields_id, size_constraint)
+                SELECT * FROM (SELECT :datafield, :size_constraint) AS tmp
+                WHERE NOT EXISTS (
+                    SELECT id FROM odr_image_sizes WHERE data_fields_id = :datafield AND size_constraint = :size_constraint AND deletedAt IS NULL
+                ) LIMIT 1;';
+            $params = array('datafield' => $datafield->getId(), 'size_constraint' => 'none');
+
+            $conn = $em->getConnection();
+            $rowsAffected = $conn->executeUpdate($query, $params);
+
+            // Reload the newly created ImageSize entity
+            $image_size = $em->getRepository('ODRAdminBundle:ImageSizes')->findOneBy( array('dataFields' => $datafield->getId(), 'size_constraint' => 'none') );
+
+            // Set and save the rest of the properties
+            $image_size->setWidth(0);
+            $image_size->setHeight(0);
+            $image_size->setMinWidth(1024);
+            $image_size->setMinHeight(768);
+            $image_size->setMaxWidth(0);
+            $image_size->setMaxHeight(0);
+            $image_size->setFieldType( $datafield->getFieldType() );
+            $image_size->setCreated( new \DateTime() );
+            $image_size->setCreatedBy($user);
+            $image_size->setUpdated( new \DateTime() );
+            $image_size->setUpdatedBy($user);
+            $image_size->setImageType(null);
+            $image_size->setOriginal(1);
+            $em->persist($image_size);
+            $em->flush($image_size);
+            $em->refresh($image_size);
+        }
+
+        if (!$has_thumbnail) {
+            // Create an ImageSize entity for the thumbnail
+            $query =
+               'INSERT INTO odr_image_sizes (data_fields_id, size_constraint)
+                SELECT * FROM (SELECT :datafield, :size_constraint) AS tmp
+                WHERE NOT EXISTS (
+                    SELECT id FROM odr_image_sizes WHERE data_fields_id = :datafield AND size_constraint = :size_constraint AND deletedAt IS NULL
+                ) LIMIT 1;';
+            $params = array('datafield' => $datafield->getId(), 'size_constraint' => 'both');
+            $conn = $em->getConnection();
+            $rowsAffected = $conn->executeUpdate($query, $params);
+
+            // Reload the newly created ImageSize entity
+            $image_size = $em->getRepository('ODRAdminBundle:ImageSizes')->findOneBy( array('dataFields' => $datafield->getId(), 'size_constraint' => 'both') );
+
+            // Set and save the rest of the properties
+            $image_size->setWidth(500);
+            $image_size->setHeight(375);
+            $image_size->setMinWidth(500);
+            $image_size->setMinHeight(375);
+            $image_size->setMaxWidth(500);
+            $image_size->setMaxHeight(375);
+            $image_size->setFieldType( $datafield->getFieldType() );
+            $image_size->setCreated( new \DateTime() );
+            $image_size->setCreatedBy($user);
+            $image_size->setUpdated( new \DateTime() );
+            $image_size->setUpdatedBy($user);
+            $image_size->setOriginal(0);
+            $image_size->setImageType('thumbnail');
+            $em->persist($image_size);
+            $em->flush($image_size);
+            $em->refresh($image_size);
+        }
+
     }
 
 
