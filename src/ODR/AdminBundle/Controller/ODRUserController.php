@@ -66,7 +66,7 @@ class ODRUserController extends ODRCustomController
                 }
             }
 
-            if ( count($admin_permissions) == 0 )
+            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && count($admin_permissions) == 0 )
                 return parent::permissionDeniedError();
             // --------------------
 
@@ -126,7 +126,7 @@ class ODRUserController extends ODRCustomController
                 }
             }
 
-            if ( count($admin_permissions) == 0 )
+            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && count($admin_permissions) == 0 )
                 return parent::permissionDeniedError();
             // --------------------
 
@@ -196,7 +196,7 @@ class ODRUserController extends ODRCustomController
                 }
             }
 
-            if ( count($admin_permissions) == 0 )
+            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && count($admin_permissions) == 0 )
                 return parent::permissionDeniedError();
             // --------------------
 
@@ -342,7 +342,7 @@ class ODRUserController extends ODRCustomController
             // Ensure user has permissions to be doing this
             $admin = $this->container->get('security.context')->getToken()->getUser();
 
-            // Bypass all this sillyness if the user is a super admin, or doing this action to his own profile for some reason
+            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
 
                 // If user lacks super admin and admin roles, not allowed to do this
@@ -423,8 +423,6 @@ class ODRUserController extends ODRCustomController
             // Grab the current user
             $user = $this->container->get('security.context')->getToken()->getUser();
 
-//print_r($post);
-//return;
             // Only allow this if the user is modifying their own profile
             $post = $request->request->all();
             if ( isset($post['ODRUserProfileForm']) && $user->getId() == $post['ODRUserProfileForm']['user_id'])
@@ -462,8 +460,7 @@ class ODRUserController extends ODRCustomController
         try {
             // Need to get the user id out of the form to check permissions...
             $post = $request->request->all();
-//print_r($post);
-//return;
+
             if ( !isset($post['ODRUserProfileForm']) )
                 throw new \Exception('Invalid Form');
             $user_id = intval( $post['ODRUserProfileForm']['id'] );
@@ -478,7 +475,7 @@ class ODRUserController extends ODRCustomController
             // Ensure user has permissions to be doing this
             $admin = $this->container->get('security.context')->getToken()->getUser();
 
-            // Bypass all this sillyness if the user is a super admin, or doing this action to his own profile for some reason
+            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
 
                 // If user lacks super admin and admin roles, not allowed to do this
@@ -562,12 +559,12 @@ class ODRUserController extends ODRCustomController
         $form = $this->createForm(new ODRUserProfileForm($target_user), $target_user);
         $form->bind($request, $target_user);
 
-        // TODO - check for additional errors to throw?
+        // TODO - check for additional non-password errors to throw?
 
         // If no errors...
         if ( $form->isValid() ) {
             // Save changes to the user
-            $target_user->setEmail($email);     // as of right now, form will reset the user's email/username because the field is disabled...set the email/username back to what they were
+            $target_user->setEmail($email);     // as of right now, binding the form will clear the user's email/username because that field is disabled...set the email/username back to what it was originally
             $user_manager->updateUser($target_user);
         }
         else {
@@ -611,7 +608,7 @@ class ODRUserController extends ODRCustomController
             // Ensure user has permissions to be doing this
             $admin = $this->container->get('security.context')->getToken()->getUser();
 
-            // Bypass all this sillyness if the user is a super admin, or doing this action to his own profile for some reason
+            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
 
                 // If user lacks super admin and admin roles, not allowed to do this
@@ -706,7 +703,7 @@ class ODRUserController extends ODRCustomController
             // Ensure user has permissions to be doing this
             $admin = $this->container->get('security.context')->getToken()->getUser();
 
-            // Bypass all this sillyness if the user is a super admin, or doing this action to his own profile for some reason
+            // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $target_user_id ) {
 
                 // If user lacks super admin and admin roles, not allowed to do this
@@ -804,7 +801,7 @@ class ODRUserController extends ODRCustomController
                 }
             }
 
-            if ( count($admin_permissions) == 0 )
+            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && count($admin_permissions) == 0 )
                 return parent::permissionDeniedError();
             // --------------------
 
@@ -1141,7 +1138,7 @@ class ODRUserController extends ODRCustomController
                 }
             }
 
-            if ( count($admin_permissions) == 0 )
+            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && count($admin_permissions) == 0 )
                 return parent::permissionDeniedError();
             // --------------------
 
@@ -1328,6 +1325,7 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Updates a UserPermission object in the database.
+     * TODO - invalidate current permissions set for target user after save
      * 
      * @param User $user         The User that is getting their permissions modified.
      * @param DataType $datatype The DataType that the User's permissions are being modified for.
@@ -1489,7 +1487,7 @@ class ODRUserController extends ODRCustomController
                 }
             }
 
-            if ( count($admin_permissions) == 0 )
+            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && count($admin_permissions) == 0 )
                 return parent::permissionDeniedError();
             // --------------------
 
@@ -1709,9 +1707,9 @@ class ODRUserController extends ODRCustomController
 
 
     /**
-     * Updates the number of results on a page used by ShortResults
+     * Changes the number of Datarecords displayed per ShortResults page...TextResults handles its own version
      *
-     * @param integer $length  How many ShortResult datarecords to show on a page.
+     * @param integer $length  How many Datarecords to display on a page.
      * @param Request $request
      *
      * @return none
@@ -1873,6 +1871,7 @@ if ($debug)
 
     /**
      * Saves a datafield permission change for a given user.
+     * TODO - invalidate current permissions set for target user after save
      *
      * @param integer $user_id      The database id of the User being modified.
      * @param integer $datafield_id The database id of the DataField being modified.
@@ -1958,7 +1957,6 @@ if ($debug)
             $em->persist($user_field_permission);
             $em->flush();
 
-            // TODO - invalidate datafield permissions across the server?
         }
         catch (\Exception $e) {
             $return['r'] = 1;
