@@ -1307,39 +1307,37 @@ print '</pre>';
 
 
     /**
-     * Debug function...apparently checks for duplicate RadioSelection entities? TODO
+     * Debug function...deletes radio selection entities belonging to deleted radio options
      *
      * @param Request $request
      *
      * @return TODO
      */
-    public function testradioAction(Request $request)
+    public function radiocheckAction(Request $request)
     {
+        return;
+
         $em = $this->getDoctrine()->getManager();
+
+        $em->getFilters()->disable('softdeleteable');
         $query = $em->createQuery(
-           'SELECT df.id AS df_id, df.fieldName AS field_name, dr.id AS dr_id, drf.id AS drf_id
-            FROM ODRAdminBundle:RadioSelection AS rs
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-            JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
-            WHERE rs.selected = 1 AND df.id != 202
-            AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL AND dr.deletedAt IS NULL');
-        $results = $query->getResult();
+           'SELECT ro.id AS ro_id
+            FROM ODRAdminBundle:RadioOptions AS ro
+            WHERE ro.deletedAt IS NOT NULL
+            ORDER BY ro.id');
+        $results = $query->getArrayResult();
+        $em->getFilters()->enable('softdeleteable');
 
-print '<pre>';
-        $previous_drf = 0;
-        foreach ($results as $num => $result) {
-            $df_id = $result['df_id'];
-            $field_name = $result['field_name'];
-            $dr_id = $result['dr_id'];
-            $drf_id = $result['drf_id'];
+        foreach ($results as $num => $tmp) {
+            $radio_option_id = $tmp['ro_id'];
 
-            if ($drf_id == $previous_drf)
-                print 'duplicate radio selection in datarecord '.$dr_id.' for datafield '.$df_id.' ('.$field_name.')'."\n";
-
-            $previous_drf = $drf_id;
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:RadioSelection AS rs
+                SET rs.deletedAt = :now
+                WHERE rs.radioOption = :radio_option_id AND rs.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'radio_option_id' => $radio_option_id) );
+            $updated = $query->execute();
         }
-print '</pre>';
     }
 
 }

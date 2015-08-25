@@ -1032,10 +1032,9 @@ odr_entity_check:
 odr_permission_check:
     pattern: /admin/permission_check
     defaults: { _controller: ODRAdminBundle:ODRUser:permissioncheck }
-
-#odr_radio_check:
-#    pattern: /admin/radio/test
-#    defaults: { _controller:ODRAdminBundle:Worker:testradio }
+odr_radio_check:
+    pattern: /admin/radio_check
+    defaults: { _controller:ODRAdminBundle:Worker:radiocheck }
 
 odr_start_encrypt:
     pattern: /admin/encrypt/{object_type}
