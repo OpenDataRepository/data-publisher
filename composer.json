@@ -28,7 +28,8 @@
         "dterranova/crypto-bundle": "dev-master",
         "knplabs/knp-markdown-bundle": "~1.3",
         "symfony/filesystem": "2.3.*",
-        "ddeboer/data-import": "@stable"
+        "ddeboer/data-import": "@stable",
+        "phpunit/phpunit": "^4.8"
     },
     "scripts": {
         "post-install-cmd": [
