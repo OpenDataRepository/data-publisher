@@ -7,6 +7,14 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 class DefaultControllerTest extends WebTestCase
 {
     public static $client = "";
+
+    /**
+     * testIndex
+     *
+     * DEBUG=DefaultController ./vendor/phpunit/phpunit/phpunit -c app/
+     *
+     *
+     */
     public function testIndex()
     {
         $debug = (getenv("DEBUG") == "DefaultController" ? true: false);
@@ -15,12 +23,18 @@ class DefaultControllerTest extends WebTestCase
         // Test that the outer frame loaded
         ($debug ? fwrite(STDERR, "Test the outer frame loaded.\n"):'');
         $crawler = self::$client->request('GET', 'http://odr.localhost/admin');
+
+        // Show the actual content if debug enabled.
         ($debug ? fwrite(STDERR, self::$client->getResponse()->getContent()) . "\n":'');
 
         // Should redirect to login
         ($debug ? fwrite(STDERR, "Should redirect to login.\n"):'');
         $this->assertTrue($crawler->filter('html:contains("Redirecting to")')->count() > 0);
     }
+
+    /**
+     *
+     */
     public function testIndex2()
     {
         $debug = (getenv("DEBUG") == "DefaultController" ? true: false);
