@@ -827,10 +827,12 @@ print "\n\n";
 //$save_permissions = false;
             $session = $request->getSession();
             if ( !$save_permissions || !$session->has('permissions') ) {
-                // Permissions not set, need to build an array
+                // Permissions for a user other than the currently logged-in one requested, or permissions not set...need to build an array
                 $em = $this->getDoctrine()->getManager();
-                $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
+                $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+                $is_admin = $user->hasRole('ROLE_SUPER_ADMIN');
 
+                // Load all permissions for this user from the database
                 $query = $em->createQuery(
                    'SELECT dt.id AS dt_id, up.can_view_type, up.can_edit_record, up.can_add_record, up.can_delete_record, up.can_design_type, up.is_type_admin
                     FROM ODRAdminBundle:DataType AS dt
@@ -851,11 +853,11 @@ print "\n\n";
                     $all_permissions[$datatype_id] = array();
                     $save = false;
 
-                    if ($result['can_view_type'] == 1) {
+                    if ( $is_admin || $result['can_view_type'] == 1 ) {
                         $all_permissions[$datatype_id]['view'] = 1;
                         $save = true; 
                     }
-                    if ($result['can_edit_record'] == 1) {
+                    if ( $is_admin || $result['can_edit_record'] == 1 ) {
                         $all_permissions[$datatype_id]['edit'] = 1;
                         $save = true;
 
@@ -867,19 +869,19 @@ print "\n\n";
                                 $all_permissions[$dt_id]['child_edit'] = 1;
                         }
                     }
-                    if ($result['can_add_record'] == 1) {
+                    if ( $is_admin || $result['can_add_record'] == 1 ) {
                         $all_permissions[$datatype_id]['add'] = 1;
                         $save = true; 
                     }
-                    if ($result['can_delete_record'] == 1) {
+                    if ( $is_admin || $result['can_delete_record'] == 1 ) {
                         $all_permissions[$datatype_id]['delete'] = 1;
                         $save = true; 
                     }
-                    if ($result['can_design_type'] == 1) {
+                    if ( $is_admin || $result['can_design_type'] == 1 ) {
                         $all_permissions[$datatype_id]['design'] = 1;
                         $save = true; 
                     }
-                    if ($result['is_type_admin'] == 1) {
+                    if ( $is_admin || $result['is_type_admin'] == 1 ) {
                         $all_permissions[$datatype_id]['admin'] = 1;
                         $save = true; 
                     }
