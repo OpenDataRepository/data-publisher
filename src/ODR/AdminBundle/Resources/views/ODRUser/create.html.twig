@@ -28,7 +28,7 @@
             {{ form_errors(profile_form.email) }}
             {{ form_widget(profile_form.email, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
             <span style="margin: 5px;">
-                <button id="emailCheckButton" type="button" class="pure-button pure-button-primary" onclick="checkEmail();">Check</button>
+                <button id="emailCheckButton" type="button" class="pure-button pure-button-primary" onclick="checkEmail();">Check Availability</button>
             </span>
             <span id="email_errors" style="margin: 5px;"></span>
         </div>
@@ -90,7 +90,7 @@
 
     </fieldset>
 
-    <input id="submitButton" class="pure-button pure-button-primary" type="button" />
+    <input id="submitButton" class="pure-button pure-button-primary" type="button" value="Save" />
 
 </form>
 
@@ -120,15 +120,15 @@
         });
 
         var old_email = '';
-        $("#submitButton").hide();
+        $("#submitButton").removeClass('pure-button-primary').attr('disabled', 'disabled');
         $("#{{ profile_form.email.vars.id }}").unbind('keyup').unbind('paste');
         $("#{{ profile_form.email.vars.id }}").on('keyup paste', function() {
             var new_email = $(this).val();
             if (old_email != new_email) {
                 old_email = new_email;
 
-                $("#emailCheckButton").addClass('pure-button-primary').html('Check').removeAttr('disabled');
-                $("#submitButton").hide();
+                $("#emailCheckButton").addClass('pure-button-primary').html('Check Availability').removeAttr('disabled');
+                $("#submitButton").removeClass('pure-button-primary').attr('disabled', 'disabled');
             }
         });
     });
@@ -139,7 +139,8 @@
         var email = $("#{{ profile_form.email.vars.id }}").val();
         email = email.trim();
 
-        if (email == '')
+        // Require a valid email address before sending an ajax request
+        if ( !$("input[name='{{ profile_form.email.vars.full_name }}']").valid() )
             return;
 
         $.ajax({
@@ -153,11 +154,11 @@
 
                     if (data.d == 0) {
                         // Email not found
-                        $("#submitButton").show().attr('value', 'Save').attr('onclick', 'saveProfileForm();').removeAttr('disabled');
+                        $("#submitButton").addClass('pure-button-primary').attr('value', 'Save').attr('onclick', 'saveProfileForm();').removeAttr('disabled');
                     }
                     else {
                         // Email already exists
-                        $("#submitButton").show().attr('value', 'View Permissions').attr('onclick', 'viewPermissions(' + data.d + ');').removeAttr('disabled');
+                        $("#submitButton").addClass('pure-button-primary').attr('value', 'View Permissions').attr('onclick', 'viewPermissions(' + data.d + ');').removeAttr('disabled');
                         $("#emailCheckButton").html('User already exists');
                     }
                 }
