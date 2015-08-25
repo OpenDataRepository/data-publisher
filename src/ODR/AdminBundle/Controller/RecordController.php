@@ -330,10 +330,6 @@ class RecordController extends ODRCustomController
             $datarecord->setGrandparent($grandparent);
             $datarecord->setParent($parent);
             $em->persist($datarecord);
-
-            $grandparent->addChildren($datarecord); // TODO - needed?
-            $em->persist($grandparent);
-
             $em->flush();
 
             // Ensure the new child record has all its fields
@@ -1934,9 +1930,12 @@ if ($debug)
         $return['d'] = '';
 
         try {
+            // Don't actually need a search_key for a child reload, but GetDisplayData() expects the parameter
+            $search_key = '';
+
             $return['d'] = array(
                 'datarecord_id' => $datarecord_id,
-                'html' => self::GetDisplayData($request, $datarecord_id, 'child', $datatype_id),
+                'html' => self::GetDisplayData($request, $datarecord_id, $search_key, 'child', $datatype_id),
             );
         }
         catch (\Exception $e) {
@@ -2079,10 +2078,10 @@ if ($debug)
             // Determine if this is a 'child' render request for a top-level datatype
             $query = $em->createQuery(
                'SELECT dt.id AS dt_id
-                FROM ODRAdminBundle:DataTree dt
+                FROM ODRAdminBundle:DataTree AS dt
                 WHERE dt.deletedAt IS NULL AND dt.descendant = :datatype'
             )->setParameters( array('datatype' => $datatype->getId()) );
-            $results = $query->getResult();
+            $results = $query->getArrayResult();
 
             // If query found something, then it's not a top-level datatype
             if ( count($results) > 0 )
