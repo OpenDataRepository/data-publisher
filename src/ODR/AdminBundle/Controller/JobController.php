@@ -243,6 +243,9 @@ class JobController extends ODRCustomController
                     $datatype_id = $tmp[1];
 
                     $datatype = $repo_datatype->find($datatype_id);
+                    if ($datatype == null)
+                        continue;
+
                     $job['revision'] = $datatype->getRevision();
                     $job['description'] = 'Recache of Datatype "'.$datatype->getShortName().'"';
                 }
@@ -251,6 +254,9 @@ class JobController extends ODRCustomController
                     $datatype_id = $tmp[1];
 
                     $datatype = $repo_datatype->find($datatype_id);
+                    if ($datatype == null)
+                        continue;
+
                     $job['description'] = 'CSV Export from Datatype "'.$datatype->getShortName().'"';
 //                    $job['datatype_id'] = $datatype_id;
                     $job['user_id'] = $tracked_job->getCreatedBy()->getId();
@@ -260,6 +266,9 @@ class JobController extends ODRCustomController
                     $datatype_id = $tmp[1];
 
                     $datatype = $repo_datatype->find($datatype_id);
+                    if ($datatype == null)
+                        continue;
+
                     $job['description'] = 'Validating csv import data for DataType "'.$datatype->getShortName().'"';
                 }
                 else if ($job_type == 'csv_import') {
@@ -267,6 +276,9 @@ class JobController extends ODRCustomController
                     $datatype_id = $tmp[1];
 
                     $datatype = $repo_datatype->find($datatype_id);
+                    if ($datatype == null)
+                        continue;
+
                     $job['description'] = 'Importing data into DataType "'.$datatype->getShortName().'"';
                 }
                 else if ($job_type == 'mass_edit') {
@@ -274,6 +286,9 @@ class JobController extends ODRCustomController
                     $datatype_id = $tmp[1];
 
                     $datatype = $repo_datatype->find($datatype_id);
+                    if ($datatype == null)
+                        continue;
+
                     $job['description'] = 'Mass Edit of DataType "'.$datatype->getShortName().'"';
                 }
                 else if ($job_type == 'migrate') {
@@ -288,9 +303,9 @@ class JobController extends ODRCustomController
 
                     $datafield = $repo_datafield->find($datafield_id);
                     if ($datafield == null)
-                        $job['description'] = 'Migration of currently deleted DataField '.$datafield_id.' from "'.$old_fieldtype.'" to "'.$new_fieldtype.'"';
-                    else
-                        $job['description'] = 'Migration of DataField "'.$datafield->getFieldName().'" from "'.$old_fieldtype.'" to "'.$new_fieldtype.'"';
+                        continue;
+
+                    $job['description'] = 'Migration of DataField "'.$datafield->getFieldName().'" from "'.$old_fieldtype.'" to "'.$new_fieldtype.'"';
                 }
 
 
