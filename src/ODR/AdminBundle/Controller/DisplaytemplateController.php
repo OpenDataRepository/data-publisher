@@ -2530,7 +2530,7 @@ print '</pre>';
                 if ($render_plugin->getPluginType() <= 2 && $datatype != null) {
                     // Update the datatype object
                     $datatype->setRenderPlugin($render_plugin);
-                    $datatype->setDisplayType(0);   // if changing to use a render plugin, revert datatype back to accordion layout
+//                    $datatype->setDisplayType(0);   // if changing to use a render plugin, revert datatype back to accordion layout
                     $datatype->setUpdatedBy($user);
                     $em->persist($datatype);
                 }
