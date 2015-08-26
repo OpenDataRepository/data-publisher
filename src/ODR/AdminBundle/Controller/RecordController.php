@@ -480,42 +480,18 @@ class RecordController extends ODRCustomController
             )->setParameters( array('datatype' => $datatype->getId()) );
             $remaining = $query->getArrayResult();
 
-            // Determine which url to redirect to
+            // Determine where to redirect since the current datareccord is now deleted
             $url = '';
-/*
-            if ($search_key == '') {
-                // Not deleting from a search result list
-                if ( count($remaining) > 0 ) {
-                    // Return the url to Get ShortResults controller to regenerate the list of datarecords for this datatype
-                    $url = $this->generateUrl('odr_shortresults_list', array('datatype_id' => $datatype->getId(), 'target' => 'record'));
-                }
-                else {
-                    // No records to display on a ShortResults list, return to list of all datatypes
-                    $url = $this->generateUrl('odr_list_types', array('section' => 'records'));
-                }
-            }
-            else {
-                // Deleting from a search result list
-                if ( count($remaining) > 0 ) {
-                    // Redirect to search list
-                    $url = $this->generateURL('odr_search_render', array('search_key' => $search_key));
-                }
-                else {
-                    // Redirect to search page
-                    $url = $this->generateURL('odr_search');
-                }
-            }
-*/
             if ($search_key == '')
                 $search_key = 'dt_id='.$datatype->getId();
 
             if ( count($remaining) > 0 ) {
-                // Redirect to search list
+                // Return to the list of datarecords since at least one datarecord of this datatype still exists
                 $url = $this->generateURL('odr_search_render', array('search_key' => $search_key));
             }
             else {
-                // Redirect to search page
-                $url = $this->generateURL('odr_search');
+                // ...otherwise, return to the list of datatypes
+                $url = $this->generateURL('odr_list_types', array('section' => 'records'));
             }
 
             $return['d'] = $url;
