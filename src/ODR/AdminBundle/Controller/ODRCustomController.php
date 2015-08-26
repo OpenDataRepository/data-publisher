@@ -1662,7 +1662,7 @@ $save_permissions = false;
         if ($drf == null) {
             $query =
                'INSERT INTO odr_data_record_fields (data_record_id, data_field_id)
-                SELECT * FROM (SELECT :datarecord, :datafield) AS tmp
+                SELECT * FROM (SELECT :datarecord AS dr_id, :datafield AS df_id) AS tmp
                 WHERE NOT EXISTS (
                     SELECT id FROM odr_data_record_fields WHERE data_record_id = :datarecord AND data_field_id = :datafield AND deletedAt IS NULL
                 ) LIMIT 1;';
@@ -2925,7 +2925,7 @@ if ($debug)
             // Create an ImageSize entity for the original image
             $query =
                'INSERT INTO odr_image_sizes (data_fields_id, size_constraint)
-                SELECT * FROM (SELECT :datafield, :size_constraint) AS tmp
+                SELECT * FROM (SELECT :datafield AS df_id, :size_constraint AS size_constraint) AS tmp
                 WHERE NOT EXISTS (
                     SELECT id FROM odr_image_sizes WHERE data_fields_id = :datafield AND size_constraint = :size_constraint AND deletedAt IS NULL
                 ) LIMIT 1;';
@@ -2960,7 +2960,7 @@ if ($debug)
             // Create an ImageSize entity for the thumbnail
             $query =
                'INSERT INTO odr_image_sizes (data_fields_id, size_constraint)
-                SELECT * FROM (SELECT :datafield, :size_constraint) AS tmp
+                SELECT * FROM (SELECT :datafield AS df_id, :size_constraint AS size_constraint) AS tmp
                 WHERE NOT EXISTS (
                     SELECT id FROM odr_image_sizes WHERE data_fields_id = :datafield AND size_constraint = :size_constraint AND deletedAt IS NULL
                 ) LIMIT 1;';

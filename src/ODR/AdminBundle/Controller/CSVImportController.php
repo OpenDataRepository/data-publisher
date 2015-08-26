@@ -2128,7 +2128,7 @@ print_r($new_mapping);
                                 // define and execute a query to manually create the absolute minimum required for a RadioOption entity...
                                 $query = 
                                    'INSERT INTO odr_radio_options (option_name, data_fields_id)
-                                    SELECT * FROM (SELECT :name, :df_id) AS tmp
+                                    SELECT * FROM (SELECT :name AS option_name, :df_id AS df_id) AS tmp
                                     WHERE NOT EXISTS (
                                         SELECT option_name FROM odr_radio_options WHERE option_name = :name AND data_fields_id = :df_id AND deletedAt IS NULL
                                     ) LIMIT 1;';
