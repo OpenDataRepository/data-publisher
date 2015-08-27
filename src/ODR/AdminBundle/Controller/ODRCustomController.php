@@ -312,16 +312,35 @@ print "\n\n";
      */
     public function renderTextResultsList($datarecord_list, $datatype, Request $request)
     {
+        // --------------------
+        // Store whether the user has view privileges for this datatype
+        $can_view_datatype = false;
+        $user = $this->container->get('security.context')->getToken()->getUser();
+        if ($user !== 'anon.') {
+            $user_permissions = self::getPermissionsArray($user->getId(), $request);
+
+            // Check if user has permissions to download files
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
+                $can_view_datatype = false;
+            else
+                $can_view_datatype = true;
+        }
+
+        $cached_html_version = 'no_view';
+        if ($can_view_datatype)
+            $cached_html_version = 'has_view';
+        // --------------------
+
         // Grab necessary objects
         $memcached = $this->get('memcached');
         $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
         $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        // Build...
-        $datatype_revision = $datatype->getRevision();
+        // Attempt to load from memcached...
+        $datatype_revision = intval( $datatype->getRevision() );
         $rows = array();
         foreach ($datarecord_list as $num => $datarecord_id) {
-            // Attempt to grab the textresults thingy for this datarecord from the cache
+            // Attempt to grab the textresults html for this datarecord from memcached
             $data = $memcached->get($memcached_prefix.'.data_record_short_text_form_'.$datarecord_id);
 
             // No caching in dev environment
@@ -329,16 +348,18 @@ print "\n\n";
                 $data = null;
 
             $fields = null;
-            if ($data !== null && is_array($data) && count($data) == 2 && $data['revision'] == $datatype_revision) {
+            if ( isset($data['revision']) && intval($data['revision']) == $datatype_revision /*&& isset($data['html'])*/ && isset($data['html'][$cached_html_version]) && $data['html'][$cached_html_version] !== '' ) {
                 // Grab the array of data from the cache entry
-                $fields = $data['html'];
+                $fields = $data['html'][$cached_html_version];
             }
             else {
-                // Rebuilding one of these is cheap?
-                $fields = self::Text_GetDisplayData($request, $datarecord_id);
+                // Rebuild immediately and store the result...it's cheap-ish to do so
+                $fields = self::Text_GetDisplayData($request, $datarecord_id, $can_view_datatype);
 
-                // Store immediately?
-                $data = array('revision' => $datatype_revision, 'html' => $fields);
+                if ( $data == null || intval($data['revision']) !== $datatype_revision )
+                    $data = array('revision' => $datatype_revision, 'html' => array('no_view' => '', 'has_view' => '') );
+
+                $data['html'][$cached_html_version] = $fields;
                 $memcached->set($memcached_prefix.'.data_record_short_text_form_'.$datarecord_id, $data, 0);
             }
 
@@ -2241,12 +2262,13 @@ $save_permissions = false;
      * Re-renders and returns the TextResults version of a given Datarecord
      * 
      * @param Request $request
-     * @param integer $datarecord_id The database id of the DataRecord...
-     * @param string $template_name  unused right now
+     * @param integer $datarecord_id      The database id of the DataRecord...
+     * @param boolean $can_view_datatype  Whether the requesting user has view permissinos for this datatype or not
+     * @param string  $template_name      ...unused right now
      * 
      * @return array
      */
-    public function Text_GetDisplayData(Request $request, $datarecord_id, $template_name = 'default')
+    public function Text_GetDisplayData(Request $request, $datarecord_id, $can_view_datatype, $template_name = 'default')
     {
         // Required objects
         $em = $this->getDoctrine()->getManager();
@@ -2305,8 +2327,11 @@ if ($debug)
                             // ...should only be one file in here anyways
                             $file = $collection[0];
 
-                            $url = $router->generate('odr_file_download', array('file_id' => $file->getId()));
-                            $str = '<a href='.$url.'>'.$file->getOriginalFileName().'</a>'; // textresultslist.html.twig will add other required attributes because of str_replace later in this function
+                            // Only show the file if the user is allowed to see it
+                            if ( $file->isPublic() || $can_view_datatype ) {
+                                $url = $router->generate('odr_file_download', array('file_id' => $file->getId()));
+                                $str = '<a href='.$url.'>'.$file->getOriginalFileName().'</a>'; // textresultslist.html.twig will add other required attributes because of str_replace later in this function
+                            }
                         }
 
                         $value = $str;

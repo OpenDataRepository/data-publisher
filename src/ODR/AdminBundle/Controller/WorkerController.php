@@ -259,12 +259,12 @@ $logger->info('WorkerController::recacherecordAction()  Attempting to recache Da
                     $short_form_html = parent::Short_GetDisplayData($request, $datarecord->getId());
                     $data = array( 'revision' => $current_revision, 'html' => $short_form_html );
                     $memcached->set($memcached_prefix.'.data_record_short_form_'.$datarecord_id, $data, 0);
-
+/*
                     // Render and cache the TextResults form of the record
                     $short_form_html = parent::Text_GetDisplayData($request, $datarecord->getId());
                     $data = array( 'revision' => $current_revision, 'html' => $short_form_html );
                     $memcached->set($memcached_prefix.'.data_record_short_text_form_'.$datarecord_id, $data, 0);
-
+*/
                     // Also render and store the public and non-public forms of the record
                     $long_form_html = parent::Long_GetDisplayData($request, $datarecord->getId(), 'force_render_all');
                     $data = array( 'revision' => $current_revision, 'html' => $long_form_html );
