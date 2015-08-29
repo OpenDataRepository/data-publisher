@@ -603,6 +603,7 @@ if ($debug)
 
             // ----------------------------------
             // Need to grab external id for this datarecord
+/*
             $query = $em->createQuery(
                'SELECT dr.external_id AS external_id
                 FROM ODRAdminBundle:DataRecord AS dr
@@ -611,7 +612,9 @@ if ($debug)
             $result = $query->getArrayResult();
 //print_r($result);
             $external_id = $result[0]['external_id'];
-
+*/
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $external_id = $datarecord->getExternalId();
 
             // ----------------------------------
             // Grab data for each of the datafields selected for export
