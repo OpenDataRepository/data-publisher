@@ -3330,7 +3330,7 @@ print_r($errors);
                             $top_level_datatype_id = $datafield->getDataType()->getId();
                             $datatree_array = parent::getDatatreeArray($em);
 
-                            while ($datatree_array['descendant_of'][$top_level_datatype_id] !== '')
+                            while ( isset($datatree_array['descendant_of'][$top_level_datatype_id]) && $datatree_array['descendant_of'][$top_level_datatype_id] !== '')
                                 $top_level_datatype_id = $datatree_array['descendant_of'][$top_level_datatype_id];
 
 
