@@ -2028,6 +2028,7 @@ if ($debug)
         $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
         // --------------------
 
+        $parent_datarecord = null;
         $datarecord = null;
         $datatype = null;
         $theme_element = null;
@@ -2035,9 +2036,11 @@ if ($debug)
         if ( $template_name === 'child' && $child_datatype_id !== null ) {
             $datarecord = $repo_datarecord->find($datarecord_id);
             $datatype = $repo_datatype->find($child_datatype_id);
+            $parent_datarecord = $datarecord->getParent();
         }
         else {
             $datarecord = $repo_datarecord->find($datarecord_id);
+            $parent_datarecord = $datarecord;
             $datatype = $datarecord->getDataType();
         }
 
@@ -2166,6 +2169,8 @@ if ($debug)
             $template,
             array(
                 'search_key' => $search_key,
+
+                'parent_datarecord' => $parent_datarecord,
 
                 'datatype_tree' => $datatype_tree,
                 'datarecord_tree' => $datarecord_tree,

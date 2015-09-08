@@ -78,30 +78,7 @@
                 {% set datarecord_children = dr_entry.child_datarecords[childtype.id] %}
             {% endif %}
 
-            <div class="ODRChildDatatype" id="ChildTypeWrapper_{{ childtype.id }}_{{ datarecord.id }}">
-{#
-                {% if data.datatype.is_link == 1 %}
-                    {% import "ODRAdminBundle:Results:results_childtype.html.twig" as mychildform %}
-                    {{ mychildform.input(data.datatype, datarecord_children, theme, false) }}
-                {% else %}
-#}
-                    {% import "ODRAdminBundle:Record:record_childtype.html.twig" as mychildform %}
-                    {{ mychildform.input(data.datatype, datarecord_children, theme, datatype_permissions, datafield_permissions) }}
-{#
-                {% endif %}
-#}
-                <div>
-                {% if data.datatype.is_link == 1 %}
-                    {% if can_edit_record == 1 %}
-                    <button class="pure-button pure-button-primary" type="button" onclick="LinkRecord({{ datatype.id }},{{ childtype.id }},{{ datarecord.id }});">Link {{ childtype.shortname }} record.</button>
-                    {% endif %}
-                {% elseif childtype.multiplerecordsperparent > 0 %}
-                    {% if can_add_record == 1 %}
-                    <button class="pure-button pure-button-primary" type="button" onclick="AddChildRecord({{ childtype.id }},{{ datarecord.id }},{{ datarecord.grandparent.id }});">Add {{ childtype.shortname }} record.</button>
-                    {% endif %}
-                {% endif %}
-                </div>
-            </div><!-- End of #ChildTypeWrapper_{{ childtype.id }}_{{ datarecord.id }} -->
+            {% include 'ODRAdminBundle:Record:record_fields_childtype.html.twig' with {'datatype_tree': data.datatype, 'datarecord_children': datarecord_children, 'theme': theme, 'datatype_permissions': datatype_permissions, 'datafield_permissions': datafield_permissions, 'can_edit_record': can_edit_record, 'can_add_record': can_add_record, 'parent_datarecord': datarecord} %}
 
         {% endif %}
 

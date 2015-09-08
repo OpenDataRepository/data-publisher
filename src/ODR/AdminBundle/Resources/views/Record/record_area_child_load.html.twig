@@ -1,4 +1,16 @@
 {% spaceless %}
-    {% import "ODRAdminBundle:Record:record_childtype.html.twig" as mychildform %}
-    {{ mychildform.input(datatype_tree, datarecord_tree, theme, datatype_permissions, datafield_permissions) }}
+
+{% set datatype = datatype_tree.datatype %}
+
+{% set can_edit_record = 0 %}
+{% set can_add_record = 0 %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'edit' ] is defined %}
+    {% set can_edit_record = 1 %}
+{% endif %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'add' ] is defined %}
+    {% set can_add_record = 1 %}
+{% endif %}
+
+    {% include 'ODRAdminBundle:Record:record_fields_childtype.html.twig' with {'datatype_tree': datatype_tree, 'datarecord_children': datarecord_tree, 'theme': theme, 'datatype_permissions': datatype_permissions, 'datafield_permissions': datafield_permissions, 'can_edit_record': can_edit_record, 'can_add_record': can_add_record, 'parent_datarecord': parent_datarecord} %}
+
 {% endspaceless %}
