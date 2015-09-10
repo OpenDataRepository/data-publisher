@@ -7,6 +7,8 @@
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
 *
+* Builds the Form used for modifying Datatype properties via
+* the right slideout in DisplayTemplate.
 */
 
 //ODR/AdminBundle/Forms/UpdateDataTypeForm.class.php
@@ -28,37 +30,6 @@ class UpdateDataTypeForm extends AbstractType
 
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
-/*
-        $builder->add(
-            'createdBy',
-            'entity',
-            array(
-                'class' => 'ODR\OpenRepository\UserBundle\Entity\User',
-                'property' => 'id',
-            )
-        );
-
-        $builder->add(
-            'updatedBy',
-            'entity',
-            array(
-                'class' => 'ODR\OpenRepository\UserBundle\Entity\User',
-                'property' => 'id',
-                'attr'=>array('style'=>'display:none;')
-            )
-        );
-*/
-/*
-        $builder->add(
-            'render_plugin',
-            'entity',
-            array(
-                'class' => 'ODR\AdminBundle\Entity\RenderPlugin',
-                'property' => 'plugin_name',
-                'label' => 'Render Plugin',
-            )
-        );
-*/
         $builder->add(
             'short_name', 
             'text', 
@@ -113,9 +84,17 @@ class UpdateDataTypeForm extends AbstractType
             'entity',
             array(
                 'class' => 'ODR\AdminBundle\Entity\DataFields',
+/*
                 'query_builder' => function(EntityRepository $er) use ($datatype) {
                     return $er->createQueryBuilder('df')
                                 ->where('df.is_unique = 1 AND df.dataType = ?1')
+                                ->setParameter(1, $datatype);
+                },
+*/
+                'query_builder' => function(EntityRepository $er) use ($datatype) {
+                    return $er->createQueryBuilder('df')
+                                ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'df.fieldType = ft')
+                                ->where('ft.canBeSortField = 1 AND df.dataType = ?1')
                                 ->setParameter(1, $datatype);
                 },
 
@@ -168,18 +147,6 @@ class UpdateDataTypeForm extends AbstractType
                 'empty_value' => false
             )
         );
-/*
-        $builder->add(
-            'public_date',
-            'datetime',
-            array(
-                'widget' => 'single_text',
-                'input' => 'datetime',
-                'required' => false,
-                'label'  => 'Public',
-            )
-        );
-*/
     }
     
     public function getName() {
@@ -187,11 +154,7 @@ class UpdateDataTypeForm extends AbstractType
     }
 
     /**
-     * TODO: short description.
-     * 
      * @param OptionsResolverInterface $resolver 
-     * 
-     * @return TODO
      */
     public function setDefaultOptions(OptionsResolverInterface $resolver)
     {
