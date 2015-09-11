@@ -603,6 +603,7 @@ if ($debug)
 
             // ----------------------------------
             // Need to grab external id for this datarecord
+/*
             $query = $em->createQuery(
                'SELECT dr.external_id AS external_id
                 FROM ODRAdminBundle:DataRecord AS dr
@@ -611,7 +612,9 @@ if ($debug)
             $result = $query->getArrayResult();
 //print_r($result);
             $external_id = $result[0]['external_id'];
-
+*/
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $external_id = $datarecord->getExternalId();
 
             // ----------------------------------
             // Grab data for each of the datafields selected for export
@@ -786,7 +789,7 @@ print_r($line);
 
                 $query =
                    'INSERT INTO odr_tracked_csv_export (random_key, tracked_job_id)
-                    SELECT * FROM (SELECT :random_key, :tj_id) AS tmp
+                    SELECT * FROM (SELECT :random_key AS random_key, :tj_id AS tj_id) AS tmp
                     WHERE NOT EXISTS (
                         SELECT random_key FROM odr_tracked_csv_export WHERE random_key = :random_key AND tracked_job_id = :tj_id
                     ) LIMIT 1;';
@@ -868,7 +871,7 @@ print_r($line);
                 // TODO - CURRENTLY WORKS, BUT MIGHT WANT TO LOOK INTO AN OFFICIAL MUTEX...
                 $query =
                    'INSERT INTO odr_tracked_csv_export (random_key, tracked_job_id, finalize)
-                    SELECT * FROM (SELECT :random_key_hash, :tj_id, :finalize) AS tmp
+                    SELECT * FROM (SELECT :random_key_hash AS random_key_hash, :tj_id AS tj_id, :finalize AS final_flag) AS tmp
                     WHERE NOT EXISTS (
                         SELECT random_key FROM odr_tracked_csv_export WHERE random_key = :random_key_hash AND tracked_job_id = :tj_id AND finalize = :finalize
                     ) LIMIT 1;';

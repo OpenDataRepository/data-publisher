@@ -330,10 +330,6 @@ class RecordController extends ODRCustomController
             $datarecord->setGrandparent($grandparent);
             $datarecord->setParent($parent);
             $em->persist($datarecord);
-
-            $grandparent->addChildren($datarecord); // TODO - needed?
-            $em->persist($grandparent);
-
             $em->flush();
 
             // Ensure the new child record has all its fields
@@ -484,42 +480,18 @@ class RecordController extends ODRCustomController
             )->setParameters( array('datatype' => $datatype->getId()) );
             $remaining = $query->getArrayResult();
 
-            // Determine which url to redirect to
+            // Determine where to redirect since the current datareccord is now deleted
             $url = '';
-/*
-            if ($search_key == '') {
-                // Not deleting from a search result list
-                if ( count($remaining) > 0 ) {
-                    // Return the url to Get ShortResults controller to regenerate the list of datarecords for this datatype
-                    $url = $this->generateUrl('odr_shortresults_list', array('datatype_id' => $datatype->getId(), 'target' => 'record'));
-                }
-                else {
-                    // No records to display on a ShortResults list, return to list of all datatypes
-                    $url = $this->generateUrl('odr_list_types', array('section' => 'records'));
-                }
-            }
-            else {
-                // Deleting from a search result list
-                if ( count($remaining) > 0 ) {
-                    // Redirect to search list
-                    $url = $this->generateURL('odr_search_render', array('search_key' => $search_key));
-                }
-                else {
-                    // Redirect to search page
-                    $url = $this->generateURL('odr_search');
-                }
-            }
-*/
             if ($search_key == '')
                 $search_key = 'dt_id='.$datatype->getId();
 
             if ( count($remaining) > 0 ) {
-                // Redirect to search list
+                // Return to the list of datarecords since at least one datarecord of this datatype still exists
                 $url = $this->generateURL('odr_search_render', array('search_key' => $search_key));
             }
             else {
-                // Redirect to search page
-                $url = $this->generateURL('odr_search');
+                // ...otherwise, return to the list of datatypes
+                $url = $this->generateURL('odr_list_types', array('section' => 'records'));
             }
 
             $return['d'] = $url;
@@ -1934,9 +1906,12 @@ if ($debug)
         $return['d'] = '';
 
         try {
+            // Don't actually need a search_key for a child reload, but GetDisplayData() expects the parameter
+            $search_key = '';
+
             $return['d'] = array(
                 'datarecord_id' => $datarecord_id,
-                'html' => self::GetDisplayData($request, $datarecord_id, 'child', $datatype_id),
+                'html' => self::GetDisplayData($request, $datarecord_id, $search_key, 'child', $datatype_id),
             );
         }
         catch (\Exception $e) {
@@ -2053,6 +2028,7 @@ if ($debug)
         $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
         // --------------------
 
+        $parent_datarecord = null;
         $datarecord = null;
         $datatype = null;
         $theme_element = null;
@@ -2060,9 +2036,11 @@ if ($debug)
         if ( $template_name === 'child' && $child_datatype_id !== null ) {
             $datarecord = $repo_datarecord->find($datarecord_id);
             $datatype = $repo_datatype->find($child_datatype_id);
+            $parent_datarecord = $datarecord->getParent();
         }
         else {
             $datarecord = $repo_datarecord->find($datarecord_id);
+            $parent_datarecord = $datarecord;
             $datatype = $datarecord->getDataType();
         }
 
@@ -2079,10 +2057,10 @@ if ($debug)
             // Determine if this is a 'child' render request for a top-level datatype
             $query = $em->createQuery(
                'SELECT dt.id AS dt_id
-                FROM ODRAdminBundle:DataTree dt
+                FROM ODRAdminBundle:DataTree AS dt
                 WHERE dt.deletedAt IS NULL AND dt.descendant = :datatype'
             )->setParameters( array('datatype' => $datatype->getId()) );
-            $results = $query->getResult();
+            $results = $query->getArrayResult();
 
             // If query found something, then it's not a top-level datatype
             if ( count($results) > 0 )
@@ -2191,6 +2169,8 @@ if ($debug)
             $template,
             array(
                 'search_key' => $search_key,
+
+                'parent_datarecord' => $parent_datarecord,
 
                 'datatype_tree' => $datatype_tree,
                 'datarecord_tree' => $datarecord_tree,

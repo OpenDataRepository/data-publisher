@@ -24,7 +24,8 @@
                 <label for="namefield_select">Name Field:</label>
                 <select id="namefield_select" name="name_datafield" onchange="SaveNameField({{ datatype.id }});">
                     <option value="-1" {% if datatype.getnamefield == null %}selected{% endif %}>NONE</option>
-                    {% for datafield in unique_datafields %}
+                    {#{% for datafield in unique_datafields %}#}
+                    {% for datafield in sort_datafields %}
                         <option value="{{ datafield.id }}" {% if datatype.getnamefield != null and datatype.getnamefield.id == datafield.id %}selected{% endif %}>{{ datafield.getfieldname }}</option>
                     {% endfor %}
                 </select>

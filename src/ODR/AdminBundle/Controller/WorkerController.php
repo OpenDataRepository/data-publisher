@@ -259,12 +259,12 @@ $logger->info('WorkerController::recacherecordAction()  Attempting to recache Da
                     $short_form_html = parent::Short_GetDisplayData($request, $datarecord->getId());
                     $data = array( 'revision' => $current_revision, 'html' => $short_form_html );
                     $memcached->set($memcached_prefix.'.data_record_short_form_'.$datarecord_id, $data, 0);
-
+/*
                     // Render and cache the TextResults form of the record
                     $short_form_html = parent::Text_GetDisplayData($request, $datarecord->getId());
                     $data = array( 'revision' => $current_revision, 'html' => $short_form_html );
                     $memcached->set($memcached_prefix.'.data_record_short_text_form_'.$datarecord_id, $data, 0);
-
+*/
                     // Also render and store the public and non-public forms of the record
                     $long_form_html = parent::Long_GetDisplayData($request, $datarecord->getId(), 'force_render_all');
                     $data = array( 'revision' => $current_revision, 'html' => $long_form_html );
@@ -1307,39 +1307,168 @@ print '</pre>';
 
 
     /**
-     * Debug function...apparently checks for duplicate RadioSelection entities? TODO
+     * Debug function...deletes radio selection entities belonging to deleted radio options
      *
      * @param Request $request
      *
      * @return TODO
      */
-    public function testradioAction(Request $request)
+    public function deletedradiocheckAction(Request $request)
     {
+return;
+
         $em = $this->getDoctrine()->getManager();
+
+        $em->getFilters()->disable('softdeleteable');
         $query = $em->createQuery(
-           'SELECT df.id AS df_id, df.fieldName AS field_name, dr.id AS dr_id, drf.id AS drf_id
-            FROM ODRAdminBundle:RadioSelection AS rs
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-            JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
-            WHERE rs.selected = 1 AND df.id != 202
-            AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL AND dr.deletedAt IS NULL');
-        $results = $query->getResult();
+           'SELECT ro.id AS ro_id
+            FROM ODRAdminBundle:RadioOptions AS ro
+            WHERE ro.deletedAt IS NOT NULL
+            ORDER BY ro.id');
+        $results = $query->getArrayResult();
+        $em->getFilters()->enable('softdeleteable');
 
-print '<pre>';
-        $previous_drf = 0;
-        foreach ($results as $num => $result) {
-            $df_id = $result['df_id'];
-            $field_name = $result['field_name'];
-            $dr_id = $result['dr_id'];
-            $drf_id = $result['drf_id'];
+        foreach ($results as $num => $tmp) {
+            $radio_option_id = $tmp['ro_id'];
 
-            if ($drf_id == $previous_drf)
-                print 'duplicate radio selection in datarecord '.$dr_id.' for datafield '.$df_id.' ('.$field_name.')'."\n";
-
-            $previous_drf = $drf_id;
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:RadioSelection AS rs
+                SET rs.deletedAt = :now
+                WHERE rs.radioOption = :radio_option_id AND rs.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'radio_option_id' => $radio_option_id) );
+            $updated = $query->execute();
         }
-print '</pre>';
     }
 
+    /**
+     * displays/deletes duplicate radio selection options
+     * TODO - figure out why the page appears to auto-reload when deletion is enabled
+     * TODO - convert to native SQL because doctrine can't handle the number of results when run on UAMM
+     */
+    public function duplicateradiocheckAction($datatype_id, Request $request)
+    {
+
+return;
+
+        $em = $this->getDoctrine()->getManager();
+
+        $query = $em->createQuery(
+           'SELECT dt.id AS dt_id, dt.shortName, dr.id AS dr_id, df.id AS df_id, df.fieldName, ro.id AS ro_id, ro.optionName, rs.id AS rs_id, rs.selected
+            FROM ODRAdminBundle:DataType AS dt
+            JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+            JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
+            JOIN ODRAdminBundle:RadioOptions AS ro WITH ro.dataFields = df
+            JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
+            JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
+            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+            WHERE dt.id = :datatype AND ft.typeClass = :typeclass
+            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND ro.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
+            ORDER BY dt.id, dr.id, df.id, ro.id'
+        )->setParameters( array('datatype' => $datatype_id, 'typeclass' => 'Radio') );
+        $results = $query->getArrayResult();
+/*
+print '<pre>';
+print_r($results);
+print '</pre>';
+*/
+
+        // Convert result into array format
+        $datatype_names = array();
+        $datafield_names = array();
+        $radio_option_names = array();
+        $data = array();
+        foreach ($results as $num => $result) {
+            $dt_id = $result['dt_id'];
+            $datatype_name = $result['shortName'];
+            $dr_id = $result['dr_id'];
+            $df_id = $result['df_id'];
+            $datafield_name = $result['fieldName'];
+            $ro_id = $result['ro_id'];
+            $radio_option_name = $result['optionName'];
+            $rs_id = $result['rs_id'];
+            $selected = $result['selected'];
+//$selected = $selected->format('Y-m-d h:m:s');
+
+            // Deal with names first
+            if ( !isset($datatype_names[$dt_id]) )
+                $datatype_names[$dt_id] = $datatype_name;
+            if ( !isset($datafield_names[$df_id]) )
+                $datafield_names[$df_id] = $datafield_name;
+            if ( !isset($radio_option_names[$ro_id]) )
+                $radio_option_names[$ro_id] = $radio_option_name;
+
+            // Now deal with content
+            if ( !isset($data[$dt_id]) )
+                $data[$dt_id] = array();
+
+            if ( !isset($data[$dt_id][$dr_id]) )
+                $data[$dt_id][$dr_id] = array();
+
+            if ( !isset($data[$dt_id][$dr_id][$df_id]) )
+                $data[$dt_id][$dr_id][$df_id] = array();
+
+            if ( !isset($data[$dt_id][$dr_id][$df_id][$ro_id]) )
+                $data[$dt_id][$dr_id][$df_id][$ro_id] = array();
+
+            $data[$dt_id][$dr_id][$df_id][$ro_id][$rs_id] = $selected;
+        }
+/*
+print '<pre>';
+print_r($data);
+print '</pre>';
+*/
+        // Copy duplicates into another array
+        $duplicates = array();
+        foreach ($data as $dt_id => $datatype_data) {
+            foreach ($datatype_data as $dr_id => $datarecord_data) {
+                foreach ($datarecord_data as $df_id => $datafield_data) {
+                    foreach ($datafield_data as $ro_id => $radio_option_data) {
+                        if ( count($radio_option_data) > 1 )
+                            $duplicates[$dt_id][$dr_id][$df_id][$ro_id] = $radio_option_data;
+                    }
+                }
+            }
+        }
+/*
+print '<pre>';
+print_r($duplicates);
+print '</pre>';
+*/
+
+        // Print duplicates
+$count = 0;
+print '<pre>';
+        foreach ($duplicates as $dt_id => $datatype_data) {
+            print 'Datatype '.$dt_id.' ('.$datatype_names[$dt_id].'): '."\n";
+
+            foreach ($datatype_data as $dr_id => $datarecord_data) {
+                print '-- Datarecord '.$dr_id.':'."\n";
+
+                foreach ($datarecord_data as $df_id => $datafield_data) {
+                    print '-- -- Datafield '.$df_id.' ('.$datafield_names[$df_id].'): '."\n";
+
+                    foreach ($datafield_data as $ro_id => $radio_option_data) {
+                        print '-- -- -- Radio Option '.$ro_id.' ('.$radio_option_names[$ro_id].'): '."\n";
+
+                        foreach ($radio_option_data as $rs_id => $selected) {
+                            print '-- -- -- -- Radio Selection '.$rs_id.': '.$selected."\n";
+/*
+if ($selected == 1) {
+    $rs = $em->getRepository('ODRAdminBundle:RadioSelection')->find($rs_id);
+    $em->remove($rs);
+    $count++;
+    if ( ($count % 10) == 0 )
+        $em->flush();
+}
+*/
+                        }
+                    }
+                }
+            }
+        }
+print '</pre>';
+
+//$em->flush();
+
+    }
 }

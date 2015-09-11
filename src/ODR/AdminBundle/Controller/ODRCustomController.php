@@ -312,16 +312,35 @@ print "\n\n";
      */
     public function renderTextResultsList($datarecord_list, $datatype, Request $request)
     {
+        // --------------------
+        // Store whether the user has view privileges for this datatype
+        $can_view_datatype = false;
+        $user = $this->container->get('security.context')->getToken()->getUser();
+        if ($user !== 'anon.') {
+            $user_permissions = self::getPermissionsArray($user->getId(), $request);
+
+            // Check if user has permissions to download files
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
+                $can_view_datatype = false;
+            else
+                $can_view_datatype = true;
+        }
+
+        $cached_html_version = 'no_view';
+        if ($can_view_datatype)
+            $cached_html_version = 'has_view';
+        // --------------------
+
         // Grab necessary objects
         $memcached = $this->get('memcached');
         $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
         $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        // Build...
-        $datatype_revision = $datatype->getRevision();
+        // Attempt to load from memcached...
+        $datatype_revision = intval( $datatype->getRevision() );
         $rows = array();
         foreach ($datarecord_list as $num => $datarecord_id) {
-            // Attempt to grab the textresults thingy for this datarecord from the cache
+            // Attempt to grab the textresults html for this datarecord from memcached
             $data = $memcached->get($memcached_prefix.'.data_record_short_text_form_'.$datarecord_id);
 
             // No caching in dev environment
@@ -329,16 +348,18 @@ print "\n\n";
                 $data = null;
 
             $fields = null;
-            if ($data !== null && is_array($data) && count($data) == 2 && $data['revision'] == $datatype_revision) {
+            if ( isset($data['revision']) && intval($data['revision']) == $datatype_revision /*&& isset($data['html'])*/ && isset($data['html'][$cached_html_version]) && $data['html'][$cached_html_version] !== '' ) {
                 // Grab the array of data from the cache entry
-                $fields = $data['html'];
+                $fields = $data['html'][$cached_html_version];
             }
             else {
-                // Rebuilding one of these is cheap?
-                $fields = self::Text_GetDisplayData($request, $datarecord_id);
+                // Rebuild immediately and store the result...it's cheap-ish to do so
+                $fields = self::Text_GetDisplayData($request, $datarecord_id, $can_view_datatype);
 
-                // Store immediately?
-                $data = array('revision' => $datatype_revision, 'html' => $fields);
+                if ( $data == null || intval($data['revision']) !== $datatype_revision )
+                    $data = array('revision' => $datatype_revision, 'html' => array('no_view' => '', 'has_view' => '') );
+
+                $data['html'][$cached_html_version] = $fields;
                 $memcached->set($memcached_prefix.'.data_record_short_text_form_'.$datarecord_id, $data, 0);
             }
 
@@ -827,10 +848,12 @@ print "\n\n";
 //$save_permissions = false;
             $session = $request->getSession();
             if ( !$save_permissions || !$session->has('permissions') ) {
-                // Permissions not set, need to build an array
+                // Permissions for a user other than the currently logged-in one requested, or permissions not set...need to build an array
                 $em = $this->getDoctrine()->getManager();
-                $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
+                $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+                $is_admin = $user->hasRole('ROLE_SUPER_ADMIN');
 
+                // Load all permissions for this user from the database
                 $query = $em->createQuery(
                    'SELECT dt.id AS dt_id, up.can_view_type, up.can_edit_record, up.can_add_record, up.can_delete_record, up.can_design_type, up.is_type_admin
                     FROM ODRAdminBundle:DataType AS dt
@@ -851,11 +874,11 @@ print "\n\n";
                     $all_permissions[$datatype_id] = array();
                     $save = false;
 
-                    if ($result['can_view_type'] == 1) {
+                    if ( $is_admin || $result['can_view_type'] == 1 ) {
                         $all_permissions[$datatype_id]['view'] = 1;
                         $save = true; 
                     }
-                    if ($result['can_edit_record'] == 1) {
+                    if ( $is_admin || $result['can_edit_record'] == 1 ) {
                         $all_permissions[$datatype_id]['edit'] = 1;
                         $save = true;
 
@@ -867,19 +890,19 @@ print "\n\n";
                                 $all_permissions[$dt_id]['child_edit'] = 1;
                         }
                     }
-                    if ($result['can_add_record'] == 1) {
+                    if ( $is_admin || $result['can_add_record'] == 1 ) {
                         $all_permissions[$datatype_id]['add'] = 1;
                         $save = true; 
                     }
-                    if ($result['can_delete_record'] == 1) {
+                    if ( $is_admin || $result['can_delete_record'] == 1 ) {
                         $all_permissions[$datatype_id]['delete'] = 1;
                         $save = true; 
                     }
-                    if ($result['can_design_type'] == 1) {
+                    if ( $is_admin || $result['can_design_type'] == 1 ) {
                         $all_permissions[$datatype_id]['design'] = 1;
                         $save = true; 
                     }
-                    if ($result['is_type_admin'] == 1) {
+                    if ( $is_admin || $result['is_type_admin'] == 1 ) {
                         $all_permissions[$datatype_id]['admin'] = 1;
                         $save = true; 
                     }
@@ -1660,7 +1683,7 @@ $save_permissions = false;
         if ($drf == null) {
             $query =
                'INSERT INTO odr_data_record_fields (data_record_id, data_field_id)
-                SELECT * FROM (SELECT :datarecord, :datafield) AS tmp
+                SELECT * FROM (SELECT :datarecord AS dr_id, :datafield AS df_id) AS tmp
                 WHERE NOT EXISTS (
                     SELECT id FROM odr_data_record_fields WHERE data_record_id = :datarecord AND data_field_id = :datafield AND deletedAt IS NULL
                 ) LIMIT 1;';
@@ -2239,12 +2262,13 @@ $save_permissions = false;
      * Re-renders and returns the TextResults version of a given Datarecord
      * 
      * @param Request $request
-     * @param integer $datarecord_id The database id of the DataRecord...
-     * @param string $template_name  unused right now
+     * @param integer $datarecord_id      The database id of the DataRecord...
+     * @param boolean $can_view_datatype  Whether the requesting user has view permissinos for this datatype or not
+     * @param string  $template_name      ...unused right now
      * 
      * @return array
      */
-    public function Text_GetDisplayData(Request $request, $datarecord_id, $template_name = 'default')
+    public function Text_GetDisplayData(Request $request, $datarecord_id, $can_view_datatype, $template_name = 'default')
     {
         // Required objects
         $em = $this->getDoctrine()->getManager();
@@ -2303,8 +2327,11 @@ if ($debug)
                             // ...should only be one file in here anyways
                             $file = $collection[0];
 
-                            $url = $router->generate('odr_file_download', array('file_id' => $file->getId()));
-                            $str = '<a href='.$url.'>'.$file->getOriginalFileName().'</a>'; // textresultslist.html.twig will add other required attributes because of str_replace later in this function
+                            // Only show the file if the user is allowed to see it
+                            if ( $file->isPublic() || $can_view_datatype ) {
+                                $url = $router->generate('odr_file_download', array('file_id' => $file->getId()));
+                                $str = '<a href='.$url.'>'.$file->getOriginalFileName().'</a>'; // textresultslist.html.twig will add other required attributes because of str_replace later in this function
+                            }
                         }
 
                         $value = $str;
@@ -2923,7 +2950,7 @@ if ($debug)
             // Create an ImageSize entity for the original image
             $query =
                'INSERT INTO odr_image_sizes (data_fields_id, size_constraint)
-                SELECT * FROM (SELECT :datafield, :size_constraint) AS tmp
+                SELECT * FROM (SELECT :datafield AS df_id, :size_constraint AS size_constraint) AS tmp
                 WHERE NOT EXISTS (
                     SELECT id FROM odr_image_sizes WHERE data_fields_id = :datafield AND size_constraint = :size_constraint AND deletedAt IS NULL
                 ) LIMIT 1;';
@@ -2958,7 +2985,7 @@ if ($debug)
             // Create an ImageSize entity for the thumbnail
             $query =
                'INSERT INTO odr_image_sizes (data_fields_id, size_constraint)
-                SELECT * FROM (SELECT :datafield, :size_constraint) AS tmp
+                SELECT * FROM (SELECT :datafield AS df_id, :size_constraint AS size_constraint) AS tmp
                 WHERE NOT EXISTS (
                     SELECT id FROM odr_image_sizes WHERE data_fields_id = :datafield AND size_constraint = :size_constraint AND deletedAt IS NULL
                 ) LIMIT 1;';

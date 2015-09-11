@@ -1253,9 +1253,9 @@ class CSVImportController extends ODRCustomController
                 if ( isset($unique_columns[$column_num]) && $datafield_id !== 'new' ) {
                     // Skip if this column is mapped to the external id/name datafield for this datatype
                     $external_id_field = $datatype->getExternalIdField();
-                    $name_field = $datatype->getNameField();
+//                    $name_field = $datatype->getNameField();
 
-                    if ( ($external_id_field !== null && $external_id_field->getId() == $datafield_id) || ($name_field !== null && $name_field->getId() == $datafield_id) ) {
+                    if ( ($external_id_field !== null && $external_id_field->getId() == $datafield_id) /*|| ($name_field !== null && $name_field->getId() == $datafield_id)*/ ) {
                         /* don't check whether the value collides with an existing value for either of these datafields...if it did, the importer would be unable to update existing datarecords */
                     }
                     else {
@@ -1913,12 +1913,13 @@ print_r($new_mapping);
             $status = '';
             $datarecord = null;
             $external_id_field = $datatype->getExternalIdField();
-            $name_field = $datatype->getNameField();
+//            $name_field = $datatype->getNameField();
 
             $source = '';
             $value = '';
             $typeclass = '';
             $datafield_id = '';
+/*
             // Try to first locate the name field value...
             if ($name_field !== null) {
                 $source = 'Name datafield';
@@ -1929,7 +1930,7 @@ print_r($new_mapping);
                         $value = $line[$column_num];
                 }
             }
-
+*/
             // Try to locate the external id field value...purposefully overwrite the value from the name field because...
             if ($external_id_field !== null) {
                 $source = 'External ID datafield';
@@ -2128,7 +2129,7 @@ print_r($new_mapping);
                                 // define and execute a query to manually create the absolute minimum required for a RadioOption entity...
                                 $query = 
                                    'INSERT INTO odr_radio_options (option_name, data_fields_id)
-                                    SELECT * FROM (SELECT :name, :df_id) AS tmp
+                                    SELECT * FROM (SELECT :name AS option_name, :df_id AS df_id) AS tmp
                                     WHERE NOT EXISTS (
                                         SELECT option_name FROM odr_radio_options WHERE option_name = :name AND data_fields_id = :df_id AND deletedAt IS NULL
                                     ) LIMIT 1;';
@@ -2224,5 +2225,3 @@ print_r($new_mapping);
     }
 
 }
-
-?>

@@ -1006,7 +1006,7 @@ function SetupDataFields() {
 
         // Check if this field is already loaded
         var form_id = "";
-        var form = $("#ElementData").find("form");
+        var form = $("#ElementData").find("form.ODRDatafieldPropertiesForm");
         if (form.length > 0) {
             var form_id_data = form.attr("id").split(/_/);;
             form_id = form_id_data[1];

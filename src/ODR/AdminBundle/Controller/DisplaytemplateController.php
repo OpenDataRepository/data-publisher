@@ -2530,7 +2530,7 @@ print '</pre>';
                 if ($render_plugin->getPluginType() <= 2 && $datatype != null) {
                     // Update the datatype object
                     $datatype->setRenderPlugin($render_plugin);
-                    $datatype->setDisplayType(0);   // if changing to use a render plugin, revert datatype back to accordion layout
+//                    $datatype->setDisplayType(0);   // if changing to use a render plugin, revert datatype back to accordion layout
                     $datatype->setUpdatedBy($user);
                     $em->persist($datatype);
                 }
@@ -3330,7 +3330,7 @@ print_r($errors);
                             $top_level_datatype_id = $datafield->getDataType()->getId();
                             $datatree_array = parent::getDatatreeArray($em);
 
-                            while ($datatree_array['descendant_of'][$top_level_datatype_id] !== '')
+                            while ( isset($datatree_array['descendant_of'][$top_level_datatype_id]) && $datatree_array['descendant_of'][$top_level_datatype_id] !== '')
                                 $top_level_datatype_id = $datatree_array['descendant_of'][$top_level_datatype_id];
 
 

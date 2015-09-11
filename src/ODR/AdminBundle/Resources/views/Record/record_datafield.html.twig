@@ -188,7 +188,8 @@
             </div>
         </fieldset>
 
-    {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}
+    {#{% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}#}
+    {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
         <fieldset>
             <label id="Label_{{ field.id }}" class="ODRFieldLabel ODRDatafieldHistory pure-u-1" title="{{ field.description }}">{{ field.fieldname }}</label>
 
@@ -209,7 +210,8 @@
 
         <fieldset>
 
-    {% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}
+    {#{% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}#}
+    {% elseif field_typename == "Single Select" %}
         <fieldset>
             <label id="Label_{{ field.id }}" for="SelectGroup_{{ datarecordfield.id }}" class="ODRFieldLabel ODRDatafieldHistory pure-u-1" title="{{ field.description }}">{{ field.getFieldName }}</label>
 

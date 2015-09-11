@@ -846,7 +846,7 @@ odr_csv_upload:
 odr_csv_cancel_import:
     pattern: /edit/csv_import/cancel
     defaults: { _controller: ODRAdminBundle:CSVImport:cancel }
-    
+
 odr_csv_import_layout:
     pattern: /edit/csv_import/layout/{datatype_id}
     defaults: { _controller: ODRAdminBundle:CSVImport:layout }
@@ -1033,9 +1033,14 @@ odr_permission_check:
     pattern: /admin/permission_check
     defaults: { _controller: ODRAdminBundle:ODRUser:permissioncheck }
 
-#odr_radio_check:
-#    pattern: /admin/radio/test
-#    defaults: { _controller:ODRAdminBundle:Worker:testradio }
+odr_deleted_radio_check:
+    pattern: /admin/deleted_radio_check
+    defaults: { _controller:ODRAdminBundle:Worker:deletedradiocheck }
+odr_duplicate_radio_check:
+    pattern: /admin/duplicate_radio_check/{datatype_id}
+    defaults: { _controller:ODRAdminBundle:Worker:duplicateradiocheck }
+    requirements:
+        datatype_id: \d+
 
 odr_start_encrypt:
     pattern: /admin/encrypt/{object_type}

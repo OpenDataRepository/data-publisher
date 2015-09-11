@@ -16,7 +16,8 @@ ODR\AdminBundle\Entity\IntegerValue:
         value:
             type: integer
             unsigned: false
-            nullable: false
+#            nullable: false
+            nullable: true
             gedmo:
                 - versioned
         deletedAt:

@@ -442,8 +442,6 @@ function initPage() {
                 dataType: dataType,
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
-                        // TODO - shouldn't this be handled entirely via javascript instead of another ajax call?
-
                         // Refresh child wrapper area
                         var datatype_id = data.d.datatype_id;
                         var parent_id = data.d.parent_id;
@@ -1057,7 +1055,8 @@ function ReloadChild(datatype_id, datarecord_id) {
         dataType: dataType,
         success: function(data, textStatus, jqXHR) {
             if (data.r == 0) {
-                $("#ChildTypeWrapper_" + datatype_id + "_" + datarecord_id).prepend(data.d.html);
+                // The returned html includes #ChildTypeWrapper...completely overwrite the contents of its parent div
+                $("#ChildTypeWrapper_" + datatype_id + "_" + datarecord_id).parent(".ODRInnerBox").html(data.d.html);
 
                 setupAccordions();
                 initPage();

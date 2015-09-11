@@ -25,7 +25,7 @@
         ajax_url += job_type;
 
         var table = $("#ODRJobList_" + job_type).dataTable({
-            columns: [
+            "columns": [
                 { "data": "created_at" },
                 { "data": "created_by" },
                 { "data": "description" },
@@ -53,16 +53,20 @@
                 },
             ],
 
-            lengthChange: false,
-            info: false,
-            ordering: false,
-            searching: false,
-            paging: false,
+            "lengthChange": false,
+            "info": false,
+            "ordering": false,
+            "searching": false,
+            "paging": false,
+
+            "language": {
+                "emptyTable": "No Jobs found"
+            },
 
             // https://datatables.net/manual/server-side
-            processing: true,   // only displays a little "processing..." blurb
+            "processing": true,   // only displays a little "processing..." blurb
 
-            ajax: {
+            "ajax": {
                 url: ajax_url,
                 type: "GET",
                 dataSrc: "d",
