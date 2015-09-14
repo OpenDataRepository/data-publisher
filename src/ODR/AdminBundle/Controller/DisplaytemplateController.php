@@ -3139,6 +3139,7 @@ if ($debug)
             // --------------------
             // Prevent a datafield's fieldtype from being changed if it's being used by a render plugin
             $prevent_fieldtype_change = false;
+            $prevent_fieldtype_change_message = '';
             $render_plugin_map = $em->getRepository('ODRAdminBundle:RenderPluginMap')->findAll();
             foreach ($render_plugin_map as $rpm) {
                 if ($rpm->getDataField()->getId() == $datafield_id) {
@@ -3146,6 +3147,7 @@ if ($debug)
                     $rpi = $em->getRepository('ODRAdminBundle:RenderPluginInstance')->findOneBy( array('id' => $rpm->getRenderPluginInstance()->getId()) );
                     if ($rpi !== null) {
                         $prevent_fieldtype_change = true;
+                        $prevent_fieldtype_change_message = "The Fieldtype can't be changed because the Datafield is currently being used by a RenderPlugin.";
                         break;
                     }
                 }
@@ -3153,9 +3155,16 @@ if ($debug)
 
             // Also prevent a datatfield's fieldtype from being changed if a migration is in progress
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'target_entity' => 'datafield_'.$datafield->getId(), 'completed' => null) );
-            if ($tracked_job !== null)
+            if ($tracked_job !== null) {
                 $prevent_fieldtype_change = true;
+                $prevent_fieldtype_change_message = "The Fieldtype can't be changed because the server hasn't finished migrating this Datafield's data to the currently displayed Fieldtype.";
+            }
 
+            // Also prevent a fieldtype change if the datafield is marked as unique
+            if ($datafield->getIsUnique() == true) {
+                $prevent_fieldtype_change = true;
+                $prevent_fieldtype_change_message = "The Fieldtype can't be changed because the Datafield is currently marked as Unique.";
+            }
 
             // --------------------
             // Populate new DataFields form
@@ -3255,6 +3264,7 @@ if ($debug)
                     if ( !self::datafieldCanBeUnique($datafield) )
                         $datafield_form->addError( new FormError("This Datafield can't be set to 'unique' because some Datarecords have duplicate values stored in this Datafield...click the gear icon to list which ones.") ); 
                 }
+
 /*
 $errors = parent::ODR_getErrorMessages($datafield_form);
 print_r($errors);
@@ -3263,6 +3273,12 @@ print_r($errors);
                 // --------------------
                 $return['t'] = "html";
                 if ($datafield_form->isValid()) {
+                    // --------------------
+                    // If datafield is being used as the datatype's external ID field, ensure it's marked as unique
+                    if ( $datafield->getDataType()->getExternalIdField()->getId() == $datafield->getId() )
+                        $datafield->setIsUnique(true);
+
+                    // --------------------
                     // Easier to deal with change of fieldtype and how it relates to searchable here
                     switch ($datafield->getFieldType()->getTypeClass()) {
                         case 'DecimalValue':
@@ -3423,6 +3439,8 @@ if ($force_slideout_reload)
                         array(
                             'has_multiple_uploads' => $has_multiple_uploads,
                             'prevent_fieldtype_change' => $prevent_fieldtype_change,
+                            'prevent_fieldtype_change_message' => $prevent_fieldtype_change_message,
+
                             'datafield' => $datafield,
                             'datafield_form' => $datafield_form->createView(),
                             'theme_datafield' => $theme_datafield,

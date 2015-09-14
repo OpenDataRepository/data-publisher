@@ -2,6 +2,11 @@
 {% set fieldtype = datafield.getfieldtype %}
 {% set typename = fieldtype.gettypename %}
 
+{% set is_external_id_field = false %}
+{% if datafield.datatype.externalIdField != null and datafield.id == datafield.datatype.externalIdField.id %}
+    {% set is_external_id_field = true %}
+{% endif %}
+
 <div class="pure-u-3-4" style="visibility: hidden;">
     <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
 </div>
@@ -54,12 +59,15 @@
             </label>
             <input type="hidden" id="previous_fieldtype" name="DataFieldsForm[previous_field_type]" value="{{ datafield.getfieldtype.id }}" />
 
-            {{ form_errors(datafield_form.field_type) }}
-            {% if prevent_fieldtype_change == true %}
-                {{ form_widget(datafield_form.field_type, { 'attr': {'class': 'required ODRDatafieldType', 'data-error-type': 'inline', 'disabled': 'disabled' } }) }}
-            {% else %}
-                {{ form_widget(datafield_form.field_type, { 'attr': {'class': 'required ODRDatafieldType', 'data-error-type': 'inline' } }) }}
-            {% endif %}
+            <span {% if prevent_fieldtype_change == true %}title="{{ prevent_fieldtype_change_message }}"{% endif %} >
+                {{ form_errors(datafield_form.field_type) }}
+                {% if prevent_fieldtype_change == true %}
+                    {{ form_widget(datafield_form.field_type, { 'attr': {'class': 'required ODRDatafieldType', 'data-error-type': 'inline', 'disabled': 'disabled' } }) }}
+                {% else %}
+                    {{ form_widget(datafield_form.field_type, { 'attr': {'class': 'required ODRDatafieldType', 'data-error-type': 'inline' } }) }}
+                {% endif %}
+            </span>
+
             <span id="field_type_meta" class="Cursor" title="{% if typename == 'Long Text' %}255{% elseif typename == 'Medium Text' %}64{% elseif typename == 'Short Text' %}32{% elseif typename == 'Paragraph Text' %}No{% endif %} Character Limit" style="color:black;">
                 &nbsp;<i class="fa fa-question-circle fa-lg"></i>
             </span>
@@ -107,8 +115,16 @@
             <label for="{{datafield_form.is_unique.vars.id}}">
                 <strong>{{datafield_form.is_unique.vars.label}}</strong>
             </label>
-            {{ form_errors(datafield_form.is_unique) }}
-            {{ form_widget(datafield_form.is_unique, { 'attr': {'style': 'width:auto'} }) }}
+
+            <span {% if is_external_id_field == true %}title="This datafield is currently being used as the Datatype's External ID field, and must remain unique."{% endif %} >
+                {{ form_errors(datafield_form.is_unique) }}
+                {% if is_external_id_field == true %}
+                    {{ form_widget(datafield_form.is_unique, { 'attr': {'style': 'width:auto', 'disabled': 'disabled'} }) }}
+                {% else %}
+                    {{ form_widget(datafield_form.is_unique, { 'attr': {'style': 'width:auto'} }) }}
+                {% endif %}
+            </span>
+
             <span>
                 &nbsp;<a target="_blank" class="address" href="#{{ path( 'odr_design_analyze_datafield_unique', {'datafield_id': datafield.id }) }}" style="color:black;" title="Show Datarecords with duplicate values for this Datafield..."><i class="fa fa-cog fa-lg"></i></a>
             </span>
