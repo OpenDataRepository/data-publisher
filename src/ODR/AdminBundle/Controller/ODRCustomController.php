@@ -1828,47 +1828,55 @@ $save_permissions = false;
      * @return mixed
      */
     protected function ODR_addStorageEntity($em, $user, $datarecord, $datafield)
-    {
-        $my_obj = null;
+    {       
+        $storage_entity = null;
 
-        $field_type = $datafield->getFieldType();
-        $classname = "ODR\\AdminBundle\\Entity\\" . $field_type->getTypeClass();
+        $fieldtype = $datafield->getFieldType();
+        $typeclass = $fieldtype->getTypeClass();
+
+        $classname = "ODR\\AdminBundle\\Entity\\".$typeclass;
 
         // Create initial entity if insert_on_create
-        if ($field_type->getInsertOnCreate() == 1) {
+        if ($fieldtype->getInsertOnCreate() == 1) {
             // Create Instance of field
-            $my_obj = new $classname();
-            $my_obj->setDataRecord($datarecord);
-            $my_obj->setDataField($datafield);
+            $storage_entity = new $classname();
+            $storage_entity->setDataRecord($datarecord);
+            $storage_entity->setDataField($datafield);
 
+            // If Datarecordfields entry is missing, create it
             $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
             if ($drf == null) {
                 $drf = self::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
                 $em->persist($drf);
             }
-            $my_obj->setDataRecordFields($drf);
+            $storage_entity->setDataRecordFields($drf);
 
-            $my_obj->setFieldType($field_type);
-            if ($field_type->getTypeClass() == 'DatetimeValue') {
-                $my_obj->setValue( new \DateTime('0000-00-00 00:00:00') );
+            // Store Fieldtype and set default values
+            $storage_entity->setFieldType($fieldtype);
+            if ($typeclass == 'DatetimeValue') {
+                $storage_entity->setValue( new \DateTime('0000-00-00 00:00:00') );
             }
-            else if ($field_type->getTypeClass() == 'DecimalValue') {
-                $my_obj->setOriginalValue('0');
-                $my_obj->setValue(0);
+            else if ($typeclass == 'IntegerValue') {
+                $storage_entity->setValue(null);
+            }
+            else if ($typeclass == 'DecimalValue') {
+                $storage_entity->setOriginalValue(null);
+                $storage_entity->setValue(null);
             }
             else {
-                $my_obj->setValue("");
+                $storage_entity->setValue('');
             }
-            $my_obj->setCreatedBy($user);
-            $my_obj->setUpdatedBy($user);
-            $em->persist($my_obj);
+
+            $storage_entity->setCreatedBy($user);
+            $storage_entity->setUpdatedBy($user);
+            $em->persist($storage_entity);
 
             // TODO - is this necessary?
             // Attach the new object to the associated datarecordfield entity
-            self::saveToDataRecordField($em, $drf, $field_type->getTypeClass(), $my_obj);
+            self::saveToDataRecordField($em, $drf, $typeclass, $storage_entity);
         }
 
-        return $my_obj;
+        return $storage_entity;
     }
 
 

@@ -2016,7 +2016,7 @@ print_r($new_mapping);
 
                         // Save value from csv file
                         $checked = '';
-                        if ( trim($column_data) !== '' ) {
+                        if ( $column_data !== '' ) {
                             $checked = 'checked';
                             $entity->setValue(1);   // any character in the field counts as checked
                         }
@@ -2042,7 +2042,8 @@ print_r($new_mapping);
                         }
 
                         // Save value from csv file
-                        $entity->setValue( intval($column_data) );
+                        if ($column_data !== '')
+                            $entity->setValue( intval($column_data) );
                         $em->persist($entity);
 
                         $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$column_data.'"...'."\n";
@@ -2060,7 +2061,8 @@ print_r($new_mapping);
                         }
 
                         // Save value from csv file
-                        $entity->setValue( floatval($column_data) );
+                        if ($column_data !== '')
+                            $entity->setValue( floatval($column_data) );
                         $em->persist($entity);
 
                         $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$column_data.'"...'."\n";
