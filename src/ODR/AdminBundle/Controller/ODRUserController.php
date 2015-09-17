@@ -56,17 +56,15 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
-            // User needs at least one "is_admin" permission to access this
-            $user_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
-            $admin_permissions = array();
-            foreach ($user_permissions as $datatype_id => $up) {
-                if ( isset($up['admin']) && $up['admin'] == '1' ) {
-                    $admin_permissions[ $datatype_id ] = $up;
-                }
+            $admin_permission_count = 0;
+            foreach ($admin_permissions as $datatype_id => $admin_permission) {
+                if ( isset($admin_permission['admin']) && $admin_permission['admin'] == 1 )
+                    $admin_permission_count++;
             }
 
-            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && count($admin_permissions) == 0 )
+            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )
                 return parent::permissionDeniedError();
             // --------------------
 
@@ -116,17 +114,15 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
-            // User needs at least one "is_admin" permission to access this
-            $user_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
-            $admin_permissions = array();
-            foreach ($user_permissions as $datatype_id => $up) {
-                if ( isset($up['admin']) && $up['admin'] == '1' ) {
-                    $admin_permissions[ $datatype_id ] = $up;
-                }
+            $admin_permission_count = 0;
+            foreach ($admin_permissions as $datatype_id => $admin_permission) {
+                if ( isset($admin_permission['admin']) && $admin_permission['admin'] == 1 )
+                    $admin_permission_count++;
             }
 
-            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && count($admin_permissions) == 0 )
+            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )
                 return parent::permissionDeniedError();
             // --------------------
 
@@ -186,19 +182,18 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
-            // User needs at least one "is_admin" permission to access this
-            $user_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
-            $admin_permissions = array();
-            foreach ($user_permissions as $datatype_id => $up) {
-                if ( isset($up['admin']) && $up['admin'] == '1' ) {
-                    $admin_permissions[ $datatype_id ] = $up;
-                }
+            $admin_permission_count = 0;
+            foreach ($admin_permissions as $datatype_id => $admin_permission) {
+                if ( isset($admin_permission['admin']) && $admin_permission['admin'] == 1 )
+                    $admin_permission_count++;
             }
 
-            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && count($admin_permissions) == 0 )
+            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )
                 return parent::permissionDeniedError();
             // --------------------
+
 
             // Ensure a user with the specified email doesn't already exist...
             $email = $post['email'];
@@ -237,11 +232,10 @@ class ODRUserController extends ODRCustomController
                     $return['d'] = array('url' => $url);
 
                     // The new user is going to need permissions eventually...now is as good a time as any to create them
-                    $datatypes = parent::getTopLevelDatatypes();
-                    foreach ($datatypes as $num => $dt_id) {
-                        $datatype = $repo_datatype->find($dt_id);
-                        self::permissionsExistence($new_user, $admin_user, $datatype, null);
-                    }
+                    $top_level_datatypes = parent::getTopLevelDatatypes();
+                    foreach ($top_level_datatypes as $num => $datatype_id)
+                        parent::permissionsExistence($new_user->getId(), $admin_user->getId(), $datatype_id, null);
+
                 }
                 else {
                     $return['r'] = 1;
@@ -1013,6 +1007,7 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Debug function to ensure all super-admin users have all permissions
+     * TODO - obsolete?
      */
     public function permissioncheckAction(Request $request)
     {
@@ -1030,78 +1025,11 @@ class ODRUserController extends ODRCustomController
 
         $top_level_datatypes = parent::getTopLevelDatatypes();
         foreach ($top_level_datatypes as $num => $datatype_id) {
-            $datatype = $repo_datatype->find($datatype_id);
-
-            foreach ($admin_users as $user)
-                self::permissionsExistence($user, $user, $datatype, null);
+            foreach ($admin_users as $admin_user)
+                parent::permissionsExistence($admin_user->getId(), $admin_user->getId(), $datatype_id, null);
         }
     }
 
-
-    /**
-     * Ensures the user permissions table has rows linking the given user and datatype...TODO
-     * 
-     * @param User $user               The User receiving the permissions
-     * @param User $admin              The admin User which triggered this function
-     * @param DataType $datatype       Which DataType these permissions are for
-     * @param mixed $parent_permission null if $datatype is top-level, otherwise the $user's UserPermissions object for this $datatype's parent
-     * 
-     * @return none
-     */
-    private function permissionsExistence($user, $admin, $datatype, $parent_permission)
-    {
-        // Grab required objects
-        $em = $this->getDoctrine()->getManager();
-        $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-        $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
-
-        // Look up the user's permissions for this datatype
-        $user_permission = $repo_user_permissions->findOneBy( array('user_id' => $user, 'dataType' => $datatype) );
-
-        // Verify a permissions object exists for this user/datatype
-        if ($user_permission === null) {
-            $user_permission = new UserPermissions();
-            $user_permission->setUserId($user);
-            $user_permission->setDataType($datatype);
-            $user_permission->setCreatedBy($admin);
-
-            $default = 0;
-            if ($user->hasRole('ROLE_SUPER_ADMIN'))
-                $default = 1;   // SuperAdmins can edit/add/delete/design everything, no exceptions
-
-            if ($parent_permission === null) {
-                // If this is a top-level datatype, use the defaults
-                $user_permission->setCanEditRecord($default);
-                $user_permission->setCanAddRecord($default);
-                $user_permission->setCanDeleteRecord($default);
-                $user_permission->setCanViewType($default);
-                $user_permission->setCanDesignType($default);
-                $user_permission->setIsTypeAdmin($default);
-            }
-            else {
-                // If this is a childtype, use the parent's permissions as defaults
-                $user_permission->setCanEditRecord( $parent_permission->getCanEditRecord() );
-                $user_permission->setCanAddRecord( $parent_permission->getCanAddRecord() );
-                $user_permission->setCanDeleteRecord( $parent_permission->getCanDeleteRecord() );
-                $user_permission->setCanViewType( $parent_permission->getCanViewType() );
-                $user_permission->setCanDesignType( $parent_permission->getCanDesignType() );
-                $user_permission->setIsTypeAdmin( 0 );      // DON'T set admin permissions on childtype
-            }
-
-            $em->persist($user_permission);
-        }
-
-        // Locate any children of this datatype
-        $datatrees = $repo_datatree->findBy( array('ancestor' => $datatype->getId(), 'is_link' => 0) );
-        foreach ($datatrees as $datatree) {
-            // Ensure the user has permission objects for them as well
-            self::permissionsExistence($user, $admin, $datatree->getDescendant(), $user_permission);
-        }
-
-        // TODO - if a top-level datatype has childtypes, this flush will end up executing multiple times
-        // Commit all the changes
-        $em->flush();
-    }
 
 
     /**
@@ -1123,78 +1051,79 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
-            $em = $this->getDoctrine()->getManager();
-            $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
-            $user_permissions = $repo_user_permissions->findBy( array('user_id' => $admin_user) );
-
-            // User needs at least one "is_admin" permission to access this
-            $admin_permissions = array();
-            foreach ($user_permissions as $user_permission) {
-                $datatype = $user_permission->getDataType();
-                if ($user_permission->getIsTypeAdmin() == '1') {
-                    $admin_permissions[ $datatype->getId() ] = $user_permission;
-//print $datatype->getId()."\n";
-                }
+            $admin_permission_count = 0;
+            foreach ($admin_permissions as $datatype_id => $admin_permission) {
+                if ( isset($admin_permission['admin']) && $admin_permission['admin'] == 1 )
+                    $admin_permission_count++;
             }
 
-            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && count($admin_permissions) == 0 )
+            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )
                 return parent::permissionDeniedError();
             // --------------------
 
 
-            // Grab the specified user
+            // ----------------------------------------
+            // Grab the user who will be having his permissions modified
+            $em = $this->getDoctrine()->getManager();
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
             $user = $repo_user->find($user_id);
 
-            // Don't allow modifying of ROLE_SUPER_ADMIN
+            // Don't allow modifying permissions of users with ROLE_SUPER_ADMIN
             if ($user->hasRole('ROLE_SUPER_ADMIN'))
                 return parent::permissionDeniedError();
 
-            // Don't allow those with just ROLE_USER to modify those with ROLE_ADMIN
+            // Don't allow users with just ROLE_USER to modify users that have ROLE_ADMIN
             if ( !$admin_user->hasRole('ROLE_ADMIN') && $user->hasRole('ROLE_ADMIN') )
                 return parent::permissionDeniedError();
 
-            // Build the list of top-level datatypes
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
 
-
-            // Need all datatypes, organized into top-level and child datatype arrays
-            $datatypes = array();
-            $childtypes = array();
+            // ----------------------------------------
+            // Get the list of top-level datatype ids and the 
+            $top_level_datatypes = parent::getTopLevelDatatypes();
             $datatree_array = parent::getDatatreeArray($em);
 
-            $tmp_datatypes = $repo_datatype->findAll();
-            foreach ($tmp_datatypes as $tmp_datatype) {
-                $dt_id = $tmp_datatype->getId();
+            // Ensure the target user has permission entities for all datatypes in the database
+            foreach ($top_level_datatypes as $num => $datatype_id)
+                parent::permissionsExistence($user->getId(), $admin_user->getId(), $datatype_id, null);
 
-                if ( !isset($datatree_array['descendant_of'][$dt_id]) || $datatree_array['descendant_of'][$dt_id] == '' ) {
-                    // top-level datatype
-                    $datatypes[] = $tmp_datatype;
+            // Load the target user's current set of permissions
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request, false);
 
-                    if ( !isset($childtypes[$dt_id]) )
-                        $childtypes[$dt_id] = null;
+
+            // ----------------------------------------
+            // Need to load and categorize all datatypes into top-level and child datatype groups
+            $query = $em->createQuery(
+               'SELECT dt
+                FROM ODRAdminBundle:DataType AS dt
+                WHERE dt.deletedAt IS NULL');
+            $all_datatypes = $query->getArrayResult();
+
+            $datatypes = array();
+            $childtypes = array();
+            foreach ($all_datatypes as $num => $datatype) {
+                $dt_id = $datatype['id'];
+
+                if ( in_array($dt_id, $top_level_datatypes) ) {
+                    // Store the datatype info
+                    $datatypes[] = $datatype;
                 }
                 else {
-                    // child datatype
-                    $ancestor_id = $datatree_array['descendant_of'][$dt_id];
-                    if ( !isset($childtypes[$ancestor_id]) || $childtypes[$ancestor_id] == null )
-                        $childtypes[$ancestor_id] = array();
+                    // Determine which top-level datatype to store this under
+                    while ( isset($datatree_array['descendant_of'][$dt_id]) && $datatree_array['descendant_of'][$dt_id] !== '' )
+                        $dt_id = $datatree_array['descendant_of'][$dt_id];
 
-                    $childtypes[$ancestor_id][] = $tmp_datatype;
+                    if ( !isset($childtypes[$dt_id]) )
+                        $childtypes[$dt_id] = array();
+
+                    $childtypes[$dt_id][] = $datatype;
                 }
             }
 
 
-            // Ensure the user has permission objects for all the datatypes
-            foreach ($datatypes as $datatype)
-                self::permissionsExistence($user, $admin_user, $datatype, null);     // due to requiring individual permissions...
-
-            // Reload all the permissions for this user
-            $repo_user_permissions = $this->getDoctrine()->getRepository('ODRAdminBundle:UserPermissions');
-            $user_permissions = $repo_user_permissions->findBy( array('user_id' => $user) );
-
+            // ----------------------------------------
+            // Render and return the HTML
             $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
@@ -1204,7 +1133,7 @@ class ODRUserController extends ODRCustomController
                         'admin_permissions' => $admin_permissions,
 
                         'user' => $user,
-                        'permissions' => $user_permissions,
+                        'user_permissions' => $user_permissions,
                         'datatypes' => $datatypes,
                         'childtypes' => $childtypes
                     )
@@ -1239,64 +1168,50 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
-//$start = microtime(true);
-
-            // --------------------
+            // ----------------------------------------
             // Ensure user has permissions to be doing this
             $admin = $this->container->get('security.context')->getToken()->getUser();
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
-            // --------------------
 
-            // Grab the admin doing the permissions modification
-            $admin = $this->container->get('security.context')->getToken()->getUser();
 
-            // Build the list of top-level datatypes
+            // ----------------------------------------
+            // Get the list of top-level datatype ids
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-
-            // Need all datatypes, organized into top-level and child datatype arrays
-            $datatypes = array();
-            $childtypes = array();
+            $top_level_datatypes = parent::getTopLevelDatatypes();
             $datatree_array = parent::getDatatreeArray($em);
 
-            $tmp_datatypes = $repo_datatype->findAll();
-            foreach ($tmp_datatypes as $tmp_datatype) {
-                $dt_id = $tmp_datatype->getId();
+            // Need to load all datatypes and categorize into top-level and children
+            $query = $em->createQuery(
+               'SELECT dt
+                FROM ODRAdminBundle:DataType AS dt
+                WHERE dt.deletedAt IS NULL');
+            $all_datatypes = $query->getArrayResult();
 
-                if ( !isset($datatree_array['descendant_of'][$dt_id]) || $datatree_array['descendant_of'][$dt_id] == '' ) {
-                    // top-level datatype
-                    $datatypes[] = $tmp_datatype;
+            $datatypes = array();
+            $childtypes = array();
+            foreach ($all_datatypes as $num => $datatype) {
+                $dt_id = $datatype['id'];
 
-                    if ( !isset($childtypes[$dt_id]) )
-                        $childtypes[$dt_id] = null;
+                if ( in_array($dt_id, $top_level_datatypes) ) {
+                    // Store the datatype info
+                    $datatypes[] = $datatype;
                 }
                 else {
-                    // child datatype
-                    $ancestor_id = $datatree_array['descendant_of'][$dt_id];
-                    if ( !isset($childtypes[$ancestor_id]) || $childtypes[$ancestor_id] == null )
-                        $childtypes[$ancestor_id] = array();
+                    // Determine which top-level datatype to store this under
+                    while ( isset($datatree_array['descendant_of'][$dt_id]) && $datatree_array['descendant_of'][$dt_id] !== '' )
+                        $dt_id = $datatree_array['descendant_of'][$dt_id];
 
-                    $childtypes[$ancestor_id][] = $tmp_datatype;
+                    if ( !isset($childtypes[$dt_id]) )
+                        $childtypes[$dt_id] = array();
+
+                    $childtypes[$dt_id][] = $datatype;
                 }
             }
 
 
-//print 'build datatype arrays in '.(microtime(true) - $start)."\n";
-
-            // Verify all the users have permission objects available for each datatype
-            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
-            $users = $repo_user->findAll();
-/*
-            foreach ($users as $user) {
-                // Ensure all the datatypes have permission objects
-                foreach ($datatypes as $datatype)
-                    self::permissionsExistence($user, $admin, $datatype, null);
-            }
-*/
-
-
+            // ----------------------------------------
+            // Render and return the HTML
             $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
@@ -1307,8 +1222,6 @@ class ODRUserController extends ODRCustomController
                     )
                 )
             );
-
-//print 'rendered html in '.(microtime(true) - $start)."\n";
 
         }
         catch (\Exception $e) {
@@ -1325,7 +1238,6 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Updates a UserPermission object in the database.
-     * TODO - invalidate current permissions set for target user after save
      * 
      * @param User $user         The User that is getting their permissions modified.
      * @param DataType $datatype The DataType that the User's permissions are being modified for.
@@ -1336,7 +1248,7 @@ class ODRUserController extends ODRCustomController
      */
     private function savePermission($user, $datatype, $permission, $value)
     {
-        // If the user is an admin, they always have all permissions...don't change anything
+        // If the user is a super-admin, they always have all permissions...don't change anything
         if (!$user->hasRole('ROLE_SUPER_ADMIN')) {
             // Going to need the entity manager...
             $em = $this->getDoctrine()->getManager();
@@ -1344,15 +1256,13 @@ class ODRUserController extends ODRCustomController
             // Don't allow admin permissions to be set on a non-top-level datatype...
             $top_level_datatypes = parent::getTopLevelDatatypes();
             if ( $permission == 'admin' && !in_array($datatype->getId(), $top_level_datatypes) )
-//throw new \Exception('admin 1');
                 return;
 
             // Grab the user's permissions for this datatype
             $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
             $user_permission = $repo_user_permissions->findOneBy( array('user_id' => $user, 'dataType' => $datatype) );
-            if ( $user_permission == null ) {
-                self::permissionsExistence($user, $user, $datatype, null);      // need to ensure a permission object exists before saving to it, obviously...
-            }
+            if ( $user_permission == null )
+                parent::permissionsExistence($user->getId(), $user->getId(), $datatype->getId(), null);      // need to ensure a permission object exists before saving to it, obviously...
 
             // Ensure childtypes do not have the admin permission...shouldn't happen, but make doubly sure
             if ( !in_array($datatype->getId(), $top_level_datatypes) ) {
@@ -1364,7 +1274,6 @@ class ODRUserController extends ODRCustomController
 
             // Don't change other permissions if user has admin permission for datatype
             if ( $permission !== 'admin' && $user_permission->getIsTypeAdmin() == '1' )
-//throw new \Exception('admin 2');
                 return;
 
             // Modify their permissions based on the path
@@ -1446,6 +1355,14 @@ class ODRUserController extends ODRCustomController
 
             // Commit all changes
             $em->flush();
+
+
+            // Force a recache of the target user's permissions
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            $memcached->delete($memcached_prefix.'user_'.$user->getId().'_datatype_permissions');
         }
     }
 
@@ -1472,42 +1389,38 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
-            $em = $this->getDoctrine()->getManager();
-            $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
-            $user_permissions = $repo_user_permissions->findBy( array('user_id' => $admin_user) );
-
-            // User needs at least one "is_admin" permission to access this
-            $admin_permissions = array();
-            foreach ($user_permissions as $user_permission) {
-                $datatype = $user_permission->getDataType();
-                if ($user_permission->getIsTypeAdmin() == '1') {
-                    $admin_permissions[ $datatype->getId() ] = $user_permission;
-//print $datatype->getId()."\n";
-                }
+            $admin_permission_count = 0;
+            foreach ($admin_permissions as $datatype_id => $admin_permission) {
+                if ( isset($admin_permission['admin']) && $admin_permission['admin'] == 1 )
+                    $admin_permission_count++;
             }
 
-            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && count($admin_permissions) == 0 )
+            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )
                 return parent::permissionDeniedError();
             // --------------------
 
 
             // Grab the user from their id
-            $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
-            $user = $repo_user->find($user_id);
+            $em = $this->getDoctrine()->getManager();
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            if ($user == null)
+                return parent::deletedEntityError('User');
 
-            // Don't allow modifying of ROLE_SUPER_ADMIN
+            // Don't allow modifying permissions of users with ROLE_SUPER_ADMIN
             if ($user->hasRole('ROLE_SUPER_ADMIN'))
                 return parent::permissionDeniedError();
 
-            // Don't allow those with just ROLE_USER to modify those with ROLE_ADMIN
+            // Don't allow users with just ROLE_USER to modify users with ROLE_ADMIN
             if ( !$admin_user->hasRole('ROLE_ADMIN') && $user->hasRole('ROLE_ADMIN') )
                 return parent::permissionDeniedError();
 
 
             // Grab the datatype that's being modified
-            $repo_datatype = $this->getDoctrine()->getRepository('ODRAdminBundle:DataType');
-            $datatype = $repo_datatype->find($datatype_id);
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
 
             // Modify the user's permission for that datatype and any children it has
             self::savePermission($user, $datatype, $permission, $value);
@@ -1554,8 +1467,9 @@ class ODRUserController extends ODRCustomController
             $users = $user_manager->findUsers();
 
             // Grab the datatype that's being modified
-            $repo_datatype = $this->getDoctrine()->getRepository('ODRAdminBundle:DataType');
-            $datatype = $repo_datatype->find($datatype_id);
+            $datatype = $this->getDoctrine()->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
 
             // Modify that permission for all the users
             foreach ($users as $user)
@@ -1597,7 +1511,6 @@ class ODRUserController extends ODRCustomController
                 return parent::permissionDeniedError();
             // --------------------
 
-            // TODO - have to go through $user_manager to delete a user??
             // Grab all the users
             $user_manager = $this->container->get('fos_user.user_manager');
             $users = $user_manager->findUsers();
@@ -1663,7 +1576,6 @@ class ODRUserController extends ODRCustomController
                 return parent::permissionDeniedError();
             // --------------------
 
-            // TODO - have to go through $user_manager to undelete a user??
             // Grab all the users
             $user_manager = $this->container->get('fos_user.user_manager');
             $users = $user_manager->findUsers();
@@ -1871,7 +1783,6 @@ if ($debug)
 
     /**
      * Saves a datafield permission change for a given user.
-     * TODO - invalidate current permissions set for target user after save
      *
      * @param integer $user_id      The database id of the User being modified.
      * @param integer $datafield_id The database id of the DataField being modified.
@@ -1956,6 +1867,14 @@ if ($debug)
             // Save the permissions change
             $em->persist($user_field_permission);
             $em->flush();
+
+
+            // Force a recache of the target user's permissions
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            $memcached->delete($memcached_prefix.'user_'.$user->getId().'_datafield_permissions');
 
         }
         catch (\Exception $e) {

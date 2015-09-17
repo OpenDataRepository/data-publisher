@@ -1552,6 +1552,7 @@ print '</pre>';
             // --------------------
 
 
+            // ----------------------------------------
             // Defaults
             $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);
 
@@ -1576,7 +1577,7 @@ print '</pre>';
             $datatype->setUpdatedBy($user);
             $em->persist($datatype);
 
-            // Create a new DataTree entry to link the original and new child DataTypes
+            // Create a new DataTree entry to link the original datatype and this new child datatype
             $datatree = new DataTree();
             $datatree->setAncestor($parent_datatype);
             $datatree->setDescendant($datatype);
@@ -1585,7 +1586,9 @@ print '</pre>';
             $datatree->setIsLink(0);
             $em->persist($datatree);
 
-            // Tie Field to ThemeElement
+
+            // ----------------------------------------
+            // Create a new ThemeElementField entry to let the renderer know it has to render a child datatype in this ThemeElement
             $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->findOneBy(array("id" => $theme_element_id));
             $em->refresh($theme_element);
             $theme_element_field = parent::ODR_addThemeElementFieldEntry($em, $user, $datatype, null, $theme_element);
@@ -1595,35 +1598,46 @@ print '</pre>';
 //            $em->refresh($datatree);
 //            $em->refresh($theme_element_field);
 
-            // Inherit permissions from parent datatype
-            $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
-            $old_permission = $repo_user_permissions->findOneBy( array('dataType' => $parent_datatype, 'user_id' => $user->getId()) );
 
-            // Create a new permissions object for the new childtype
-            $new_permission = new UserPermissions();
-            $new_permission->setDataType($datatype);
-            $new_permission->setCreatedBy($user);
-//            $new_permission->setUpdatedBy($user);
+            // ----------------------------------------
+            // Copy the permissions this user has for the parent datatype to the new child datatype
+            $query = $em->createQuery(
+               'SELECT up
+                FROM ODRAdminBundle:UserPermissions AS up
+                WHERE up.user_id = :user_id AND up.dataType = :datatype'
+            )->setParameters( array('user_id' => $user->getId(), 'datatype' => $parent_datatype->getId()) );
+            $results = $query->getArrayResult();
+            $parent_permission = $results[0];
 
-            // Copy the permission settings for this user from the parent datatype
-            $new_permission->setUserId( $old_permission->getUserId() );
-            $new_permission->setCanEditRecord( $old_permission->getCanEditRecord() );
-            $new_permission->setCanAddRecord( $old_permission->getCanAddRecord() );
-            $new_permission->setCanDeleteRecord( $old_permission->getCanDeleteRecord() );
-            $new_permission->setCanViewType( $old_permission->getCanViewType() );
-            $new_permission->setCanDesignType( $old_permission->getCanDesignType() );
-            $new_permission->setIsTypeAdmin( 0 );     // DON'T copy admin permission to childtype
+            $user_permission = new UserPermissions();
+            $user_permission->setDataType($datatype);
+            $user_permission->setUserId($user);
+            $user_permission->setCreatedBy($user);
 
-            $em->persist($new_permission);
+            $user_permission->setCanEditRecord( $parent_permission['can_edit_record'] );
+            $user_permission->setCanAddRecord( $parent_permission['can_add_record'] );
+            $user_permission->setCanDeleteRecord( $parent_permission['can_delete_record'] );
+            $user_permission->setCanViewType( $parent_permission['can_view_type'] );
+            $user_permission->setCanDesignType( $parent_permission['can_design_type'] );
+            $user_permission->setIsTypeAdmin(0);    // Child datatypes do not have is_type_admin permissions...
+
+            $em->persist($user_permission);
             $em->flush();
-            $em->refresh($new_permission);  // required, otherwise getPermissionsArray() doesn't know about the new permission apparently
 
-            // Force a recache of the current user's permissions
-            // TODO - recache for all users if possible?
-            $session = $request->getSession();
-            $session->remove('permissions');
-            parent::getPermissionsArray($user->getId(), $request);
 
+            // ----------------------------------------
+            // Clear memcached of all datatype permissions for all users...the entries will get rebuilt the next time they do something
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            $user_manager = $this->container->get('fos_user.user_manager');
+            $users = $user_manager->findUsers();
+            foreach ($users as $user)
+                $memcached->delete($memcached_prefix.'user_'.$user->getId().'_datatype_permissions');
+
+
+            // ----------------------------------------
             $return['d'] = array(
 //                'theme_element_id' => $theme_element->getId(),
 //                'html' => self::GetDisplayData($request, null, 'theme_element', $theme_element->getId()),

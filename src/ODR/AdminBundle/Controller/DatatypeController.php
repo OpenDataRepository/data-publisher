@@ -265,7 +265,7 @@ class DatatypeController extends ODRCustomController
             if ($request->getMethod() == 'POST') {
                 $form->bind($request, $datatype);
                 if ($form->isValid()) {
-
+                    // ----------------------------------------
                     // Set stuff that the form doesn't take care of
                     $datatype->setMultipleRecordsPerParent(1);
                     $datatype->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
@@ -289,51 +289,38 @@ class DatatypeController extends ODRCustomController
                     $em->persist($datatype);
                     $em->flush();
 
-                    // Set up basic permissions for the new datatype
-                    $user_manager = $this->container->get('fos_user.user_manager');
-                    $users = $user_manager->findUsers();
-                    foreach ($users as $user) {
-                        $user_permissions = new UserPermissions();
-                        $user_permissions->setDataType($datatype);
-                        $user_permissions->setUserId($user);
+                    // ----------------------------------------
+                    // Ensure the user that created this datatype has permissions to do everything to it
+                    $user_permission = new UserPermissions();
+                    $user_permission->setDataType($datatype);
+                    $user_permission->setUserId($admin);
+                    $user_permission->setCreatedBy($admin);
 
-                        // Default to nobody being able to modify the new datatype, except for super admins or the admin that created it
-                        $value = 0;
-                        if ($user->hasRole('ROLE_SUPER_ADMIN'))
-                            $value = 1;
-                        else if ($user->getId() == $admin->getId())
-                            $value = 1;
+                    $user_permission->setCanEditRecord(1);
+                    $user_permission->setCanAddRecord(1);
+                    $user_permission->setCanDeleteRecord(1);
+                    $user_permission->setCanViewType(1);
+                    $user_permission->setCanDesignType(1);
+                    $user_permission->setIsTypeAdmin(1);
 
-                        $user_permissions->setCanEditRecord($value);
-                        $user_permissions->setCanAddRecord($value);
-                        $user_permissions->setCanDeleteRecord($value);
-                        $user_permissions->setCanViewType($value);
-                        $user_permissions->setCanDesignType($value);
-                        $user_permissions->setIsTypeAdmin($value);
-
-                        // Is this even needed for the permissions?
-                        $user_permissions->setCreatedBy($admin);
-
-                        $em->persist($user_permissions);
-                    }
+                    $em->persist($user_permission);
                     $em->flush();
 
-                    // Force a recache of the current user's permissions
-                    // TODO - recache for all users if possible?
-                    $session = $request->getSession();
-                    $session->remove('permissions');
-                    parent::getPermissionsArray($admin->getId(), $request);
+
+                    // ----------------------------------------
+                    // Clear memcached of all datatype permissions for all users...the entries will get rebuilt the next time they do something
+                    $memcached = $this->get('memcached');
+                    $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+                    $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+                    $user_manager = $this->container->get('fos_user.user_manager');
+                    $users = $user_manager->findUsers();
+                    foreach ($users as $user)
+                        $memcached->delete($memcached_prefix.'user_'.$user->getId().'_datatype_permissions');
 
                 }
                 else {
-/*
-                    $return['d'] = $templating->render(
-                        'ODRAdminBundle:Datatype:add_type_dialog_form.html.twig', 
-                        array(
-                            'form' => $form->createView()
-                        )
-                    );
-*/
+                    // Return any errors encountered
                     $return['r'] = 1;
                     $return['d'] = $form->getErrorsAsString();
                 }
@@ -706,28 +693,15 @@ class DatatypeController extends ODRCustomController
                 $url .= $router->generate('odr_recache_record');
 
             // Grab all top-level datatypes on the site
-            // TODO - parent::getTopLevelDatatypes()
+            $top_level_datatypes = parent::getTopLevelDatatypes();
 
-            $descendants = array();
-            $datatrees = $repo_datatree->findAll();
-            foreach ($datatrees as $datatree) {
-                if ($datatree->getIsLink() == 0)
-                    $descendants[] = $datatree->getDescendant()->getId();
-            }
-
-            $datatypes = array();
-            $tmp_datatypes = $repo_datatype->findAll();
-            foreach ($tmp_datatypes as $tmp) {
-                if (!in_array($tmp->getId(), $descendants))
-                    $datatypes[] = $tmp;
-            }
-
-            // Insert the jobs into the queue
+            // Create and start a recache job for each of them
             $current_time = new \DateTime();
-            foreach ($datatypes as $datatype) {
+            foreach ($top_level_datatypes as $num => $datatype_id) {
                 // ----------------------------------------
+                $datatype = $repo_datatype->find($datatype_id);
+
                 // Increment the datatype revision number so the worker processes will recache the datarecords
-                $datatype_id = $datatype->getId();
                 $revision = $datatype->getRevision();
                 $datatype->setRevision( $revision + 1 );
                 $em->persist($datatype);

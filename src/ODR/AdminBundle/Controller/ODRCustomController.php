@@ -838,7 +838,7 @@ print "\n\n";
      * 
      * @param integer $user_id          The database id of the user to grab permissions for
      * @param Request $request
-     * @param boolean $save_permissions If true, save the calling user's permissions in the user's session...if false, just return an array
+     * @param boolean $save_permissions If true, save the calling user's permissions in memcached...if false, just return an array
      * 
      * @return array
      */
@@ -846,8 +846,17 @@ print "\n\n";
     {
         try {
 //$save_permissions = false;
-            $session = $request->getSession();
-            if ( !$save_permissions || !$session->has('permissions') ) {
+
+            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+//            $session = $request->getSession();
+
+//            if ( !$save_permissions || !$session->has('permissions') ) {
+            if ( !$save_permissions || !$memcached->get($memcached_prefix.'user_'.$user_id.'_datatype_permissions') ) {
+
+                // ----------------------------------------
                 // Permissions for a user other than the currently logged-in one requested, or permissions not set...need to build an array
                 $em = $this->getDoctrine()->getManager();
                 $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
@@ -860,15 +869,39 @@ print "\n\n";
                     JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
                     WHERE up.user_id = :user'
                 )->setParameters( array('user' => $user_id) );
-                $results = $query->getArrayResult();
-//print_r($results);
-//return;
+                $user_permissions = $query->getArrayResult();
 
+
+                // ----------------------------------------
+                // Count the number of datatypes to determine whether a permissions entity is missing
+                $query = $em->createQuery(
+                   'SELECT dt.id AS dt_id
+                    FROM ODRAdminBundle:DataType AS dt
+                    WHERE dt.deletedAt IS NULL');
+                $all_datatypes = $query->getArrayResult();
+                if ( count($all_datatypes) !== count($user_permissions) ) {
+                    // There are fewer permissions objects than datatypes...create missing permissions objects
+                    $top_level_datatypes = self::getTopLevelDatatypes();
+                    foreach ($top_level_datatypes as $num => $datatype_id)
+                        self::permissionsExistence($user_id, $user_id, $datatype_id, null);
+
+                    // Reload permissions for user
+                    $query = $em->createQuery(
+                       'SELECT dt.id AS dt_id, up.can_view_type, up.can_edit_record, up.can_add_record, up.can_delete_record, up.can_design_type, up.is_type_admin
+                        FROM ODRAdminBundle:DataType AS dt
+                        JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
+                        WHERE up.user_id = :user'
+                    )->setParameters( array('user' => $user_id) );
+                    $user_permissions = $query->getArrayResult();
+                }
+
+
+                // ----------------------------------------
                 // Grab the contents of ODRAdminBundle:DataTree as an array
                 $datatree_array = self::getDatatreeArray($em);
 
                 $all_permissions = array();
-                foreach ($results as $result) {
+                foreach ($user_permissions as $result) {
                     $datatype_id = $result['dt_id'];
 
                     $all_permissions[$datatype_id] = array();
@@ -910,23 +943,22 @@ print "\n\n";
                     if (!$save)
                         unset( $all_permissions[$datatype_id] );
                 }
-
-                ksort( $all_permissions );
-
-                if ($save_permissions) {
-                    // Save and return the permissions array
-                    $session->set('permissions', $all_permissions);
-                }
 /*
 print '<pre>';
 print_r($all_permissions);
 print '</pre>';
 */
+                // ----------------------------------------
+                // Save and return the permissions array
+                ksort($all_permissions);
+                if ($save_permissions)
+                    $memcached->set($memcached_prefix.'user_'.$user_id.'_datatype_permissions', $all_permissions, 0);
+
                 return $all_permissions;
             }
             else {
                 // Return the stored permissions array
-                return $session->get('permissions');
+                return $memcached->get($memcached_prefix.'user_'.$user_id.'_datatype_permissions');
             }
         }
         catch (\Exception $e) {
@@ -936,22 +968,164 @@ print '</pre>';
 
 
     /**
+     * Ensures the user permissions table has rows linking the given user and datatype.
+     *
+     * @param integer $user_id          The User receiving the permissions
+     * @param integer $admin_id         The admin User which triggered this function
+     * @param integer $datatype_id      Which DataType these permissions are for
+     * @param mixed $parent_permission  null if $datatype is top-level, otherwise the $user's UserPermissions object for this $datatype's parent
+     *
+     * @return none
+     */
+    protected function permissionsExistence($user_id, $admin_id, $datatype_id, $parent_permission)
+    {
+        // Grab required objects
+        $em = $this->getDoctrine()->getManager();
+
+        // Look up the user's permissions for this datatype
+        $query = $em->createQuery(
+           'SELECT up
+            FROM ODRAdminBundle:UserPermissions AS up
+            WHERE up.user_id = :user_id AND up.dataType = :datatype'
+        )->setParameters( array('user_id' => $user_id, 'datatype' => $datatype_id) );
+        $results = $query->getArrayResult();
+
+        // getArrayResult() will return an empty array if nothing exists...
+        $user_permission = null;
+        if ( isset($results[0]) )
+            $user_permission = $results[0];
+
+        // Verify that a permissions object exists for this user/datatype
+        if ($user_permission === null) {
+            $user_permission = self::ODR_addUserPermission($em, $user_id, $admin_id, $datatype_id);
+
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $default = 0;
+            if ($user->hasRole('ROLE_SUPER_ADMIN'))
+                $default = 1;   // SuperAdmins can edit/add/delete/design everything, no exceptions
+
+            if ($parent_permission === null) {
+                // If this is a top-level datatype, use the defaults
+                $user_permission->setCanEditRecord($default);
+                $user_permission->setCanAddRecord($default);
+                $user_permission->setCanDeleteRecord($default);
+                $user_permission->setCanViewType($default);
+                $user_permission->setCanDesignType($default);
+                $user_permission->setIsTypeAdmin($default);
+            }
+            else {
+                // If this is a childtype, use the parent's permissions as defaults
+                $user_permission->setCanEditRecord( $parent_permission['can_edit_record'] );
+                $user_permission->setCanAddRecord( $parent_permission['can_add_record'] );
+                $user_permission->setCanDeleteRecord( $parent_permission['can_delete_record'] );
+                $user_permission->setCanViewType( $parent_permission['can_view_type'] );
+                $user_permission->setCanDesignType( $parent_permission['can_design_type'] );
+                $user_permission->setIsTypeAdmin( 0 );      // DON'T set admin permissions on childtype
+            }
+
+            $em->persist($user_permission);
+            $em->flush();
+
+            // Reload permission in array format for recursion purposes
+            $query = $em->createQuery(
+               'SELECT up
+                FROM ODRAdminBundle:UserPermissions AS up
+                WHERE up.user_id = :user_id AND up.dataType = :datatype'
+            )->setParameters( array('user_id' => $user_id, 'datatype' => $datatype_id) );
+            $results = $query->getArrayResult();
+            $user_permission = $results[0];
+        }
+
+        // Locate all child datatypes of this datatype
+        $query = $em->createQuery(
+           'SELECT descendant.id
+            FROM ODRAdminBundle:DataType AS ancestor
+            JOIN ODRAdminBundle:DataTree AS dt WITH dt.ancestor = ancestor
+            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
+            WHERE ancestor.id = :datatype AND dt.is_link = 0
+            AND ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+        )->setParameters( array('datatype' => $datatype_id) );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result) {
+            // Ensure the user has permission objects for all non-linked child datatypes as well
+            $childtype_id = $result['id'];
+            self::permissionsExistence($user_id, $admin_id, $childtype_id, $user_permission);
+        }
+
+    }
+
+
+    /**
+     * Creates and persists a UserPermissions entity for the specified user/datatype pair
+     *
+     * @param Manager $em
+     * @param integer $user_id      The user receiving this permission entity
+     * @param integer $admin_id     The admin user creating the permission entity
+     * @param integer $datatype_id  The Datatype this permission entity is for
+     *
+     * @return UserPermissions
+     */
+    private function ODR_addUserPermission($em, $user_id, $admin_id, $datatype_id)
+    {
+        // Ensure a permissions object doesn't already exist...
+        $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
+        $up = $repo_user_permissions->findOneBy( array('user_id' => $user_id, 'dataType' => $datatype_id) );
+
+        // If the permissions object does not exist...
+        if ($up == null) {
+            // Load required objects
+            $admin_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($admin_id);
+
+            // Ensure a permissions object doesn't already exist before creating one
+            $query =
+               'INSERT INTO odr_user_permissions (user_id, data_type_id)
+                SELECT * FROM (SELECT :user AS user_id, :datatype_id AS dt_id) AS tmp
+                WHERE NOT EXISTS (
+                    SELECT id FROM odr_user_permissions WHERE user_id = :user AND data_type_id = :datatype_id
+                ) LIMIT 1;';
+            $params = array('user' => $user_id, 'datatype_id' => $datatype_id);
+            $conn = $em->getConnection();
+            $rowsAffected = $conn->executeUpdate($query, $params);
+
+            $up = $repo_user_permissions->findOneBy( array('user_id' => $user_id, 'dataType' => $datatype_id) );
+            $up->setCreated( new \DateTime() );
+            $up->setCreatedBy($admin_user);
+
+            $em->persist($up);
+            $em->flush($up);
+            $em->refresh($up);
+        }
+
+        return $up;
+    }
+
+
+    /**
      * Builds an array of all datafield permissions possessed by the given user.
+     * TODO - make similar to  self::getPermissionsArray()
      * 
      * @param integer $user_id          The database id of the user to grab datafield permissions for.
      * @param Request $request
-     * @param boolean $save_permissions If true, save the calling user's permissions in the user's session...if false, just return an array
+     * @param boolean $save_permissions If true, save the calling user's permissions in memcached...if false, just return an array
      * 
      * @return array
      */
     protected function getDatafieldPermissionsArray($user_id, Request $request, $save_permissions = true)
     {
         try {
-            $session = $request->getSession();
+            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+//            $session = $request->getSession();
 
 $save_permissions = false;
 
-            if ( !$save_permissions || !$session->has('datafield_permissions') ) {
+//            if ( !$save_permissions || !$session->has('datafield_permissions') ) {
+            if ( !$save_permissions || !$memcached->get($memcached_prefix.'user_'.$user_id.'_datafield_permissions') ) {
+
+                // ----------------------------------------
                 // Permissions not set, need to build the array
                 $datatype_permissions = self::getPermissionsArray($user_id, $request, false);
 
@@ -1009,16 +1183,17 @@ $save_permissions = false;
                 if ($created_permission)
                     $em->flush();
 
-                if ($save_permissions) {
-                    // Save and reeturn the permissions array
-                    $session->set('datafield_permissions', $all_permissions);
-                }
+
+                // Save and return the permissions array
+                ksort($all_permissions);
+                if ($save_permissions)
+                    $memcached->set($memcached_prefix.'user_'.$user_id.'_datafield_permissions', $all_permissions, 0);
 
                 return $all_permissions;
             }
             else {
                 // Returned the stored datafield permissions array
-                return $session->get('datafield_permissions');
+                return $memcached->get($memcached_prefix.'user_'.$user_id.'_datafield_permissions');
             }
         }
         catch (\Exception $e) {
