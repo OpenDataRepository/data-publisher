@@ -89,13 +89,15 @@
             </div>
             <div class="pure-u-1">
             {% if field.allowmultipleuploads == 1 or has_file == false %}
-                <!-- show upload area only if multiples are allowed or nothing has been uploaded yet -->
-                <div class="pure-u-1-24"></div>
-                <div class="pure-u-23-24">
-                    {{ form_errors(form.uploaded_file) }}
-                    {{ form_widget(form.uploaded_file, { 'attr': {'data-error-type': 'inline' } }) }}
-                    <span id="FileUploadResult_{{ datarecordfield.id }}"></span>
-                </div>
+                {# show upload area only if multiples are allowed or nothing has been uploaded yet #}
+                {% set target = 'drf_' ~ datarecordfield.id %}
+                {% set single_file = true %}
+                {% if field.allowmultipleuploads == 1 %}
+                    {% set single_file = false %}
+                {% endif %}
+                {% set callback = 'ReloadDatafield(' ~ datarecord.id ~ ',' ~ field.id ~ ');' %}
+
+                {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'file', 'datatype_id': field.datatype.id, 'datarecordfield_id': datarecordfield.id, 'callback': callback} %}
             {% endif %}
             </div>
     </fieldset>
@@ -142,13 +144,16 @@
             </div>
             <div class="pure-u-1">
             {% if field.allowmultipleuploads == 1 or has_image == false %}
-                <!-- show upload area only if multiples are allowed or nothing has been uploaded yet -->
-                <div class="pure-u-1">
-                    <p>Add new:</p>
-                    {{ form_errors(form.file) }}
-                    {{ form_widget(form.file, { 'attr': {'data-error-type': 'inline' } }) }}
-                    <span id="ImageUploadResult_{{ datarecordfield.id }}"></span>
-                </div>
+                {# show upload area only if multiples are allowed or nothing has been uploaded yet #}
+                {% set target = 'drf_' ~ datarecordfield.id %}
+                {% set single_file = true %}
+                {% if field.allowmultipleuploads == 1 %}
+                    {% set single_file = false %}
+                {% endif %}
+                {% set callback = 'ReloadDatafield(' ~ datarecord.id ~ ',' ~ field.id ~ ');' %}
+
+                {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'image', 'datatype_id': field.datatype.id, 'datarecordfield_id': datarecordfield.id, 'callback': callback} %}
+
             {% endif %}
             </div>
         {#</fieldset>#}
@@ -291,20 +296,8 @@
         });
     </script>
 
-{% elseif field_typename == "File" %}
-    <script type="text/javascript">
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='FileForm[uploaded_file]']").unbind('change');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='FileForm[uploaded_file]']").change(function() {
-            UploadFile('EditDataRecordFieldsForm_{{ drf_id }}', $('#EditDataRecordFieldsForm_{{ drf_id }}').attr('action'), 'FileUploadResult_{{ drf_id }}');
-        });
-    </script>
-{% elseif field_typename == "Image" %}
-    <script type="text/javascript">
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='ImageForm[file]']").unbind('change');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='ImageForm[file]']").change(function() {
-            UploadFile('EditDataRecordFieldsForm_{{ drf_id }}', $('#EditDataRecordFieldsForm_{{ drf_id }}').attr('action'), 'ImageUploadResult_{{ drf_id }}');
-        });
-    </script>
+{% elseif field_typename == "File" or field_typename == "Image" %}
+    {# handled elsewhere by flow.js #}
 {% elseif field_typename == "Integer" %}
     {% set integervalue_id = datarecordfield.getintegervalue.id %}
     <script type="text/javascript">

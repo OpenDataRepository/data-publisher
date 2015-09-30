@@ -836,12 +836,18 @@ odr_csv_import:
     requirements:
         datatype_id: \d+
 
-odr_csv_upload:
-    pattern: /edit/csv_import/upload/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:CSVImport:upload }
-    methods: [POST]
-    requirements: 
-        datatype_id: \d+
+odr_csv_import_delimiter_changed:
+    pattern: /edit/csv_import/delimiter/{delimiter}
+    defaults: { _controller: ODRAdminBundle:CSVImport:delimiter }
+    requirements:
+        delimiter: 'tab|space|comma|semicolon|colon|pipe|'
+
+odr_csv_refresh_filelist:
+    pattern: /edit/csv_import/filelist/refresh
+    defaults: { _controller: ODRAdminBundle:CSVImport:refreshfilelist }
+odr_csv_delete_filelist:
+    pattern: /edit/csv_import/filelist/delete
+    defaults: { _controller: ODRAdminBundle:CSVImport:deletefilelist }
 
 odr_csv_cancel_import:
     pattern: /edit/csv_import/cancel
@@ -882,6 +888,18 @@ odr_csv_import_worker:
     pattern: /beanstalk/csv_import/worker
     defaults: { _controller: ODRAdminBundle:CSVImport:csvworker }
     requirements: { _method: POST }
+
+#-----------------------------------------
+
+#-----------------------------------------
+# Flow Controller
+odr_flow_upload:
+    pattern: /edit/csv_import/flow/{upload_type}/{datatype_id}/{datarecordfield_id}
+    defaults: { _controller: ODRAdminBundle:Flow:flow, datarecordfield_id: '' }
+    requirements:
+        upload_type: 'xml|csv|import_file_storage|file|image'
+        datatype_id: \d+
+        datarecordfield_id: \d+
 
 #-----------------------------------------
 

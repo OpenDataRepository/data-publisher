@@ -3289,7 +3289,7 @@ print_r($errors);
                 if ($datafield_form->isValid()) {
                     // --------------------
                     // If datafield is being used as the datatype's external ID field, ensure it's marked as unique
-                    if ( $datafield->getDataType()->getExternalIdField()->getId() == $datafield->getId() )
+                    if ( $datafield->getDataType()->getExternalIdField() !== null && $datafield->getDataType()->getExternalIdField()->getId() == $datafield->getId() )
                         $datafield->setIsUnique(true);
 
                     // --------------------

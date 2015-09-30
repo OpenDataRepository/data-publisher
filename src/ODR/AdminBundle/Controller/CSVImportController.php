@@ -16,7 +16,7 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
-// Entites
+// Entities
 use ODR\AdminBundle\Entity\TrackedError;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
@@ -46,6 +46,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 // CSV Reader
 use Ddeboer\DataImport\Workflow;
 use Ddeboer\DataImport\Reader;
@@ -65,7 +66,8 @@ class CSVImportController extends ODRCustomController
      *
      * @return a Symfony JSON response containing HTML TODO
      */
-    public function importAction($datatype_id, Request $request) {
+    public function importAction($datatype_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -106,22 +108,9 @@ class CSVImportController extends ODRCustomController
                 throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
 
 
-            // --------------------
-            // Create a File form object for the user to upload a csv file through Symfony
-            $obj_classname = "ODR\\AdminBundle\\Entity\\File";
-            $form_classname = "\\ODR\\AdminBundle\\Form\\FileForm";
-
-            $form_obj = new $obj_classname();
-            $form_obj->setDataField(null);
-            $form_obj->setFieldType(null);
-            $form_obj->setDataRecord(null);
-            $form_obj->setDataRecordFields(null);
-            $form_obj->setCreatedBy(null);
-            $form_obj->setUpdatedBy(null);
-            $form_obj->setGraphable('0');
-
-            $form = $this->createForm( new $form_classname($em), $form_obj );
-
+            // Reset the user's csv import delimiter
+            $session = $request->getSession();
+            $session->set('csv_delimiter', '');
 
             // Render the basic csv import page
             $templating = $this->get('templating');
@@ -130,7 +119,7 @@ class CSVImportController extends ODRCustomController
                     'ODRAdminBundle:CSVImport:import.html.twig',
                     array(
                         'datatype' => $datatype,
-                        'form' => $form->createView(),
+                        'upload_type' => 'csv',
 
                         'presets' => null,
                         'errors' => null,
@@ -153,62 +142,27 @@ class CSVImportController extends ODRCustomController
 
 
     /**
-     * Handles the upload of a CSV file by moving it from the file upload directory, and saving some helper variables in the user's session.
-     * @see CSVImportController::layoutAction()
+     * Easier to handle CSV delimiter through a direct HTTP request instead of lumping it into the Flow.js upload logic.
      *
-     * @param integer $datatype_id Which datatype the CSV data is being imported into.
+     * @param string $delimiter
      * @param Request $request
      *
-     * @return an empty Symfony JSON response, unless some sort of error occurred
+     * @return none
      */
-    public function uploadAction($datatype_id, Request $request) {
+    public function delimiterAction($delimiter, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
 
         try {
-            // Get necessary objects
-            $post = $_POST;
-            $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $session = $request->getSession();
-
-            $datatype = $repo_datatype->find($datatype_id);
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
-
-
-            // --------------------
-            // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-
-            // --------------------
-            // TODO - better way of handling this, if possible
-            // Block csv imports if there's already one in progress for this datatype
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new \Exception('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            // Also block if there's a datafield migration in place
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
-            if ($tracked_job !== null)
-                throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
-
-
             // --------------------
             // Store the desired delimiter in user's session
-            $csv_delimiter = $post['csv_delimiter'];
-            switch ($csv_delimiter) {
+            $session = $request->getSession();
+            $csv_delimiter = '';
+
+            switch ($delimiter) {
                 case 'tab':
                     $csv_delimiter = "\t";
                     break;
@@ -227,59 +181,19 @@ class CSVImportController extends ODRCustomController
                 case 'pipe':
                     $csv_delimiter = "|";
                     break;
+/*
                 default:
-                    throw new \Exception('Invalid Form');
+                    throw new \Exception('Select a delimiter');
                     break;
+*/
             }
             $session->set('csv_delimiter', $csv_delimiter);
 
-
-            // --------------------
-            // Ensure the file uploaded correctly
-            $form_classname = "\\ODR\\AdminBundle\\Form\\FileForm";
-            $my_obj = new File();
-            $form = $this->createForm( new $form_classname($em), $my_obj );
-
-            $form->bind($request, $my_obj);
-            if (!$form->isValid())
-                throw new \Exception( "\n".$form->getErrorsAsString() );
-
-
-            // Move the uploaded file into a directory specifically for csv imports
-            $tokenGenerator = $this->container->get('fos_user.util.token_generator');
-            $tmp_filename = substr($tokenGenerator->generateToken(), 0, 12);
-            // TODO - other illegal first characters for filename?
-            if ( substr($tmp_filename, 0, 1) == '-' )
-                $tmp_filename = 'a'.substr($tmp_filename, 1);
-
-
-            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
-            if ( !file_exists($csv_import_path) )
-                mkdir($csv_import_path);
-
-            $my_obj->getUploadedFile()->move( $csv_import_path, $tmp_filename.'.csv' );
-
-
-            // TODO - need a better way to deal with uploaded csv files
-            // Store the filename in the user's session
-            if ( $session->has('csv_file') ) {
-/*
-                // delete the old file?
-                $filename = $session->get('csv_file');
-                if ( file_exists($csv_import_path.$filename) )
-                    unlink($csv_import_path.$filename);
-
-                $session->remove('csv_file');
-*/
-            }
-            $session->set('csv_file', $tmp_filename.'.csv');
-
-            // the iframe that uploaded the file will fire off another ajax call to layoutAction
         }
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
-            $return['d'] = 'Error 0x224681522 ' . $e->getMessage();
+            $return['d'] = 'Error 0x821135537 ' . $e->getMessage();
         }
 
         $response = new Response(json_encode($return));
@@ -297,7 +211,8 @@ class CSVImportController extends ODRCustomController
      *
      * @return a Symfony JSON response containing the HTML TODO 
      */
-    public function layoutAction($datatype_id, Request $request) {
+    public function layoutAction($datatype_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -343,7 +258,6 @@ class CSVImportController extends ODRCustomController
 
             // --------------------
             // Grab all datafields belonging to that datatype
-//            $datafields = $datatype->getDataFields();
             $query = $em->createQuery(
                'SELECT df
                 FROM ODRAdminBundle:DataFields AS df
@@ -358,8 +272,8 @@ class CSVImportController extends ODRCustomController
             // TODO - naming fieldtypes by number
             $fieldtype_array = array(
                 1, // boolean
-//                2, // file
-//                3, // image
+                2, // file
+                3, // image
                 4, // integer
                 5, // paragraph text
                 6, // long varchar
@@ -380,19 +294,17 @@ class CSVImportController extends ODRCustomController
                 throw new \Exception('No CSV file uploaded');
 
             // Remove any completely blank columns from the file
-            self::removeBlankColumns($request);
+            self::removeBlankColumns($user->getId(), $request);
 
-            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
+            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $session->get('csv_file');
             $delimiter = $session->get('csv_delimiter');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
 
+            // Symfony has already verified that the file's mimetype is valid...
             $csv_file = new \SplFileObject( $csv_import_path.$csv_filename );
-
-            // TODO - detect/block bad file uploads
-
             $reader = new CsvReader($csv_file, $delimiter);
             $reader->setHeaderRowNumber(0);     // want associative array for the column names
 
@@ -411,7 +323,7 @@ class CSVImportController extends ODRCustomController
                 // Loop through the rest of the file...this will let the CsvReader pick up some of the possible errors
 //                break;
 
-                // TODO - this eventually needs to be done via beanstalk?  but can't json_encode the data unless is passes this check...
+                // TODO - this eventually needs to be done via beanstalk?  but can't json_encode the data unless it passes this check...
                 foreach ($row as $col_name => $col_data) {
                     // Check each piece of data for encoding errors
                     if ( mb_check_encoding($col_data, "utf-8") == false )       // this check needs to be performed prior to a json_encode
@@ -502,18 +414,20 @@ class CSVImportController extends ODRCustomController
      *  exporting completely blank columns in the csv files it creates, there needs to be
      *  a function to strip completely blank columns from csv files.
      *
+     * @param integer $user_id
      * @param Request $request
      * 
      * @return none
      */
-    private function removeBlankColumns(Request $request) {
+    private function removeBlankColumns($user_id, Request $request)
+    {
         $session = $request->getSession();
 
         // Attempt to load the previously uploaded csv file
         if ( !$session->has('csv_file') )
             throw new \Exception('No CSV file uploaded');
 
-        $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
+        $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user_id.'/';
         $csv_filename = $session->get('csv_file');
         $delimiter = $session->get('csv_delimiter');
 
@@ -591,7 +505,7 @@ class CSVImportController extends ODRCustomController
             return;
         }
 
-        // Need to rewrite file...create a new file
+        // Need to rewrite the original csv file...create a new temporary csv file
         $tokenGenerator = $this->container->get('fos_user.util.token_generator');
         $tmp_filename = substr($tokenGenerator->generateToken(), 0, 12);
         // TODO - other illegal first characters for filename?
@@ -600,7 +514,7 @@ class CSVImportController extends ODRCustomController
         $tmp_filename .= '.csv';
 
         $new_csv_file = fopen( $csv_import_path.$tmp_filename, 'w' );   // apparently SplFileObject doesn't have fputcsv()
-        $session->set('csv_file', $tmp_filename);
+//        $session->set('csv_file', $tmp_filename);
 
         $blank_columns = array();
         foreach ($column_use as $column_id => $in_use) {
@@ -608,7 +522,7 @@ class CSVImportController extends ODRCustomController
                 $blank_columns[] = $column_id;
         }
 
-        // Rewind the file pointer to the **second** line of the csv file, then print out the header row without blank columns
+        // Rewind the file pointer to the original csv file to the **second** line, then print out the header row without the headers for the blank columns
         $csv_file->rewind();
         $new_header_row = $header_row;
         foreach ($blank_columns as $num => $column_id)
@@ -628,22 +542,115 @@ class CSVImportController extends ODRCustomController
             fputcsv($new_csv_file, $row, $delimiter);
         }
 
-        // Done with both files
+        // Move the contents of the temporary csv file back into the original csv file
         $csv_file = null;
-        unlink($csv_import_path.$csv_filename);
         fclose($new_csv_file);
+
+        rename($csv_import_path.$tmp_filename, $csv_import_path.$csv_filename);
         return;
     }
 
 
     /**
+     * Builds and returns a JSON list of the files that have been uploaded to the user's csv storage directory
+     * 
+     * @param Request $request
+     *
+     * @return TODO
+     */
+    public function refreshfilelistAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // TODO - permissions?
+            $user = $this->container->get('security.context')->getToken()->getUser();
+
+            // Get all files in the given user's 'upload' directory
+            $uploaded_files = array();
+            $upload_directory = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/storage';
+            if ( file_exists($upload_directory) )
+                $uploaded_files = scandir($upload_directory);
+
+            // Don't include the default linux directory pointers...
+            $filelist = array();
+            foreach ($uploaded_files as $num => $filename) {
+                if ($filename !== '.' && $filename !== '..')
+                    $filelist[$filename] = date( 'Y-m-d H:i:s T', filemtime($upload_directory.'/'.$filename) );
+            }
+            asort($filelist);
+
+            // Return the list of files as a json array
+            $return['t'] = 'json';
+            $return['d'] = $filelist;
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x627153467 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Delete all files that have been uploaded to the user's csv storage directory
+     * 
+     * @param Request $request
+     *
+     * @return TODO
+     */
+    public function deletefilelistAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // TODO - permissions?
+            $user = $this->container->get('security.context')->getToken()->getUser();
+
+            // Get all files in the given user's 'upload' directory
+            $uploaded_files = array();
+            $upload_directory = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/storage';
+            if ( file_exists($upload_directory) )
+                $uploaded_files = scandir($upload_directory);
+
+            // Don't delete the default linux directory pointers...
+            foreach ($uploaded_files as $num => $filename) {
+                if ($filename !== '.' && $filename !== '..')
+                    unlink( $upload_directory.'/'.$filename );
+            }
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x627153468 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Deletes any csv-specific data from the user's session, and also deletes any csv file they uploaded.
+     * TODO - replace this functionality with a more conventional "this is the list of CSV files have been uploaded...what do you want to do with them?"
      *
      * @param Request $request
      *
      * @return an empty Symfony JSON response, unless some sort of error occurred.
      */
-    public function cancelAction(Request $request) {
+    public function cancelAction(Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -651,11 +658,12 @@ class CSVImportController extends ODRCustomController
 
         try {
             // Attempt to locate the csv file stored in the user's session
+            $user = $this->container->get('security.context')->getToken()->getUser();
             $session = $request->getSession();
             if ( $session->has('csv_file') ) {
                 // Delete the file if it exists
                 $filename = $session->get('csv_file');
-                $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
+                $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
                 if ( file_exists($csv_import_path.$filename) )
                     unlink($csv_import_path.$filename);
 
@@ -669,7 +677,7 @@ class CSVImportController extends ODRCustomController
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
-            $return['d'] = 'Error 042627153467 ' . $e->getMessage();
+            $return['d'] = 'Error 0x42627153467 ' . $e->getMessage();
         }
 
         $response = new Response(json_encode($return));
@@ -685,7 +693,8 @@ class CSVImportController extends ODRCustomController
      *
      * @return an empty Symfony JSON response, unless an error occurred.
      */
-    public function startvalidateAction(Request $request) {
+    public function startvalidateAction(Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -751,7 +760,7 @@ class CSVImportController extends ODRCustomController
             // --------------------
 
 
-            // --------------------
+            // ----------------------------------------
             // TODO - better way of handling this, if possible
             // Block csv imports if there's already one in progress for this datatype
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
@@ -767,6 +776,9 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Need to keep track of which columns are files/images
+            $file_columns = array();
+
             // Ensure that the datatype/fieldtype mappings and secondary column delimiters work
             foreach ($datafield_mapping as $col_num => $datafield_id) {
                 if ($datafield_id == 'new') {
@@ -776,12 +788,16 @@ class CSVImportController extends ODRCustomController
                     if ( !isset($fieldtype_mapping[$col_num]) )
                         throw new \Exception('Invalid Form...$fieldtype_mapping['.$col_num.'] not set');
 
-                    // If new datafield is multiple select/radio, ensure secondary delimiters exist
-                    if ($fieldtype_mapping[$col_num] == 13 || $fieldtype_mapping[$col_num] == 15) {   // TODO - naming fieldtypes by number
+                    // If new datafield is multiple select/radio, or new datafield is file/image, ensure secondary delimiters exist
+                    if ($fieldtype_mapping[$col_num] == 13 || $fieldtype_mapping[$col_num] == 15 || $fieldtype_mapping[$col_num] == 2 || $fieldtype_mapping[$col_num] == 3) {   // TODO - naming fieldtypes by number
                         if ( $column_delimiters == null )
                             throw new \Exception('Invalid Form a...no column_delimiters');
                         if ( !isset($column_delimiters[$col_num]) )
                             throw new \Exception('Invalid Form a...$column_delimiters['.$col_num.'] not set');
+
+                        // Keep track of file/image columns...
+                        if ($fieldtype_mapping[$col_num] == 2 || $fieldtype_mapping[$col_num] == 3)
+                            $file_columns[] = $col_num;
                     }
                 }
                 else {
@@ -795,11 +811,15 @@ class CSVImportController extends ODRCustomController
 
                     // If datafield is a multiple select/radio field, ensure secondary delimiters exist
                     $typename = $datafield->getFieldType()->getTypeName();
-                    if ($typename == "Multiple Select" || $typename == "Multiple Radio") {
+                    if ($typename == "Multiple Select" || $typename == "Multiple Radio" || $typename == "File" || $typename == "Image") {
                         if ( $column_delimiters == null )
                             throw new \Exception('Invalid Form b...no column_delimiters');
                         if ( !isset($column_delimiters[$col_num]) )
                             throw new \Exception('Invalid Form b...$column_delimiters['.$col_num.'] not set');
+
+                        // Keep track of file/image columns...
+                        if ($typename == "File" || $typename == "Image")
+                            $file_columns[] = $col_num;
                     }
                 }
             }
@@ -861,12 +881,12 @@ class CSVImportController extends ODRCustomController
             }
 
 
-            // ------------------------------
+            // ----------------------------------------
             // Attempt to load csv file
             if ( !$session->has('csv_file') )
                 throw new \Exception('No CSV file uploaded');
 
-            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
+            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $session->get('csv_file');
             $delimiter = $session->get('csv_delimiter');
 
@@ -904,7 +924,6 @@ class CSVImportController extends ODRCustomController
                 'column_delimiters' => $column_delimiters,
             );
 
-            // ----------------------------------------
             // Get/create an entity to track the progress of this csv import
             $job_type = 'csv_import_validate';
             $target_entity = 'datatype_'.$datatype->getId();
@@ -917,12 +936,12 @@ class CSVImportController extends ODRCustomController
             $tracked_job_id = $tracked_job->getId();
 
 
-            // ------------------------------
+            // ----------------------------------------
             // All Datafields marked as unique need to have no duplicates in the import file...
             // ...unique datafields which aren't serving as the external id/name datafields for a datatype also need to ensure they're not colliding with values currently in the database
             // External id/name datafields are excluded from this second criteria because those are used as keys to update existing Datarecords
 
-            // If a column is marked as the external id column, go through and ensure that there are no duplicate values in that column
+            // If a column is mapped to a unique datafield, go through and ensure that there are no duplicate values in that column
             $need_flush = false;
             $error_messages = array();
             foreach ($unique_columns as $column_num => $tmp) {
@@ -955,12 +974,47 @@ class CSVImportController extends ODRCustomController
                 }
             }
 
+
+            // If a column is mapped to a file/image datafield, then ensure there are no duplicate filenames
+            foreach ($file_columns as $tmp => $column_num) {
+
+                $line_num = 0;
+                $unique_filenames = array();
+                foreach ($reader as $row) {
+                    $line_num++;
+                    $value = $row[$column_num];
+
+                    $filenames = explode( $column_delimiters[$column_num], $value );
+                    foreach ($filenames as $filename) {
+                        if ( isset($unique_filenames[$filename]) ) {
+                            // Encountered duplicate value
+                            $error = array( 'line_num' => $line_num, 'message' => 'The field "'.$column_names[$column_num].'" wants to import the file "'.$filename.'", but that file was already listed on line '.$unique_filenames[$value] );
+//print_r($error);
+
+                            // TODO - ...any way to make this use beanstalk?  don't really want it inline, but the checks for this error can't really be broken apart...
+                            $tracked_error = new TrackedError();
+                            $tracked_error->setTrackedJob($tracked_job);
+                            $tracked_error->setErrorLevel('Error');
+                            $tracked_error->setErrorBody( json_encode($error) );
+                            $tracked_error->setCreatedBy( $user );
+
+                            $need_flush = true;
+                            $em->persist($tracked_error);
+                        }
+                        else {
+                            // ...otherwise, not found, just store the value
+                            $unique_filenames[$filename] = $line_num;
+                        }
+                    }
+                }
+            }
+
 //$need_flush = false;
             if ($need_flush)
                 $em->flush();
 
 
-            // ------------------------------
+            // ----------------------------------------
             // Create a beanstalk job for each row of the csv file
             $count = 0;
             foreach ($reader as $row) {
@@ -1014,7 +1068,8 @@ class CSVImportController extends ODRCustomController
      *
      * @return TODO
      */
-    public function csvvalidateAction(Request $request) {
+    public function csvvalidateAction(Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -1079,6 +1134,33 @@ class CSVImportController extends ODRCustomController
             if ($datatype == null)
                 throw new \Exception('Datatype is deleted!');
 
+
+            // ----------------------------------------
+            // Locate the datarecord this row of data points to, if possible
+            $datarecord_id = null;
+            $external_id_field = $datatype->getExternalIdField();
+            if ($external_id_field !== null) {
+                $typeclass = $external_id_field->getFieldType()->getTypeClass();
+                foreach ($datafield_mapping as $column_num => $datafield_id) {
+                    if ($external_id_field->getId() == $datafield_id) {
+                        $value = $line[$column_num];
+
+                        $query = $em->createQuery(
+                           'SELECT dr.id
+                            FROM ODRAdminBundle:'.$typeclass.' AS e
+                            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                            WHERE e.dataField = :datafield AND e.value = :value
+                            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                        )->setParameters( array('datafield' => $datafield_id, 'value' => $value) );
+                        $results = $query->getArrayResult();
+
+                        $datarecord_id = $results[0]['id'];
+                    }
+                }
+            }
+
+
             // ----------------------------------------
             // Attempt to validate each line of data against the desired datafield/fieldtype mapping
             $need_flush = false;
@@ -1087,11 +1169,21 @@ class CSVImportController extends ODRCustomController
                 $length = mb_strlen($value, "utf-8");   // TODO - is this the right function to use?
 
                 // Get typeclass of what this data will be imported into
+                $allow_multiple_uploads = true;
                 $fieldtype = null;
-                if ($datafield_id == 'new')
+                if ($datafield_id == 'new') {
+                    // Datafield hasn't been created yet, grab which fieldtype it's supposed to be from the mapping
                     $fieldtype = $repo_fieldtype->find( $fieldtype_mapping[$column_num] );
-                else
-                    $fieldtype = $repo_datafield->find( $datafield_id )->getFieldType();
+                }
+                else {
+                    // Datafield already exists, grab fieldtype from datafield
+                    $datafield = $repo_datafield->find($datafield_id);
+                    $fieldtype = $datafield->getFieldType();
+
+                    // Also store whether the datafield has been set to only allow a single file/image upload
+                    if ( $datafield->getAllowMultipleUploads() == false )
+                        $allow_multiple_uploads = false;
+                }
 
                 // Check for errors specifically related to this fieldtype
                 $errors = array();
@@ -1103,7 +1195,95 @@ class CSVImportController extends ODRCustomController
 
                     case "File":
                     case "Image":
-                        // TODO 
+                        if ( $value !== '' && isset($column_delimiters[$column_num]) ) {
+                            // Due to validation in self::processAction(), this will exist when the datafield is a file/image
+                            $upload_dir = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user_id.'/storage/';
+
+                            // Grab a list of the files already uploaded to this datafield
+                            $already_uploaded_files = array();
+                            if ($datarecord_id !== null) {
+                                $query_str =
+                                   'SELECT e.originalFileName
+                                    FROM ODRAdminBundle:'.$typeclass.' AS e
+                                    WHERE e.dataRecord = :datarecord AND e.dataField = :datafield ';
+                                if ($typeclass == 'Image')
+                                    $query_str .= 'AND e.original = 1 ';
+                                $query_str .= 'AND e.deletedAt IS NULL';
+
+                                $query = $em->createQuery($query_str)->setParameters( array('datarecord' => $datarecord_id, 'datafield' => $datafield_id) );
+                                $results = $query->getArrayResult();
+
+                                foreach ($results as $tmp => $result)
+                                    $already_uploaded_files[] = $result['originalFileName'];
+                            }
+
+                            // Grab all filenames listed in the field
+                            $filenames = explode( $column_delimiters[$column_num], $value );
+                            $total_file_count = count($filenames) + count($already_uploaded_files);
+                            foreach ($filenames as $filename) {
+                                // Determine whether the file is already uploaded to the server
+                                $already_uploaded = false;
+                                if ( in_array($filename, $already_uploaded_files) )
+                                    $already_uploaded = true;
+
+                                if ($already_uploaded) {
+                                    // The File/Image has already been uploaded to this datafield
+                                    // ...regardless of whether the upload ignores the file/image or replaces the existing file/image, there will be no net change in the number of files/images uploaded
+                                    $total_file_count--;
+                                }
+
+                                if ( !file_exists($upload_dir.$filename) ) {
+                                    // File/Image does not exist in the upload directory
+                                    $errors[] = array(
+                                        'level' => 'Error',
+                                        'body' => array(
+                                            'line_num' => $line_num,
+                                            'message' => 'Column "'.$column_names[$column_num].'" references a '.$typeclass.' "'.$filename.'", but that '.$typeclass.' has not been uploaded to the server.',
+                                        )
+                                    );
+                                }
+                                else {
+                                    // File/Image exists, ensure it has a valid mimetype
+                                    $validation_params = $this->container->getParameter('file_validation');
+                                    $validation_params = $validation_params[ strtolower($typeclass) ];
+
+                                    $uploaded_file = new SymfonyFile($upload_dir.$filename);
+                                    if ( !in_array($uploaded_file->getMimeType(), $validation_params['mimeTypes']) ) {
+                                        $errors[] = array(
+                                            'level' => 'Error',
+                                            'body' => array(
+                                                'line_num' => $line_num,
+                                                'message' => 'The '.$typeclass.' "'.$filename.'" listed in column "'.$column_names[$column_num].'" is not a valid file for the '.$typeclass.' fieldtype.',
+                                            )
+                                        );
+                                    }
+
+                                    if ($already_uploaded) {
+                                        // TODO - should the upload replace existing files instead of doing nothing?
+                                        // Warn about file/image already being on the server
+                                        $errors[] = array(
+                                            'level' => 'Warning',
+                                            'body' => array(
+                                                'line_num' => $line_num,
+                                                'message' => 'The '.$typeclass.' "'.$filename.'" listed in column "'.$column_names[$column_num].'" has already been uploaded to this datarecord.',
+                                            )
+                                        );
+                                    }
+
+                                }
+                            }
+
+                            // Also check to ensure that uploading a file/image won't violate the state of the "allow multiple uploads" checkbox
+                            if ( !$allow_multiple_uploads && $total_file_count > 1 ) {
+                                $errors[] = array(
+                                    'level' => 'Error',
+                                    'body' => array(
+                                        'line_num' => $line_num,
+                                        'message' => 'The column "'.$column_names[$column_num].'" is marked as only allowing a single '.$typeclass.' upload, but it would have '.$total_file_count.' '.$typeclass.'s uploaded after this CSV Import.',
+                                    )
+                                );
+                            }
+                        }
                         break;
                     
                     case "IntegerValue":
@@ -1352,7 +1532,8 @@ class CSVImportController extends ODRCustomController
      *
      * @return a Symfony JSON response containing HTML TODO
      */
-    public function validateresultsAction($tracked_job_id, Request $request) {
+    public function validateresultsAction($tracked_job_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -1430,8 +1611,8 @@ class CSVImportController extends ODRCustomController
             // TODO - naming fieldtypes by number
             $fieldtype_array = array(
                 1, // boolean
-//                2, // file
-//                3, // image
+                2, // file
+                3, // image
                 4, // integer
                 5, // paragraph text
                 6, // long varchar
@@ -1480,7 +1661,7 @@ class CSVImportController extends ODRCustomController
 
             // --------------------
             // Read column names from the file
-            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
+            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $presets['csv_filename'];
             $delimiter = $presets['delimiter'];
 
@@ -1532,7 +1713,8 @@ class CSVImportController extends ODRCustomController
                     array(
                         'datatype' => $datatype,
 //                        'form' => $form->createView(),
-                        'form' => null,
+//                        'form' => null,
+                        'upload_type' => '',
 
                         'presets' => $presets,
                         'errors' => $error_messages,
@@ -1570,7 +1752,8 @@ class CSVImportController extends ODRCustomController
      *
      * @return an empty Symfony JSON response, unless an error occurred.
      */
-    public function startworkerAction($job_id, Request $request) {
+    public function startworkerAction($job_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -1613,7 +1796,7 @@ class CSVImportController extends ODRCustomController
             // --------------------
 
 
-            // --------------------
+            // ----------------------------------------
             // TODO - better way of handling this, if possible
             // Block csv imports if there's already one in progress for this datatype
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
@@ -1628,9 +1811,9 @@ class CSVImportController extends ODRCustomController
                 throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
 
 
-            // --------------------
+            // ----------------------------------------
             // Read column names from the file
-            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
+            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $job_data['csv_filename'];
             $delimiter = $job_data['delimiter'];
 
@@ -1682,7 +1865,7 @@ class CSVImportController extends ODRCustomController
             parent::ODR_deleteTrackedErrorsByJob($em, $job_id);
 
 
-            // ------------------------------
+            // ----------------------------------------
             // Load symfony objects
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
@@ -1696,7 +1879,6 @@ class CSVImportController extends ODRCustomController
             $url = $this->container->getParameter('site_baseurl');
             $url .= $router->generate('odr_csv_import_worker');
 
-            // ------------------------------
             // Extract data from the tracked job
             $unique_columns = $job_data['unique_columns'];
             $datafield_mapping = $job_data['datafield_mapping'];
@@ -1706,7 +1888,7 @@ class CSVImportController extends ODRCustomController
 //print_r($job_data);
 //return;
 
-            // ------------------------------
+            // ----------------------------------------
             // Create any necessary datafields
             $new_datafields = array();
             $new_mapping = array();
@@ -1781,7 +1963,7 @@ print_r($new_mapping);
 
             // ----------------------------------------
             // Re-read the csv file so a beanstalk job can be created for each line in the file
-            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/';
+            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $job_data['csv_filename'];
             $delimiter = $job_data['delimiter'];
 
@@ -1800,7 +1982,7 @@ print_r($new_mapping);
             }
 
 
-            // ------------------------------
+            // ----------------------------------------
             // Create a beanstalk job for each row of the csv file
             $count = 0;
             foreach ($reader as $row) {
@@ -1857,7 +2039,8 @@ print_r($new_mapping);
      *
      * @return TODO
      */
-    public function csvworkerAction(Request $request) {
+    public function csvworkerAction(Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -1885,6 +2068,8 @@ print_r($new_mapping);
             if ( isset($post['column_delimiters']) )
                 $column_delimiters = $post['column_delimiters'];
 
+
+            // ----------------------------------------
             // Load symfony objects
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
@@ -1909,6 +2094,8 @@ print_r($new_mapping);
             if ($datatype == null)
                 throw new \Exception('Datatype is deleted!');
 
+
+            // ----------------------------------------
             // Attempt to locate an existing datarecord
             $status = '';
             $datarecord = null;
@@ -1943,7 +2130,7 @@ print_r($new_mapping);
             }
 
             if ($value !== '' && $datafield_id !== '') {
-                // Run a quick query to check whether the value from the file is a duplicate of an existing value 
+                // Locate the datarecord pointed to by the external id, if possible
                 $query = $em->createQuery(
                    'SELECT dr
                     FROM ODRAdminBundle:'.$typeclass.' AS e
@@ -1954,13 +2141,15 @@ print_r($new_mapping);
                 )->setParameters( array('datafield' => $datafield_id, 'value' => $value) );
                 $results = $query->getResult();
 
-                $datarecord = $results[0];
+                if ( isset($results[0]) )
+                    $datarecord = $results[0];
 //print $datarecord->getId()."\n";
             }
 
 //return;
 
 
+            // ----------------------------------------
             if ($datarecord == null) {
                 // Create a new datarecord, since one doesn't exist
                 $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
@@ -1988,6 +2177,8 @@ print_r($new_mapping);
 
             // All datarecordfield and storage entities should be created now...
 
+
+            // ----------------------------------------
             // Break apart the line into constituent columns...
             foreach ($line as $column_num => $column_data) {
                 // Only care about this column if it's mapped to a datafield...
@@ -2028,6 +2219,45 @@ print_r($new_mapping);
                         $em->persist($entity);
 
                         $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$checked.'"...'."\n";
+                    }
+                    else if ($typeclass == 'File' || $typeclass == 'Image') {
+                        // If a filename is in this column...
+                        if ($column_data !== '') {
+                            // Grab the associated datarecordfield entity
+                            $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+
+                            // Store the path to the user's upload area...
+                            $filepath = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/storage';
+
+                            // Grab a list of the files already uploaded to this datafield
+                            $already_uploaded_files = array();
+                            $query_str =
+                               'SELECT e.originalFileName
+                                FROM ODRAdminBundle:'.$typeclass.' AS e
+                                WHERE e.dataRecord = :datarecord AND e.dataField = :datafield ';
+                            if ($typeclass == 'Image')
+                                $query_str .= 'AND e.original = 1 ';
+                            $query_str .= 'AND e.deletedAt IS NULL';
+
+                            $query = $em->createQuery($query_str)->setParameters( array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()) );
+                            $results = $query->getArrayResult();
+
+                            foreach ($results as $tmp => $result)
+                                $already_uploaded_files[] = $result['originalFileName'];
+
+                            $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.') '."\n";
+
+                            $filenames = explode( $column_delimiters[$column_num], $column_data );
+                            foreach ($filenames as $filename) {
+                                // TODO - ability to replace existing files?
+                                // If the file doesn't already exist in the datafield, upload it
+                                if ( !in_array($filename, $already_uploaded_files) ) {
+                                    parent::finishUpload($em, $filepath, $column_data, $user->getId(), $drf->getId());
+
+                                    $status .= '    ...uploaded new '.$typeclass.' ("'.$filename.'")'."\n";
+                                }
+                            }
+                        }
                     }
                     else if ($typeclass == 'IntegerValue') {
                         // Grab repository for entity

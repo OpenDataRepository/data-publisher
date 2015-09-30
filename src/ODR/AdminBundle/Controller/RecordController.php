@@ -1152,6 +1152,7 @@ class RecordController extends ODRCustomController
 
     /**
      * Parses a $_POST request to update the contents of a datafield.
+     * File and Image uploads are handled by FlowController
      * 
      * @param string $record_type    Apparently, the typeclass of the datafield being modified.
      * @param integer $datarecord_id The database id of the datarecord being modified.
@@ -1234,20 +1235,6 @@ class RecordController extends ODRCustomController
                         $my_obj = $repo->find($post['id']);
                     }
                 break;
-
-                case 'Image':
-                    // Move and store file
-                    $my_obj = new Image();
-                    $my_obj->setDisplayOrder(0);
-
-                    $need_datafield_reload = true;
-                break;
-                case 'File':
-                    // Move and store file
-                    $my_obj = new File();
-
-                    $need_datafield_reload = true;
-                break;
             }
             $form = $this->createForm(
                 new $form_classname($em), 
@@ -1257,34 +1244,19 @@ class RecordController extends ODRCustomController
 //print_r($_POST);
 //exit();
 
-            // TODO - ...
+            // Grab the new value for the datafield
             $old_value = $new_value = '';
+            if ( isset($_POST[$record_type.'Form']['value']) )
+                $new_value = $_POST[$record_type.'Form']['value'];
 
-            if ($record_type == 'File' || $record_type == 'Image') {
-                // Can't look up old/new values for these...
-                $new_value = 'a';
-            }
-            else {
-                // Grab the new value for the datafield
-                if ( isset($_POST[$record_type.'Form']['value']) )
-                    $new_value = $_POST[$record_type.'Form']['value'];
+            // Save the old value incase we have to revert
+            $drf = $my_obj->getDataRecordFields();
+             $tmp_obj = $drf->getAssociatedEntity();
+            $old_value = $tmp_obj->getValue();
 
-                // Save the old value incase we have to revert
-                $drf = $my_obj->getDataRecordFields();
-                $tmp_obj = $drf->getAssociatedEntity();
-                $old_value = $tmp_obj->getValue();
+            if ($record_type == 'DatetimeValue')
+                $old_value = $old_value->format('Y-m-d');
 
-                if ($record_type == 'DatetimeValue')
-                    $old_value = $old_value->format('Y-m-d');
-/*
-print 'new: '.$new_value."\n";
-print 'old: '.$old_value."\n";
-if ( $new_value !== $old_value )
-    print 'no match'."\n";
-else
-    print 'match'."\n";
-*/
-            }
 
             // Only save if the new value is different from the old value
             if ($new_value !== $old_value && $request->getMethod() == 'POST') {
@@ -1311,73 +1283,6 @@ else
 
                 // Ensure the form has no errors
                 if ($form->isValid()) {
-
-                    // ----------------------------------------
-                    // File and Image datafields need work done prior to saving the storage entity
-                    if ($record_type == 'Image' || $record_type == 'File') {
-                        // Pre-persist
-                        $my_obj->setLocalFileName('temp');
-                        $my_obj->setCreatedBy($user);
-                        $my_obj->setUpdatedBy($user);
-                        $my_obj->setExternalId('');
-                        $my_obj->setOriginalChecksum('');
-                    }
-
-                    if ($record_type == 'Image') {
-                        // Move and store file
-                        $my_obj->setOriginalFileName($my_obj->getFile()->getClientOriginalName());
-                        $my_obj->setOriginal('1');
-                        $my_obj->setDisplayOrder(0);
-                        $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public    TODO - let user decide default status
-                    }
-                    else if ($record_type == 'File') {
-                        // Move and store file
-                        $my_obj->setOriginalFileName($my_obj->getUploadedFile()->getClientOriginalName());
-                        $my_obj->setGraphable('1');
-                        $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
-                    }
-
-                    // ----------------------------------------
-                    // ...they also need some more work done after saving the storage entity
-                    $em->persist($my_obj);
-                    $em->flush();
-
-                    switch($record_type) {
-                        case 'File':
-                            // Generate Local File Name
-                            $filename = $my_obj->getUploadDir() . "/File_" . $my_obj->getId() . "." . $my_obj->getExt();
-                            $my_obj->setLocalFileName($filename);
-
-                            parent::encryptObject($my_obj->getId(), 'file');
-
-                            // set original checksum?
-                            $file_path = parent::decryptObject($my_obj->getId(), 'file');
-                            $original_checksum = md5_file($file_path);
-                            $my_obj->setOriginalChecksum($original_checksum);
-                        break;
-
-                        case 'Image':
-                            // Generate Local File Name
-                            $filename = $my_obj->getUploadDir() . "/Image_" . $my_obj->getId() . "." . $my_obj->getExt();
-                            $my_obj->setLocalFileName($filename);
-
-                            $sizes = getimagesize($filename);
-                            $my_obj->setImageWidth( $sizes[0] );
-                            $my_obj->setImageHeight( $sizes[1] );
-
-                            // Create thumbnails and other sizes/versions of the uploaded image
-                            parent::resizeImages($my_obj, $user);
-
-                            // Encrypt parent image AFTER thumbnails are created
-                            parent::encryptObject($my_obj->getId(), 'image');
-
-                            // Set original checksum for original image
-                            $file_path = parent::decryptObject($my_obj->getId(), 'image');
-                            $original_checksum = md5_file($file_path);
-                            $my_obj->setOriginalChecksum($original_checksum);
-                        break;
-                    }
-
 /*
                     // ----------------------------------------
                     // If the field that got modified is the name/sort/external_id field for this datatype, update this datarecord's cache values to match the new value
@@ -1403,16 +1308,6 @@ else
 
 
                     // ----------------------------------------
-                    // If the datafield needed to be reloaded (file/image), notify the ajax return of that
-                    if ($need_datafield_reload) {
-                        $return['r'] = 0;
-                        $return['t'] = 'html';
-                        $return['d'] = array(
-                            'datarecord' => $datarecord_id,
-                            'datafield' => $datafield->getId()
-                        );
-                    }
-
                     // Determine whether ShortResults needs a recache
                     $options = array();
                     $options['mark_as_updated'] = true;

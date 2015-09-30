@@ -17,7 +17,7 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
-// Entites
+// Entities
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeElement;
@@ -38,6 +38,7 @@ use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\IntegerValue;
+use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\ImageStorage;
@@ -65,6 +66,7 @@ use ODR\AdminBundle\Form\IntegerValueForm;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 
 
 class ODRCustomController extends Controller
@@ -1988,6 +1990,134 @@ $save_permissions = false;
         self::updateDatarecordCache($descendant_datarecord->getId(), $options);
 
         return $linked_datatree;
+    }
+
+
+    /**
+     * Creates a new File/Image entity from the given file at the given filepath, and persists all required information to the database.
+     *
+     * @param string $filepath             The absolute path to the file
+     * @param string $original_filename    The original name of the file
+     * @param integer $user_id             Which user is doing the uploading
+     * @param integer $datarecordfield_id  Which DataRecordField entity to store the file under
+     * 
+     * @return none
+     */
+    protected function finishUpload($em, $filepath, $original_filename, $user_id, $datarecordfield_id)
+    {
+        // ----------------------------------------
+        // Load required objects
+        $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->find($datarecordfield_id);
+        $typeclass = $drf->getDataField()->getFieldType()->getTypeClass();
+
+        // Get Symfony to guess the extension of the file via mimetype...a potential wrong extension shouldn't matter since Results::filedownloadAction() renames the file during downloads anyways
+        $uploaded_file = new SymfonyFile($filepath.'/'.$original_filename);
+        $extension = $uploaded_file->guessExtension();
+
+        // ----------------------------------------
+        // Determine where the file should ultimately be moved to
+        $destination_path = dirname(__FILE__).'/../../../../web/uploads/';
+        $my_obj = null;
+        if ($typeclass == 'File') {
+            $my_obj = new File();
+            $destination_path .= 'files';
+
+            // Ensure directory exists
+            if ( !file_exists($destination_path) )
+                mkdir( $destination_path );
+        }
+        else {
+            $my_obj = new Image();
+            $destination_path .= 'images';
+
+            // Ensure directory exists
+            if ( !file_exists($destination_path) )
+                mkdir( $destination_path );
+        }
+
+        // ----------------------------------------
+        // Set initial properties of the new File/Image
+        $my_obj->setDataRecordFields($drf);
+        $my_obj->setDataRecord ($drf->getDataRecord() );
+        $my_obj->setDataField( $drf->getDataField() );
+        $my_obj->setFieldType( $drf->getDataField()->getFieldType() );
+
+        $my_obj->setExt($extension);
+        $my_obj->setLocalFileName('temp');
+        $my_obj->setCreatedBy($user);
+        $my_obj->setUpdatedBy($user);
+        $my_obj->setExternalId('');
+        $my_obj->setOriginalChecksum('');
+
+        if ($typeclass == 'Image') {
+            $my_obj->setOriginalFileName($original_filename);
+            $my_obj->setOriginal('1');
+            $my_obj->setDisplayOrder(0);
+            $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public    TODO - let user decide default status
+        }
+        else if ($typeclass == 'File') {
+            $my_obj->setOriginalFileName($original_filename);
+            $my_obj->setGraphable('1');
+            $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
+        }
+
+        // Save changes
+        $em->persist($my_obj);
+        $em->flush();
+
+
+        // ----------------------------------------
+        // Set the remaining properties of the new File/Image dependent on the new entities ID
+        if ($typeclass == 'Image') {
+            // Generate Local File Name
+            $image_id = $my_obj->getId();
+
+            // Move file to correct spot
+            $filename = 'Image_'.$image_id.'.'.$my_obj->getExt();
+            rename($filepath.'/'.$original_filename, $destination_path.'/'.$filename);
+
+            $local_filename = $my_obj->getUploadDir().'/'.$filename;
+            $my_obj->setLocalFileName($local_filename);
+
+            $sizes = getimagesize($local_filename);
+            $my_obj->setImageWidth( $sizes[0] );
+            $my_obj->setImageHeight( $sizes[1] );
+            // Create thumbnails and other sizes/versions of the uploaded image
+            self::resizeImages($my_obj, $user);
+
+            // Encrypt parent image AFTER thumbnails are created
+            self::encryptObject($image_id, 'image');
+
+            // Set original checksum for original image
+            $file_path = self::decryptObject($image_id, 'image');
+            $original_checksum = md5_file($file_path);
+            $my_obj->setOriginalChecksum($original_checksum);
+        }
+        else if ($typeclass == 'File') {
+            // Generate Local File Name
+            $file_id = $my_obj->getId();
+
+            // Move file to correct spot
+            $filename = 'File_'.$file_id.'.'.$my_obj->getExt();
+            rename($filepath.'/'.$original_filename, $destination_path.'/'.$filename);
+
+            $local_filename = $my_obj->getUploadDir().'/'.$filename;
+            $my_obj->setLocalFileName($local_filename);
+
+            // Encrypt the file before it's used
+            self::encryptObject($file_id, 'file');
+
+            // Decrypt the file and store its checksum in the database
+            $file_path = self::decryptObject($file_id, 'file');
+            $original_checksum = md5_file($file_path);
+            $my_obj->setOriginalChecksum($original_checksum);
+        }
+
+        // Save changes again
+        $em->persist($my_obj);
+        $em->flush();
+
     }
 
 

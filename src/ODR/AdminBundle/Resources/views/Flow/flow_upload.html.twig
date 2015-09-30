@@ -1,0 +1,153 @@
+{% spaceless %}
+
+<div id="ODRFileUpload_{{ target }}" class="ODRFileUpload">
+    <span class="ODRUploadBlurb">
+        <span class="pure-button pure-button-primary">
+            Upload Files
+        </span>
+        <b>OR</b> Drag and Drop here
+    </span>
+</div>
+
+<div id="ODRFileUploadProgress_{{ target }}" class="ODRFileUploadProgress"></div>
+
+<style>
+    .foo {
+        background: #00FF00;
+    }
+    .ODRFileUploadProgress {
+        width: 300px;
+    }
+
+    .cancel-button {
+        background: rgb(202, 60, 60); /* this is a maroon */
+    }
+    .ODRUploadError {
+        color: #FF0000;
+        size: 0.75em;
+    }
+    .ODRProgressBar {
+        display: block;
+    }
+</style>
+
+<script type="text/javascript">
+
+    var flow_{{ target }} = null;
+    var flow_errors_{{ target }} = false;
+    $(function() {
+
+        // TODO - drag CSS needs work
+        $("#ODRFileUpload_{{ target }}").off('dragenter');
+        $("#ODRFileUpload_{{ target }}").on('dragenter', function(event) {
+            event.stopPropagation();
+            event.preventDefault();
+
+            $(this).addClass('foo');
+        });
+
+        $("#ODRFileUpload_{{ target }}").off('dragleave');
+        $("#ODRFileUpload_{{ target }}").on('dragleave', function(event) {
+            event.stopPropagation();
+            event.preventDefault();
+
+            $(this).removeClass('foo');
+        });
+
+        $("#ODRFileUpload_{{ target }}").off('dragover');
+        $("#ODRFileUpload_{{ target }}").on('dragover', function(event) {
+            event.stopPropagation();
+            event.preventDefault();
+        });
+
+        $("#ODRFileUpload_{{ target }}").off('drop');
+        $("#ODRFileUpload_{{ target }}").on('drop', function(event) {
+            $(this).removeClass('foo');
+        });
+
+        // Create a new Flow.js instance
+        flow_{{ target }} = new Flow({
+            "target": "{{ path('odr_flow_upload', {'upload_type': upload_type, 'datatype_id': datatype_id, 'datarecordfield_id': datarecordfield_id}) }}",
+            "chunkSize": 2 * 1024 * 1024,
+            "forceChunkSize": true,
+
+            "chunkRetryInterval": 1000,
+            "maxChunkRetries": 3,
+
+            "successStatuses": [200],
+            "permanentErrors": [404],
+        });
+
+        // Remove all event handlers for this instance of flow.js
+        flow_{{ target }}.off();
+
+        // Inform this instance of flow.js to watch for upload/drop operations on the related target div
+        flow_{{ target }}.assignDrop( $('#ODRFileUpload_{{ target }}') );     // TODO - Need CSS for HTML drag/drop
+{% if single_file == true %}
+        flow_{{ target }}.assignBrowse( $('#ODRFileUpload_{{ target }}'), false, true );    // no directories, only allow single file upload
+{% else %}
+        flow_{{ target }}.assignBrowse( $('#ODRFileUpload_{{ target }}'), false );    // no directories, multiple files allowed
+{% endif %}
+
+
+        // This event is fired when a group of files are added to the file control
+        flow_{{ target }}.on('filesAdded', function(files, event) {
+            ODRFileUpload_filesAdded(files, event, "{{ target }}");
+        });
+
+        // Automatically upload files after submission
+        flow_{{ target }}.on('filesSubmitted', function(files, event) {
+            ODRFileUpload_filesSubmitted(flow_{{ target }});
+            flow_errors_{{ target }} = false;
+
+{% if single_file == true %}
+            // Block uploads any further uploads after a single file
+            $("#ODRFileUpload_{{ target }} input").attr('disabled', 'disabled');
+            $("#ODRFileUpload_{{ target }} .ODRUploadBlurb").hide();
+            // TODO - other CSS?
+{% endif %}
+        });
+
+        // Keep track of the upload progress
+        flow_{{ target }}.on('fileProgress', function(file, chunk) {
+            ODRFileUpload_fileProgress(file, chunk, "{{ target }}");
+        });
+
+{#
+        // TODO - other stuff to do on successes?
+        flow_{{ target }}.on('fileSuccess', function(file, message) {
+        });
+#}
+
+        // TODO - other stuff to do on errors?
+        flow_{{ target }}.on('fileError', function(file, message) {
+
+            // Display error and stop upload
+            ODRFileUpload_fileError(file, message, "{{ target }}");
+            file.cancel();
+            flow_errors_{{ target }} = true;
+
+            // TODO - display errors inline?
+{% if single_file == true %}
+            // TODO - re-enable file upload on error?
+            $("#ODRFileUpload_{{ target }} input").removeAttr('disabled');
+            $("#ODRFileUpload_{{ target }} .ODRUploadBlurb").show();
+{% endif %}
+        });
+
+        // TODO - other stuff to do on completion
+        flow_{{ target }}.on('complete', function() {
+            if ( flow_errors_{{ target }} == false ) {
+                {{ callback }}
+
+                // TODO - make this an option?
+                $(".ODRFileUploadProgressDiv").hide();
+                $(".ODRFileUploadProgressDiv").remove();
+            }
+        });
+
+    });
+
+</script>
+
+{% endspaceless %}

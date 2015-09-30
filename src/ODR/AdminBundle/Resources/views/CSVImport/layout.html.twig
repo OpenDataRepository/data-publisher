@@ -1,5 +1,8 @@
 {% spaceless %}
 
+    {% include 'ODRAdminBundle:CSVImport:filelist.html.twig' with {'datatype_id': datatype.id, 'presets': presets} %}
+    <hr>
+
     {% set external_id_field = datatype.getexternalidfield %}
     {% set name_field = datatype.getnamefield %}
 
@@ -162,8 +165,8 @@
             else
                 $("#column_" + column_id + "_fieldtype").attr('disabled', 'disabled');
 
-            // Need to select a delimiter for multiple radio/select fields
-            if ( fieldtype_id == '13' || fieldtype_id == '15' )
+            // Need to select a delimiter for multiple radio/select fields, and for file/image fields
+            if ( fieldtype_id == '13' || fieldtype_id == '15' || fieldtype_id == '2' || fieldtype_id == '3' )   // TODO - referencing fieldtypes by number
                 $("#column_" + column_id + "_delimiter").removeAttr('disabled');
             else
                 $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
@@ -181,8 +184,8 @@
         $(".fieldtype_mapping").change(function() {
             var column_id = $(this).attr('rel');
 
-            // Need to select a delimiter for multiple radio/select fields
-            if ( $(this).val() == '13' || $(this).val() == '15' )
+            // Need to select a delimiter for multiple radio/select fields, and for file/image fields
+            if ( $(this).val() == '13' || $(this).val() == '15' || $(this).val() == '2' || $(this).val() == '3' )   // TODO - referencing fieldtypes by number
                 $("#column_" + column_id + "_delimiter").removeAttr('disabled');
             else
                 $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
@@ -371,7 +374,7 @@
         $(".secondary_delimiter:enabled").each(function() {
             if ( $(this).val() == '' ) {
                 block_import = true;
-                alert( 'ERROR: Multiple Select/Radio fields MUST have a secondary delimiter selected' );
+                alert( 'ERROR: All Multiple Radio/Select, File, and Image DataFields MUST have a secondary delimiter selected' );
                 return false;
             }
         });
