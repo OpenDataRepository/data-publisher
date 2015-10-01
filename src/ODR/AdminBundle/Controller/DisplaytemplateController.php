@@ -3261,6 +3261,7 @@ if ($debug)
                 $old_fieldtype = $datafield->getFieldType();
                 $old_fieldname = $datafield->getFieldName();
                 $old_shortenfilename = $datafield->getShortenFilename();
+                $old_allowmultipleuploads = $datafield->getAllowMultipleUploads();
 
                 // Deal with the rest of the form
                 $datafield_form->bind($request, $datafield);
@@ -3287,12 +3288,12 @@ print_r($errors);
                 // --------------------
                 $return['t'] = "html";
                 if ($datafield_form->isValid()) {
-                    // --------------------
+
                     // If datafield is being used as the datatype's external ID field, ensure it's marked as unique
                     if ( $datafield->getDataType()->getExternalIdField() !== null && $datafield->getDataType()->getExternalIdField()->getId() == $datafield->getId() )
                         $datafield->setIsUnique(true);
 
-                    // --------------------
+                    // ----------------------------------------
                     // Easier to deal with change of fieldtype and how it relates to searchable here
                     switch ($datafield->getFieldType()->getTypeClass()) {
                         case 'DecimalValue':
@@ -3302,21 +3303,61 @@ print_r($errors);
                         case 'MediumVarchar':
                         case 'ShortVarchar':
                         case 'Radio':
+                            // All of the above fields can have any value for searchable
                             break;
+
                         case 'Image':
                         case 'File':
                         case 'Boolean':
                         case 'DatetimeValue':
+                            // It only makes sense for these four fieldtypes to be searchable from advanced search
                             if ($datafield->getSearchable() == 1)
-                                $datafield->setSearchable(2);   // searching these fields only makes sense in advanced search?
+                                $datafield->setSearchable(2);
                             break;
+
                         default:
-                            $datafield->setSearchable(0);   // all other fieldtypes can't be searched
+                            // All other fieldtypes can't be searched
+                            $datafield->setSearchable(0);
                             break;
                     }
 
-                    // --------------------
-                    // If this field is in shortresults, do another check to determine whether the shortrsults needs to be recached
+                    // ----------------------------------------
+                    // Reset the datafield's displayOrder if it got changed to a fieldtype that can't go in TextResults
+                    $update_field_order = false;
+                    if ($new_fieldtype !== null) {
+                        switch ( $new_fieldtype->getTypeName() ) {
+                            case 'Image':
+                            case 'Multiple Radio':
+                            case 'Multiple Select':
+                            case 'Markdown':
+                                // Datafields with these fieldtypes can't be in TextResults
+                                $datafield->setDisplayOrder(-1);
+                                $update_field_order = true;
+                                break;
+
+                            case 'File':
+                                // File datafields can be in TextResults if they're only allowed to have a single upload
+                                if ( $datafield->getAllowMultipleUploads() == '1' ) {
+                                    $datafield->setDisplayOrder(-1);
+                                    $update_field_order = true;
+                                }
+                                break;
+
+                            default:
+                                // The remaining fieldtypes have no restrictions on being in TextResults
+                                break;
+                        }
+                    }
+
+                    // Ensure a File datafield isn't in TextResults if it is set to allow multiple uploads
+                    if ( $old_allowmultipleuploads == '0' && $datafield->getAllowMultipleUploads() == '1' ) {
+                        $datafield->setDisplayOrder(-1);
+                        $update_field_order = true;
+                    }
+
+
+                    // ----------------------------------------
+                    // If this field is in shortresults, do another check to determine whether the shortresults needs to be recached
                     if ($force_shortresults_recache) {
                         if ( $old_fieldname != $datafield->getFieldName() || $old_shortenfilename != $datafield->getShortenFilename() )
                             $force_shortresults_recache = true;
@@ -3335,7 +3376,11 @@ print_r($errors);
                         self::radiooptionorderAction($datafield->getId(), true, $request);  // TODO - might be race condition issue with design_ajax
                     }
 
-                    // --------------------
+                    if ( $update_field_order )
+                        self::updateTextResultsFieldOrder($em, $datatype, $datafield);
+
+
+                    // ----------------------------------------
                     // If datafields are getting migrated, then the datatype will get updated
                     if ($migrate_data) {
                         // Grab necessary stuff for pheanstalk...
@@ -3473,6 +3518,55 @@ if ($force_slideout_reload)
         $response = new Response(json_encode($return));  
         $response->headers->set('Content-Type', 'application/json');
         return $response;  
+    }
+
+
+    /**
+     * Called after a user makes a change that requires a datafield be removed from TextResults
+     *
+     * @param Manager $em
+     * @param DataType $datatype
+     * @param DataField $removed_datafield
+     *
+     * @return none
+     */
+    private function updateTextResultsFieldOrder($em, $datatype, $removed_datafield)
+    {
+        // Grab all Datafields that are currently being used in TextResults
+        $datafield_list = array();
+
+        $query = $em->createQuery(
+           'SELECT df
+            FROM ODRAdminBundle:DataFields AS df
+            WHERE df.dataType = :datatype AND df.displayOrder > 0
+            AND df.deletedAt IS NULL'
+        )->setParameters( array('datatype' => $datatype->getId()) );
+        $results = $query->getResult();
+
+        foreach ($results as $num => $datafield) {
+            if ($datafield->getId() !== $removed_datafield->getId())
+                $datafield_list[ $datafield->getDisplayOrder() ] = $datafield;
+        }
+        ksort($datafield_list);
+
+        // Reset displayOrder to be sequential
+        $datafield_list = array_values($datafield_list);
+        for ($i = 0; $i < count($datafield_list); $i++) {
+            $df = $datafield_list[$i];
+            if ($df->getDisplayOrder() !== ($i+1)) {
+                $df->setDisplayOrder( $i+1 );
+                $em->persist($df);
+            }
+        }
+
+        // If no Datafields remain that are being used by TextResults, set the Datatype as not using TextResults
+        if ( count($datafield_list) == 0 ) {
+            $datatype->setHasTextresults(false);
+            $em->persist($datatype);
+        }
+
+        // Done with the changes
+        $em->flush();
     }
 
 
