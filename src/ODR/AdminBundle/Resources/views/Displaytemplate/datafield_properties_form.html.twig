@@ -27,6 +27,7 @@
             {{ form_widget(datafield_form.field_name, { 'attr': {'class': 'required ODRDatafieldName', 'data-error-type': 'inline' } }) }}
             {{ form_widget(datafield_form.data_type, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
         </div>
+    {% endif %}
 
         <div class="pure-control-group">
             <label for="{{datafield_form.description.vars.id}}">
@@ -35,7 +36,6 @@
             {{ form_errors(datafield_form.description) }}
             {{ form_widget(datafield_form.description, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
         </div>
-    {% endif %}
 {#
         <div class="pure-control-group">
             <label for="{{datafield_form.regex_validator.vars.id}}">

@@ -1,5 +1,5 @@
 {% spaceless %}
 <fieldset>
-    <div>{% if field.markdowntext != null %}{{ field.markdowntext|markdown }}{% endif %}</div>
+    <div title="{{ field.description }}">{% if field.markdowntext != null %}{{ field.markdowntext|markdown }}{% endif %}</div>
 </fieldset>
 {% endspaceless %}
