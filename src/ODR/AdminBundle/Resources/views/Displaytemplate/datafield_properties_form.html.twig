@@ -175,7 +175,7 @@
         </div>
         {% endif %}
 
-        {% if datafield.getfieldtype.gettypename == 'File' or datafield.getfieldtype.gettypename == 'Image' %}
+        {% if typename == 'File' or typename == 'Image' %}
         <div class="pure-control-group">
             <label for="{{datafield_form.allow_multiple_uploads.vars.id}}">
                 <strong>{{datafield_form.allow_multiple_uploads.vars.label}}</strong>
@@ -195,10 +195,15 @@
                 {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'style': 'width:auto'} }) }}
             {% endif %}
             </span>
+
+            <span>
+                &nbsp;<a target="_blank" class="address" href="#{{ path( 'odr_design_analyze_file_uploads', {'datafield_id': datafield.id }) }}" style="color:black;" title="Show Datarecords with multiple uploaded {{ typename }}s in this Datafield..."><i class="fa fa-cog fa-lg"></i></a>
+            </span>
+
         </div>
         {% endif %}
 
-        {% if datafield.getfieldtype.gettypename == 'File' %}
+        {% if typename == 'File' %}
         <div class="pure-control-group">
             <label for="{{datafield_form.shorten_filename.vars.id}}">
                 <strong>{{datafield_form.shorten_filename.vars.label}}</strong>
