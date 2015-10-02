@@ -196,28 +196,17 @@
 
 {% if count > 0 and user_role == 'ROLE_ADMIN' %}
     function doMassEdit() {
-        {% if search_key == '' %}
-        var url = '{{ path('odr_mass_edit_list', { 'datatype_id': 0 }) }}';
-        url = url.substr(0, url.length-1);
-        url += '{{ datatype.id }}';
-        {% else %}
-        var url = '{{ path('odr_mass_edit_searchlist', { 'datatype_id': 0, 'search_key': '' }) }}';
+        var url = '{{ path('odr_mass_edit_render', { 'datatype_id': 0, 'search_key': '', 'offset': '' }) }}';
         url = url.substr(0, url.length-2);
-        url += '{{ datatype.id }}' + '/' + '{{ search_key }}';
-        {% endif %}
+        url += '{{ datatype.id }}' + '/' + '{{ search_key }}' + '/' + '{{ offset }}';
 
         UpdateURL(url);
     }
+
     function doCSVExport() {
-        {% if search_key == '' %}
-        var url = '{{ path('odr_csv_export_list', { 'datatype_id': 0 }) }}';
-        url = url.substr(0, url.length-1);
-        url += '{{ datatype.id }}';
-        {% else %}
-        var url = '{{ path('odr_csv_export_searchlist', { 'datatype_id': 0, 'search_key': '' }) }}';
+        var url = '{{ path('odr_csv_export_render', { 'datatype_id': 0, 'search_key': '', 'offset': '' }) }}';
         url = url.substr(0, url.length-2);
-        url += '{{ datatype.id }}' + '/' + '{{ search_key }}';
-        {% endif %}
+        url += '{{ datatype.id }}' + '/' + '{{ search_key }}' + '/' + '{{ offset }}';
 
         UpdateURL(url);
     }

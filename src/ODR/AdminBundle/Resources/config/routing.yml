@@ -906,18 +906,13 @@ odr_flow_upload:
 
 #-----------------------------------------
 # MassEdit Controller
-odr_mass_edit_list:
-    pattern: /admin/massedit/list/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:MassEdit:massEditList }
-    requirements:
-        datatype_id: \d+
-
-odr_mass_edit_searchlist:
-    pattern: /admin/massedit/searchlist/{datatype_id}/{search_key}
-    defaults: { _controller: ODRAdminBundle:MassEdit:massEdit }
+odr_mass_edit_render:
+    pattern: /admin/massedit/{datatype_id}/{search_key}/{offset}
+    defaults: { _controller: ODRAdminBundle:MassEdit:massEdit, offset: '' }
     requirements:
         datatype_id: \d+
         search_key: '[^\/]*'
+        offset: \d+
 
 
 odr_mass_update_start:
@@ -934,18 +929,13 @@ odr_mass_update_worker:
 
 #-----------------------------------------
 # CSVExport Controller
-odr_csv_export_list:
-    pattern: /admin/csvexport/list/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:CSVExport:csvExportList }
-    requirements:
-        datatype_id: \d+
-
-odr_csv_export_searchlist:
-    pattern: /admin/csvexport/searchlist/{datatype_id}/{search_key}
-    defaults: { _controller: ODRAdminBundle:CSVExport:csvExport }
+odr_csv_export_render:
+    pattern: /admin/csvexport/{datatype_id}/{search_key}/{offset}
+    defaults: { _controller: ODRAdminBundle:CSVExport:csvExport, offset: '' }
     requirements:
         datatype_id: \d+
         search_key: '[^\/]*'
+        offset: \d+
 
 
 odr_csv_export_start:

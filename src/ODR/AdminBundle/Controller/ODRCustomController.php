@@ -504,6 +504,7 @@ print "\n\n";
         // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
         $data['datarecord_list'] = $search_params['datarecords'];
         $data['encoded_search_key'] = $search_params['encoded_search_key'];
+        $data['search_checksum'] = $search_checksum;
 
         return $data;
     }

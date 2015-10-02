@@ -1,0 +1,31 @@
+{% spaceless %}
+
+<div class="pure-u-1 PadRight"></div>
+
+<div class="pure-u-1 clearfix">
+    <div class="pure-u-1 {#pure-u-md-2-3 pure-u-xl-2-3#}" style="text-align: right">
+        <button class="pure-button" onclick="returnToSearchResults();">Return to Search Results</button>
+    </div>
+</div>
+
+<script>
+    function returnToSearchResults() {
+        var search_key = "{{ search_key }}";
+        var offset = "{{ offset }}";
+
+        // Ensure offset exists
+        if ( offset == '' )
+            offset = '1';
+
+        var url = '{{ path('odr_search_render', { 'search_key': '0' } ) }}';
+        url = url.substring(0, (url.length-1));
+        url += search_key;
+        if (offset !== '')
+            url += '/' + offset;
+
+        // This should end up forcing an AJAX load by way of the hashchange event in navigation.html.twig...
+        UpdateURL(url);
+    }
+</script>
+
+{% endspaceless %}
