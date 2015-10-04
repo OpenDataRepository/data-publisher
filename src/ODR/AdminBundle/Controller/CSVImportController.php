@@ -2274,6 +2274,8 @@ print_r($new_mapping);
                         // Save value from csv file
                         if ($column_data !== '')
                             $entity->setValue( intval($column_data) );
+                        else
+                            $entity->setValue( null );
                         $em->persist($entity);
 
                         $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$column_data.'"...'."\n";
@@ -2293,6 +2295,8 @@ print_r($new_mapping);
                         // Save value from csv file
                         if ($column_data !== '')
                             $entity->setValue( floatval($column_data) );
+                        else
+                            $entity->setValue( null );
                         $em->persist($entity);
 
                         $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$column_data.'"...'."\n";
