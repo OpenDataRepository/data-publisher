@@ -4091,37 +4091,29 @@ if ($debug)
         if ($fieldtype->getCanBeUnique() == 0)
             return false;
 
-        // Determine how many values there are in the datafield...
+        // Get a list of all values in the datafield
         $em = $this->getDoctrine()->getManager();
         $query = $em->createQuery(
-           'SELECT COUNT(e.value)
+           'SELECT e.value
             FROM ODRAdminBundle:'.$typeclass.' AS e
             JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
             JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
             WHERE e.dataField = :datafield
             AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
         )->setParameters( array('datafield' => $datafield_id) );
-        $result = $query->getArrayResult();
-        $count = $result[0][1];
+        $results = $query->getArrayResult();
 
-        // Determine how many different values there are in the datafield...
-        $em = $this->getDoctrine()->getManager();
-        $query = $em->createQuery(
-           'SELECT COUNT( DISTINCT e.value )
-            FROM ODRAdminBundle:'.$typeclass.' AS e
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-            WHERE e.dataField = :datafield
-            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-        )->setParameters( array('datafield' => $datafield_id) );
-        $result = $query->getArrayResult();
-        $distinct_count = $result[0][1];
+        // Determine if there are any duplicates in the datafield...
+        $values = array();
+        foreach ($results as $result) {
+            $value = $result['value'];
+            if ( isset($values[$value]) )
+                return false;
+            else
+                $values[$value] = 1;
+        }
 
-        // If the previous two numbers are different, then there's a duplicated value somewhere
-        if ($distinct_count !== $count)
-            return false;
-        else
-            return true;
+        // Didn't find a duplicate, return true
+        return true;
     }
-
 }
