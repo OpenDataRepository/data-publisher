@@ -1264,6 +1264,16 @@ class RecordController extends ODRCustomController
 
                 // If the datafield is marked as unique...
                 if ( $datafield->getIsUnique() == true ) {
+                    // Mysql requires a different comparision if checking for duplicates of a null value...
+                    $comparision = $parameters = null;
+                    if ($new_value != null) {
+                        $comparision = '= :value';
+                        $parameters = array('datafield' => $datafield->getId(), 'value' => $new_value);
+                    }
+                    else {
+                        $comparision = 'IS NULL';
+                        $parameters = array('datafield' => $datafield->getId());
+                    }
 
                     // Run a quick query to check whether the new value is a duplicate of an existing value 
                     $query = $em->createQuery(
@@ -1271,9 +1281,9 @@ class RecordController extends ODRCustomController
                         FROM ODRAdminBundle:'.$record_type.' AS e
                         JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
                         JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                        WHERE e.dataField = :datafield AND e.value = :value
+                        WHERE e.dataField = :datafield AND e.value '.$comparision.'
                         AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-                    )->setParameters( array('datafield' => $datafield->getId(), 'value' => $new_value) );
+                    )->setParameters( $parameters );
                     $results = $query->getArrayResult();
 
                     // If something got returned, add a Symfony error to the form so the subsequent isValid() call will fail
