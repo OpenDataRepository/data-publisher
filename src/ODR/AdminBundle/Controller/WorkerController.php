@@ -107,6 +107,10 @@ class WorkerController extends ODRCustomController
                 $ret = 'RecacheRecordCommand.php: Recache request for deleted DataRecord '.$datarecord_id.', skipping';
                 $block = true;
             }
+            else if ($datarecord->getProvisioned() == true) {
+                $ret = 'RecacheRecordCommand.php: Recache request for provisioned Datarecord '.$datarecord_id.', skipping';
+                $block = true;
+            }
 
             if (!$block) {
                 $em->refresh($datarecord);  // TODO - apparently $datarecord is sometimes NULL at this point?!

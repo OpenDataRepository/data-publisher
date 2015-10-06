@@ -309,25 +309,21 @@ class CSVImportController extends ODRCustomController
             $reader->setHeaderRowNumber(0);     // want associative array for the column names
 
             // Get the first row of the csv file
+            $file_headers = $reader->getColumnHeaders();
             $line_num = 1;
-            $first_row = array();
             $encoding_errors = array();
 
             foreach ($reader as $row) {
+                // Keep track of the line number so UTF-8 errors can be accurately listed
                 $line_num++;
 
-                // Save the contents of the header row so column names can be extracted
-                if ($line_num == 2)
-                    $first_row = $row;
-
-                // Loop through the rest of the file...this will let the CsvReader pick up some of the possible errors
-//                break;
-
                 // TODO - this eventually needs to be done via beanstalk?  but can't json_encode the data unless it passes this check...
-                foreach ($row as $col_name => $col_data) {
-                    // Check each piece of data for encoding errors
-                    if ( mb_check_encoding($col_data, "utf-8") == false )       // this check needs to be performed prior to a json_encode
-                        $encoding_errors[$line_num][] = $col_name;
+                if ( count($row) > 0 ) {
+                    foreach ($row as $col_name => $col_data) {
+                        // Check each piece of data for encoding errors
+                        if ( mb_check_encoding($col_data, "utf-8") == false )       // this check needs to be performed prior to a json_encode
+                            $encoding_errors[$line_num][] = $col_name;
+                    }
                 }
             }
 
@@ -337,11 +333,9 @@ class CSVImportController extends ODRCustomController
             // Grab column names from first row
             $error_messages = array();
             $columns = array();
-            foreach ($first_row as $column => $value) {
-                if ($column == '')
-                    $error_messages[] = array( 'error_level' => 'Error', 'error_body' => array('line_num' => 0, 'message' => 'Column headers are not allowed to be blank') );
-
-                $columns[] = $column;
+            foreach ($file_headers as $column_num => $value) {
+                if ($value == '')
+                    $error_messages[] = array( 'error_level' => 'Error', 'error_body' => array('line_num' => 1, 'message' => 'Column '.($column_num+1).' has an illegal blank header') );
             }
 
             // Notify of "syntax" errors in the csv file
@@ -353,12 +347,12 @@ class CSVImportController extends ODRCustomController
                     if ( count($errors) > 1 )
                         $str = ' the columns '.implode('", "', $errors);
 
-                    $error_messages[] = array( 'error_level' => 'Error', 'error_body' => array('line_num' => $line_num, 'message' => 'Invalid UTF-8 character in'.$str) );
+                    $error_messages[] = array( 'error_level' => 'Error', 'error_body' => array('line_num' => $line_num+1, 'message' => 'Invalid UTF-8 character in'.$str) );
                 }
 
                 // Warn about wrong number of columns
                 foreach ($reader->getErrors() as $line_num => $errors) {
-                    $error_messages[] = array( 'error_level' => 'Error', 'error_body' => array('line_num' => $line_num, 'message' => 'Found '.count($errors).' columns on this line, expected '.count($columns)) );
+                    $error_messages[] = array( 'error_level' => 'Error', 'error_body' => array('line_num' => $line_num+1, 'message' => 'Found '.count($errors).' columns on this line, expected '.count($file_headers)) );
                 }
             }
 
@@ -373,7 +367,7 @@ class CSVImportController extends ODRCustomController
                     'html' => $templating->render(
                         'ODRAdminBundle:CSVImport:layout.html.twig',
                         array(
-                            'columns' => $columns,
+                            'columns' => $file_headers,
                             'datatype' => $datatype,
                             'datafields' => $datafields,
                             'fieldtypes' => $fieldtypes,
@@ -895,19 +889,10 @@ class CSVImportController extends ODRCustomController
 
             $csv_file = new \SplFileObject( $csv_import_path.$csv_filename );
             $reader = new CsvReader($csv_file, $delimiter);
-//            $reader->setHeaderRowNumber(0);   // don't want associative array, want actual names for $column_names
 
-            // Grab headers from csv file incase a new datafield is created
-            $headers = array();
-            foreach ($reader as $row) {
-                $headers = $row;
-                break;
-            }
-
-            // Grab column names from first row
-            $column_names = array();
-            foreach ($headers as $column => $value)
-                $column_names[] = $value;
+            // Grab headers from csv file
+            $reader->setHeaderRowNumber(0);
+            $file_headers = $reader->getColumnHeaders();
 
 //return;
 
@@ -928,7 +913,7 @@ class CSVImportController extends ODRCustomController
             $job_type = 'csv_import_validate';
             $target_entity = 'datatype_'.$datatype->getId();
             $restrictions = '';
-            $total = ($reader->count() - 1);
+            $total = $reader->count();
             $reuse_existing = false;
 //$reuse_existing = true;
 
@@ -937,6 +922,11 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Reload the CsvReader object
+            unset($reader);
+            $reader = new CsvReader($csv_file, $delimiter);
+            // $reader->setHeaderRowNumber(0);  // Don't want an array with the structure 'column_name' => 'column_value'...want 'column_num' => 'column_value' instead
+
             // All Datafields marked as unique need to have no duplicates in the import file...
             // ...unique datafields which aren't serving as the external id/name datafields for a datatype also need to ensure they're not colliding with values currently in the database
             // External id/name datafields are excluded from this second criteria because those are used as keys to update existing Datarecords
@@ -948,13 +938,13 @@ class CSVImportController extends ODRCustomController
 
                 $line_num = 0;
                 $unique_values = array();
-//$reader = new CsvReader($csv_file, $delimiter);
+
                 foreach ($reader as $row) {
                     $line_num++;
                     $value = $row[$column_num];
                     if ( isset($unique_values[$value]) ) {
                         // Encountered duplicate value
-                        $error = array( 'line_num' => $line_num, 'message' => 'The field "'.$column_names[$column_num].'" is supposed to be unique, but value is a duplicate of line '.$unique_values[$value] );
+                        $error = array( 'line_num' => $line_num, 'message' => 'The field "'.$file_headers[$column_num].'" is supposed to be unique, but value is a duplicate of line '.$unique_values[$value] );
 //print_r($error);
 
                         // TODO - ...any way to make this use beanstalk?  don't really want it inline, but the checks for this error can't really be broken apart...
@@ -988,7 +978,7 @@ class CSVImportController extends ODRCustomController
                     foreach ($filenames as $filename) {
                         if ( isset($unique_filenames[$filename]) ) {
                             // Encountered duplicate value
-                            $error = array( 'line_num' => $line_num, 'message' => 'The field "'.$column_names[$column_num].'" wants to import the file "'.$filename.'", but that file was already listed on line '.$unique_filenames[$value] );
+                            $error = array( 'line_num' => $line_num, 'message' => 'The field "'.$file_headers[$column_num].'" wants to import the file "'.$filename.'", but that file was already listed on line '.$unique_filenames[$value] );
 //print_r($error);
 
                             // TODO - ...any way to make this use beanstalk?  don't really want it inline, but the checks for this error can't really be broken apart...
@@ -1030,7 +1020,7 @@ class CSVImportController extends ODRCustomController
                         'datatype_id' => $datatype->getId(),
                         'user_id' => $user->getId(),
 
-                        'column_names' => $column_names,
+                        'column_names' => $file_headers,
                         'unique_columns' => $unique_columns,
                         'datafield_mapping' => $datafield_mapping,
                         'fieldtype_mapping' => $fieldtype_mapping,
@@ -1143,8 +1133,8 @@ class CSVImportController extends ODRCustomController
                 $typeclass = $external_id_field->getFieldType()->getTypeClass();
                 foreach ($datafield_mapping as $column_num => $datafield_id) {
                     if ($external_id_field->getId() == $datafield_id) {
+                        // Attempt to locate a datarecord with this specific external id
                         $value = $line[$column_num];
-
                         $query = $em->createQuery(
                            'SELECT dr.id
                             FROM ODRAdminBundle:'.$typeclass.' AS e
@@ -1155,7 +1145,9 @@ class CSVImportController extends ODRCustomController
                         )->setParameters( array('datafield' => $datafield_id, 'value' => $value) );
                         $results = $query->getArrayResult();
 
-                        $datarecord_id = $results[0]['id'];
+                        // If one exists, save its id
+                        if ( isset($results[0]) )
+                            $datarecord_id = $results[0]['id'];
                     }
                 }
             }
@@ -1429,6 +1421,7 @@ class CSVImportController extends ODRCustomController
                         break;
                 }
 
+                // TODO - this is insufficient for the reasons stated in github issue #132...probably needs to be redone entirely
                 // Check for duplicate values in unique columns if they're mapping to a pre-existing datafield
                 if ( isset($unique_columns[$column_num]) && $datafield_id !== 'new' ) {
                     // Skip if this column is mapped to the external id/name datafield for this datatype
@@ -1671,31 +1664,14 @@ class CSVImportController extends ODRCustomController
             $csv_file = new \SplFileObject( $csv_import_path.$csv_filename );
             $reader = new CsvReader($csv_file, $delimiter);
             $reader->setHeaderRowNumber(0);     // want associative array
-
-            // Get the first row of the csv file
-            $line_num = 1;
-            $first_row = array();
-            foreach ($reader as $row) {
-                $line_num++;
-
-                // Save the contents of the header row so column names can be extracted
-                if ($line_num == 2) {
-                    $first_row = $row;
-                    break;
-                }
-            }
-
-            // Grab column names from first row
-            $columns = array();
-            foreach ($first_row as $column => $value)
-                $columns[] = $column;
+            $file_headers = $reader->getColumnHeaders();
 
 
             // ------------------------------
             // Get any errors reported for this job
             $error_messages = parent::ODR_getTrackedErrorArray($em, $tracked_job_id);
 
-            // If some sort of serious error encountered, prevent importing?
+            // If some sort of serious error encountered during validation, prevent importing
             $allow_import = true;
             foreach ($error_messages as $message) {
                 if ( $message['error_level'] == 'Error' )
@@ -1712,15 +1688,13 @@ class CSVImportController extends ODRCustomController
                     'ODRAdminBundle:CSVImport:import.html.twig',
                     array(
                         'datatype' => $datatype,
-//                        'form' => $form->createView(),
-//                        'form' => null,
                         'upload_type' => '',
 
                         'presets' => $presets,
                         'errors' => $error_messages,
 
                         // These get passed to layout.html.twig
-                        'columns' => $columns,
+                        'columns' => $file_headers,
                         'datatype' => $datatype,
                         'datafields' => $datafields,
                         'fieldtypes' => $fieldtypes,
@@ -1823,24 +1797,7 @@ class CSVImportController extends ODRCustomController
             $csv_file = new \SplFileObject( $csv_import_path.$csv_filename );
             $reader = new CsvReader($csv_file, $delimiter);
             $reader->setHeaderRowNumber(0);     // want associative array
-
-            // Get the first row of the csv file
-            $line_num = 1;
-            $first_row = array();
-            foreach ($reader as $row) {
-                $line_num++;
-
-                // Save the contents of the header row so column names can be extracted
-                if ($line_num == 2) {
-                    $first_row = $row;
-                    break;
-                }
-            }
-
-            // Grab column names from first row
-            $column_names = array();
-            foreach ($first_row as $column => $value)
-                $column_names[] = $column;
+            $column_names = $reader->getColumnHeaders();
 
 //print_r($column_names);
 //return;
@@ -1853,7 +1810,6 @@ class CSVImportController extends ODRCustomController
             $target_entity = 'datatype_'.$datatype->getId();
             $additional_data = array('description' => 'Importing data into DataType '.$datatype_id.'...');
             $restrictions = '';
-//            $total = ($reader->count() - 1);
             $total = $reader->count();
             $reuse_existing = false;
 //$reuse_existing = true;
@@ -1861,7 +1817,7 @@ class CSVImportController extends ODRCustomController
             $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
             $tracked_job_id = $tracked_job->getId();
 
-            // Not going to need any of the TrackedError entries for this job anymore, get rid of them
+            // Not going to need the TrackedError entries for this job anymore, get rid of them
             parent::ODR_deleteTrackedErrorsByJob($em, $job_id);
 
 
@@ -2159,9 +2115,6 @@ print_r($new_mapping);
                 $em->persist($datarecord);
                 $status = "\n".'Created new datarecord for csv import of datatype '.$datatype_id.'...'."\n";
                 $logger->notice('Created datarecord '.$datarecord->getId().' for csv import of datatype '.$datatype_id.' by '.$user->getId());
-
-                // Since a new datarecord got imported, rebuild the list of sorted datarecords
-                $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
             }
             else {
                 // Mark datarecord as updated
@@ -2172,11 +2125,11 @@ print_r($new_mapping);
                 $status = "\n".'Found existing datarecord ('.$datarecord->getId().') for csv import of datatype '.$datatype_id.'...'."\n";
                 $logger->notice('Using existing datarecord ('.$datarecord->getId().') pointed to by '.$source.' "'.$value.'" for csv import of datatype '.$datatype_id.' by '.$user->getId());
             }
+            $em->flush($datarecord);
+            $em->refresh($datarecord);
 
-            // TODO - don't need to refresh datarecord?  but have to refresh created datafield from earler?
 
-            // All datarecordfield and storage entities should be created now...
-
+            // All datarecordfield and storage entities should exist now...
 
             // ----------------------------------------
             // Break apart the line into constituent columns...
@@ -2416,6 +2369,10 @@ print_r($new_mapping);
 //                $em->flush();
 //$ret .= '  Set current to '.$count."\n";
             }
+
+            // Import is finished, no longer prevent other parts of the site from accessing this datarecord
+            $datarecord->setProvisioned(false);
+            $em->persist($datarecord);
 
             $em->flush();
 

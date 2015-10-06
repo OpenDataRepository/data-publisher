@@ -244,8 +244,11 @@ class RecordController extends ODRCustomController
             $grandparent = $repo_datarecord->find($datarecord->getId());
             $datarecord->setGrandparent($grandparent);
             $datarecord->setParent($parent);
-            $em->persist($datarecord);
 
+            // Datarecord is ready, remove provisioned flag
+            $datarecord->setProvisioned(false);
+
+            $em->persist($datarecord);
             $em->flush();
             $em->refresh($datarecord);
 
@@ -329,6 +332,10 @@ class RecordController extends ODRCustomController
 
             $datarecord->setGrandparent($grandparent);
             $datarecord->setParent($parent);
+
+            // Datarecord is ready, remove provisioned flag
+            $datarecord->setProvisioned(false);
+
             $em->persist($datarecord);
             $em->flush();
 
@@ -1457,7 +1464,7 @@ if ($debug) {
                     FROM ODRAdminBundle:DataRecord ancestor
                     JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
                     JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                    WHERE ancestor = :local_datarecord AND descendant.dataType = :remote_datatype
+                    WHERE ancestor = :local_datarecord AND descendant.dataType = :remote_datatype AND descendant.provisioned = false
                     AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
                 )->setParameters( array('local_datarecord' => $local_datarecord->getId(), 'remote_datatype' => $remote_datatype->getId()) );
                 $results = $query->getResult();
@@ -1476,7 +1483,7 @@ if ($debug) {
                     FROM ODRAdminBundle:DataRecord descendant
                     JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.descendant = descendant
                     JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
-                    WHERE descendant = :local_datarecord AND ancestor.dataType = :remote_datatype
+                    WHERE descendant = :local_datarecord AND ancestor.dataType = :remote_datatype AND ancestor.provisioned = false
                     AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
                 )->setParameters( array('local_datarecord' => $local_datarecord->getId(), 'remote_datatype' => $remote_datatype->getId()) );
                 $results = $query->getResult();
@@ -1978,7 +1985,7 @@ if ($debug)
                'SELECT dr
                 FROM ODRAdminBundle:DataRecord dr
                 JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-                WHERE dr.parent = :datarecord AND dr.id != :datarecord_id AND dr.dataType = :datatype
+                WHERE dr.parent = :datarecord AND dr.id != :datarecord_id AND dr.dataType = :datatype AND dr.provisioned = false
                 AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters( array('datarecord' => $datarecord->getId(), 'datarecord_id' => $datarecord->getId(), 'datatype' => $datatype->getId()) );
             $results = $query->getResult();
@@ -1991,7 +1998,7 @@ if ($debug)
                 FROM ODRAdminBundle:LinkedDataTree ldt
                 JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
                 JOIN ODRAdminBundle:DataType AS dt WITH descendant.dataType = dt
-                WHERE ldt.ancestor = :datarecord AND descendant.dataType = :datatype
+                WHERE ldt.ancestor = :datarecord AND descendant.dataType = :datatype AND descendant.provisioned = false
                 AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters( array('datarecord' => $datarecord->getId(), 'datatype' => $datatype->getId()) );
             $results = $query->getResult();
@@ -2122,7 +2129,7 @@ if ($debug)
             $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
 
             // Get Default Theme
-            $theme = $repo_theme->find(1);
+            $theme = $repo_theme->find(1);  // TODO - default theme
 
             // Get Record In Question
             $datarecord = $repo_datarecord->find($datarecord_id);
@@ -2133,6 +2140,9 @@ if ($debug)
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            // TODO - not accurate, technically...
+            if ($datarecord->getProvisioned() == true)
+                return parent::permissionDeniedError();
 
             // --------------------
             // Determine user privileges

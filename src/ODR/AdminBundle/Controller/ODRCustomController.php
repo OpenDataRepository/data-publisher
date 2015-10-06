@@ -1249,7 +1249,7 @@ $save_permissions = false;
 //            $str = "<h2>Permission Denied</h2>";
 
         $return = array();
-        $return['r'] = 1;
+        $return['r'] = 1;   // TODO - switch to 404?
         $return['t'] = 'html';
         $return['d'] = array(
             'html' => $str
@@ -1268,7 +1268,7 @@ $save_permissions = false;
      * @param integer $datatype_id The database id of the DataType that needs to be rebuilt.
      * @param array $options       
      * 
-     * @return TODO
+     * @return none
      */
     public function updateDatatypeCache($datatype_id, $options = array())
     {
@@ -1346,7 +1346,8 @@ $save_permissions = false;
         $query = $em->createQuery(
            'SELECT dr.id AS dr_id
             FROM ODRAdminBundle:DataRecord dr
-            WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
+            WHERE dr.dataType = :dataType AND dr.provisioned = false
+            AND dr.deletedAt IS NULL'
         )->setParameters( array('dataType' => $datatype->getId()) );
         $results = $query->getArrayResult();
 
@@ -1393,6 +1394,7 @@ $save_permissions = false;
 
         // ----------------------------------------
         // Notify any datarecords linking to this datatype that they need to update too
+        // Don't worry about whether any linked datarecords are provisioned or not right this second, let WorkerController deal with it later
         $query = $em->createQuery(
            'SELECT DISTINCT grandparent.id AS grandparent_id
             FROM ODRAdminBundle:DataRecord descendant
@@ -1438,7 +1440,7 @@ $save_permissions = false;
      * @param integer $id    The database id of the DataRecord that needs to be recached.
      * @param array $options 
      * 
-     * @return TODO
+     * @return none
      */
     public function updateDatarecordCache($id, $options = array())
     {
@@ -1491,8 +1493,10 @@ $save_permissions = false;
         $current_time = new \DateTime();
         $datarecord = $repo_datarecord->find($id);
 
-        // Don't try to update a deleted datarecord
+        // Don't try to update a deleted or a provisioned datarecord
         if ($datarecord == null)
+            return;
+        if ($datarecord->getProvisioned() == true)
             return;
 
         if ($mark_as_updated) {
@@ -1542,6 +1546,7 @@ $save_permissions = false;
 
 
         // Notify any datarecords linking to this record that they need to update too
+        // Don't worry about whether any linked datarecords are provisioned or not right this second, let WorkerController deal with it later
         $query = $em->createQuery(
            'SELECT grandparent.id AS grandparent_id
             FROM ODRAdminBundle:DataRecord descendant
@@ -1626,7 +1631,7 @@ $save_permissions = false;
                 $query = $em->createQuery(
                    'SELECT dr.id
                     FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.dataType = :datatype
+                    WHERE dr.dataType = :datatype AND dr.provisioned = false
                     AND dr.deletedAt IS NULL
                     ORDER BY dr.id'
                 )->setParameters( array('datatype' => $datatype) );
@@ -1648,7 +1653,7 @@ $save_permissions = false;
                     'SELECT dr.id, e.value
                      FROM ODRAdminBundle:DataRecord AS dr
                      JOIN ODRAdminBundle:'.$field_typeclass.' AS e WITH e.dataRecord = dr
-                     WHERE dr.dataType = :datatype AND e.dataField = :datafield
+                     WHERE dr.dataType = :datatype AND dr.provisioned = false AND e.dataField = :datafield
                      AND dr.deletedAt IS NULL AND e.deletedAt IS NULL
                      ORDER BY e.value'
                 )->setParameters( array('datatype' => $datatype, 'datafield' => $sortfield) );
@@ -1906,6 +1911,8 @@ $save_permissions = false;
         $datarecord->setCreatedBy($user);
         $datarecord->setUpdatedBy($user);
         $datarecord->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
+
+        $datarecord->setProvisioned(true);  // Prevent most areas of the site from doing anything with this datarecord...whatever created this datarecord needs to eventually set this to false
 
         $em->persist($datarecord);
         $em->flush();
@@ -3067,6 +3074,11 @@ if ($debug)
      */
     public function verifyExistence($datatype, $datarecord)
     {
+
+        // Don't do anything to a provisioned datarecord
+        if ($datarecord->getProvisioned() == true)
+            return;
+
 $start = microtime(true);
 $debug = true;
 $debug = false;
@@ -3087,8 +3099,8 @@ if ($debug)
             'SELECT dr
             FROM ODRAdminBundle:DataRecord dr
             JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-            WHERE dr.deletedAt IS NULL AND dt.deletedAt IS NULL
-            AND dr.grandparent = :grandparent AND dr.id != :datarecord'
+            WHERE dr.grandparent = :grandparent AND dr.id != :datarecord AND dr.provisioned = false
+            AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL'
         )->setParameters( array('grandparent' => $datarecord->getId(), 'datarecord' => $datarecord->getId()) );
         $childrecords = $query->getResult();
 
@@ -3103,7 +3115,7 @@ if ($debug)
             FROM ODRAdminBundle:DataRecord AS ancestor
             JOIN ODRAdminBundle:LinkedDataTree AS dt WITH dt.ancestor = ancestor
             JOIN ODRAdminBundle:DataRecord AS descendant WITH dt.descendant = descendant
-            WHERE ancestor = :ancestor
+            WHERE ancestor = :ancestor AND descendant.provisioned = false
             AND ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
         )->setParameters( array('ancestor' => $datarecord->getId()) );
         $linked_datarecords = $query->getResult();
@@ -3671,7 +3683,7 @@ if ($debug) {
                'SELECT dr
                 FROM ODRAdminBundle:DataRecord dr
                 JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-                WHERE dr.parent = :datarecord AND dr.id != :datarecord_id
+                WHERE dr.parent = :datarecord AND dr.id != :datarecord_id AND dr.provisioned = false
                 AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters( array('datarecord' => $datarecord->getId(), 'datarecord_id' => $datarecord->getId()) );
             $results = $query->getResult();
@@ -3694,7 +3706,7 @@ if ($debug) {
                 FROM ODRAdminBundle:LinkedDataTree ldt
                 JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
                 JOIN ODRAdminBundle:DataType AS dt WITH descendant.dataType = dt
-                WHERE ldt.ancestor = :datarecord
+                WHERE ldt.ancestor = :datarecord AND descendant.provisioned = false
                 AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters( array('datarecord' => $datarecord->getId()) );
             $results = $query->getResult();

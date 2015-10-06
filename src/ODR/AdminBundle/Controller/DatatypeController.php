@@ -86,7 +86,7 @@ class DatatypeController extends ODRCustomController
                'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
                 FROM ODRAdminBundle:DataType dt
                 JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                WHERE dt IN (:datatypes) AND dr.deletedAt IS NULL
+                WHERE dt IN (:datatypes) AND dr.deletedAt IS NULL AND dr.provisioned = false
                 GROUP BY dt.id'
             )->setParameters( array('datatypes' => $top_level_datatypes) );
             $results = $query->getArrayResult();
@@ -137,6 +137,7 @@ class DatatypeController extends ODRCustomController
     }
 
     /**
+     * TODO - sitemap function
      * Builds and returns a JSON list of all top-level DataTypes.
      * 
      * @param Request $request
@@ -232,6 +233,7 @@ class DatatypeController extends ODRCustomController
         return $response;
 
     }
+
 
     /**
      * Creates a new top-level DataType.
@@ -711,7 +713,8 @@ class DatatypeController extends ODRCustomController
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
                     FROM ODRAdminBundle:DataRecord dr
-                    WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
+                    WHERE dr.dataType = :dataType AND dr.provisioned = false
+                    AND dr.deletedAt IS NULL'
                 )->setParameters( array('dataType' => $datatype_id) );
                 $results = $query->getArrayResult();
 

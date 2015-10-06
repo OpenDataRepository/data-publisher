@@ -570,4 +570,32 @@ class DataRecord
             return true;
     }
 
+    /**
+     * @var boolean
+     */
+    private $provisioned;
+
+
+    /**
+     * Set provisioned
+     *
+     * @param boolean $provisioned
+     * @return DataRecord
+     */
+    public function setProvisioned($provisioned)
+    {
+        $this->provisioned = $provisioned;
+
+        return $this;
+    }
+
+    /**
+     * Get provisioned
+     *
+     * @return boolean 
+     */
+    public function getProvisioned()
+    {
+        return $this->provisioned;
+    }
 }

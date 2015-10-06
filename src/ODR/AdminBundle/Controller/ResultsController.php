@@ -99,6 +99,9 @@ class ResultsController extends ODRCustomController
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            // TODO - not technically accurate
+            if ($datarecord->getProvisioned() == true)
+                return parent::permissionDeniedError();
 
             // ----------------------------------------
             // Determine user privileges
@@ -539,7 +542,7 @@ class ResultsController extends ODRCustomController
 
 
     /**
-     * TODO
+     * TODO - sitemap function
      * 
      * @param Integer $datarecord_id
      * @param string $datarecord_name
