@@ -2247,7 +2247,7 @@ print_r($new_mapping);
 
                         // Save value from csv file
                         if ($column_data !== '')
-                            $entity->setValue( floatval($column_data) );
+                            $entity->setValue( $column_data );  // NOTE - intentionally not using floatval here, whereas IntegerValue still uses intval()...DecimalValue::setValue() will deal with any string received
                         else
                             $entity->setValue( null );
                         $em->persist($entity);
