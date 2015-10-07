@@ -82,7 +82,7 @@
         flow_{{ target }}.off();
 
         // Inform this instance of flow.js to watch for upload/drop operations on the related target div
-        flow_{{ target }}.assignDrop( $('#ODRFileUpload_{{ target }}') );     // TODO - Need CSS for HTML drag/drop
+        flow_{{ target }}.assignDrop( $('#ODRFileUpload_{{ target }}') );     // TODO - Need better CSS for HTML drag/drop
 {% if single_file == true %}
         flow_{{ target }}.assignBrowse( $('#ODRFileUpload_{{ target }}'), false, true );    // no directories, only allow single file upload
 {% else %}
@@ -92,11 +92,14 @@
 
         // This event is fired when a group of files are added to the file control
         flow_{{ target }}.on('filesAdded', function(files, event) {
+//console.log('added: ' + files);
             ODRFileUpload_filesAdded(files, event, "{{ target }}");
         });
 
+
         // Automatically upload files after submission
         flow_{{ target }}.on('filesSubmitted', function(files, event) {
+//console.log('submitted: ' + files);
             ODRFileUpload_filesSubmitted(flow_{{ target }});
             flow_errors_{{ target }} = false;
 
@@ -108,7 +111,8 @@
 {% endif %}
         });
 
-        // Keep track of the upload progress
+
+        // Keep track of the uploading progress for all of the files
         flow_{{ target }}.on('fileProgress', function(file, chunk) {
             ODRFileUpload_fileProgress(file, chunk, "{{ target }}");
         });
@@ -116,18 +120,18 @@
 {#
         // TODO - other stuff to do on successes?
         flow_{{ target }}.on('fileSuccess', function(file, message) {
+console.log('success: ' + file);
         });
 #}
 
-        // TODO - other stuff to do on errors?
+        // Display any errors encountered during the upload of a file
         flow_{{ target }}.on('fileError', function(file, message) {
-
+//console.log('error: ' + file);
             // Display error and stop upload
             ODRFileUpload_fileError(file, message, "{{ target }}");
             file.cancel();
             flow_errors_{{ target }} = true;
 
-            // TODO - display errors inline?
 {% if single_file == true %}
             // TODO - re-enable file upload on error?
             $("#ODRFileUpload_{{ target }} input").removeAttr('disabled');
@@ -135,8 +139,13 @@
 {% endif %}
         });
 
-        // TODO - other stuff to do on completion
+
+        // Perform tasks when all files finish uploading
         flow_{{ target }}.on('complete', function() {
+//console.log('complete');
+            // All uploads complete, remove all files from the HTML5 File API so they can get re-uploaded
+            flow_{{ target }}.cancel();
+
             if ( flow_errors_{{ target }} == false ) {
                 {{ callback }}
 

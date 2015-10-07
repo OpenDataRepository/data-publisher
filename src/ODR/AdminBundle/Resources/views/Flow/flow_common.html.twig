@@ -20,7 +20,13 @@
                 // Abort uploading this file
                 file.cancel();
 
-                // TODO - re-enable file upload on cancel?
+                // If cancel button clicked when file encountered some sort of error, remove the upload divs
+                if (file.error == true) {
+                    $(this).parent().hide();
+                    $(this).parent().remove();
+                }
+
+                // Re-enable file upload on cancel
                 $("#ODRFileUpload_" + target + " input").removeAttr('disabled');
                 $("#ODRFileUpload_" + target + " .ODRUploadBlurb").show();
 

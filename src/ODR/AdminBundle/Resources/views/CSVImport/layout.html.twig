@@ -1,8 +1,5 @@
 {% spaceless %}
 
-    {% include 'ODRAdminBundle:CSVImport:filelist.html.twig' with {'datatype_id': datatype.id, 'presets': presets} %}
-    <hr>
-
     {% set external_id_field = datatype.getexternalidfield %}
     {% set name_field = datatype.getnamefield %}
 
@@ -74,6 +71,11 @@
             </tbody>
         </table>
     </form>
+
+    <hr>
+    <div><b>Any files or images that you want to import using this CSV file need to be uploaded here.</b></div>
+    {% include 'ODRAdminBundle:CSVImport:filelist.html.twig' with {'datatype_id': datatype.id, 'presets': presets} %}
+    <hr>
 
     <div style="margin-top: 10px;">
         <button id="validate_button" type="button" class="pure-button pure-button-primary" onclick="validateImport();">Validate Import</button>
