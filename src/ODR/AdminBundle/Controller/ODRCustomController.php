@@ -17,7 +17,7 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
-// Entites
+// Entities
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeElement;
@@ -38,6 +38,7 @@ use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\IntegerValue;
+use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\ImageStorage;
@@ -65,6 +66,7 @@ use ODR\AdminBundle\Form\IntegerValueForm;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 
 
 class ODRCustomController extends Controller
@@ -502,6 +504,7 @@ print "\n\n";
         // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
         $data['datarecord_list'] = $search_params['datarecords'];
         $data['encoded_search_key'] = $search_params['encoded_search_key'];
+        $data['search_checksum'] = $search_checksum;
 
         return $data;
     }
@@ -838,7 +841,7 @@ print "\n\n";
      * 
      * @param integer $user_id          The database id of the user to grab permissions for
      * @param Request $request
-     * @param boolean $save_permissions If true, save the calling user's permissions in the user's session...if false, just return an array
+     * @param boolean $save_permissions If true, save the calling user's permissions in memcached...if false, just return an array
      * 
      * @return array
      */
@@ -846,8 +849,17 @@ print "\n\n";
     {
         try {
 //$save_permissions = false;
-            $session = $request->getSession();
-            if ( !$save_permissions || !$session->has('permissions') ) {
+
+            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+//            $session = $request->getSession();
+
+//            if ( !$save_permissions || !$session->has('permissions') ) {
+            if ( !$save_permissions || !$memcached->get($memcached_prefix.'user_'.$user_id.'_datatype_permissions') ) {
+
+                // ----------------------------------------
                 // Permissions for a user other than the currently logged-in one requested, or permissions not set...need to build an array
                 $em = $this->getDoctrine()->getManager();
                 $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
@@ -860,15 +872,39 @@ print "\n\n";
                     JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
                     WHERE up.user_id = :user'
                 )->setParameters( array('user' => $user_id) );
-                $results = $query->getArrayResult();
-//print_r($results);
-//return;
+                $user_permissions = $query->getArrayResult();
 
+
+                // ----------------------------------------
+                // Count the number of datatypes to determine whether a permissions entity is missing
+                $query = $em->createQuery(
+                   'SELECT dt.id AS dt_id
+                    FROM ODRAdminBundle:DataType AS dt
+                    WHERE dt.deletedAt IS NULL');
+                $all_datatypes = $query->getArrayResult();
+                if ( count($all_datatypes) !== count($user_permissions) ) {
+                    // There are fewer permissions objects than datatypes...create missing permissions objects
+                    $top_level_datatypes = self::getTopLevelDatatypes();
+                    foreach ($top_level_datatypes as $num => $datatype_id)
+                        self::permissionsExistence($user_id, $user_id, $datatype_id, null);
+
+                    // Reload permissions for user
+                    $query = $em->createQuery(
+                       'SELECT dt.id AS dt_id, up.can_view_type, up.can_edit_record, up.can_add_record, up.can_delete_record, up.can_design_type, up.is_type_admin
+                        FROM ODRAdminBundle:DataType AS dt
+                        JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
+                        WHERE up.user_id = :user'
+                    )->setParameters( array('user' => $user_id) );
+                    $user_permissions = $query->getArrayResult();
+                }
+
+
+                // ----------------------------------------
                 // Grab the contents of ODRAdminBundle:DataTree as an array
                 $datatree_array = self::getDatatreeArray($em);
 
                 $all_permissions = array();
-                foreach ($results as $result) {
+                foreach ($user_permissions as $result) {
                     $datatype_id = $result['dt_id'];
 
                     $all_permissions[$datatype_id] = array();
@@ -910,23 +946,22 @@ print "\n\n";
                     if (!$save)
                         unset( $all_permissions[$datatype_id] );
                 }
-
-                ksort( $all_permissions );
-
-                if ($save_permissions) {
-                    // Save and return the permissions array
-                    $session->set('permissions', $all_permissions);
-                }
 /*
 print '<pre>';
 print_r($all_permissions);
 print '</pre>';
 */
+                // ----------------------------------------
+                // Save and return the permissions array
+                ksort($all_permissions);
+                if ($save_permissions)
+                    $memcached->set($memcached_prefix.'user_'.$user_id.'_datatype_permissions', $all_permissions, 0);
+
                 return $all_permissions;
             }
             else {
                 // Return the stored permissions array
-                return $session->get('permissions');
+                return $memcached->get($memcached_prefix.'user_'.$user_id.'_datatype_permissions');
             }
         }
         catch (\Exception $e) {
@@ -936,22 +971,164 @@ print '</pre>';
 
 
     /**
+     * Ensures the user permissions table has rows linking the given user and datatype.
+     *
+     * @param integer $user_id          The User receiving the permissions
+     * @param integer $admin_id         The admin User which triggered this function
+     * @param integer $datatype_id      Which DataType these permissions are for
+     * @param mixed $parent_permission  null if $datatype is top-level, otherwise the $user's UserPermissions object for this $datatype's parent
+     *
+     * @return none
+     */
+    protected function permissionsExistence($user_id, $admin_id, $datatype_id, $parent_permission)
+    {
+        // Grab required objects
+        $em = $this->getDoctrine()->getManager();
+
+        // Look up the user's permissions for this datatype
+        $query = $em->createQuery(
+           'SELECT up
+            FROM ODRAdminBundle:UserPermissions AS up
+            WHERE up.user_id = :user_id AND up.dataType = :datatype'
+        )->setParameters( array('user_id' => $user_id, 'datatype' => $datatype_id) );
+        $results = $query->getArrayResult();
+
+        // getArrayResult() will return an empty array if nothing exists...
+        $user_permission = null;
+        if ( isset($results[0]) )
+            $user_permission = $results[0];
+
+        // Verify that a permissions object exists for this user/datatype
+        if ($user_permission === null) {
+            $user_permission = self::ODR_addUserPermission($em, $user_id, $admin_id, $datatype_id);
+
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $default = 0;
+            if ($user->hasRole('ROLE_SUPER_ADMIN'))
+                $default = 1;   // SuperAdmins can edit/add/delete/design everything, no exceptions
+
+            if ($parent_permission === null) {
+                // If this is a top-level datatype, use the defaults
+                $user_permission->setCanEditRecord($default);
+                $user_permission->setCanAddRecord($default);
+                $user_permission->setCanDeleteRecord($default);
+                $user_permission->setCanViewType($default);
+                $user_permission->setCanDesignType($default);
+                $user_permission->setIsTypeAdmin($default);
+            }
+            else {
+                // If this is a childtype, use the parent's permissions as defaults
+                $user_permission->setCanEditRecord( $parent_permission['can_edit_record'] );
+                $user_permission->setCanAddRecord( $parent_permission['can_add_record'] );
+                $user_permission->setCanDeleteRecord( $parent_permission['can_delete_record'] );
+                $user_permission->setCanViewType( $parent_permission['can_view_type'] );
+                $user_permission->setCanDesignType( $parent_permission['can_design_type'] );
+                $user_permission->setIsTypeAdmin( 0 );      // DON'T set admin permissions on childtype
+            }
+
+            $em->persist($user_permission);
+            $em->flush();
+
+            // Reload permission in array format for recursion purposes
+            $query = $em->createQuery(
+               'SELECT up
+                FROM ODRAdminBundle:UserPermissions AS up
+                WHERE up.user_id = :user_id AND up.dataType = :datatype'
+            )->setParameters( array('user_id' => $user_id, 'datatype' => $datatype_id) );
+            $results = $query->getArrayResult();
+            $user_permission = $results[0];
+        }
+
+        // Locate all child datatypes of this datatype
+        $query = $em->createQuery(
+           'SELECT descendant.id
+            FROM ODRAdminBundle:DataType AS ancestor
+            JOIN ODRAdminBundle:DataTree AS dt WITH dt.ancestor = ancestor
+            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
+            WHERE ancestor.id = :datatype AND dt.is_link = 0
+            AND ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+        )->setParameters( array('datatype' => $datatype_id) );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result) {
+            // Ensure the user has permission objects for all non-linked child datatypes as well
+            $childtype_id = $result['id'];
+            self::permissionsExistence($user_id, $admin_id, $childtype_id, $user_permission);
+        }
+
+    }
+
+
+    /**
+     * Creates and persists a UserPermissions entity for the specified user/datatype pair
+     *
+     * @param Manager $em
+     * @param integer $user_id      The user receiving this permission entity
+     * @param integer $admin_id     The admin user creating the permission entity
+     * @param integer $datatype_id  The Datatype this permission entity is for
+     *
+     * @return UserPermissions
+     */
+    private function ODR_addUserPermission($em, $user_id, $admin_id, $datatype_id)
+    {
+        // Ensure a permissions object doesn't already exist...
+        $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
+        $up = $repo_user_permissions->findOneBy( array('user_id' => $user_id, 'dataType' => $datatype_id) );
+
+        // If the permissions object does not exist...
+        if ($up == null) {
+            // Load required objects
+            $admin_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($admin_id);
+
+            // Ensure a permissions object doesn't already exist before creating one
+            $query =
+               'INSERT INTO odr_user_permissions (user_id, data_type_id)
+                SELECT * FROM (SELECT :user AS user_id, :datatype_id AS dt_id) AS tmp
+                WHERE NOT EXISTS (
+                    SELECT id FROM odr_user_permissions WHERE user_id = :user AND data_type_id = :datatype_id
+                ) LIMIT 1;';
+            $params = array('user' => $user_id, 'datatype_id' => $datatype_id);
+            $conn = $em->getConnection();
+            $rowsAffected = $conn->executeUpdate($query, $params);
+
+            $up = $repo_user_permissions->findOneBy( array('user_id' => $user_id, 'dataType' => $datatype_id) );
+            $up->setCreated( new \DateTime() );
+            $up->setCreatedBy($admin_user);
+
+            $em->persist($up);
+            $em->flush($up);
+            $em->refresh($up);
+        }
+
+        return $up;
+    }
+
+
+    /**
      * Builds an array of all datafield permissions possessed by the given user.
+     * TODO - make similar to  self::getPermissionsArray()
      * 
      * @param integer $user_id          The database id of the user to grab datafield permissions for.
      * @param Request $request
-     * @param boolean $save_permissions If true, save the calling user's permissions in the user's session...if false, just return an array
+     * @param boolean $save_permissions If true, save the calling user's permissions in memcached...if false, just return an array
      * 
      * @return array
      */
     protected function getDatafieldPermissionsArray($user_id, Request $request, $save_permissions = true)
     {
         try {
-            $session = $request->getSession();
+            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+//            $session = $request->getSession();
 
 $save_permissions = false;
 
-            if ( !$save_permissions || !$session->has('datafield_permissions') ) {
+//            if ( !$save_permissions || !$session->has('datafield_permissions') ) {
+            if ( !$save_permissions || !$memcached->get($memcached_prefix.'user_'.$user_id.'_datafield_permissions') ) {
+
+                // ----------------------------------------
                 // Permissions not set, need to build the array
                 $datatype_permissions = self::getPermissionsArray($user_id, $request, false);
 
@@ -1009,16 +1186,17 @@ $save_permissions = false;
                 if ($created_permission)
                     $em->flush();
 
-                if ($save_permissions) {
-                    // Save and reeturn the permissions array
-                    $session->set('datafield_permissions', $all_permissions);
-                }
+
+                // Save and return the permissions array
+                ksort($all_permissions);
+                if ($save_permissions)
+                    $memcached->set($memcached_prefix.'user_'.$user_id.'_datafield_permissions', $all_permissions, 0);
 
                 return $all_permissions;
             }
             else {
                 // Returned the stored datafield permissions array
-                return $session->get('datafield_permissions');
+                return $memcached->get($memcached_prefix.'user_'.$user_id.'_datafield_permissions');
             }
         }
         catch (\Exception $e) {
@@ -1071,7 +1249,7 @@ $save_permissions = false;
 //            $str = "<h2>Permission Denied</h2>";
 
         $return = array();
-        $return['r'] = 1;
+        $return['r'] = 1;   // TODO - switch to 404?
         $return['t'] = 'html';
         $return['d'] = array(
             'html' => $str
@@ -1090,7 +1268,7 @@ $save_permissions = false;
      * @param integer $datatype_id The database id of the DataType that needs to be rebuilt.
      * @param array $options       
      * 
-     * @return TODO
+     * @return none
      */
     public function updateDatatypeCache($datatype_id, $options = array())
     {
@@ -1168,7 +1346,8 @@ $save_permissions = false;
         $query = $em->createQuery(
            'SELECT dr.id AS dr_id
             FROM ODRAdminBundle:DataRecord dr
-            WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
+            WHERE dr.dataType = :dataType AND dr.provisioned = false
+            AND dr.deletedAt IS NULL'
         )->setParameters( array('dataType' => $datatype->getId()) );
         $results = $query->getArrayResult();
 
@@ -1215,6 +1394,7 @@ $save_permissions = false;
 
         // ----------------------------------------
         // Notify any datarecords linking to this datatype that they need to update too
+        // Don't worry about whether any linked datarecords are provisioned or not right this second, let WorkerController deal with it later
         $query = $em->createQuery(
            'SELECT DISTINCT grandparent.id AS grandparent_id
             FROM ODRAdminBundle:DataRecord descendant
@@ -1260,7 +1440,7 @@ $save_permissions = false;
      * @param integer $id    The database id of the DataRecord that needs to be recached.
      * @param array $options 
      * 
-     * @return TODO
+     * @return none
      */
     public function updateDatarecordCache($id, $options = array())
     {
@@ -1313,8 +1493,10 @@ $save_permissions = false;
         $current_time = new \DateTime();
         $datarecord = $repo_datarecord->find($id);
 
-        // Don't try to update a deleted datarecord
+        // Don't try to update a deleted or a provisioned datarecord
         if ($datarecord == null)
+            return;
+        if ($datarecord->getProvisioned() == true)
             return;
 
         if ($mark_as_updated) {
@@ -1364,6 +1546,7 @@ $save_permissions = false;
 
 
         // Notify any datarecords linking to this record that they need to update too
+        // Don't worry about whether any linked datarecords are provisioned or not right this second, let WorkerController deal with it later
         $query = $em->createQuery(
            'SELECT grandparent.id AS grandparent_id
             FROM ODRAdminBundle:DataRecord descendant
@@ -1448,7 +1631,7 @@ $save_permissions = false;
                 $query = $em->createQuery(
                    'SELECT dr.id
                     FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.dataType = :datatype
+                    WHERE dr.dataType = :datatype AND dr.provisioned = false
                     AND dr.deletedAt IS NULL
                     ORDER BY dr.id'
                 )->setParameters( array('datatype' => $datatype) );
@@ -1470,7 +1653,7 @@ $save_permissions = false;
                     'SELECT dr.id, e.value
                      FROM ODRAdminBundle:DataRecord AS dr
                      JOIN ODRAdminBundle:'.$field_typeclass.' AS e WITH e.dataRecord = dr
-                     WHERE dr.dataType = :datatype AND e.dataField = :datafield
+                     WHERE dr.dataType = :datatype AND dr.provisioned = false AND e.dataField = :datafield
                      AND dr.deletedAt IS NULL AND e.deletedAt IS NULL
                      ORDER BY e.value'
                 )->setParameters( array('datatype' => $datatype, 'datafield' => $sortfield) );
@@ -1729,6 +1912,8 @@ $save_permissions = false;
         $datarecord->setUpdatedBy($user);
         $datarecord->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
 
+        $datarecord->setProvisioned(true);  // Prevent most areas of the site from doing anything with this datarecord...whatever created this datarecord needs to eventually set this to false
+
         $em->persist($datarecord);
         $em->flush();
         $em->refresh($datarecord);
@@ -1817,6 +2002,134 @@ $save_permissions = false;
 
 
     /**
+     * Creates a new File/Image entity from the given file at the given filepath, and persists all required information to the database.
+     *
+     * @param string $filepath             The absolute path to the file
+     * @param string $original_filename    The original name of the file
+     * @param integer $user_id             Which user is doing the uploading
+     * @param integer $datarecordfield_id  Which DataRecordField entity to store the file under
+     * 
+     * @return none
+     */
+    protected function finishUpload($em, $filepath, $original_filename, $user_id, $datarecordfield_id)
+    {
+        // ----------------------------------------
+        // Load required objects
+        $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+        $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->find($datarecordfield_id);
+        $typeclass = $drf->getDataField()->getFieldType()->getTypeClass();
+
+        // Get Symfony to guess the extension of the file via mimetype...a potential wrong extension shouldn't matter since Results::filedownloadAction() renames the file during downloads anyways
+        $uploaded_file = new SymfonyFile($filepath.'/'.$original_filename);
+        $extension = $uploaded_file->guessExtension();
+
+        // ----------------------------------------
+        // Determine where the file should ultimately be moved to
+        $destination_path = dirname(__FILE__).'/../../../../web/uploads/';
+        $my_obj = null;
+        if ($typeclass == 'File') {
+            $my_obj = new File();
+            $destination_path .= 'files';
+
+            // Ensure directory exists
+            if ( !file_exists($destination_path) )
+                mkdir( $destination_path );
+        }
+        else {
+            $my_obj = new Image();
+            $destination_path .= 'images';
+
+            // Ensure directory exists
+            if ( !file_exists($destination_path) )
+                mkdir( $destination_path );
+        }
+
+        // ----------------------------------------
+        // Set initial properties of the new File/Image
+        $my_obj->setDataRecordFields($drf);
+        $my_obj->setDataRecord ($drf->getDataRecord() );
+        $my_obj->setDataField( $drf->getDataField() );
+        $my_obj->setFieldType( $drf->getDataField()->getFieldType() );
+
+        $my_obj->setExt($extension);
+        $my_obj->setLocalFileName('temp');
+        $my_obj->setCreatedBy($user);
+        $my_obj->setUpdatedBy($user);
+        $my_obj->setExternalId('');
+        $my_obj->setOriginalChecksum('');
+
+        if ($typeclass == 'Image') {
+            $my_obj->setOriginalFileName($original_filename);
+            $my_obj->setOriginal('1');
+            $my_obj->setDisplayOrder(0);
+            $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public    TODO - let user decide default status
+        }
+        else if ($typeclass == 'File') {
+            $my_obj->setOriginalFileName($original_filename);
+            $my_obj->setGraphable('1');
+            $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
+        }
+
+        // Save changes
+        $em->persist($my_obj);
+        $em->flush();
+
+
+        // ----------------------------------------
+        // Set the remaining properties of the new File/Image dependent on the new entities ID
+        if ($typeclass == 'Image') {
+            // Generate Local File Name
+            $image_id = $my_obj->getId();
+
+            // Move file to correct spot
+            $filename = 'Image_'.$image_id.'.'.$my_obj->getExt();
+            rename($filepath.'/'.$original_filename, $destination_path.'/'.$filename);
+
+            $local_filename = $my_obj->getUploadDir().'/'.$filename;
+            $my_obj->setLocalFileName($local_filename);
+
+            $sizes = getimagesize($local_filename);
+            $my_obj->setImageWidth( $sizes[0] );
+            $my_obj->setImageHeight( $sizes[1] );
+            // Create thumbnails and other sizes/versions of the uploaded image
+            self::resizeImages($my_obj, $user);
+
+            // Encrypt parent image AFTER thumbnails are created
+            self::encryptObject($image_id, 'image');
+
+            // Set original checksum for original image
+            $file_path = self::decryptObject($image_id, 'image');
+            $original_checksum = md5_file($file_path);
+            $my_obj->setOriginalChecksum($original_checksum);
+        }
+        else if ($typeclass == 'File') {
+            // Generate Local File Name
+            $file_id = $my_obj->getId();
+
+            // Move file to correct spot
+            $filename = 'File_'.$file_id.'.'.$my_obj->getExt();
+            rename($filepath.'/'.$original_filename, $destination_path.'/'.$filename);
+
+            $local_filename = $my_obj->getUploadDir().'/'.$filename;
+            $my_obj->setLocalFileName($local_filename);
+
+            // Encrypt the file before it's used
+            self::encryptObject($file_id, 'file');
+
+            // Decrypt the file and store its checksum in the database
+            $file_path = self::decryptObject($file_id, 'file');
+            $original_checksum = md5_file($file_path);
+            $my_obj->setOriginalChecksum($original_checksum);
+        }
+
+        // Save changes again
+        $em->persist($my_obj);
+        $em->flush();
+
+    }
+
+
+    /**
      * Creates a new storage entity (Short/Medium/Long Varchar, File, Radio, etc)
      * TODO - shouldn't $datarecordfield imply $datarecord and $datafield already?
      *
@@ -1828,47 +2141,55 @@ $save_permissions = false;
      * @return mixed
      */
     protected function ODR_addStorageEntity($em, $user, $datarecord, $datafield)
-    {
-        $my_obj = null;
+    {       
+        $storage_entity = null;
 
-        $field_type = $datafield->getFieldType();
-        $classname = "ODR\\AdminBundle\\Entity\\" . $field_type->getTypeClass();
+        $fieldtype = $datafield->getFieldType();
+        $typeclass = $fieldtype->getTypeClass();
+
+        $classname = "ODR\\AdminBundle\\Entity\\".$typeclass;
 
         // Create initial entity if insert_on_create
-        if ($field_type->getInsertOnCreate() == 1) {
+        if ($fieldtype->getInsertOnCreate() == 1) {
             // Create Instance of field
-            $my_obj = new $classname();
-            $my_obj->setDataRecord($datarecord);
-            $my_obj->setDataField($datafield);
+            $storage_entity = new $classname();
+            $storage_entity->setDataRecord($datarecord);
+            $storage_entity->setDataField($datafield);
 
+            // If Datarecordfields entry is missing, create it
             $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
             if ($drf == null) {
                 $drf = self::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
                 $em->persist($drf);
             }
-            $my_obj->setDataRecordFields($drf);
+            $storage_entity->setDataRecordFields($drf);
 
-            $my_obj->setFieldType($field_type);
-            if ($field_type->getTypeClass() == 'DatetimeValue') {
-                $my_obj->setValue( new \DateTime('0000-00-00 00:00:00') );
+            // Store Fieldtype and set default values
+            $storage_entity->setFieldType($fieldtype);
+            if ($typeclass == 'DatetimeValue') {
+                $storage_entity->setValue( new \DateTime('0000-00-00 00:00:00') );
             }
-            else if ($field_type->getTypeClass() == 'DecimalValue') {
-                $my_obj->setOriginalValue('0');
-                $my_obj->setValue(0);
+            else if ($typeclass == 'IntegerValue') {
+                $storage_entity->setValue(null);
+            }
+            else if ($typeclass == 'DecimalValue') {
+                $storage_entity->setOriginalValue(null);
+                $storage_entity->setValue(null);
             }
             else {
-                $my_obj->setValue("");
+                $storage_entity->setValue('');
             }
-            $my_obj->setCreatedBy($user);
-            $my_obj->setUpdatedBy($user);
-            $em->persist($my_obj);
+
+            $storage_entity->setCreatedBy($user);
+            $storage_entity->setUpdatedBy($user);
+            $em->persist($storage_entity);
 
             // TODO - is this necessary?
             // Attach the new object to the associated datarecordfield entity
-            self::saveToDataRecordField($em, $drf, $field_type->getTypeClass(), $my_obj);
+            self::saveToDataRecordField($em, $drf, $typeclass, $storage_entity);
         }
 
-        return $my_obj;
+        return $storage_entity;
     }
 
 
@@ -2753,6 +3074,11 @@ if ($debug)
      */
     public function verifyExistence($datatype, $datarecord)
     {
+
+        // Don't do anything to a provisioned datarecord
+        if ($datarecord->getProvisioned() == true)
+            return;
+
 $start = microtime(true);
 $debug = true;
 $debug = false;
@@ -2773,8 +3099,8 @@ if ($debug)
             'SELECT dr
             FROM ODRAdminBundle:DataRecord dr
             JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-            WHERE dr.deletedAt IS NULL AND dt.deletedAt IS NULL
-            AND dr.grandparent = :grandparent AND dr.id != :datarecord'
+            WHERE dr.grandparent = :grandparent AND dr.id != :datarecord AND dr.provisioned = false
+            AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL'
         )->setParameters( array('grandparent' => $datarecord->getId(), 'datarecord' => $datarecord->getId()) );
         $childrecords = $query->getResult();
 
@@ -2789,7 +3115,7 @@ if ($debug)
             FROM ODRAdminBundle:DataRecord AS ancestor
             JOIN ODRAdminBundle:LinkedDataTree AS dt WITH dt.ancestor = ancestor
             JOIN ODRAdminBundle:DataRecord AS descendant WITH dt.descendant = descendant
-            WHERE ancestor = :ancestor
+            WHERE ancestor = :ancestor AND descendant.provisioned = false
             AND ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
         )->setParameters( array('ancestor' => $datarecord->getId()) );
         $linked_datarecords = $query->getResult();
@@ -3357,7 +3683,7 @@ if ($debug) {
                'SELECT dr
                 FROM ODRAdminBundle:DataRecord dr
                 JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-                WHERE dr.parent = :datarecord AND dr.id != :datarecord_id
+                WHERE dr.parent = :datarecord AND dr.id != :datarecord_id AND dr.provisioned = false
                 AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters( array('datarecord' => $datarecord->getId(), 'datarecord_id' => $datarecord->getId()) );
             $results = $query->getResult();
@@ -3380,7 +3706,7 @@ if ($debug) {
                 FROM ODRAdminBundle:LinkedDataTree ldt
                 JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
                 JOIN ODRAdminBundle:DataType AS dt WITH descendant.dataType = dt
-                WHERE ldt.ancestor = :datarecord
+                WHERE ldt.ancestor = :datarecord AND descendant.provisioned = false
                 AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters( array('datarecord' => $datarecord->getId()) );
             $results = $query->getResult();

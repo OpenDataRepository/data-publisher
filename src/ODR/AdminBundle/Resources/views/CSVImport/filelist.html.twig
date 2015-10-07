@@ -1,0 +1,130 @@
+{% spaceless %}
+
+<div id="ODRCSVImport_files">
+
+{% if presets == null %}
+    <button id="ODRCSVImport_refreshfilelist" class="pure-button" onclick="ODRCSVFileList_refresh();">Refresh File List</button>
+    <button id="ODRCSVImport_deletefilelist" class="pure-button" onclick="ODRCSVFileList_delete();">Delete Listed Files</button>
+{% endif %}
+
+    <div id="ODRCSVImport_filelist"></div>
+
+{% if presets == null %}
+    {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': 'csv_import_file_storage', 'single_file': false, 'upload_type': 'import_file_storage', 'datatype_id': datatype.id, 'datarecordfield_id': '', 'callback': 'ODRCSVFileList_refresh();'} %}
+{% endif %}
+</div>
+
+<style>
+    #ODRCSVImport_files button.pure-button {
+        margin: 5px;
+    }
+</style>
+
+<script>
+    $(function() {
+        $("#ODRCSVImport_deletefilelist").hide();
+        ODRCSVFileList_refresh();
+    });
+
+    function ODRCSVFileList_refresh() {
+        var url = '{{ path('odr_csv_refresh_filelist') }}';
+
+        var dataType = "json";
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: dataType,
+            success: function(data, textStatus, jqXHR) {
+                if (data.r == 0) {
+                    // Insert all found files into the filelist table
+                    ODRCSVFileList_rebuildTable( data.d );
+                }
+                else {
+                    alert( data.d );
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function ODRCSVFileList_delete() {
+        if ( confirm('Are you sure you want to delete all the files listed in this table?') ) {
+            var url = '{{ path('odr_csv_delete_filelist') }}';
+
+            var dataType = "json";
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: dataType,
+                success: function(data, textStatus, jqXHR) {
+                    if (data.r == 0) {
+                        // Clear data from the filelist table
+                        var empty_data = [];
+                        ODRCSVFileList_rebuildTable( empty_data );
+                    }
+                    else {
+                        alert( data.d );
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        }
+    }
+
+    function ODRCSVFileList_rebuildTable(data) {
+        var str = '<table class="pure-table pure-table-striped"><thead><tr><th>Filename</th><th>Uploaded</th></tr></thead>';
+
+        str += '<tbody>';
+        var num_files = 0;
+        $.each(data, function(index, value) {
+            // Manually parse the JSON array to build a HTML table of the provided files
+            num_files++;
+            str += '<tr>';
+
+            var filename = index;
+            var timestamp = value;
+
+            str += '<td>' + filename + '</td>';
+            str += '<td>' + timestamp + '</td>';
+            str += '</tr>';
+        });
+        str += '</tbody></table>';
+
+        $("#ODRCSVImport_filelist").html(str);
+
+        // If files exist in the table, show the "delete all" button
+        if ( num_files > 0 )
+            $("#ODRCSVImport_deletefilelist").show();
+        else
+            $("#ODRCSVImport_deletefilelist").hide();
+    }
+
+</script>
+
+{% endspaceless %}

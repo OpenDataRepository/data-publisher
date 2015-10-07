@@ -4,7 +4,7 @@
     <h2>Permissions List 
         <select id="datatypes" onchange="datatypeChanged();">
         {% for datatype in datatypes %}
-            <option value="{{ datatype.id }}">{{ datatype.shortname }}</option>
+            <option value="{{ datatype.id }}">{{ datatype.shortName }}</option>
         {% endfor %}
         </select>
         <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
@@ -28,7 +28,7 @@
         {% set first = true %}
         {% for datatype in datatypes %}
             <tr id="datatype_{{ datatype.id }}" {% if first == false %}style="display:none;"{% endif %}>
-                <td>{{ datatype.shortname }}</td>
+                <td>{{ datatype.shortName }}</td>
 
                 <td class="center">
                     <input onclick="togglePermission('view_{{ datatype.id }}',1);" type="button" value="Grant" />
@@ -52,10 +52,10 @@
                 </td>
             </tr>
 
-            {% if childtypes[datatype.id] != null %}
-            {% for childtype in childtypes[datatype.id] %}
+            {% if childtypes[ datatype.id ] is defined and childtypes[ datatype.id ] != null %}
+            {% for childtype in childtypes[ datatype.id ] %}
             <tr id="datatype_{{ datatype.id }}" {% if first == false %}style="display:none;"{% endif %}>
-                <td>-- {{ childtype.shortname }}</td>
+                <td>-- {{ childtype.shortName }}</td>
 
                 <td class="center">
                     <input onclick="togglePermission('view_{{ datatype.id }}',1);" type="button" value="Grant" />

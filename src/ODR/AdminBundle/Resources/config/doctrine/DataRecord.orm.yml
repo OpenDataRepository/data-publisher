@@ -14,6 +14,11 @@ ODR\AdminBundle\Entity\DataRecord:
             generator:
                 strategy: IDENTITY
 
+        provisioned:
+            type: boolean
+            nullable: false
+            default: true
+
         external_id:
             type: string
             length: 255

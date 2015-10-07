@@ -1552,6 +1552,7 @@ print '</pre>';
             // --------------------
 
 
+            // ----------------------------------------
             // Defaults
             $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);
 
@@ -1576,7 +1577,7 @@ print '</pre>';
             $datatype->setUpdatedBy($user);
             $em->persist($datatype);
 
-            // Create a new DataTree entry to link the original and new child DataTypes
+            // Create a new DataTree entry to link the original datatype and this new child datatype
             $datatree = new DataTree();
             $datatree->setAncestor($parent_datatype);
             $datatree->setDescendant($datatype);
@@ -1585,7 +1586,9 @@ print '</pre>';
             $datatree->setIsLink(0);
             $em->persist($datatree);
 
-            // Tie Field to ThemeElement
+
+            // ----------------------------------------
+            // Create a new ThemeElementField entry to let the renderer know it has to render a child datatype in this ThemeElement
             $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->findOneBy(array("id" => $theme_element_id));
             $em->refresh($theme_element);
             $theme_element_field = parent::ODR_addThemeElementFieldEntry($em, $user, $datatype, null, $theme_element);
@@ -1595,35 +1598,46 @@ print '</pre>';
 //            $em->refresh($datatree);
 //            $em->refresh($theme_element_field);
 
-            // Inherit permissions from parent datatype
-            $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
-            $old_permission = $repo_user_permissions->findOneBy( array('dataType' => $parent_datatype, 'user_id' => $user->getId()) );
 
-            // Create a new permissions object for the new childtype
-            $new_permission = new UserPermissions();
-            $new_permission->setDataType($datatype);
-            $new_permission->setCreatedBy($user);
-//            $new_permission->setUpdatedBy($user);
+            // ----------------------------------------
+            // Copy the permissions this user has for the parent datatype to the new child datatype
+            $query = $em->createQuery(
+               'SELECT up
+                FROM ODRAdminBundle:UserPermissions AS up
+                WHERE up.user_id = :user_id AND up.dataType = :datatype'
+            )->setParameters( array('user_id' => $user->getId(), 'datatype' => $parent_datatype->getId()) );
+            $results = $query->getArrayResult();
+            $parent_permission = $results[0];
 
-            // Copy the permission settings for this user from the parent datatype
-            $new_permission->setUserId( $old_permission->getUserId() );
-            $new_permission->setCanEditRecord( $old_permission->getCanEditRecord() );
-            $new_permission->setCanAddRecord( $old_permission->getCanAddRecord() );
-            $new_permission->setCanDeleteRecord( $old_permission->getCanDeleteRecord() );
-            $new_permission->setCanViewType( $old_permission->getCanViewType() );
-            $new_permission->setCanDesignType( $old_permission->getCanDesignType() );
-            $new_permission->setIsTypeAdmin( 0 );     // DON'T copy admin permission to childtype
+            $user_permission = new UserPermissions();
+            $user_permission->setDataType($datatype);
+            $user_permission->setUserId($user);
+            $user_permission->setCreatedBy($user);
 
-            $em->persist($new_permission);
+            $user_permission->setCanEditRecord( $parent_permission['can_edit_record'] );
+            $user_permission->setCanAddRecord( $parent_permission['can_add_record'] );
+            $user_permission->setCanDeleteRecord( $parent_permission['can_delete_record'] );
+            $user_permission->setCanViewType( $parent_permission['can_view_type'] );
+            $user_permission->setCanDesignType( $parent_permission['can_design_type'] );
+            $user_permission->setIsTypeAdmin(0);    // Child datatypes do not have is_type_admin permissions...
+
+            $em->persist($user_permission);
             $em->flush();
-            $em->refresh($new_permission);  // required, otherwise getPermissionsArray() doesn't know about the new permission apparently
 
-            // Force a recache of the current user's permissions
-            // TODO - recache for all users if possible?
-            $session = $request->getSession();
-            $session->remove('permissions');
-            parent::getPermissionsArray($user->getId(), $request);
 
+            // ----------------------------------------
+            // Clear memcached of all datatype permissions for all users...the entries will get rebuilt the next time they do something
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            $user_manager = $this->container->get('fos_user.user_manager');
+            $users = $user_manager->findUsers();
+            foreach ($users as $user)
+                $memcached->delete($memcached_prefix.'user_'.$user->getId().'_datatype_permissions');
+
+
+            // ----------------------------------------
             $return['d'] = array(
 //                'theme_element_id' => $theme_element->getId(),
 //                'html' => self::GetDisplayData($request, null, 'theme_element', $theme_element->getId()),
@@ -3139,6 +3153,7 @@ if ($debug)
             // --------------------
             // Prevent a datafield's fieldtype from being changed if it's being used by a render plugin
             $prevent_fieldtype_change = false;
+            $prevent_fieldtype_change_message = '';
             $render_plugin_map = $em->getRepository('ODRAdminBundle:RenderPluginMap')->findAll();
             foreach ($render_plugin_map as $rpm) {
                 if ($rpm->getDataField()->getId() == $datafield_id) {
@@ -3146,6 +3161,7 @@ if ($debug)
                     $rpi = $em->getRepository('ODRAdminBundle:RenderPluginInstance')->findOneBy( array('id' => $rpm->getRenderPluginInstance()->getId()) );
                     if ($rpi !== null) {
                         $prevent_fieldtype_change = true;
+                        $prevent_fieldtype_change_message = "The Fieldtype can't be changed because the Datafield is currently being used by a RenderPlugin.";
                         break;
                     }
                 }
@@ -3153,9 +3169,16 @@ if ($debug)
 
             // Also prevent a datatfield's fieldtype from being changed if a migration is in progress
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'target_entity' => 'datafield_'.$datafield->getId(), 'completed' => null) );
-            if ($tracked_job !== null)
+            if ($tracked_job !== null) {
                 $prevent_fieldtype_change = true;
+                $prevent_fieldtype_change_message = "The Fieldtype can't be changed because the server hasn't finished migrating this Datafield's data to the currently displayed Fieldtype.";
+            }
 
+            // Also prevent a fieldtype change if the datafield is marked as unique
+            if ($datafield->getIsUnique() == true) {
+                $prevent_fieldtype_change = true;
+                $prevent_fieldtype_change_message = "The Fieldtype can't be changed because the Datafield is currently marked as Unique.";
+            }
 
             // --------------------
             // Populate new DataFields form
@@ -3238,6 +3261,7 @@ if ($debug)
                 $old_fieldtype = $datafield->getFieldType();
                 $old_fieldname = $datafield->getFieldName();
                 $old_shortenfilename = $datafield->getShortenFilename();
+                $old_allowmultipleuploads = $datafield->getAllowMultipleUploads();
 
                 // Deal with the rest of the form
                 $datafield_form->bind($request, $datafield);
@@ -3255,6 +3279,7 @@ if ($debug)
                     if ( !self::datafieldCanBeUnique($datafield) )
                         $datafield_form->addError( new FormError("This Datafield can't be set to 'unique' because some Datarecords have duplicate values stored in this Datafield...click the gear icon to list which ones.") ); 
                 }
+
 /*
 $errors = parent::ODR_getErrorMessages($datafield_form);
 print_r($errors);
@@ -3263,6 +3288,12 @@ print_r($errors);
                 // --------------------
                 $return['t'] = "html";
                 if ($datafield_form->isValid()) {
+
+                    // If datafield is being used as the datatype's external ID field, ensure it's marked as unique
+                    if ( $datafield->getDataType()->getExternalIdField() !== null && $datafield->getDataType()->getExternalIdField()->getId() == $datafield->getId() )
+                        $datafield->setIsUnique(true);
+
+                    // ----------------------------------------
                     // Easier to deal with change of fieldtype and how it relates to searchable here
                     switch ($datafield->getFieldType()->getTypeClass()) {
                         case 'DecimalValue':
@@ -3272,21 +3303,61 @@ print_r($errors);
                         case 'MediumVarchar':
                         case 'ShortVarchar':
                         case 'Radio':
+                            // All of the above fields can have any value for searchable
                             break;
+
                         case 'Image':
                         case 'File':
                         case 'Boolean':
                         case 'DatetimeValue':
+                            // It only makes sense for these four fieldtypes to be searchable from advanced search
                             if ($datafield->getSearchable() == 1)
-                                $datafield->setSearchable(2);   // searching these fields only makes sense in advanced search?
+                                $datafield->setSearchable(2);
                             break;
+
                         default:
-                            $datafield->setSearchable(0);   // all other fieldtypes can't be searched
+                            // All other fieldtypes can't be searched
+                            $datafield->setSearchable(0);
                             break;
                     }
 
-                    // --------------------
-                    // If this field is in shortresults, do another check to determine whether the shortrsults needs to be recached
+                    // ----------------------------------------
+                    // Reset the datafield's displayOrder if it got changed to a fieldtype that can't go in TextResults
+                    $update_field_order = false;
+                    if ($new_fieldtype !== null) {
+                        switch ( $new_fieldtype->getTypeName() ) {
+                            case 'Image':
+                            case 'Multiple Radio':
+                            case 'Multiple Select':
+                            case 'Markdown':
+                                // Datafields with these fieldtypes can't be in TextResults
+                                $datafield->setDisplayOrder(-1);
+                                $update_field_order = true;
+                                break;
+
+                            case 'File':
+                                // File datafields can be in TextResults if they're only allowed to have a single upload
+                                if ( $datafield->getAllowMultipleUploads() == '1' ) {
+                                    $datafield->setDisplayOrder(-1);
+                                    $update_field_order = true;
+                                }
+                                break;
+
+                            default:
+                                // The remaining fieldtypes have no restrictions on being in TextResults
+                                break;
+                        }
+                    }
+
+                    // Ensure a File datafield isn't in TextResults if it is set to allow multiple uploads
+                    if ( $old_allowmultipleuploads == '0' && $datafield->getAllowMultipleUploads() == '1' ) {
+                        $datafield->setDisplayOrder(-1);
+                        $update_field_order = true;
+                    }
+
+
+                    // ----------------------------------------
+                    // If this field is in shortresults, do another check to determine whether the shortresults needs to be recached
                     if ($force_shortresults_recache) {
                         if ( $old_fieldname != $datafield->getFieldName() || $old_shortenfilename != $datafield->getShortenFilename() )
                             $force_shortresults_recache = true;
@@ -3305,7 +3376,11 @@ print_r($errors);
                         self::radiooptionorderAction($datafield->getId(), true, $request);  // TODO - might be race condition issue with design_ajax
                     }
 
-                    // --------------------
+                    if ( $update_field_order )
+                        self::updateTextResultsFieldOrder($em, $datatype, $datafield);
+
+
+                    // ----------------------------------------
                     // If datafields are getting migrated, then the datatype will get updated
                     if ($migrate_data) {
                         // Grab necessary stuff for pheanstalk...
@@ -3423,6 +3498,8 @@ if ($force_slideout_reload)
                         array(
                             'has_multiple_uploads' => $has_multiple_uploads,
                             'prevent_fieldtype_change' => $prevent_fieldtype_change,
+                            'prevent_fieldtype_change_message' => $prevent_fieldtype_change_message,
+
                             'datafield' => $datafield,
                             'datafield_form' => $datafield_form->createView(),
                             'theme_datafield' => $theme_datafield,
@@ -3441,6 +3518,55 @@ if ($force_slideout_reload)
         $response = new Response(json_encode($return));  
         $response->headers->set('Content-Type', 'application/json');
         return $response;  
+    }
+
+
+    /**
+     * Called after a user makes a change that requires a datafield be removed from TextResults
+     *
+     * @param Manager $em
+     * @param DataType $datatype
+     * @param DataField $removed_datafield
+     *
+     * @return none
+     */
+    private function updateTextResultsFieldOrder($em, $datatype, $removed_datafield)
+    {
+        // Grab all Datafields that are currently being used in TextResults
+        $datafield_list = array();
+
+        $query = $em->createQuery(
+           'SELECT df
+            FROM ODRAdminBundle:DataFields AS df
+            WHERE df.dataType = :datatype AND df.displayOrder > 0
+            AND df.deletedAt IS NULL'
+        )->setParameters( array('datatype' => $datatype->getId()) );
+        $results = $query->getResult();
+
+        foreach ($results as $num => $datafield) {
+            if ($datafield->getId() !== $removed_datafield->getId())
+                $datafield_list[ $datafield->getDisplayOrder() ] = $datafield;
+        }
+        ksort($datafield_list);
+
+        // Reset displayOrder to be sequential
+        $datafield_list = array_values($datafield_list);
+        for ($i = 0; $i < count($datafield_list); $i++) {
+            $df = $datafield_list[$i];
+            if ($df->getDisplayOrder() !== ($i+1)) {
+                $df->setDisplayOrder( $i+1 );
+                $em->persist($df);
+            }
+        }
+
+        // If no Datafields remain that are being used by TextResults, set the Datatype as not using TextResults
+        if ( count($datafield_list) == 0 ) {
+            $datatype->setHasTextresults(false);
+            $em->persist($datatype);
+        }
+
+        // Done with the changes
+        $em->flush();
     }
 
 
@@ -3965,37 +4091,29 @@ if ($debug)
         if ($fieldtype->getCanBeUnique() == 0)
             return false;
 
-        // Determine how many values there are in the datafield...
+        // Get a list of all values in the datafield
         $em = $this->getDoctrine()->getManager();
         $query = $em->createQuery(
-           'SELECT COUNT(e.value)
+           'SELECT e.value
             FROM ODRAdminBundle:'.$typeclass.' AS e
             JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
             JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
             WHERE e.dataField = :datafield
             AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
         )->setParameters( array('datafield' => $datafield_id) );
-        $result = $query->getArrayResult();
-        $count = $result[0][1];
+        $results = $query->getArrayResult();
 
-        // Determine how many different values there are in the datafield...
-        $em = $this->getDoctrine()->getManager();
-        $query = $em->createQuery(
-           'SELECT COUNT( DISTINCT e.value )
-            FROM ODRAdminBundle:'.$typeclass.' AS e
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-            WHERE e.dataField = :datafield
-            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-        )->setParameters( array('datafield' => $datafield_id) );
-        $result = $query->getArrayResult();
-        $distinct_count = $result[0][1];
+        // Determine if there are any duplicates in the datafield...
+        $values = array();
+        foreach ($results as $result) {
+            $value = $result['value'];
+            if ( isset($values[$value]) )
+                return false;
+            else
+                $values[$value] = 1;
+        }
 
-        // If the previous two numbers are different, then there's a duplicated value somewhere
-        if ($distinct_count !== $count)
-            return false;
-        else
-            return true;
+        // Didn't find a duplicate, return true
+        return true;
     }
-
 }

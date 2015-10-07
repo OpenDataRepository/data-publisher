@@ -72,6 +72,11 @@
         </table>
     </form>
 
+    <hr>
+    <div><b>Any files or images that you want to import using this CSV file need to be uploaded here.</b></div>
+    {% include 'ODRAdminBundle:CSVImport:filelist.html.twig' with {'datatype_id': datatype.id, 'presets': presets} %}
+    <hr>
+
     <div style="margin-top: 10px;">
         <button id="validate_button" type="button" class="pure-button pure-button-primary" onclick="validateImport();">Validate Import</button>
     </div>
@@ -162,8 +167,8 @@
             else
                 $("#column_" + column_id + "_fieldtype").attr('disabled', 'disabled');
 
-            // Need to select a delimiter for multiple radio/select fields
-            if ( fieldtype_id == '13' || fieldtype_id == '15' )
+            // Need to select a delimiter for multiple radio/select fields, and for file/image fields
+            if ( fieldtype_id == '13' || fieldtype_id == '15' || fieldtype_id == '2' || fieldtype_id == '3' )   // TODO - referencing fieldtypes by number
                 $("#column_" + column_id + "_delimiter").removeAttr('disabled');
             else
                 $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
@@ -181,8 +186,8 @@
         $(".fieldtype_mapping").change(function() {
             var column_id = $(this).attr('rel');
 
-            // Need to select a delimiter for multiple radio/select fields
-            if ( $(this).val() == '13' || $(this).val() == '15' )
+            // Need to select a delimiter for multiple radio/select fields, and for file/image fields
+            if ( $(this).val() == '13' || $(this).val() == '15' || $(this).val() == '2' || $(this).val() == '3' )   // TODO - referencing fieldtypes by number
                 $("#column_" + column_id + "_delimiter").removeAttr('disabled');
             else
                 $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
@@ -371,7 +376,7 @@
         $(".secondary_delimiter:enabled").each(function() {
             if ( $(this).val() == '' ) {
                 block_import = true;
-                alert( 'ERROR: Multiple Select/Radio fields MUST have a secondary delimiter selected' );
+                alert( 'ERROR: All Multiple Radio/Select, File, and Image DataFields MUST have a secondary delimiter selected' );
                 return false;
             }
         });

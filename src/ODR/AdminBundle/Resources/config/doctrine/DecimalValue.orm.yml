@@ -18,32 +18,20 @@ ODR\AdminBundle\Entity\DecimalValue:
             type: string
             length: 255
             fixed: false
-            nullable: false
+#            nullable: false
+            nullable: true
             default: 0
             gedmo:
                 - versioned
         value:
             type: float
             unsigned: false
-            nullable: false
+#            nullable: false
+            nullable: true
             default: 0
             gedmo:
                 - versioned
 
-#        base:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            default: 0
-#            gedmo:
-#                - versioned
-#        exponent:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            default: 0
-#            gedmo:
-#                - versioned
         deletedAt:
             type: date
             nullable: true

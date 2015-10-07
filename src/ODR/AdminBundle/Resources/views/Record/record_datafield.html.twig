@@ -89,13 +89,15 @@
             </div>
             <div class="pure-u-1">
             {% if field.allowmultipleuploads == 1 or has_file == false %}
-                <!-- show upload area only if multiples are allowed or nothing has been uploaded yet -->
-                <div class="pure-u-1-24"></div>
-                <div class="pure-u-23-24">
-                    {{ form_errors(form.uploaded_file) }}
-                    {{ form_widget(form.uploaded_file, { 'attr': {'data-error-type': 'inline' } }) }}
-                    <span id="FileUploadResult_{{ datarecordfield.id }}"></span>
-                </div>
+                {# show upload area only if multiples are allowed or nothing has been uploaded yet #}
+                {% set target = 'drf_' ~ datarecordfield.id %}
+                {% set single_file = true %}
+                {% if field.allowmultipleuploads == 1 %}
+                    {% set single_file = false %}
+                {% endif %}
+                {% set callback = 'ReloadDatafield(' ~ datarecord.id ~ ',' ~ field.id ~ ');' %}
+
+                {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'file', 'datatype_id': field.datatype.id, 'datarecordfield_id': datarecordfield.id, 'callback': callback} %}
             {% endif %}
             </div>
     </fieldset>
@@ -142,13 +144,16 @@
             </div>
             <div class="pure-u-1">
             {% if field.allowmultipleuploads == 1 or has_image == false %}
-                <!-- show upload area only if multiples are allowed or nothing has been uploaded yet -->
-                <div class="pure-u-1">
-                    <p>Add new:</p>
-                    {{ form_errors(form.file) }}
-                    {{ form_widget(form.file, { 'attr': {'data-error-type': 'inline' } }) }}
-                    <span id="ImageUploadResult_{{ datarecordfield.id }}"></span>
-                </div>
+                {# show upload area only if multiples are allowed or nothing has been uploaded yet #}
+                {% set target = 'drf_' ~ datarecordfield.id %}
+                {% set single_file = true %}
+                {% if field.allowmultipleuploads == 1 %}
+                    {% set single_file = false %}
+                {% endif %}
+                {% set callback = 'ReloadDatafield(' ~ datarecord.id ~ ',' ~ field.id ~ ');' %}
+
+                {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'image', 'datatype_id': field.datatype.id, 'datarecordfield_id': datarecordfield.id, 'callback': callback} %}
+
             {% endif %}
             </div>
         {#</fieldset>#}
@@ -194,8 +199,30 @@
             <label id="Label_{{ field.id }}" class="ODRFieldLabel ODRDatafieldHistory pure-u-1" title="{{ field.description }}">{{ field.fieldname }}</label>
 
             {% set option_list = radiooptionlist(field.getRadioOptions, datarecordfield.getRadioSelection) %}
+
+            {% set print_deselect = false %}
+            {% set has_selection = false %}
+            {% if field_typename == "Single Radio" %}
+                {% set print_deselect = true %}
+    
+                {% for radio_option_id, selected in option_list %}
+                    {% if selected == 1 %}
+                        {% set has_selection = true %}
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+
             {% for radio_option in field.getRadioOptions %}
                 {% set is_selected = option_list[ radio_option.id ] %}
+
+                {% if print_deselect == true %}
+                    {% set print_deselect = false %}
+                    <label id="Label_{{ field.id }}_0" for="Input_{{ datarecordfield.id }}_0" class="pure-u-1 pure-u-md-1-{{ field.childrenperrow }}" style="margin: 0.5em 0;">
+                        <input id="Input_{{ datarecordfield.id }}_0" type="radio" name="RadioGroup_{{ datarecordfield.id }}" {% if has_selection == false %}checked{% endif %} class="SingleRadioGroup {% if has_selection == false %}ODRRadioOptionChecked{% endif %}" />
+                        No Option Selected
+                    </label>
+                {% endif %}
+
                 <label id="Label_{{ field.id }}" for="Input_{{ datarecordfield.id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ field.childrenperrow }}" style="margin: 0.5em 0;">
 
                 {% if field_typename == "Single Radio" %}
@@ -217,7 +244,7 @@
 
             <select id="SelectGroup_{{ datarecordfield.id }}" class="pure-u-23-24 {% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
             {% if field_typename == "Single Select" %}
-                <option id="Option_0" value="0">Select an Option</option>
+                <option id="Option_0" value="0">No Option Selected</option>
             {% endif %}
 
             {% set option_list = radiooptionlist(field.getRadioOptions, datarecordfield.getRadioSelection) %}
@@ -269,20 +296,8 @@
         });
     </script>
 
-{% elseif field_typename == "File" %}
-    <script type="text/javascript">
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='FileForm[uploaded_file]']").unbind('change');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='FileForm[uploaded_file]']").change(function() {
-            UploadFile('EditDataRecordFieldsForm_{{ drf_id }}', $('#EditDataRecordFieldsForm_{{ drf_id }}').attr('action'), 'FileUploadResult_{{ drf_id }}');
-        });
-    </script>
-{% elseif field_typename == "Image" %}
-    <script type="text/javascript">
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='ImageForm[file]']").unbind('change');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='ImageForm[file]']").change(function() {
-            UploadFile('EditDataRecordFieldsForm_{{ drf_id }}', $('#EditDataRecordFieldsForm_{{ drf_id }}').attr('action'), 'ImageUploadResult_{{ drf_id }}');
-        });
-    </script>
+{% elseif field_typename == "File" or field_typename == "Image" %}
+    {# handled elsewhere by flow.js #}
 {% elseif field_typename == "Integer" %}
     {% set integervalue_id = datarecordfield.getintegervalue.id %}
     <script type="text/javascript">

@@ -59,91 +59,17 @@ use Symfony\Component\HttpFoundation\Response;
 class MassEditController extends ODRCustomController
 {
 
-    /**
-     * Sets up a mass edit request made from the shortresults list.
-     * 
-     * @param integer $datatype_id The database id of the DataType to mass edit...
-     * 
-     * @return a Symfony JSON response containing HTML
-     */
-    public function massEditListAction($datatype_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Grab necessary objects
-            $templating = $this->get('templating');
-            $session = $request->getSession();
-
-            // --------------------
-            // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'edit' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-
-            // Grab list of datarecords and associate to search key
-            $em = $this->getDoctrine()->getManager();
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                WHERE dr.deletedAt IS NULL AND dr.dataType = :datatype'
-            )->setParameters( array('datatype' => $datatype_id) );
-            $results = $query->getResult();
-
-            $str = '';
-            foreach ($results as $result) {
-                $dr_id = $result['dr_id'];
-                $str .= $dr_id.',';
-            }
-            $datarecords = substr($str, 0, strlen($str)-1);
-
-
-            // Store the list of datarecord ids for later use
-            $search_key = 'datatype_id='.$datatype_id;
-            $saved_searches = array();
-            if ( $session->has('saved_searches') )
-                $saved_searches = $session->get('saved_searches');
-            $search_checksum = md5($search_key);
-
-
-            $saved_searches[$search_checksum] = array('logged_in' => true, 'datatype' => $datatype_id, 'datarecords' => $datarecords, 'encoded_search_key' => $search_key);
-            $session->set('saved_searches', $saved_searches);
-
-
-            // Get the mass edit page rendered
-            $html = self::massEditRender($datatype_id, $search_checksum, $request);    // Using $search_checksum so Symfony doesn't screw up $search_key as it is passed around
-            $return['d'] = array( 'html' => $html );
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x12736280 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-
-    }
-
 
     /**
      * Sets up a mass edit request made from a search results page.
      * 
      * @param integer $datatype_id The database id of the DataType the search was performed on.
+     * @param integer $offset
      * @param string $search_key   The search key identifying which datarecords to potentially mass edit
      * 
      * @return a Symfony JSON response containing HTML
      */
-    public function massEditAction($datatype_id, $search_key, Request $request)
+    public function massEditAction($datatype_id, $offset, $search_key, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -168,56 +94,40 @@ class MassEditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - replace with parent::getSavedSearch()
+            // If this datarecord is being viewed from a search result list, attempt to grab the list of datarecords from that search result
+            $datarecord_list = '';
             $encoded_search_key = '';
-            $datarecords = '';
+            $search_checksum = '';
             if ($search_key !== '') {
-                $search_controller = $this->get('odr_search_controller', $request);
-                $search_controller->setContainer($this->container);
+                // 
+                $data = parent::getSavedSearch($search_key, $logged_in, $request);
+                $encoded_search_key = $data['encoded_search_key'];
+                $datarecord_list = $data['datarecord_list'];
+                $search_checksum = $data['search_checksum'];
 
-                if ( !$session->has('saved_searches') ) {
-                    // no saved searches at all for some reason, redo the search with the given search key...
-                    $search_controller->performSearch($search_key, $request);
+                // If the user is attempting to view a datarecord from a search that returned no results...
+                if ($encoded_search_key !== '' && $datarecord_list === '') {
+                    // ...get the search controller to redirect to "no results found" page
+                    $search_controller = $this->get('odr_search_controller', $request);
+                    return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
                 }
-
-                // Grab the list of saved searches and attempt to locate the desired search
-                $saved_searches = $session->get('saved_searches');
-                $search_checksum = md5($search_key);
-
-                if ( !isset($saved_searches[$search_checksum]) ) {
-                    // no saved search for this query, redo the search...
-                    $search_controller->performSearch($search_key, $request);
-
-                    // Grab the list of saved searches again
-                    $saved_searches = $session->get('saved_searches');
-                }
-
-                $search_params = $saved_searches[$search_checksum];
-                $was_logged_in = $search_params['logged_in'];
-
-                // If user's login status changed between now and when the search was run...
-                if ($was_logged_in !== $logged_in) {
-                    // ...run the search again
-                    $search_controller->performSearch($search_key, $request);
-                    $saved_searches = $session->get('saved_searches');
-                    $search_params = $saved_searches[$search_checksum];
-                }
-
-                // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
-                $datarecords = $search_params['datarecords'];
-                $encoded_search_key = $search_params['encoded_search_key'];
             }
 
-            // If the user is attempting to view a datarecord from a search that returned no results...
-            if ($encoded_search_key !== '' && $datarecords === '') {
-                // ...redirect to "no results found" page
-                return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
-            }
+            // Generate the HTML required for a header
+            $header_html = '';
 
+            $templating = $this->get('templating');
+            $header_html = $templating->render(
+                'ODRAdminBundle:MassEdit:massedit_header.html.twig',
+                array(
+                    'search_key' => $encoded_search_key,
+                    'offset' => $offset,
+                )
+            );
 
             // Get the mass edit page rendered
-            $html = self::massEditRender($datatype_id, $search_checksum, $request);    // Using $search_checksum so Symfony doesn't screw up $search_key as it is passed around
-            $return['d'] = array( 'html' => $html );
+            $page_html = self::massEditRender($datatype_id, $search_checksum, $request);    // Using $search_checksum so Symfony doesn't screw up $search_key as it is passed around
+            $return['d'] = array( 'html' => $header_html.$page_html );
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -230,6 +140,7 @@ class MassEditController extends ODRCustomController
         return $response;
 
     }
+
 
     /**
      * Renders and returns the html used for performing mass edits.
@@ -704,5 +615,3 @@ $ret .=  "---------------\n";
     }
 
 }
-
-?>

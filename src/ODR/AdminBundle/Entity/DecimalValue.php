@@ -66,7 +66,14 @@ class DecimalValue
      */
     public function setValue($value)
     {
-        // Shouldn't matter, but...
+        // Don't try to process an empty/null value
+        if ($value == '' || $value == null) {
+            $this->original_value = null;
+            $this->value = null;
+
+            return $this;
+        }
+
         $value = strval(trim($value));
 
         // Preserve negative

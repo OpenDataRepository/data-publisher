@@ -38,21 +38,6 @@ class DefaultController extends ODRCustomController
     */
     public function indexAction(Request $request)
     {
-/*
-// Grab all the users
-$em = $this->getDoctrine()->getManager();
-$user_manager = $this->container->get('fos_user.user_manager');
-$users = $user_manager->findUsers();
-foreach ($users as $user) {
-    $user->removeRole('ROLE_EDITOR');
-    $user->removeRole('ROLE_DESIGNER');
-
-    if ( $user->hasRole('ROLE_ADMIN') )
-        $user->addRole('ROLE_SUPER_ADMIN');
-
-    $user_manager->updateUser($user);
-}
-*/
         // Grab the current user
         $em = $this->getDoctrine()->getManager();
         $user = $this->container->get('security.context')->getToken()->getUser();
@@ -224,7 +209,7 @@ foreach ($users as $user) {
            'SELECT dt.shortName AS datatype_name, dr.id AS datarecord_id, dr.created AS created, dr.deletedAt AS deleted, dr.updated AS updated
             FROM ODRAdminBundle:DataRecord AS dr
             JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-            WHERE dr.dataType = :datatype'
+            WHERE dr.dataType = :datatype AND dr.provisioned = false'
         )->setParameters( array('datatype' => $datatype_id) );
         $results = $query->getArrayResult();
         $em->getFilters()->enable('softdeleteable');    // Re-enable it
@@ -375,7 +360,7 @@ foreach ($users as $user) {
 
 
     /**
-    * TODO: FIX ME
+    * TODO - sitemap function
     * 
     * @param Request $request
     * 
