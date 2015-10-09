@@ -576,6 +576,10 @@ if ($debug)
                             $datarecord_data[$df_id] = $date;
                         }
                         else {
+                            // Change nulls to empty string so they get passed to beanstalk properly
+                            if ($value == null)
+                                $value = '';
+
                             $datarecord_data[$df_id] = $value;
                         }
                     }
