@@ -261,4 +261,105 @@ class ReportsController extends ODRCustomController
         return $response;
     }
 
+
+    /**
+     * Given a Datatree, build a list of Datarecords that have children/are linked to multiple Datarecords through this Datatree.
+     *
+     * @param integer $datatree_id
+     * @param Request $request
+     *
+     * @return TODO
+     */
+    public function analyzedatarecordnumberAction($datatree_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($datatree_id);
+            $templating = $this->get('templating');
+
+            if ($datatree == null)
+                return parent::deletedEntityError('Datatree');
+
+            $parent_datatype_id = $datatree->getAncestor()->getId();
+            $child_datatype_id = $datatree->getDescendant()->getId();
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $parent_datatype_id ]) && isset($user_permissions[ $parent_datatype_id ][ 'design' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+            $results = array();
+            if ($datatree->getIsLink() == 0) {
+                // Determine whether a datarecord of this datatype has multiple child datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
+                $query = $em->createQuery(
+                   'SELECT parent.id AS ancestor_id, child.id AS descendant_id
+                    FROM ODRAdminBundle:DataRecord AS parent
+                    JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
+                    WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
+                    AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
+                )->setParameters( array('parent_datatype' => $parent_datatype_id, 'child_datatype' => $child_datatype_id) );
+                $results = $query->getArrayResult();
+            }
+            else {
+                // Determine whether a datarecord of this datatype is linked to multiple datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
+                $query = $em->createQuery(
+                   'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+                    FROM ODRAdminBundle:DataRecord AS ancestor
+                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
+                    AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                )->setParameters( array('ancestor_datatype' => $parent_datatype_id, 'descendant_datatype' => $child_datatype_id) );
+                $results = $query->getArrayResult();
+            }
+
+            $tmp = array();
+            foreach ($results as $num => $result) {
+                $ancestor_id = $result['ancestor_id'];
+                if ( !isset($tmp[$ancestor_id]) )
+                    $tmp[$ancestor_id] = 0;
+
+                $tmp[$ancestor_id]++;
+            }
+
+            $datarecords = array();
+            foreach ($tmp as $dr_id => $count) {
+                if ($count > 1)
+                    $datarecords[] = $dr_id;
+            }
+
+            // Render and return a page detailing which datarecords have multiple child/linked datarecords...
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Reports:datarecord_number_report.html.twig',
+                    array(
+                        'datatree' => $datatree,
+                        'datarecords' => $datarecords,
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x531765856 '. $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
 }

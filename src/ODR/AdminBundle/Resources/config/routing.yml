@@ -1026,6 +1026,11 @@ odr_design_analyze_file_uploads:
     requirements:
         datafield_id:  \d+
 
+odr_design_analyze_datarecord_number:
+    pattern:  /design/displaytemplate/analyze_datarecord_number/{datatree_id}
+    defaults: { _controller: ODRAdminBundle:Reports:analyzedatarecordnumber }
+    requirements:
+        datatree_id: \d+
 
 #-----------------------------------------
 # Other stuff
