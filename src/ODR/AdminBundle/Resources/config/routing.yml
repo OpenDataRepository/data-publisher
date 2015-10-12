@@ -252,10 +252,19 @@ odr_nav_display_template:
         datatype_id:  \d+
 
 odr_design_get_datatype_properties:
-    pattern:  /design/displaytemplate/gettypeproperties/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypeproperties }
+    pattern:  /design/displaytemplate/getdatatypeproperties/{datatype_id}/{parent_datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypeproperties, parent_datatype_id: '' }
     requirements:
         datatype_id:  \d+
+        parent_datatype_id: \d+
+
+odr_design_save_datatree:
+    pattern:  /design/displaytemplate/savedatatree/{datatype_id}/{datatree_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:savedatatree }
+    methods: [POST]
+    requirements:
+        datatype_id: \d+
+        datatree_id: \d+
 
 odr_design_get_link_datatypes:
     pattern:  /design/displaytemplate/getlinktypes/{datatype_id}/{theme_element_id}

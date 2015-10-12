@@ -17,11 +17,9 @@
 {% endif %}
 
 <!-- Child Types -->
-<div class="ODRDataType{#{% if datatype.multiplerecordsperparent == 0 %} SingleChild{% endif %}#} pure-u-1" id="DataType_{{ datatype.id }}" rel="{{ datatype_tree.theme_datatype.id }}">
+<div class="ODRDataType pure-u-1" id="DataType_{{ datatype.id }}" rel="{{ datatype_tree.theme_datatype.id }}">
 
-    {#{% if datatype.multiplerecordsperparent > 0 %}#}
-        {% include 'ODRAdminBundle:Default:accordion_header.html.twig' with {'datatype_tree': datatype_tree, 'datarecord_tree': datarecord_tree, 'public_only': false} %}
-    {#{% endif %}#}
+    {% include 'ODRAdminBundle:Default:accordion_header.html.twig' with {'datatype_tree': datatype_tree, 'datarecord_tree': datarecord_tree, 'public_only': false} %}
 
     {% for dr_entry in datarecord_tree %}
         {% set datarecord = dr_entry.datarecord %}
@@ -71,9 +69,7 @@ public_only: {{ public_only}} </br>
     {% endfor %}
 
 
-    {#{% if datatype.multiplerecordsperparent > 0 %}#}
-        {% include 'ODRAdminBundle:Default:accordion_footer.html.twig' with {'childtype': datatype } %}
-    {#{% endif %}#}
+    {% include 'ODRAdminBundle:Default:accordion_footer.html.twig' with {'childtype': datatype } %}
 
 </div><!-- End of #DataType_{{ datatype.id }} -->
 

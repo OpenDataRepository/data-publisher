@@ -1982,7 +1982,6 @@ $save_permissions = false;
             // ...otherwise, create a new linked_datatree entry
             $linked_datatree = new LinkedDataTree();
             $linked_datatree->setCreatedBy($user);
-            $linked_datatree->setMultipleRecordsPerParent(0);   // TODO: why is this still here
 
             $linked_datatree->setAncestor($ancestor_datarecord);
             $linked_datatree->setDescendant($descendant_datarecord);
@@ -2828,6 +2827,7 @@ if ($debug)
 
         // Construct the arrays which contain all the required data
         $datatype_tree = self::buildDatatypeTree($user, $theme, $datatype, $theme_element, $em, $is_link, $top_level, $short_form, $debug, $indent);
+
 if ($debug)
     print "\n>> datatype_tree done in: ".(microtime(true) - $start)."\n\n";
 
@@ -3454,6 +3454,7 @@ if ($debug) {
         $tree['datatype'] = $datatype;
         $tree['is_link'] = $is_link;
         $tree['top_level'] = $top_level;
+        $tree['multiple_allowed'] = 0;
         $tree['has_childtype'] = 0;
         $tree['fieldarea_reload'] = 0;
 
@@ -3562,7 +3563,7 @@ if ($debug) {
                     $childtype = $theme_element_field->getDataType();
 
                     $query = $em->createQuery(
-                       'SELECT dt.is_link AS is_link
+                       'SELECT dt.is_link AS is_link, dt.multiple_allowed AS multiple_allowed
                         FROM ODRAdminBundle:DataTree dt
                         WHERE dt.ancestor = :ancestor AND dt.descendant = :descendant AND dt.deletedAt IS NULL'
                     )->setParameters( array('ancestor' => $datatype, 'descendant' => $childtype) );
@@ -3574,8 +3575,13 @@ if ($debug) {
                     $is_link = 0;
                     if ($result[0]['is_link'] == true)
                         $is_link = 1;
+    
+                    $multiple_allowed = 0;
+                    if ($result[0]['multiple_allowed'] == true)
+                        $multiple_allowed = 1;
 
                     $ted_child['datatype'] = self::buildDatatypeTree($user, $theme, $childtype, null, $em, $is_link, $top_level, $short_form, $debug, $indent+2);
+                    $ted_child['datatype']['multiple_allowed'] = $multiple_allowed;
                 }
             }
 

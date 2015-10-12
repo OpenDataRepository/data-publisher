@@ -490,20 +490,31 @@ function initPage() {
 
     $(".ODRDatatypeProperties").unbind('click');
     $(".ODRDatatypeProperties").click(function() {
-        // Load Properties into Element Data
+        // Grab the id of the Datatype to load
         var id = $(this).attr('rel');
+
+        // Determine if this Datatype has a parent
+        var parent_datatype_id = '';
+        if ( $("#DataType_" + id).parent().parent().parent().parent().hasClass('ODRDataType') ) {
+            id_data = $("#DataType_" + id).parent().parent().parent().parent().attr('id').split(/_/);
+            parent_datatype_id = id_data[1];
+        }
 
         // Load form for current datfield if not already loaded
         $("#ElementData").hide("");
         $("#ElementData").html("");
-        var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0 } ) }}';
-        url = url.substring(0, (url.length - 1));
+        var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0, 'parent_datatype_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 3));
         url += id;
-        var dataType = "json";
+
+        if (parent_datatype_id != '')
+            url += '/' + parent_datatype_id;
+
 //alert( url );
 //return;
 
         // Ajax Load Form in box
+        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
@@ -1427,6 +1438,53 @@ function SaveDatatypeProperties(datatype_id, short_name) {
     });
 }
 
+var SaveDataTreeInterval = "";
+function SaveDatatreeProperties(datatype_id, datatree_id) {
+    if(SaveDataTreeInterval != "")
+        SaveDataTreeInterval = window.clearInterval(SaveDataTreeInterval);
+
+    var url = '{{ path('odr_design_save_datatree', {'datatype_id': 0, 'datatree_id': 0}) }}';
+    url = url.substring(0, (url.length - 3));
+    url += datatype_id + '/' + datatree_id;
+
+//alert(url);
+//return;
+
+    var form_data = $("#DatatreePropertiesForm_" + datatree_id).serialize();
+    var dataType = "json";
+
+    $.ajax({
+        type: 'POST',
+        url: url,
+        data: form_data,
+        dataType: dataType,
+        success: function(data, textStatus, jqXHR) {
+            if(data.r == 0) {
+                notifySaved();
+            }
+            else {
+                // An error has occurred.
+                // Show Error message dialog
+                alert(data.d);
+            }
+        },
+        complete: function(jqXHR, textStatus) {
+             // Get the xdebugToken from response headers
+             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+             // If the Sfjs object exists
+             if (typeof Sfjs !== "undefined") {
+
+                 // Grab the toolbar element
+                 var currentElement = $('.sf-toolbar')[0];
+
+                 // Load the data of the given xdebug token into the current toolbar wrapper
+                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+             }
+         }
+    });
+}
+
 function SaveThemeElementOrder(container) {
 
     var i = 0;
@@ -1665,6 +1723,22 @@ function InitDatatypePropertiesForm() {
 
                 SaveDataTypeInterval = window.clearInterval(SaveDataTypeInterval);
                 SaveDataTypeInterval = window.setInterval('SaveDatatypeProperties("' + datatype_id + '","' + short_name + '")', SaveTimeout);
+            });
+        }
+    });
+
+    $("#ElementData .ODRDatatreePropertiesForm").find("input").each(function() {
+        var datatype_id_data = $("#ElementData .ODRDatatypePropertiesForm").attr('id').split(/_/);
+        var datatype_id = datatype_id_data[1];
+
+        var datatree_id_data = $("#ElementData .ODRDatatreePropertiesForm").attr('id').split(/_/);
+        var datatree_id = datatree_id_data[1];
+
+        if( $(this).is(":checkbox") ) {
+            $(this).unbind('change');
+            $(this).change(function() {
+                SaveDataTreeInterval = window.clearInterval(SaveDataTreeInterval);
+                SaveDataTreeInterval = window.setInterval('SaveDatatreeProperties("' + datatype_id + '","' + datatree_id + '")', SaveTimeout);
             });
         }
     });

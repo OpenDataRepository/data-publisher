@@ -12,7 +12,8 @@
         <input type="hidden" name="local_datarecord_id" value="{{ local_datarecord.id }}" />
         <input type="hidden" name="ancestor_datatype_id" value="{{ ancestor_datatype.id }}" />
         <input type="hidden" name="descendant_datatype_id" value="{{ descendant_datatype.id }}" />
-        <input type="hidden" name="allow_multiple_links" value="{% if allow_multiple_links == true %}1{% else %}0{% endif %}" />
+        <input type="hidden" name="allow_multiple_links" value="{% if allow_multiple_links %}1{% else %}0{% endif %}" />
+        <input type="hidden" name="local_datarecord_is_ancestor" value="{% if local_datarecord_is_ancestor %}1{% else %}0{% endif %}" />
 
         {% for dr_id,val in linked_datarecords %}
         <input type="hidden" id="dr_{{ dr_id }}" name="datarecords[{{ dr_id }}]" value="1" />
@@ -24,6 +25,9 @@
     <button class="pure-button pure-button-primary" type="button" onclick="returnToDatarecord();">Return to Datarecord</button>
 
     <table id="TextResults_current" class="display {#pure-table pure-table-striped#}"></table>
+    {% if not allow_multiple_links and local_datarecord_is_ancestor %}
+        <button class="pure-button" type="button" onclick="unlinkCurrentDatarecord();">Unlink current Datarecord</button>
+    {% endif %}
 </div>
 
 </br></br></br>
@@ -48,18 +52,21 @@
         var dataset = {{ table_html | raw }};
 
         var table = $("#TextResults_current").dataTable({
-            data: dataset,
-            columns: [{{ column_names | raw }}],
-            searching: false,
-            autoWidth: false,
+            "data": dataset,
+            "columns": [{{ column_names | raw }}],
+            "searching": false,
+            "autoWidth": false,
+            "language": {
+                "emptyTable": "No Datarecords are currently linked"
+            },
 
-            processing: true,   // only displays a little "processing..." blurb
-            deferRender: true,
-            createdRow: function( row, data, index ) {
-            {% if allow_multiple_links == 1 %}
-                $(row).prepend('<td><input type="checkbox" class="dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');" /></td>');
+            "processing": true,   // only displays a little "processing..." blurb
+            "deferRender": true,
+            "createdRow": function( row, data, index ) {
+            {% if allow_multiple_links or not local_datarecord_is_ancestor %}
+                $(row).prepend('<td><input type="checkbox" class="ODRCurrentLink dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');" /></td>');
             {% else %}
-                $(row).prepend('<td><input type="radio" name="radio_group_orig" id="hidden_radio" style="display:none;"/><input type="radio" name="radio_group_orig" class="dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');" /></td>');
+                $(row).prepend('<td><input type="radio" name="radio_group_orig" id="hidden_radio" style="display:none;"/><input type="radio" name="radio_group_orig" class="ODRCurrentLink dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');" /></td>');
             {% endif %}
             },
 
@@ -68,7 +75,7 @@
 
         // Ensure checkboxes have proper state on redraw of table
         $(table).on('draw.dt', function() {
-            initCheckboxes("#TextResults_current");
+            initCheckboxes("#TextResults_current", true);
         });
 
         {% if count > 0 %}
@@ -77,21 +84,23 @@
         {% endif %}
 
         // Initial checking of linked checkboxes
-        initCheckboxes("#TextResults_current");
+        initCheckboxes("#TextResults_current", true);
     });
 
     // For the current page of the given table, update state of all checkboxes
-    function initCheckboxes(table) {
+    function initCheckboxes(table, force_enabled) {
+console.log(table);
         $(table).find('input').each(function() {
             var dr_id = parseInt($(this).attr('rel'));
+console.log(dr_id);
 
             if ( linked_datarecords.indexOf(dr_id) !== -1 )
                 $('.dr_' + dr_id).attr('checked', 'checked');
             else
                 $('.dr_' + dr_id).removeAttr('checked');
 
-            if ( illegal_datarecords.indexOf(dr_id) !== -1 )
-                $('.dr_' + dr_id).attr('disabled', 'disabled');
+            if ( illegal_datarecords.indexOf(dr_id) !== -1 && !force_enabled )
+                $('.dr_' + dr_id).not('.ODRCurrentLink').attr('disabled', 'disabled').attr('title', 'This remote Datarecord already has a link to some other Datarecord');
             else
                 $('.dr_' + dr_id).removeAttr('disabled');
         });
@@ -101,7 +110,7 @@
     function LinkRecord(dr_id) {
         var dr = "#dr_" + dr_id;
 
-        {% if allow_multiple_links == 1 %}
+    {% if allow_multiple_links or not local_datarecord_is_ancestor %}
         if ( $(dr).length > 0 ) {
             // hidden input element exists, delete it
             $(dr).remove();
@@ -116,7 +125,7 @@
             linked_datarecords.push(dr_id);
             $('.dr_' + dr_id).prop('checked', true);
         }
-        {% else %}
+    {% else %}
         // Apparently don't need to worry about this function being called on an already selected element?
 
         $("#LinkDataRecordForm").children('input').each(function() {
@@ -130,8 +139,22 @@
         $("#hidden_radio").prop('checked', true);
         $('.dr_' + dr_id).prop('checked', true);
 
-        {% endif %}
+    {% endif %}
     }
+
+{% if not allow_multiple_links and local_datarecord_is_ancestor %}
+    function unlinkCurrentDatarecord() {
+        // Remove the datarecord id from the form so it isn't submitted
+        $("#LinkDataRecordForm").children('input').each(function() {
+            if ( $(this).attr('name').indexOf('datarecords[') !== -1 )
+                $(this).remove();
+        });
+
+        // Uncheck the radio checkbox
+        var dr_id = $(".ODRCurrentLink").attr('rel');
+        $('.dr_' + dr_id).removeAttr('checked');
+    }
+{% endif %}
 
     function returnToDatarecord() {
         var url = '{{ path('odr_record_edit', {'datarecord_id': 0} ) }}';
@@ -187,7 +210,7 @@
     }
 
     function startSearch() {
-    {% if local_datarecord.datatype.id == ancestor_datatype.id %}
+    {% if local_datarecord_is_ancestor %}
         // Grab datarecords from descendant side
         var url = '{{ path('odr_search_box', {'target_datatype_id': descendant_datatype.id } ) }}';
     {% else %}

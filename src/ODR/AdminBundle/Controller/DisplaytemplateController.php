@@ -42,6 +42,7 @@ use ODR\AdminBundle\Form\DatafieldsForm;
 use ODR\AdminBundle\Form\DatatypeForm;
 use ODR\AdminBundle\Form\UpdateDataFieldsForm;
 use ODR\AdminBundle\Form\UpdateDataTypeForm;
+use ODR\AdminBundle\Form\UpdateDataTreeForm;
 use ODR\AdminBundle\Form\UpdateThemeElementForm;
 use ODR\AdminBundle\Form\UpdateThemeDatafieldForm;
 // Symfony
@@ -946,6 +947,128 @@ print '</pre>';
 
 
     /**
+     * Saves changes made to a Datatree entity.
+     * 
+     * @param integer $datatype_id  The id of the DataType entity this Datatree belongs to
+     * @param integer $datatree_id  The id of the Datatree entity being changed
+     * @param Request $request
+     * 
+     * @return TODO
+     */
+    public function savedatatreeAction($datatype_id, $datatree_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($datatree_id);
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+
+            if ($datatree == null)
+                return parent::deletedEntityError('Datatree');
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+
+            // Ensure that the datatree isn't set to only allow single child/linked datarecords when it already is supporting multiple child/linked datarecords
+            $parent_datatype_id = $datatree->getAncestor()->getId();
+            $child_datatype_id = $datatree->getDescendant()->getId();
+
+            $force_multiple = false;
+            $results = array();
+            if ($datatree->getIsLink() == 0) {
+                // Determine whether a datarecord of this datatype has multiple child datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
+                $query = $em->createQuery(
+                   'SELECT parent.id AS ancestor_id, child.id AS descendant_id
+                    FROM ODRAdminBundle:DataRecord AS parent
+                    JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
+                    WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
+                    AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
+                )->setParameters( array('parent_datatype' => $parent_datatype_id, 'child_datatype' => $child_datatype_id) );
+                $results = $query->getArrayResult();
+            }
+            else {
+                // Determine whether a datarecord of this datatype is linked to multiple datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
+                $query = $em->createQuery(
+                   'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+                    FROM ODRAdminBundle:DataRecord AS ancestor
+                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
+                    AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                )->setParameters( array('ancestor_datatype' => $parent_datatype_id, 'descendant_datatype' => $child_datatype_id) );
+                $results = $query->getArrayResult();
+            }
+
+            $tmp = array();
+            foreach ($results as $num => $result) {
+                $ancestor_id = $result['ancestor_id'];
+                if ( isset($tmp[$ancestor_id]) ) {
+                    $force_multiple = true;
+                    break;
+                }
+                else {
+                    $tmp[$ancestor_id] = 1;
+                }
+            }
+
+
+            // Populate new Datatree form
+            $datatree_form = $this->createForm(new UpdateDataTreeForm($datatree), $datatree);
+            if ($request->getMethod() == 'POST') {
+                $datatree_form->bind($request, $datatree);
+
+                // Ensure that "multiple allowed" is true if required
+                if ($force_multiple) 
+                    $datatree->setMultipleAllowed(true);
+
+
+                if ( $datatree_form->isValid() ) {
+                    // Save the changes made to the datatype
+                    $datatree->setUpdatedBy($user);
+                    $em->persist($datatree);
+                    $em->flush();
+
+                    // Schedule the cache for an update
+                    $options = array();
+                    $options['mark_as_updated'] = true;
+                    parent::updateDatatypeCache($datatype_id, $options);
+                }
+/*
+                else {
+                    throw new \Exception( parent::ODR_getErrorMessages($form) );
+                }
+*/
+            }
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x82392700 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Builds the wrapper for the slide-out properties menu on the right of the screen.
      * 
      * @param Request $request
@@ -1562,7 +1685,7 @@ print '</pre>';
             $datatype->setShortName("New Child");
             $datatype->setLongName("New Child");
             $datatype->setDescription("New Child Type");
-            $datatype->setMultipleRecordsPerParent('1');
+            $datatype->setMultipleRecordsPerParent('1');    // TODO - this needs to be deleted
             $datatype->setRenderPlugin($render_plugin);
             $datatype->setUseShortResults('1');
             $datatype->setExternalIdField(null);
@@ -1583,7 +1706,8 @@ print '</pre>';
             $datatree->setDescendant($datatype);
             $datatree->setCreatedBy($user); 
             $datatree->setUpdatedBy($user);
-            $datatree->setIsLink(0);
+            $datatree->setIsLink(false);
+            $datatree->setMultipleAllowed(true);
             $em->persist($datatree);
 
 
@@ -1859,7 +1983,8 @@ print '</pre>';
                 $datatree->setDescendant($remote_datatype);
                 $datatree->setCreatedBy($user);
                 $datatree->setUpdatedBy($user);
-                $datatree->setIsLink(1);
+                $datatree->setIsLink(true);
+                $datatree->setMultipleAllowed(true);
                 $em->persist($datatree);
 
                 // Tie Field to ThemeElement
@@ -2934,12 +3059,13 @@ if ($debug)
     /**
      * Loads/saves a Symfony DataType properties Form.
      * 
-     * @param integer $datatype_id The database id of the Datatype that is being modified
+     * @param integer $datatype_id       The database id of the Datatype that is being modified
+     * @param mixed $parent_datatype_id  Either the id of the Datatype of the parent of $datatype_id, or the empty string
      * @param Request $request
      * 
      * @return a Symfony JSON response containing HTML
      */
-    public function datatypepropertiesAction($datatype_id, Request $request)
+    public function datatypepropertiesAction($datatype_id, $parent_datatype_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2951,11 +3077,6 @@ if ($debug)
 //return;
             // Grab necessary objects
             $em = $this->getDoctrine()->getManager();
-/*
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-*/
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
@@ -2970,8 +3091,68 @@ if ($debug)
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-            // Populate new DataFields form
-            $form = $this->createForm(new UpdateDataTypeForm($datatype), $datatype);
+
+            // If $parent_datatype_id is set, locate the datatree linking $datatype_id and $parent_datatype_id
+            $datatree = null;
+            if ($parent_datatype_id !== '') {
+                $query = $em->createQuery(
+                   'SELECT dt
+                    FROM ODRAdminBundle:DataTree AS dt
+                    WHERE dt.ancestor = :ancestor AND dt.descendant = :descendant
+                    AND dt.deletedAt IS NULL'
+                )->setParameters( array('ancestor' => $parent_datatype_id, 'descendant' => $datatype_id) );
+                $results = $query->getResult();
+
+                if ( isset($results[0]) )
+                    $datatree = $results[0];
+            }
+
+            // Create required forms
+            $datatype_form = $this->createForm(new UpdateDataTypeForm($datatype), $datatype);
+
+            $force_multiple = false;
+            $datatree_form = null;
+            if ($datatree !== null) {
+                $datatree_form = $this->createForm(new UpdateDataTreeForm($datatree), $datatree);
+                $datatree_form = $datatree_form->createView();
+
+                $results = array();
+                if ($datatree->getIsLink() == 0) {
+                    // Determine whether a datarecord of this datatype has multiple child datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
+                    $query = $em->createQuery(
+                       'SELECT parent.id AS ancestor_id, child.id AS descendant_id
+                        FROM ODRAdminBundle:DataRecord AS parent
+                        JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
+                        WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
+                        AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
+                    )->setParameters( array('parent_datatype' => $parent_datatype_id, 'child_datatype' => $datatype_id) );
+                    $results = $query->getArrayResult();
+                }
+                else {
+                    // Determine whether a datarecord of this datatype is linked to multiple datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
+                    $query = $em->createQuery(
+                       'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+                        FROM ODRAdminBundle:DataRecord AS ancestor
+                        JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                        JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                        WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
+                        AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                    )->setParameters( array('ancestor_datatype' => $parent_datatype_id, 'descendant_datatype' => $datatype_id) );
+                    $results = $query->getArrayResult();
+                }
+
+                $tmp = array();
+                foreach ($results as $num => $result) {
+                    $ancestor_id = $result['ancestor_id'];
+                    if ( isset($tmp[$ancestor_id]) ) {
+                        $force_multiple = true;
+                        break;
+                    }
+                    else {
+                        $tmp[$ancestor_id] = 1;
+                    }
+                }
+            }
 
             if ($request->getMethod() == 'POST') {
 /*
@@ -2994,9 +3175,9 @@ if ($debug)
                     $old_sortfield = strval($old_sortfield->getId());
 */
                 // Bind the changes to the datatype
-                $form->bind($request, $datatype);
+                $datatype_form->bind($request, $datatype);
                 $return['t'] = "html";
-                if ($form->isValid()) {
+                if ($datatype_form->isValid()) {
 /*
                     // If any of the external/name/sort datafields got changed, clear the relevant cache fields for datarecords of this datatype
                     if ($old_external_field !== $external_id_field) {
@@ -3031,9 +3212,12 @@ if ($debug)
             $return['d'] = $templating->render(
                 'ODRAdminBundle:Displaytemplate:datatype_properties_form.html.twig', 
                 array(
-                    'datatype_form' => $form->createView(),
                     'datatype' => $datatype,
-//                    'is_top_level' => $is_top_level,
+                    'datatype_form' => $datatype_form->createView(),
+
+                    'datatree' => $datatree,
+                    'datatree_form' => $datatree_form,
+                    'force_multiple' => $force_multiple,
                 )
             );
 

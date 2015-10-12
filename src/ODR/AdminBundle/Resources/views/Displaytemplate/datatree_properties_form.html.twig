@@ -1,0 +1,26 @@
+{% spaceless %}
+
+<form class="ODRDatatreePropertiesForm pure-form pure-form-aligned" {{ form_enctype(datatree_form) }} id="DatatreePropertiesForm_{{ datatree.id }}">
+    {{ form_errors(datatree_form._token) }}
+    {{ form_widget(datatree_form._token) }}
+
+    <fieldset>
+        <div class="pure-control-group">
+            <label for="{{ datatree_form.multiple_allowed.vars.id }}">
+                <strong>{{ datatree_form.multiple_allowed.vars.label }}</strong>
+            </label>
+
+            <span {% if force_multiple == true %}title="A Datarecord already has multiple children/linked datarecords of this Datatype, so it can't be set to disallow multiples."{% endif %}>
+                {{ form_errors(datatree_form.multiple_allowed) }}
+                {% if force_multiple == true %}
+                    {{ form_widget(datatree_form.multiple_allowed, { 'attr': {'style': 'width:auto', 'disabled': 'disabled'} }) }}
+                {% else %}
+                    {{ form_widget(datatree_form.multiple_allowed, { 'attr': {'style': 'width:auto'} }) }}
+                {% endif %}
+            </span>
+        </div>
+    </fieldset>
+
+</form>
+
+{% endspaceless %}

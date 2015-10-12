@@ -269,7 +269,7 @@ class DatatypeController extends ODRCustomController
                 if ($form->isValid()) {
                     // ----------------------------------------
                     // Set stuff that the form doesn't take care of
-                    $datatype->setMultipleRecordsPerParent(1);
+                    $datatype->setMultipleRecordsPerParent(1);      // TODO - this needs to be deleted
                     $datatype->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
                     $datatype->setCreatedBy($admin);
                     $datatype->setUpdatedBy($admin);
