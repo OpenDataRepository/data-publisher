@@ -1,0 +1,52 @@
+{% spaceless %}
+
+<h2>List of values in the Datafield "{{ datafield.getfieldname }}" for the Datatype "{{ datatype.getshortname }}"</h2>
+
+{% if content | length == 0 %}
+    <div class="ODRDatarecordListHeader">No values found</div>
+{% else %}
+
+<div>
+    <table id="ODRValuesTable" class="display dataTable">
+        <thead>
+            <tr>
+            {% if use_external_id_field %}
+                <th>{{ datatype.getexternalidfield.fieldname }}</th>
+            {% else %}
+                <th>Datarecord ID</th>
+            {% endif %}
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for dr_id,row in content %}
+            <tr>
+            {% if use_external_id_field %}
+                <td><a target="_blank" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ row.external_id }}</a></td>
+            {% else %}
+                <td><a target="_blank" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ dr_id }}</a></td>
+            {% endif %}
+                <td>{{ row.value }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    $(function() {
+        $("#ODRValuesTable").dataTable({
+            "order": [[ 0, "asc" ]],
+            "info": false,
+            "scrollY": 600,
+            "scrollCollapse": true,
+            "paging": false
+        });
+
+        $("#ODRValuesTable").removeAttr('style');
+    });
+</script>
+
+{% endif %}
+
+{% endspaceless %}

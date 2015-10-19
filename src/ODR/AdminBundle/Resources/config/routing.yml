@@ -1032,6 +1032,12 @@ odr_design_analyze_datarecord_number:
     requirements:
         datatree_id: \d+
 
+odr_design_analyze_datafield_content:
+    pattern:  /edit/record/analyze_datafield_content/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Reports:analyzedatafieldcontent }
+    requirements:
+        datafield_id: \d+
+
 #-----------------------------------------
 # Other stuff
 odr_dt_check:

@@ -362,4 +362,131 @@ class ReportsController extends ODRCustomController
         return $response;
     }
 
+
+    /**
+     * Given a datafield, build a list of all values stored in that datafield
+     *
+     * @param integer $datafield_id
+     * @param Request $request
+     *
+     * @return TODO
+     */
+    public function analyzedatafieldcontentAction($datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+            $templating = $this->get('templating');
+
+            $datafield = $repo_datafield->find($datafield_id);
+            if ( $datafield == null )
+                return parent::deletedEntityError('DataField');
+
+            $datatype = $datafield->getDataType();
+            if ( $datatype == null )
+                return parent::deletedEntityError('DataType');
+
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+            // Only run this on valid fieldtypes...
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            switch ($typeclass) {
+                case 'ShortVarchar':
+                case 'MediumVarchar':
+                case 'LongVarchar':
+                case 'LongText':
+                case 'IntegerValue':
+                case 'DecimalValue':
+                    // Allowed
+                    break;
+
+                default:
+                    throw new \Exception('Invalid Field');
+                    break;
+            }
+
+
+            // Build a query to grab all values in this datafield
+            $use_external_id_field = true;
+            $results = array();
+            if ($datatype->getExternalIdField() == null) {
+                $use_external_id_field = false;
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id, e.value AS value, "" AS external_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
+                    JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
+                    WHERE dr.dataType = :datatype AND drf.dataField = :datafield
+                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
+                    ORDER BY dr.id'
+                )->setParameters( array('datatype' => $datatype->getId(), 'datafield' => $datafield_id) );
+                $results = $query->getArrayResult();
+            }
+            else {
+                $external_id_field_typeclass = $datatype->getExternalIdField()->getFieldType()->getTypeClass();
+                $typeclass = $datafield->getFieldType()->getTypeClass();
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id, e_2.value AS value, e_1.value AS external_id
+                    FROM ODRAdminBundle:'.$external_id_field_typeclass.' AS e_1
+                    JOIN ODRAdminBundle:DataRecordFields AS drf_1 WITH e_1.dataRecordFields = drf_1
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH drf_1.dataRecord = dr
+                    JOIN ODRAdminBundle:DataRecordFields AS drf_2 WITH drf_2.dataRecord = dr
+                    JOIN ODRAdminBundle:'.$typeclass.' AS e_2 WITH e_2.dataRecordFields = drf_2
+                    WHERE dr.dataType = :datatype AND drf_2.dataField = :datafield AND drf_1.dataField = :external_id_field
+                    AND e_1.deletedAt IS NULL AND drf_1.deletedAt IS NULL AND dr.deletedAt IS NULL AND drf_2.deletedAt IS NULL AND e_2.deletedAt IS NULL
+                    ORDER BY dr.id'
+                )->setParameters( array('datatype' => $datatype->getId(), 'datafield' => $datafield_id, 'external_id_field' => $datatype->getExternalIdField()->getId()) );
+                $results = $query->getArrayResult();
+            }
+
+            $content = array();
+            foreach ($results as $num => $result) {
+                $dr_id = $result['dr_id'];
+                $value = $result['value'];
+                $external_id = $result['external_id'];
+
+                $content[$dr_id] = array('external_id' => $external_id, 'value' => $value);
+            }
+
+
+            // Render and return a page detailing which datarecords have multiple child/linked datarecords...
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Reports:datafield_content_report.html.twig',
+                    array(
+                        'datafield' => $datafield,
+                        'datatype' => $datatype,
+                        'content' => $content,
+                        'use_external_id_field' => $use_external_id_field,
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x173658256 '. $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
 }
