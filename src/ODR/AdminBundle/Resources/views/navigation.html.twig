@@ -35,28 +35,18 @@
         <li class="pure-menu-separator"></li>
 
         <li class="ODRMenuExpand Pointer">
-            <a><i class="fa fa-lg fa-tasks fa-fw"></i>Manage Data</a>
+            <a><i class="fa fa-lg fa-tasks fa-fw"></i>Data Management</a>
             <ul>
                 <li><a class="address" href="#{{ path('odr_list_types', { 'section': 'records' } ) }}" title="List DataRecords"><i class="fa fa-lg fa-fw fa-list"></i>List Records</a></li>
-                {#<li><a href="{{ baseurl }}#{{ path('odr_list_types', { 'section': 'records' } ) }}" title="List DataRecords"><i class="fa fa-lg fa-fw fa-list"></i>List Records</a></li>#}
-            </ul>
-        </li>
-
-{#{% if level > 1 %}#}
-        <li class="ODRMenuExpand Pointer">
-            <a><i class="fa fa-lg fa-list-alt fa-fw"></i>Manage Data Types</a>
-            <ul>
                 <li><a class="address" href="#{{ path('odr_list_types', { 'section': 'design' } ) }}" title="List DataTypes"><i class="fa fa-lg fa-fw fa-cog"></i>List Types</a></li>
-                <!--<li><a class="address" href="#{{ path('admin_manage_plugins') }}" title="Manage Plugins"><span class="fa fa-lg fa-fw fa-cog"></span>Manage Plugins</a></li>-->
-                <!--<li><a class="address" href="#{{ path('admin_plugin_test') }}" title="Plugin TEST"><span class="fa fa-lg fa-fw fa-cog"></span>Plugin TEST</a></li>-->
+                {#<li><a class="address" href="#{{ path('admin_manage_plugins') }}" title="Manage Plugins"><span class="fa fa-lg fa-fw fa-cog"></span>Manage Plugins</a></li>#}
+                {#<li><a class="address" href="#{{ path('admin_plugin_test') }}" title="Plugin TEST"><span class="fa fa-lg fa-fw fa-cog"></span>Plugin TEST</a></li>#}
             </ul>
         </li>
-{#{% endif %}#}
 
-{#{% if level > 3 %}#}
 {% if has_datatype_admin == true %}
         <li class="ODRMenuExpand Pointer">
-            <a><i class="fa fa-lg fa-group fa-fw"></i>Manage Users</a>
+            <a><i class="fa fa-lg fa-group fa-fw"></i>User Management</a>
             <ul>
                 <li><a class="address" href="#{{ path('odr_user_list') }}" title="List Users"><i class="fa fa-lg fa-fw fa-cog"></i>List Users</a></li>
             {% if level == 3 or level == 7 %}
@@ -88,7 +78,7 @@
                     'top': '0px',
                     'left': '0px',
                     'visibility': 'visible',
-                    'position': 'relative',
+                    'position': 'relative'
                 }
             );
         });
