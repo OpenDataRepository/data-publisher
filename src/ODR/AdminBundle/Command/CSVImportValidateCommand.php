@@ -82,6 +82,7 @@ $output->writeln($data->url);
                     'datafield_mapping' => $data->datafield_mapping,
                     'fieldtype_mapping' => $data->fieldtype_mapping,
                     'column_delimiters' => $data->column_delimiters,
+                    'parent_external_id_column' => $data->parent_external_id_column,
                     'line_num' => $data->line_num,
                     'line' => $data->line,
 

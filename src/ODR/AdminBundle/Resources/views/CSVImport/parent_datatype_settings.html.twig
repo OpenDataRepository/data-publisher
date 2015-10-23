@@ -1,0 +1,47 @@
+{% spaceless %}
+
+<hr>
+<div>
+    <span>&nbsp;Column to map to the parent Datatype's External ID Datafield "{{ parent_datatype.getexternalidfield.getfieldname }}": </span>
+    <select name="parent_external_id_column" id="parent_external_id_column">
+        <option value="">Select a column...</option>
+    {% for column_id, column_name in columns %}
+        <option value="{{ column_id }}">{{ column_name }}</option>
+    {% endfor %}
+    </select>
+    <span id="parent_external_id_column_warning"><i class="fa fa-lg fa-exclamation-circle"></i></span>
+</div>
+<hr>
+
+<script>
+    $(function() {
+        $("#parent_external_id_column").unbind('change');
+        $("#parent_external_id_column").change(function() {
+            if ( $(this).val() == '' )
+                $("#parent_external_id_column_warning").show();
+            else
+                $("#parent_external_id_column_warning").hide();
+
+            // This parent_external_id selection is currently the only way the import checkboxes can get disabled
+            $(".import_checkbox").removeAttr('disabled');
+            disableColumn( $(this).val() );
+        });
+
+{% if presets != null %}
+        $("#parent_external_id_column").val( {{ presets.parent_external_id_column }} );
+        $("#parent_external_id_column").trigger('change');
+        $("#parent_external_id_column").attr('disabled', 'disabled');
+{% endif %}
+    });
+
+    function disableColumn(column_id) {
+        // Uncheck the import box if it's checked
+        if ( $("#import_checkbox_" + column_id).is(':checked') )
+            $("#import_checkbox_" + column_id).trigger('click');
+
+        // Disable it so it can't be checked
+        $("#import_checkbox_" + column_id).attr('disabled', 'disabled');
+    }
+
+</script>
+{% endspaceless %}

@@ -9,10 +9,15 @@
         <button type="button" class="pure-button" onclick="deselectAllFields();">Deselect All</button>
     </div>
 
-    {% include 'ODRAdminBundle:CSVImport:uniqueness_warnings.html.twig' with {'datatype': datatype, 'datafields': datafields} %}
 
     <form id="csv_import_form">
         <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />
+
+        {% if parent_datatype != null %}
+            {% include 'ODRAdminBundle:CSVImport:parent_datatype_settings.html.twig' with {'parent_datatype': parent_datatype, 'columns': columns, 'presets': presets} %}
+        {% endif %}
+
+        {% include 'ODRAdminBundle:CSVImport:uniqueness_warnings.html.twig' with {'datatype': datatype, 'datafields': datafields} %}
 
         <table id="csv_import_table" class="pure-table pure-table-striped" style="font-size: 1.25em;">
             <thead>
@@ -232,6 +237,7 @@
 {% endif %}
     });
 
+
     function updateDatafieldMeta(column_id) {
 
         var fieldtype = "#column_" + column_id + "_fieldtype";
@@ -333,14 +339,28 @@
 
     function validateImport() {
 
+{% if parent_datatype != null %}
+        if ( $("#parent_external_id_column").val() == '' ) {
+            alert('ERROR: One column of the CSV file must be mapped to the external ID for the parent Datatype');
+            return;
+        }
+{% endif %}
+
         // If no checkboxes checked, no point doing any importing...
         var any_checked = false;
+        var block_import = false;
         $(".import_checkbox:checked").each(function() {
-//            if ( $(this).is(':checked') )
-                any_checked = true;
+            any_checked = true;
+
+{% if parent_datatype != null %}
+            if ( $("#parent_external_id_column").val() == $(this).attr('rel') ) {
+                alert( "ERROR: The column mapped to the parent Datatype's external ID can't also be mapped to a Datafield" );
+                block_import = true;
+            }
+{% endif %}
         });
         if (!any_checked) {
-            alert('No columns selected for import');
+            alert('ERROR: No columns selected for import');
             return;
         }
 
@@ -352,7 +372,6 @@
 
         // Notify when same datafield selected for two different columns
         var selections = [];
-        var block_import = false;
         $(".datafield_mapping:enabled").each(function() {
             var selection = $(this).val();
             if (selection == 'new') {
