@@ -582,11 +582,12 @@ print "\n\n";
 
     /**
      * Utility function that does the work of encrypting a given File/Image entity.
-     * 
-     * @param integer $object_id  The id of the File/Image to encrypt
+     *
+     * @throws \Exception
+     *
+     * @param integer $object_id The id of the File/Image to encrypt
      * @param string $object_type "File" or "Image"
-     * 
-     * @return none
+     *
      */
     protected function encryptObject($object_id, $object_type)
     {
@@ -833,6 +834,8 @@ print "\n\n";
 
             if ($is_link == 0)
                 $datatree_array['descendant_of'][$descendant_id] = $ancestor_id;
+            else
+                $datatree_array['linked_from'][$descendant_id] = $ancestor_id;
         }
 
         return $datatree_array;
@@ -841,7 +844,9 @@ print "\n\n";
 
     /**
      * Builds an array of all datatype permissions possessed by the given user.
-     * 
+     *
+     * @throws \Exception
+     *
      * @param integer $user_id          The database id of the user to grab permissions for
      * @param Request $request
      * @param boolean $save_permissions If true, save the calling user's permissions in memcached...if false, just return an array
@@ -1212,7 +1217,7 @@ $save_permissions = false;
      * 
      * @param string $type
      * 
-     * @return a Symfony JSON response
+     * @return Response TODO
      */
     protected function permissionDeniedError($type = '')
     {
@@ -1238,9 +1243,9 @@ $save_permissions = false;
     /**
      * Utility function so other controllers can notify of deleted entities easily.
      * 
-     * @param string $type
+     * @param string $entity
      * 
-     * @return a Symfony JSON respose
+     * @return Response TODO
      */
     protected function deletedEntityError($entity = '')
     {
@@ -1830,8 +1835,7 @@ $save_permissions = false;
      * @param User $user            The user to use if a new ThemeDataField is to be created
      * @param DataFields $datafield 
      * @param Theme $theme          
-     * 
-     * @return TODO
+     *
      */
     protected function ODR_checkThemeDataField($user, $datafield, $theme) {
         $em = $this->getDoctrine()->getManager();
@@ -1998,10 +2002,11 @@ $save_permissions = false;
     /**
      * Creates a new File/Image entity from the given file at the given filepath, and persists all required information to the database.
      *
-     * @param string $filepath             The absolute path to the file
-     * @param string $original_filename    The original name of the file
-     * @param integer $user_id             Which user is doing the uploading
-     * @param integer $datarecordfield_id  Which DataRecordField entity to store the file under
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param string $filepath                 The absolute path to the file
+     * @param string $original_filename        The original name of the file
+     * @param integer $user_id                 Which user is doing the uploading
+     * @param integer $datarecordfield_id      Which DataRecordField entity to store the file under
      *
      */
     protected function finishUpload($em, $filepath, $original_filename, $user_id, $datarecordfield_id)
@@ -2537,7 +2542,6 @@ $save_permissions = false;
     /**
      * Utility function to return the column definition for use by the datatables plugin
      * 
-     * @param Request $request
      * @param integer $datatype_id The database id of the Datatype to grab the TextResults field names for
      * 
      * @return array
@@ -3062,13 +3066,14 @@ if ($debug)
      * @param DataType $datatype     TODO: this doesn't appear to be needed... 
      * @param DataRecord $datarecord 
      *
+     * @return boolean TODO
      */
     public function verifyExistence($datatype, $datarecord)
     {
 
         // Don't do anything to a provisioned datarecord
         if ($datarecord->getProvisioned() == true)
-            return;
+            return false;
 
 $start = microtime(true);
 $debug = true;
@@ -3121,6 +3126,8 @@ if ($debug) {
     print '</pre>';
 }
 
+        // empty return
+        return true;
     }
 
     /**
@@ -3129,9 +3136,14 @@ if ($debug) {
      * @param DataType $datatype     TODO: this doesn't appear to be used... 
      * @param DataRecord $datarecord 
      *
+     * @return boolean TODO
      */
     private function verifyExistence_worker($datatype, $datarecord, $debug)
     {
+        // Don't do anything to a provisioned datarecord
+        if ( $datarecord->getProvisioned() == true )
+            return false;
+
         // Track whether we need to flush
         $made_change = false;
 
@@ -3227,6 +3239,9 @@ if ($debug)
         // Only flush if changes were made
         if ($made_change)
             $em->flush();
+
+        // empty return
+        return true;
     }
 
 
@@ -3786,6 +3801,7 @@ if ($debug) {
      * @param DataRecordFields $datarecordfield
      *
      * @param boolean $debug                   Whether to print out debug info or not
+     * @param integer $indent
      *
      */
     protected function buildForm($em, $user, $datarecord, $datafield, $datarecordfield, $debug, $indent)

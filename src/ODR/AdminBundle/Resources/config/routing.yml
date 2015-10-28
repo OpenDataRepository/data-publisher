@@ -898,6 +898,11 @@ odr_csv_import_worker:
     defaults: { _controller: ODRAdminBundle:CSVImport:csvworker }
     requirements: { _method: POST }
 
+odr_csv_link_worker:
+    pattern: /beanstalk/csv_import/link_worker
+    defaults: { _controller: ODRAdminBundle:CSVImport:csvlinkworker }
+    requirements: { _method: POST }
+
 #-----------------------------------------
 
 #-----------------------------------------

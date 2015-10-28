@@ -76,17 +76,24 @@ $output->writeln($data->url);
                     'tracked_job_id' => $data->tracked_job_id,
                     'datatype_id' => $data->datatype_id,
                     'user_id' => $data->user_id,
-
                     'column_names' => $data->column_names,
-                    'unique_columns' => $data->unique_columns,
-                    'datafield_mapping' => $data->datafield_mapping,
-                    'fieldtype_mapping' => $data->fieldtype_mapping,
-                    'column_delimiters' => $data->column_delimiters,
-                    'parent_external_id_column' => $data->parent_external_id_column,
                     'line_num' => $data->line_num,
                     'line' => $data->line,
 
                     'api_key' => $data->api_key,
+
+                    // Only used when importing into a top-level or child datatype
+                    'unique_columns' => $data->unique_columns,
+                    'datafield_mapping' => $data->datafield_mapping,
+                    'fieldtype_mapping' => $data->fieldtype_mapping,
+                    'column_delimiters' => $data->column_delimiters,
+
+                    // Only used when importing into a child/linked datatype
+                    'parent_external_id_column' => $data->parent_external_id_column,
+                    'parent_datatype_id' => $data->parent_datatype_id,
+
+                    // Only used when creating links via importing
+                    'remote_external_id_column' => $data->remote_external_id_column,
                 );
 
                 // Set the options for the POST request
