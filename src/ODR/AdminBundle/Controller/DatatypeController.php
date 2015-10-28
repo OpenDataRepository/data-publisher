@@ -25,6 +25,7 @@ use ODR\AdminBundle\Entity\UserPermissions;
 // Forms
 use ODR\AdminBundle\Form\DatatypeForm;
 // Symfony
+use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -37,7 +38,7 @@ class DatatypeController extends ODRCustomController
      * @param string $section  Either "records" or "design", dictating which set of options the user will see for each datatype
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML TODO 
+     * @return Response TODO
      */
     public function listAction($section, Request $request)
     {
@@ -142,7 +143,7 @@ class DatatypeController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function getlistAction(Request $request)
     {
@@ -162,7 +163,7 @@ class DatatypeController extends ODRCustomController
             $repo_datatree = $this->getDoctrine()->getRepository('ODRAdminBundle:DataTree');
 
             // Need to only return top-level datatypes
-            // TOP LEVEL DATATYPES
+            // TODO - TOP LEVEL DATATYPES
             $datatypes = null;
             $datatrees = $repo_datatree->findAll();
             $tmp_datatypes = $repo_datatype->findAll();
@@ -238,9 +239,9 @@ class DatatypeController extends ODRCustomController
     /**
      * Creates a new top-level DataType.
      * 
-     * @param Request $result
+     * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function addAction(Request $request)
     {
@@ -266,6 +267,15 @@ class DatatypeController extends ODRCustomController
             // Verify 
             if ($request->getMethod() == 'POST') {
                 $form->bind($request, $datatype);
+
+                // Can't seem to figure out why it occassionally attempts to create an empty datatype, so...
+                $normal_fields = $request->request->get('DatatypeForm');
+                $short_name = trim( $normal_fields['shortName'] );
+                $long_name = trim( $normal_fields['longName'] );
+
+                if ($short_name == '' || $long_name == '')
+                    $form->addError( new FormError('New Datatypes require both a short name and a long name') );
+
                 if ($form->isValid()) {
                     // ----------------------------------------
                     // Set stuff that the form doesn't take care of
@@ -284,8 +294,8 @@ class DatatypeController extends ODRCustomController
                     $datatype->setSortField(null);
                     $datatype->setDisplayType(0);
                     $datatype->setRevision(0);
-                    $datatype->setHasShortResults(false);
-                    $datatype->setHasTextResults(false);
+                    $datatype->setHasShortresults(false);
+                    $datatype->setHasTextresults(false);
 
                     // Save all changes made
                     $em->persist($datatype);
@@ -324,7 +334,7 @@ class DatatypeController extends ODRCustomController
                 else {
                     // Return any errors encountered
                     $return['r'] = 1;
-                    $return['d'] = $form->getErrorsAsString();
+                    $return['d'] = parent::ODR_getErrorMessages($form);
                 }
             }
             else {
@@ -352,9 +362,9 @@ class DatatypeController extends ODRCustomController
      * Loads a form used to edit DataType Properties.
      * 
      * @param integer $datatype_id Which datatype is having its properties changed.
-     * @param Request $result
+     * @param Request $request
      * 
-     * @return a Symfony JSON reponse containing HTML
+     * @return Response TODO
      */
     public function editAction($datatype_id, Request $request)
     {
@@ -476,9 +486,9 @@ class DatatypeController extends ODRCustomController
      * Saves changes made to the DataType Properties form.
      * TODO - change this to use a Symfony Form object...
      * 
-     * @param Request $result
+     * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurs
+     * @return Response TODO
      */
     public function saveAction(Request $request)
     {
@@ -662,9 +672,9 @@ class DatatypeController extends ODRCustomController
    /**
      * Triggers a recache of all datarecords of all datatypes.
      * 
-     * @param Request $result
+     * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurs
+     * @return Response TODO
      */
     public function recacheallAction(Request $request)
     {
