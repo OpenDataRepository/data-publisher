@@ -1,10 +1,10 @@
 ODR\AdminBundle\Entity\TrackedJob:
     type: entity
     table: odr_tracked_job
-#    gedmo:
-#        loggable: true
-#        soft_deleteable:
-#            field_name: deletedAt
+    gedmo:
+        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
     fields:
         id:
             id: true
@@ -68,6 +68,12 @@ ODR\AdminBundle\Entity\TrackedJob:
             type: datetime
             default: null
             nullable: true
+
+        deletedAt:
+            type: date
+            nullable: true
+            gedmo:
+                - versioned
 
     oneToMany:
         trackedCSVExport:

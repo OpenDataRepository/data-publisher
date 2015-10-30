@@ -19,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\AdminBundle\Entity\TrackedError;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementField;
@@ -1762,7 +1763,7 @@ $save_permissions = false;
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $tracked_job_id
      *
-     * @return array TrackedJob
+     * @return array
      */
     protected function ODR_getTrackedErrorArray($em, $tracked_job_id)
     {
@@ -1785,6 +1786,7 @@ $save_permissions = false;
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $tracked_job_id
+     *
      */
     protected function ODR_deleteTrackedErrorsByJob($em, $tracked_job_id)
     {

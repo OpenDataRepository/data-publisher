@@ -4,6 +4,7 @@
     <table id="ODRJobList_{{ job_type }}" class="display">
         <thead>
             <tr>
+                <th></th>
                 <th>Started At</th>
                 <th>Started By</th>
                 <th>Description</th>
@@ -26,12 +27,21 @@
 
         var table = $("#ODRJobList_" + job_type).dataTable({
             "columns": [
+                {
+                    "data": "can_delete",
+                    "render": function(can_delete, type, row, meta) {  // can_delete is a boolean
+                        if (can_delete == true)
+                            return '<div><span id="job_' + row.tracked_job_id + '" class="pure-button ODRDeleteJob" rel="' + row.tracked_job_id + '">Delete</span></div>';
+                        else
+                            return '';
+                    }
+                },
                 { "data": "created_at" },
                 { "data": "created_by" },
                 { "data": "description" },
                 {
                     "data": "progress",
-                    "render": function(data, type, full, meta) {
+                    "render": function(data, type, row, meta) {    // data is an array containing total and current
                         return '<div class="ODRProgressBar" max_value="' + data.total + '" current_value="' + data.current + '"><div class="ODRProgressBarLabel"></div></div>';
                     }
                 },
@@ -71,6 +81,11 @@
                 type: "GET",
                 dataSrc: "d",
                 complete: function() {
+                    $(".ODRDeleteJob").unbind('click');
+                    $(".ODRDeleteJob").click(function () {
+                        deleteJob( $(this).attr('rel') );
+                    });
+
                     if (typeof doProgressBars == 'function')
                         doProgressBars();
                 }

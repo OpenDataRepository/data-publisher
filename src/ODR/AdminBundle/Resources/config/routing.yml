@@ -993,11 +993,11 @@ odr_job_refresh:
         job_type: '|recache|migrate|mass_edit|rebuild_thumbnails|csv_import|csv_import_validate|csv_export'
         job_id: \d+
 
-odr_get_job_errors:
-    pattern:  /jobs/geterrors/{job_id}
-    defaults: { _controller: ODRAdminBundle:Job:getjoberrors }
-    requirements:
-        job_id: \d+
+#odr_get_job_errors:
+#    pattern:  /jobs/geterrors/{job_id}
+#    defaults: { _controller: ODRAdminBundle:Job:getjoberrors }
+#    requirements:
+#        job_id: \d+
 
 #odr_delete_job_errors:
 #    pattern:  /jobs/delete_errors/{job_id}
@@ -1005,17 +1005,11 @@ odr_get_job_errors:
 #    requirements:
 #        job_id: \d+
 
-#odr_delete_tracked_job:
-#    pattern:  /jobs/delete_job/{job_id}
-#    defaults: { _controller: ODRAdminBundle:Job:deletejob }
-#    requirements:
-#        job_id: \d+
-
-#odr_delete_tracked_error:
-#    pattern:  /jobs/delete_error/{error_id}
-#    defaults: { _controller: ODRAdminBundle:Job:deletetrackederror }
-#    requirements:
-#        error_id: \d+
+odr_delete_tracked_job:
+    pattern:  /jobs/delete_job/{job_id}
+    defaults: { _controller: ODRAdminBundle:Job:deletejob }
+    requirements:
+        job_id: \d+
 
 #-----------------------------------------
 # Reports Controller
