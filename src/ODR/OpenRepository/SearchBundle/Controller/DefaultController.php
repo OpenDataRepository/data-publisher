@@ -35,18 +35,12 @@ use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\ImageStorage;
-use ODR\AdminBundle\Entity\RadioOption;
+use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 // Forms
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
-use ODR\AdminBundle\Form\ShortVarcharForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Cookie;
 
 class DefaultController extends Controller
@@ -59,7 +53,7 @@ class DefaultController extends Controller
      * @param string $error_message
      * @param string $status_code
      * 
-     * @return TODO
+     * @return Response TODO
      */
     private function searchPageError($error_message, $status_code)
     {
@@ -94,10 +88,10 @@ class DefaultController extends Controller
 
     /**
      * Returns a list of all datatypes which are either children or linked to an optional target datatype, minus the ones a user doesn't have permissions to see
-     * 
-     * @param EntityManager $em
-     * @param integer $target_datatype_id If set, which top-level datatype to save child/linked datatypes for
-     * @param array $user_permissions     If set, the current user's permissions array
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $target_datatype_id      If set, which top-level datatype to save child/linked datatypes for
+     * @param array $user_permissions          If set, the current user's permissions array
      *
      * @return array TODO 
      */
@@ -210,11 +204,11 @@ exit();
     /**
      * Given a list of datatypes, returns an array of all datafields the requesting user is allowed to search
      *
-     * @param EntityManager $em
-     * @param array $related_datatypes An array returned by @see self::getRelatedDatatypes()
-     * @param array $user_permissions  If set, the current user's permission array
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param array $related_datatypes         An array returned by @see self::getRelatedDatatypes()
+     * @param array $user_permissions          If set, the current user's permission array
      *
-     * @return an array of ODR\AdminBundle\Entity\DataField objects, grouped by their Datatype id
+     * @return array an array of ODR\AdminBundle\Entity\DataFields objects, grouped by their Datatype id
      */
     private function getSearchableDatafields($em, $related_datatypes, $user_permissions = array())
     {
@@ -257,6 +251,7 @@ exit();
         return $searchable_datafields;
     }
 
+
     /**
      * Renders the base page for searching purposes
      * 
@@ -264,7 +259,7 @@ exit();
      * @param String $search_string An optional string to immediately enter into the general search field and search with.
      * @param Request $request
      * 
-     * @return a Symfony HTML response containing
+     * @return Response TODO
      */
     public function searchpageAction($search_slug, $search_string, Request $request)
     {
@@ -482,6 +477,7 @@ if ($debug) {
         return $response;
     }
 
+
     /**
      * Renders a version of the search page currently used for linking datarecords.
      * TODO - move this somewhere?  reorganize so that this is the action that renders search page?
@@ -489,7 +485,7 @@ if ($debug) {
      * @param integer $target_datatype_id The database id of the DataType marked for searching...
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function searchboxAction($target_datatype_id, Request $request)
     {
@@ -624,7 +620,7 @@ if ($debug) {
      * @param string $source     "searching" if searching from frontpage, or "linking" if searching for datarecords to link
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function renderAction($search_key, $offset, $source, Request $request)
     {
@@ -665,50 +661,20 @@ if ($debug) {
 
             // -----------------------------------
             // Attempt to load the search results (for this user and/or search string?) from the cache
-            // TODO - this block of code is effectively duplicated multiple times
-            $datarecords = array();
-            $search_results = null;
-
-            if ( !$session->has('saved_searches') ) {
-                // no saved searches at all for some reason, redo the search with the given search key...
-                self::performSearch($search_key, $request);
-            }
-
-            // Grab the list of saved searches
-            $saved_searches = $session->get('saved_searches');
-            $search_checksum = md5($search_key);
-
-            if ( !isset($saved_searches[$search_checksum]) ) {
-                // no saved search for this query, redo the search...
-                self::performSearch($search_key, $request);
-                $saved_searches = $session->get('saved_searches');
-            }
-
-            // Grab whether user was logged in at the time this search was performed
-            $search_params = $saved_searches[$search_checksum];
-            $was_logged_in = $search_params['logged_in'];
-
-            // If user's login status changed between now and when the search was run...
-            if ($was_logged_in !== $logged_in) {
-                // ...run the search again 
-                self::performSearch($search_key, $request);
-                $saved_searches = $session->get('saved_searches');
-                $search_params = $saved_searches[$search_checksum];
-            }
+            $search_params = $odrcc->getSavedSearch($search_key, $logged_in, $request);
 
             // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
-            $datatype = $repo_datatype->find( $search_params['datatype'] );
-            $search_results = $search_params['datarecords'];
+            $datatype = $repo_datatype->find( $search_params['datatype_id'] );
+            $datarecord_list = $search_params['datarecord_list'];
             $encoded_search_key = $search_params['encoded_search_key'];
+            $search_checksum = $search_params['search_checksum'];
 
 
             // Turn the search results string into an array of datarecord ids
             $datarecords = array();
-            if ( trim($search_results) !== '') {
-                $search_results = explode(',', trim($search_results));
-                foreach ($search_results as $id)
-                    $datarecords[] = $id;
-            }
+            if ( trim($datarecord_list) !== '')
+                $datarecords = explode(',', trim($datarecord_list));
+
 
             // -----------------------------------
             // $datarecords now contains the ids of datarecords that match this search
@@ -735,7 +701,7 @@ if ($debug) {
                     $datarecord_str = $odrcc->getSortedDatarecords($datatype, $datarecord_str);
 
                 // Store the updated datarecord string in the session
-                $saved_searches[$search_checksum] = array('logged_in' => $logged_in, 'datatype' => $datatype->getId(), 'datarecords' => $datarecord_str, 'encoded_search_key' => $encoded_search_key);
+                $saved_searches[$search_checksum] = array('logged_in' => $logged_in, 'datatype_id' => $datatype->getId(), 'datarecords' => $datarecord_str, 'encoded_search_key' => $encoded_search_key);
                 $session->set('saved_searches', $saved_searches);
 
                 // Convert the string of undeleted datarecords back to array format for use below
@@ -803,7 +769,7 @@ if ($debug) {
      * @param string $search_key The terms the user wants to search on
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function searchAction($search_key, Request $request)
     {
@@ -813,7 +779,7 @@ if ($debug) {
         $return['d'] = '';
 
         try {
-            $return = self::performSearch($search_key, $request);
+            self::performSearch($search_key, $request);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -832,16 +798,10 @@ if ($debug) {
      * 
      * @param string $search_key The terms the user wants to search on
      * @param Request $request
-     * 
-     * @return TODO
+     *
      */
     public function performSearch($search_key, Request $request)
     {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
         // Grab default objects
         $em = $this->getDoctrine()->getManager();
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
@@ -1573,7 +1533,7 @@ if ($debug)
             if ($datarecords == false)  // apparently $datarecords gets set to false sometimes...
                 $datarecords = '';
 
-            $saved_searches[$search_checksum] = array('logged_in' => $logged_in, 'datatype' => $datatype->getId(), 'datarecords' => $datarecords, 'encoded_search_key' => $encoded_search_key);
+            $saved_searches[$search_checksum] = array('logged_in' => $logged_in, 'datatype_id' => $datatype->getId(), 'datarecords' => $datarecords, 'encoded_search_key' => $encoded_search_key);
             $session->set('saved_searches', $saved_searches);
 
 if ($debug) {
@@ -1584,25 +1544,13 @@ if ($debug) {
 }
         }
 
-/*
-        if ( trim($datarecords) !== '' ) {
-            // Really only need to return non-failure...
-            $return['d'] = '';
-        }
-        else {
-            $return['r'] = 2;
-            $return['d'] = 'No Records Found!';
-        }
-*/
-
-        return $return;
     }
 
 
     /**
      * Given a set of search parameters, runs a search on the given datafields, and returns the grandparent id of all datarecords that match the query
      *
-     * @param EntityManager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param array $datafield_list    An array of datafield ids...must all be of the same typeclass
      * @param integer $datatype_id     The datatype that the datafields in $datafield_list belong to
      * @param string $typeclass        The typeclass of every datafield in $datafield_list
@@ -2078,8 +2026,7 @@ if ($debug) {
     print "\n".'--------------------'."\n";
 }
 
-        $ret = array('str' => $str, 'params' => $parameters);
-        return $ret;
+        return array('str' => $str, 'params' => $parameters);
     }
 
 
@@ -2139,5 +2086,6 @@ if ($debug) {
         $revert = array('%21'=>'!', '%2A'=>'*', '%27'=>"'", '%28'=>'(', '%29'=>')');
         return strtr(rawurlencode($str), $revert);
     }
+
 }
 

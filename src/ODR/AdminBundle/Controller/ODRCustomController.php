@@ -51,20 +51,7 @@ use ODR\AdminBundle\Entity\UserFieldPermissions;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\OpenRepository\UserBundle\Entity\User;
-
 // Forms
-use ODR\AdminBundle\Form\BooleanForm;
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
-use ODR\AdminBundle\Form\ShortVarcharForm;
-use ODR\AdminBundle\Form\MediumVarcharForm;
-use ODR\AdminBundle\Form\LongVarcharForm;
-use ODR\AdminBundle\Form\LongTextForm;
-use ODR\AdminBundle\Form\DecimalValueForm;
-use ODR\AdminBundle\Form\DatetimeValueForm;
-use ODR\AdminBundle\Form\IntegerValueForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -466,7 +453,7 @@ print "\n\n";
      *
      * @return array TODO
      */
-    protected function getSavedSearch($search_key, $logged_in, Request $request)
+    public function getSavedSearch($search_key, $logged_in, Request $request)
     {
         //
         $session = $request->getSession();
@@ -505,6 +492,7 @@ print "\n\n";
         }
 
         // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
+        $data['datatype_id'] = $search_params['datatype_id'];
         $data['datarecord_list'] = $search_params['datarecords'];
         $data['encoded_search_key'] = $search_params['encoded_search_key'];
         $data['search_checksum'] = $search_checksum;
@@ -3063,12 +3051,11 @@ if ($debug)
     /**
      * Ensures the given datarecord and all its child datarecords have datarecordfield entries for all datafields they contain.
      * 
-     * @param DataType $datatype     TODO: this doesn't appear to be needed... 
-     * @param DataRecord $datarecord 
+     * @param DataRecord $datarecord
      *
      * @return boolean TODO
      */
-    public function verifyExistence($datatype, $datarecord)
+    public function verifyExistence($datarecord)
     {
 
         // Don't do anything to a provisioned datarecord
@@ -3083,14 +3070,10 @@ if ($debug)
     print '<pre>';
 
         // Verify the existence of all fields in this datatype/datarecord first
-        self::verifyExistence_worker($datatype, $datarecord, $debug);
-
-        // Next, get all children datarecords of the given datarecord
-        $em = $this->getDoctrine()->getManager();
-        $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-//        $childrecords = $repo_datarecord->findByGrandparent($datarecord);
+        self::verifyExistence_worker($datarecord, $debug);
 
         // Verify the existence of all fields in all the child datarecords
+        $em = $this->getDoctrine()->getManager();
         $query = $em->createQuery(
             'SELECT dr
             FROM ODRAdminBundle:DataRecord dr
@@ -3100,12 +3083,10 @@ if ($debug)
         )->setParameters( array('grandparent' => $datarecord->getId(), 'datarecord' => $datarecord->getId()) );
         $childrecords = $query->getResult();
 
-        foreach ($childrecords as $childrecord) {
-            $childtype = $childrecord->getDataType();
-            self::verifyExistence_worker($childtype, $childrecord, $debug);
-        }
+        foreach ($childrecords as $childrecord)
+            self::verifyExistence_worker($childrecord, $debug);
 
-        // Verify the existence of all fields in all linked datarecords
+        // Verify the existence of all fields in all the linked datarecords
         $query = $em->createQuery(
            'SELECT descendant
             FROM ODRAdminBundle:DataRecord AS ancestor
@@ -3116,10 +3097,9 @@ if ($debug)
         )->setParameters( array('ancestor' => $datarecord->getId()) );
         $linked_datarecords = $query->getResult();
 
-        foreach ($linked_datarecords as $linked_datarecord) {
-            $linked_datatype = $linked_datarecord->getDataType();
-            self::verifyExistence_worker($linked_datatype, $linked_datarecord, $debug);
-        }
+        foreach ($linked_datarecords as $linked_datarecord)
+            self::verifyExistence_worker($linked_datarecord, $debug);
+
 
 if ($debug) {
     print 'verifyExistence() completed in '.(microtime(true) - $start)."\n";
@@ -3133,12 +3113,11 @@ if ($debug) {
     /**
      * Ensures the given datarecord has datarecordfield entries for all datafields it contains.
      * 
-     * @param DataType $datatype     TODO: this doesn't appear to be used... 
-     * @param DataRecord $datarecord 
+     * @param DataRecord $datarecord
      *
      * @return boolean TODO
      */
-    private function verifyExistence_worker($datatype, $datarecord, $debug)
+    private function verifyExistence_worker($datarecord, $debug)
     {
         // Don't do anything to a provisioned datarecord
         if ( $datarecord->getProvisioned() == true )
@@ -3160,6 +3139,7 @@ if ($debug) {
 
         // Get Entity Manager and setup repo 
         $em = $this->getDoctrine()->getManager();
+        $datatype = $datarecord->getDataType();
 
 $start = microtime(true);
 if ($debug)

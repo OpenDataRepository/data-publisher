@@ -32,18 +32,13 @@ use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\ImageStorage;
-use ODR\AdminBundle\Entity\RadioOption;
+use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
-use ODR\AdminBundle\Form\ShortVarcharForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 
 class XSDController extends ODRCustomController
@@ -56,7 +51,7 @@ class XSDController extends ODRCustomController
      * @param integer $datatype_id The datatype that is having its schema built.
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing TODO
+     * @return Response TODO
      */
     public function builddatatypeAction($datatype_id, Request $request) {
         $return = array();
@@ -115,7 +110,7 @@ class XSDController extends ODRCustomController
      * @param integer $datafield_id The DataField that is having its schema built.
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function buildradiooptionAction($datafield_id, Request $request) {
         $return = array();
@@ -175,7 +170,7 @@ class XSDController extends ODRCustomController
      * @param integer $datatype_id Which DataType to download the schema for.
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function downloadXSDAction($datatype_id, Request $request) {
         $return = array();

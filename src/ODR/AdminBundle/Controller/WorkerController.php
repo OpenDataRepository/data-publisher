@@ -37,12 +37,12 @@ use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\ImageStorage;
-use ODR\AdminBundle\Entity\RadioOption;
+use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\DatetimeValue;
-
+// Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -55,7 +55,7 @@ class WorkerController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function recacherecordAction(Request $request)
     {
@@ -85,7 +85,7 @@ class WorkerController extends ODRCustomController
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
-            $em = $this->get('doctrine')->getManager();
+            $em = $this->getDoctrine()->getManager();
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
@@ -256,7 +256,7 @@ $ret .= 'Attempting to recache DataRecord '.$datarecord->getId().' of DataType '
 $logger->info('WorkerController::recacherecordAction()  Attempting to recache DataRecord '.$datarecord->getId().' of DataType '.$datatype->getId());
 
                     // Ensure all entities exist prior to attempting to render HTML for the datarecord
-                    parent::verifyExistence($datatype, $datarecord);
+                    parent::verifyExistence($datarecord);
                     $current_revision = $datatype->getRevision();
 
                     // Render and cache the ShortResults form of the record
@@ -340,7 +340,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function migrateAction(Request $request)
     {
@@ -372,7 +372,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
-            $em = $this->get('doctrine')->getManager();
+            $em = $this->getDoctrine()->getManager();
             $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
@@ -403,7 +403,6 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 
             // Create a new datarecord field entity if it doesn't exist
             $em->refresh($datafield);
-            $datatype = $datafield->getDataType();
             $drf = $repo_datarecordfields->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
             if ($drf == null) {
                 $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
@@ -531,8 +530,7 @@ $ret .= '  Set current to '.$count."\n";
      * 
      * @param integer $datatype_id Which datatype should have all its image thumbnails rebuilt
      * @param Request $request
-     * 
-     * @return TODO
+     *
      */
     public function startrebuildthumbnailsAction($datatype_id, Request $request)
     {
@@ -613,12 +611,13 @@ $ret .= '  Set current to '.$count."\n";
 
     }
 
+
     /**
      * Called by the rebuild_thumbnails worker process to rebuild the thumbnails of one of the uploaded images on the site. 
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function rebuildthumbnailsAction(Request $request)
     {
@@ -699,7 +698,7 @@ $ret .= '  Set current to '.$count."\n";
      *
      * @param Request $request
      *
-     * @return TODO
+     * @return string
      */
     public function drcheckAction(Request $request)
     {
@@ -755,7 +754,7 @@ print '</pre>';
      *
      * @param Request $request
      *
-     * @return TODO
+     * @return string
      */
     public function dfcheckAction(Request $request)
     {
@@ -810,10 +809,11 @@ print '</pre>';
     /**
      * Debuf function...checks for duplicate datarecordfield entities (those that share the same datarecord/datafield key pair)
      * TODO - check for non-deleted drf entities that point to deleted datarecords? 
-     * 
+     *
+     * @param integer $datatype_id
      * @param Request $request
      * 
-     * @return TODO
+     * @return string
      */
     public function drfcheckAction($datatype_id, Request $request)
     {
@@ -1015,7 +1015,7 @@ print '</pre>';
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return string
      */
     public function entitycheckAction(Request $request)
     {
@@ -1076,8 +1076,7 @@ print '</pre>';
      * 
      * @param string $object_type "File" or "Image"...which type of entity to encrypt
      * @param Request $request
-     * 
-     * @return none? TODO
+     *
      */
     public function startencryptAction($object_type, Request $request)
     {
@@ -1141,7 +1140,7 @@ print '</pre>';
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function encryptAction(Request $request)
     {
@@ -1186,10 +1185,9 @@ print '</pre>';
     /**
      * Begins the process of forcibly decrypting every uploaded file/image on the site.
      * 
-     * @param string $object_type
+     * @param string $object_type "File" or "Image"...which type of entity to encrypt
      * @param Request $request
-     * 
-     * @return TODO
+     *
      */
     public function startdecryptAction($object_type, Request $request)
     {
@@ -1253,7 +1251,7 @@ print '</pre>';
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function decryptAction(Request $request)
     {
@@ -1315,7 +1313,6 @@ print '</pre>';
      *
      * @param Request $request
      *
-     * @return TODO
      */
     public function deletedradiocheckAction(Request $request)
     {
@@ -1344,10 +1341,16 @@ return;
         }
     }
 
+
     /**
      * displays/deletes duplicate radio selection options
      * TODO - figure out why the page appears to auto-reload when deletion is enabled
      * TODO - convert to native SQL because doctrine can't handle the number of results when run on UAMM
+     *
+     * @param integer $datatype_id
+     * @param Request $request
+     *
+     * @return string TODO
      */
     public function duplicateradiocheckAction($datatype_id, Request $request)
     {

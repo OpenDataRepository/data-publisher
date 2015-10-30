@@ -45,14 +45,7 @@ use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\FileChecksum;
 use ODR\AdminBundle\Entity\ImageChecksum;
-
 // Forms
-use ODR\AdminBundle\Form\DecimalValueForm;
-use ODR\AdminBundle\Form\IntegerValueForm;
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -73,10 +66,11 @@ class CSVExportController extends ODRCustomController
      * Sets up a csv export request made from a search results page.
      * 
      * @param integer $datatype_id The database id of the DataType the search was performed on.
-     * @param integer $offset
      * @param string $search_key   The search key identifying which datarecords to potentially export
+     * @param integer $offset
+     * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function csvExportAction($datatype_id, $search_key, $offset, Request $request)
     {
@@ -104,7 +98,6 @@ class CSVExportController extends ODRCustomController
 
             // ----------------------------------------
             // If this datarecord is being viewed from a search result list, attempt to grab the list of datarecords from that search result
-            $datarecord_list = '';
             $encoded_search_key = '';
             $search_checksum = '';
             if ($search_key !== '') {
@@ -123,8 +116,6 @@ class CSVExportController extends ODRCustomController
             }
 
             // Generate the HTML required for a header
-            $header_html = '';
-
             $templating = $this->get('templating');
             $header_html = $templating->render(
                 'ODRAdminBundle:CSVExport:csvexport_header.html.twig',
@@ -154,7 +145,7 @@ class CSVExportController extends ODRCustomController
      * Renders and returns the html used for performing csv exporting
      * 
      * @param integer $datatype_id    The database id that the search was performed on.
-     * @param string $search_checksum The md5 checksum created from a $search_key
+     * @param string $search_checksum The md5 checksum created from a $search_key...can't use $search_key directly because Symfony automatically "decodes" the string when passed as an argument
      * @param Request $request
      * 
      * @return string
@@ -214,7 +205,7 @@ if ($debug)
      * 
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function csvExportStartAction(Request $request)
     {
@@ -423,7 +414,7 @@ if ($debug)
      * 
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function csvExportConstructAction(Request $request)
     {
@@ -461,7 +452,7 @@ if ($debug)
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
-            $em = $this->get('doctrine')->getManager();
+            $em = $this->getDoctrine()->getManager();
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
 
 
@@ -653,7 +644,7 @@ print_r($line);
      * 
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function csvExportWorkerAction(Request $request)
     {
@@ -687,7 +678,7 @@ print_r($line);
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
-            $em = $this->get('doctrine')->getManager();
+            $em = $this->getDoctrine()->getManager();
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
 
 
@@ -892,7 +883,7 @@ print_r($line);
      * 
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function csvExportFinalizeAction(Request $request)
     {
@@ -924,7 +915,7 @@ print_r($line);
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
-            $em = $this->get('doctrine')->getManager();
+            $em = $this->getDoctrine()->getManager();
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
 
 
@@ -1023,7 +1014,7 @@ print_r($line);
      * @param integer $tracked_job_id The tracked job that stored the progress of the csv export
      * @param Request $request
      *          
-     * @return TODO
+     * @return Response TODO
      */
     public function downloadCSVAction($user_id, $tracked_job_id, Request $request) {
         $return = array();

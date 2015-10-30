@@ -38,23 +38,9 @@ use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\ImageStorage;
 use ODR\AdminBundle\Entity\File;
 // Forms
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
-use ODR\AdminBundle\Form\ShortVarcharForm;
-use ODR\AdminBundle\Form\MediumVarcharForm;
-use ODR\AdminBundle\Form\LongVarcharForm;
-use ODR\AdminBundle\Form\LongTextForm;
-use ODR\AdminBundle\Form\DecimalValueForm;
-use ODR\AdminBundle\Form\IntegerValueForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
-
-// Lulz?
-//use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 
 class ResultsController extends ODRCustomController
@@ -67,7 +53,7 @@ class ResultsController extends ODRCustomController
      * @param integer $offset        Used for search header, an optional integer indicating which page of the search result list $datarecord_id is on
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing the HTML version of the requested DataRecord that the user is allowed to view
+     * @return Response TODO
      */
     public function viewAction($datarecord_id, $search_key, $offset, Request $request) 
     {
@@ -78,8 +64,6 @@ class ResultsController extends ODRCustomController
 
         try {
             // Get Current User
-            $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -105,7 +89,7 @@ class ResultsController extends ODRCustomController
 
             // ----------------------------------------
             // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = array();
             $logged_in = true;
             $has_view_permission = false;
@@ -260,7 +244,7 @@ class ResultsController extends ODRCustomController
                 $datatype_revision = $datatype->getRevision();
                 if ($data == null || $data['revision'] < $datatype_revision) {
                     // If the cached html doesn't exist, ensure all the entities exist 
-                    parent::verifyExistence($datatype, $datarecord);
+                    parent::verifyExistence($datarecord);
 
                     // Render the variant of the DataRecord that the user is going to get to see, and save it to memcached immediately
                     if ($public_only) {
@@ -315,7 +299,7 @@ class ResultsController extends ODRCustomController
      * @param integer $file_id The database id of the file to download.
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function filedownloadAction($file_id, Request $request) {
         $return = array();
@@ -419,7 +403,7 @@ class ResultsController extends ODRCustomController
      * @param integer $image_id The database_id of the image to download.
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function imagedownloadAction($image_id, Request $request) {
         $return = array();
@@ -548,7 +532,7 @@ class ResultsController extends ODRCustomController
      * @param string $datarecord_name
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function mapAction($datarecord_id, $datarecord_name, Request $request)
     {
@@ -565,7 +549,7 @@ class ResultsController extends ODRCustomController
 
             // Grab the desired datarecord
             $datarecord = $repo_datarecord->find($datarecord_id);
-            $datatype = $datarecord->getDataType();
+//            $datatype = $datarecord->getDataType();
 
             // Determine which memcached key to load
             $has_non_public_children = false;
@@ -589,7 +573,7 @@ class ResultsController extends ODRCustomController
 
                 if ($cache_html == null) {
                     // If the cached html doesn't exist, ensure all the entities exist before rendering caching the DataRecord's html
-                    parent::verifyExistence($datatype, $datarecord);
+                    parent::verifyExistence($datarecord);
                     $cache_html = parent::Long_GetDisplayData($request, $datarecord->getId(), 'public_only');
                     $memcached->set($memcached_prefix.'.data_record_long_form_public_'.$datarecord_id, $cache_html, 0);
                 }
@@ -605,8 +589,8 @@ class ResultsController extends ODRCustomController
 
                 if ($cache_html == null) {
                     // If the cached html doesn't exist, ensure all the entities exist before rendering caching the DataRecord's html
-                    parent::verifyExistence($datatype, $datarecord);
-                    $cache_html = parent::Long_GetDisplayData($request, $datarecord-getId());
+                    parent::verifyExistence($datarecord);
+                    $cache_html = parent::Long_GetDisplayData($request, $datarecord->getId());
                     $memcached->set($memcached_prefix.'.data_record_long_form_'.$datarecord_id, $cache_html, 0);
                 }
             }

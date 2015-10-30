@@ -31,7 +31,7 @@ class ReportsController extends ODRCustomController
      * @param integer $datafield_id
      * @param Request $request
      *
-     * @return TODO
+     * @return Response TODO
      */
     public function analyzedatafielduniqueAction($datafield_id, Request $request)
     {
@@ -149,7 +149,7 @@ class ReportsController extends ODRCustomController
      * @param integer $datafield_id
      * @param Request $request
      *
-     * @return TODO
+     * @return Response TODO
      */
     public function analyzefileuploadsAction($datafield_id, Request $request)
     {
@@ -268,7 +268,7 @@ class ReportsController extends ODRCustomController
      * @param integer $datatree_id
      * @param Request $request
      *
-     * @return TODO
+     * @return Response TODO
      */
     public function analyzedatarecordnumberAction($datatree_id, Request $request)
     {
@@ -369,7 +369,7 @@ class ReportsController extends ODRCustomController
      * @param integer $datafield_id
      * @param Request $request
      *
-     * @return TODO
+     * @return Response TODO
      */
     public function analyzedatafieldcontentAction($datafield_id, Request $request)
     {

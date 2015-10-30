@@ -34,14 +34,6 @@ use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginOptions;
 use ODR\AdminBundle\Entity\UserPermissions;
 // Forms
-use ODR\AdminBundle\Form\DecimalValueForm;
-use ODR\AdminBundle\Form\IntegerValueForm;
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
-use ODR\AdminBundle\Form\UpdateThemeElementForm;
-use ODR\AdminBundle\Form\UpdateThemeDatafieldForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -57,7 +49,7 @@ class TextResultsController extends ODRCustomController
      * @param string $used_field_ids   The database ids of datafields added to TextResults, in order
      * @param Request $request
      *
-     * @return an empty Symfony JSON response, unless an error occurred
+     * @return Response TODO
      */
     public function fieldorderAction($unused_field_ids, $used_field_ids, Request $request)
     {
@@ -98,7 +90,6 @@ class TextResultsController extends ODRCustomController
                     if ($datatype == null)
                         $datatype = $datafield->getDataType();
 
-                    // If datatype of this field doesn't match a previous field, exit
                     // If datatype of this field doesn't match a previous field, exit
                     if ($datatype !== $datafield->getDataType())
                         throw new \Exception("Malformed URL!");
@@ -170,7 +161,7 @@ class TextResultsController extends ODRCustomController
      *
      * @param Request $request
      *
-     * @return JSON array TODO
+     * @return array TODO
      */
     public function datatablesrowrequestAction(Request $request)
     {
@@ -256,7 +247,7 @@ class TextResultsController extends ODRCustomController
                 if ($search_key !== '') {
                     // 
                     $data = parent::getSavedSearch($search_key, $logged_in, $request);
-                    $encoded_search_key = $data['encoded_search_key'];
+//                    $encoded_search_key = $data['encoded_search_key'];
                     $datarecord_list = $data['datarecord_list'];
 
 /*
@@ -310,9 +301,9 @@ class TextResultsController extends ODRCustomController
 
                     // Build an array so php can sort the list
                     $tmp = array();
-                    foreach ($results as $num => $data) {
-                        $option_name = $data['option_name'];
-                        $datarecord_id = $data['dr_id'];
+                    foreach ($results as $num => $result) {
+                        $option_name = $result['option_name'];
+                        $datarecord_id = $result['dr_id'];
 
                         $key = $option_name.'_'.$datarecord_id;
                         $tmp[ $key ] = $datarecord_id;
@@ -432,7 +423,7 @@ class TextResultsController extends ODRCustomController
      *
      * @param Request $request
      *
-     * @return TODO 
+     * @return Response TODO
      */
     public function datatablesstatesaveAction(Request $request)
     {
@@ -480,7 +471,7 @@ class TextResultsController extends ODRCustomController
      *
      * @param Request $request
      *
-     * @return TODO 
+     * @return Response TODO
      */
     public function datatablesstateloadAction(Request $request)
     {
@@ -535,7 +526,7 @@ class TextResultsController extends ODRCustomController
      * @param string $odr_tab_id
      * @param Request $request
      *
-     * @return TODO
+     * @return Response TODO
      */
     public function datatablesstatedestroyAction($odr_tab_id, Request $request)
     {
