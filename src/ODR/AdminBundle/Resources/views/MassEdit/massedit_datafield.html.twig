@@ -96,11 +96,6 @@
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ field.id }}" class="ODRFieldLabel" title="{{ field.description }}">{{ field.fieldname }}</label>
-{#
-            <span style="margin-left: 10px;">
-                <i class="ODRRadioOptions Pointer fa fa-lg fa-cog" title="Edit Options" rel="{{ field.id }}"></i>
-            </span>
-#}
         </span>
         <div class="ODRSingleRadio pure-u-1" rel="{{ field.id }}">
             <label id="Label_0" for="Input_0" class="pure-u-1" style="margin: 0.5em 0;">
@@ -120,7 +115,6 @@
             </label>
         {% endfor %}
         </div>
-
     </fieldset>
 
     {#{% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}#}
@@ -128,11 +122,6 @@
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ field.id }}" class="ODRFieldLabel" title="{{ field.description }}">{{ field.fieldname }}</label>
-{#
-            <span style="margin-left: 10px;">
-                <i class="ODRRadioOptions Pointer fa fa-lg fa-cog" title="Edit Options" rel="{{ field.id }}"></i>
-            </span>
-#}
         </span>
         <select id="SelectGroup_{{ field.id }}" class="ODRSingleSelect" {% if can_edit_datafield == 0 %}disabled{% endif %}>
         {% if field_typename == "Single Select" %}
@@ -143,15 +132,23 @@
             <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.getOptionName }}</option>
         {% endfor %}
         </select>
-
     </fieldset>
 
     {% elseif field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ field.id }}">
-                <strong>Can't mass update this datafield, yet</strong>
+                <label id="Label_{{ field.id }}" class="ODRFieldLabel" title="{{ field.description }}">{{ field.fieldname }}</label>
             </label>
+            {% for radio_option in datafield.getRadioOptions %}
+                <label id="Label_{{ field.id }}_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="ODRRadioLabel pure-u-1">
+                    <span class="ODRTristateCheckbox" rel="multiple">
+                        <i class="fa"></i>
+                        <input type="hidden" name="{{ field.id }}" rel="{{ radio_option.id }}" value="" />
+                    </span>
+                    {{ radio_option.getOptionName }}
+                </label>
+            {% endfor %}
         </span>
     </fieldset>
 

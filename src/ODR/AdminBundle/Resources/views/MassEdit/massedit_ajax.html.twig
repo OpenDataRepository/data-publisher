@@ -27,11 +27,75 @@
 
 {% endspaceless %}
 
+<style>
+    .fa {
+        padding: 0px;
+    }
+    .ODRTristateCheckbox > .fa-ban {
+        color: red;
+    }
+    .ODRTristateCheckbox > .fa-check {
+        color: green;
+    }
+    .ODRTristateCheckbox {
+        cursor: pointer;
+        border: 2px solid #666;
+        border-radius: 5px;
+        height: 1.5em;
+        width: 1.5em;
+        display: inline-block;
+    }
+    .ODRTristateCheckbox > .fa {
+        line-height: 1.25em;
+        margin-left: 0.25em;
+    }
+    .ODRTristateCheckbox:hover, .ODRTristateCheckbox:active, .ODRTristateCheckbox:focus {
+        background: #9cd4d4;
+    }
+</style>
+
 <script>
 
 $(function() {
     initPage();
     window.scrollTo(0,0);
+
+    // Tristate checkbox
+    $(".ODRTristateCheckbox").unbind('click');
+    $(".ODRTristateCheckbox").click(function() {
+        // Grab data about the option being clicked
+        var icon = $(this).children('i').first();
+        var input = $(this).children('input').first();
+        var radio_option_id = $(input).attr('rel');
+
+        if ( $(icon).hasClass('fa-check') ) {
+            // Currently selected, change to deselected
+            $(this).attr('title', 'Deselect this option in all Datarecords');
+            $(icon).removeClass('fa-check').addClass('fa-ban');
+            $(input).val(0);
+        }
+        else if ( $(icon).hasClass('fa-ban') ) {
+            // Currently deselected, change to blank
+            $(this).removeAttr('title');
+            $(icon).removeClass('fa-ban');
+            $(input).val('');
+        }
+        else {
+            // If only a single radio/select, uncheck all other options
+            if ( $(this).attr('rel') == 'single') {
+                $(this).parent().parent().find('.fa-check').each(function() {
+                    $(this).parent().removeAttr('title');
+                    $(this).removeClass('fa-check');
+                    $(this).next().val('');
+                });
+            }
+
+            // Currently blank, change to selected
+            $(this).attr('title', 'Select this option in all Datarecords');
+            $(icon).addClass('fa-check');
+            $(input).val(1);
+        }
+    });
 });
 
 
@@ -117,6 +181,7 @@ function doMassUpdate() {
         }
     });
 
+
     // Single Selects
     $(".ODRSingleSelect").each(function() {
         // Grab the ID of the field
@@ -136,26 +201,24 @@ function doMassUpdate() {
     });
 
 
-/*
     // TODO - Multiple Radio/Select
-    $(".InputResizable .ODRMultipleSelect").each(function() {
+    $(".ODRTristateCheckbox > input").each(function() {
         // Grab the ID of the field
-        var id_data = $(this).attr('id').split('_');
-        var id = id_data[1];
-        var radio_option_id = id_data[2];
+        var datafield_id = $(this).attr('name');
+        var radio_option_id = $(this).attr('rel');
 
         // Remove any value for this datafield currently stored in the form
-        if ( $("#Value_" + id) !== null )
-            $("#Value_" + id).remove();
+        if ( $("#Value_" + datafield_id + "_" + radio_option_id) !== null )
+            $("#Value_" + datafield_id + "_" + radio_option_id).remove();
 
         // Save any value currently in this datafield
         var val = $(this).val().trim();
-        if (val !== '' && val !== '-1') {
-            var element = $("<input>", {id: "Value_" + id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + id + "][" + radio_option_id + "]"});
+        if (val !== '') {
+            var element = $("<input>", {id: "Value_" + datafield_id + "_" + radio_option_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "][" + radio_option_id + "]"});
             $("#massedit_form").append(element);
         }
     });
-*/
+
 
     // Single Radio
     $(".ODRSingleRadio").each(function() {
@@ -163,7 +226,6 @@ function doMassUpdate() {
         var datafield_id = $(this).attr('rel');
 
         // Save any value currently in this datafield
-//        var val = -1;
         $(this).find(".ODRRadioOption").each(function() {
             if ( $(this).is(":checked") ) {
 
@@ -178,12 +240,6 @@ function doMassUpdate() {
                 }
             }
         });
-/*
-        if (val !== '' && val !== -1) {
-            var element = $("<input>", {id: "Value_" + datafield_id, type: "hidden", value: val, name: "datafields[" + datafield_id + "][" + radio_option_id + "]"});
-            $("#massedit_form").append(element);
-        }
-*/
     });
 
     // Datetime fields
