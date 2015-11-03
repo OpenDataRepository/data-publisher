@@ -111,7 +111,10 @@ class CSVImportController extends ODRCustomController
                 if ($parent_dt_id == $datatype_id) {
                     // Ensure user has permissions to modify this childtype before storing it
                     if ( isset($user_permissions[ $dt_id ]) && $user_permissions[ $dt_id ]['edit'] == 1 ) {
-                        $childtypes[] = $repo_datatype->find($dt_id);
+
+                        // Only store the childtype if it doesn't have children of its own...
+                        if ( !in_array($dt_id, $datatree_array['descendant_of']) )
+                            $childtypes[] = $repo_datatype->find($dt_id);
                     }
                 }
             }
@@ -1950,7 +1953,10 @@ class CSVImportController extends ODRCustomController
                     if ($parent_dt_id == $datatype_id) {
                         // Ensure user has permissions to modify this childtype before storing it
                         if (isset($user_permissions[$dt_id]) && $user_permissions[$dt_id]['edit'] == 1) {
-                            $childtypes[] = $repo_datatype->find($dt_id);
+
+                            // Only store the childtype if it doesn't have children of its own...
+                            if ( !in_array($dt_id, $datatree_array['descendant_of']) )
+                                $childtypes[] = $repo_datatype->find($dt_id);
                         }
                     }
                 }
