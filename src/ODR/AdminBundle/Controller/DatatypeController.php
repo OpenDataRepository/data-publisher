@@ -358,7 +358,32 @@ class DatatypeController extends ODRCustomController
     }
 
 
-   /**
+    /**
+     * Recursively builds a tree version of the Datatree table...TODO
+     *
+     * @param \Doctrine\ORM\Entitymanager $em
+     * @param array $datatree_array
+     * @param integer $parent_datatype_id
+     *
+     * @return array
+     */
+    private function getAllDatatypes($em, $datatree_array, $parent_datatype_id)
+    {
+        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+        $datatypes = array();
+
+        $tmp = array_keys($datatree_array['descendant_of'], $parent_datatype_id);
+        foreach ($tmp as $num => $child_datatype_id) {
+            $datatypes[$child_datatype_id] = array('datatype' => $repo_datatype->find($child_datatype_id), 'children' => array() );
+
+            $datatypes[$child_datatype_id]['children'] = self::getAllDatatypes($em, $datatree_array, $child_datatype_id);
+        }
+
+        return $datatypes;
+    }
+
+
+    /**
      * Loads a form used to edit DataType Properties.
      * 
      * @param integer $datatype_id Which datatype is having its properties changed.
@@ -378,6 +403,7 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 //            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
+            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
             $site_baseurl = $this->container->getParameter('site_baseurl');
 
             // Grab necessary objects
@@ -391,11 +417,68 @@ class DatatypeController extends ODRCustomController
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['design'])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
 
+            // ----------------------------------------
+            // Determine whether user can view permissions of other users
+            $can_view_permissions = false;
+            if ($user->hasRole('ROLE_SUPER_ADMIN') || (isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['admin'])) )
+                $can_view_permissions = true;
+
+            $all_datatypes = array();
+            $all_permissions = array();
+            if ($can_view_permissions) {
+                // Recursively locate all childtypes of this datatype
+                $datatree_array = parent::getDatatreeArray($em);
+                $all_datatypes = array($datatype_id => array('datatype' => $datatype, 'children' => array()));
+                $all_datatypes[$datatype_id]['children'] = self::getAllDatatypes($em, $datatree_array, $datatype_id);
+
+                // Easier to look through $datatree_array directly to find all relevant datatype ids...
+                $all_datatype_ids = array($datatype_id);
+                $parent_datatype_ids = array($datatype_id);
+                while (count($parent_datatype_ids) > 0) {
+
+                    $tmp_datatype_ids = array();
+                    foreach ($parent_datatype_ids as $num => $dt_id) {
+                        $tmp = array_keys($datatree_array['descendant_of'], $dt_id);
+
+                        foreach ($tmp as $child_datatype_id) {
+                            $tmp_datatype_ids[] = $child_datatype_id;
+                            $all_datatype_ids[] = $child_datatype_id;
+                        }
+                    }
+
+                    $parent_datatype_ids = $tmp_datatype_ids;
+                }
+
+
+                // Locate all users that can access this datatype
+                $query = $em->createQuery(
+                   'SELECT DISTINCT(u.id)
+                    FROM ODRAdminBundle:UserPermissions AS up
+                    JOIN ODROpenRepositoryUserBundle:User AS u
+                    WHERE up.dataType IN (:datatypes)'
+                )->setParameters(array('datatypes' => $all_datatype_ids));
+                $results = $query->getArrayResult();
+
+                // Store all relevant permissions in an array for twig...
+                $all_permissions = array();
+                foreach ($results as $num => $data) {
+                    $user_id = $data[1];
+
+                    if (!isset($all_permissions[$user_id])) {
+                        $site_user = $repo_user->find($user_id);
+                        if (!$site_user->hasRole('ROLE_SUPER_ADMIN'))
+                            $all_permissions[$user_id] = array('user' => $site_user, 'permissions' => parent::getPermissionsArray($user_id, $request, false));
+                    }
+                }
+                ksort($all_permissions);
+            }
+
+            // ----------------------------------------
             // Grab datafields that this page needs
             $query = $em->createQuery(
                'SELECT df AS datafield, df.is_unique AS is_unique, ft.typeName AS typename, ft.canBeSortField AS can_be_sortfield
@@ -453,12 +536,18 @@ class DatatypeController extends ODRCustomController
                 }
             }
 
+
+            // ----------------------------------------
             // Render the edit page
             $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Datatype:edit_datatype_properties.html.twig',
                     array(
+                        'can_view_permissions' => $can_view_permissions,
+                        'all_datatypes' => $all_datatypes,
+                        'all_permissions' => $all_permissions,
+
                         'site_baseurl' => $site_baseurl,
                         'datatype' => $datatype,
 
@@ -482,7 +571,8 @@ class DatatypeController extends ODRCustomController
         return $response;
     }
 
-   /**
+
+    /**
      * Saves changes made to the DataType Properties form.
      * TODO - change this to use a Symfony Form object...
      * 
@@ -669,7 +759,7 @@ class DatatypeController extends ODRCustomController
     }
 
 
-   /**
+    /**
      * Triggers a recache of all datarecords of all datatypes.
      * 
      * @param Request $request

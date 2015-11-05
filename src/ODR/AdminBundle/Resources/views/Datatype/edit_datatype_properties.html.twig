@@ -29,7 +29,7 @@
                         <option value="{{ datafield.id }}" {% if datatype.getnamefield != null and datatype.getnamefield.id == datafield.id %}selected{% endif %}>{{ datafield.getfieldname }}</option>
                     {% endfor %}
                 </select>
-                <span>&nbsp;<i class="fa fa-lg fa-question-circle Cursor" title="The contents of the selected Datafield will be used as a logical 'name' to label the Datarecord in lists and various other places.  In the absence of an External ID value, the 'name' will be used to identify a Datarecord during CSV/XML Importing.  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use."></i></span>
+                <span>&nbsp;<i class="fa fa-lg fa-question-circle Cursor" title="The contents of the selected Datafield will be used as a logical 'name' to label the Datarecord in lists and various other places.{#  In the absence of an External ID value, the 'name' will be used to identify a Datarecord during CSV/XML Importing.#}  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use."></i></span>
             </div>
 
             <div class="pure-control-group">
@@ -101,6 +101,10 @@
     </div>
 
 </div>
+
+{% if can_view_permissions %}
+    {% include 'ODRAdminBundle:Datatype:user_permissions_list.html.twig' with {'all_datatypes': all_datatypes, 'all_permissions': all_permissions} %}
+{% endif %}
 
 <style type="text/css">
     .ODRFormWrap {
