@@ -18,6 +18,8 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
+// Entities
+// Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -416,7 +418,7 @@ class ReportsController extends ODRCustomController
                     break;
 
                 default:
-                    throw new \Exception('Invalid Field');
+                    throw new \Exception('Invalid DataField');
                     break;
             }
 
@@ -489,4 +491,97 @@ class ReportsController extends ODRCustomController
         return $response;
     }
 
+
+    /**
+     * Given a datafield, build a list of all values stored in that datafield
+     *
+     * @param integer $datafield_id
+     * @param Request $request
+     *
+     * @return Response TODO
+     */
+    public function analyzeradioselectionsAction($datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+            $templating = $this->get('templating');
+
+            $datafield = $repo_datafield->find($datafield_id);
+            if ( $datafield == null )
+                return parent::deletedEntityError('DataField');
+
+            $datatype = $datafield->getDataType();
+            if ( $datatype == null )
+                return parent::deletedEntityError('DataType');
+
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+            // ----------------------------------------
+            // Only run this on valid fieldtypes...
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            if ($typeclass !== 'Radio')
+                throw new \Exception('Invalid DataField');
+
+            // Find all selected radio options for this datafield
+            $query = $em->createQuery(
+               'SELECT dr.id AS dr_id, ro.optionName
+                FROM ODRAdminBundle:DataRecord AS dr
+                JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
+                JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.dataRecordFields = drf
+                JOIN ODRAdminBundle:RadioOptions AS ro WITH rs.radioOption = ro
+                WHERE drf.dataField = :datafield AND rs.selected = 1
+                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL'
+            )->setParameters( array('datafield' => $datafield_id) );
+            $results = $query->getArrayResult();
+
+            // Determine which datarecords have multiple selected radio options
+            $datarecords = array();
+            foreach ($results as $num => $result) {
+                $dr_id = $result['dr_id'];
+
+                if ( !isset($datarecords[$dr_id]) )
+                    $datarecords[$dr_id] = 0;
+
+                $datarecords[$dr_id]++;
+            }
+
+            // ----------------------------------------
+            // Render and return a page detailing which datarecords have multiple selected Radio Options...
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Reports:radio_selections_report.html.twig',
+                    array(
+                        'datafield' => $datafield,
+                        'datatype' => $datatype,
+                        'datarecords' => $datarecords,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x365824256 '. $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 }

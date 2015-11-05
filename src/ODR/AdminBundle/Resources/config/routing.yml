@@ -1037,6 +1037,12 @@ odr_design_analyze_datafield_content:
     requirements:
         datafield_id: \d+
 
+odr_design_analyze_radio_selections:
+    pattern:  /edit/record/analyze_radio_selections/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Reports:analyzeradioselections }
+    requirements:
+        datafield_id: \d+
+
 #-----------------------------------------
 # Other stuff
 odr_dt_check:
