@@ -9,7 +9,7 @@ ODR\OpenRepository\GraphBundle\Plugins\URL:
         url_field:
             name: URL Field
             description: A datafield containing part of a search URL.
-            type: ShortVarchar|MediumVarchar|LongVarchar|LongText
+            type: Integer|ShortVarchar|MediumVarchar|LongVarchar|LongText
     config_options:
         base_url:
             name: baseurl
