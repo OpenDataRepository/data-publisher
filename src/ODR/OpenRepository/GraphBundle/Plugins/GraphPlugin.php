@@ -331,6 +331,8 @@ class GraphPlugin
 
             // ------------------------------
             // Read the graph files
+            ini_set('auto_detect_line_endings', TRUE);
+
             $debug_txt = "";
             $counter = 0;
             $valid_data = false;
@@ -614,7 +616,7 @@ print $combined_y_max."\n";
             $graph->img->SetImgFormat('png');
 
             $chart_id .= "_" . rand(1000000,9999999);
-            $img_name = "/uploads/files/" . $chart_id . ".png";
+            $img_name = "/uploads/files/graphs/" . $chart_id . ".png";
             if($valid_data) {
                 // http://stackoverflow.com/questions/6825959/jpgraph-bottom-margin-with-legend-on-off
                 $graph->graph_theme = null;
@@ -623,6 +625,7 @@ print $combined_y_max."\n";
             }
             else {
                 // Write No Data Image
+throw new \Exception("invalid data?");
             }
 
 
@@ -648,6 +651,8 @@ print $combined_y_max."\n";
                 )
             );
 
+//return 'graph plugin';
+
             // $output = count($drc_group) . " --- " . $output;
             return $output;
 
@@ -655,9 +660,10 @@ print $combined_y_max."\n";
         catch ( \JpGraphException $e ) {
             // TODO - need a way to get errors back
 //            print $e->getMessage();
+            return "<h2>JpGraphException:</h2><p>" . $e->getMessage() . "</p>";
         }
         catch (\Exception $e) {
-            // return "<h2>An Exception Occurred</h2><p>" . $e->getMessage() . "</p>";
+            return "<h2>Exception:</h2><p>" . $e->getMessage() . "</p>";
         }
     }
 
