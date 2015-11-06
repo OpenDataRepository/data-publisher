@@ -63,7 +63,7 @@ class DisplaytemplateController extends ODRCustomController
      * @param integer $datafield_id The database id of the Datafield to delete.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function deletefieldAction($datafield_id, Request $request)
     {
@@ -183,7 +183,7 @@ class DisplaytemplateController extends ODRCustomController
      * @param integer $radio_option_id The database id of the RadioOption to delete.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function deleteradiooptionAction($radio_option_id, Request $request)
     {
@@ -242,13 +242,14 @@ class DisplaytemplateController extends ODRCustomController
 
     }
 
+
     /**
      * Toggles whether a given RadioOption entity is automatically selected upon creation of a new datarecord.
      *
      * @param integer $radio_option_id The database id of the RadioOption to modify.
      * @param Request $request
      *
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function defaultradiooptionAction($radio_option_id, Request $request)
     {
@@ -320,6 +321,7 @@ class DisplaytemplateController extends ODRCustomController
 
     }
 
+
     /**
      * Deletes an entire DataType and all of the entities directly related to rendering it.
      * DataRecords and DataFields don't have to be deleted.
@@ -327,7 +329,7 @@ class DisplaytemplateController extends ODRCustomController
      * @param integer $datatype_id The database id of the DataType to be deleted.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function deletedatatypeAction($datatype_id, Request $request)
     {
@@ -493,13 +495,14 @@ print '<pre>';
 print '</pre>';
     }
 
+
     /**
      * Loads and returns the DesignTemplate HTML for this DataType.
      * 
      * @param integer $datatype_id The database id of the DataType to be rendered.
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function designAction($datatype_id, Request $request)
     {
@@ -549,7 +552,7 @@ print '</pre>';
      * 
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function themeelementorderAction(Request $request)
     {
@@ -625,7 +628,7 @@ print '</pre>';
      * @param integer $ending_theme_element_id  The database id of the ThemeElement the DataField is in after being moved.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function datafieldorderAction($initial_theme_element_id, $ending_theme_element_id, Request $request)
     {
@@ -702,13 +705,14 @@ print '</pre>';
         return $response;
     }
 
+
     /**
      * Toggles whether a ThemeElement container is visible only visible to users with the view permission for this datatype, or is visible to everybody viewing the record.
      * 
      * @param integer $theme_element_id The database id of the ThemeElement to modify.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function themeelementvisibleAction($theme_element_id, Request $request)
     {
@@ -795,13 +799,14 @@ print '</pre>';
         return $response;  
     }
 
+
     /**
      * Deletes a ThemeElement from a DataType, after ensuring it's empty.
      * 
      * @param integer $theme_element_id The database id of the ThemeElement to delete.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function deletethemeelementAction($theme_element_id, Request $request)
     {
@@ -875,7 +880,7 @@ print '</pre>';
      * @param integer $theme_datafield_id The database id of the ThemeDataField entity to change.
      * @param Request $request
      * 
-     * @return a Symfony JSON Response containing both the new and the old pureCSS width classes for this DataField.
+     * @return Response TODO
      */
     public function savethemedatafieldAction($theme_datafield_id, Request $request)
     {
@@ -953,7 +958,7 @@ print '</pre>';
      * @param integer $datatree_id  The id of the Datatree entity being changed
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function savedatatreeAction($datatype_id, $datatree_id, Request $request)
     {
@@ -1073,7 +1078,7 @@ print '</pre>';
      * 
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function navslideoutAction(Request $request)
     {
@@ -1107,7 +1112,7 @@ print '</pre>';
      * @param integer $datatype_id The database id of the DataType to attach a new ThemeElement to.
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing the database of the newly created ThemeElement
+     * @return Response TODO
      */
     public function addthemeelementAction($datatype_id, Request $request)
     {
@@ -1174,7 +1179,7 @@ print '</pre>';
      * @param integer $theme_element_id The database id of the ThemeElement to...
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function adddatafieldAction($datatype_id, $theme_element_id, Request $request)
     {
@@ -1251,7 +1256,7 @@ print '</pre>';
      * @param integer $datafield_id     The database id of the DataField to copy data from.
      * @param Request $request
      *
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function copydatafieldAction($datatype_id, $theme_element_id, $datafield_id, Request $request)
     {
@@ -1337,7 +1342,7 @@ print '</pre>';
      * @param integer $datafield_id The database if of the DataField to grab RadioOptions from.
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function getradiooptionsAction($datafield_id, Request $request)
     {
@@ -1403,7 +1408,7 @@ print '</pre>';
      * @param integer $radio_option_id The database id of the RadioOption to rename.
      * @param Request $request
      *
-     * @return an empty Symfony JSON response, unless an error occurred. 
+     * @return Response TODO
      */
     public function radiooptionnameAction($radio_option_id, Request $request)
     {
@@ -1485,7 +1490,7 @@ print '</pre>';
      * @param boolean $alphabetical_sort Whether to order the RadioOptions alphabetically or in some user-specified order.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function radiooptionorderAction($datafield_id, $alphabetical_sort, Request $request)
     {
@@ -1582,7 +1587,7 @@ print '</pre>';
      * @param integer $datafield_id The database id of the DataField to add a RadioOption to.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function addradiooptionAction($datafield_id, Request $request)
     {
@@ -1647,7 +1652,7 @@ print '</pre>';
      * @param integer $theme_element_id The database id of the ThemeElement that the new DataType will be rendered in.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function addchildtypeAction($datatype_id, $theme_element_id, Request $request)
     {
@@ -1693,8 +1698,8 @@ print '</pre>';
             $datatype->setSortField(null);
             $datatype->setDisplayType(0);
             $datatype->setRevision(0);
-            $datatype->setHasShortResults(false);
-            $datatype->setHasTextResults(false);
+            $datatype->setHasShortresults(false);
+            $datatype->setHasTextresults(false);
             $datatype->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
             $datatype->setCreatedBy($user);
             $datatype->setUpdatedBy($user);
@@ -1792,7 +1797,7 @@ print '</pre>';
      * @param integer $theme_element_id The database id of the ThemeElement that is/would be where the linked DataType rendered in this DataType...
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function getlinktypesAction($datatype_id, $theme_element_id, Request $request)
     {
@@ -1910,7 +1915,7 @@ print '</pre>';
      * 
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing an array...
+     * @return Response TODO
      */
     public function linktypeAction(Request $request)
     {
@@ -1974,8 +1979,6 @@ print '</pre>';
             $deleting = null;
             if ($remote_datatype_id !== '') {
                 // Create a link between the two datatypes
-//                $local_datatype = $repo_datatype->find($local_datatype_id);
-//                $remote_datatype = $repo_datatype->find($remote_datatype_id);
                 $deleting = false;
 
                 $datatree = new DataTree();
@@ -2071,6 +2074,7 @@ print '</pre>';
         return $response;
     }
 
+
     /**
      * Builds and returns a list of available Render Plugins for a DataType or a DataField.
      *
@@ -2080,7 +2084,7 @@ print '</pre>';
      * @param integer $datafield_id The database id of the DataField that is potentially having its RenderPlugin changed, or null
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function plugindialogAction($datatype_id, $datafield_id, Request $request)
     {
@@ -2217,7 +2221,7 @@ print '</pre>';
      * @param integer $render_plugin_id The database id of the RenderPlugin to look up.
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function pluginsettingsAction($datatype_id, $datafield_id, $render_plugin_id, Request $request)
     {
@@ -2524,7 +2528,7 @@ print '</pre>';
      * 
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing
+     * @return Response TODO
      */
     public function savedatatypepluginAction(Request $request)
     {
@@ -2839,7 +2843,7 @@ print '</pre>';
      * @param integer $datatype_id The database id of the child DataType that needs to be re-rendered.
      * @param Request $request
      *
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function reloadchildAction($datatype_id, Request $request)
     {
@@ -2872,7 +2876,7 @@ print '</pre>';
      * @param integer $theme_element_id The database id of the ThemeElement that needs to be re-rendered.
      * @param Request $request
      *
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function reloadthemeelementAction($theme_element_id, Request $request)
     {
@@ -2906,7 +2910,7 @@ print '</pre>';
      * @param integer $datafield_id THe database id of the DataField that needs to be re-rendered.
      * @param Request $request
      *
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function reloaddatafieldAction($datafield_id, Request $request)
     {
@@ -3063,7 +3067,7 @@ if ($debug)
      * @param mixed $parent_datatype_id  Either the id of the Datatype of the parent of $datatype_id, or the empty string
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function datatypepropertiesAction($datatype_id, $parent_datatype_id, Request $request)
     {
@@ -3240,7 +3244,7 @@ if ($debug)
      * @param integer $datafield_id The database id of the DataField being modified.
      * @param Request $request
      *
-     * @return a Symfony JSON response containing HTML 
+     * @return Response TODO
      */
     public function datafieldpropertiesAction($datafield_id, Request $request)
     {
@@ -3421,6 +3425,13 @@ if ($debug)
                                 break;
                         }
 
+                        // Need to "migrate" data when going from Multiple radio/select to Single radio/select...
+                        $old_typename = $old_fieldtype->getTypeName();
+                        $new_typename = $new_fieldtype->getTypeName();
+                        if ( ($old_typename == 'Multiple Select' || $old_typename == 'Multiple Radio') && ($new_typename == 'Single Select' || $new_typename == 'Single Radio') ) {
+                            $migrate_data = true;
+                        }
+
                         // If fieldtype got changed to/from Markdown, File, Image, or Radio...force a reload of the right slideout, because options on that slideout are different for these fieldtypes
                         switch ($old_fieldtype->getTypeClass()) {
                             case 'Radio':
@@ -3575,7 +3586,7 @@ print_r($errors);
                         $url = $this->container->getParameter('site_baseurl');
                         $url .= $this->container->get('router')->generate('odr_migrate_field');
 
-                        // Locate all datarecords of this datatype and schedule them for an update
+                        // Locate all datarecords of this datatype for purposes of this fieldtype migration
                         $query = $em->createQuery(
                            'SELECT dr.id
                             FROM ODRAdminBundle:DataRecord dr
@@ -3708,11 +3719,10 @@ if ($force_slideout_reload)
     /**
      * Called after a user makes a change that requires a datafield be removed from TextResults
      *
-     * @param Manager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param DataType $datatype
-     * @param DataField $removed_datafield
+     * @param DataFields $removed_datafield
      *
-     * @return none
      */
     private function updateTextResultsFieldOrder($em, $datatype, $removed_datafield)
     {
@@ -3760,7 +3770,7 @@ if ($force_slideout_reload)
      * @param integer $theme_element_id The database id of the ThemeElement being modified.
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function themeelementpropertiesAction($theme_element_id, Request $request)
     {
@@ -3852,7 +3862,7 @@ if ($force_slideout_reload)
      * @param integer $datatype_id The database id of the DataType to lookup deleted DataFields from...
      * @param Request $request
      *
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function getdeleteddatafieldsAction($datatype_id, Request $request)
     {
@@ -3933,7 +3943,7 @@ if ($force_slideout_reload)
      *
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing an array...
+     * @return Response TODO
      */
     public function undeleteDatafieldAction(Request $request)
     {
@@ -4188,7 +4198,7 @@ if ($debug)
      * @param integer $datatype_id The database id of the DataType to modify.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function publictypeAction($datatype_id, Request $request)
     {
@@ -4260,7 +4270,7 @@ if ($debug)
     /**
      * Checks to see whether the given Datafield can be marked as unique or not.
      *
-     * @param DataField $datafield 
+     * @param DataFields $datafield
      *
      * @return boolean true if the datafield has no duplicate values, false otherwise
      */
@@ -4300,4 +4310,5 @@ if ($debug)
         // Didn't find a duplicate, return true
         return true;
     }
+
 }

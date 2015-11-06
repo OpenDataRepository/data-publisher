@@ -520,6 +520,7 @@ class ReportsController extends ODRCustomController
             $datatype = $datafield->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
 
             // --------------------
@@ -528,7 +529,7 @@ class ReportsController extends ODRCustomController
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'edit' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -559,6 +560,12 @@ class ReportsController extends ODRCustomController
                     $datarecords[$dr_id] = 0;
 
                 $datarecords[$dr_id]++;
+            }
+
+            // Don't need to save datarecords that don't have multiple selections
+            foreach ($datarecords as $dr_id => $count) {
+                if ($count < 2)
+                    unset($datarecords[$dr_id]);
             }
 
             // ----------------------------------------

@@ -7,11 +7,9 @@
 {% else %}
 
 {% for dr_id,count in datarecords %}
-    {% if count > 1 %}
-        <div class="pure-u-1-5">
-            <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ dr_id }}</a>
-        </div>
-    {% endif %}
+    <div class="pure-u-1-5">
+        <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ dr_id }}</a>
+    </div>
 {% endfor %}
 
 {% endif %}
