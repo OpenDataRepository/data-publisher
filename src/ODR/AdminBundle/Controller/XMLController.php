@@ -31,19 +31,13 @@ use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\ImageStorage;
-use ODR\AdminBundle\Entity\RadioOption;
+use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
-use ODR\AdminBundle\Form\ShortVarcharForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 
 class XMLController extends ODRCustomController
@@ -104,7 +98,7 @@ class XMLController extends ODRCustomController
      * @param integer $id      The id of the object that will receive the import data
      * @param Request $request
      *
-     * @return TODO
+     * @return Response TODO
      */
     public function importAction($type, $id, Request $request) {
         $return = array();
@@ -188,7 +182,7 @@ class XMLController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function importstartAction(Request $request)
     {
@@ -219,7 +213,7 @@ class XMLController extends ODRCustomController
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
-            $em = $this->get('doctrine')->getManager();
+            $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
 
@@ -299,7 +293,7 @@ class XMLController extends ODRCustomController
      *
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function importvalidateAction(Request $request)
     {
@@ -331,7 +325,7 @@ class XMLController extends ODRCustomController
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
-            $em = $this->get('doctrine')->getManager();
+            $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
 
@@ -431,7 +425,7 @@ class XMLController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function importworkerAction(Request $request)
     {
@@ -462,7 +456,7 @@ class XMLController extends ODRCustomController
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
-            $em = $this->get('doctrine')->getManager();
+            $em = $this->getDoctrine()->getManager();
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
@@ -516,11 +510,10 @@ $write = true;
                 $created_objects = array();
                 $import_ret = null;
 
+                $indent = 0;
                 if ($datafield == null) {
 
                     // TODO - uniqueness
-
-                    $indent = 0;
 
                     // ----------------------------------------
                     // Attempt to locate a pre-existing datarecord to import into
@@ -547,7 +540,7 @@ if ($write) {
                         $em->refresh($grandparent);
 
                         // Create all datarecordfield and storage entities required for this datarecord
-//                        parent::verifyExistence($grandparent->getDataType(), $grandparent);   // this should already happen in parent::ODR_addDataRecord()    
+//                        parent::verifyExistence($grandparent);   // this should already happen in parent::ODR_addDataRecord()
                         $created_objects = array($grandparent);
 }
 else {
@@ -656,7 +649,7 @@ if ($write) {
     /**
      * Does the actual work of importing everything for a datarecord, and links to datarecords if necessary
      * 
-     * @param EntityManager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
      * @param DOMNodeList $xml_datarecord        The XML structure describing the data that is being imported into this datarecord
      * @param DataRecord $datarecord             The datarecord that is getting data imported into it
@@ -845,7 +838,7 @@ if ($write) {
                             $em->refresh($child_datarecord);
 
                             // Create all datarecordfield and storage entities required for this datarecord
-//                            parent::verifyExistence($child_datarecord->getDataType(), $child_datarecord); // ODR_addDataRecord() should take care of this...
+//                            parent::verifyExistence($child_datarecord); // ODR_addDataRecord() should take care of this...
                             $created_objects = array_merge($created_objects, array($child_datarecord));
 }
 else {
@@ -962,8 +955,9 @@ if ($write) {
      * Each xml entity can only have one of the above tags at any given point by definition.
      * 
      * @param DOMNodeList $xml_entity
-     * 
-     * @return TODO
+     * @param boolean $direct
+     *
+     * @return Response TODO
      */
     private function getODRMetadata($xml_entity, $direct = false)
     {
@@ -1035,7 +1029,7 @@ if ($write) {
     /**
      * Does the actual work of importing everything for a radio option
      * 
-     * @param EntityManager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
      * @param DOMNodeList $xml_entity The XML describing this RadioOption entity
      * @param DataFields $datafield   The DataField this RadioOption belongs to
@@ -1141,7 +1135,7 @@ if ($write) {
     /**
      * Creates a new Entity to hold the XML data from $element.
      * 
-     * @param Manager $entity_manager
+     * @param \Doctrine\ORM\EntityManager $entity_manager
      * @param User $user
      * @param DOMElement $element        The xml describing this element
      * @param DataRecord $datarecord     The datarecord getting this piece of data
@@ -1623,7 +1617,7 @@ if ($write) {
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function importfileAction(Request $request)
     {
@@ -1654,7 +1648,7 @@ if ($write) {
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
-            $em = $this->get('doctrine')->getManager();
+            $em = $this->getDoctrine()->getManager();
             $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
             $repo_file = $em->getRepository('ODRAdminBundle:File');
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
@@ -1799,7 +1793,7 @@ if ($write) {
      * @param integer $datarecord_id The database id of the DataRecord to export
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function exportAction($datarecord_id, Request $request) {
         $return = array();
@@ -1854,7 +1848,7 @@ if ($write) {
      * @param integer $datarecord_id The database id of the DataRecord to download...
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function downloadXMLAction($datarecord_id, Request $request) {
         $return = array();
@@ -1911,7 +1905,7 @@ if ($write) {
      * @param integer $datarecord_id
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function getXMLAction($datarecord_id, Request $request) {
         $return = array();
@@ -1920,15 +1914,13 @@ if ($write) {
         $return['d'] = '';
 
         try {
-            $templating = $this->get('templating');
             $em = $this->getDoctrine()->getManager();
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
             $datarecord = $repo_datarecord->find($datarecord_id);
-            $datatype = $datarecord->getDataType();
 
             // Ensure all Entities exist before rendering the XML
-            parent::verifyExistence($datatype, $datarecord);
+            parent::verifyExistence($datarecord);
             $return['d'] = array(
                 'xml' => parent::XML_GetDisplayData($request, $datarecord_id)
             );
@@ -1949,6 +1941,10 @@ if ($write) {
 
     /** 
      * utility function for changing the external id for a lot of datarecords
+     *
+     * @param Request $request
+     *
+     * @return Response TODO
      */
     public function testAction(Request $request) {
         $return = array();

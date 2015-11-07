@@ -26,6 +26,7 @@ use ODR\AdminBundle\Entity\Image;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 
 class FlowController extends ODRCustomController
@@ -33,6 +34,8 @@ class FlowController extends ODRCustomController
 
     /** 
      * HTTP Status codes of 200 are interpreted by flow.js as "success"
+     *
+     * @param string $message
      *
      * @return Response
      */
@@ -49,6 +52,8 @@ class FlowController extends ODRCustomController
     /** 
      * All HTTP Status codes not specified in self::flowSuccess() and self::flowAbort() are interpreted as "continue"
      *
+     * @param string $message
+     *
      * @return Response
      */
     private function flowContinue($message = '')
@@ -64,6 +69,8 @@ class FlowController extends ODRCustomController
     /** 
      * All HTTP Status codes not specified in self::flowSuccess() and self::flowAbort() are interpreted as "continue"
      *
+     * @param string $message
+     *
      * @return Response
      */
     private function flowError($message = '')
@@ -78,6 +85,8 @@ class FlowController extends ODRCustomController
 
     /** 
      * HTTP Status codes of 404 are interpreted by flow.js as "abort"
+     *
+     * @param string $message
      *
      * @return Response
      */
@@ -100,7 +109,7 @@ class FlowController extends ODRCustomController
      * @param integer $datarecordfield_id
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function flowAction($upload_type, $datatype_id, $datarecordfield_id, Request $request)
     {
@@ -201,6 +210,7 @@ class FlowController extends ODRCustomController
                 $allowed_filesize = intval( $validation_params['maxSize'] );
 
                 if ( $filesize > ($allowed_filesize * 1024 * 1024) ) {
+                    // TODO - delete uploaded chunks on abort/cancel?
                     // Expected filesize is too big, don't continue to upload
                     return self::flowAbort( $validation_params['maxSizeErrorMessage'] );
                 }
@@ -306,7 +316,6 @@ class FlowController extends ODRCustomController
      * @param integer $user_id             Which user is doing the uploading
      * @param Request $request
      *
-     * @return none
      */
     private function finishCSVUpload($filepath, $original_filename, $user_id, Request $request)
     {
@@ -341,7 +350,6 @@ class FlowController extends ODRCustomController
      * @param string $original_filename    The original name of the file
      * @param integer $user_id             Which user is doing the uploading
      *
-     * @return none
      */
     private function finishImportFileUpload($filepath, $original_filename, $user_id)
     {
@@ -366,6 +374,8 @@ class FlowController extends ODRCustomController
 
     /**
      * Splices all chunks of a specific file into a single complete file.
+     *
+     * @throws \Exception
      *
      * @param integer $user_id
      * @param string $identifier

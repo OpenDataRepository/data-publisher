@@ -44,14 +44,7 @@ use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\FileChecksum;
 use ODR\AdminBundle\Entity\ImageChecksum;
-
 // Forms
-use ODR\AdminBundle\Form\DecimalValueForm;
-use ODR\AdminBundle\Form\IntegerValueForm;
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -66,8 +59,9 @@ class MassEditController extends ODRCustomController
      * @param integer $datatype_id The database id of the DataType the search was performed on.
      * @param integer $offset
      * @param string $search_key   The search key identifying which datarecords to potentially mass edit
+     * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function massEditAction($datatype_id, $offset, $search_key, Request $request)
     {
@@ -95,7 +89,6 @@ class MassEditController extends ODRCustomController
 
             // ----------------------------------------
             // If this datarecord is being viewed from a search result list, attempt to grab the list of datarecords from that search result
-            $datarecord_list = '';
             $encoded_search_key = '';
             $search_checksum = '';
             if ($search_key !== '') {
@@ -114,8 +107,6 @@ class MassEditController extends ODRCustomController
             }
 
             // Generate the HTML required for a header
-            $header_html = '';
-
             $templating = $this->get('templating');
             $header_html = $templating->render(
                 'ODRAdminBundle:MassEdit:massedit_header.html.twig',
@@ -206,7 +197,7 @@ if ($debug)
      * 
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function massUpdateAction(Request $request)
     {
@@ -401,7 +392,7 @@ if ($debug)
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function massUpdateWorkerAction(Request $request)
     {
@@ -432,7 +423,7 @@ if ($debug)
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
-            $em = $this->get('doctrine')->getManager();
+            $em = $this->getDoctrine()->getManager();
             $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
             $repo_datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields');
             $repo_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions');

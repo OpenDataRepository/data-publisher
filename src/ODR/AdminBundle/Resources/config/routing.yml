@@ -252,10 +252,19 @@ odr_nav_display_template:
         datatype_id:  \d+
 
 odr_design_get_datatype_properties:
-    pattern:  /design/displaytemplate/gettypeproperties/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypeproperties }
+    pattern:  /design/displaytemplate/getdatatypeproperties/{datatype_id}/{parent_datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypeproperties, parent_datatype_id: '' }
     requirements:
         datatype_id:  \d+
+        parent_datatype_id: \d+
+
+odr_design_save_datatree:
+    pattern:  /design/displaytemplate/savedatatree/{datatype_id}/{datatree_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:savedatatree }
+    methods: [POST]
+    requirements:
+        datatype_id: \d+
+        datatree_id: \d+
 
 odr_design_get_link_datatypes:
     pattern:  /design/displaytemplate/getlinktypes/{datatype_id}/{theme_element_id}
@@ -889,6 +898,11 @@ odr_csv_import_worker:
     defaults: { _controller: ODRAdminBundle:CSVImport:csvworker }
     requirements: { _method: POST }
 
+odr_csv_link_worker:
+    pattern: /beanstalk/csv_import/link_worker
+    defaults: { _controller: ODRAdminBundle:CSVImport:csvlinkworker }
+    requirements: { _method: POST }
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -979,11 +993,11 @@ odr_job_refresh:
         job_type: '|recache|migrate|mass_edit|rebuild_thumbnails|csv_import|csv_import_validate|csv_export'
         job_id: \d+
 
-odr_get_job_errors:
-    pattern:  /jobs/geterrors/{job_id}
-    defaults: { _controller: ODRAdminBundle:Job:getjoberrors }
-    requirements:
-        job_id: \d+
+#odr_get_job_errors:
+#    pattern:  /jobs/geterrors/{job_id}
+#    defaults: { _controller: ODRAdminBundle:Job:getjoberrors }
+#    requirements:
+#        job_id: \d+
 
 #odr_delete_job_errors:
 #    pattern:  /jobs/delete_errors/{job_id}
@@ -991,17 +1005,11 @@ odr_get_job_errors:
 #    requirements:
 #        job_id: \d+
 
-#odr_delete_tracked_job:
-#    pattern:  /jobs/delete_job/{job_id}
-#    defaults: { _controller: ODRAdminBundle:Job:deletejob }
-#    requirements:
-#        job_id: \d+
-
-#odr_delete_tracked_error:
-#    pattern:  /jobs/delete_error/{error_id}
-#    defaults: { _controller: ODRAdminBundle:Job:deletetrackederror }
-#    requirements:
-#        error_id: \d+
+odr_delete_tracked_job:
+    pattern:  /jobs/delete_job/{job_id}
+    defaults: { _controller: ODRAdminBundle:Job:deletejob }
+    requirements:
+        job_id: \d+
 
 #-----------------------------------------
 # Reports Controller
@@ -1017,6 +1025,23 @@ odr_design_analyze_file_uploads:
     requirements:
         datafield_id:  \d+
 
+odr_design_analyze_datarecord_number:
+    pattern:  /design/displaytemplate/analyze_datarecord_number/{datatree_id}
+    defaults: { _controller: ODRAdminBundle:Reports:analyzedatarecordnumber }
+    requirements:
+        datatree_id: \d+
+
+odr_design_analyze_datafield_content:
+    pattern:  /edit/record/analyze_datafield_content/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Reports:analyzedatafieldcontent }
+    requirements:
+        datafield_id: \d+
+
+odr_design_analyze_radio_selections:
+    pattern:  /edit/record/analyze_radio_selections/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Reports:analyzeradioselections }
+    requirements:
+        datafield_id: \d+
 
 #-----------------------------------------
 # Other stuff

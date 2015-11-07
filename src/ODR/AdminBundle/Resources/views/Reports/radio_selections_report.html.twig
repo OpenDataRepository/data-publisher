@@ -1,0 +1,17 @@
+{% spaceless %}
+
+<h2>List of Datarecords with multiple selected RadioOptions in Datafield "{{ datafield.getfieldname }}" of Datatype "{{ datatype.getshortname }}"</h2>
+
+{% if datarecords | length == 0 %}
+    <div class="ODRDatarecordListHeader">No Datarecords with multiple selections found</div>
+{% else %}
+
+{% for dr_id,count in datarecords %}
+    <div class="pure-u-1-5">
+        <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ dr_id }}</a>
+    </div>
+{% endfor %}
+
+{% endif %}
+
+{% endspaceless %}

@@ -1,6 +1,7 @@
 {% spaceless %}
 {% set fieldtype = datafield.getfieldtype %}
 {% set typename = fieldtype.gettypename %}
+{% set typeclass = fieldtype.gettypeclass %}
 
 {% set is_external_id_field = false %}
 {% if datafield.datatype.externalIdField != null and datafield.id == datafield.datatype.externalIdField.id %}
@@ -68,9 +69,18 @@
                 {% endif %}
             </span>
 
-            <span id="field_type_meta" class="Cursor" title="{% if typename == 'Long Text' %}255{% elseif typename == 'Medium Text' %}64{% elseif typename == 'Short Text' %}32{% elseif typename == 'Paragraph Text' %}No{% endif %} Character Limit" style="color:black;">
+            <span id="field_type_meta" class="Cursor" title="{% if typename == 'Long Text' %}255{% elseif typename == 'Medium Text' %}64{% elseif typename == 'Short Text' %}32{% else %}No{% endif %} Character Limit" style="color:black;">
                 &nbsp;<i class="fa fa-question-circle fa-lg"></i>
             </span>
+            {% if typeclass == 'ShortVarchar' or typeclass == 'MediumVarchar' or typeclass == 'LongVarchar' or typeclass == 'LongText' or typeclass == 'IntegerValue' or typeclass == 'DecimalValue' %}
+            <span>
+                &nbsp;<a target="_blank" class="address" href="#{{ path( 'odr_design_analyze_datafield_content', {'datafield_id': datafield.id }) }}" style="color:black;" title="Show all values stored in this Datafield..."><i class="fa fa-cog fa-lg"></i></a>
+            </span>
+            {% elseif typeclass == 'Radio' %}
+            <span>
+                &nbsp;<a target="_blank" class="address" href="#{{ path( 'odr_design_analyze_radio_selections', {'datafield_id': datafield.id }) }}" style="color:black;" title="Show all Datarecords with multiple selected RadioOptions for this Datafield..."><i class="fa fa-cog fa-lg"></i></a>
+            </span>
+            {% endif %}
         </div>
 
         {% if typename == "Markdown" %}

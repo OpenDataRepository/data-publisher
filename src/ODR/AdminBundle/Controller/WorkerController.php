@@ -37,12 +37,12 @@ use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\ImageStorage;
-use ODR\AdminBundle\Entity\RadioOption;
+use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\DatetimeValue;
-
+// Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -55,7 +55,7 @@ class WorkerController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function recacherecordAction(Request $request)
     {
@@ -85,7 +85,7 @@ class WorkerController extends ODRCustomController
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
-            $em = $this->get('doctrine')->getManager();
+            $em = $this->getDoctrine()->getManager();
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
@@ -256,7 +256,7 @@ $ret .= 'Attempting to recache DataRecord '.$datarecord->getId().' of DataType '
 $logger->info('WorkerController::recacherecordAction()  Attempting to recache DataRecord '.$datarecord->getId().' of DataType '.$datatype->getId());
 
                     // Ensure all entities exist prior to attempting to render HTML for the datarecord
-                    parent::verifyExistence($datatype, $datarecord);
+                    parent::verifyExistence($datarecord);
                     $current_revision = $datatype->getRevision();
 
                     // Render and cache the ShortResults form of the record
@@ -340,7 +340,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function migrateAction(Request $request)
     {
@@ -372,12 +372,13 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
-            $em = $this->get('doctrine')->getManager();
+            $em = $this->getDoctrine()->getManager();
             $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
+            $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
@@ -403,7 +404,6 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 
             // Create a new datarecord field entity if it doesn't exist
             $em->refresh($datafield);
-            $datatype = $datafield->getDataType();
             $drf = $repo_datarecordfields->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
             if ($drf == null) {
                 $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
@@ -411,78 +411,107 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                 $em->refresh($drf);
             }
 
-            // Grab both the source entity repository and the destination entity repository
-            $src_repository  = $em->getRepository('ODRAdminBundle:'.$old_typeclass);
-            $dest_repository = $em->getRepository('ODRAdminBundle:'.$new_typeclass);
+            // Need to handle radio options separately...
+            $old_typename = $old_fieldtype->getTypeName();
+            $new_typename = $new_fieldtype->getTypeName();
+            if ( ($old_typename == 'Multiple Radio' || $old_typename == 'Multiple Select') && ($new_typename == 'Single Radio' || $new_typename == 'Single Select') ) {
+                // Grab all selected radio options
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id, rs.id AS rs_id, rs.selected AS selected, ro.id AS ro_id, ro.optionName AS option_name
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
+                    JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.dataRecordFields = drf
+                    JOIN ODRAdminBundle:RadioOptions AS ro WITH rs.radioOption = ro
+                    WHERE drf.dataRecord = :datarecord AND drf.dataField = :datafield AND rs.selected = 1
+                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL'
+                )->setParameters( array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()) );
+                $results = $query->getArrayResult();
 
+                // If more than one radio option selected
+                if ( count($results) > 1 ) {
+                    // Deselect all but the first one in the list
+                    for ($i = 1; $i < count($results); $i++) {
+                        $rs_id = $results[$i]['rs_id'];
+                        $radio_selection = $repo_radio_selection->find($rs_id);
+                        $radio_selection->setSelected(0);
 
-            // Grab the entity that needs to be migrated
+                        $ro_id = $results[$i]['ro_id'];
+                        $option_name = $results[$i]['option_name'];
+                        $ret .= '>> Deselected Radio Option '.$ro_id.' ('.$option_name.')'."\n";
+                    }
+                    $em->flush();
+                }
+            }
+            else if ( $new_typeclass !== 'Radio' ) {
+                // Grab both the source entity repository and the destination entity repository
+                $src_repository = $em->getRepository('ODRAdminBundle:'.$old_typeclass);
+                $dest_repository = $em->getRepository('ODRAdminBundle:'.$new_typeclass);
+
+                // Grab the entity that needs to be migrated
 //$ret .= '>> Looking for "'.$old_fieldtype->getTypeClass().'" for datafield '.$datafield->getId().' and datarecordfield '.$drf->getId()."\n";
-            $src_entity = $src_repository->findOneBy( array('dataField' => $datafield->getId(), 'dataRecordFields' => $drf->getId()) );
+                $src_entity = $src_repository->findOneBy(array('dataField' => $datafield->getId(), 'dataRecordFields' => $drf->getId()));
 
-            // No point migrating anything if the src entity doesn't exist in the first place...would be no data in it
-            if ($src_entity !== null) {
-                $logger->info('WorkerController::migrateAction() >> Attempting to migrate data from "'.$old_typeclass.'" '.$src_entity->getId().' to "'.$new_typeclass.'"');
-                $ret .= '>> Attempting to migrate data from "'.$old_typeclass.'" '.$src_entity->getId().' to "'.$new_typeclass.'"'."\n";
+                // No point migrating anything if the src entity doesn't exist in the first place...would be no data in it
+                if ($src_entity !== null) {
+                    $logger->info('WorkerController::migrateAction() >> Attempting to migrate data from "'.$old_typeclass.'" '.$src_entity->getId().' to "'.$new_typeclass.'"');
+                    $ret .= '>> Attempting to migrate data from "'.$old_typeclass.'" '.$src_entity->getId().' to "'.$new_typeclass.'"'."\n";
 
-                // See if the destination repository already has an entry matching this combination of datafield and datarecordfield...
-                $dest_entity = $dest_repository->findOneBy( array('dataField' => $datafield->getId(), 'dataRecordFields' => $drf->getId()) );
-                if ($dest_entity == null ) {
-                    // Create a new storage entity for the destination if none exists
-                    $dest_entity = parent::ODR_addStorageEntity($em, $user, $drf->getDataRecord(), $datafield);
-                    $ret .= '>> >> [new '.$new_typeclass.']  ';
+                    // See if the destination repository already has an entry matching this combination of datafield and datarecordfield...
+                    $dest_entity = $dest_repository->findOneBy(array('dataField' => $datafield->getId(), 'dataRecordFields' => $drf->getId()));
+                    if ($dest_entity == null) {
+                        // Create a new storage entity for the destination if none exists
+                        $dest_entity = parent::ODR_addStorageEntity($em, $user, $drf->getDataRecord(), $datafield);
+                        $ret .= '>> >> [new '.$new_typeclass.']  ';
+                    }
+                    else {
+                        $ret .= '>> >> ['.$new_typeclass.' id '.$dest_entity->getId().']  ';
+                    }
+
+                    $value = null;
+                    if ( ($old_typeclass == 'ShortVarchar' || $old_typeclass == 'MediumVarchar' || $old_typeclass == 'LongVarchar' || $old_typeclass == 'LongText') && ($new_typeclass == 'ShortVarchar' || $new_typeclass == 'MediumVarchar' || $new_typeclass == 'LongVarchar' || $new_typeclass == 'LongText') ) {
+                        // text -> text requires nothing special
+                        $value = $src_entity->getValue();
+                    }
+                    else if ( ($old_typeclass == 'IntegerValue' || $old_typeclass == 'DecimalValue') && ($new_typeclass == 'ShortVarchar' || $new_typeclass == 'MediumVarchar' || $new_typeclass == 'LongVarchar' || $new_typeclass == 'LongText') ) {
+                        // number -> text is easy
+                        $value = strval($src_entity->getValue());
+                    }
+                    else if ($old_typeclass == 'IntegerValue' && $new_typeclass == 'DecimalValue') {
+                        // integer -> decimal
+                        $value = floatval($src_entity->getValue());
+                    }
+                    else if ($old_typeclass == 'DecimalValue' && $new_typeclass == 'IntegerValue') {
+                        // decimal -> integer
+                        $value = intval($src_entity->getValue());
+                    }
+                    else if ( ($old_typeclass == 'ShortVarchar' || $old_typeclass == 'MediumVarchar' || $old_typeclass == 'LongVarchar' || $old_typeclass == 'LongText') && ($new_typeclass == 'IntegerValue') ) {
+                        // text -> integer
+                        $pattern = '/[^0-9\.\-]+/i';
+                        $replacement = '';
+                        $new_value = preg_replace($pattern, $replacement, $src_entity->getValue());
+
+                        $value = intval($new_value);
+                    }
+                    else if ( ($old_typeclass == 'ShortVarchar' || $old_typeclass == 'MediumVarchar' || $old_typeclass == 'LongVarchar' || $old_typeclass == 'LongText') && ($new_typeclass == 'DecimalValue') ) {
+                        // text -> decimal
+                        $pattern = '/[^0-9\.\-]+/i';
+                        $replacement = '';
+                        $new_value = preg_replace($pattern, $replacement, $src_entity->getValue());
+
+                        $value = floatval($new_value);
+                    }
+
+                    // Save changes
+                    $ret .= 'set dest_entity to "'.$value.'"'."\n";
+                    $dest_entity->setValue($value);
+                    $dest_entity->setUpdatedBy($user);
+
+                    $em->persist($dest_entity);
+                    $em->flush();
                 }
                 else {
-                    $ret .= '>> >> ['.$new_typeclass.' id '.$dest_entity->getId().']  ';
+                    $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";
                 }
-
-                $value = null;
-                if ( ($old_typeclass == 'ShortVarchar' || $old_typeclass == 'MediumVarchar' || $old_typeclass == 'LongVarchar' || $old_typeclass == 'LongText') &&
-                    ($new_typeclass == 'ShortVarchar' || $new_typeclass == 'MediumVarchar' || $new_typeclass == 'LongVarchar' || $new_typeclass == 'LongText') ) {
-                    // text -> text requires nothing special
-                    $value = $src_entity->getValue();
-                }
-                else if ( ($old_typeclass == 'IntegerValue' || $old_typeclass == 'DecimalValue') &&
-                    ($new_typeclass == 'ShortVarchar' || $new_typeclass == 'MediumVarchar' || $new_typeclass == 'LongVarchar' || $new_typeclass == 'LongText') ) {
-                    // number -> text is easy
-                    $value = strval($src_entity->getValue());
-                }
-                else if ( $old_typeclass == 'IntegerValue' && $new_typeclass == 'DecimalValue') {
-                    // integer -> decimal
-                    $value = floatval($src_entity->getValue());
-                }
-                else if ( $old_typeclass == 'DecimalValue' && $new_typeclass == 'IntegerValue') {
-                    // decimal -> integer
-                    $value = intval($src_entity->getValue());
-                }
-                else if ( ($old_typeclass == 'ShortVarchar' || $old_typeclass == 'MediumVarchar' || $old_typeclass == 'LongVarchar' || $old_typeclass == 'LongText') && $new_typeclass == 'IntegerValue' ) {
-                    // text -> integer
-                    $pattern = '/[^0-9\.\-]+/i';
-                    $replacement = '';
-                    $new_value = preg_replace($pattern, $replacement, $src_entity->getValue());
-
-                    $value = intval($new_value);
-                }
-                else if ( ($old_typeclass == 'ShortVarchar' || $old_typeclass == 'MediumVarchar' || $old_typeclass == 'LongVarchar' || $old_typeclass == 'LongText') && $new_typeclass == 'DecimalValue' ) {
-                    // text -> decimal
-                    $pattern = '/[^0-9\.\-]+/i';
-                    $replacement = '';
-                    $new_value = preg_replace($pattern, $replacement, $src_entity->getValue());
-
-                    $value = floatval($new_value);
-                }
-
-
-                // Save changes
-                $ret .= 'set dest_entity to "'.$value.'"'."\n";
-                $dest_entity->setValue($value);
-                $dest_entity->setUpdatedBy($user);
-
-                $em->persist($dest_entity);
-                $em->flush();
-            }
-            else {
-                $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";
             }
 
             // ----------------------------------------
@@ -531,8 +560,7 @@ $ret .= '  Set current to '.$count."\n";
      * 
      * @param integer $datatype_id Which datatype should have all its image thumbnails rebuilt
      * @param Request $request
-     * 
-     * @return TODO
+     *
      */
     public function startrebuildthumbnailsAction($datatype_id, Request $request)
     {
@@ -613,12 +641,13 @@ $ret .= '  Set current to '.$count."\n";
 
     }
 
+
     /**
      * Called by the rebuild_thumbnails worker process to rebuild the thumbnails of one of the uploaded images on the site. 
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function rebuildthumbnailsAction(Request $request)
     {
@@ -699,7 +728,7 @@ $ret .= '  Set current to '.$count."\n";
      *
      * @param Request $request
      *
-     * @return TODO
+     * @return string
      */
     public function drcheckAction(Request $request)
     {
@@ -755,7 +784,7 @@ print '</pre>';
      *
      * @param Request $request
      *
-     * @return TODO
+     * @return string
      */
     public function dfcheckAction(Request $request)
     {
@@ -810,10 +839,11 @@ print '</pre>';
     /**
      * Debuf function...checks for duplicate datarecordfield entities (those that share the same datarecord/datafield key pair)
      * TODO - check for non-deleted drf entities that point to deleted datarecords? 
-     * 
+     *
+     * @param integer $datatype_id
      * @param Request $request
      * 
-     * @return TODO
+     * @return string
      */
     public function drfcheckAction($datatype_id, Request $request)
     {
@@ -1015,7 +1045,7 @@ print '</pre>';
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return string
      */
     public function entitycheckAction(Request $request)
     {
@@ -1076,8 +1106,7 @@ print '</pre>';
      * 
      * @param string $object_type "File" or "Image"...which type of entity to encrypt
      * @param Request $request
-     * 
-     * @return none? TODO
+     *
      */
     public function startencryptAction($object_type, Request $request)
     {
@@ -1141,7 +1170,7 @@ print '</pre>';
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function encryptAction(Request $request)
     {
@@ -1186,10 +1215,9 @@ print '</pre>';
     /**
      * Begins the process of forcibly decrypting every uploaded file/image on the site.
      * 
-     * @param string $object_type
+     * @param string $object_type "File" or "Image"...which type of entity to encrypt
      * @param Request $request
-     * 
-     * @return TODO
+     *
      */
     public function startdecryptAction($object_type, Request $request)
     {
@@ -1253,7 +1281,7 @@ print '</pre>';
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function decryptAction(Request $request)
     {
@@ -1315,7 +1343,6 @@ print '</pre>';
      *
      * @param Request $request
      *
-     * @return TODO
      */
     public function deletedradiocheckAction(Request $request)
     {
@@ -1344,10 +1371,16 @@ return;
         }
     }
 
+
     /**
      * displays/deletes duplicate radio selection options
      * TODO - figure out why the page appears to auto-reload when deletion is enabled
      * TODO - convert to native SQL because doctrine can't handle the number of results when run on UAMM
+     *
+     * @param integer $datatype_id
+     * @param Request $request
+     *
+     * @return string TODO
      */
     public function duplicateradiocheckAction($datatype_id, Request $request)
     {

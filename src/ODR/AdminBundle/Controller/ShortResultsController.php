@@ -34,172 +34,13 @@ use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\ImageStorage;
 use ODR\AdminBundle\Entity\File;
 // Forms
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
-use ODR\AdminBundle\Form\ShortVarcharForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
-use Symfony\Component\HttpFoundation\Cookie;
 
 
 class ShortResultsController extends ODRCustomController
 {
-
-    /**
-     * Returns the ShortResults version of all DataRecords for a given DataType, with pagination if necessary.
-     *
-     * @param integer $datatype_id
-     * @param string $target Whether to load the Results or the Record version of the DataRecord when the ShortResults version is clicked.
-     * @param integer $offset Which page of DataRecords to render.
-     * @param Request $request
-     *
-     * @return a Symfony JSON response containing HTML TODO
-     */
-/*
-    public function listAction($datatype_id, $target, $offset, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        $search_slug = '';
-
-        try {
-            // Get Entity Manager and setup objects
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-            $templating = $this->get('templating');
-
-            // Load entity manager and repositories
-            $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-
-            // Grab datatype
-            $datatype = $repo_datatype->find($datatype_id);
-            if ($datatype == null)
-                return parent::deletedEntityError('DataType');
-
-            $search_slug = $datatype->getSearchSlug();
-
-            // --------------------
-            // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = array();
-
-            if ( $user === 'anon.' ) {
-                if ( !$datatype->isPublic() ) {
-                    // non-public datatype and anonymous user, can't view
-                    return parent::permissionDeniedError('view');
-                }
-                else {
-                    // public datatype, anybody can view
-                }
-            }
-            else {
-                // Grab user's permissions
-                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-                // If datatype is not public and user doesn't have view permissions, they can't view
-                if ( !$datatype->isPublic() && !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
-                    return parent::permissionDeniedError('view');
-            }
-            // --------------------
-
-
-            // -----------------------------------
-            // Count how many DataRecords would be displayed
-            $datarecord_str = '';
-            if ( $user === 'anon.' ) {      // <-- 'anon.' indicates no user logged in...
-                // Build a query to only get ids of public datarecords
-                $query = $em->createQuery(
-                   'SELECT dr.id
-                    FROM ODRAdminBundle:DataRecord dr
-                    WHERE dr.publicDate NOT LIKE :date AND dr.dataType = :dataType AND dr.deletedAt IS NULL'
-                )->setParameters( array('date' => "2200-01-01 00:00:00", 'dataType' => $datatype) );
-                $results = $query->getResult();
-
-                // Flatten the array
-                $subset_str = '';
-                foreach ($results as $num => $result)
-                    $subset_str .= $result['id'].',';
-                $subset_str = substr($subset_str, 0, strlen($subset_str)-1);
-
-                // Grab the sorted list of only the public DataRecords for this DataType
-                $datarecord_str = parent::getSortedDatarecords($datatype, $subset_str);
-            }
-            else {
-                // Grab a sorted list of all DataRecords for this DataType
-                $datarecord_str = parent::getSortedDatarecords($datatype);
-            }
-
-            // ----------------------------------
-            // If no datarecords are viewable according to previous step, ensure explode() doesn't create a single array entry
-            $datarecord_list = array();
-            if ( trim($datarecord_str) !== '' )
-                $datarecord_list = explode(',', $datarecord_str);
-
-
-            // -----------------------------------
-            // Bypass list entirely if only one datarecord
-            if ( count($datarecord_list) == 1 ) {
-                $datarecord_id = $datarecord_list[0];
-
-                // Can't use $this->redirect, because it won't update the hash...
-                $return['r'] = 2;
-                if ($target == 'results')
-                    $return['d'] = array( 'url' => $this->generateURL('odr_results_view', array('datarecord_id' => $datarecord_id)) );
-                else if ($target == 'record')
-                    $return['d'] = array( 'url' => $this->generateURL('odr_record_edit', array('datarecord_id' => $datarecord_id)) );
-
-                $response = new Response(json_encode($return));
-                $response->headers->set('Content-Type', 'application/json');
-                return $response;
-            }
-
-            
-            // -----------------------------------
-            // TODO - THIS IS A TEMP FIX
-            if ($datatype->getUseShortResults() == 1)
-                $theme = $repo_theme->find(2);  // shortresults
-            else
-                $theme = $repo_theme->find(4);  // textresults
-
-
-            // Render and return the page
-            $search_key = '';
-            $path_str = $this->generateUrl('odr_shortresults_list', array('datatype_id' => $datatype->getId(), 'target' => $target));   // TODO - this system needs to be reworked too...asdf;lkj
-
-            $html = parent::renderList($datarecord_list, $datatype, $theme, $user, $path_str, $target, $search_key, $offset, $request);
-
-             $return['d'] = array(
-                'datatype_id' => $datatype->getId(),
-                'html' => $html,
-            );
-        }
-        catch (\Exception $e) {
-            $search_slug = '';
-
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x1283830028 ' . $e->getMessage();
-        }
-    
-        $response = new Response(json_encode($return));  
-        $response->headers->set('Content-Type', 'application/json');
-        if ($search_slug != '') {
-            $response->headers->setCookie(new Cookie('prev_searched_datatype', $search_slug));
-        }
-        return $response;  
-    }
-*/
 
     /**
      * Returns the ShortResults/TextResults version of this datarecord...triggered when the user clicks a "reload html for this datarecord" button after a cache failure
@@ -209,7 +50,7 @@ class ShortResultsController extends ODRCustomController
      * @param string $force          ..currently, whether to load ShortResults, TextResults, or whatever is default for the DataType
      * @param Request $request
      *
-     * @return a Symfony JSON response containing the HTML of the Short/Textresult re-render
+     * @return Response TODO
      */
     public function reloadAction($datarecord_id, $force, Request $request)
     {
@@ -224,7 +65,6 @@ class ShortResultsController extends ODRCustomController
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-            $templating = $this->get('templating');
 
             $em = $this->getDoctrine()->getManager();
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -236,8 +76,8 @@ class ShortResultsController extends ODRCustomController
 
 
             // Attempt to load the datarecord from the cache...
-            $html = '';
             $data = null;
+            $html = '';
 //            if ($force == 'short')
                 $data = $memcached->get($memcached_prefix.'.data_record_short_form_'.$datarecord->getId());
 /*
@@ -255,7 +95,7 @@ class ShortResultsController extends ODRCustomController
 
             if ($data == null/* || $data['revision'] < $datatype->getRevision()*/) {
                 // ...otherwise, ensure all the entities exist before rendering and caching the short form of the DataRecord
-                parent::verifyExistence($datatype, $datarecord);
+                parent::verifyExistence($datarecord);
 //                if ($force == 'short') {
                     $html = parent::Short_GetDisplayData($request, $datarecord->getId());
                     $data = array( 'revision' => $datatype->getRevision(), 'html' => $html );
@@ -313,7 +153,7 @@ class ShortResultsController extends ODRCustomController
      * @param integer $datatype_id
      * @param Request $request
      *
-     * @return TODO
+     * @return Response TODO
      */
     public function recordlistAction($datatype_id, Request $request)
     {
@@ -381,6 +221,7 @@ class ShortResultsController extends ODRCustomController
         return $response;
     }
 
+
     /**
      * TODO - this was a sitemap function
      * Builds and returns...TODO
@@ -389,7 +230,7 @@ class ShortResultsController extends ODRCustomController
      * @param string $datatype_name
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function mapAction($datatype_id, $datatype_name, Request $request)
     {
@@ -428,7 +269,7 @@ class ShortResultsController extends ODRCustomController
                     }
                     else {
                         // ...otherwise, ensure all the entities exist before rendering the short form of the DataRecord
-                        parent::verifyExistence($datatype, $datarecord);
+                        parent::verifyExistence($datarecord);
                         $html = parent::Short_GetDisplayData($request, $datarecord->getId());
 
                         // Cache the html

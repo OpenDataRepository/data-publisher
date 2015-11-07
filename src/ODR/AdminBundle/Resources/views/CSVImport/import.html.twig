@@ -1,7 +1,7 @@
 {% spaceless %}
 
 <div class="header">
-    <h2>CSV Import for {{ datatype.shortname }}</h2>
+    <h2>CSV Import for <span id="target_datatype_name">{{ datatype.shortname }}</span></h2>
 </div>
 
 {% if presets != null %}
@@ -19,16 +19,55 @@
     </br></br>
     {% endif %}
 
-    <form id="csvUploadForm">
-        <select name="csv_delimiter" id="delimiter_select" {% if upload_type == '' %}disabled{% endif %}>
-            <option value="">Select a delimiter...</option>
-            <option value="tab">{tab}</option>
-            <option value="space">{space}</option>
-            <option value="comma">{comma}</option>
-            <option value="semicolon">{semicolon}</option>
-            <option value="colon">{colon}</option>
-            <option value="pipe">{pipe}</option>
-        </select>
+    <form id="csvUploadForm" class="pure-form pure-form-aligned">
+        <fieldset>
+            <div class="pure-control-group">
+                <label for="target_datatype" style="width:13em;">Datatype to import into:</label>
+                <select name="target_datatype" id="target_datatype" {% if upload_type == '' %}disabled{% endif %}>
+                    <option value="{{ datatype.id }}">{{ datatype.shortname }}</option>
+                {% if childtypes != null and datatype.externalIdField != null %}
+                    {% for childtype in childtypes %}
+                        <option value="{{ childtype.id }}" rel="child">|-- {{ childtype.shortname }} (child)</option>
+                    {% endfor %}
+                {% endif %}
+                {% if linked_types != null and datatype.externalIdField != null %}
+                    {% for linked_type in linked_types %}
+                        <option value="{{ linked_type.id }}" rel="{% if linked_type.getexternalidfield == null %}invalid {% endif %}link">|-- {{ linked_type.shortname }} ({% if linked_type.getexternalidfield == null %}invalid {% endif %}link)</option>
+                    {% endfor %}
+                {%  endif %}
+                </select>
+
+                <span id="childtype_import_warning" style="margin-left:15px;">
+                    <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+                    <span>&nbsp;The CSV Importer is currently unable to update existing child Datarecords...every row in the CSV file WILL become a new child Datarecord.</span>
+                </span>
+
+                <span id="invalid_linked_datatype_warning" style="margin-left:15px;">
+                    <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+                    <span>&nbsp;This linked Datatype doesn't have an "External ID" Datafield...CSV Importing can't continue because it's impossible to determine which Datarecords to link to.</span>
+                </span>
+
+            {% if datatype.externalIdField == null and (childtypes != null or linked_types != null) %}
+                <span style="margin-left:15px;">
+                    <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+                    <span>&nbsp;This Datatype doesn't have an "External ID" Datafield...CSV Importing can't be performed on any children or linked Datatypes.</span>
+                </span>
+            {% endif %}
+            </div>
+
+            <div class="pure-control-group">
+                <label for="delimiter_select" style="width:13em;">Delimiter for CSV File:</label>
+                <select name="csv_delimiter" id="delimiter_select" {% if upload_type == '' %}disabled{% endif %}>
+                    <option value="">Select a delimiter...</option>
+                    <option value="tab">{tab}</option>
+                    <option value="space">{space}</option>
+                    <option value="comma">{comma}</option>
+                    <option value="semicolon">{semicolon}</option>
+                    <option value="colon">{colon}</option>
+                    <option value="pipe">{pipe}</option>
+                </select>
+            </div>
+        </fieldset>
 
         {% if upload_type == 'csv' %}
         <div id="file_upload_div">
@@ -70,17 +109,48 @@
 <script>
     $(function() {
         $("#file_upload_div").hide();
+        $("#childtype_import_warning").hide();
+        $("#invalid_linked_datatype_warning").hide();
 
     {% if presets == null %}
         $("#delimiter_select").unbind('change');
         $("#delimiter_select").change(function() {
             delimiterChanged( $(this).val() );
-            if ( $(this).val() == "" )
+            if ( $(this).val() == "" || $("#target_datatype").children(':selected').attr('rel') == 'invalid link')
                 $("#file_upload_div").hide();
             else
                 $("#file_upload_div").show();
         });
+
+        $("#target_datatype").unbind('change');
+        $("#target_datatype").change(function() {
+            // Hide both warnings...they'll get shown if required
+            $("#childtype_import_warning").hide();
+            $("#invalid_linked_datatype_warning").hide();
+
+            if ( $(this).val() != "{{ datatype.id }}" ) {
+                // Ensure file upload div shows correctly
+                $("#delimiter_select").trigger('change');
+
+                // Show the correct warning if necessary
+                var datatree_type = $(this).children(':selected').attr('rel');
+                if (datatree_type == 'child')
+                    $("#childtype_import_warning").show();
+                else if (datatree_type == 'invalid link')
+                    $("#invalid_linked_datatype_warning").show();
+            }
+        });
     {% else %}
+        $("#target_datatype").val("{{ datatype.id }}");
+        {% if parent_datatype != null and parent_datatype.id != datatype.id %}
+        // Show the correct warning if necessary
+        var datatree_type = $("#target_datatype").children(':selected').attr('rel');
+        if (datatree_type == 'child')
+            $("#childtype_import_warning").show();
+        else if (datatree_type == 'invalid link')
+            $("#invalid_linked_datatype_warning").show();
+        {% endif %}
+
         var delimiter = "{{ presets.delimiter }}";
         switch (delimiter) {
             case "\t":
@@ -125,11 +195,21 @@
     {% endif %}
     });
 
+
     {% if upload_type == 'csv' %}
     function loadLayout() {
 
 //        $("#delimiter_select").attr('disabled', 'disabled');
-        var url = '{{ path('odr_csv_import_layout', {'datatype_id': datatype.id}) }}';
+        var url = '{{ path('odr_csv_import_layout', {'datatype_id': 0}) }}';
+        url = url.substr(0, url.length-1);
+        url += $("#target_datatype").val();
+
+        var datatype_name = $("#target_datatype").find(':selected').text();
+        if ( $("#target_datatype").find(':selected').attr('rel') != undefined )
+            datatype_name = datatype_name.substr(4);
+
+//alert(url);
+//return;
 
         var dataType = "json";
         $.ajax({
@@ -141,6 +221,8 @@
                 if (data.r == 0) {
                     $("#csvUploadForm").remove();
                     $("#layout_content").append( data.d.html );
+
+                    $("#target_datatype_name").html( datatype_name );
                 }
                 else {
                     alert( data.d );

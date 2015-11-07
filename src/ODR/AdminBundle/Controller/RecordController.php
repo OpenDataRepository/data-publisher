@@ -35,24 +35,12 @@ use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\ImageStorage;
-use ODR\AdminBundle\Entity\RadioOption;
+use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\IntegerValue;
 // Forms
-use ODR\AdminBundle\Form\BooleanForm;
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
-use ODR\AdminBundle\Form\ShortVarcharForm;
-use ODR\AdminBundle\Form\MediumVarcharForm;
-use ODR\AdminBundle\Form\LongVarcharForm;
-use ODR\AdminBundle\Form\LongTextForm;
-use ODR\AdminBundle\Form\DecimalValueForm;
-use ODR\AdminBundle\Form\DatetimeValueForm;
-use ODR\AdminBundle\Form\IntegerValueForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -71,11 +59,10 @@ class RecordController extends ODRCustomController
      * @param integer $multiple             '1' if RadioOption allows multiple selections, '0' otherwise.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred
+     * @return Response TODO
      */
     public function radioselectionAction($data_record_field_id, $radio_option_id, $multiple, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -189,11 +176,10 @@ class RecordController extends ODRCustomController
      * @param integer $datatype_id The database id of the DataType this DataRecord will belong to.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred
+     * @return Response TODO
      */
     public function addAction($datatype_id, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -287,11 +273,10 @@ class RecordController extends ODRCustomController
      * @param integer $grandparent_id The database id of the top-level DataRecord in this inheritance chain.
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function addchildrecordAction($datatype_id, $parent_id, $grandparent_id, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = "";
@@ -340,7 +325,7 @@ class RecordController extends ODRCustomController
             $em->flush();
 
             // Ensure the new child record has all its fields
-            parent::verifyExistence($datatype, $datarecord);
+            parent::verifyExistence($datarecord);
 
 
             // Get record_ajax.html.twig to re-render the datarecord
@@ -374,11 +359,10 @@ class RecordController extends ODRCustomController
      * @param integer $datarecord_id The database id of the datarecord to delete.
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function deleteAction($datarecord_id, $search_key, Request $request)
     {
-   
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -523,7 +507,7 @@ class RecordController extends ODRCustomController
      * @param integer $datatype_id
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function deletechildrecordAction($datarecord_id, $datatype_id, Request $request)
     {
@@ -598,11 +582,10 @@ class RecordController extends ODRCustomController
      * @param integer $file_id The database id of the File to delete.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred
+     * @return Response TODO
      */
     public function deletefileAction($file_id, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = "";
@@ -680,11 +663,10 @@ class RecordController extends ODRCustomController
      * @param integer $file_id The database id of the File to modify.
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function publicfileAction($file_id, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -788,11 +770,10 @@ class RecordController extends ODRCustomController
      * @param integer $image_id The database id of the Image to modify
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function publicimageAction($image_id, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -906,7 +887,7 @@ class RecordController extends ODRCustomController
      * @param integer $image_id The database id of the Image to delete.
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function deleteimageAction($image_id, Request $request)
     {
@@ -989,7 +970,7 @@ class RecordController extends ODRCustomController
      * 
      * @param Request $request 
      * 
-     * @return an empty Symfony JSON response, unless an error occurred
+     * @return Response TODO
      */
     public function saveimageorderAction(Request $request)
     {
@@ -1079,7 +1060,7 @@ class RecordController extends ODRCustomController
      * @param integer $datarecord_id The database id of the DataRecord to modify.
      * @param Request $request 
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function publicdatarecordAction($datarecord_id, Request $request)
     {
@@ -1114,7 +1095,6 @@ class RecordController extends ODRCustomController
 
             // Toggle the public status of the datarecord
             $public = 0;
-            $public_date = $datarecord->getPublicDate();
             if ( $datarecord->isPublic() ) {
                 // Make the record non-public
                 $datarecord->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
@@ -1165,7 +1145,7 @@ class RecordController extends ODRCustomController
      * @param integer $datarecord_id The database id of the datarecord being modified.
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function updateAction($record_type, $datarecord_id, Request $request) 
     {
@@ -1383,7 +1363,7 @@ class RecordController extends ODRCustomController
      * @param string $search_key              The current search on this tab
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function getlinkablerecordsAction($ancestor_datatype_id, $descendant_datatype_id, $local_datarecord_id, $search_key, Request $request)
     {
@@ -1433,31 +1413,28 @@ if ($debug) {
     print "descendant datatype: ".$descendant_datatype_id."\n";
 }
 
+            // ----------------------------------------
             // Determine which datatype we're trying to create a link with
+            $local_datarecord_is_ancestor = false;
             $local_datatype = $local_datarecord->getDataType();
             $remote_datatype = null;
-            if ($local_datatype->getId() == $ancestor_datatype_id)
+            if ($local_datatype->getId() == $ancestor_datatype_id) {
                 $remote_datatype = $repo_datatype->find($descendant_datatype_id);   // Linking to a remote datarecord from this datarecord
-            else
+                $local_datarecord_is_ancestor = true;
+            }
+            else {
                 $remote_datatype = $repo_datatype->find($ancestor_datatype_id);     // Getting a remote datarecord to link to this datarecord
+                $local_datarecord_is_ancestor = false;
+            }
 
 if ($debug)
     print "\nremote datatype: ".$remote_datatype->getId()."\n";
-/*
-            // Locate all datarecords associated with that datatype
-            $datarecords = array();
-            $datarecord_str = parent::getSortedDatarecords($remote_datatype);
-            $datarecords = explode(',', $datarecord_str);
 
-if ($debug) {
-    print " -- remote datarecords\n";
-    foreach ($datarecords as $num => $dr_id)
-        print " -- ".$dr_id."\n";
-}
-*/
+
+            // ----------------------------------------
             // Grab all datarecords currently linked to the local_datarecord
             $linked_datarecords = array();
-            if ($local_datatype->getId() == $ancestor_datatype_id) {
+            if ($local_datarecord_is_ancestor) {
                 // local_datarecord is on the ancestor side of the link
                 $query = $em->createQuery(
                    'SELECT descendant.id AS descendant_id
@@ -1504,19 +1481,21 @@ if ($debug) {
 }
 
 
-            // Determine whether the user is permitted to select multiple datarecords in the dialog
+            // ----------------------------------------
+            // Determine whether the link allows multiples or not
             $allow_multiple_links = true;
-            if ($local_datarecord->getDataType()->getId() == $ancestor_datatype->getId()) {
-                // User entering this from the ancestor side...
-                if ($descendant_datatype->getMultipleRecordsPerParent() == '0') {
-                    // Only allowed to link to one descendant at a time
-                    $allow_multiple_links = false;
-                }
-            }
-            else {
-                // User entering this from the descendant side...
-                // Always allow, because any number of datarecords could link to this descendant
-            }
+            $query = $em->createQuery(
+               'SELECT dt.multiple_allowed AS multiple_allowed
+                FROM ODRAdminBundle:DataTree AS dt
+                WHERE dt.ancestor = :ancestor AND dt.descendant = :descendant
+                AND dt.deletedAt IS NULL'
+            )->setParameters( array('ancestor' => $ancestor_datatype->getId(), 'descendant' => $descendant_datatype->getId()) );
+            $result = $query->getArrayResult();
+
+            // Save whether only allowed to link to a single datarecord at a time
+            if ( $result[0]['multiple_allowed'] == 0 )
+                $allow_multiple_links = false;
+
 if ($debug) {
     if ($allow_multiple_links)
         print "\nallow multiple links: true\n";
@@ -1524,24 +1503,30 @@ if ($debug) {
         print "\nallow multiple links: false\n";
 }
 
-            // TODO - Determine which, if any, datarecords can't be linked to because doing so would violate the "multiple_records_per_parent" rule
+            // ----------------------------------------
+            // Determine which, if any, datarecords can't be linked to because doing so would violate the "multiple_allowed" rule
             $illegal_datarecords = array();
-/*
-            if ($allow_multiple_links && $descendant_datatype->getMultipleRecordsPerParent() == '0') {
-                // User entering from the descendant side of a relationship only allowed to have a single record per ancestor...
-                foreach ($datarecords as $num => $dr_id) {
-                    // ...for each of the remote datarecords that could link to this datarecord...
-                    if ( !isset($linked_datarecords[$dr_id]) ) {
-                        // ...if the remote datarecord isn't linked to this datarecord...
-                        $datatrees = $repo_linked_datatree->findBy( array('ancestor' => $dr_id) );
-                        // ...if the remote datarecord is linked to a different datarecord, we're not allowed to link to it in this dialog
-                        if ( count($datatrees) > 0 )
-//                            $illegal_datarecords[] = $datarecord;
-                            $illegal_datarecords[] = $dr_id;
-                    }
+            if ($local_datarecord_is_ancestor) {
+                /* do nothing...the javascript will force compliance with the "multiple_allowed" rule */
+            }
+            else if (!$allow_multiple_links) {
+                // If linking from descendant side, and link is setup to only allow to linking to a single descendant...
+                // ...then determine which datarecords on the ancestor side already have links to datarecords on the descendant side
+                $query = $em->createQuery(
+                   'SELECT ancestor.id
+                    FROM ODRAdminBundle:DataRecord AS descendant
+                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.descendant = descendant
+                    JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                    WHERE descendant.dataType = :descendant_datatype AND ancestor.dataType = :ancestor_datatype
+                    AND descendant.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
+                )->setParameters( array('descendant_datatype' => $descendant_datatype->getId(), 'ancestor_datatype' => $ancestor_datatype->getId()) );
+                $results = $query->getArrayResult();
+//print_r($results);
+                foreach ($results as $num => $result) {
+                    $dr_id = $result['id'];
+                    $illegal_datarecords[$dr_id] = 1;
                 }
             }
-*/
 
 if ($debug) {
     print "\nillegal datarecords\n";
@@ -1549,6 +1534,7 @@ if ($debug) {
         print '-- datarecord '.$id."\n";
 }
 
+            // ----------------------------------------
             // Need memcached for this...
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
@@ -1580,6 +1566,7 @@ if ($debug) {
                         'search_key' => $search_key,
 
                         'local_datarecord' => $local_datarecord,
+                        'local_datarecord_is_ancestor' => $local_datarecord_is_ancestor,
                         'ancestor_datatype' => $ancestor_datatype,
                         'descendant_datatype' => $descendant_datatype,
 
@@ -1613,11 +1600,10 @@ if ($debug) {
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function linkrecordAction(Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'html';
@@ -1634,16 +1620,10 @@ if ($debug) {
             $descendant_datatype_id = $post['descendant_datatype_id'];
             $allow_multiple_links = $post['allow_multiple_links'];
             $datarecords = array();
-//            if ($allow_multiple_links == '1') {
-                if ( isset($post['datarecords']) )
-                    $datarecords = $post['datarecords'];
-/*
-            }
-            else {
-                if ( isset($post['datarecord']) )
-                    $datarecords = array( $post['datarecord'] => 1 );
-            }
-*/
+            if ( isset($post['datarecords']) )
+                $datarecords = $post['datarecords'];
+
+
             // Grab necessary objects
             $em = $this->getDoctrine()->getManager();
 
@@ -1808,7 +1788,7 @@ if ($debug)
     * @param integer $datatype_id   The database id of the child DataType to re-render
     * @param Request $request
     * 
-    * @return a Symfony JSON response containing HTML
+    * @return Response TODO
     */
     public function reloadchildAction($datatype_id, $datarecord_id, Request $request)
     {
@@ -1846,7 +1826,7 @@ if ($debug)
     * @param integer $datarecord_id The database id of the DataRecord to re-render
     * @param Request $request
     *  
-    * @return a Symfony JSON response containing HTML
+    * @return Response TODO
     */  
     public function reloaddatafieldAction($datafield_id, $datarecord_id, Request $request)
     {
@@ -2106,7 +2086,7 @@ if ($debug)
      * @param integer $offset        Used for search header, an optional integer indicating which page of the search result list $datarecord_id is on
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function editAction($datarecord_id, $search_key, $offset, Request $request)
     {
@@ -2156,7 +2136,7 @@ if ($debug)
             // --------------------
 
             // Ensure all objects exist before rendering
-            parent::verifyExistence($datatype, $datarecord);
+            parent::verifyExistence($datarecord);
 
 
             // ----------------------------------------
@@ -2220,7 +2200,6 @@ if ($debug)
 
             // ----------------------------------------
             // Build an array of values to use for navigating the search result list, if it exists
-            $record_header_html = '';
             $search_header = parent::getSearchHeaderValues($datarecord_list, $datarecord->getId(), $request);
 
             $router = $this->get('router');
@@ -2275,7 +2254,7 @@ if ($debug)
     * @param mixed $entity_id                     The database id of the storage entity to look-up in the transaction log
     * @param Request $request 
     * 
-    * @return a Symfony JSON response containing HTML
+    * @return Response TODO
     */
     public function getfieldhistoryAction($datarecordfield_id, $entity_id, Request $request) {
         $return['r'] = 0;

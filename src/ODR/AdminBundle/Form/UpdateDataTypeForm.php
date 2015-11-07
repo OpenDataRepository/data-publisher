@@ -11,7 +11,6 @@
 * the right slideout in DisplayTemplate.
 */
 
-//ODR/AdminBundle/Forms/UpdateDataTypeForm.class.php
 namespace ODR\AdminBundle\Form;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -124,15 +123,6 @@ class UpdateDataTypeForm extends AbstractType
                 'expanded' => false,
                 'multiple' => false,
                 'empty_value' => 'NONE',
-            )
-        );
-
-        $builder->add(
-            'multiple_records_per_parent',
-            'checkbox',
-            array(
-                'required' => false,
-                'label'  => 'Multiple Allowed',
             )
         );
 

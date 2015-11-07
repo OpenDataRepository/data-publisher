@@ -24,30 +24,34 @@
         all_datarecords = [{% for num,dr_id in all_datarecords %}{{ dr_id }},{% endfor %}];
 
         var allow_multiple_links = $("#LinkDataRecordForm").children('input[name="allow_multiple_links"]').val();
+        var local_datarecord_is_ancestor = $("#LinkDataRecordForm").children('input[name="local_datarecord_is_ancestor"]').val();
         if (allow_multiple_links == 0)
             $("#TextResults_link_div").remove();
 
         // Initialize the datatables object
         var search_table = $("#TextResults_search").dataTable({
-            columns: [{{ column_names | raw }}],
-            searching: false,
-            autoWidth: false,
+            "columns": [{{ column_names | raw }}],
+            "searching": false,
+            "autoWidth": false,
 
-            processing: true,   // only displays a little "processing..." blurb
-            serverSide: true,
-            ajax: {
-                url: "{{ path('odr_datatables_row_request') }}",
-                type: "POST",
-                data: {
+            "processing": true,   // only displays a little "processing..." blurb
+            "serverSide": true,
+            "ajax": {
+                "url": "{{ path('odr_datatables_row_request') }}",
+                "type": "POST",
+                "data": {
                     'datatype_id': {{ datatype.id }},
                     'search_key': "{{ search_key }}",
                     // Don't want anything done to this table to be saved, so don't send the tab id
                 }
             },
+            "language": {
+                "emptyTable": "No Datarecords found"
+            },
 
-            deferRender: true,
-            createdRow: function( row, data, index ) {
-                if (allow_multiple_links == 1)
+            "deferRender": true,
+            "createdRow": function( row, data, index ) {
+                if (allow_multiple_links == 1 || local_datarecord_is_ancestor == 0)
                     $(row).prepend('<td><input type="checkbox" class="dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
                 else
                     $(row).prepend('<td><input type="radio" name="radio_group" class="dr_' + data[0] + '" rel="' + data[0] + '" onchange="LinkRecord(' + data[0] + ');"/></td>');
@@ -81,9 +85,9 @@
         });
 
 
-        // Ensure checkboxes have proper state on redraw of table
+        // Ensure checkboxes have proper state on redraw of search results table
         $(search_table).on('draw.dt', function() {
-            initCheckboxes("#TextResults_search");
+            initCheckboxes("#TextResults_search", false);
         });
 
         // Prepend a header for the checkbox column
@@ -106,8 +110,8 @@
 
         // Update state of all checkboxes
         linked_datarecords = all_datarecords;
-        initCheckboxes("#TextResults_current");
-        initCheckboxes("#TextResults_search");
+        initCheckboxes("#TextResults_current", true);
+        initCheckboxes("#TextResults_search", false);
     }
 
     function deselectAll() {
@@ -126,8 +130,8 @@
 
         // Update state of all checkboxes
         linked_datarecords = [];
-        initCheckboxes("#TextResults_current");
-        initCheckboxes("#TextResults_search");
+        initCheckboxes("#TextResults_current", true);
+        initCheckboxes("#TextResults_search", false);
     }
 
 </script>

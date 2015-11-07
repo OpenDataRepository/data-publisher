@@ -33,11 +33,6 @@ class LinkedDataTree
     private $deletedAt;
 
     /**
-     * @var boolean
-     */
-    private $multipleRecordsPerParent;
-
-    /**
      * @var \DateTime
      */
     private $created;
@@ -99,29 +94,6 @@ class LinkedDataTree
     public function getDeletedAt()
     {
         return $this->deletedAt;
-    }
-
-    /**
-     * Set multipleRecordsPerParent
-     *
-     * @param boolean $multipleRecordsPerParent
-     * @return LinkedDataTree
-     */
-    public function setMultipleRecordsPerParent($multipleRecordsPerParent)
-    {
-        $this->multipleRecordsPerParent = $multipleRecordsPerParent;
-    
-        return $this;
-    }
-
-    /**
-     * Get multipleRecordsPerParent
-     *
-     * @return boolean 
-     */
-    public function getMultipleRecordsPerParent()
-    {
-        return $this->multipleRecordsPerParent;
     }
 
     /**

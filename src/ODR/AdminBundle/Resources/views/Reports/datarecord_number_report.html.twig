@@ -1,0 +1,21 @@
+{% spaceless %}
+
+{% set parent_datatype = datatree.getancestor %}
+{% set child_datatype = datatree.getdescendant %}
+{% set is_link = datatree.getislink %}
+
+<h2>List of Datarecords of Datatype "{{ parent_datatype.getshortname }}" with multiple {% if is_link == true %}linked{% else %}child{% endif %} Datarecords of Datatype "{{ child_datatype.getshortname }}"</h2>
+
+{% if datarecords | length == 0 %}
+    <div class="ODRDatarecordListHeader">No multiples found</div>
+{% else %}
+
+{% for dr_id in datarecords %}
+    <div class="pure-u-1-5">
+        <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': dr_id}) }}">{{ dr_id }}</a>
+    </div>
+{% endfor %}
+
+{% endif %}
+
+{% endspaceless %}

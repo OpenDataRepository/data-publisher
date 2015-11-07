@@ -56,7 +56,7 @@ class SearchtemplateController extends ODRCustomController
      * @param integer $datatype_id The database of the DataType to be modified.
      * @param integer $theme       The database id of the Theme to be modified.
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function designAction($datatype_id, $theme_id, Request $request)
     {
@@ -123,7 +123,7 @@ class SearchtemplateController extends ODRCustomController
      * @param integer $theme_id    The database id of the Theme receiving the new ThemeElement.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred
+     * @return Response TODO
      */
     public function addthemeelementAction($datatype_id, $theme_id, Request $request)
     {
@@ -195,7 +195,7 @@ class SearchtemplateController extends ODRCustomController
      * @param integer $theme_element_id The database id of the ThemeElement to delete.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred
+     * @return Response TODO
      */
     public function deletethemeelementAction($theme_element_id, Request $request)
     {
@@ -303,7 +303,7 @@ class SearchtemplateController extends ODRCustomController
      * @param integer $theme_element_id The database id of the ThemeElement to attach the DataField to.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred
+     * @return Response TODO
      */
     public function addfieldAction($datafield_id, $theme_element_id, Request $request)
     {
@@ -425,7 +425,7 @@ class SearchtemplateController extends ODRCustomController
      * @param integer $theme_element_id The database id of the ThemeElement to detach the DataField from.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred
+     * @return Response TODO
      */
     public function removefieldAction($datafield_id, $theme_element_id, Request $request)
     {
@@ -508,7 +508,7 @@ class SearchtemplateController extends ODRCustomController
      * @param integer $ending_theme_element_id  The database id of the ThemeElement the DataField is in after being moved.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function datafieldorderAction($initial_theme_element_id, $ending_theme_element_id, Request $request)
     {
@@ -595,7 +595,7 @@ class SearchtemplateController extends ODRCustomController
      * @param integer $theme_datafield_id The database id of the ThemeDataField entity to change.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON Response, unless an error occurred TODO
+     * @return Response TODO
      */
     public function savethemedatafieldAction($theme_datafield_id, Request $request)
     {
@@ -676,7 +676,7 @@ class SearchtemplateController extends ODRCustomController
      * @param integer $theme_id    The database id of the Theme to re-render from...
      * @param Request $request
      *
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function reloadchildAction($datatype_id, $theme_id, Request $request)
     {
@@ -711,7 +711,7 @@ class SearchtemplateController extends ODRCustomController
      * @param integer $theme_id    The database id of the Theme to re-render from...
      * @param Request $request
      *
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function reloadthemeelementAction($theme_element_id, $theme_id, Request $request)
     {
@@ -739,6 +739,7 @@ class SearchtemplateController extends ODRCustomController
 
     }
 
+
     /**
      * Triggers a re-render and reload of a DataField in the search design area.
      *
@@ -746,7 +747,7 @@ class SearchtemplateController extends ODRCustomController
      * @param integer $theme_id    The database id of the Theme to re-render from...
      * @param Request $request
      *
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function reloaddatafieldAction($datafield_id, $theme_id, Request $request)
     {
@@ -914,7 +915,7 @@ if ($debug)
      * @param integer $theme_id     The database id of the Theme that is being modified for this DataField...
      * @param Request $request
      *
-     * @return a Symfony JSON response containing HTML 
+     * @return Response TODO
      */
     public function datafieldpropertiesAction($datafield_id, $theme_id, Request $request)
     {
@@ -1038,7 +1039,7 @@ if ($debug)
      * @param integer $theme_element_id The database id of the ThemeElement being modified.
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TOOD
      */
     public function themeelementpropertiesAction($theme_element_id, Request $request)
     {
@@ -1121,7 +1122,7 @@ if ($debug)
      *
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred.
+     * @return Response TODO
      */
     public function themeelementorderAction(Request $request)
     {

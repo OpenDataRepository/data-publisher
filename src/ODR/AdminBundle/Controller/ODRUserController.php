@@ -1392,7 +1392,7 @@ class ODRUserController extends ODRCustomController
             $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
             $admin_permission_count = 0;
-            foreach ($admin_permissions as $datatype_id => $admin_permission) {
+            foreach ($admin_permissions as $dt_id => $admin_permission) {
                 if ( isset($admin_permission['admin']) && $admin_permission['admin'] == 1 )
                     $admin_permission_count++;
             }

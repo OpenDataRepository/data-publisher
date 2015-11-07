@@ -30,13 +30,13 @@
             </select>
 
         {% elseif field_typename == 'DateTime' %}
-            <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datafield_{{ datafield.id }}_start" name="{{ datafield.id }}_s" value="" rel="datafield_{{ datafield.id }}" />
+            <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datafield_{{ datafield.id }}_start" name="{{ datafield.id }}_s" value="" rel="datafield_{{ datafield.id }}" title="Find Datarecords with a value AFTER this date" />
 {#
             </div>
         <div class="ODRAdvSearch pure-u-1">
 #}
             <label class="pure-u-1-3"></label>
-            <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datafield_{{ datafield.id }}_end" name="{{ datafield.id }}_e" value="" rel="datafield_{{ datafield.id }}" />
+            <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datafield_{{ datafield.id }}_end" name="{{ datafield.id }}_e" value="" rel="datafield_{{ datafield.id }}" title="Find Datarecords with a value BEFORE this date" />
 
         {% elseif field_typeclass == "Radio" %}
             <span class="pure-u-2-3 ODRRadioSearchDiv" id="Input_{{ datafield.id }}">

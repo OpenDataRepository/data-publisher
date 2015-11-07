@@ -1,18 +1,28 @@
 {% spaceless %}
 
     {% set external_id_field = datatype.getexternalidfield %}
-    {% set name_field = datatype.getnamefield %}
 
+{%  if not linked_importing %}
     <div class="csv_import_header pure-u-1">
         <button type="button" class="pure-button" onclick="selectAllFields();">Select All</button>
         &nbsp;
         <button type="button" class="pure-button" onclick="deselectAllFields();">Deselect All</button>
     </div>
-
-    {% include 'ODRAdminBundle:CSVImport:uniqueness_warnings.html.twig' with {'datatype': datatype, 'datafields': datafields} %}
+{% endif %}
 
     <form id="csv_import_form">
-        <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />
+        <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />{# is the remote_datatype id if this is a linked import, or the child datatype id if importing into a childtype, or the top-level datatype otherwise #}
+{% if parent_datatype != null %}
+        <input type="hidden" name="parent_datatype_id" value="{{ parent_datatype.id }}" />
+{% endif %}
+
+
+        {% if parent_datatype != null %}
+            {% include 'ODRAdminBundle:CSVImport:parent_datatype_settings.html.twig' with {'parent_datatype': parent_datatype, 'datatype': datatype, 'linked_importing': linked_importing, 'columns': columns, 'presets': presets} %}
+        {% endif %}
+
+{%  if not linked_importing %}
+        {% include 'ODRAdminBundle:CSVImport:uniqueness_warnings.html.twig' with {'datatype': datatype, 'datafields': datafields} %}
 
         <table id="csv_import_table" class="pure-table pure-table-striped" style="font-size: 1.25em;">
             <thead>
@@ -41,9 +51,9 @@
                         <select id="column_{{ column_id }}" class="datafield_mapping" name="datafield_mapping[{{ column_id }}]" rel="{{ column_id }}" disabled>
                             <option value="new">Create new datafield...</option>
                             {% for datafield in datafields %}
-                            {% if datafield.fieldtype.id in allowed_fieldtypes %}
-                            <option value="{{ datafield.id }}" rel="{{ datafield.fieldtype.id }}">{{ datafield.fieldname }}</option>
-                            {% endif %}
+                                {% if datafield.fieldtype.id in allowed_fieldtypes %}
+                                <option value="{{ datafield.id }}" rel="{{ datafield.fieldtype.id }}">{{ datafield.fieldname }}</option>
+                                {% endif %}
                             {% endfor %}
                         </select>
                     </td>
@@ -70,12 +80,16 @@
                 {% endfor %}
             </tbody>
         </table>
+{% endif %} {# if not linked_importing #}
+
     </form>
 
+{% if not linked_importing %}
     <hr>
     <div><b>Any files or images that you want to import using this CSV file need to be uploaded here.</b></div>
     {% include 'ODRAdminBundle:CSVImport:filelist.html.twig' with {'datatype_id': datatype.id, 'presets': presets} %}
     <hr>
+{% endif %}
 
     <div style="margin-top: 10px;">
         <button id="validate_button" type="button" class="pure-button pure-button-primary" onclick="validateImport();">Validate Import</button>
@@ -93,18 +107,20 @@
 
 <script>
     var block_changes = false;
-    var change_block_str = 'You have changed something in the field layout...either re-validate the import, or reload the page to undo your changes';
 
     var unique_datafields = [];
     var unique_fieldtypes = [];
 
     $(function() {
-{% for df in datafields %}{% if df.getisunique == 1 %}
+
+{% if not linked_importing %}
+
+    {% for df in datafields %}{% if df.getisunique == 1 %}
         unique_datafields.push("{{ df.id }}");
-{% endif %}{% endfor %}
-{% for ft in fieldtypes %}{% if ft.getcanbeunique == 1 %}
+    {% endif %}{% endfor %}
+    {% for ft in fieldtypes %}{% if ft.getcanbeunique == 1 %}
         unique_fieldtypes.push("{{ ft.id }}");
-{% endif %}{% endfor %}
+    {% endif %}{% endfor %}
 
         $(".inline_warning").hide();
 
@@ -140,7 +156,7 @@
             }
 
             if (block_changes)
-                $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
+                preventImport();
         });
 
         $(".unique_checkbox").unbind('click');
@@ -151,7 +167,7 @@
             setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
 
             if (block_changes)
-                $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
+                preventImport();
         });
 
         $(".datafield_mapping").unbind('change');
@@ -179,7 +195,7 @@
             updateDatafieldMeta(column_id);
 
             if (block_changes)
-                $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
+                preventImport();
         });
 
         $(".fieldtype_mapping").unbind('change');
@@ -197,7 +213,7 @@
             updateDatafieldMeta(column_id);
 
             if (block_changes)
-                $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
+                preventImport();
         });
 
 {% if presets != null %}
@@ -229,9 +245,18 @@
         updateHeaderWarnings();
 
         block_changes = true;
-{% endif %}
+{% endif %} {# if presets != null #}
+
+{% endif %} {# if not linked_importing #}
     });
 
+    function preventImport() {
+        var change_block_str = 'You have changed something in the field layout...either re-validate the import, or reload the page to undo your changes';
+
+        $("#import_button").removeAttr('onclick').attr('disabled', 'disabled').attr('title', change_block_str);
+    }
+
+{% if not linked_importing %}
     function updateDatafieldMeta(column_id) {
 
         var fieldtype = "#column_" + column_id + "_fieldtype";
@@ -329,18 +354,47 @@
             }
         });
     }
-
+{% endif %} {# if not linked_importing #}
 
     function validateImport() {
 
+{% if parent_datatype == null %}
+    {# do nothing #}
+{% else %}
+        if ( $("#parent_external_id_column").val() == '' ) {
+            alert('ERROR: One column of the CSV file must be mapped to the external ID for the {% if linked_importing %}local{% else %}parent{% endif %} Datatype "{{ parent_datatype.getshortname }}"');
+            return;
+        }
+    {% if linked_importing %}
+        if ( $("#remote_external_id_column").val() == '' ) {
+            alert('ERROR: One column of the CSV file must be mapped to the external ID for the remote Datatype "{{ datatype.getshortname }}"');
+            return;
+        }
+
+        if ( $("#parent_external_id_column").val() == $("#remote_external_id_column").val() ) {
+            alert("ERROR: The external IDs for the local and remote datatypes can't both be mapped to the same column");
+            return;
+        }
+    {% endif %}
+{% endif %}
+
         // If no checkboxes checked, no point doing any importing...
         var any_checked = false;
+        var block_import = false;
         $(".import_checkbox:checked").each(function() {
-//            if ( $(this).is(':checked') )
-                any_checked = true;
+            any_checked = true;
+
+{% if parent_datatype != null %}
+            if ( $("#parent_external_id_column").val() == $(this).attr('rel') ) {
+                alert( "ERROR: The column mapped to the parent Datatype's external ID can't also be mapped to a Datafield" );
+                block_import = true;
+            }
+{% endif %}
         });
+
+{% if not linked_importing %}
         if (!any_checked) {
-            alert('No columns selected for import');
+            alert('ERROR: No columns selected for import');
             return;
         }
 
@@ -352,7 +406,6 @@
 
         // Notify when same datafield selected for two different columns
         var selections = [];
-        var block_import = false;
         $(".datafield_mapping:enabled").each(function() {
             var selection = $(this).val();
             if (selection == 'new') {
@@ -386,12 +439,13 @@
         if (block_import)
             return;
 
+{% endif %} {# if not linked_importing #}
+
         if ( confirm("Are you sure you want to validate this import?") ) {
             var import_data = $("#csv_import_form").serialize();
 
             var url = '{{ path('odr_csv_import_start_validate') }}';
 
-            var dataType = "json";
             $.ajax({
                 cache: false,
                 type: 'POST',

@@ -27,6 +27,7 @@
     <thead>
         <tr>
             <th></th>
+            <th></th>
             <th>Type Name</th>
             <th>Number of Records</th>
             <th>Search Layout</th>
@@ -66,6 +67,19 @@
         {% if can_view_datatype == true %}
         <tr>
             <td>{{ datatype.id }}</td>
+            <td>
+                <span class="ODRDatatypeInfoDiv">
+                    <i class="fa fa-lg fa-info-circle"></i>
+                    <span class="ODRDatatypeInfo">
+                        <div>
+                            <b>Created By: </b>{{ datatype.createdBy.getuserstring }}<b> on </b>{{ datatype.created|date('Y-m-d') }}
+                        </div>
+                        <div>
+                            <b>Description: </b>{{ datatype.description }}
+                        </div>
+                    </span>
+                </span>
+            </td>
             <td id="datatype_{{ datatype.id }}_name">{{ datatype.shortname }}</td>
 
             {% set found = false %}
@@ -122,6 +136,27 @@
     </tbody>
 </table>
 
+<style>
+    .ODRDatatypeInfoDiv {
+        cursor: pointer;
+        position: relative;
+    }
+    .ODRDatatypeInfoDiv:hover .ODRDatatypeInfo {
+        visibility: visible;
+        top: 20px;
+        left: 20px;
+    }
+    .ODRDatatypeInfo {
+        visibility: hidden;
+        position: absolute;
+        background-color: lightyellow;
+        padding: 5px;
+        border: 1px dashed gray;
+        z-index: 999;
+        width: 500px;
+    }
+</style>
+
 <script>
     $(function() {
         $(".ODRCreateDatatype").unbind('click');
@@ -137,12 +172,12 @@
                     "visible": false,
                 },
                 {
-                    "targets": [3,4,5,6,7,8],
+                    "targets": [1,4,5,6,7,8,9],
                     "orderable": false,
                     "searchable": false,
                 }
             ],
-            "order": [[ 1, "asc" ]],
+            "order": [[ 2, "asc" ]],
             "paging": false,
             "info": false,
             "language": {

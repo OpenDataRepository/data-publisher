@@ -78,10 +78,16 @@ $output->writeln($data->url);
 
                     'api_key' => $data->api_key,
 
-//                    'external_id_column' => $data->external_id_column,
                     'column_delimiters' => $data->column_delimiters,
                     'mapping' => $data->mapping,
                     'line' => $data->line,
+
+                    // Only used when importing into a child/linked datatype
+                    'parent_external_id_column' => $data->parent_external_id_column,
+                    'parent_datatype_id' => $data->parent_datatype_id,
+
+                    // Only used when creating links via importing
+                    'remote_external_id_column' => $data->remote_external_id_column,
                 );
 
                 // Set the options for the POST request

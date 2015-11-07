@@ -391,8 +391,8 @@ function initPage() {
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
                         // Locate parent datatype id
-                        var parent_datatype_id_data = $("#DataType_" + datatype_id).parent().parent().parent().attr('id').split(/_/);
-                        var parent_datatype_id = parent_datatype_id_data[1];
+//                        var parent_datatype_id_data = $("#DataType_" + datatype_id).parent().parent().parent().attr('id').split(/_/);
+//                        var parent_datatype_id = parent_datatype_id_data[1];
 
                         // Delete the datatype from the page
                         $("#DataType_" + datatype_id).remove();
@@ -490,20 +490,31 @@ function initPage() {
 
     $(".ODRDatatypeProperties").unbind('click');
     $(".ODRDatatypeProperties").click(function() {
-        // Load Properties into Element Data
+        // Grab the id of the Datatype to load
         var id = $(this).attr('rel');
+
+        // Determine if this Datatype has a parent
+        var parent_datatype_id = '';
+        if ( $("#DataType_" + id).parent().parent().parent().parent().hasClass('ODRDataType') ) {
+            var id_data = $("#DataType_" + id).parent().parent().parent().parent().attr('id').split(/_/);
+            parent_datatype_id = id_data[1];
+        }
 
         // Load form for current datfield if not already loaded
         $("#ElementData").hide("");
         $("#ElementData").html("");
-        var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0 } ) }}';
-        url = url.substring(0, (url.length - 1));
+        var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0, 'parent_datatype_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 3));
         url += id;
-        var dataType = "json";
+
+        if (parent_datatype_id != '')
+            url += '/' + parent_datatype_id;
+
 //alert( url );
 //return;
 
         // Ajax Load Form in box
+        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
@@ -1008,7 +1019,7 @@ function SetupDataFields() {
         var form_id = "";
         var form = $("#ElementData").find("form.ODRDatafieldPropertiesForm");
         if (form.length > 0) {
-            var form_id_data = form.attr("id").split(/_/);;
+            var form_id_data = form.attr("id").split(/_/);
             form_id = form_id_data[1];
         } 
 
@@ -1227,11 +1238,9 @@ function InitDatafieldPropertiesForm() {
 
             // Changes that require no extra consideration or work
             var no_warn = {
-                // all radio/select fields are interchangable
+                // single radio and single select fields can be changed to any other radio fieldtype
                 8: ['13','14','15'],    
-                13: ['8','14','15'],
                 14: ['8','13','15'],
-                15: ['8','13','14'],
                 // markdown fields have no data to lose
                 17: ['1','2','3','4','5','6','7','8','9','11','13','14','15','16'],
             };
@@ -1253,25 +1262,30 @@ function InitDatafieldPropertiesForm() {
                 7: ['9'],           // medium text to short text
             };
 
-            // Changes that could potentially make sense, but could easily result in lost data
+            // Changes from text fields to integer/decimal...it can easily result in lost data
             var number_warn = {
-                // text fields to integer/decimal
                 5: ['4','16'],
                 6: ['4','16'],
                 7: ['4','16'],
                 9: ['4','16'],
             };
 
-            // TODO - conversions to boolean?
+            // Changing from multiple radio/select to single radio/select...have to ensure at most one radio option is selected...
+            var radio_warn = {
+                13: ['8','14'],
+                15: ['8','14'],
+            };
+
+            // Converting from decimal to integer...going to lose fractional parts of data
             var precision_warn = {
-                // decimal to integer
                 16: ['4']
             };
 
+            // TODO - conversions to boolean?
+
             // All other changes necessarily result in loss of ALL data
 
-
-            // Check for 
+            // Warn the user about potential issues when changing fieldtypes
             if ( no_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, no_warn[previous_fieldtype]) !== -1 ) {
                 str = '';
             }
@@ -1283,6 +1297,9 @@ function InitDatafieldPropertiesForm() {
             }
             else if ( number_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, number_warn[previous_fieldtype]) !== -1 ) {
                 str = 'WARNING: All non-numerical characters will be deleted from the textfield, and the remaining characters converted into a number...If the textfield is not mostly numerical already, the resulting values may be nonsensical...are you sure?';
+            }
+            else if ( radio_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, radio_warn[previous_fieldtype]) !== -1 ) {
+                str = 'WARNING: Any Datarecords where this Datafield has multiple RadioOptions selected will be modified to have at most one RadioOption selected...are you sure?';
             }
             else if ( precision_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, precision_warn[previous_fieldtype]) !== -1 ) {
                 str = 'WARNING: Any fractional parts of the decimal values will be dropped during this migration of data...are you sure?';
@@ -1403,6 +1420,53 @@ function SaveDatatypeProperties(datatype_id, short_name) {
                 if (short_name != '') {
                     $("#Datatype_" + datatype_id + "_ShortName").html(short_name);
                 }
+            }
+            else {
+                // An error has occurred.
+                // Show Error message dialog
+                alert(data.d);
+            }
+        },
+        complete: function(jqXHR, textStatus) {
+             // Get the xdebugToken from response headers
+             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+             // If the Sfjs object exists
+             if (typeof Sfjs !== "undefined") {
+
+                 // Grab the toolbar element
+                 var currentElement = $('.sf-toolbar')[0];
+
+                 // Load the data of the given xdebug token into the current toolbar wrapper
+                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+             }
+         }
+    });
+}
+
+var SaveDataTreeInterval = "";
+function SaveDatatreeProperties(datatype_id, datatree_id) {
+    if(SaveDataTreeInterval != "")
+        SaveDataTreeInterval = window.clearInterval(SaveDataTreeInterval);
+
+    var url = '{{ path('odr_design_save_datatree', {'datatype_id': 0, 'datatree_id': 0}) }}';
+    url = url.substring(0, (url.length - 3));
+    url += datatype_id + '/' + datatree_id;
+
+//alert(url);
+//return;
+
+    var form_data = $("#DatatreePropertiesForm_" + datatree_id).serialize();
+    var dataType = "json";
+
+    $.ajax({
+        type: 'POST',
+        url: url,
+        data: form_data,
+        dataType: dataType,
+        success: function(data, textStatus, jqXHR) {
+            if(data.r == 0) {
+                notifySaved();
             }
             else {
                 // An error has occurred.
@@ -1665,6 +1729,22 @@ function InitDatatypePropertiesForm() {
 
                 SaveDataTypeInterval = window.clearInterval(SaveDataTypeInterval);
                 SaveDataTypeInterval = window.setInterval('SaveDatatypeProperties("' + datatype_id + '","' + short_name + '")', SaveTimeout);
+            });
+        }
+    });
+
+    $("#ElementData .ODRDatatreePropertiesForm").find("input").each(function() {
+        var datatype_id_data = $("#ElementData .ODRDatatypePropertiesForm").attr('id').split(/_/);
+        var datatype_id = datatype_id_data[1];
+
+        var datatree_id_data = $("#ElementData .ODRDatatreePropertiesForm").attr('id').split(/_/);
+        var datatree_id = datatree_id_data[1];
+
+        if( $(this).is(":checkbox") ) {
+            $(this).unbind('change');
+            $(this).change(function() {
+                SaveDataTreeInterval = window.clearInterval(SaveDataTreeInterval);
+                SaveDataTreeInterval = window.setInterval('SaveDatatreeProperties("' + datatype_id + '","' + datatree_id + '")', SaveTimeout);
             });
         }
     });

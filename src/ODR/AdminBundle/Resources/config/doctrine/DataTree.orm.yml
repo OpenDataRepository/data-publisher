@@ -28,6 +28,7 @@ ODR\AdminBundle\Entity\DataTree:
             gedmo:
                 timestampable:
                     on: update
+
         is_link:
             type: boolean
             nullable: false
@@ -35,6 +36,14 @@ ODR\AdminBundle\Entity\DataTree:
             column: is_link
             gedmo:
                 - versioned
+        multiple_allowed:
+            type: boolean
+            nullable: false
+            default: true
+            column: multiple_allowed
+            gedmo:
+                - versioned
+
     manyToOne:
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User

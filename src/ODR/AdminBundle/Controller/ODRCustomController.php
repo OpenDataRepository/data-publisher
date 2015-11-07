@@ -19,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\AdminBundle\Entity\TrackedError;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementField;
@@ -48,20 +49,10 @@ use ODR\AdminBundle\Entity\FileChecksum;
 use ODR\AdminBundle\Entity\ImageChecksum;
 use ODR\AdminBundle\Entity\UserPermissions;
 use ODR\AdminBundle\Entity\UserFieldPermissions;
-
+use ODR\AdminBundle\Entity\RenderPlugin;
+use ODR\AdminBundle\Entity\FieldType;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
-use ODR\AdminBundle\Form\BooleanForm;
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
-use ODR\AdminBundle\Form\ShortVarcharForm;
-use ODR\AdminBundle\Form\MediumVarcharForm;
-use ODR\AdminBundle\Form\LongVarcharForm;
-use ODR\AdminBundle\Form\LongTextForm;
-use ODR\AdminBundle\Form\DecimalValueForm;
-use ODR\AdminBundle\Form\DatetimeValueForm;
-use ODR\AdminBundle\Form\IntegerValueForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -375,7 +366,7 @@ print "\n\n";
      * Returns true if the datafield is currently in use by ShortResults
      * TODO - this will need to be changed when multiple ShortResults themes become available
      *
-     * @param DataField $datafield
+     * @param DataFields $datafield
      *
      * @return boolean TODO
      */
@@ -463,7 +454,7 @@ print "\n\n";
      *
      * @return array TODO
      */
-    protected function getSavedSearch($search_key, $logged_in, Request $request)
+    public function getSavedSearch($search_key, $logged_in, Request $request)
     {
         //
         $session = $request->getSession();
@@ -502,6 +493,7 @@ print "\n\n";
         }
 
         // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
+        $data['datatype_id'] = $search_params['datatype_id'];
         $data['datarecord_list'] = $search_params['datarecords'];
         $data['encoded_search_key'] = $search_params['encoded_search_key'];
         $data['search_checksum'] = $search_checksum;
@@ -579,11 +571,12 @@ print "\n\n";
 
     /**
      * Utility function that does the work of encrypting a given File/Image entity.
-     * 
-     * @param integer $object_id  The id of the File/Image to encrypt
+     *
+     * @throws \Exception
+     *
+     * @param integer $object_id The id of the File/Image to encrypt
      * @param string $object_type "File" or "Image"
-     * 
-     * @return none
+     *
      */
     protected function encryptObject($object_id, $object_type)
     {
@@ -801,7 +794,7 @@ print "\n\n";
     /**
      * Utility function to returns the DataTree table in array format
      *
-     * @param EntityManager $em
+     * @param \Doctrine\ORM\EntityManager $em
      *
      * @return array TODO
      */
@@ -830,6 +823,8 @@ print "\n\n";
 
             if ($is_link == 0)
                 $datatree_array['descendant_of'][$descendant_id] = $ancestor_id;
+            else
+                $datatree_array['linked_from'][$descendant_id] = $ancestor_id;
         }
 
         return $datatree_array;
@@ -838,7 +833,9 @@ print "\n\n";
 
     /**
      * Builds an array of all datatype permissions possessed by the given user.
-     * 
+     *
+     * @throws \Exception
+     *
      * @param integer $user_id          The database id of the user to grab permissions for
      * @param Request $request
      * @param boolean $save_permissions If true, save the calling user's permissions in memcached...if false, just return an array
@@ -978,7 +975,6 @@ print '</pre>';
      * @param integer $datatype_id      Which DataType these permissions are for
      * @param mixed $parent_permission  null if $datatype is top-level, otherwise the $user's UserPermissions object for this $datatype's parent
      *
-     * @return none
      */
     protected function permissionsExistence($user_id, $admin_id, $datatype_id, $parent_permission)
     {
@@ -1062,7 +1058,7 @@ print '</pre>';
     /**
      * Creates and persists a UserPermissions entity for the specified user/datatype pair
      *
-     * @param Manager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param integer $user_id      The user receiving this permission entity
      * @param integer $admin_id     The admin user creating the permission entity
      * @param integer $datatype_id  The Datatype this permission entity is for
@@ -1210,7 +1206,7 @@ $save_permissions = false;
      * 
      * @param string $type
      * 
-     * @return a Symfony JSON response
+     * @return Response TODO
      */
     protected function permissionDeniedError($type = '')
     {
@@ -1236,9 +1232,9 @@ $save_permissions = false;
     /**
      * Utility function so other controllers can notify of deleted entities easily.
      * 
-     * @param string $type
+     * @param string $entity
      * 
-     * @return a Symfony JSON respose
+     * @return Response TODO
      */
     protected function deletedEntityError($entity = '')
     {
@@ -1267,8 +1263,7 @@ $save_permissions = false;
      * 
      * @param integer $datatype_id The database id of the DataType that needs to be rebuilt.
      * @param array $options       
-     * 
-     * @return none
+     *
      */
     public function updateDatatypeCache($datatype_id, $options = array())
     {
@@ -1440,7 +1435,6 @@ $save_permissions = false;
      * @param integer $id    The database id of the DataRecord that needs to be recached.
      * @param array $options 
      * 
-     * @return none
      */
     public function updateDatarecordCache($id, $options = array())
     {
@@ -1715,7 +1709,7 @@ $save_permissions = false;
     /**
      * Gets or creates a TrackedJob entity in the database for use by background processes
      * 
-     * @param EntityManager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param User $user              The user to use if a new TrackedJob is to be created
      * @param string $job_type        A label used to indicate which type of job this is  e.g. 'recache', 'import', etc.
      * @param string $target_entity   Which entity this job is operating on
@@ -1724,7 +1718,7 @@ $save_permissions = false;
      * @param integer $total          ...how many pieces the job is broken up into?
      * @param boolean $reuse_existing TODO - multi-user concerns
      * 
-     * @return TODO
+     * @return TrackedJob
      */
     protected function ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing = false)
     {
@@ -1766,10 +1760,10 @@ $save_permissions = false;
     /**
      * Gets an array of TrackedError entities for a specified TrackedJob
      *
-     * @param EntityManager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param integer $tracked_job_id
      *
-     * @return TODO
+     * @return array
      */
     protected function ODR_getTrackedErrorArray($em, $tracked_job_id)
     {
@@ -1777,7 +1771,7 @@ $save_permissions = false;
 
         $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
         if ($tracked_job == null)
-            return parent::deletedEntityError('TrackedJob');
+            return self::deletedEntityError('TrackedJob');
 
         $tracked_errors = $em->getRepository('ODRAdminBundle:TrackedError')->findBy( array('trackedJob' => $tracked_job_id) );
         foreach ($tracked_errors as $error)
@@ -1790,10 +1784,9 @@ $save_permissions = false;
     /**
      * Deletes all TrackedError entities associated with a specified TrackedJob
      *
-     * @param EntityManager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param integer $tracked_job_id
      *
-     * @return TODO
      */
     protected function ODR_deleteTrackedErrorsByJob($em, $tracked_job_id)
     {
@@ -1803,8 +1796,6 @@ $save_permissions = false;
             WHERE te.trackedJob = :tracked_job'
         )->setParameters( array('tracked_job' => $tracked_job_id) );
         $rows = $query->execute();
-
-        return $rows;
     }
 
 
@@ -1814,8 +1805,7 @@ $save_permissions = false;
      * @param User $user         The user to use if a new ThemeDataType is to be created
      * @param Datatype $datatype 
      * @param Theme $theme       
-     * 
-     * @return TODO
+     *
      */
     protected function ODR_checkThemeDataType($user, $datatype, $theme) {
         $em = $this->getDoctrine()->getManager();
@@ -1835,8 +1825,7 @@ $save_permissions = false;
      * @param User $user            The user to use if a new ThemeDataField is to be created
      * @param DataFields $datafield 
      * @param Theme $theme          
-     * 
-     * @return TODO
+     *
      */
     protected function ODR_checkThemeDataField($user, $datafield, $theme) {
         $em = $this->getDoctrine()->getManager();
@@ -1853,12 +1842,12 @@ $save_permissions = false;
     /**
      * Creates and persists a new DataRecordField entity, if one does not already exist for the given (DataRecord, DataField) pair.
      *
-     * @param Manager $em            
+     * @param \Doctrine\ORM\EntityManager $em            
      * @param User $user             The user requesting the creation of this entity
      * @param DataRecord $datarecord 
-     * @param DataField $datafield   
+     * @param DataFields $datafield
      *
-     * @return DataRecordField
+     * @return DataRecordFields
      */
     protected function ODR_addDataRecordField($em, $user, $datarecord, $datafield)
     {
@@ -1892,7 +1881,7 @@ $save_permissions = false;
     /**
      * Creates and persists a new DataRecord entity.
      *
-     * @param Manager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param User $user         The user requesting the creation of this entity
      * @param DataType $datatype 
      *
@@ -1949,7 +1938,7 @@ $save_permissions = false;
     /**
      * Ensures a link exists from $ancestor_datarecord to $descendant_datarecord, undeleting an old link if possible.
      *
-     * @param Manager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                        The user requesting the creation of this link
      * @param DataRecord $ancestor_datarecord   The DataRecord which will be the 'ancestor' side of this link
      * @param DataRecord $descendant_datarecord The DataRecord which will be the 'descendant' side of this link
@@ -1982,7 +1971,6 @@ $save_permissions = false;
             // ...otherwise, create a new linked_datatree entry
             $linked_datatree = new LinkedDataTree();
             $linked_datatree->setCreatedBy($user);
-            $linked_datatree->setMultipleRecordsPerParent(0);   // TODO: why is this still here
 
             $linked_datatree->setAncestor($ancestor_datarecord);
             $linked_datatree->setDescendant($descendant_datarecord);
@@ -2004,12 +1992,12 @@ $save_permissions = false;
     /**
      * Creates a new File/Image entity from the given file at the given filepath, and persists all required information to the database.
      *
-     * @param string $filepath             The absolute path to the file
-     * @param string $original_filename    The original name of the file
-     * @param integer $user_id             Which user is doing the uploading
-     * @param integer $datarecordfield_id  Which DataRecordField entity to store the file under
-     * 
-     * @return none
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param string $filepath                 The absolute path to the file
+     * @param string $original_filename        The original name of the file
+     * @param integer $user_id                 Which user is doing the uploading
+     * @param integer $datarecordfield_id      Which DataRecordField entity to store the file under
+     *
      */
     protected function finishUpload($em, $filepath, $original_filename, $user_id, $datarecordfield_id)
     {
@@ -2133,7 +2121,7 @@ $save_permissions = false;
      * Creates a new storage entity (Short/Medium/Long Varchar, File, Radio, etc)
      * TODO - shouldn't $datarecordfield imply $datarecord and $datafield already?
      *
-     * @param Manager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                        The user requesting the creation of this entity
      * @param DataRecord $datarecord            
      * @param DataFields $datafield             
@@ -2196,12 +2184,12 @@ $save_permissions = false;
     /**
      * Creates a new RadioOption entity
      *
-     * @param Manager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param User $user            The user requesting the creation of this entity.
      * @param DataFields $datafield
      * @param string $option_name   An optional name to immediately assign to the RadioOption entity
      *
-     * @return RadioOption
+     * @return RadioOptions
      */
     protected function ODR_addRadioOption($em, $user, $datafield, $option_name = "Option")
     {
@@ -2225,11 +2213,11 @@ $save_permissions = false;
     /**
      * Creates a new RadioSelection entity
      *
-     * @param Manager $em
-     * @param User $user                  The user requesting the creation of this entity.
-     * @param RadioOption $radio_option   The RadioOption entity receiving this RadioSelection
-     * @param DataRecordFields $datafield 
-     * @param integer $initial_value      If "auto", initial value is based on the default setting from RadioOption...otherwise 0 for unselected, or 1 for selected
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user                         The user requesting the creation of this entity.
+     * @param RadioOptions $radio_option         The RadioOption entity receiving this RadioSelection
+     * @param DataRecordFields $datarecordfield
+     * @param integer|string $initial_value      If "auto", initial value is based on the default setting from RadioOption...otherwise 0 for unselected, or 1 for selected
      *
      * @return RadioSelection
      */
@@ -2260,7 +2248,7 @@ $save_permissions = false;
     /**
      * Creates and persists a new DataFields entity.
      *
-     * @param Manager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                 The user requesting the creation of this entity
      * @param DataType $datatype         
      * @param FieldType $fieldtype       
@@ -2304,7 +2292,7 @@ $save_permissions = false;
     /**
      * Creates and persists a new ThemeElement entity.
      *
-     * @param Manager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param User $user         The user requesting the creation of this entity
      * @param DataType $datatype 
      * @param Theme $theme       
@@ -2340,7 +2328,7 @@ $save_permissions = false;
     /**
      * Creates and persists a new ThemeElementField entity.
      *
-     * @param Manager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                  The user requesting the creation of this entity.
      * @param DataType $datatype          
      * @param DataFields $datafield       
@@ -2358,7 +2346,7 @@ $save_permissions = false;
         if ($datafield !== null)
             $theme_element_field->setDataFields($datafield);
         $theme_element_field->setThemeElement($theme_element);
-        $theme_element_field->setDisplayorder(999);
+        $theme_element_field->setDisplayOrder(999);
 
         $em->persist($theme_element_field);
 
@@ -2369,7 +2357,7 @@ $save_permissions = false;
     /**
      * Creates and persists a new ThemeDataField entity.
      *
-     * @param Manager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param User $user            The user requesting the creation of this entity.
      * @param DataFields $datafield 
      * @param Theme $theme          
@@ -2398,7 +2386,7 @@ $save_permissions = false;
 //        $theme_data_field->setLabelWidth('70');
 //        $theme_data_field->setFieldWidth('100');
 //        $theme_data_field->setFieldHeight('32');
-        $theme_data_field->setCSS('');
+        $theme_data_field->setCss('');
         $theme_data_field->setCssWidthXL('1-3');
         $theme_data_field->setCssWidthMed('1-3');
 
@@ -2413,7 +2401,7 @@ $save_permissions = false;
     /**
      * Creates and persists a new ThemeDataType entity.
      * 
-     * @param Manager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param User $user         The user requesting the creation of this entity
      * @param DataType $datatype 
      * @param Theme $theme       
@@ -2432,7 +2420,7 @@ $save_permissions = false;
 //        $theme_data_type->setZpos('0');
 //        $theme_data_type->setWidth('600');
 //        $theme_data_type->setHeight('300');
-        $theme_data_type->setCSS('');
+        $theme_data_type->setCss('');
 
         $theme_data_type->setCreatedBy($user);
         $theme_data_type->setUpdatedBy($user);
@@ -2449,7 +2437,6 @@ $save_permissions = false;
      * @param Image $my_obj The Image that was just uploaded.
      * @param User $user    The user requesting this action
      *
-     * @return TODO
      */
     public function resizeImages(\ODR\AdminBundle\Entity\Image $my_obj, $user)
     {
@@ -2458,8 +2445,7 @@ $save_permissions = false;
 //        $user = $this->container->get('security.context')->getToken()->getUser();
 
         // Create Thumbnails
-        $repo = $em->getRepository('ODRAdminBundle:ImageSizes');
-        $sizes = $repo->findByDataFields($my_obj->getDataField());
+        $sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataFields' => $my_obj->getDataField()->getId()) );
 
         foreach($sizes as $size) {
             // Set original
@@ -2546,10 +2532,9 @@ $save_permissions = false;
     /**
      * Utility function to return the column definition for use by the datatables plugin
      * 
-     * @param Request $request
      * @param integer $datatype_id The database id of the Datatype to grab the TextResults field names for
      * 
-     * @return TODO
+     * @return array
      */
     public function getDatatablesColumnNames($datatype_id)
     {
@@ -2828,6 +2813,7 @@ if ($debug)
 
         // Construct the arrays which contain all the required data
         $datatype_tree = self::buildDatatypeTree($user, $theme, $datatype, $theme_element, $em, $is_link, $top_level, $short_form, $debug, $indent);
+
 if ($debug)
     print "\n>> datatype_tree done in: ".(microtime(true) - $start)."\n\n";
 
@@ -3067,17 +3053,16 @@ if ($debug)
     /**
      * Ensures the given datarecord and all its child datarecords have datarecordfield entries for all datafields they contain.
      * 
-     * @param DataType $datatype     TODO: this doesn't appear to be needed... 
-     * @param DataRecord $datarecord 
-     * 
-     * @return none
+     * @param DataRecord $datarecord
+     *
+     * @return boolean TODO
      */
-    public function verifyExistence($datatype, $datarecord)
+    public function verifyExistence($datarecord)
     {
 
         // Don't do anything to a provisioned datarecord
         if ($datarecord->getProvisioned() == true)
-            return;
+            return false;
 
 $start = microtime(true);
 $debug = true;
@@ -3087,14 +3072,10 @@ if ($debug)
     print '<pre>';
 
         // Verify the existence of all fields in this datatype/datarecord first
-        self::verifyExistence_worker($datatype, $datarecord, $debug);
-
-        // Next, get all children datarecords of the given datarecord
-        $em = $this->getDoctrine()->getManager();
-        $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-//        $childrecords = $repo_datarecord->findByGrandparent($datarecord);
+        self::verifyExistence_worker($datarecord, $debug);
 
         // Verify the existence of all fields in all the child datarecords
+        $em = $this->getDoctrine()->getManager();
         $query = $em->createQuery(
             'SELECT dr
             FROM ODRAdminBundle:DataRecord dr
@@ -3104,12 +3085,10 @@ if ($debug)
         )->setParameters( array('grandparent' => $datarecord->getId(), 'datarecord' => $datarecord->getId()) );
         $childrecords = $query->getResult();
 
-        foreach ($childrecords as $childrecord) {
-            $childtype = $childrecord->getDataType();
-            self::verifyExistence_worker($childtype, $childrecord, $debug);
-        }
+        foreach ($childrecords as $childrecord)
+            self::verifyExistence_worker($childrecord, $debug);
 
-        // Verify the existence of all fields in all linked datarecords
+        // Verify the existence of all fields in all the linked datarecords
         $query = $em->createQuery(
            'SELECT descendant
             FROM ODRAdminBundle:DataRecord AS ancestor
@@ -3120,28 +3099,32 @@ if ($debug)
         )->setParameters( array('ancestor' => $datarecord->getId()) );
         $linked_datarecords = $query->getResult();
 
-        foreach ($linked_datarecords as $linked_datarecord) {
-            $linked_datatype = $linked_datarecord->getDataType();
-            self::verifyExistence_worker($linked_datatype, $linked_datarecord, $debug);
-        }
+        foreach ($linked_datarecords as $linked_datarecord)
+            self::verifyExistence_worker($linked_datarecord, $debug);
+
 
 if ($debug) {
     print 'verifyExistence() completed in '.(microtime(true) - $start)."\n";
     print '</pre>';
 }
 
+        // empty return
+        return true;
     }
 
     /**
      * Ensures the given datarecord has datarecordfield entries for all datafields it contains.
      * 
-     * @param DataType $datatype     TODO: this doesn't appear to be used... 
-     * @param DataRecord $datarecord 
+     * @param DataRecord $datarecord
      *
-     * @return none
+     * @return boolean TODO
      */
-    private function verifyExistence_worker($datatype, $datarecord, $debug)
+    private function verifyExistence_worker($datarecord, $debug)
     {
+        // Don't do anything to a provisioned datarecord
+        if ( $datarecord->getProvisioned() == true )
+            return false;
+
         // Track whether we need to flush
         $made_change = false;
 
@@ -3158,6 +3141,7 @@ if ($debug) {
 
         // Get Entity Manager and setup repo 
         $em = $this->getDoctrine()->getManager();
+        $datatype = $datarecord->getDataType();
 
 $start = microtime(true);
 if ($debug)
@@ -3237,13 +3221,16 @@ if ($debug)
         // Only flush if changes were made
         if ($made_change)
             $em->flush();
+
+        // empty return
+        return true;
     }
 
 
     /**
      * Ensures both ImageSizes entities for the given datafield exist.
      *
-     * @param Manager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param User $user         The user requesting the creation of this entity
      * @param DataFields $datafield
      */
@@ -3348,7 +3335,7 @@ if ($debug)
      * Assigns a data entity (Boolean, File, etc) to a DataRecordFields entity.
      * TODO - does this actually do anything?
      * 
-     * @param Manager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param DataRecordFields $datarecordfields
      * @param string $type_class
      * @param mixed $my_obj
@@ -3401,9 +3388,9 @@ if ($debug)
     /**
      * Returns errors encounted while processing a Symfony Form object as a string.
      * 
-     * @param Form $form 
+     * @param \Symfony\Component\Form\Form $form
      * 
-     * @return TODO
+     * @return string
      */
     protected function ODR_getErrorMessages(\Symfony\Component\Form\Form $form) {
 /*
@@ -3431,13 +3418,15 @@ if ($debug)
      *
      * @param DataType $datatype                 The datatype to build the tree from.
      * @param ThemeElement $target_theme_element If reloading a 'fieldarea' the theme_element to be reloaded, null otherwise.
-     * @param Manager $em                        
+     * @param \Doctrine\ORM\EntityManager $em                        
      * @param boolean $is_link                   Whether $datatype is the descendent side of a linked datatype in this context.
      * @param boolean $top_level                 Whether $datatype is a top-level datatype or not.
      * @param boolean $short_form                If true, don't recurse...used for SearchTemplate, ShortResults, and TextResults.
      *
      * @param boolean $debug                     Whether to print debug information or not
      * @param integer $indent                    How "deep" in the tree this function is, effectively...used to print out tabs so debugging output looks nicer
+     *
+     * @return array
      */
     protected function buildDatatypeTree($user, $theme, $datatype, $target_theme_element, $em, $is_link, $top_level, $short_form, $debug, $indent)
     {
@@ -3454,6 +3443,7 @@ if ($debug) {
         $tree['datatype'] = $datatype;
         $tree['is_link'] = $is_link;
         $tree['top_level'] = $top_level;
+        $tree['multiple_allowed'] = 0;
         $tree['has_childtype'] = 0;
         $tree['fieldarea_reload'] = 0;
 
@@ -3562,7 +3552,7 @@ if ($debug) {
                     $childtype = $theme_element_field->getDataType();
 
                     $query = $em->createQuery(
-                       'SELECT dt.is_link AS is_link
+                       'SELECT dt.is_link AS is_link, dt.multiple_allowed AS multiple_allowed
                         FROM ODRAdminBundle:DataTree dt
                         WHERE dt.ancestor = :ancestor AND dt.descendant = :descendant AND dt.deletedAt IS NULL'
                     )->setParameters( array('ancestor' => $datatype, 'descendant' => $childtype) );
@@ -3574,8 +3564,13 @@ if ($debug) {
                     $is_link = 0;
                     if ($result[0]['is_link'] == true)
                         $is_link = 1;
+    
+                    $multiple_allowed = 0;
+                    if ($result[0]['multiple_allowed'] == true)
+                        $multiple_allowed = 1;
 
                     $ted_child['datatype'] = self::buildDatatypeTree($user, $theme, $childtype, null, $em, $is_link, $top_level, $short_form, $debug, $indent+2);
+                    $ted_child['datatype']['multiple_allowed'] = $multiple_allowed;
                 }
             }
 
@@ -3596,7 +3591,7 @@ if ($debug) {
      * Gathers and returns an array of all DataRecordField/DataFields/Form objects needed to render the data in a DataRecord.
      *
      * @param DataRecord $datarecord      The datarecord to build the tree from.
-     * @param Manager $em                 
+     * @param \Doctrine\ORM\EntityManager $em                 
      * @param User $user                  The user to use for building forms.
      * @param boolean $short_form         If true, don't recurse...used for SearchTemplate, ShortResults, and TextResults.
      * @param boolean $use_render_plugins 
@@ -3604,6 +3599,8 @@ if ($debug) {
      *
      * @param boolean $debug              Whether to print debug information or not
      * @param integer $indent             How "deep" in the tree this function is, effectively...used to print out tabs so debugging output looks nicer
+     *
+     * @return array
      */
     protected function buildDatarecordTree($datarecord, $em, $user, $short_form, $use_render_plugins, $public_only, $debug, $indent)
     {
@@ -3779,15 +3776,15 @@ if ($debug) {
     /**
      * Generates the required Form objects for renders of Record (and results? might be able to speed up results rendering if not...)
      *
-     * @param Manager $em                      
+     * @param \Doctrine\ORM\EntityManager $em                      
      * @param User $user                       The user to use when rendering this form object
      * @param DataRecord $datarecord           
-     * @param DataField $datafield             
-     * @param DataRecordField $datarecordfield 
+     * @param DataFields $datafield
+     * @param DataRecordFields $datarecordfield
      *
      * @param boolean $debug                   Whether to print out debug info or not
+     * @param integer $indent
      *
-     * @return TODO
      */
     protected function buildForm($em, $user, $datarecord, $datafield, $datarecordfield, $debug, $indent)
     {

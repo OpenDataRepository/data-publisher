@@ -259,4 +259,32 @@ class DataTree
     {
         return $this->is_link;
     }
+    /**
+     * @var boolean
+     */
+    private $multiple_allowed;
+
+
+    /**
+     * Set multiple_allowed
+     *
+     * @param boolean $multipleAllowed
+     * @return DataTree
+     */
+    public function setMultipleAllowed($multipleAllowed)
+    {
+        $this->multiple_allowed = $multipleAllowed;
+
+        return $this;
+    }
+
+    /**
+     * Get multiple_allowed
+     *
+     * @return boolean 
+     */
+    public function getMultipleAllowed()
+    {
+        return $this->multiple_allowed;
+    }
 }

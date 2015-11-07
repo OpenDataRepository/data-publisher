@@ -106,6 +106,7 @@ class URLPlugin
             // Map Field
             $value = '';
             switch($obj->getDataField()->getFieldType()->getTypeName()) {
+                case 'Integer':
                 case 'Short Text':
                 case 'Long Text':
                 case 'Medium Text':

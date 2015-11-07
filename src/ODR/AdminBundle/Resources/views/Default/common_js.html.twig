@@ -300,6 +300,61 @@
         });
     }
 
+
+    function setupImageGalleries() {
+        // Set up image galleries
+        $(".ODRImageGallery").each(function() {
+            var id_data = $(this).attr('id').split(/_/);
+            var datafield_id = id_data[1];
+            var datarecord_id = id_data[2];
+
+            var count = 0;
+            var images_per_row = parseInt( $("#imagestorage_" + datafield_id + "_" + datarecord_id).attr('rel') );
+
+//            var width = $("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage").width();
+//            var height = width * 0.75;
+//            $("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage").css('width', width);
+//            $("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage").css('height', height);
+
+            $("#imagestorage_" + datafield_id + "_" + datarecord_id).children(".ODRImage").each(function() {
+//                $(this).find("img").css('max-width', width);
+//                $(this).find("img").css('max-height', height);
+
+                if ( count < images_per_row ) {
+                    $(this).remove().appendTo($("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage"));
+                }
+                count++;
+            });
+
+            if (count <= images_per_row) {
+                $("#ODRImageLeft_" + datafield_id + "_" + datarecord_id).hide();
+                $("#ODRImageRight_" + datafield_id + "_" + datarecord_id).hide();
+
+                if (count == 0)
+                    $(this).html('<center><strong>No Images Found</strong></center>');
+            }
+        });
+
+        $(".ODRGalleryLeftArrow").unbind('click');
+        $(".ODRGalleryLeftArrow").click(function() {
+            var id_data = $(this).attr('rel');
+            var gallery = "#imagegallery_" + id_data + " .ODRImageGalleryImage";
+            var storage = "#imagestorage_" + id_data;
+
+            $(gallery).children(".ODRImage").last().remove().appendTo(storage);
+            $(storage).children(".ODRImage").first().remove().prependTo(gallery);
+        });
+
+        $(".ODRGalleryRightArrow").unbind('click');
+        $(".ODRGalleryRightArrow").click(function() {
+            var id_data = $(this).attr('rel');
+            var gallery = "#imagegallery_" + id_data + " .ODRImageGalleryImage";
+            var storage = "#imagestorage_" + id_data;
+
+            $(gallery).children(".ODRImage").first().remove().prependTo(storage);
+            $(storage).children(".ODRImage").last().remove().appendTo(gallery);
+        });
+    }
 </script>
 
 {% include 'ODRAdminBundle:Flow:flow_common.html.twig' %}
