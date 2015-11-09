@@ -7,6 +7,9 @@
     <button id="ODRCSVImport_deletefilelist" class="pure-button" onclick="ODRCSVFileList_delete();">Delete Listed Files</button>
 {#{% endif %}#}
 
+    <div>
+        Number of Files currently uploaded: <b><span id="ODRCSVImport_filecount"></span></b>
+    </div>
     <div id="ODRCSVImport_filelist"></div>
 
 {#{% if presets == null %}#}
@@ -122,6 +125,7 @@
         str += '</tbody></table>';
 
         $("#ODRCSVImport_filelist").html(str);
+        $("#ODRCSVImport_filecount").html(num_files);
 
         // If files exist in the table, show the "delete all" button
         if ( num_files > 0 )
