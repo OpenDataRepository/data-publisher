@@ -21,7 +21,7 @@
 
         {# every other unique datafield needs a warning too #}
         {% for df in datafields %}
-            {% if df.getisunique == 1 and external_id_field != df and name_field != df %}
+            {% if df.getisunique == 1 and external_id_field != df %}
             <div id="datafield_{{ df.id }}_unique_notice" class="pure-u-1">
                 <span><i class="fa fa-lg fa-exclamation-circle"></i></span>
                 <span>&nbsp;The unique Datafield "{{ df.getfieldname }}" is currently not mapped to a column of the CSV File...if any new Datarecords are created as a result of this import, this datafield will have multiple blank values.</span>
