@@ -1,16 +1,15 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* RadioSelection Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The RadioSelection Entity is automatically generated from 
-* ./Resources/config/doctrine/RadioSelection.orm.yml
-*
-*/
+ * Open Data Repository Data Publisher
+ * RadioSelection Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The RadioSelection Entity is automatically generated from
+ * ./Resources/config/doctrine/RadioSelection.orm.yml
+ */
 
 namespace ODR\AdminBundle\Entity;
 
@@ -25,6 +24,11 @@ class RadioSelection
      * @var integer
      */
     private $id;
+
+    /**
+     * @var integer
+     */
+    private $selected;
 
     /**
      * @var \DateTime
@@ -42,29 +46,9 @@ class RadioSelection
     private $updated;
 
     /**
-     * @var \ODR\AdminBundle\Entity\DataRecordFields
-     */
-    private $dataRecordFields;
-
-    /**
      * @var \ODR\AdminBundle\Entity\RadioOptions
      */
     private $radioOption;
-
-    /**
-     * @var \ODR\AdminBundle\Entity\DataFields
-     */
-    private $dataField;
-
-    /**
-     * @var \ODR\AdminBundle\Entity\FieldType
-     */
-    private $fieldType;
-
-    /**
-     * @var \ODR\AdminBundle\Entity\DataRecord
-     */
-    private $dataRecord;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -75,6 +59,11 @@ class RadioSelection
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $updatedBy;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataRecordFields
+     */
+    private $dataRecordFields;
 
 
     /**
@@ -88,6 +77,29 @@ class RadioSelection
     }
 
     /**
+     * Set selected
+     *
+     * @param integer $selected
+     * @return RadioSelection
+     */
+    public function setSelected($selected)
+    {
+        $this->selected = $selected;
+
+        return $this;
+    }
+
+    /**
+     * Get selected
+     *
+     * @return integer 
+     */
+    public function getSelected()
+    {
+        return $this->selected;
+    }
+
+    /**
      * Set deletedAt
      *
      * @param \DateTime $deletedAt
@@ -96,7 +108,7 @@ class RadioSelection
     public function setDeletedAt($deletedAt)
     {
         $this->deletedAt = $deletedAt;
-    
+
         return $this;
     }
 
@@ -119,7 +131,7 @@ class RadioSelection
     public function setCreated($created)
     {
         $this->created = $created;
-    
+
         return $this;
     }
 
@@ -142,7 +154,7 @@ class RadioSelection
     public function setUpdated($updated)
     {
         $this->updated = $updated;
-    
+
         return $this;
     }
 
@@ -157,29 +169,6 @@ class RadioSelection
     }
 
     /**
-     * Set dataRecordFields
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
-     * @return RadioSelection
-     */
-    public function setDataRecordFields(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields = null)
-    {
-        $this->dataRecordFields = $dataRecordFields;
-    
-        return $this;
-    }
-
-    /**
-     * Get dataRecordFields
-     *
-     * @return \ODR\AdminBundle\Entity\DataRecordFields 
-     */
-    public function getDataRecordFields()
-    {
-        return $this->dataRecordFields;
-    }
-
-    /**
      * Set radioOption
      *
      * @param \ODR\AdminBundle\Entity\RadioOptions $radioOption
@@ -188,7 +177,7 @@ class RadioSelection
     public function setRadioOption(\ODR\AdminBundle\Entity\RadioOptions $radioOption = null)
     {
         $this->radioOption = $radioOption;
-    
+
         return $this;
     }
 
@@ -203,75 +192,6 @@ class RadioSelection
     }
 
     /**
-     * Set dataField
-     *
-     * @param \ODR\AdminBundle\Entity\DataFields $dataField
-     * @return RadioSelection
-     */
-    public function setDataField(\ODR\AdminBundle\Entity\DataFields $dataField = null)
-    {
-        $this->dataField = $dataField;
-    
-        return $this;
-    }
-
-    /**
-     * Get dataField
-     *
-     * @return \ODR\AdminBundle\Entity\DataFields 
-     */
-    public function getDataField()
-    {
-        return $this->dataField;
-    }
-
-    /**
-     * Set fieldType
-     *
-     * @param \ODR\AdminBundle\Entity\FieldType $fieldType
-     * @return RadioSelection
-     */
-    public function setFieldType(\ODR\AdminBundle\Entity\FieldType $fieldType = null)
-    {
-        $this->fieldType = $fieldType;
-    
-        return $this;
-    }
-
-    /**
-     * Get fieldType
-     *
-     * @return \ODR\AdminBundle\Entity\FieldType 
-     */
-    public function getFieldType()
-    {
-        return $this->fieldType;
-    }
-
-    /**
-     * Set dataRecord
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecord $dataRecord
-     * @return RadioSelection
-     */
-    public function setDataRecord(\ODR\AdminBundle\Entity\DataRecord $dataRecord = null)
-    {
-        $this->dataRecord = $dataRecord;
-    
-        return $this;
-    }
-
-    /**
-     * Get dataRecord
-     *
-     * @return \ODR\AdminBundle\Entity\DataRecord 
-     */
-    public function getDataRecord()
-    {
-        return $this->dataRecord;
-    }
-
-    /**
      * Set createdBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
@@ -280,7 +200,7 @@ class RadioSelection
     public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
     {
         $this->createdBy = $createdBy;
-    
+
         return $this;
     }
 
@@ -303,7 +223,7 @@ class RadioSelection
     public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
     {
         $this->updatedBy = $updatedBy;
-    
+
         return $this;
     }
 
@@ -316,32 +236,27 @@ class RadioSelection
     {
         return $this->updatedBy;
     }
-    /**
-     * @var integer
-     */
-    private $selected;
-
 
     /**
-     * Set selected
+     * Set dataRecordFields
      *
-     * @param integer $selected
+     * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
      * @return RadioSelection
      */
-    public function setSelected($selected)
+    public function setDataRecordFields(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields = null)
     {
-        $this->selected = $selected;
-    
+        $this->dataRecordFields = $dataRecordFields;
+
         return $this;
     }
 
     /**
-     * Get selected
+     * Get dataRecordFields
      *
-     * @return integer 
+     * @return \ODR\AdminBundle\Entity\DataRecordFields 
      */
-    public function getSelected()
+    public function getDataRecordFields()
     {
-        return $this->selected;
+        return $this->dataRecordFields;
     }
 }

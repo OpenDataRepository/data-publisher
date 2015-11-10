@@ -1,17 +1,15 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* UserFieldPermissions Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The UserFieldPermissions Entity is automatically generated from 
-* ./Resources/config/doctrine/UserFieldPermissions.orm.yml
-*
-*/
-
+ * Open Data Repository Data Publisher
+ * UserFieldPermissions Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The UserFieldPermissions Entity is automatically generated from
+ * ./Resources/config/doctrine/UserFieldPermissions.orm.yml
+ */
 
 namespace ODR\AdminBundle\Entity;
 
@@ -33,6 +31,16 @@ class UserFieldPermissions
     private $created;
 
     /**
+     * @var integer
+     */
+    private $can_view_field;
+
+    /**
+     * @var integer
+     */
+    private $can_edit_field;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $user_id;
@@ -41,6 +49,11 @@ class UserFieldPermissions
      * @var \ODR\AdminBundle\Entity\DataFields
      */
     private $dataFields;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $dataType;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -79,6 +92,52 @@ class UserFieldPermissions
     public function getCreated()
     {
         return $this->created;
+    }
+
+    /**
+     * Set can_view_field
+     *
+     * @param integer $canViewField
+     * @return UserFieldPermissions
+     */
+    public function setCanViewField($canViewField)
+    {
+        $this->can_view_field = $canViewField;
+
+        return $this;
+    }
+
+    /**
+     * Get can_view_field
+     *
+     * @return integer 
+     */
+    public function getCanViewField()
+    {
+        return $this->can_view_field;
+    }
+
+    /**
+     * Set can_edit_field
+     *
+     * @param integer $canEditField
+     * @return UserFieldPermissions
+     */
+    public function setCanEditField($canEditField)
+    {
+        $this->can_edit_field = $canEditField;
+
+        return $this;
+    }
+
+    /**
+     * Get can_edit_field
+     *
+     * @return integer 
+     */
+    public function getCanEditField()
+    {
+        return $this->can_edit_field;
     }
 
     /**
@@ -128,35 +187,6 @@ class UserFieldPermissions
     }
 
     /**
-     * Set createdBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
-     * @return UserFieldPermissions
-     */
-    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
-    {
-        $this->createdBy = $createdBy;
-
-        return $this;
-    }
-
-    /**
-     * Get createdBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getCreatedBy()
-    {
-        return $this->createdBy;
-    }
-
-    /**
-     * @var \ODR\AdminBundle\Entity\DataType
-     */
-    private $dataType;
-
-
-    /**
      * Set dataType
      *
      * @param \ODR\AdminBundle\Entity\DataType $dataType
@@ -178,60 +208,27 @@ class UserFieldPermissions
     {
         return $this->dataType;
     }
-    /**
-     * @var integer
-     */
-    private $can_view_field;
 
     /**
-     * @var integer
-     */
-    private $can_edit_field;
-
-
-    /**
-     * Set can_view_field
+     * Set createdBy
      *
-     * @param integer $canViewField
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
      * @return UserFieldPermissions
      */
-    public function setCanViewField($canViewField)
+    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
     {
-        $this->can_view_field = $canViewField;
+        $this->createdBy = $createdBy;
 
         return $this;
     }
 
     /**
-     * Get can_view_field
+     * Get createdBy
      *
-     * @return integer 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
      */
-    public function getCanViewField()
+    public function getCreatedBy()
     {
-        return $this->can_view_field;
-    }
-
-    /**
-     * Set can_edit_field
-     *
-     * @param integer $canEditField
-     * @return UserFieldPermissions
-     */
-    public function setCanEditField($canEditField)
-    {
-        $this->can_edit_field = $canEditField;
-
-        return $this;
-    }
-
-    /**
-     * Get can_edit_field
-     *
-     * @return integer 
-     */
-    public function getCanEditField()
-    {
-        return $this->can_edit_field;
+        return $this->createdBy;
     }
 }

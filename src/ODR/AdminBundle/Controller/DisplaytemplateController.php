@@ -1690,7 +1690,6 @@ print '</pre>';
             $datatype->setShortName("New Child");
             $datatype->setLongName("New Child");
             $datatype->setDescription("New Child Type");
-            $datatype->setMultipleRecordsPerParent('1');    // TODO - this needs to be deleted
             $datatype->setRenderPlugin($render_plugin);
             $datatype->setUseShortResults('1');
             $datatype->setExternalIdField(null);

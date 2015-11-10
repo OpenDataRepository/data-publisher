@@ -45,6 +45,7 @@ class FileForm extends AbstractType
         // if(isset($options['update']) && $options['update'] == true) {
             $builder->add('id', 'hidden');
         // }
+/*
         $builder->add(
             'graphable', 
             'integer', 
@@ -53,6 +54,7 @@ class FileForm extends AbstractType
                 'label'  => 'Graphable',
             )
         );
+*/
 
         $builder->add(
             'caption', 

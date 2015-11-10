@@ -1236,7 +1236,7 @@ if ($write) {
                         $file_obj->setOriginalFileName($filename);
                         $file_obj->setOriginalChecksum('');
                         $file_obj->setLocalFileName('temp');
-                        $file_obj->setGraphable('1');
+//                        $file_obj->setGraphable('1');
                         $file_obj->setUpdatedBy($user);
                         $file_obj->setCreatedBy($user);
                         $file_obj->setDataField($datafield);

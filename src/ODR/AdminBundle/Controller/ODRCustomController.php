@@ -2054,7 +2054,7 @@ $save_permissions = false;
         }
         else if ($typeclass == 'File') {
             $my_obj->setOriginalFileName($original_filename);
-            $my_obj->setGraphable('1');
+//            $my_obj->setGraphable('1');
             $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
         }
 
@@ -3837,7 +3837,7 @@ if ($debug) {
             $form_obj->setUpdatedBy($user);
             switch($type_class) {
                 case 'File':
-                    $form_obj->setGraphable('0');
+//                    $form_obj->setGraphable('0');
                     break;
                 case 'Image':
                     $form_obj->setOriginal('0');

@@ -21,59 +21,11 @@ ODR\AdminBundle\Entity\ThemeDataField:
             column: template_type
             gedmo:
                 - versioned
-#        xpos:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            gedmo:
-#                - versioned
-#        ypos:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            gedmo:
-#                - versioned
-#        zpos:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            gedmo:
-#                - versioned
-#        width:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            gedmo:
-#                - versioned
-#        height:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            gedmo:
-#                - versioned
         css:
             type: text
             nullable: true
             gedmo:
                 - versioned
-#        labelWidth:
-#            type: integer
-#            nullable: false
-#            column: label_width
-#            gedmo:
-#                - versioned
-#        fieldWidth:
-#            type: integer
-#            nullable: false
-#            column: field_width
-#            gedmo:
-#                - versioned
-#        fieldHeight:
-#            type: integer
-#            nullable: false
-#            column: field_height
-#            gedmo:
-#                - versioned
         active:
             type: boolean
             nullable: false

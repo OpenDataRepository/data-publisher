@@ -9,9 +9,7 @@
 *
 * The TrackedError Entity is automatically generated from 
 * ./Resources/config/doctrine/TrackedError.orm.yml
-*
 */
-
 
 namespace ODR\AdminBundle\Entity;
 
@@ -47,6 +45,15 @@ class TrackedError
      */
     private $createdBy;
 
+    /**
+     * @var string
+     */
+    private $error_level;
+
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
 
     /**
      * Get id
@@ -149,11 +156,6 @@ class TrackedError
     {
         return $this->createdBy;
     }
-    /**
-     * @var string
-     */
-    private $error_level;
-
 
     /**
      * Set error_level
@@ -177,11 +179,6 @@ class TrackedError
     {
         return $this->error_level;
     }
-    /**
-     * @var \DateTime
-     */
-    private $deletedAt;
-
 
     /**
      * Set deletedAt

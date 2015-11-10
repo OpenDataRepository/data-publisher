@@ -44,12 +44,7 @@ ODR\AdminBundle\Entity\DataType:
             column: description
             gedmo:
                 - versioned
-        multipleRecordsPerParent:
-            type: boolean
-            nullable: false
-            column: multiple_records_per_parent
-            gedmo:
-                - versioned
+
         useShortResults:
             type: boolean
             nullable: false
@@ -57,6 +52,7 @@ ODR\AdminBundle\Entity\DataType:
             column: use_short_results
             gedmo:
                 - versioned
+
         display_type:
             type: integer
             nullable: false

@@ -11,7 +11,6 @@
 * ./Resources/config/doctrine/DataType.orm.yml
 */
 
-
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
@@ -45,11 +44,6 @@ class DataType
      * @var string
      */
     private $description;
-
-    /**
-     * @var boolean
-     */
-    private $multipleRecordsPerParent;
 
     /**
      * @var boolean
@@ -256,29 +250,6 @@ class DataType
     public function getDescription()
     {
         return $this->description;
-    }
-
-    /**
-     * Set multipleRecordsPerParent
-     *
-     * @param boolean $multipleRecordsPerParent
-     * @return DataType
-     */
-    public function setMultipleRecordsPerParent($multipleRecordsPerParent)
-    {
-        $this->multipleRecordsPerParent = $multipleRecordsPerParent;
-
-        return $this;
-    }
-
-    /**
-     * Get multipleRecordsPerParent
-     *
-     * @return boolean 
-     */
-    public function getMultipleRecordsPerParent()
-    {
-        return $this->multipleRecordsPerParent;
     }
 
     /**

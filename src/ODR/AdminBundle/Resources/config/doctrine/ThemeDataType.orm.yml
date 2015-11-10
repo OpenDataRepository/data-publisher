@@ -21,36 +21,6 @@ ODR\AdminBundle\Entity\ThemeDataType:
             column: template_type
             gedmo:
                 - versioned
-#        xpos:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            gedmo:
-#                - versioned
-#        ypos:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            gedmo:
-#                - versioned
-#        zpos:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            gedmo:
-#                - versioned
-#        width:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            gedmo:
-#                - versioned
-#        height:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            gedmo:
-#                - versioned
         css:
             type: text
             nullable: true

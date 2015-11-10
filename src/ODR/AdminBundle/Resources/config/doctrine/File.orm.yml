@@ -44,19 +44,19 @@ ODR\AdminBundle\Entity\File:
             column: local_file_name
             gedmo:
                 - versioned
-        graphable:
-            type: boolean
-            nullable: false
-            gedmo:
-                - versioned
-        graphFunction:
-            type: string
-            length: 128
-            fixed: false
-            nullable: true
-            column: graph_function
-            gedmo:
-                - versioned
+#        graphable:
+#            type: boolean
+#            nullable: false
+#            gedmo:
+#                - versioned
+#        graphFunction:
+#            type: string
+#            length: 128
+#            fixed: false
+#            nullable: true
+#            column: graph_function
+#            gedmo:
+#                - versioned
         deletedAt:
             type: date
             nullable: true
