@@ -236,12 +236,13 @@ class CSVImportController extends ODRCustomController
     /**
      * Reads the previously uploaded CSV file to extract column names, and renders a form to let the user decide what data to import and which DataFields to import it to.
      *
-     * @param integer $datatype_id Which datatype the CSV data is being imported into.
+     * @param integer $source_datatype_id  The top-level datatype that user started this CSV import from
+     * @param integer $target_datatype_id  Which datatype the CSV data is being imported into.
      * @param Request $request
      *
      * @return Response TODO
      */
-    public function layoutAction($datatype_id, Request $request)
+    public function layoutAction($source_datatype_id, $target_datatype_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -255,7 +256,10 @@ class CSVImportController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
 
-            $datatype = $repo_datatype->find($datatype_id);
+            $datatype = $repo_datatype->find($source_datatype_id);
+            if ( $datatype == null )
+                return parent::deletedEntityError('DataType');
+            $datatype = $repo_datatype->find($target_datatype_id);
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
@@ -274,14 +278,14 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // TODO - better way of handling this, if possible
             // Block csv imports if there's already one in progress for this datatype
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import_validate', 'target_entity' => 'datatype_'.$target_datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
                 throw new \Exception('A CSV Import Validation for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$target_datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
                 throw new \Exception('A CSV Import for this DataType is already in progress...multiple imports at the same time have the potential to completely break the DataType');
             // Also block if there's a datafield migration in place
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$target_datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
                 throw new \Exception('One of the DataFields for this DataType is being migrated to a new FieldType...blocking CSV Imports to this DataType...');
 
@@ -292,10 +296,10 @@ class CSVImportController extends ODRCustomController
             $parent_datatype = null;
 
             $datatree_array = parent::getDatatreeArray($em);
-            if ( isset($datatree_array['linked_from'][$datatype_id]) && $datatree_array['linked_from'][$datatype_id] !== '' ) {
+            if ( $source_datatype_id !== $target_datatype_id && isset($datatree_array['linked_from'][$target_datatype_id]) && $datatree_array['linked_from'][$target_datatype_id] !== '' ) {
                 /* "Importing into" a linked datatype */
                 $linked_importing = true;
-                $parent_datatype = $repo_datatype->find($datatree_array['linked_from'][$datatype_id]);
+                $parent_datatype = $repo_datatype->find($datatree_array['linked_from'][$target_datatype_id]);
 
                 if ($parent_datatype == null)
                     throw new \Exception('Invalid Target Datatype');
@@ -304,12 +308,12 @@ class CSVImportController extends ODRCustomController
                 if ($datatype->getExternalIdField() == null)
                     throw new \Exception('Invalid Target Datatype');
             }
-            else if ( !isset($datatree_array['descendant_of'][$datatype_id]) || $datatree_array['descendant_of'][$datatype_id] == '' ) {
+            else if ( !isset($datatree_array['descendant_of'][$target_datatype_id]) || $datatree_array['descendant_of'][$target_datatype_id] == '' ) {
                 /* Importing into top-level datatype, do nothing */
             }
             else {
                 /* Importing into a child datatype */
-                $parent_datatype_id = $datatree_array['descendant_of'][$datatype_id];
+                $parent_datatype_id = $datatree_array['descendant_of'][$target_datatype_id];
                 if ( isset($datatree_array['descendant_of'][$parent_datatype_id]) && $datatree_array['descendant_of'][$parent_datatype_id] == '' ) {
                     // Importing into a childtype...going to need the parent datatype to help determine where data should go
                     $parent_datatype = $repo_datatype->find($parent_datatype_id);
@@ -416,7 +420,7 @@ class CSVImportController extends ODRCustomController
                 foreach ($encoding_errors as $line_num => $errors) {
                     $str = ' the column "'.$errors[0].'"';
                     if ( count($errors) > 1 )
-                        $str = ' the columns '.implode('", "', $errors);
+                        $str = ' the columns "'.implode('", "', $errors).'"';
 
                     $error_messages[] = array( 'error_level' => 'Error', 'error_body' => array('line_num' => $line_num+1, 'message' => 'Invalid UTF-8 character in'.$str) );
                 }

@@ -863,10 +863,11 @@ odr_csv_cancel_import:
     defaults: { _controller: ODRAdminBundle:CSVImport:cancel }
 
 odr_csv_import_layout:
-    pattern: /edit/csv_import/layout/{datatype_id}
+    pattern: /edit/csv_import/layout/{source_datatype_id}/{target_datatype_id}
     defaults: { _controller: ODRAdminBundle:CSVImport:layout }
     requirements:
-        datatype_id: \d+
+        source_datatype_id: \d+
+        target_datatype_id: \d+
 
 
 odr_csv_import_start_validate:

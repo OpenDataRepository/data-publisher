@@ -23,6 +23,7 @@
         <fieldset>
             <div class="pure-control-group">
                 <label for="target_datatype" style="width:13em;">Datatype to import into:</label>
+                <input type="hidden" name="source_datatype" id="source_datatype" value="{{ datatype.id }}" />
                 <select name="target_datatype" id="target_datatype" {% if upload_type == '' %}disabled{% endif %}>
                     <option value="{{ datatype.id }}">{{ datatype.shortname }}</option>
                 {% if childtypes != null and datatype.externalIdField != null %}
@@ -200,9 +201,9 @@
     function loadLayout() {
 
 //        $("#delimiter_select").attr('disabled', 'disabled');
-        var url = '{{ path('odr_csv_import_layout', {'datatype_id': 0}) }}';
-        url = url.substr(0, url.length-1);
-        url += $("#target_datatype").val();
+        var url = '{{ path('odr_csv_import_layout', {'source_datatype_id': 0, 'target_datatype_id': 0}) }}';
+        url = url.substr(0, url.length-3);
+        url += $("#source_datatype").val() + '/' + $("#target_datatype").val();
 
         var datatype_name = $("#target_datatype").find(':selected').text();
         if ( $("#target_datatype").find(':selected').attr('rel') != undefined )
