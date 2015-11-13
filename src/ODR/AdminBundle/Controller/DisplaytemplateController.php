@@ -92,6 +92,7 @@ class DisplaytemplateController extends ODRCustomController
             $datatype = $datafield->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
             // --------------------
             // Determine user privileges
@@ -99,7 +100,7 @@ class DisplaytemplateController extends ODRCustomController
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'design' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -130,6 +131,10 @@ class DisplaytemplateController extends ODRCustomController
             )->setParameters( array('date' => $date, 'datafield' => $datafield->getId()) );
             $rows = $query->execute();
 
+
+            // Ensure that the datatype doesn't continue to think this datafield is its external id field
+            if ($datatype->getExternalIdField() !== null && $datatype->getExternalIdField()->getId() === $datafield->getId())
+                $datatype->setExternalIdField(null);
 
             // Ensure that the datatype doesn't continue to think this datafield is its name field
             if ($datatype->getNameField() !== null && $datatype->getNameField()->getId() === $datafield->getId())
@@ -163,6 +168,24 @@ class DisplaytemplateController extends ODRCustomController
 
             // Schedule the cache for an update
             parent::updateDatatypeCache($datatype->getId(), $options);
+
+
+            // ----------------------------------------
+            // See if any cached search results need to be deleted...
+            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            if ( isset($cached_searches[$datatype_id]) ) {
+                // Delete all cached search results for this datatype that were run with criteria for this specific datafield
+                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
+                    $searched_datafields = $search_data['searched_datafields'];
+                    $searched_datafields = explode(',', $searched_datafields);
+
+                    if ( in_array($datafield_id, $searched_datafields) )
+                        unset( $cached_searches[$datatype_id][$search_checksum] );
+                }
+
+                // Save the collection of cached searches back to memcached
+                $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -172,8 +195,7 @@ class DisplaytemplateController extends ODRCustomController
     
         $response = new Response(json_encode($return));  
         $response->headers->set('Content-Type', 'application/json');
-        return $response;  
-
+        return $response;
     }
 
 
@@ -431,6 +453,20 @@ class DisplaytemplateController extends ODRCustomController
 
             // No point updating caches, datatype doesn't 'exist' anymore
             // TODO - updating cache for parent/linked datatypes if applicable
+
+            // ----------------------------------------
+            // Delete any cached searches for this datatype
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            if ( isset($cached_searches[$datatype_id]) ) {
+                unset( $cached_searches[$datatype_id] );
+
+                // Save the collection of cached searches back to memcached
+                $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1762,7 +1798,7 @@ print '</pre>';
             $user_manager = $this->container->get('fos_user.user_manager');
             $users = $user_manager->findUsers();
             foreach ($users as $user)
-                $memcached->delete($memcached_prefix.'user_'.$user->getId().'_datatype_permissions');
+                $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datatype_permissions');
 
 
             // ----------------------------------------

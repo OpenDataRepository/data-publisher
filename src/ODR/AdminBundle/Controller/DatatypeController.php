@@ -327,7 +327,7 @@ class DatatypeController extends ODRCustomController
                     $user_manager = $this->container->get('fos_user.user_manager');
                     $users = $user_manager->findUsers();
                     foreach ($users as $user)
-                        $memcached->delete($memcached_prefix.'user_'.$user->getId().'_datatype_permissions');
+                        $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datatype_permissions');
 
                 }
                 else {
@@ -681,6 +681,7 @@ class DatatypeController extends ODRCustomController
                 $old_sort_datafield_id = strval( $datatype->getSortField()->getId() );
 
             if ($old_sort_datafield_id !== $sort_datafield_id) {
+                // Sort order for the datatype got changed, delete the cached string with the old order
                 $need_recache = true;
                 $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
 

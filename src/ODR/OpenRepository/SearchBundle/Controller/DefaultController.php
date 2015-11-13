@@ -635,7 +635,7 @@ if ($debug) {
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-            $theme = $repo_theme->find(2);
+            $theme = $repo_theme->find(2);  // TODO - theme
 
             $templating = $this->get('templating');
             $memcached = $this->get('memcached');
@@ -656,19 +656,33 @@ if ($debug) {
                 $user_permissions = $odrcc->getPermissionsArray($user->getId(), $request);
                 $logged_in = true;
             }
+
+            // TODO - ???
             // --------------------
 
 
             // -----------------------------------
-            // Attempt to load the search results (for this user and/or search string?) from the cache
-            $search_params = $odrcc->getSavedSearch($search_key, $logged_in, $request);
+            // Attempt to load the search results (for this user and/or search string?) from memcached
+            // Extract the datatype id from the search string
+            $datatype_id = '';
+            $tokens = preg_split("/\|(?![\|\s])/", $search_key);
+            foreach ($tokens as $num => $token) {
+                $pieces = explode('=', $token);
+                if ($pieces[0] == 'dt_id') {
+                    $datatype_id = $pieces[1];
+                    break;
+                }
+            }
+
+            if ($datatype_id == '')
+                throw new \Exception('Invalid search string');
+
+            $search_params = $odrcc->getSavedSearch($datatype_id, $search_key, $logged_in, $request);
 
             // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
             $datatype = $repo_datatype->find( $search_params['datatype_id'] );
             $datarecord_list = $search_params['datarecord_list'];
             $encoded_search_key = $search_params['encoded_search_key'];
-            $search_checksum = $search_params['search_checksum'];
-
 
             // Turn the search results string into an array of datarecord ids
             $datarecords = array();
@@ -677,41 +691,7 @@ if ($debug) {
 
 
             // -----------------------------------
-            // $datarecords now contains the ids of datarecords that match this search
-            // However, need to ensure that there are no deleted datarecords in this list...
-            // TODO - use notifications to replace this
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                WHERE dr.id IN (:datarecords) AND dr.dataType = :datatype AND dr.deletedAt IS NULL'
-            )->setParameters( array('datarecords' => $datarecords, 'datatype' => $datatype->getId()) );
-            $results = $query->getArrayResult();
-
-            if ( count($results) < count($datarecords) ) {
-                // At least one of the datarecords in this search result list got deleted...
-
-                // Build a list of the undeleted datarecords
-                $datarecords = array();
-                foreach ($results as $num => $result)
-                    $datarecords[] = $result['dr_id'];
-                $datarecord_str = implode(',', $datarecords);
-
-                // Sort the string of undeleted datarecords
-                if ($datarecord_str !== '') 
-                    $datarecord_str = $odrcc->getSortedDatarecords($datatype, $datarecord_str);
-
-                // Store the updated datarecord string in the session
-                $saved_searches[$search_checksum] = array('logged_in' => $logged_in, 'datatype_id' => $datatype->getId(), 'datarecords' => $datarecord_str, 'encoded_search_key' => $encoded_search_key);
-                $session->set('saved_searches', $saved_searches);
-
-                // Convert the string of undeleted datarecords back to array format for use below
-                $datarecords = explode(',', $datarecord_str);
-            }
-
-
-            // -----------------------------------
             // Bypass list entirely if only one datarecord
-            $displayed_datarecords = count($datarecords);
             if ( count($datarecords) == 1 && $source !== 'linking' ) {
                 $datarecord_id = $datarecords[0];
 
@@ -871,7 +851,7 @@ $get = preg_split("/\|(?![\|\s])/", $search_key);
                         }
                     }
                 }
-        
+
                 if ( $is_radio ) {
                     // Multiple selected checkbox/radio items...
                     $values = explode(',', $value);
@@ -891,7 +871,7 @@ $get = preg_split("/\|(?![\|\s])/", $search_key);
                             $type = 'updated';
                         else
                             $type = 'created';
-                        
+
                         $position = $keys[3];   // 's' or 'e' (start or end)
                         if ($position == 's')
                             $position = 'start';
@@ -907,7 +887,7 @@ $get = preg_split("/\|(?![\|\s])/", $search_key);
 
                         if ( !isset($post['datafields'][$df_id]) )
                             $post['datafields'][$df_id] = array();
-                    
+
                         $post['datafields'][$df_id][$pos] = $value;
                     }
 
@@ -947,6 +927,12 @@ if ($debug) {
     print 'post: '.print_r($post, true)."\n";
 }
 //return;
+
+            //
+            $searched_datafields = array();
+            foreach ($post['datafields'] as $df_id => $df_value)
+                $searched_datafields[] = $df_id;
+            $searched_datafields = implode(',', $searched_datafields);
 
             $target_datatype_id = $post['dt_id'];
             $datatype = $repo_datatype->find($target_datatype_id);
@@ -1284,6 +1270,7 @@ if ($debug) {
                         // Build array of search params for this datafield
                         $search_params = array(
                             'str' => implode(' OR ', $conditions),
+//                            'str' => implode(' AND ', $conditions),     // TODO - why is this 'OR' instead of 'AND'?
                             'params' => $parameters,
                         );
                     }
@@ -1525,22 +1512,38 @@ if ($debug)
 
             // --------------------------------------------------
             // Store the list of datarecord ids for later use
-            $saved_searches = array();
-            if ( $session->has('saved_searches') )
-                $saved_searches = $session->get('saved_searches');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
             $search_checksum = md5($search_key);
+            $datatype_id = $datatype->getId();
+
+            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+
+            // Create pieces of the array if they don't exist
+            if ($cached_searches == null)
+                $cached_searches = array();
+            if ( !isset($cached_searches[$datatype_id]) )
+                $cached_searches[$datatype_id] = array();
+            if ( !isset($cached_searches[$datatype_id][$search_checksum]) )
+                $cached_searches[$datatype_id][$search_checksum] = array('searched_datafields' => $searched_datafields, 'encoded_search_key' => $encoded_search_key);
 
             if ($datarecords == false)  // apparently $datarecords gets set to false sometimes...
                 $datarecords = '';
 
-            $saved_searches[$search_checksum] = array('logged_in' => $logged_in, 'datatype_id' => $datatype->getId(), 'datarecords' => $datarecords, 'encoded_search_key' => $encoded_search_key);
-            $session->set('saved_searches', $saved_searches);
+            // Store the data in the memcached entry
+            if ($logged_in)
+                $cached_searches[$datatype_id][$search_checksum]['logged_in'] = array('datarecord_list' => $datarecords);
+            else
+                $cached_searches[$datatype_id][$search_checksum]['not_logged_in'] = array('datarecord_list' => $datarecords);
+
+            $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
 
 if ($debug) {
     print 'saving datarecord_str: '.$datarecords."\n";
 
-    $saved_searches = $session->get('saved_searches');
-    print_r($saved_searches);
+    print_r($cached_searches);
 }
         }
 

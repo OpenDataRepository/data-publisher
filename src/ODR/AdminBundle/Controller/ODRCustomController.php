@@ -448,55 +448,54 @@ print "\n\n";
     /**
      * Get (or create) a list of datarecords returned by searching on the given search key
      *
+     * @param integer $datatype_id
      * @param string $search_key
      * @param boolean $logged_in Whether the user is logged in or not
      * @param Request $request
      *
      * @return array TODO
      */
-    public function getSavedSearch($search_key, $logged_in, Request $request)
+    public function getSavedSearch($datatype_id, $search_key, $logged_in, Request $request)
     {
-        //
-        $session = $request->getSession();
-        $data = array('encoded_search_key' => '', 'datarecord_list' => '');
+        // Get necessary objects
+        $memcached = $this->get('memcached');
+        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $search_checksum = md5($search_key);
 
-        //
+        // Going to need the search controller if a cached search doesn't exist
         $search_controller = $this->get('odr_search_controller', $request);
         $search_controller->setContainer($this->container);
 
-        if ( !$session->has('saved_searches') ) {
-            // No saved searches at all, redo the search with the given search key...
+        $str = 'logged_in';
+        if (!$logged_in)
+            $str = 'not_logged_in';
+
+        // Attempt to load the search result for this search_key
+        $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+        if ( $cached_searches == null
+            || !isset($cached_searches[$datatype_id])
+            || !isset($cached_searches[$datatype_id][$search_checksum])
+            || !isset($cached_searches[$datatype_id][$search_checksum][$str]) ) {
+
+            // Saved search doesn't exist, redo the search and reload the results
             $search_controller->performSearch($search_key, $request);
+            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
         }
 
-        // Grab the list of saved searches and attempt to locate the desired search
-        $saved_searches = $session->get('saved_searches');
-        $search_checksum = md5($search_key);
+        // Now that the search result is guaranteed to exist, grab it
+        $search_params = $cached_searches[$datatype_id][$search_checksum];
 
-        if ( !isset($saved_searches[$search_checksum]) ) {
-            // No saved search for this query, redo the search...
-            $search_controller->performSearch($search_key, $request);
-
-            // Grab the list of saved searches again
-            $saved_searches = $session->get('saved_searches');
-        }
-
-        $search_params = $saved_searches[$search_checksum];
-        $was_logged_in = $search_params['logged_in'];
-
-        // If user's login status changed between now and when the search was run...
-        if ($was_logged_in !== $logged_in) {
-            // ...run the search again 
-            $search_controller->performSearch($search_key, $request);
-            $saved_searches = $session->get('saved_searches');
-            $search_params = $saved_searches[$search_checksum];
-        }
-
-        // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
-        $data['datatype_id'] = $search_params['datatype_id'];
-        $data['datarecord_list'] = $search_params['datarecords'];
-        $data['encoded_search_key'] = $search_params['encoded_search_key'];
+        // Pull the individual pieces of info out of the search results
+        $data = array();
         $data['search_checksum'] = $search_checksum;
+        $data['datatype_id'] = $datatype_id;
+        $data['logged_in'] = $logged_in;
+
+        $data['searched_datafields'] = $search_params['searched_datafields'];
+        $data['encoded_search_key'] = $search_params['encoded_search_key'];
+
+        $data['datarecord_list'] = $search_params[$str]['datarecord_list'];
 
         return $data;
     }
@@ -854,7 +853,7 @@ print "\n\n";
 //            $session = $request->getSession();
 
 //            if ( !$save_permissions || !$session->has('permissions') ) {
-            if ( !$save_permissions || !$memcached->get($memcached_prefix.'user_'.$user_id.'_datatype_permissions') ) {
+            if ( !$save_permissions || !$memcached->get($memcached_prefix.'.user_'.$user_id.'_datatype_permissions') ) {
 
                 // ----------------------------------------
                 // Permissions for a user other than the currently logged-in one requested, or permissions not set...need to build an array
@@ -952,13 +951,13 @@ print '</pre>';
                 // Save and return the permissions array
                 ksort($all_permissions);
                 if ($save_permissions)
-                    $memcached->set($memcached_prefix.'user_'.$user_id.'_datatype_permissions', $all_permissions, 0);
+                    $memcached->set($memcached_prefix.'.user_'.$user_id.'_datatype_permissions', $all_permissions, 0);
 
                 return $all_permissions;
             }
             else {
                 // Return the stored permissions array
-                return $memcached->get($memcached_prefix.'user_'.$user_id.'_datatype_permissions');
+                return $memcached->get($memcached_prefix.'.user_'.$user_id.'_datatype_permissions');
             }
         }
         catch (\Exception $e) {
@@ -1122,7 +1121,7 @@ print '</pre>';
 $save_permissions = false;
 
 //            if ( !$save_permissions || !$session->has('datafield_permissions') ) {
-            if ( !$save_permissions || !$memcached->get($memcached_prefix.'user_'.$user_id.'_datafield_permissions') ) {
+            if ( !$save_permissions || !$memcached->get($memcached_prefix.'.user_'.$user_id.'_datafield_permissions') ) {
 
                 // ----------------------------------------
                 // Permissions not set, need to build the array
@@ -1186,13 +1185,13 @@ $save_permissions = false;
                 // Save and return the permissions array
                 ksort($all_permissions);
                 if ($save_permissions)
-                    $memcached->set($memcached_prefix.'user_'.$user_id.'_datafield_permissions', $all_permissions, 0);
+                    $memcached->set($memcached_prefix.'.user_'.$user_id.'_datafield_permissions', $all_permissions, 0);
 
                 return $all_permissions;
             }
             else {
                 // Returned the stored datafield permissions array
-                return $memcached->get($memcached_prefix.'user_'.$user_id.'_datafield_permissions');
+                return $memcached->get($memcached_prefix.'.user_'.$user_id.'_datafield_permissions');
             }
         }
         catch (\Exception $e) {

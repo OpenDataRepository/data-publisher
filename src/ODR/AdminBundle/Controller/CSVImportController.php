@@ -2841,6 +2841,15 @@ print_r($new_mapping);
             $options = array();
             parent::updateDatarecordCache($datarecord->getId(), $options);
 
+            // Delete all cached search results for this datatype
+            // TODO - more precise deletion of cached search results...new datarecord created should delete all search results without datafields, update to a datafield should delete all search results with that datafield
+            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            if ( isset($cached_searches[$datatype_id]) ) {
+                unset( $cached_searches[$datatype_id] );
+
+                // Save the collection of cached searches back to memcached
+                $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+            }
 
             $return['d'] = $status;
         }

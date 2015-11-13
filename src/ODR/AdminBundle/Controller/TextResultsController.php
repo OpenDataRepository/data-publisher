@@ -246,7 +246,7 @@ class TextResultsController extends ODRCustomController
                 $datarecord_list = '';
                 if ($search_key !== '') {
                     // 
-                    $data = parent::getSavedSearch($search_key, $logged_in, $request);
+                    $data = parent::getSavedSearch($datatype_id, $search_key, $logged_in, $request);
 //                    $encoded_search_key = $data['encoded_search_key'];
                     $datarecord_list = $data['datarecord_list'];
 

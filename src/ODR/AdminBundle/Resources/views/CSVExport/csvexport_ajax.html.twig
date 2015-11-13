@@ -6,7 +6,7 @@
 </h1>
 
 <form id="csvexport_form" style="margin:10px;{#display:none;#}" action="{{ path('odr_csv_export_start') }}">
-    <input type="hidden" value="{{ search_checksum }}" name="search_checksum"/>
+    <input type="hidden" value="{{ odr_tab_id }}" name="odr_tab_id"/>
     <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
 
     <table><tbody>

@@ -99,6 +99,7 @@ class RecordController extends ODRCustomController
 
             $radio_selections = $em->getRepository('ODRAdminBundle:RadioSelection')->findBy( array('dataRecordFields' => $datarecordfield->getId()) );
 
+            $radio_option = null;
             if ($radio_option_id != "0") {
                 $repo_radio_options = $em->getRepository('ODRAdminBundle:RadioOptions');
                 $radio_option = $repo_radio_options->find($radio_option_id);
@@ -243,15 +244,31 @@ class RecordController extends ODRCustomController
                 'datarecord_id' => $datarecord->getId()
             );
 
+
+            // ----------------------------------------
             // Build the cache entries for this new datarecord
             $options = array();
             parent::updateDatarecordCache($datarecord->getId(), $options);
 
-            // Delete the list of DataRecords for this DataType that ShortResults uses to build its list
+            // Delete the cached string containing the ordered list of datarecords for this datatype
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
+
+            // See if any cached search results need to be deleted...
+            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            if ( isset($cached_searches[$datatype_id]) ) {
+                // Delete all cached search results for this datatype that were NOT run with datafield criteria
+                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
+                    $searched_datafields = $search_data['searched_datafields'];
+                    if ($searched_datafields == '')
+                        unset( $cached_searches[$datatype_id][$search_checksum] );
+                }
+
+                // Save the collection of cached searches back to memcached
+                $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -388,6 +405,7 @@ class RecordController extends ODRCustomController
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('Datatype');
+            $datatype_id = $datatype->getId();
 
 
             // --------------------
@@ -396,7 +414,7 @@ class RecordController extends ODRCustomController
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'delete' ])) )
+            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'delete' ])) )
                 return parent::permissionDeniedError("delete DataRecords from");
             // --------------------
 
@@ -457,12 +475,34 @@ class RecordController extends ODRCustomController
 
 
             // Schedule all datarecords that were connected to the now deleted datarecord for a recache
-            foreach ($recache_list as $num => $datarecord_id) {
-                parent::updateDatarecordCache($datarecord_id);
+            foreach ($recache_list as $num => $dr_id) {
+                parent::updateDatarecordCache($dr_id);
+            }
+
+            // ----------------------------------------
+            // See if any cached search results need to be deleted...
+            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            if ( isset($cached_searches[$datatype_id]) ) {
+                // Delete all cached search results for this datatype that contained this now-deleted datarecord
+                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
+
+                    $datarecord_list = '';
+                    if ( isset($search_data['logged_in']) )
+                        $datarecord_list = $search_data['logged_in']['datarecord_list'];
+                    else
+                        $datarecord_list = $search_data['not_logged_in']['datarecord_list'];
+
+                    $datarecord_list = explode(',', $datarecord_list);
+                    if ( in_array($datarecord_id, $datarecord_list) )
+                        unset ( $cached_searches[$datatype_id][$search_checksum] );
+                }
+
+                // Save the collection of cached searches back to memcached
+                $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
             }
 
 
-            // -----------------------------------
+            // ----------------------------------------
             // Determine how many datarecords of this datatype remain
             $query = $em->createQuery(
                'SELECT dr.id AS dr_id
@@ -1315,17 +1355,26 @@ class RecordController extends ODRCustomController
 
                     // Refresh the cache entries for this datarecord
                     parent::updateDatarecordCache($datarecord_id, $options);
+
+
+                    // ----------------------------------------
+                    // See if any cached search results need to be deleted...
+                    $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+                    if ( isset($cached_searches[$datatype_id]) ) {
+                        // Delete all cached search results for this datatype that were run with criteria for this specific datafield
+                        foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
+                            $searched_datafields = $search_data['searched_datafields'];
+                            $searched_datafields = explode(',', $searched_datafields);
+
+                            if ( in_array($datafield_id, $searched_datafields) )
+                                unset( $cached_searches[$datatype_id][$search_checksum] );
+                        }
+
+                        // Save the collection of cached searches back to memcached
+                        $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+                    }
                 }
                 else {
-/*
-//                    $errors = $this->getErrorMessages($form);
-                    $errors = parent::ODR_getErrorMessages($form);
-//print_r($errors);   // TODO - what was the point of this?
-//exit();
-//                    $error = $errors['file'][0];
-//                    $error = $errors['uploaded_file'][0];
-                    throw new \Exception($errors);
-*/
                     // Form validation failed
                     // TODO - fix parent::ODR_getErrorMessages() to be consistent enough to use
                     $return['r'] = 2;
@@ -1337,7 +1386,6 @@ class RecordController extends ODRCustomController
                         $error_str .= 'ERROR: '.$error->getMessage()."\n";
 
                     $return['error'] = $error_str;
-
                 }
             }
         }
@@ -2119,6 +2167,7 @@ if ($debug)
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
             // TODO - not accurate, technically...
             if ($datarecord->getProvisioned() == true)
@@ -2131,7 +2180,7 @@ if ($debug)
             $logged_in = true;
 
             // Ensure user has permissions to be doing this
-            if ( !( isset($user_permissions[$datatype->getId()]) && ( isset($user_permissions[$datatype->getId()]['edit']) || isset($user_permissions[$datatype->getId()]['child_edit']) ) ) )
+            if ( !( isset($user_permissions[$datatype_id]) && ( isset($user_permissions[$datatype_id]['edit']) || isset($user_permissions[$datatype_id]['child_edit']) ) ) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -2144,8 +2193,8 @@ if ($debug)
             $datarecord_list = '';
             $encoded_search_key = '';
             if ($search_key !== '') {
-                // 
-                $data = parent::getSavedSearch($search_key, $logged_in, $request);
+                //
+                $data = parent::getSavedSearch($datatype_id, $search_key, $logged_in, $request);
                 $encoded_search_key = $data['encoded_search_key'];
                 $datarecord_list = $data['datarecord_list'];
 

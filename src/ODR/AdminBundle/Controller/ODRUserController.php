@@ -26,6 +26,7 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\AdminBundle\Entity\UserPermissions;
 use ODR\AdminBundle\Entity\UserFieldPermissions;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 use Symfony\Component\Form\FormError;
 use ODR\AdminBundle\Form\ODRUserProfileForm;
@@ -43,7 +44,7 @@ class ODRUserController extends ODRCustomController
      *
      * @param Request $request
      *
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function createnewAction(Request $request)
     {
@@ -101,7 +102,7 @@ class ODRUserController extends ODRCustomController
      *
      * @param Request $request
      *
-     * @return 0 if the email is not in use, otherwise returns the ID of the user that owns the email address
+     * @return integer 0 if the email is not in use, otherwise returns the ID of the user that owns the email address
      */
     public function checknewAction(Request $request)
     {
@@ -157,7 +158,7 @@ class ODRUserController extends ODRCustomController
      *
      * @param Request $request
      *
-     * @return TODO
+     * @return Response TODO
      */
     public function savenewAction(Request $request)
     {
@@ -267,7 +268,7 @@ class ODRUserController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function selfeditAction(Request $request)
     {
@@ -316,7 +317,7 @@ class ODRUserController extends ODRCustomController
      * @param integer $user_id The database id of the user to edit.
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function editAction($user_id, Request $request)
     {
@@ -404,7 +405,7 @@ class ODRUserController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function selfsaveAction(Request $request)
     {
@@ -442,7 +443,7 @@ class ODRUserController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function saveAction(Request $request)
     {
@@ -517,7 +518,7 @@ class ODRUserController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return TODO
+     * @return array TODO
      */
     private function saveProfile(Request $request)
     {
@@ -582,7 +583,7 @@ class ODRUserController extends ODRCustomController
      * @param integer $user_id The database id of the user to edit.
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function changepasswordAction($user_id, Request $request)
     {
@@ -665,7 +666,7 @@ class ODRUserController extends ODRCustomController
      *
      * @param Request $request
      *
-     * @return TODO
+     * @return Response TODO
      */
     public function savepasswordAction(Request $request)
     {
@@ -769,7 +770,7 @@ class ODRUserController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function listAction(Request $request)
     {
@@ -853,7 +854,7 @@ class ODRUserController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function managerolesAction(Request $request)
     {
@@ -909,7 +910,7 @@ class ODRUserController extends ODRCustomController
      * @param string $role     Which role to grant the user.
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function setroleAction($user_id, $role, Request $request)
     {
@@ -1038,7 +1039,7 @@ class ODRUserController extends ODRCustomController
      * @param integer $user_id The database id of the user to modify.
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function managepermissionsAction($user_id, Request $request)
     {
@@ -1158,7 +1159,7 @@ class ODRUserController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function quickpermissionsAction(Request $request)
     {
@@ -1243,8 +1244,7 @@ class ODRUserController extends ODRCustomController
      * @param DataType $datatype The DataType that the User's permissions are being modified for.
      * @param string $permission Which type of permission is being set.
      * @param integer $value     0 if the permission is being revoked, 1 if the permission is being granted
-     * 
-     * @return none
+     *
      */
     private function savePermission($user, $datatype, $permission, $value)
     {
@@ -1362,7 +1362,7 @@ class ODRUserController extends ODRCustomController
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
-            $memcached->delete($memcached_prefix.'user_'.$user->getId().'_datatype_permissions');
+            $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datatype_permissions');
         }
     }
 
@@ -1376,7 +1376,7 @@ class ODRUserController extends ODRCustomController
      * @param string $permission   The permission being modified.
      * @param Request $request
      * 
-     * @return TODO
+     * @return Response TODO
      */
     public function togglepermissionAction($user_id, $datatype_id, $value, $permission, Request $request)
     {
@@ -1445,7 +1445,7 @@ class ODRUserController extends ODRCustomController
      * @param string $permission   Which permission is being modified.
      * @param Request $request
      * 
-     * @return an empty Symfony JSON response, unless an error occurred
+     * @return Response TODO
      */
     public function togglequickpermissionAction($datatype_id, $value, $permission, Request $request)
     {
@@ -1494,7 +1494,7 @@ class ODRUserController extends ODRCustomController
      * @param integer $user_id The database id of the user being deleted.
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function deleteAction($user_id, Request $request)
     {
@@ -1559,7 +1559,7 @@ class ODRUserController extends ODRCustomController
      * @param integer $user_id The database id of the user being reinstated.
      * @param Request $request
      * 
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function undeleteAction($user_id, Request $request)
     {
@@ -1624,7 +1624,7 @@ class ODRUserController extends ODRCustomController
      * @param integer $length  How many Datarecords to display on a page.
      * @param Request $request
      *
-     * @return none
+     * @return Response TODO
      */
     public function pagelengthAction($length, Request $request)
     {
@@ -1676,7 +1676,7 @@ class ODRUserController extends ODRCustomController
      * @param integer $datatype_id The database id of the DataType being modified
      * @param Request $request
      *
-     * @return a Symfony JSON response containing HTML
+     * @return Response TODO
      */
     public function datafieldpermissionsAction($user_id, $datatype_id, Request $request)
     {
@@ -1789,7 +1789,7 @@ if ($debug)
      * @param integer $permission   '2' => can view/can edit, '1' => can view/no edit, '0' => no view/no edit
      * @param Request $request
      *
-     * @return an empty Symfony JSON response, unless an error occurred
+     * @return Response TODO
      */
     public function savedatafieldpermissionAction($user_id, $datafield_id, $permission, Request $request)
     {
@@ -1874,7 +1874,7 @@ if ($debug)
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
-            $memcached->delete($memcached_prefix.'user_'.$user->getId().'_datafield_permissions');
+            $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datafield_permissions');
 
         }
         catch (\Exception $e) {
