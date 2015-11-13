@@ -1995,7 +1995,10 @@ if ($debug)
                     if ( strpos($piece, "\"") !== false ) {  // does have a quote
                         $piece = str_replace("\"", '', $piece);
                         if ( is_numeric($piece) )
-                            $piece = intval($piece);
+                            if ( strpos($piece, '.') === false )
+                                $piece = intval($piece);
+                            else
+                                $piece = floatval($piece);
 
                         if ($negate)
                             $str .= ' != ';
@@ -2011,7 +2014,10 @@ if ($debug)
                     }
                 }
                 else if ( is_numeric($piece) ) {
-                    $piece = intval($piece);
+                    if ( strpos($piece, '.') === false )
+                        $piece = intval($piece);
+                    else
+                        $piece = floatval($piece);
                 }
                 $negate = false;
                 $inequality = false;
