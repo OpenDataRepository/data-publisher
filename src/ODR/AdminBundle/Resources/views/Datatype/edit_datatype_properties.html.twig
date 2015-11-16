@@ -4,7 +4,7 @@
     <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
 </h1>
 
-<div class="ODRFormWrap">
+<div id="ODRTextResultsDesign" class="ODRFormWrap">
     <form action="{{ path('odr_save_type') }}" method="post" class="{#full validate#} pure-form pure-form-aligned" id="SaveDataTypeForm_{{ datatype.id }}">
         <input type="hidden" name="datatype_id" value="{{ datatype.id }}" />
 
@@ -161,7 +161,7 @@ $(function() {
     $(".DraggableField").draggable({
 
         // Need to use this combination of settings so datafield visually shows on top of all theme elements
-        appendTo: $(".ODRFormWrap"),
+        appendTo: $("#ODRTextResultsDesign.ODRFormWrap"),
         helper: "clone",
         zIndex: 1000,
 
