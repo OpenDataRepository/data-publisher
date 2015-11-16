@@ -834,12 +834,18 @@ if ($debug) {
             $encoded_search_key = '';
             $post = array();
             $post['datafields'] = array();
-//            $get = explode('|', $search_key);
-$get = preg_split("/\|(?![\|\s])/", $search_key);
+
+            // Split the entire search key on pipes that are not followed by another pipe or space
+            $get = preg_split("/\|(?![\|\s])/", $search_key);
+
             foreach ($get as $key => $value) {
-                $tmp = explode('=', $value);
-                $key = $tmp[0];
-                $value = $tmp[1];
+                // Split each search value into "(datafield id or other identifier)=(search term)"
+                $pattern = '/([0-9a-z_]+)\=(.+)/';
+                $matches = array();
+                preg_match($pattern, $value, $matches);
+
+                $key = $matches[1];
+                $value = $matches[2];
 
                 // Determine whether this field is a radio fieldtype
                 $is_radio = false;
