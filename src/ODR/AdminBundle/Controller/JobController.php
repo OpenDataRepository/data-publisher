@@ -185,6 +185,7 @@ class JobController extends ODRCustomController
                 // ----------------------------------------
                 // Save data common to every job
                 $created = $tracked_job->getCreated();
+                $job['datatype_id'] = $datatype_id;
                 $job['created_at'] = $created->format('Y-m-d H:i:s');
                 $job['created_by'] = $tracked_job->getCreatedBy()->getUserString();
                 $job['progress'] = array('total' => $tracked_job->getTotal(), 'current' => $tracked_job->getCurrent());

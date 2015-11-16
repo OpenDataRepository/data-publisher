@@ -128,7 +128,22 @@
                         }
                     },
                     { "data": "time_elapsed" },
-                    { "data": "eta" },
+                    {
+                        "data": "eta",
+                        "render": function(data, type, row, meta) {
+                            if (data == 'Done') {
+                                // If job is done, make a link back to the datarecord list for this datatype
+                                var url = '{{ path('odr_search_render', {'search_key': ''} ) }}';
+                                url += 'dt_id=' + row.datatype_id;
+
+                                return '<a class="address" href="#' + url + '">Done</a>';
+                            }
+                            else {
+                                // If job is not done, display ETA
+                                return data;
+                            }
+                        }
+                    },
                 ],
 
                 "lengthChange": false,
