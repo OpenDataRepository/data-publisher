@@ -1,17 +1,15 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* RenderPluginFields Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The RenderPluginFields Entity is automatically generated from 
-* ./Resources/config/doctrine/RenderPluginFields.orm.yml
-*
-*/
-
+ * Open Data Repository Data Publisher
+ * RenderPluginFields Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The RenderPluginFields Entity is automatically generated from
+ * ./Resources/config/doctrine/RenderPluginFields.orm.yml
+ */
 
 namespace ODR\AdminBundle\Entity;
 
@@ -30,17 +28,17 @@ class RenderPluginFields
     /**
      * @var string
      */
+    private $allowedFieldtypes;
+
+    /**
+     * @var string
+     */
     private $fieldName;
 
     /**
      * @var string
      */
     private $description;
-
-    /**
-     * @var string
-     */
-    private $pluginOptions;
 
     /**
      * @var boolean
@@ -68,11 +66,6 @@ class RenderPluginFields
     private $renderPlugin;
 
     /**
-     * @var \ODR\AdminBundle\Entity\FieldType
-     */
-    private $fieldType;
-
-    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
@@ -94,6 +87,29 @@ class RenderPluginFields
     }
 
     /**
+     * Set allowedFieldtypes
+     *
+     * @param string $allowedFieldtypes
+     * @return RenderPluginFields
+     */
+    public function setAllowedFieldtypes($allowedFieldtypes)
+    {
+        $this->allowedFieldtypes = $allowedFieldtypes;
+
+        return $this;
+    }
+
+    /**
+     * Get allowedFieldtypes
+     *
+     * @return string 
+     */
+    public function getAllowedFieldtypes()
+    {
+        return $this->allowedFieldtypes;
+    }
+
+    /**
      * Set fieldName
      *
      * @param string $fieldName
@@ -102,7 +118,7 @@ class RenderPluginFields
     public function setFieldName($fieldName)
     {
         $this->fieldName = $fieldName;
-    
+
         return $this;
     }
 
@@ -125,7 +141,7 @@ class RenderPluginFields
     public function setDescription($description)
     {
         $this->description = $description;
-    
+
         return $this;
     }
 
@@ -140,29 +156,6 @@ class RenderPluginFields
     }
 
     /**
-     * Set pluginOptions
-     *
-     * @param string $pluginOptions
-     * @return RenderPluginFields
-     */
-    public function setPluginOptions($pluginOptions)
-    {
-        $this->pluginOptions = $pluginOptions;
-    
-        return $this;
-    }
-
-    /**
-     * Get pluginOptions
-     *
-     * @return string 
-     */
-    public function getPluginOptions()
-    {
-        return $this->pluginOptions;
-    }
-
-    /**
      * Set active
      *
      * @param boolean $active
@@ -171,7 +164,7 @@ class RenderPluginFields
     public function setActive($active)
     {
         $this->active = $active;
-    
+
         return $this;
     }
 
@@ -194,7 +187,7 @@ class RenderPluginFields
     public function setDeletedAt($deletedAt)
     {
         $this->deletedAt = $deletedAt;
-    
+
         return $this;
     }
 
@@ -217,7 +210,7 @@ class RenderPluginFields
     public function setCreated($created)
     {
         $this->created = $created;
-    
+
         return $this;
     }
 
@@ -240,7 +233,7 @@ class RenderPluginFields
     public function setUpdated($updated)
     {
         $this->updated = $updated;
-    
+
         return $this;
     }
 
@@ -263,7 +256,7 @@ class RenderPluginFields
     public function setRenderPlugin(\ODR\AdminBundle\Entity\RenderPlugin $renderPlugin = null)
     {
         $this->renderPlugin = $renderPlugin;
-    
+
         return $this;
     }
 
@@ -278,29 +271,6 @@ class RenderPluginFields
     }
 
     /**
-     * Set fieldType
-     *
-     * @param \ODR\AdminBundle\Entity\FieldType $fieldType
-     * @return RenderPluginFields
-     */
-    public function setFieldType(\ODR\AdminBundle\Entity\FieldType $fieldType = null)
-    {
-        $this->fieldType = $fieldType;
-    
-        return $this;
-    }
-
-    /**
-     * Get fieldType
-     *
-     * @return \ODR\AdminBundle\Entity\FieldType 
-     */
-    public function getFieldType()
-    {
-        return $this->fieldType;
-    }
-
-    /**
      * Set createdBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
@@ -309,7 +279,7 @@ class RenderPluginFields
     public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
     {
         $this->createdBy = $createdBy;
-    
+
         return $this;
     }
 
@@ -332,7 +302,7 @@ class RenderPluginFields
     public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
     {
         $this->updatedBy = $updatedBy;
-    
+
         return $this;
     }
 

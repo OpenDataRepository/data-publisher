@@ -1,10 +1,12 @@
-	<!-- Plugin Settings Dialog -->
-	<div class="pure-form pure-g" style="display: none;" id="dialog_plugin_settings" title="Render Plugin Settings">
-        <div class="form_contents pure-u-1">
-        </div>
-	</div><!-- End #dialog_plugin_settings -->
+{% spaceless %}
+
+<!-- Plugin Settings Dialog -->
+<div class="pure-form pure-g" style="display: none;" id="dialog_plugin_settings" title="Render Plugin Settings">
+    <div class="form_contents pure-u-1">
+    </div>
+</div><!-- End #dialog_plugin_settings -->
 	
-	<script>
+<script>
 
     function PluginSettingsFormInit() {
         //
@@ -105,5 +107,7 @@
         });
     }
 
-	</script>
-	<!--  End of Plugin Settings Dialog -->
+</script>
+<!--  End of Plugin Settings Dialog -->
+
+{% endspaceless %}

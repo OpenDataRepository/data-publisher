@@ -126,7 +126,7 @@ class ResultsController extends ODRCustomController
             $encoded_search_key = '';
             if ($search_key !== '') {
                 // 
-                $data = parent::getSavedSearch($datatype_id, $search_key, $logged_in, $request);
+                $data = parent::getSavedSearch($datatype->getId(), $search_key, $logged_in, $request);
                 $encoded_search_key = $data['encoded_search_key'];
                 $datarecord_list = $data['datarecord_list'];
 
@@ -294,7 +294,7 @@ class ResultsController extends ODRCustomController
 
     /**
      * Creates a Symfony response that so browsers can download files from the server.
-     * TODO - http://symfony.com/doc/current/components/http_foundation/introduction.html#serving-files
+     * TODO - http://symfony.com/doc/current/components/http_foundation/introduction.html#serving-files ?
      * 
      * @param integer $file_id The database id of the file to download.
      * @param Request $request

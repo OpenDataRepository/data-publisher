@@ -1,8 +1,9 @@
-    <!-- Plugin Settings Dialog Form -->
+{% spaceless %}
 
+<!-- Plugin Settings Dialog Form -->
 <div style="display: block;">
 
-    <form action="{{ path('odr_save_datatype_plugin') }}" method="post" {#{{ form_enctype(form) }}#} class="full validate" id="PluginSettingsForm">
+    <form action="{{ path('odr_save_render_plugin_settings') }}" method="post" {#{{ form_enctype(form) }}#} class="full validate" id="PluginSettingsForm">
 
         <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
         {% if local_datafield == null %}
@@ -40,106 +41,97 @@
         </fieldset>
 
         <fieldset>
-            <div class="pure-control-group" id="render_plugin_data">
-            {#{% include 'ODRAdminBundle:Displaytemplate:plugin_settings_dialog_form_data.html.twig' with { 'plugin': selected_render_plugin, 'render_plugin_fields': render_plugin_fields, 'render_plugin_map': render_plugin_map, 'current_plugin_options': current_plugin_options, 'available_options': available_options, 'datafields' : datafields } %}#}
-            </div>
+            <div class="pure-control-group" id="render_plugin_data"></div>
         </fieldset>
 
     </form>
 
 </div>
 
-    <div style="display: block;">
-        <button type="button" class="pure-button ODRCancelButton">Cancel</button>
-        <button type="button" class="pure-button pure-button-primary ODRSubmitButton">Save Plugin Settings</button>
-    </div>
+<div style="display: block;">
+    <button type="button" class="pure-button ODRCancelButton">Cancel</button>
+    <button type="button" class="pure-button pure-button-primary ODRSubmitButton">Save Plugin Settings</button>
+</div>
 
-    <script>
-
-        $( function() {
-            updatePluginData();
+<script>
+    $( function() {
+        $( "#dialog_plugin_settings" ).dialog({
+            autoOpen: false,
+            modal: true,
+            width: 900,
+            open: function() {
+                $(this).parent().css('overflow', 'visible');
+            }
+            /*
+             // Submit handler in plugin_settings_dialog.html.twig
+             }).find('.ODRSubmitButton').click(function(){
+             var $el = $(this).parents('.ui-dialog-content');
+             if ($el.validate().form()) {
+             $el.find('form')[0].reset();
+             $el.dialog('close');
+             }
+             */
+        }).find('.ODRCancelButton').click(function(){
+            var $el = $(this).parents('.ui-dialog-content');
+            $el.find('form')[0].reset();
+            $el.dialog('close');
         });
 
-        function updatePluginData() {
-            var datatype_id = {{ local_datatype.id }};
-            var datafield_id = {% if local_datafield == null %}0{% else %}{{ local_datafield.id }}{% endif %};
-            var render_plugin_id = $('#selected_render_plugin').val();
+        // Init Form
+        PluginSettingsFormInit();
 
-            var url  = '{{ path('odr_load_plugin_data', {'datatype_id': 0, 'datafield_id': 0, 'render_plugin_id': 0 } ) }}';
-            url = url.substring(0,(url.length - 5)) + datatype_id + '/' + datafield_id + '/' + render_plugin_id;
+        // Load initial plugin settings
+        updatePluginData();
+    });
 
-            $("#render_plugin_data").html('<center><strong>Please wait...</strong></center>');
+    function updatePluginData() {
+        var datatype_id = {{ local_datatype.id }};
+        var datafield_id = {% if local_datafield == null %}0{% else %}{{ local_datafield.id }}{% endif %};
+        var render_plugin_id = $('#selected_render_plugin').val();
 
-            var dataType = "json";
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: dataType,
-                success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        switch(data.t) {
-                            case 'html':
-                                $("#render_plugin_data").html(data.d.html);
-                                $("#dialog_plugin_settings").dialog({ position: { my: "center", at: "center", of: window } });
-                                PluginSettingsFormInit();
+        var url  = '{{ path('odr_load_plugin_data', {'datatype_id': 0, 'datafield_id': 0, 'render_plugin_id': 0 } ) }}';
+        url = url.substring(0,(url.length - 5)) + datatype_id + '/' + datafield_id + '/' + render_plugin_id;
+
+        $("#render_plugin_data").html('<center><strong>Please wait...</strong></center>');
+
+        var dataType = "json";
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: dataType,
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    switch(data.t) {
+                        case 'html':
+                            $("#render_plugin_data").html(data.d.html);
+                            $("#dialog_plugin_settings").dialog({ position: { my: "center", at: "center", of: window } });
+                            PluginSettingsFormInit();
                             break;
-                        }
-                    }
-                    else {
-                        // An error has occurred.
-                        $("#dialog_plugin_settings").dialog('close');
-                        // Show Error message dialog
-                        alert(data.d);
-                    }
-                },
-                complete: function(jqXHR, textStatus) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                     }
                 }
-            });
-        }
-
-        $(function() {
-            $( "#dialog_plugin_settings" ).dialog({
-                autoOpen: false,
-                modal: true,
-                width: 700,
-                open: function() {
-                    $(this).parent().css('overflow', 'visible');
+                else {
+                    // An error has occurred.
+                    $("#dialog_plugin_settings").dialog('close');
+                    // Show Error message dialog
+                    alert(data.d);
                 }
-/*
-            // Submit handler in plugin_settings_dialog.html.twig
-            }).find('.ODRSubmitButton').click(function(){
-                var $el = $(this).parents('.ui-dialog-content');
-                if ($el.validate().form()) {
-                    $el.find('form')[0].reset();
-                    $el.dialog('close');
-                }
-*/
-            }).find('.ODRCancelButton').click(function(){
-                var $el = $(this).parents('.ui-dialog-content');
-                $el.find('form')[0].reset();
-                $el.dialog('close');
-            });
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
-            // Init Form
-            PluginSettingsFormInit();
-        });
-/*
-        $(function() {
-            if(typeof(PluginSettingsFormInit) !== "undefined") {
-                PluginSettingsFormInit();
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
             }
         });
-*/
-    </script>
+    }
+</script>
+
+{% endspaceless %}
