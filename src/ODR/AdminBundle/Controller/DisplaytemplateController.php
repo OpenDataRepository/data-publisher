@@ -2542,7 +2542,7 @@ print '</pre>';
      * 
      * @return Response TODO
      */
-    public function saverenderpluginsettings(Request $request)
+    public function saverenderpluginsettingsAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2641,6 +2641,22 @@ print '</pre>';
                 // Ensure that all datafields marked as "new" have a fieldtype mapping
                 if ($plugin_map[$rpf_id] == '-1' && !isset($plugin_fieldtypes[$rpf_id]) )
                     throw new \Exception('Invalid Form...missing fieldtype mapping');
+
+                if ($plugin_map[$rpf_id] != '-1') {
+                    // Ensure all required datafields have a valid fieldtype
+                    $allowed_fieldtypes = $rpf->getAllowedFieldtypes();
+                    $allowed_fieldtypes = explode(',', $allowed_fieldtypes);
+
+                    // Ensure referenced datafields exist
+                    $df = $repo_datafields->find($plugin_map[$rpf_id]);
+                    if ($df == null)
+                        throw new \Exception('Invalid Form...datafield does not exist');
+
+                    // Ensure referenced datafields have a valid fieldtype for this renderpluginfield
+                    $ft_id = $df->getFieldType()->getId();
+                    if ( !in_array($ft_id, $allowed_fieldtypes) )
+                        throw new \Exception('Invalid Form...attempting to map renderpluginfield to invalid fieldtype');
+                }
             }
 
             // TODO - ensure plugin options are valid?

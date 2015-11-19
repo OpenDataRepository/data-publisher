@@ -48,11 +48,6 @@
 
 </div>
 
-<div style="display: block;">
-    <button type="button" class="pure-button ODRCancelButton">Cancel</button>
-    <button type="button" class="pure-button pure-button-primary ODRSubmitButton">Save Plugin Settings</button>
-</div>
-
 <script>
     $( function() {
         $( "#dialog_plugin_settings" ).dialog({
@@ -62,19 +57,6 @@
             open: function() {
                 $(this).parent().css('overflow', 'visible');
             }
-            /*
-             // Submit handler in plugin_settings_dialog.html.twig
-             }).find('.ODRSubmitButton').click(function(){
-             var $el = $(this).parents('.ui-dialog-content');
-             if ($el.validate().form()) {
-             $el.find('form')[0].reset();
-             $el.dialog('close');
-             }
-             */
-        }).find('.ODRCancelButton').click(function(){
-            var $el = $(this).parents('.ui-dialog-content');
-            $el.find('form')[0].reset();
-            $el.dialog('close');
         });
 
         // Init Form

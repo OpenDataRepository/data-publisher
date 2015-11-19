@@ -160,7 +160,7 @@ odr_load_plugin_data:
         render_plugin_id:  \d+
 
 odr_save_render_plugin_settings:
-    pattern:  /design/displaytemplate/savedatatypeplugin
+    pattern:  /design/displaytemplate/saverenderpluginsettings
     defaults: { _controller: ODRAdminBundle:Displaytemplate:saverenderpluginsettings }
     requirements: { _method: POST }
 

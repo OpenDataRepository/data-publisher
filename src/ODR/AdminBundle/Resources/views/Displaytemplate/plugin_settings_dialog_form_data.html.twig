@@ -1,8 +1,22 @@
 {% spaceless %}
 
+{% set valid_fieldtype = true %}
+{% if local_datafield != null and plugin.id != 1 %}
+    {% for plugin_field in render_plugin_fields %}
+        {% if local_datafield.fieldtype.id not in allowed_fieldtypes[plugin_field.id] %}
+            {% set valid_fieldtype = false %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
+
     <div class="pure-control-group">
         <div style="margin-top:10px; margin-left:10px; margin-bottom:10px; font-size: 1.2em;">
-            {{ plugin.description }}
+            {% if valid_fieldtype == false %}
+                <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+                <span>&nbsp;The "{{ plugin.pluginName }}" Render Plugin is not compatible with a "{{ local_datafield.fieldtype.typeclass }}" Datafield</span>
+            {% else %}
+                {{ plugin.description }}
+            {% endif %}
         </div>
     </div>
 
@@ -129,6 +143,7 @@
     {% endfor %}
 {% endif %}
 
+{% if valid_fieldtype == true %}
     <div class="row">
         <div style="margin-top:10px; margin-left:10px; margin-bottom:10px; font-size:1.2em;">
             {# Determine if the rendering plugin has any available options #}
@@ -247,5 +262,46 @@
             {% endif %}
         </div>
     </div>
+{% endif %}
+
+    <div style="display: block;">
+        <button type="button" class="pure-button ODRCancelButton">Cancel</button>
+        {% if valid_fieldtype == true %}
+        <button type="button" class="pure-button pure-button-primary ODRSubmitButton">Save Plugin Settings</button>
+        {% endif %}
+    </div>
+
+    <script>
+        $(function() {
+            // Initialize the cancel button
+            $("#dialog_plugin_settings").find('.ODRCancelButton').click(function(){
+                var $el = $(this).parents('.ui-dialog-content');
+                $el.find('form')[0].reset();
+                $el.dialog('close');
+            });
+
+{% if valid_fieldtype == true %}
+            // Initialize the submission button
+            $("#dialog_plugin_settings .ODRSubmitButton").unbind('click');
+            $("#dialog_plugin_settings .ODRSubmitButton").click(function() {
+                // Determine whether anything is set to create a new datafield
+                var need_confirmation = false;
+                $(".ODRRenderPluginMap").each(function() {
+                    if ( $(this).val() == '-1' ) {
+                        need_confirmation = true;
+                        return false;
+                    }
+                });
+
+                // If no new datafields will be created, or the user accepts that datafields will be created...
+                if ( !need_confirmation || confirm('This will automatically create any missing DataFields required for this RenderPlugin in a new ThemeElement...are you sure?') ) {
+                    // ...submit the form
+                    $("#PluginSettingsForm").submit();
+                }
+            });
+{% endif %}
+        });
+    </script>
+
 
 {% endspaceless %}
