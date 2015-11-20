@@ -1306,7 +1306,7 @@ function InitDatafieldPropertiesForm() {
             }
 
 
-            if ( $("#has_datarecords").val() == '' || str === '' ||  confirm(str) ) {
+            if ( $("#has_datarecords").val() == '' || str === '' || confirm(str) ) {
                 // Datatype has no datarecords attached, or user doesn't care...save the change
                 SaveDatafieldProperty(datafield_id, true);  // reload datafield because fieldtype changed
                 save_datafield_xhr = true;
@@ -1323,6 +1323,8 @@ function InitDatafieldPropertiesForm() {
 
                 if (str !== '')
                     $("#field_type_meta").attr('title', str);
+
+                $("#previous_fieldtype").val(current_fieldtype);
             }
             else {
                 // Revert back to old field type

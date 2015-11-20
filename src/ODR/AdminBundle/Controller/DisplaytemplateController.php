@@ -2729,11 +2729,14 @@ print '</pre>';
             if ($render_plugin_instance_id != '')
                 $render_plugin_instance = $repo_render_plugin_instance->findOneBy(array("id" => $render_plugin_instance_id));
 
-            if ( $previous_plugin_id != $selected_plugin_id && $render_plugin_instance != null)
+            if ( $previous_plugin_id != $selected_plugin_id && $render_plugin_instance != null) {
                 $em->remove($render_plugin_instance);
+                $render_plugin_instance = null;
+            }
 
 
             // See if there's a previous render_plugin_instance that matches this datatype and selected plugin id
+            // 1: datatype only  2: both datatype and datafield  3: datafield only
             $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted rows
             $query = null;
             if ($render_plugin->getPluginType() <= 2 && $datatype != null) {
@@ -2770,6 +2773,7 @@ print '</pre>';
                     $render_plugin_instance = new RenderPluginInstance();
                     $render_plugin_instance->setRenderPlugin($render_plugin);
 
+                    // 1: datatype only  2: both datatype and datafield  3: datafield only
                     if ($render_plugin->getPluginType() == 1 && $datatype != null) {
                         $render_plugin_instance->setDataType($datatype);
                     }
@@ -3286,7 +3290,13 @@ if ($debug)
         try {
             // Grab objects
             $em = $this->getDoctrine()->getManager();
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
+            $repo_theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField');
+            $repo_render_plugin_instance = $em->getRepository('ODRAdminBundle:RenderPluginInstance');
+            $repo_render_plugin_map = $em->getRepository('ODRAdminBundle:RenderPluginMap');
+
+            $datafield = $repo_datafield->find($datafield_id);
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
 
@@ -3310,11 +3320,11 @@ if ($debug)
             // --------------------
             // Need to immediately force a reload of the right design slideout if certain fieldtypes change
             $force_slideout_reload = false;
-            
+
             // --------------------
             // Determine if shortresults may need to be recached
             $force_shortresults_recache = false;
-            $search_theme_data_field = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield, 'theme' => 2) );   // TODO
+            $search_theme_data_field = $repo_theme_datafield->findOneBy( array('dataFields' => $datafield, 'theme' => 2) );   // TODO
             if ($search_theme_data_field !== null && $search_theme_data_field->getActive() == true)
                 $force_shortresults_recache = true;
 
@@ -3337,13 +3347,13 @@ if ($debug)
             $typeclass = $datafield->getFieldType()->getTypeClass();
             if ($typeclass == 'File' || $typeclass == 'Image') {
                 // Count how many files/images are attached to this datafield across all datarecords
-                $str = 
-                    'SELECT COUNT(e.dataRecord)
+                $str =
+                   'SELECT COUNT(e.dataRecord)
                     FROM ODRAdminBundle:'.$typeclass.' e
                     JOIN ODRAdminBundle:DataFields AS df WITH e.dataField = df
                     JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
                     WHERE e.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.id = :datafield';
-                    if ($typeclass == 'Image') 
+                    if ($typeclass == 'Image')
                         $str .= ' AND e.original = 1 ';
                     $str .= ' GROUP BY dr.id';
                 $query = $em->createQuery($str)->setParameters( array('datafield' => $datafield) );
@@ -3369,23 +3379,56 @@ if ($debug)
 
 
             // --------------------
-            // Prevent a datafield's fieldtype from being changed if it's being used by a render plugin
-            $prevent_fieldtype_change = false;
-            $prevent_fieldtype_change_message = '';
-            $render_plugin_map = $em->getRepository('ODRAdminBundle:RenderPluginMap')->findAll();
-            foreach ($render_plugin_map as $rpm) {
-                if ($rpm->getDataField()->getId() == $datafield_id) {
-                    // Ensure that this isn't a leftover field from a deleted plugin instance
-                    $rpi = $em->getRepository('ODRAdminBundle:RenderPluginInstance')->findOneBy( array('id' => $rpm->getRenderPluginInstance()->getId()) );
-                    if ($rpi !== null) {
-                        $prevent_fieldtype_change = true;
-                        $prevent_fieldtype_change_message = "The Fieldtype can't be changed because the Datafield is currently being used by a RenderPlugin.";
-                        break;
-                    }
+            // Get a list of fieldtype ids that the datafield is allowed to have
+            $tmp = $repo_fieldtype->findAll();
+            $allowed_fieldtypes = array();
+            foreach ($tmp as $ft)
+                $allowed_fieldtypes[] = $ft->getId();
+
+            // Determine if the datafield has a render plugin applied to it...
+            $df_fieldtypes = $allowed_fieldtypes;
+            if ( $datafield->getRenderPlugin()->getId() != '1' ) {
+                $rpi = $repo_render_plugin_instance->findOneBy( array('renderPlugin' => $datafield->getRenderPlugin()->getId(), 'dataField' => $datafield->getId()) );
+                if ($rpi !== null) {
+                    $rpm = $repo_render_plugin_map->findOneBy( array('renderPluginInstance' => $rpi->getId(), 'dataField' => $datafield->getId()) );
+                    $rpf = $rpm->getRenderPluginFields();
+
+                    $df_fieldtypes = explode(',', $rpf->getAllowedFieldtypes());
                 }
             }
 
-            // Also prevent a datatfield's fieldtype from being changed if a migration is in progress
+            // Determine if the datafield's datatype has a render plugin applied to it...
+            $dt_fieldtypes = $allowed_fieldtypes;
+            if ( $datatype->getRenderPlugin()->getId() != '1' ) {
+                // Datafield is part of a Datatype using a render plugin...check to see if the Datafield is actually in use for the render plugin
+                $rpi = $repo_render_plugin_instance->findOneBy( array('renderPlugin' => $datatype->getRenderPlugin()->getId(), 'dataType' => $datatype->getId()) );
+
+                $rpm = $repo_render_plugin_map->findOneBy( array('renderPluginInstance' => $rpi->getId(), 'dataField' => $datafield->getId()) );
+                if ($rpm !== null) {
+                    // Datafield in use, get restrictions
+                    $rpf = $rpm->getRenderPluginFields();
+
+                    $dt_fieldtypes = explode(',', $rpf->getAllowedFieldtypes());
+                }
+                else {
+                    // Datafield not in use, no restrictions
+                    /* do nothing */
+                }
+            }
+
+            // The allowed fieldtypes could be restricted by both the datafield's render plugin and the datafield's datatype's render plugin...
+            // ...use the more restrictive of the two conditions
+            if ( count($df_fieldtypes) < count($dt_fieldtypes) )
+                $allowed_fieldtypes = $df_fieldtypes;
+            else
+                $allowed_fieldtypes = $dt_fieldtypes;
+
+
+            // Other conditions can prevent a fieldtype from changing at all...
+            $prevent_fieldtype_change = false;
+            $prevent_fieldtype_change_message = '';
+
+            // Prevent a datatfield's fieldtype from being changed if a migration is in progress
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'target_entity' => 'datafield_'.$datafield->getId(), 'completed' => null) );
             if ($tracked_job !== null) {
                 $prevent_fieldtype_change = true;
@@ -3398,15 +3441,17 @@ if ($debug)
                 $prevent_fieldtype_change_message = "The Fieldtype can't be changed because the Datafield is currently marked as Unique.";
             }
 
+
             // --------------------
             // Populate new DataFields form
-            $datafield_form = $this->createForm(new UpdateDatafieldsForm(), $datafield);
+            $datafield_form = $this->createForm(new UpdateDatafieldsForm($allowed_fieldtypes), $datafield);
             $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm(), $theme_datafield);
             if ($request->getMethod() == 'POST') {
 
                 // --------------------
                 // Deal with change of fieldtype
-                $old_fieldtype = $new_fieldtype = null;
+                $old_fieldtype = null;
+                $new_fieldtype = null;
                 $migrate_data = false;
                 $extra_fields = $request->request->get('DataFieldsForm');
                 $normal_fields = $request->request->get('DatafieldsForm');
@@ -3414,19 +3459,20 @@ if ($debug)
                     $old_fieldtype_id = $extra_fields['previous_field_type'];
                     $new_fieldtype_id = $normal_fields['field_type'];
 
-                    // If not allowed to change fieldtype...
-                    if ($prevent_fieldtype_change) {
+                    // If not allowed to change fieldtype or not allowed to change to this fieldtype...
+                    if ( $prevent_fieldtype_change || !in_array($new_fieldtype_id, $allowed_fieldtypes) ) {
+                        // Forcibly revert back to old fieldtype
                         $new_fieldtype_id = $old_fieldtype_id;
+                        $prevent_fieldtype_change = true;   // if fails in_array() check
                     }
 
                     // Determine if we need to migrate the data over to the new fieldtype
                     if ($old_fieldtype_id !== $new_fieldtype_id) {
                         // Grab necessary objects
-                        $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
                         $old_fieldtype = $repo_fieldtype->find($old_fieldtype_id);
                         $new_fieldtype = $repo_fieldtype->find($new_fieldtype_id);
 
-                        // Ensure fieldtype got changed from something that is migrate-able...
+                        // Check whether the fieldtype got changed from something that could be migrated...
                         $migrate_data = true;
                         switch ($old_fieldtype->getTypeClass()) {
                             case 'IntegerValue':
@@ -3441,7 +3487,7 @@ if ($debug)
                                 $migrate_data = false;
                                 break;
                         }
-                        // ...to something that is also migrate-able
+                        // ...to something that needs the migration proccess
                         switch ($new_fieldtype->getTypeClass()) {
                             case 'IntegerValue':
                             case 'LongText':
@@ -3450,6 +3496,7 @@ if ($debug)
                             case 'ShortVarchar':
                             case 'DecimalValue':
                                 break;
+
                             default:
                                 $migrate_data = false;
                                 break;
@@ -3712,7 +3759,7 @@ if ($force_slideout_reload)
                 $em->refresh($datafield);
                 $em->refresh($theme_datafield);
 
-                $datafield_form = $this->createForm(new UpdateDatafieldsForm(), $datafield);
+                $datafield_form = $this->createForm(new UpdateDatafieldsForm($allowed_fieldtypes), $datafield);
                 $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm(), $theme_datafield);
                 $templating = $this->get('templating');
 
