@@ -9,7 +9,7 @@ parameters:
         csv:
             maxSize: 100   # maximum allowed filesize (in Mb) for this type of uploaded file
             maxSizeErrorMessage: The uploaded file is too large.  Allowed maximum size is 100 MB.
-            mimeTypes: [ text/plain, text/csv ]
+            mimeTypes: [ ]
             mimeTypesErrorMessage: Please upload a valid CSV file.
 
         image:
