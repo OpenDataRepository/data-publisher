@@ -21,37 +21,23 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\FieldType;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RenderPlugin;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\RenderPluginFields;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginOptions;
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeElementField;
-use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\UserPermissions;
 // Forms
-use ODR\AdminBundle\Form\DecimalValueForm;
-use ODR\AdminBundle\Form\IntegerValueForm;
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
 use ODR\AdminBundle\Form\UpdateDataFieldsForm;
 use ODR\AdminBundle\Form\UpdateDataTypeForm;
 use ODR\AdminBundle\Form\UpdateDataTreeForm;
 use ODR\AdminBundle\Form\UpdateThemeElementForm;
 use ODR\AdminBundle\Form\UpdateThemeDatafieldForm;
 // Symfony
+use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Form\FormError;
-
 // YAML Parsing
 use Symfony\Component\Yaml\Yaml;
 use Symfony\Component\Yaml\Exception\ParseException;
@@ -3444,7 +3430,7 @@ if ($debug)
 
             // --------------------
             // Populate new DataFields form
-            $datafield_form = $this->createForm(new UpdateDatafieldsForm($allowed_fieldtypes), $datafield);
+            $datafield_form = $this->createForm(new UpdateDataFieldsForm($allowed_fieldtypes), $datafield);
             $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm(), $theme_datafield);
             if ($request->getMethod() == 'POST') {
 
@@ -3759,7 +3745,7 @@ if ($force_slideout_reload)
                 $em->refresh($datafield);
                 $em->refresh($theme_datafield);
 
-                $datafield_form = $this->createForm(new UpdateDatafieldsForm($allowed_fieldtypes), $datafield);
+                $datafield_form = $this->createForm(new UpdateDataFieldsForm($allowed_fieldtypes), $datafield);
                 $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm(), $theme_datafield);
                 $templating = $this->get('templating');
 

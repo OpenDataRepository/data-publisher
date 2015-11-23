@@ -17,7 +17,6 @@
 namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-use Doctrine\ORM\Query\ResultSetMapping;
 
 // Entities
 // Forms

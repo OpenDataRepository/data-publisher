@@ -24,13 +24,9 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataType;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
-use ODR\AdminBundle\Entity\UserPermissions;
-use ODR\AdminBundle\Entity\UserFieldPermissions;
-use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
-use Symfony\Component\Form\FormError;
-use ODR\AdminBundle\Form\ODRUserProfileForm;
 use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
+use ODR\AdminBundle\Form\ODRUserProfileForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -152,6 +148,7 @@ class ODRUserController extends ODRCustomController
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
+
 
     /**
      * Uses the provided form to create a new user
@@ -385,7 +382,6 @@ class ODRUserController extends ODRCustomController
                     )
                 )
             );
-
 
         }
         catch (\Exception $e) {
@@ -646,7 +642,6 @@ class ODRUserController extends ODRCustomController
                     )
                 )
             );
-
 
         }
         catch (\Exception $e) {
@@ -1240,7 +1235,7 @@ class ODRUserController extends ODRCustomController
     /**
      * Updates a UserPermission object in the database.
      * 
-     * @param User $user         The User that is getting their permissions modified.
+     * @param ODRUser $user      The User that is getting their permissions modified.
      * @param DataType $datatype The DataType that the User's permissions are being modified for.
      * @param string $permission Which type of permission is being set.
      * @param integer $value     0 if the permission is being revoked, 1 if the permission is being granted

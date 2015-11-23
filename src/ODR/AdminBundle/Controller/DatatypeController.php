@@ -19,11 +19,10 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\UserPermissions;
 // Forms
-use ODR\AdminBundle\Form\DatatypeForm;
+use ODR\AdminBundle\Form\CreateDatatypeForm;
 // Symfony
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
@@ -103,7 +102,7 @@ class DatatypeController extends ODRCustomController
 
             // Create new DataType form
             $datatype = new DataType();
-            $form = $this->createForm(new DatatypeForm($datatype), $datatype);
+            $form = $this->createForm(new CreateDatatypeForm($datatype), $datatype);
 
             // Render and return the html
             $return['d'] = array(
@@ -262,14 +261,15 @@ class DatatypeController extends ODRCustomController
 
             // Create new DataType form
             $datatype = new DataType();
-            $form = $this->createForm(new DatatypeForm($datatype), $datatype);
+            $form = $this->createForm(new CreateDatatypeForm($datatype), $datatype);
 
             // Verify 
             if ($request->getMethod() == 'POST') {
                 $form->bind($request, $datatype);
 
                 // Can't seem to figure out why it occassionally attempts to create an empty datatype, so...
-                $normal_fields = $request->request->get('DatatypeForm');
+//print_r($request->request);
+                $normal_fields = $request->request->get('CreateDatatypeForm');
                 $short_name = trim( $normal_fields['shortName'] );
                 $long_name = trim( $normal_fields['longName'] );
 

@@ -16,7 +16,7 @@ use Symfony\Component\OptionsResolver\OptionsResolverInterface;
 
 use Doctrine\ORM\EntityRepository;
 
-class UpdateDatafieldsForm extends AbstractType
+class UpdateDataFieldsForm extends AbstractType
 {
     protected $allowed_fieldtypes;
     public function __construct (array $allowed_fieldtypes) {

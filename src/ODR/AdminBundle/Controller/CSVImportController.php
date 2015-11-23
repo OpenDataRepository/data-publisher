@@ -18,32 +18,12 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\TrackedError;
-use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\LinkedDataTree;
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataRecordFields;
-use ODR\AdminBundle\Entity\ShortVarchar;
-use ODR\AdminBundle\Entity\File;
-use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\ImageSizes;
-use ODR\AdminBundle\Entity\ImageStorage;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RadioSelection;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 // CSV Reader
-use Ddeboer\DataImport\Workflow;
 use Ddeboer\DataImport\Reader;
 use Ddeboer\DataImport\Writer;
 use Ddeboer\DataImport\Filter;
