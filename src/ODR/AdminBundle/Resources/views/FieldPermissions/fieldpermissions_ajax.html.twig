@@ -42,7 +42,7 @@ function initPage() {
         var found = false;
         $(this).find("input").each(function() {
             found = true;
-            return;
+            return false;
         });
 
         if (!found)
@@ -128,12 +128,11 @@ function initPage() {
 //alert(url);
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     // Toggle muted status
@@ -207,12 +206,11 @@ function initPage() {
 //alert(url);
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     var icons = {};
@@ -281,9 +279,6 @@ function updateDatafieldPermissions(datafield_overlay_id, desired_state) {
         return;
     }
 
-    // Grab user id
-    var user_id = {{ user.id }};
-
     // Grab desired permission
     var permission = 0;
     if (desired_state == 'ODREditableDatafield')
@@ -296,17 +291,16 @@ function updateDatafieldPermissions(datafield_overlay_id, desired_state) {
 
     var url  = '{{ path('odr_save_datafield_permission', {'user_id': 0, 'datafield_id': 0, 'permission': 0} ) }}';
     url = url.substring(0,(url.length - 5));
-    url += user_id + '/' + datafield_id + '/' + permission;
+    url += {{ user.id }} + '/' + datafield_id + '/' + permission;
 
 //alert( url );
 //return;
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 // Update the datafield's overlay
