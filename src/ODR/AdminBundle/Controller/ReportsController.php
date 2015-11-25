@@ -19,10 +19,13 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataType;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+
 
 class ReportsController extends ODRCustomController
 {
@@ -46,7 +49,7 @@ class ReportsController extends ODRCustomController
             // Grab necessary objects
             $em = $this->getDoctrine()->getManager();
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $templating = $this->get('templating');
+            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
             $datafield = $repo_datafield->find($datafield_id);
             if ( $datafield == null )
@@ -55,6 +58,7 @@ class ReportsController extends ODRCustomController
             $datatype = $datafield->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
 
             // Only run queries if field can be set to unique
@@ -68,69 +72,36 @@ class ReportsController extends ODRCustomController
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'design' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-            // Build a query to determine which datarecords have duplicate values
-            $typeclass = $fieldtype->getTypeClass();
-            $query = $em->createQuery(
-               'SELECT dr.id AS dr_id, grandparent.id AS grandparent_id, e.value AS value
-                FROM ODRAdminBundle:'.$typeclass.' AS e
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
-                WHERE e.dataField = :datafield
-                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield_id) );
-            $results = $query->getArrayResult();
+            // Datafields in child datatypes have different rules for duplicated values...
+            $is_child_datatype = false;
+            $datatree_array = parent::getDatatreeArray($em);
+            if ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '' )
+                $is_child_datatype = true;
 
-            // Convert the query results into an array grouped by value
-            $values = array();
-            $grandparent_list = array();
-            foreach ($results as $num => $result) {
-                $dr_id = $result['dr_id'];
-                $grandparent_id = $result['grandparent_id'];
-                $value = $result['value'];
-
-                if ( !isset($values[$value]) ) {
-                    $values[$value] = array('count' => 1, 'dr_list' => array($dr_id));
-                }
-                else {
-                    $values[$value]['count'] += 1;
-                    $values[$value]['dr_list'][] = $dr_id;
-                }
-
-                $grandparent_list[$dr_id] = $grandparent_id;
+            // Procedure for locating duplicate values in top-level datatypes differs just enough from the one for locating duplicate values in child datatypes...
+            if (!$is_child_datatype) {
+                // Build the report
+                $return['d'] = array(
+                    'html' => self::buildDatafieldUniquenessReport($em, $datafield)
+                );
             }
+            else {
+                // Locate the top-level datatype
+                $top_level_datatype_id = $datatype_id;
+                while ( isset($datatree_array['descendant_of'][$top_level_datatype_id]) && $datatree_array['descendant_of'][$top_level_datatype_id] !== '')
+                    $top_level_datatype_id = $datatree_array['descendant_of'][$top_level_datatype_id];
 
-            // Don't care about values which aren't duplicated
-            foreach ($values as $value => $data) {
-                if ( $data['count'] == 1 )
-                    unset($values[$value]);
+                $top_level_datatype = $repo_datatype->find($top_level_datatype_id);
+
+                // Build the report
+                $return['d'] = array(
+                    'html' => self::buildChildDatafieldUniquenessReport($em, $datafield, $top_level_datatype)
+                );
             }
-
-            // Ensure only grandparent ids are passed to twig
-            foreach ($values as $value => $data) {
-                $values[$value]['grandparent_list'] = array();
-
-                foreach ($values[$value]['dr_list'] as $num => $dr_id) {
-                    if ( !in_array($grandparent_list[$dr_id], $values[$value]['grandparent_list']) )
-                        $values[$value]['grandparent_list'][] = $grandparent_list[$dr_id];
-                }
-            }
-
-            // Render and return a page detailing which datarecords have duplicate values...
-            $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:Reports:datafield_uniqueness_report.html.twig',
-                    array(
-                        'datafield' => $datafield,
-//                        'user_permissions' => $user_permissions,
-                        'duplicate_values' => $values,
-                    )
-                )
-            );
 
         }
         catch (\Exception $e) {
@@ -142,6 +113,158 @@ class ReportsController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Builds an array of duplicated values for a datafield belonging to a top-level datatype.
+     * In this version, duplicate values are not allowed in this datafield.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param Datafields $datafield
+     *
+     * @return string
+     */
+    private function buildDatafieldUniquenessReport($em, $datafield)
+    {
+        // Get necessary objects
+        $templating = $this->get('templating');
+        $fieldtype = $datafield->getFieldType();
+        $datafield_id = $datafield->getId();
+
+        // Build a query to determine which top-level datarecords have duplicate values
+        // TODO - modify to use datatype's namefield instead of datarecord id...
+        $typeclass = $fieldtype->getTypeClass();
+        $query = $em->createQuery(
+           'SELECT dr.id AS dr_id, e.value AS value
+            FROM ODRAdminBundle:'.$typeclass.' AS e
+            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+            WHERE e.dataField = :datafield
+            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+        )->setParameters( array('datafield' => $datafield_id) );
+        $results = $query->getArrayResult();
+
+        // Convert the query results into an array grouped by value
+        $values = array();
+        foreach ($results as $num => $result) {
+            $dr_id = $result['dr_id'];
+            $value = $result['value'];
+
+            if ( !isset($values[$value]) ) {
+                $values[$value] = array('count' => 1, 'dr_list' => array($dr_id));
+            }
+            else {
+                $values[$value]['count'] += 1;
+                $values[$value]['dr_list'][] = $dr_id;
+            }
+        }
+
+        // Don't care about values which aren't duplicated
+        foreach ($values as $value => $data) {
+            if ( $data['count'] == 1 )
+                unset($values[$value]);
+        }
+
+/*
+print_r($values);
+print_r($grandparent_list);
+*/
+
+        // Render and return a page detailing which datarecords have duplicate values...
+        return $templating->render(
+            'ODRAdminBundle:Reports:datafield_uniqueness_report.html.twig',
+            array(
+                'datafield' => $datafield,
+//                'user_permissions' => $user_permissions,
+                'duplicate_values' => $values,
+            )
+        );
+    }
+
+
+    /**
+     * Builds an array of duplicated values for a datafield belonging to a child datatype.
+     * In this version, duplicate values are allowed in this datafield...provided they don't occur within the same parent datarecord.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param Datafields $datafield
+     * @param Datatype $top_level_datatype
+     *
+     * @return string
+     */
+    private function buildChildDatafieldUniquenessReport($em, $datafield, $top_level_datatype)
+    {
+        // Get necessary objects
+        $templating = $this->get('templating');
+        $fieldtype = $datafield->getFieldType();
+        $datafield_id = $datafield->getId();
+
+        // Build a query to determine which child datarecords have duplicate values
+        // TODO - modify to use datatype's namefield instead of datarecord id...
+        $typeclass = $fieldtype->getTypeClass();
+        $query = $em->createQuery(
+           'SELECT dr.id AS dr_id, parent.id AS parent_id, grandparent.id AS grandparent_id, e.value AS value
+            FROM ODRAdminBundle:'.$typeclass.' AS e
+            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+            JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
+            JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
+            WHERE e.dataField = :datafield
+            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
+        )->setParameters( array('datafield' => $datafield_id) );
+        $results = $query->getArrayResult();
+
+        // Convert the query results into an array grouped by value
+        $grandparent_list = array();
+        $values = array();
+        foreach ($results as $num => $result) {
+            $dr_id = $result['dr_id'];
+            $parent_id = $result['parent_id'];
+            $grandparent_id = $result['grandparent_id'];
+            $value = $result['value'];
+
+            // Store a list of parent datarecord id => grandparent id
+            $grandparent_list[$parent_id] = $grandparent_id;
+
+            // Group values by parent datarecord id
+            if ( !isset($values[$parent_id]) )
+                $values[$parent_id] = array();
+
+            if ( !isset($values[$parent_id][$value]) ) {
+                $values[$parent_id][$value] = array('count' => 1, 'dr_list' => array($dr_id));
+            }
+            else {
+                $values[$parent_id][$value]['count'] += 1;
+                $values[$parent_id][$value]['dr_list'][] = $dr_id;
+            }
+        }
+
+        // Don't care about values which aren't duplicated
+        foreach ($values as $parent_id => $children) {
+            foreach ($children as $value => $data) {
+                if ( $data['count'] == 1 )
+                    unset( $values[$parent_id][$value] );
+            }
+
+            if ( count($values[$parent_id]) == 0 )
+                unset( $values[$parent_id] );
+        }
+/*
+print_r($values);
+print_r($grandparent_list);
+*/
+        // Render and return a page detailing which datarecords have duplicate values...
+        return $templating->render(
+            'ODRAdminBundle:Reports:child_datafield_uniqueness_report.html.twig',
+            array(
+                'datafield' => $datafield,
+                'top_level_datatype' => $top_level_datatype,
+//                'user_permissions' => $user_permissions,
+                'duplicate_values' => $values,
+                'grandparent_list' => $grandparent_list,
+            )
+        );
     }
 
 

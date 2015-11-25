@@ -17,6 +17,7 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecordFields;
 // Forms
 // Symfony
@@ -1255,7 +1256,7 @@ class RecordController extends ODRCustomController
 
             // Save the old value incase we have to revert
             $drf = $my_obj->getDataRecordFields();
-             $tmp_obj = $drf->getAssociatedEntity();
+            $tmp_obj = $drf->getAssociatedEntity();
             $old_value = $tmp_obj->getValue();
 
             if ($record_type == 'DatetimeValue')
@@ -1268,30 +1269,9 @@ class RecordController extends ODRCustomController
 
                 // If the datafield is marked as unique...
                 if ( $datafield->getIsUnique() == true ) {
-                    // Mysql requires a different comparision if checking for duplicates of a null value...
-                    $comparision = $parameters = null;
-                    if ($new_value != null) {
-                        $comparision = '= :value';
-                        $parameters = array('datafield' => $datafield->getId(), 'value' => $new_value);
-                    }
-                    else {
-                        $comparision = 'IS NULL';
-                        $parameters = array('datafield' => $datafield->getId());
-                    }
-
-                    // Run a quick query to check whether the new value is a duplicate of an existing value 
-                    $query = $em->createQuery(
-                       'SELECT e.id
-                        FROM ODRAdminBundle:'.$record_type.' AS e
-                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                        JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                        WHERE e.dataField = :datafield AND e.value '.$comparision.'
-                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-                    )->setParameters( $parameters );
-                    $results = $query->getArrayResult();
-
-                    // If something got returned, add a Symfony error to the form so the subsequent isValid() call will fail
-                    if ( count($results) > 0 )
+                    // ...determine whether the new value is a duplicate of a value that already exists
+                    $found_existing_value = self::findExistingValue($em, $datafield, $datarecord->getParent()->getId(), $new_value);
+                    if ($found_existing_value)
                         $form->addError( new FormError('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield...reverting back to old value.') );
                 }
 
@@ -1375,6 +1355,80 @@ class RecordController extends ODRCustomController
         $response = new Response(json_encode($return));  
         $response->headers->set('Content-Type', 'application/json');
         return $response;  
+    }
+
+
+    /**
+     * Returns whether the provided value would violate uniqueness constraints for the given datafield.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param Datafields $datafield
+     * @param integer $parent_datarecord_id
+     * @param mixed $new_value
+     *
+     * @return boolean
+     */
+    private function findExistingValue($em, $datafield, $parent_datarecord_id, $new_value)
+    {
+        // Going to need these...
+        $datatype_id = $datafield->getDataType()->getId();
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+
+        // Determine if this datafield belongs to a top-level datatype or not
+        $is_child_datatype = false;
+        $datatree_array = parent::getDatatreeArray($em);
+        if ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '' )
+            $is_child_datatype = true;
+
+        // Mysql requires a different comparision if checking for duplicates of a null value...
+        $comparision = $parameters = null;
+        if ($new_value != null) {
+            $comparision = 'e.value = :value';
+            $parameters = array('datafield' => $datafield->getId(), 'value' => $new_value);
+        }
+        else {
+            $comparision = '(e.value IS NULL OR e.value = :value)';
+            $parameters = array('datafield' => $datafield->getId(), 'value' => '');
+        }
+
+        // Also search on parent datarecord id if it was passed in
+        if ($is_child_datatype)
+            $parameters['parent_datarecord_id'] = $parent_datarecord_id;
+
+        if (!$is_child_datatype) {
+            $query = $em->createQuery(
+               'SELECT e.id
+                FROM ODRAdminBundle:'.$typeclass.' AS e
+                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                WHERE e.dataField = :datafield AND '.$comparision.'
+                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+            )->setParameters($parameters);
+            $results = $query->getArrayResult();
+
+            // The given value already exists in this datafield
+            if ( count($results) > 0 )
+                return true;
+        }
+        else {
+            $query = $em->createQuery(
+               'SELECT e.id
+                FROM ODRAdminBundle:'.$typeclass.' AS e
+                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
+                WHERE e.dataField = :datafield AND '.$comparision.' AND parent.id = :parent_datarecord_id
+                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
+            )->setParameters($parameters);
+            $results = $query->getArrayResult();
+
+            // The given value already exists in this datafield
+            if ( count($results) > 0 )
+                return true;
+        }
+
+        // The given value does not exist in this datafield
+        return false;
     }
 
 

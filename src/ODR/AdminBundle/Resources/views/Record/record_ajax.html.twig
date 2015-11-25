@@ -796,10 +796,10 @@ function SaveRecordData(form_id, interval) {
         interval = window.clearInterval(interval);
 
     // Determine save type
-    var url = $(the_form).attr('action');
-
     var the_form = $(form_id);
     var post_data = $(the_form).serialize();
+
+    var url = $(the_form).attr('action');
 
 //alert( url );
 //alert( post_data );

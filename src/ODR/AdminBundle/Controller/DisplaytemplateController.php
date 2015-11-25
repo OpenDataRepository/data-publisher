@@ -3534,7 +3534,7 @@ if ($debug)
                 // If the datafield got set to unique...
                 if ( isset($normal_fields['is_unique']) && $normal_fields['is_unique'] == 1 ) {
                     // ...if it has duplicate values, manually add an error to the Symfony form...this will conveniently cause the subsequent isValid() call to fail
-                    if ( !self::datafieldCanBeUnique($datafield) )
+                    if ( !self::datafieldCanBeUnique($em, $datafield) )
                         $datafield_form->addError( new FormError("This Datafield can't be set to 'unique' because some Datarecords have duplicate values stored in this Datafield...click the gear icon to list which ones.") ); 
                 }
 
@@ -4333,14 +4333,17 @@ if ($debug)
     /**
      * Checks to see whether the given Datafield can be marked as unique or not.
      *
+     * @param \Doctrine\ORM\EntityManager $em
      * @param DataFields $datafield
      *
      * @return boolean true if the datafield has no duplicate values, false otherwise
      */
-    private function datafieldCanBeUnique($datafield)
+    private function datafieldCanBeUnique($em, $datafield)
     {
         // Going to need these...
         $datafield_id = $datafield->getId();
+        $datatype = $datafield->getDataType();
+        $datatype_id = $datatype->getId();
         $fieldtype = $datafield->getFieldType();
         $typeclass = $fieldtype->getTypeClass();
 
@@ -4348,26 +4351,65 @@ if ($debug)
         if ($fieldtype->getCanBeUnique() == 0)
             return false;
 
-        // Get a list of all values in the datafield
-        $em = $this->getDoctrine()->getManager();
-        $query = $em->createQuery(
-           'SELECT e.value
-            FROM ODRAdminBundle:'.$typeclass.' AS e
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-            WHERE e.dataField = :datafield
-            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-        )->setParameters( array('datafield' => $datafield_id) );
-        $results = $query->getArrayResult();
+        // Determine if this datafield belongs to a top-level datatype or not
+        $is_child_datatype = false;
+        $datatree_array = parent::getDatatreeArray($em);
+        if ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '' )
+            $is_child_datatype = true;
 
-        // Determine if there are any duplicates in the datafield...
-        $values = array();
-        foreach ($results as $result) {
-            $value = $result['value'];
-            if ( isset($values[$value]) )
-                return false;
-            else
-                $values[$value] = 1;
+        if ( !$is_child_datatype ) {
+            // Get a list of all values in the datafield
+            $query = $em->createQuery(
+               'SELECT e.value
+                FROM ODRAdminBundle:'.$typeclass.' AS e
+                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                WHERE e.dataField = :datafield
+                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+            )->setParameters( array('datafield' => $datafield_id) );
+            $results = $query->getArrayResult();
+
+            // Determine if there are any duplicates in the datafield...
+            $values = array();
+            foreach ($results as $result) {
+                $value = $result['value'];
+                if ( isset($values[$value]) )
+                    // Found duplicate, return false
+                    return false;
+                else
+                    // Found new value, save and continue checking
+                    $values[$value] = 1;
+            }
+        }
+        else {
+            // Get a list of all values in the datafield, grouped by parent datarecord
+            $query = $em->createQuery(
+               'SELECT e.value, parent.id AS parent_id
+                FROM ODRAdminBundle:'.$typeclass.' AS e
+                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
+                WHERE e.dataField = :datafield
+                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
+            )->setParameters( array('datafield' => $datafield_id) );
+            $results = $query->getArrayResult();
+
+            // Determine if there are any duplicates in the datafield...
+            $values = array();
+            foreach ($results as $result) {
+                $value = $result['value'];
+                $parent_id = $result['parent_id'];
+
+                if ( !isset($values[$parent_id]) )
+                    $values[$parent_id] = array();
+
+                if ( isset($values[$parent_id][$value]) )
+                    // Found duplicate, return false
+                    return false;
+                else
+                    // Found new value, save and continue checking
+                    $values[$parent_id][$value] = 1;
+            }
         }
 
         // Didn't find a duplicate, return true
