@@ -134,7 +134,7 @@
                             if (data == 'Done') {
                                 // If job is done, make a link back to the datarecord list for this datatype
                                 var url = '{{ path('odr_search_render', {'search_key': ''} ) }}';
-                                url += 'dt_id=' + row.datatype_id;
+                                url += 'dt_id=' + row.top_level_datatype_id;
 
                                 return '<a class="address" href="#' + url + '">Done</a>';
                             }

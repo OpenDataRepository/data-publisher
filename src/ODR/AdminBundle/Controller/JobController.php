@@ -16,25 +16,7 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
-// Entites
-use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\AdminBundle\Entity\TrackedCSVExport;
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\LinkedDataTree;
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataRecordFields;
-use ODR\AdminBundle\Entity\ShortVarchar;
-use ODR\AdminBundle\Entity\File;
-use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\ImageSizes;
-use ODR\AdminBundle\Entity\ImageStorage;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RadioSelection;
+// Entities
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
@@ -149,7 +131,7 @@ class JobController extends ODRCustomController
         $repo_tracked_jobs = $em->getRepository('ODRAdminBundle:TrackedJob');
         $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
-
+        $datatree_array = parent::getDatatreeArray($em);
         $parameters = array();
 
         if ( $job_type !== '' )
@@ -195,6 +177,11 @@ class JobController extends ODRCustomController
                 $additional_data = json_decode( $tracked_job->getAdditionalData(), true );
                 $job['description'] = $additional_data['description'];
                 $job['can_delete'] = false;
+
+                $top_level_datatype_id = $datatype_id;
+                while ( isset($datatree_array['descendant_of'][$top_level_datatype_id]) && $datatree_array['descendant_of'][$top_level_datatype_id] !== '')
+                    $top_level_datatype_id = $datatree_array['descendant_of'][$top_level_datatype_id];
+                $job['top_level_datatype_id'] = $top_level_datatype_id;
 
                 // ----------------------------------------
                 if ( $tracked_job->getCompleted() == null || $tracked_job->getStarted() == null ) {
