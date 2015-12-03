@@ -28,7 +28,7 @@
                     <option value="{{ datatype.id }}">{{ datatype.shortname }}</option>
                 {% if childtypes != null and datatype.externalIdField != null %}
                     {% for childtype in childtypes %}
-                        <option value="{{ childtype.id }}" rel="child">|-- {{ childtype.shortname }} (child)</option>
+                        <option value="{{ childtype.id }}" rel="child{% if childtype.getexternalidfield == null %} warn{% endif %}">|-- {{ childtype.shortname }} (child)</option>
                     {% endfor %}
                 {% endif %}
                 {% if linked_types != null and datatype.externalIdField != null %}
@@ -39,18 +39,18 @@
                 </select>
 
                 <span id="childtype_import_warning" style="margin-left:15px;">
-                    <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
-                    <span>&nbsp;The CSV Importer is currently unable to update existing child Datarecords...every row in the CSV file WILL become a new child Datarecord.</span>
+                    <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
+                    <span>&nbsp;This child Datatype doesn't have an "External ID" Datafield...every row in the CSV file WILL become a new child Datarecord.</span>
                 </span>
 
                 <span id="invalid_linked_datatype_warning" style="margin-left:15px;">
-                    <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+                    <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                     <span>&nbsp;This linked Datatype doesn't have an "External ID" Datafield...CSV Importing can't continue because it's impossible to determine which Datarecords to link to.</span>
                 </span>
 
             {% if datatype.externalIdField == null and (childtypes != null or linked_types != null) %}
                 <span style="margin-left:15px;">
-                    <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+                    <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                     <span>&nbsp;This Datatype doesn't have an "External ID" Datafield...CSV Importing can't be performed on any children or linked Datatypes.</span>
                 </span>
             {% endif %}
@@ -117,7 +117,7 @@
         $("#delimiter_select").unbind('change');
         $("#delimiter_select").change(function() {
             delimiterChanged( $(this).val() );
-            if ( $(this).val() == "" || $("#target_datatype").children(':selected').attr('rel') == 'invalid link')
+            if ( $(this).val() == "" || $("#target_datatype").children(':selected').attr('rel') == 'invalid link' )
                 $("#file_upload_div").hide();
             else
                 $("#file_upload_div").show();
@@ -135,7 +135,7 @@
 
                 // Show the correct warning if necessary
                 var datatree_type = $(this).children(':selected').attr('rel');
-                if (datatree_type == 'child')
+                if (datatree_type == 'child warn')
                     $("#childtype_import_warning").show();
                 else if (datatree_type == 'invalid link')
                     $("#invalid_linked_datatype_warning").show();
@@ -146,7 +146,7 @@
         {% if parent_datatype != null and parent_datatype.id != datatype.id %}
         // Show the correct warning if necessary
         var datatree_type = $("#target_datatype").children(':selected').attr('rel');
-        if (datatree_type == 'child')
+        if (datatree_type == 'child warn')
             $("#childtype_import_warning").show();
         else if (datatree_type == 'invalid link')
             $("#invalid_linked_datatype_warning").show();

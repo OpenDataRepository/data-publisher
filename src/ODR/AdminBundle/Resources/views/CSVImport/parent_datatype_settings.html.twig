@@ -1,5 +1,14 @@
 {% spaceless %}
 
+{% if linked_importing %}
+    <div>
+        <p>This "import" doesn't actually create new Datarecords, but instead "links" already-existing Datarecords between two different Datatypes.</p>
+        <p>The CSV file needs to have at least two columns: the first column must contain External IDs of Datarecords in the first Datatype, and the second column must contain External IDs of Datarecords in the second Datatype.</p>
+        <p>Each row of the CSV file indicates that the Datarecord specified in the first column should be linked to the Datarecord specified in the second column.</p>
+    </div>
+    </br>
+{% endif %}
+
 <hr>
     <div>
         <span>&nbsp;Column to map to the External ID Datafield "{{ parent_datatype.getexternalidfield.getfieldname }}" for the {% if linked_importing %}local{% else %}parent{% endif %} Datatype "{{ parent_datatype.getshortname }}": </span>
@@ -9,7 +18,7 @@
             <option value="{{ column_id }}">{{ column_name }}</option>
         {% endfor %}
         </select>
-        <span id="parent_external_id_warning"><i class="fa fa-lg fa-exclamation-circle"></i></span>
+        <span id="parent_external_id_warning"><i class="fa fa-lg fa-exclamation-circle Cursor"></i></span>
     </div>
 
 {% if linked_importing %}
@@ -21,7 +30,7 @@
             <option value="{{ column_id }}">{{ column_name }}</option>
         {% endfor %}
         </select>
-        <span id="remote_external_id_warning"><i class="fa fa-lg fa-exclamation-circle"></i></span>
+        <span id="remote_external_id_warning"><i class="fa fa-lg fa-exclamation-circle Cursor"></i></span>
     </div>
 {% endif %}
 <hr>

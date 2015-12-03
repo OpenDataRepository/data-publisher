@@ -6,14 +6,14 @@
         {% if external_id_field == null %}
             {# notify that the datatype doesn't have an external id field #}
             <div class="pure-u-1">
-                <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+                <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                 <span>&nbsp;This Datatype doesn't have an "External ID" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported will ALWAYS create new Datarecords.</span>
             </div>
 
         {% else %}
             {# notify that the external id field is not mapped #}
             <div id="external_id_field_warning" class="pure-u-1">
-                <span><i class="fa fa-lg fa-exclamation-triangle"></i></span>
+                <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                 <span>&nbsp;This Datatype's External ID Datafield, "{{ external_id_field.getfieldname }}", is currently not mapped to a column of the CSV File...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported WILL create new Datarecords.</span>
             </div>
 
@@ -23,7 +23,7 @@
         {% for df in datafields %}
             {% if df.getisunique == 1 and external_id_field != df %}
             <div id="datafield_{{ df.id }}_unique_notice" class="pure-u-1">
-                <span><i class="fa fa-lg fa-exclamation-circle"></i></span>
+                <span><i class="fa fa-lg fa-exclamation-circle Cursor"></i></span>
                 <span>&nbsp;The unique Datafield "{{ df.getfieldname }}" is currently not mapped to a column of the CSV File...if any new Datarecords are created as a result of this import, this datafield will have multiple blank values.</span>
             </div>
             {% endif %}
