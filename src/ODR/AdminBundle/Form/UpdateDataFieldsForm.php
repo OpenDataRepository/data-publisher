@@ -181,6 +181,14 @@ class UpdateDataFieldsForm extends AbstractType
                 'required' => false
             )
         );
+        $builder->add(
+            'radio_option_display_unselected',
+            'checkbox',
+            array(
+                'label'  => 'Display Unselected Options',
+                'required' => false
+            )
+        );
 
         $builder->add(
             'children_per_row',

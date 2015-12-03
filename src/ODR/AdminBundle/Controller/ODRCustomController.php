@@ -2261,6 +2261,7 @@ $save_permissions = false;
         $datafield->setDisplayOrder(-1);
         $datafield->setChildrenPerRow(1);
         $datafield->setRadioOptionNameSort(0);
+        $datafield->setRadioOptionDisplayUnselected(0);
         if ( $fieldtype->getTypeClass() === 'File' || $fieldtype->getTypeClass() === 'Image' ) {
             $datafield->setAllowMultipleUploads(1);
             $datafield->setShortenFilename(1);
