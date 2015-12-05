@@ -108,13 +108,13 @@
                 {% set is_selected = option_list[ radio_option.id ] %}
 
                 {# only display selected options #}
-                {% if is_selected == 1 %}
+                {% if is_selected == 1 or field.getradiooptiondisplayunselected == 1 %}
                     <label id="Label_{{ field.id }}" for="Input_{{ datarecordfield.id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ field.childrenperrow }}" style="margin: 0.5em 0;">
 
                     {% if field_typename == "Single Radio" or field_typename == "Single Select" %}
-                        <input id="Input_{{ datarecordfield.id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datarecordfield.id }}" class="SingleRadioGroup" checked disabled />
+                        <input id="Input_{{ datarecordfield.id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datarecordfield.id }}" class="SingleRadioGroup" {% if is_selected == 1 %}checked{% endif %} disabled />
                     {% else %}
-                        <input id="Input_{{ datarecordfield.id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datarecordfield.id }}" class="MultipleRadioGroup" checked disabled />
+                        <input id="Input_{{ datarecordfield.id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datarecordfield.id }}" class="MultipleRadioGroup" {% if is_selected == 1 %}checked{% endif %} disabled />
                     {% endif %}
 
                     {{ radio_option.getOptionName }}

@@ -18,25 +18,7 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
-// Entites
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataRecordFields;
-use ODR\AdminBundle\Entity\ShortVarchar;
-use ODR\AdminBundle\Entity\MediumVarchar;
-use ODR\AdminBundle\Entity\LongVarchar;
-use ODR\AdminBundle\Entity\LongText;
-use ODR\AdminBundle\Entity\DecimalValue;
-use ODR\AdminBundle\Entity\IntegerValue;
-use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\ImageSizes;
-use ODR\AdminBundle\Entity\ImageStorage;
-use ODR\AdminBundle\Entity\File;
+// Entities
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -126,7 +108,7 @@ class ResultsController extends ODRCustomController
             $encoded_search_key = '';
             if ($search_key !== '') {
                 // 
-                $data = parent::getSavedSearch($search_key, $logged_in, $request);
+                $data = parent::getSavedSearch($datatype->getId(), $search_key, $logged_in, $request);
                 $encoded_search_key = $data['encoded_search_key'];
                 $datarecord_list = $data['datarecord_list'];
 
@@ -294,7 +276,7 @@ class ResultsController extends ODRCustomController
 
     /**
      * Creates a Symfony response that so browsers can download files from the server.
-     * TODO - http://symfony.com/doc/current/components/http_foundation/introduction.html#serving-files
+     * TODO - http://symfony.com/doc/current/components/http_foundation/introduction.html#serving-files ?
      * 
      * @param integer $file_id The database id of the file to download.
      * @param Request $request

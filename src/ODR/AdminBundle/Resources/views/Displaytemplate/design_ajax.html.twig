@@ -83,12 +83,11 @@ function initPage() {
 //alert( url );
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     switch(data.t) {
@@ -137,12 +136,11 @@ function initPage() {
 //alert( url );
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     switch(data.t) {
@@ -207,12 +205,11 @@ function initPage() {
 //alert( url );
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     // Clear right slideout
@@ -265,12 +262,11 @@ function initPage() {
 //alert( url );
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     // Clear right slideout
@@ -317,12 +313,11 @@ function initPage() {
 //alert( url );
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     // Clear right slideout
@@ -382,12 +377,11 @@ function initPage() {
 //alert( url );
 //return;
 
-            var dataType = "json";
             $.ajax({
                 cache: false,
                 type: 'GET',
                 url: url,
-                dataType: dataType,
+                dataType: "json",
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
                         // Locate parent datatype id
@@ -451,12 +445,11 @@ function initPage() {
 //alert( url );
 //return;
 
-            var dataType = "json";
             $.ajax({
                 cache: false,
                 type: 'GET',
                 url: url,
-                dataType: dataType,
+                dataType: "json",
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
                         // Will Cause removal from view
@@ -491,21 +484,20 @@ function initPage() {
     $(".ODRDatatypeProperties").unbind('click');
     $(".ODRDatatypeProperties").click(function() {
         // Grab the id of the Datatype to load
-        var id = $(this).attr('rel');
+        var datatype_id = $(this).attr('rel');
 
         // Determine if this Datatype has a parent
         var parent_datatype_id = '';
-        if ( $("#DataType_" + id).parent().parent().parent().parent().hasClass('ODRDataType') ) {
-            var id_data = $("#DataType_" + id).parent().parent().parent().parent().attr('id').split(/_/);
+        if ( $("#DataType_" + datatype_id).parent().parent().parent().parent().hasClass('ODRDataType') ) {
+            var id_data = $("#DataType_" + datatype_id).parent().parent().parent().parent().attr('id').split(/_/);
             parent_datatype_id = id_data[1];
         }
 
         // Load form for current datfield if not already loaded
-        $("#ElementData").hide("");
-        $("#ElementData").html("");
+        $("#ElementData").hide().html("");
         var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0, 'parent_datatype_id': 0 } ) }}';
         url = url.substring(0, (url.length - 3));
-        url += id;
+        url += datatype_id;
 
         if (parent_datatype_id != '')
             url += '/' + parent_datatype_id;
@@ -513,17 +505,14 @@ function initPage() {
 //alert( url );
 //return;
 
-        // Ajax Load Form in box
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
-                    $("#ElementData").html(data.d); 
-                    $("#ElementData").fadeIn('fast'); 
+                    $("#ElementData").html(data.d).fadeIn('fast');
                     InitDatatypePropertiesForm();
                 }
                 else {
@@ -552,29 +541,25 @@ function initPage() {
     $(".ODRThemeElementProperties").unbind('click');
     $(".ODRThemeElementProperties").click(function() {
         // Load Properties into Element Data
-        var id = $(this).attr('rel');
+        var theme_element_id = $(this).attr('rel');
 
         // Load form for current datfield if not already loaded
-        $("#ElementData").hide("");
-        $("#ElementData").html("");
+        $("#ElementData").hide().html("");
         var url = '{{ path('odr_design_get_theme_element_properties', { 'theme_element_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
-        url += id;
+        url += theme_element_id;
 
 //alert( url );
 //return;
 
-        var dataType = "json";
-        // Ajax Load Form in box
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
-                    $("#ElementData").html(data.d);
-                    $("#ElementData").fadeIn('fast');
+                    $("#ElementData").html(data.d).fadeIn('fast');
                     InitThemeElementPropertiesForm();
                 }
                 else {
@@ -613,12 +598,11 @@ function initPage() {
 //alert(url);
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     // Toggle muted status
@@ -665,12 +649,11 @@ function initPage() {
 //alert(url);
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     // Toggle muted status
@@ -710,8 +693,7 @@ function initPage() {
         var datafield_id = $(this).attr('rel');
 
         // 
-        $("#ElementData").fadeOut();
-        $("#ElementData").html('');
+        $("#ElementData").fadeOut().html("");
         var url  = '{{ path('odr_design_get_radio_options', {'datafield_id': 0} ) }}';
         url = url.substring(0,(url.length-1));
         url += datafield_id;
@@ -719,17 +701,15 @@ function initPage() {
 //alert(url);
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     // 
-                    $("#ElementData").html(data.d.html);
-                    $("#ElementData").fadeIn('fast');
+                    $("#ElementData").html(data.d.html).fadeIn('fast');
                     InitRadioOptionsForm(datafield_id);
                 }
                 else {
@@ -868,21 +848,20 @@ function initPage() {
 
 var datafield_properties_xhr = null;
 var save_datafield_xhr = null;
-var SaveDatafieldPropertyInterval = "";
+var SaveDatafieldPropertyInterval = [];
 function SaveDatafieldProperty(datafield_id, reload_datafield) {
-    if(SaveDatafieldPropertyInterval != "") 
-        SaveDatafieldPropertyInterval = window.clearInterval(SaveDatafieldPropertyInterval);
+    if (SaveDatafieldPropertyInterval[datafield_id] != undefined)
+        SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
 
     var url = '{{ path('odr_design_get_datafield_properties', { 'datafield_id': 0 } ) }}';
     url = url.substring(0, (url.length - 1));
     url += datafield_id;
 
     var post_data = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
-    var dataType = "json";
     $.ajax({
         type: 'POST',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         data: post_data,
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
@@ -893,9 +872,7 @@ function SaveDatafieldProperty(datafield_id, reload_datafield) {
                     ReloadDatafield(datafield_id);
 
                 if (data.d.force_slideout_reload == true) {
-                    $("#ElementData").html('');
-                    $("#ElementData").html(data.d.html);
-                    $("#ElementData").fadeIn('fast');
+                    $("#ElementData").html("").html(data.d.html).fadeIn('fast');
                     InitDatafieldPropertiesForm();
                 }
             }
@@ -905,9 +882,7 @@ function SaveDatafieldProperty(datafield_id, reload_datafield) {
                 alert(data.error);
 
                 // Forcibly reload slideout
-                $("#ElementData").html('');
-                $("#ElementData").html(data.d.html);
-                $("#ElementData").fadeIn('fast');
+                $("#ElementData").html("").html(data.d.html).fadeIn('fast');
                 InitDatafieldPropertiesForm();
             }
         },
@@ -931,25 +906,23 @@ function SaveDatafieldProperty(datafield_id, reload_datafield) {
 }
 
 var starting_field_top, starting_field_left;
-var SaveThemeDatafieldPropertyInterval = "";
-function SaveThemeDatafieldProperty(id) {
-    if(SaveThemeDatafieldPropertyInterval != "") 
-        SaveThemeDatafieldPropertyInterval = window.clearInterval(SaveThemeDatafieldPropertyInterval);
+var SaveThemeDatafieldPropertyInterval = [];
+function SaveThemeDatafieldProperty(theme_datafield_id) {
+    if(SaveThemeDatafieldPropertyInterval[theme_datafield_id] != undefined)
+        SaveThemeDatafieldPropertyInterval[theme_datafield_id] = window.clearInterval(SaveThemeDatafieldPropertyInterval[theme_datafield_id]);
 
     var url = '{{ path('odr_design_save_theme_datafield', {'theme_datafield_id': 0}) }}';
     url = url.substring(0, url.length-1);
     url += id;
 
-    var datafield = $("#ThemeDatafieldPropertiesForm_" + id).next().attr('id').split(/_/);
+    var datafield = $("#ThemeDatafieldPropertiesForm_" + theme_datafield_id).next().attr('id').split(/_/);
     var datafield_id = datafield[1];
 
-    var post_data = $("#ThemeDatafieldPropertiesForm_" + id).serialize();
-    var dataType = "json";
-
+    var post_data = $("#ThemeDatafieldPropertiesForm_" + theme_datafield_id).serialize();
     $.ajax({
         type: 'POST',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         data: post_data,
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
@@ -1007,11 +980,11 @@ function SetupDataFields() {
 
         // Grab datafield id
         var id_data = $(this).attr('id').split(/_/);
-        var id = id_data[1];
+        var datafield_id = id_data[1];
 
         // Wait for a datafield property save to finish if required
         if (save_datafield_xhr != null) {
-            window.setTimeout("triggerClick(" + id + ")", SaveTimeout);
+            window.setTimeout("triggerClick(" + datafield_id + ")", SaveTimeout);
             return;
         }
 
@@ -1024,13 +997,11 @@ function SetupDataFields() {
         } 
 
         // Load form for current datafield if not already loaded
-        if (form_id != id) {
-            $("#ElementData").hide();
-            $("#ElementData").html("");
+        if (form_id != datafield_id) {
+            $("#ElementData").hide().html("");
             var url = '{{ path('odr_design_get_datafield_properties', { 'datafield_id': 0 } ) }}';
             url = url.substring(0, (url.length - 1));
-            url += id;
-            var dataType = "json";
+            url += datafield_id;
 
             // Attempt to ensure only the most recent datafield property request goes through
             if (datafield_properties_xhr !== null)
@@ -1041,11 +1012,10 @@ function SetupDataFields() {
                 cache: false,
                 type: 'GET',
                 url: url,
-                dataType: dataType,
+                dataType: "json",
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
-                        $("#ElementData").html(data.d.html);
-                        $("#ElementData").fadeIn('fast'); 
+                        $("#ElementData").html(data.d.html).fadeIn('fast');
                         InitDatafieldPropertiesForm();
                     }
                     else {
@@ -1135,8 +1105,8 @@ function InitDatafieldPropertiesForm() {
             if ( $(this).hasClass('ODRDatafieldChildren') )
                 reload_datafield = 'true';   // reload datafield upon change of images/radio options per row?
 
-            SaveDatafieldPropertyInterval = window.clearInterval(SaveDatafieldPropertyInterval);
-            SaveDatafieldPropertyInterval = window.setInterval("SaveDatafieldProperty(" + datafield_id + ", " + reload_datafield + ")", SaveTimeout);
+            SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
+            SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ", " + reload_datafield + ")", SaveTimeout);
 
             save_datafield_xhr = true;
         });
@@ -1157,8 +1127,8 @@ function InitDatafieldPropertiesForm() {
                 $("#Field_" + datafield_id).find(".ODRPseudoField").html(markdown_text);
             }
 
-            SaveDatafieldPropertyInterval = window.clearInterval(SaveDatafieldPropertyInterval);
-            SaveDatafieldPropertyInterval = window.setInterval("SaveDatafieldProperty(" + datafield_id + ",  false)", SaveTimeout);
+            SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
+            SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ",  false)", SaveTimeout);
 
             save_datafield_xhr = true;
         });
@@ -1177,8 +1147,8 @@ function InitDatafieldPropertiesForm() {
                 if ( $(this).hasClass('ODRDatafieldNameSort') )
                     reload_datafield = true;   // reload datafield upon setting radio options to sort by name in the datafield
 
-                SaveDatafieldPropertyInterval = window.clearInterval(SaveDatafieldPropertyInterval);
-                SaveDatafieldPropertyInterval = window.setInterval("SaveDatafieldProperty(" + datafield_id + ", " + reload_datafield + ")", SaveTimeout);
+                SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
+                SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ", " + reload_datafield + ")", SaveTimeout);
 
                 save_datafield_xhr = true;
             });
@@ -1193,8 +1163,8 @@ function InitDatafieldPropertiesForm() {
                     $("#Label_" + datafield_id).html(text);
                 }
 
-                SaveDatafieldPropertyInterval = window.clearInterval(SaveDatafieldPropertyInterval);
-                SaveDatafieldPropertyInterval = window.setInterval("SaveDatafieldProperty(" + datafield_id + ", false)", SaveTimeout);
+                SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
+                SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ", false)", SaveTimeout);
 
                 save_datafield_xhr = true;
             });
@@ -1306,12 +1276,12 @@ function InitDatafieldPropertiesForm() {
             }
 
 
-            if ( $("#has_datarecords").val() == '' || str === '' ||  confirm(str) ) {
+            if ( $("#has_datarecords").val() == '' || str === '' || confirm(str) ) {
                 // Datatype has no datarecords attached, or user doesn't care...save the change
                 SaveDatafieldProperty(datafield_id, true);  // reload datafield because fieldtype changed
                 save_datafield_xhr = true;
 
-                var str = '';
+                str = '';
                 if (current_fieldtype == '5')
                     str = 'No Character Limit';
                 else if (current_fieldtype == '6')
@@ -1323,10 +1293,12 @@ function InitDatafieldPropertiesForm() {
 
                 if (str !== '')
                     $("#field_type_meta").attr('title', str);
+
+                $("#previous_fieldtype").val(current_fieldtype);
             }
             else {
                 // Revert back to old field type
-                var previous_fieldtype = $("#previous_fieldtype").val();
+                previous_fieldtype = $("#previous_fieldtype").val();
                 $(this).val( previous_fieldtype );
             }
 
@@ -1341,13 +1313,12 @@ function InitSlideout() {
     // Load display template menu
     {#var url = '{{ path('odr_design_nav_slideout', {'datatype_id': datatype.id} ) }}';#}
     var url = '{{ path('odr_design_nav_slideout') }}';
-    var dataType = "json";
 
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {  
                 switch(data.t) {
@@ -1393,25 +1364,24 @@ function InitSlideout() {
    });
 }
 
-var SaveDataTypeInterval = "";
+var SaveDataTypeInterval = [];
 function SaveDatatypeProperties(datatype_id, short_name) {
-    if(SaveDataTypeInterval != "") 
-        SaveDataTypeInterval = window.clearInterval(SaveDataTypeInterval);
+    if (SaveDataTypeInterval[datatype_id] != undefined)
+        SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
 
     var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0 } ) }}';
     url = url.substring(0, (url.length - 1));
     url += datatype_id;
+
 //alert( url );
 //return;
     
     var form_data = $("#DatatypePropertiesForm_" + datatype_id).serialize();
-    var dataType = "json";
-
     $.ajax({
         type: 'POST',
         url: url,
         data: form_data,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 notifySaved();
@@ -1444,10 +1414,10 @@ function SaveDatatypeProperties(datatype_id, short_name) {
     });
 }
 
-var SaveDataTreeInterval = "";
+var SaveDataTreeInterval = [];
 function SaveDatatreeProperties(datatype_id, datatree_id) {
-    if(SaveDataTreeInterval != "")
-        SaveDataTreeInterval = window.clearInterval(SaveDataTreeInterval);
+    if (SaveDataTreeInterval[datatree_id] != undefined)
+        SaveDataTreeInterval[datatree_id] = window.clearInterval(SaveDataTreeInterval[datatree_id]);
 
     var url = '{{ path('odr_design_save_datatree', {'datatype_id': 0, 'datatree_id': 0}) }}';
     url = url.substring(0, (url.length - 3));
@@ -1457,13 +1427,11 @@ function SaveDatatreeProperties(datatype_id, datatree_id) {
 //return;
 
     var form_data = $("#DatatreePropertiesForm_" + datatree_id).serialize();
-    var dataType = "json";
-
     $.ajax({
         type: 'POST',
         url: url,
         data: form_data,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 notifySaved();
@@ -1497,23 +1465,21 @@ function SaveThemeElementOrder(container) {
     var theme_element_ids = {};
     $(container).children(".ODRThemeElement").each(function() {
         var id_data = $(this).attr('id').split(/_/);
-        var id = id_data[1];
-
-        theme_element_ids[i] = id;
+        theme_element_ids[i] = id_data[1];
         i++;
     });
 
     var url = '{{ path('odr_design_save_theme_element_order') }}';
+
 //alert( url );
 //return;
-    
-    var dataType = "json";
+
     $.ajax({
         cache: false,
         type: 'POST',
         data: theme_element_ids,
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
             }
@@ -1546,9 +1512,7 @@ function SaveDatafieldOrder(container, initial_theme_element_id, ending_theme_el
     var datafield_ids = {};
     $(container).children(".ODRDataField").each(function() {
         var id_data = $(this).attr('id').split(/_/);
-        var id = id_data[1];
-
-        datafield_ids[i] = id;
+        datafield_ids[i] = id_data[1];
         i++;
     });
 
@@ -1562,16 +1526,16 @@ function SaveDatafieldOrder(container, initial_theme_element_id, ending_theme_el
     var url = '{{ path('odr_design_save_datafield_order', {'initial_theme_element_id': 0, 'ending_theme_element_id' : 0} ) }}';
     url = url.substring(0, url.length-3);
     url += initial_theme_element_id + '/' + ending_theme_element_id;
+
 //alert( url );
 //return;
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'POST',
         data: datafield_ids,
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 // Don't reload a ThemeElement div unless a DataField got moved between different ThemeElements
@@ -1618,25 +1582,24 @@ function SaveDatafieldOrder(container, initial_theme_element_id, ending_theme_el
 }
 
 
-var SaveThemeElementInterval = "";
+var SaveThemeElementInterval = [];
 function SaveThemeElementProperties(theme_element_id) {
-    if(SaveThemeElementInterval != "") 
-        SaveThemeElementInterval = window.clearInterval(SaveThemeElementInterval);
+    if(SaveThemeElementInterval[theme_element_id] != undefined)
+        SaveThemeElementInterval[theme_element_id] = window.clearInterval(SaveThemeElementInterval[theme_element_id]);
 
     var url = '{{ path('odr_design_get_theme_element_properties', { 'theme_element_id': 0 } ) }}';
     url = url.substring(0, (url.length - 1));
     url += theme_element_id;
+
 //alert( url );
 //return;
 
     var form_data = $("#ThemeElementPropertiesForm_" + theme_element_id).serialize();
-    var dataType = "json";
-
     $.ajax({
         type: 'POST',
         url: url,
         data: form_data,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 // Grab css strings from the ajax return
@@ -1685,8 +1648,8 @@ function InitDatatypePropertiesForm() {
 
         $(this).unbind('change');
         $(this).change(function() {
-            SaveDataTypeInterval = window.clearInterval(SaveDataTypeInterval);
-            SaveDataTypeInterval = window.setInterval('SaveDatatypeProperties("' + datatype_id + '","")', SaveTimeout);
+            SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
+            SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '","")', SaveTimeout);
         });
     });
 
@@ -1697,8 +1660,8 @@ function InitDatatypePropertiesForm() {
         $(this).unbind('keyup');
         $(this).unbind('paste');
         $(this).on('keyup paste', function() {
-            SaveDataTypeInterval = window.clearInterval(SaveDataTypeInterval);
-            SaveDataTypeInterval = window.setInterval('SaveDatatypeProperties("' + datatype_id + '","")', SaveTimeout);
+            SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
+            SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '","")', SaveTimeout);
         });
     });
 
@@ -1709,8 +1672,8 @@ function InitDatatypePropertiesForm() {
         if( $(this).is(":checkbox") ) {
             $(this).unbind('change');
             $(this).change(function() {
-                SaveDataTypeInterval = window.clearInterval(SaveDataTypeInterval);
-                SaveDataTypeInterval = window.setInterval('SaveDatatypeProperties("' + datatype_id + '","")', SaveTimeout);
+                SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
+                SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '","")', SaveTimeout);
             });
         }
         else {
@@ -1727,8 +1690,8 @@ function InitDatatypePropertiesForm() {
                 if (is_short_name)
                     short_name = $(this).val().replace("'", "\'").replace("\"", "\\\"");
 
-                SaveDataTypeInterval = window.clearInterval(SaveDataTypeInterval);
-                SaveDataTypeInterval = window.setInterval('SaveDatatypeProperties("' + datatype_id + '","' + short_name + '")', SaveTimeout);
+                SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
+                SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '","' + short_name + '")', SaveTimeout);
             });
         }
     });
@@ -1743,8 +1706,8 @@ function InitDatatypePropertiesForm() {
         if( $(this).is(":checkbox") ) {
             $(this).unbind('change');
             $(this).change(function() {
-                SaveDataTreeInterval = window.clearInterval(SaveDataTreeInterval);
-                SaveDataTreeInterval = window.setInterval('SaveDatatreeProperties("' + datatype_id + '","' + datatree_id + '")', SaveTimeout);
+                SaveDataTreeInterval[datatree_id] = window.clearInterval(SaveDataTreeInterval[datatree_id]);
+                SaveDataTreeInterval[datatree_id] = window.setInterval('SaveDatatreeProperties("' + datatype_id + '","' + datatree_id + '")', SaveTimeout);
             });
         }
     });
@@ -1758,8 +1721,8 @@ function InitThemeElementPropertiesForm() {
 
         $(this).unbind('change');
         $(this).change(function() {
-            SaveThemeElementInterval = window.clearInterval(SaveThemeElementInterval);
-            SaveThemeElementInterval = window.setInterval("SaveThemeElementProperties('" + theme_element_id + "')", SaveTimeout);
+            SaveThemeElementInterval[theme_element_id] = window.clearInterval(SaveThemeElementInterval[theme_element_id]);
+            SaveThemeElementInterval[theme_element_id] = window.setInterval("SaveThemeElementProperties('" + theme_element_id + "')", SaveTimeout);
         });
     });
 }
@@ -1776,15 +1739,15 @@ function CopyDatafield(datafield_id) {
     var url = '{{ path('odr_design_copy_datafield', { 'datatype_id': 0, 'theme_element_id': 0, 'datafield_id': 0 } ) }}';
     url = url.substring(0, (url.length - 5));
     url += datatype_id + '/' + theme_element_id + '/' + datafield_id;
+
 //alert( url );
 //return;
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 // Clear right slideout
@@ -1820,15 +1783,15 @@ function DeleteDatafield(datafield_id) {
     var url = '{{ path('odr_design_delete_datafield', { 'datafield_id': 0 } ) }}';
     url = url.substring(0, (url.length - 1));
     url += datafield_id;
+
 //alert( url );
 //return;
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 // Grab containing ThemeElement and its id
@@ -1931,8 +1894,8 @@ function InitRadioOptionsForm(datafield_id) {
 
             }
 
-            SaveRadioOptionNameInterval = window.clearInterval(SaveRadioOptionNameInterval);
-            SaveRadioOptionNameInterval = window.setInterval("SaveRadioOptionName(" + datafield_id + "," + radio_option_id + ")", SaveTimeout);
+            SaveRadioOptionNameInterval[radio_option_id] = window.clearInterval(SaveRadioOptionNameInterval[radio_option_id]);
+            SaveRadioOptionNameInterval[radio_option_id] = window.setInterval("SaveRadioOptionName(" + datafield_id + "," + radio_option_id + ")", SaveTimeout);
         });
     });
 
@@ -1967,9 +1930,7 @@ function SaveRadioOptionOrder(alphabetical_sort) {
     var radio_option_ids = {};
     $(".ODRSortableOption").children().each(function() {
         var id_data = $(this).attr('id').split(/_/);
-        var id = id_data[2];
-
-        radio_option_ids[i] = id;
+        radio_option_ids[i] = id_data[2];
         i++;
     });
 
@@ -1979,16 +1940,16 @@ function SaveRadioOptionOrder(alphabetical_sort) {
     var url = '{{ path('odr_design_save_radio_option_order', {'datafield_id': 0, 'alphabetical_sort': 0} ) }}';
     url = url.substring(0, url.length-3);
     url += datafield_id + '/' + alphabetical_sort;
+
 //alert( url );
 //return;
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'POST',
         data: radio_option_ids,
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 notifySaved();
@@ -2021,22 +1982,20 @@ function SaveRadioOptionOrder(alphabetical_sort) {
 }
 
 
-var SaveRadioOptionNameInterval = "";
+var SaveRadioOptionNameInterval = [];
 function SaveRadioOptionName(datafield_id, radio_option_id) {
-    if(SaveRadioOptionNameInterval != "") 
-        SaveRadioOptionNameInterval = window.clearInterval(SaveRadioOptionNameInterval);
+    if (SaveRadioOptionNameInterval[radio_option_id] != undefined)
+        SaveRadioOptionNameInterval[radio_option_id] = window.clearInterval(SaveRadioOptionNameInterval[radio_option_id]);
 
     var url = '{{ path('odr_design_save_radio_option_name', { 'radio_option_id': 0 }) }}';
     url = url.substring(0,(url.length - 1));
     url += radio_option_id;
 
     var post_data = $("#ODRRadioOptionsForm_0").find("#radio_option_" + radio_option_id + "_name").serialize();    // only want one field
-
-    var dataType = "json";
     $.ajax({
         type: 'POST',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         data: post_data,
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
@@ -2080,12 +2039,11 @@ function AddOption(datafield_id) {
 //alert(url);
 //return;
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 // Refresh right slideout
@@ -2125,12 +2083,11 @@ function ImportRadioOption(datafield_id) {
 //alert(url);
 //return;
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 alert('schema built, beginning import process...');
@@ -2186,12 +2143,11 @@ function DeleteOption(radio_option_id, datafield_id) {
 //alert(url);
 //return;
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
 //                ReloadDatafield(datafield_id);
@@ -2233,12 +2189,11 @@ function DefaultOption(radio_option_id) {
 //alert(url);
 //return;
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 notifySaved();
@@ -2446,12 +2401,11 @@ function openPluginSettingsDialog(datafield_id, datatype_id) {
     url = url.substring(0,(url.length - 3));
     url += datatype_id + '/' + datafield_id;
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 $("#dialog_plugin_settings .form_contents").html(data.d.html);

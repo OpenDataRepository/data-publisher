@@ -165,9 +165,16 @@
             {{ form_errors(datafield_form.radio_option_name_sort) }}
             {{ form_widget(datafield_form.radio_option_name_sort, { 'attr': {'class': 'ODRDatafieldNameSort', 'style': 'width:auto'} }) }}
         </div>
+        <div class="pure-control-group">
+            <label for="{{datafield_form.radio_option_display_unselected.vars.id}}">
+                <strong>{{datafield_form.radio_option_display_unselected.vars.label}}</strong>
+            </label>
+            {{ form_errors(datafield_form.radio_option_display_unselected) }}
+            {{ form_widget(datafield_form.radio_option_display_unselected, { 'attr': {'style': 'width:auto'} }) }}
+        </div>
         {% endif %}
 
-        {% if typename != 'Markdown' %}   {# all fields except these two are searchable to some degree #}
+        {% if typename != 'Markdown' %}   {# all fields except markdown are searchable to some degree #}
         <div class="pure-control-group">
             <label for="{{datafield_form.searchable.vars.id}}">
                 <strong>{{datafield_form.searchable.vars.label}}</strong>

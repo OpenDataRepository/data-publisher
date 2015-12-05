@@ -16,35 +16,13 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
-// Entites
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
+// Entities
 use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\LinkedDataTree;
-use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
-use ODR\AdminBundle\Entity\Boolean;
-use ODR\AdminBundle\Entity\ShortVarchar;
-use ODR\AdminBundle\Entity\MediumVarchar;
-use ODR\AdminBundle\Entity\LongVarchar;
-use ODR\AdminBundle\Entity\LongText;
-use ODR\AdminBundle\Entity\File;
-use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\ImageSizes;
-use ODR\AdminBundle\Entity\ImageStorage;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RadioSelection;
-use ODR\AdminBundle\Entity\DecimalValue;
-use ODR\AdminBundle\Entity\DatetimeValue;
-use ODR\AdminBundle\Entity\IntegerValue;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Form\FormError;
 
 
@@ -99,6 +77,7 @@ class RecordController extends ODRCustomController
 
             $radio_selections = $em->getRepository('ODRAdminBundle:RadioSelection')->findBy( array('dataRecordFields' => $datarecordfield->getId()) );
 
+            $radio_option = null;
             if ($radio_option_id != "0") {
                 $repo_radio_options = $em->getRepository('ODRAdminBundle:RadioOptions');
                 $radio_option = $repo_radio_options->find($radio_option_id);
@@ -243,15 +222,31 @@ class RecordController extends ODRCustomController
                 'datarecord_id' => $datarecord->getId()
             );
 
+
+            // ----------------------------------------
             // Build the cache entries for this new datarecord
             $options = array();
             parent::updateDatarecordCache($datarecord->getId(), $options);
 
-            // Delete the list of DataRecords for this DataType that ShortResults uses to build its list
+            // Delete the cached string containing the ordered list of datarecords for this datatype
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
+
+            // See if any cached search results need to be deleted...
+            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            if ( isset($cached_searches[$datatype_id]) ) {
+                // Delete all cached search results for this datatype that were NOT run with datafield criteria
+                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
+                    $searched_datafields = $search_data['searched_datafields'];
+                    if ($searched_datafields == '')
+                        unset( $cached_searches[$datatype_id][$search_checksum] );
+                }
+
+                // Save the collection of cached searches back to memcached
+                $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -388,6 +383,7 @@ class RecordController extends ODRCustomController
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('Datatype');
+            $datatype_id = $datatype->getId();
 
 
             // --------------------
@@ -396,7 +392,7 @@ class RecordController extends ODRCustomController
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'delete' ])) )
+            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'delete' ])) )
                 return parent::permissionDeniedError("delete DataRecords from");
             // --------------------
 
@@ -457,12 +453,34 @@ class RecordController extends ODRCustomController
 
 
             // Schedule all datarecords that were connected to the now deleted datarecord for a recache
-            foreach ($recache_list as $num => $datarecord_id) {
-                parent::updateDatarecordCache($datarecord_id);
+            foreach ($recache_list as $num => $dr_id) {
+                parent::updateDatarecordCache($dr_id);
+            }
+
+            // ----------------------------------------
+            // See if any cached search results need to be deleted...
+            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            if ( isset($cached_searches[$datatype_id]) ) {
+                // Delete all cached search results for this datatype that contained this now-deleted datarecord
+                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
+
+                    $datarecord_list = '';
+                    if ( isset($search_data['logged_in']) )
+                        $datarecord_list = $search_data['logged_in']['datarecord_list'];
+                    else
+                        $datarecord_list = $search_data['not_logged_in']['datarecord_list'];
+
+                    $datarecord_list = explode(',', $datarecord_list);
+                    if ( in_array($datarecord_id, $datarecord_list) )
+                        unset ( $cached_searches[$datatype_id][$search_checksum] );
+                }
+
+                // Save the collection of cached searches back to memcached
+                $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
             }
 
 
-            // -----------------------------------
+            // ----------------------------------------
             // Determine how many datarecords of this datatype remain
             $query = $em->createQuery(
                'SELECT dr.id AS dr_id
@@ -1238,7 +1256,7 @@ class RecordController extends ODRCustomController
 
             // Save the old value incase we have to revert
             $drf = $my_obj->getDataRecordFields();
-             $tmp_obj = $drf->getAssociatedEntity();
+            $tmp_obj = $drf->getAssociatedEntity();
             $old_value = $tmp_obj->getValue();
 
             if ($record_type == 'DatetimeValue')
@@ -1251,30 +1269,9 @@ class RecordController extends ODRCustomController
 
                 // If the datafield is marked as unique...
                 if ( $datafield->getIsUnique() == true ) {
-                    // Mysql requires a different comparision if checking for duplicates of a null value...
-                    $comparision = $parameters = null;
-                    if ($new_value != null) {
-                        $comparision = '= :value';
-                        $parameters = array('datafield' => $datafield->getId(), 'value' => $new_value);
-                    }
-                    else {
-                        $comparision = 'IS NULL';
-                        $parameters = array('datafield' => $datafield->getId());
-                    }
-
-                    // Run a quick query to check whether the new value is a duplicate of an existing value 
-                    $query = $em->createQuery(
-                       'SELECT e.id
-                        FROM ODRAdminBundle:'.$record_type.' AS e
-                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                        JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                        WHERE e.dataField = :datafield AND e.value '.$comparision.'
-                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-                    )->setParameters( $parameters );
-                    $results = $query->getArrayResult();
-
-                    // If something got returned, add a Symfony error to the form so the subsequent isValid() call will fail
-                    if ( count($results) > 0 )
+                    // ...determine whether the new value is a duplicate of a value that already exists
+                    $found_existing_value = self::findExistingValue($em, $datafield, $datarecord->getParent()->getId(), $new_value);
+                    if ($found_existing_value)
                         $form->addError( new FormError('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield...reverting back to old value.') );
                 }
 
@@ -1315,17 +1312,26 @@ class RecordController extends ODRCustomController
 
                     // Refresh the cache entries for this datarecord
                     parent::updateDatarecordCache($datarecord_id, $options);
+
+
+                    // ----------------------------------------
+                    // See if any cached search results need to be deleted...
+                    $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+                    if ( isset($cached_searches[$datatype_id]) ) {
+                        // Delete all cached search results for this datatype that were run with criteria for this specific datafield
+                        foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
+                            $searched_datafields = $search_data['searched_datafields'];
+                            $searched_datafields = explode(',', $searched_datafields);
+
+                            if ( in_array($datafield_id, $searched_datafields) )
+                                unset( $cached_searches[$datatype_id][$search_checksum] );
+                        }
+
+                        // Save the collection of cached searches back to memcached
+                        $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+                    }
                 }
                 else {
-/*
-//                    $errors = $this->getErrorMessages($form);
-                    $errors = parent::ODR_getErrorMessages($form);
-//print_r($errors);   // TODO - what was the point of this?
-//exit();
-//                    $error = $errors['file'][0];
-//                    $error = $errors['uploaded_file'][0];
-                    throw new \Exception($errors);
-*/
                     // Form validation failed
                     // TODO - fix parent::ODR_getErrorMessages() to be consistent enough to use
                     $return['r'] = 2;
@@ -1337,7 +1343,6 @@ class RecordController extends ODRCustomController
                         $error_str .= 'ERROR: '.$error->getMessage()."\n";
 
                     $return['error'] = $error_str;
-
                 }
             }
         }
@@ -1350,6 +1355,80 @@ class RecordController extends ODRCustomController
         $response = new Response(json_encode($return));  
         $response->headers->set('Content-Type', 'application/json');
         return $response;  
+    }
+
+
+    /**
+     * Returns whether the provided value would violate uniqueness constraints for the given datafield.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param Datafields $datafield
+     * @param integer $parent_datarecord_id
+     * @param mixed $new_value
+     *
+     * @return boolean
+     */
+    private function findExistingValue($em, $datafield, $parent_datarecord_id, $new_value)
+    {
+        // Going to need these...
+        $datatype_id = $datafield->getDataType()->getId();
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+
+        // Determine if this datafield belongs to a top-level datatype or not
+        $is_child_datatype = false;
+        $datatree_array = parent::getDatatreeArray($em);
+        if ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '' )
+            $is_child_datatype = true;
+
+        // Mysql requires a different comparision if checking for duplicates of a null value...
+        $comparision = $parameters = null;
+        if ($new_value != null) {
+            $comparision = 'e.value = :value';
+            $parameters = array('datafield' => $datafield->getId(), 'value' => $new_value);
+        }
+        else {
+            $comparision = '(e.value IS NULL OR e.value = :value)';
+            $parameters = array('datafield' => $datafield->getId(), 'value' => '');
+        }
+
+        // Also search on parent datarecord id if it was passed in
+        if ($is_child_datatype)
+            $parameters['parent_datarecord_id'] = $parent_datarecord_id;
+
+        if (!$is_child_datatype) {
+            $query = $em->createQuery(
+               'SELECT e.id
+                FROM ODRAdminBundle:'.$typeclass.' AS e
+                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                WHERE e.dataField = :datafield AND '.$comparision.'
+                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+            )->setParameters($parameters);
+            $results = $query->getArrayResult();
+
+            // The given value already exists in this datafield
+            if ( count($results) > 0 )
+                return true;
+        }
+        else {
+            $query = $em->createQuery(
+               'SELECT e.id
+                FROM ODRAdminBundle:'.$typeclass.' AS e
+                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
+                WHERE e.dataField = :datafield AND '.$comparision.' AND parent.id = :parent_datarecord_id
+                AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
+            )->setParameters($parameters);
+            $results = $query->getArrayResult();
+
+            // The given value already exists in this datafield
+            if ( count($results) > 0 )
+                return true;
+        }
+
+        // The given value does not exist in this datafield
+        return false;
     }
 
 
@@ -2119,6 +2198,7 @@ if ($debug)
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
             // TODO - not accurate, technically...
             if ($datarecord->getProvisioned() == true)
@@ -2131,7 +2211,7 @@ if ($debug)
             $logged_in = true;
 
             // Ensure user has permissions to be doing this
-            if ( !( isset($user_permissions[$datatype->getId()]) && ( isset($user_permissions[$datatype->getId()]['edit']) || isset($user_permissions[$datatype->getId()]['child_edit']) ) ) )
+            if ( !( isset($user_permissions[$datatype_id]) && ( isset($user_permissions[$datatype_id]['edit']) || isset($user_permissions[$datatype_id]['child_edit']) ) ) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -2144,8 +2224,8 @@ if ($debug)
             $datarecord_list = '';
             $encoded_search_key = '';
             if ($search_key !== '') {
-                // 
-                $data = parent::getSavedSearch($search_key, $logged_in, $request);
+                //
+                $data = parent::getSavedSearch($datatype_id, $search_key, $logged_in, $request);
                 $encoded_search_key = $data['encoded_search_key'];
                 $datarecord_list = $data['datarecord_list'];
 

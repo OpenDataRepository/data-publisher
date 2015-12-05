@@ -21,7 +21,7 @@
             {% include 'ODRAdminBundle:CSVImport:parent_datatype_settings.html.twig' with {'parent_datatype': parent_datatype, 'datatype': datatype, 'linked_importing': linked_importing, 'columns': columns, 'presets': presets} %}
         {% endif %}
 
-{%  if not linked_importing %}
+{% if not linked_importing %}
         {% include 'ODRAdminBundle:CSVImport:uniqueness_warnings.html.twig' with {'datatype': datatype, 'datafields': datafields} %}
 
         <table id="csv_import_table" class="pure-table pure-table-striped" style="font-size: 1.25em;">
@@ -44,7 +44,9 @@
 
                     <td>
                         <input type="checkbox" id="column_{{ column_id }}_unique" class="unique_checkbox" name="unique_columns[{{ column_id }}]" value="1" disabled rel="{{ column_id }}" />
-                        <span class="inline_warning">&nbsp;<i class="fa fa-lg fa-exclamation-circle Cursor"></i>&nbsp;Datafield must have unique values</span>
+                        <span class="inline_warning" title="{% if parent_datatype == null %}This column of the CSV file must NOT contain any duplicates{% else %}TODO{% endif %}">
+                            &nbsp;<i class="fa fa-lg fa-question-circle Pointer"></i>
+                        </span>
                     </td>
 
                     <td>
@@ -263,13 +265,13 @@
 
         // Display some metadata about the selected fieldtype if needed
         if ( $(fieldtype).val()  == '5' )
-            $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;No character limit');
+            $("#column_" + column_id + "_meta").html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;No character limit');
         else if ( $(fieldtype).val()  == '6' )
-            $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;255 character limit');
+            $("#column_" + column_id + "_meta").html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;255 character limit');
         else if ( $(fieldtype).val()  == '7' )
-            $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;64 character limit');
+            $("#column_" + column_id + "_meta").html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;64 character limit');
         else if ( $(fieldtype).val()  == '9' )
-            $("#column_" + column_id + "_meta").html('<i class="fa fa-question-circle fa-lg"></i>&nbsp;32 character limit');
+            $("#column_" + column_id + "_meta").html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;32 character limit');
         else
             $("#column_" + column_id + "_meta").html('');
 

@@ -20,14 +20,13 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\File;
-use ODR\AdminBundle\Entity\Image;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
+
 
 class FlowController extends ODRCustomController
 {
@@ -266,7 +265,7 @@ class FlowController extends ODRCustomController
                 // Don't have to check filesize again...the sum of the sizes of the uploaded chunks have to match $expected_size, and too large of a file would be caught earlier
 
                 // Have Symfony check mimetype now that file is uploaded...
-                if ( !in_array($uploaded_file->getMimeType(), $validation_params['mimeTypes']) ) {
+                if ( count($validation_params['mimeTypes']) > 0 && !in_array($uploaded_file->getMimeType(), $validation_params['mimeTypes']) ) {
                     // Not allowed to upload file...delete it
                     unlink( $destination );
 

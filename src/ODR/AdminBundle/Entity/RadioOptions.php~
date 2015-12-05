@@ -1,24 +1,21 @@
 <?php
-
 /**
-* Open Data Repository Data Publisher
-* RadioOptions Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The RadioOptions Entity is automatically generated from 
-* ./Resources/config/doctrine/RadioOptions.orm.yml
-*
-*/
-
+ * Open Data Repository Data Publisher
+ * RadioOptions Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The RadioOptions Entity is automatically generated from
+ * ./Resources/config/doctrine/RadioOptions.orm.yml
+ */
 
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * ODR\AdminBundle\Entity\RadioOptions
+ * RadioOptions
  */
 class RadioOptions
 {
@@ -43,6 +40,16 @@ class RadioOptions
     private $displayOrder;
 
     /**
+     * @var boolean
+     */
+    private $isDefault;
+
+    /**
+     * @var string
+     */
+    private $external_id;
+
+    /**
      * @var \DateTime
      */
     private $deletedAt;
@@ -56,6 +63,16 @@ class RadioOptions
      * @var \DateTime
      */
     private $updated;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $children;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\RadioOptions
+     */
+    private $parent;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataFields
@@ -72,6 +89,13 @@ class RadioOptions
      */
     private $updatedBy;
 
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->children = new \Doctrine\Common\Collections\ArrayCollection();
+    }
 
     /**
      * Get id
@@ -92,7 +116,7 @@ class RadioOptions
     public function setValue($value)
     {
         $this->value = $value;
-    
+
         return $this;
     }
 
@@ -115,7 +139,7 @@ class RadioOptions
     public function setOptionName($optionName)
     {
         $this->optionName = $optionName;
-    
+
         return $this;
     }
 
@@ -138,7 +162,7 @@ class RadioOptions
     public function setDisplayOrder($displayOrder)
     {
         $this->displayOrder = $displayOrder;
-    
+
         return $this;
     }
 
@@ -151,150 +175,6 @@ class RadioOptions
     {
         return $this->displayOrder;
     }
-
-    /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return RadioOptions
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-    
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
-    }
-
-    /**
-     * Set created
-     *
-     * @param \DateTime $created
-     * @return RadioOptions
-     */
-    public function setCreated($created)
-    {
-        $this->created = $created;
-    
-        return $this;
-    }
-
-    /**
-     * Get created
-     *
-     * @return \DateTime 
-     */
-    public function getCreated()
-    {
-        return $this->created;
-    }
-
-    /**
-     * Set updated
-     *
-     * @param \DateTime $updated
-     * @return RadioOptions
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-    
-        return $this;
-    }
-
-    /**
-     * Get updated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
-    }
-
-    /**
-     * Set dataFields
-     *
-     * @param \ODR\AdminBundle\Entity\DataFields $dataFields
-     * @return RadioOptions
-     */
-    public function setDataFields(\ODR\AdminBundle\Entity\DataFields $dataFields = null)
-    {
-        $this->dataFields = $dataFields;
-    
-        return $this;
-    }
-
-    /**
-     * Get dataFields
-     *
-     * @return \ODR\AdminBundle\Entity\DataFields 
-     */
-    public function getDataFields()
-    {
-        return $this->dataFields;
-    }
-
-    /**
-     * Set createdBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
-     * @return RadioOptions
-     */
-    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
-    {
-        $this->createdBy = $createdBy;
-    
-        return $this;
-    }
-
-    /**
-     * Get createdBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getCreatedBy()
-    {
-        return $this->createdBy;
-    }
-
-    /**
-     * Set updatedBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return RadioOptions
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-    
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
-    }
-
-    /**
-     * @var boolean
-     */
-    private $isDefault;
-
 
     /**
      * Set isDefault
@@ -320,27 +200,9 @@ class RadioOptions
     }
 
     /**
-     * Get XMLFieldName
-     *
-     * @return string
-     */
-    public function getXMLOptionName()
-    {
-        $search = array(" ", "\'", "\"", "<", ">", "&", "?", "(", ")");
-        $replacements = array("_", "", "", "&lt;", "&gt;", "&amp;", "", "", "");
-
-        return str_replace($search, $replacements, $this->optionName);
-    }
-
-    /**
-     * @var integer
-     */
-    private $external_id;
-
-    /**
      * Set external_id
      *
-     * @param integer $externalId
+     * @param string $externalId
      * @return RadioOptions
      */
     public function setExternalId($externalId)
@@ -353,30 +215,80 @@ class RadioOptions
     /**
      * Get external_id
      *
-     * @return integer 
+     * @return string 
      */
     public function getExternalId()
     {
         return $this->external_id;
     }
 
-
     /**
-     * @var \Doctrine\Common\Collections\Collection
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return RadioOptions
      */
-    private $children;
-
-    /**
-     * @var \ODR\AdminBundle\Entity\RadioOptions
-     */
-    private $parent;
-
-    /**
-     * Constructor
-     */
-    public function __construct()
+    public function setDeletedAt($deletedAt)
     {
-        $this->children = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+
+    /**
+     * Set created
+     *
+     * @param \DateTime $created
+     * @return RadioOptions
+     */
+    public function setCreated($created)
+    {
+        $this->created = $created;
+
+        return $this;
+    }
+
+    /**
+     * Get created
+     *
+     * @return \DateTime 
+     */
+    public function getCreated()
+    {
+        return $this->created;
+    }
+
+    /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return RadioOptions
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime 
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
     }
 
     /**
@@ -433,5 +345,87 @@ class RadioOptions
     public function getParent()
     {
         return $this->parent;
+    }
+
+    /**
+     * Set dataFields
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $dataFields
+     * @return RadioOptions
+     */
+    public function setDataFields(\ODR\AdminBundle\Entity\DataFields $dataFields = null)
+    {
+        $this->dataFields = $dataFields;
+
+        return $this;
+    }
+
+    /**
+     * Get dataFields
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields 
+     */
+    public function getDataFields()
+    {
+        return $this->dataFields;
+    }
+
+    /**
+     * Set createdBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
+     * @return RadioOptions
+     */
+    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
+    {
+        $this->createdBy = $createdBy;
+
+        return $this;
+    }
+
+    /**
+     * Get createdBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getCreatedBy()
+    {
+        return $this->createdBy;
+    }
+
+    /**
+     * Set updatedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return RadioOptions
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
+    }
+
+    /**
+     * Get XMLOptionName
+     *
+     * @return string
+     */
+    public function getXMLOptionName()
+    {
+        $search = array(" ", "\'", "\"", "<", ">", "&", "?", "(", ")");
+        $replacements = array("_", "", "", "&lt;", "&gt;", "&amp;", "", "", "");
+
+        return str_replace($search, $replacements, $this->optionName);
     }
 }

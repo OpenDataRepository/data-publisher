@@ -6,7 +6,7 @@
 </h1>
 
 <form id="massedit_form" style="display:none;" action="{{ path('odr_mass_update_start') }}">
-    <input type="hidden" value="{{ search_checksum }}" name="search_checksum"/>
+    <input type="hidden" value="{{ odr_tab_id }}" name="odr_tab_id"/>
     <input type="hidden" value="{{ datatype.id }}" name="datatype_id"/>
 </form>
 
@@ -106,7 +106,7 @@ function initPage() {
         var found = false;
         $(this).find("input").each(function() {
             found = true;
-            return;
+            return false;
         });
 
         if (!found)

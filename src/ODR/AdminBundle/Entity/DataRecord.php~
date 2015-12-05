@@ -14,7 +14,6 @@
 * code duplication elsewhere.
 */
 
-
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
@@ -103,6 +102,11 @@ class DataRecord
      * @var \ODR\AdminBundle\Entity\DataType
      */
     private $dataType;
+
+    /**
+     * @var boolean
+     */
+    private $provisioned;
 
     /**
      * Constructor
@@ -569,12 +573,6 @@ class DataRecord
         else
             return true;
     }
-
-    /**
-     * @var boolean
-     */
-    private $provisioned;
-
 
     /**
      * Set provisioned

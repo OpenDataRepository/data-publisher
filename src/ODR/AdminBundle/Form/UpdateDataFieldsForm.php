@@ -9,7 +9,6 @@
 *
 */
 
-//ODR/AdminBundle/Forms/UpdateDatafieldsForm.class.php
 namespace ODR\AdminBundle\Form;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -17,17 +16,30 @@ use Symfony\Component\OptionsResolver\OptionsResolverInterface;
 
 use Doctrine\ORM\EntityRepository;
 
-class UpdateDatafieldsForm extends AbstractType
+class UpdateDataFieldsForm extends AbstractType
 {
+    protected $allowed_fieldtypes;
+    public function __construct (array $allowed_fieldtypes) {
+        $this->allowed_fieldtypes = $allowed_fieldtypes;
+    }
+
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
+        $allowed_fieldtypes = $this->allowed_fieldtypes;
         $builder->add(
             'field_type',
-            'entity', 
+            'entity',
             array(
-                'class' => 'ODR\AdminBundle\Entity\FieldType', 
-                'property' => 'type_name', 
+                'class' => 'ODR\AdminBundle\Entity\FieldType',
+                'query_builder' => function(EntityRepository $er) use ($allowed_fieldtypes) {
+                    return $er->createQueryBuilder('ft')
+                                ->where('ft.id IN (:types)')
+                                ->setParameter('types', $allowed_fieldtypes);
+                },
                 'label' => 'Field Type',
+                'property' => 'typeName',
+                'expanded' => false,
+                'multiple' => false,
             )
         );
 /*
@@ -166,6 +178,14 @@ class UpdateDatafieldsForm extends AbstractType
             'checkbox',
             array(
                 'label'  => 'Sort Options Alphabetically',
+                'required' => false
+            )
+        );
+        $builder->add(
+            'radio_option_display_unselected',
+            'checkbox',
+            array(
+                'label'  => 'Display Unselected Options',
                 'required' => false
             )
         );

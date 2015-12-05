@@ -95,6 +95,11 @@ class DataFields
     private $radio_option_name_sort;
 
     /**
+     * @var boolean
+     */
+    private $radio_option_display_unselected;
+
+    /**
      * @var integer
      */
     private $searchable;
@@ -476,6 +481,29 @@ class DataFields
     public function getRadioOptionNameSort()
     {
         return $this->radio_option_name_sort;
+    }
+
+    /**
+     * Set radio_option_display_unselected
+     *
+     * @param boolean $radioOptionDisplayUnselected
+     * @return DataFields
+     */
+    public function setRadioOptionDisplayUnselected($radioOptionDisplayUnselected)
+    {
+        $this->radio_option_display_unselected = $radioOptionDisplayUnselected;
+
+        return $this;
+    }
+
+    /**
+     * Get radio_option_display_unselected
+     *
+     * @return boolean
+     */
+    public function getRadioOptionDisplayUnselected()
+    {
+        return $this->radio_option_display_unselected;
     }
 
     /**

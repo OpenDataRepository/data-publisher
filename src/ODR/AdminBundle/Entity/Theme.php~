@@ -1,154 +1,55 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* Theme Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The Theme Entity is automatically generated from 
-* ./Resources/config/doctrine/Theme.orm.yml
-*
-*/
-
+ * Open Data Repository Data Publisher
+ * Theme Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The Theme Entity is automatically generated from
+ * ./Resources/config/doctrine/Theme.orm.yml
+ */
 
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * ODR\AdminBundle\Entity\Theme
+ * Theme
  */
 class Theme
 {
     /**
-     * @var integer $id
+     * @var integer
      */
     private $id;
 
     /**
-     * @var string $templateName
+     * @var string
      */
     private $templateName;
 
     /**
-     * @var string $templateDescription
+     * @var string
      */
     private $templateDescription;
 
     /**
-     * @var string $templatePreview
+     * @var string
+     */
+    private $templateType;
+
+    /**
+     * @var string
      */
     private $templatePreview;
 
     /**
-     * @var boolean $isDefault
+     * @var boolean
      */
     private $isDefault;
 
-
-    /**
-     * Get id
-     *
-     * @return integer 
-     */
-    public function getId()
-    {
-        return $this->id;
-    }
-
-    /**
-     * Set templateName
-     *
-     * @param string $templateName
-     * @return Theme
-     */
-    public function setTemplateName($templateName)
-    {
-        $this->templateName = $templateName;
-    
-        return $this;
-    }
-
-    /**
-     * Get templateName
-     *
-     * @return string 
-     */
-    public function getTemplateName()
-    {
-        return $this->templateName;
-    }
-
-    /**
-     * Set templateDescription
-     *
-     * @param string $templateDescription
-     * @return Theme
-     */
-    public function setTemplateDescription($templateDescription)
-    {
-        $this->templateDescription = $templateDescription;
-    
-        return $this;
-    }
-
-    /**
-     * Get templateDescription
-     *
-     * @return string 
-     */
-    public function getTemplateDescription()
-    {
-        return $this->templateDescription;
-    }
-
-    /**
-     * Set templatePreview
-     *
-     * @param string $templatePreview
-     * @return Theme
-     */
-    public function setTemplatePreview($templatePreview)
-    {
-        $this->templatePreview = $templatePreview;
-    
-        return $this;
-    }
-
-    /**
-     * Get templatePreview
-     *
-     * @return string 
-     */
-    public function getTemplatePreview()
-    {
-        return $this->templatePreview;
-    }
-
-    /**
-     * Set isDefault
-     *
-     * @param boolean $isDefault
-     * @return Theme
-     */
-    public function setIsDefault($isDefault)
-    {
-        $this->isDefault = $isDefault;
-    
-        return $this;
-    }
-
-    /**
-     * Get isDefault
-     *
-     * @return boolean 
-     */
-    public function getIsDefault()
-    {
-        return $this->isDefault;
-    }
     /**
      * @var \DateTime
      */
@@ -176,6 +77,131 @@ class Theme
 
 
     /**
+     * Get id
+     *
+     * @return integer 
+     */
+    public function getId()
+    {
+        return $this->id;
+    }
+
+    /**
+     * Set templateName
+     *
+     * @param string $templateName
+     * @return Theme
+     */
+    public function setTemplateName($templateName)
+    {
+        $this->templateName = $templateName;
+
+        return $this;
+    }
+
+    /**
+     * Get templateName
+     *
+     * @return string 
+     */
+    public function getTemplateName()
+    {
+        return $this->templateName;
+    }
+
+    /**
+     * Set templateDescription
+     *
+     * @param string $templateDescription
+     * @return Theme
+     */
+    public function setTemplateDescription($templateDescription)
+    {
+        $this->templateDescription = $templateDescription;
+
+        return $this;
+    }
+
+    /**
+     * Get templateDescription
+     *
+     * @return string 
+     */
+    public function getTemplateDescription()
+    {
+        return $this->templateDescription;
+    }
+
+    /**
+     * Set templateType
+     *
+     * @param string $templateType
+     * @return Theme
+     */
+    public function setTemplateType($templateType)
+    {
+        $this->templateType = $templateType;
+
+        return $this;
+    }
+
+    /**
+     * Get templateType
+     *
+     * @return string 
+     */
+    public function getTemplateType()
+    {
+        return $this->templateType;
+    }
+
+    /**
+     * Set templatePreview
+     *
+     * @param string $templatePreview
+     * @return Theme
+     */
+    public function setTemplatePreview($templatePreview)
+    {
+        $this->templatePreview = $templatePreview;
+
+        return $this;
+    }
+
+    /**
+     * Get templatePreview
+     *
+     * @return string 
+     */
+    public function getTemplatePreview()
+    {
+        return $this->templatePreview;
+    }
+
+    /**
+     * Set isDefault
+     *
+     * @param boolean $isDefault
+     * @return Theme
+     */
+    public function setIsDefault($isDefault)
+    {
+        $this->isDefault = $isDefault;
+
+        return $this;
+    }
+
+    /**
+     * Get isDefault
+     *
+     * @return boolean 
+     */
+    public function getIsDefault()
+    {
+        return $this->isDefault;
+    }
+
+    /**
      * Set deletedAt
      *
      * @param \DateTime $deletedAt
@@ -184,7 +210,7 @@ class Theme
     public function setDeletedAt($deletedAt)
     {
         $this->deletedAt = $deletedAt;
-    
+
         return $this;
     }
 
@@ -207,7 +233,7 @@ class Theme
     public function setCreated($created)
     {
         $this->created = $created;
-    
+
         return $this;
     }
 
@@ -230,7 +256,7 @@ class Theme
     public function setUpdated($updated)
     {
         $this->updated = $updated;
-    
+
         return $this;
     }
 
@@ -253,7 +279,7 @@ class Theme
     public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
     {
         $this->createdBy = $createdBy;
-    
+
         return $this;
     }
 
@@ -276,7 +302,7 @@ class Theme
     public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
     {
         $this->updatedBy = $updatedBy;
-    
+
         return $this;
     }
 
@@ -288,33 +314,5 @@ class Theme
     public function getUpdatedBy()
     {
         return $this->updatedBy;
-    }
-    /**
-     * @var string
-     */
-    private $templateType;
-
-
-    /**
-     * Set templateType
-     *
-     * @param string $templateType
-     * @return Theme
-     */
-    public function setTemplateType($templateType)
-    {
-        $this->templateType = $templateType;
-    
-        return $this;
-    }
-
-    /**
-     * Get templateType
-     *
-     * @return string 
-     */
-    public function getTemplateType()
-    {
-        return $this->templateType;
     }
 }

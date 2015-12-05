@@ -18,45 +18,32 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\FieldType;
+use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\FileChecksum;
+use ODR\AdminBundle\Entity\Image;
+use ODR\AdminBundle\Entity\ImageChecksum;
+use ODR\AdminBundle\Entity\LinkedDataTree;
+use ODR\AdminBundle\Entity\RadioOptions;
+use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\AdminBundle\Entity\TrackedError;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementField;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\LinkedDataTree;
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataRecordFields;
-use ODR\AdminBundle\Entity\Boolean;
-use ODR\AdminBundle\Entity\ShortVarchar;
-use ODR\AdminBundle\Entity\MediumVarchar;
-use ODR\AdminBundle\Entity\LongVarchar;
-use ODR\AdminBundle\Entity\LongText;
-use ODR\AdminBundle\Entity\DecimalValue;
-use ODR\AdminBundle\Entity\DatetimeValue;
-use ODR\AdminBundle\Entity\IntegerValue;
-use ODR\AdminBundle\Entity\File;
-use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\ImageSizes;
-use ODR\AdminBundle\Entity\ImageStorage;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RadioSelection;
-use ODR\AdminBundle\Entity\FileChecksum;
-use ODR\AdminBundle\Entity\ImageChecksum;
 use ODR\AdminBundle\Entity\UserPermissions;
 use ODR\AdminBundle\Entity\UserFieldPermissions;
-use ODR\AdminBundle\Entity\RenderPlugin;
-use ODR\AdminBundle\Entity\FieldType;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 
 
@@ -448,55 +435,54 @@ print "\n\n";
     /**
      * Get (or create) a list of datarecords returned by searching on the given search key
      *
+     * @param integer $datatype_id
      * @param string $search_key
      * @param boolean $logged_in Whether the user is logged in or not
      * @param Request $request
      *
      * @return array TODO
      */
-    public function getSavedSearch($search_key, $logged_in, Request $request)
+    public function getSavedSearch($datatype_id, $search_key, $logged_in, Request $request)
     {
-        //
-        $session = $request->getSession();
-        $data = array('encoded_search_key' => '', 'datarecord_list' => '');
+        // Get necessary objects
+        $memcached = $this->get('memcached');
+        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $search_checksum = md5($search_key);
 
-        //
+        // Going to need the search controller if a cached search doesn't exist
         $search_controller = $this->get('odr_search_controller', $request);
         $search_controller->setContainer($this->container);
 
-        if ( !$session->has('saved_searches') ) {
-            // No saved searches at all, redo the search with the given search key...
+        $str = 'logged_in';
+        if (!$logged_in)
+            $str = 'not_logged_in';
+
+        // Attempt to load the search result for this search_key
+        $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+        if ( $cached_searches == null
+            || !isset($cached_searches[$datatype_id])
+            || !isset($cached_searches[$datatype_id][$search_checksum])
+            || !isset($cached_searches[$datatype_id][$search_checksum][$str]) ) {
+
+            // Saved search doesn't exist, redo the search and reload the results
             $search_controller->performSearch($search_key, $request);
+            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
         }
 
-        // Grab the list of saved searches and attempt to locate the desired search
-        $saved_searches = $session->get('saved_searches');
-        $search_checksum = md5($search_key);
+        // Now that the search result is guaranteed to exist, grab it
+        $search_params = $cached_searches[$datatype_id][$search_checksum];
 
-        if ( !isset($saved_searches[$search_checksum]) ) {
-            // No saved search for this query, redo the search...
-            $search_controller->performSearch($search_key, $request);
-
-            // Grab the list of saved searches again
-            $saved_searches = $session->get('saved_searches');
-        }
-
-        $search_params = $saved_searches[$search_checksum];
-        $was_logged_in = $search_params['logged_in'];
-
-        // If user's login status changed between now and when the search was run...
-        if ($was_logged_in !== $logged_in) {
-            // ...run the search again 
-            $search_controller->performSearch($search_key, $request);
-            $saved_searches = $session->get('saved_searches');
-            $search_params = $saved_searches[$search_checksum];
-        }
-
-        // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
-        $data['datatype_id'] = $search_params['datatype_id'];
-        $data['datarecord_list'] = $search_params['datarecords'];
-        $data['encoded_search_key'] = $search_params['encoded_search_key'];
+        // Pull the individual pieces of info out of the search results
+        $data = array();
         $data['search_checksum'] = $search_checksum;
+        $data['datatype_id'] = $datatype_id;
+        $data['logged_in'] = $logged_in;
+
+        $data['searched_datafields'] = $search_params['searched_datafields'];
+        $data['encoded_search_key'] = $search_params['encoded_search_key'];
+
+        $data['datarecord_list'] = $search_params[$str]['datarecord_list'];
 
         return $data;
     }
@@ -854,7 +840,7 @@ print "\n\n";
 //            $session = $request->getSession();
 
 //            if ( !$save_permissions || !$session->has('permissions') ) {
-            if ( !$save_permissions || !$memcached->get($memcached_prefix.'user_'.$user_id.'_datatype_permissions') ) {
+            if ( !$save_permissions || !$memcached->get($memcached_prefix.'.user_'.$user_id.'_datatype_permissions') ) {
 
                 // ----------------------------------------
                 // Permissions for a user other than the currently logged-in one requested, or permissions not set...need to build an array
@@ -952,13 +938,13 @@ print '</pre>';
                 // Save and return the permissions array
                 ksort($all_permissions);
                 if ($save_permissions)
-                    $memcached->set($memcached_prefix.'user_'.$user_id.'_datatype_permissions', $all_permissions, 0);
+                    $memcached->set($memcached_prefix.'.user_'.$user_id.'_datatype_permissions', $all_permissions, 0);
 
                 return $all_permissions;
             }
             else {
                 // Return the stored permissions array
-                return $memcached->get($memcached_prefix.'user_'.$user_id.'_datatype_permissions');
+                return $memcached->get($memcached_prefix.'.user_'.$user_id.'_datatype_permissions');
             }
         }
         catch (\Exception $e) {
@@ -1122,7 +1108,7 @@ print '</pre>';
 $save_permissions = false;
 
 //            if ( !$save_permissions || !$session->has('datafield_permissions') ) {
-            if ( !$save_permissions || !$memcached->get($memcached_prefix.'user_'.$user_id.'_datafield_permissions') ) {
+            if ( !$save_permissions || !$memcached->get($memcached_prefix.'.user_'.$user_id.'_datafield_permissions') ) {
 
                 // ----------------------------------------
                 // Permissions not set, need to build the array
@@ -1186,13 +1172,13 @@ $save_permissions = false;
                 // Save and return the permissions array
                 ksort($all_permissions);
                 if ($save_permissions)
-                    $memcached->set($memcached_prefix.'user_'.$user_id.'_datafield_permissions', $all_permissions, 0);
+                    $memcached->set($memcached_prefix.'.user_'.$user_id.'_datafield_permissions', $all_permissions, 0);
 
                 return $all_permissions;
             }
             else {
                 // Returned the stored datafield permissions array
-                return $memcached->get($memcached_prefix.'user_'.$user_id.'_datafield_permissions');
+                return $memcached->get($memcached_prefix.'.user_'.$user_id.'_datafield_permissions');
             }
         }
         catch (\Exception $e) {
@@ -2054,7 +2040,7 @@ $save_permissions = false;
         }
         else if ($typeclass == 'File') {
             $my_obj->setOriginalFileName($original_filename);
-            $my_obj->setGraphable('1');
+//            $my_obj->setGraphable('1');
             $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
         }
 
@@ -2275,6 +2261,7 @@ $save_permissions = false;
         $datafield->setDisplayOrder(-1);
         $datafield->setChildrenPerRow(1);
         $datafield->setRadioOptionNameSort(0);
+        $datafield->setRadioOptionDisplayUnselected(0);
         if ( $fieldtype->getTypeClass() === 'File' || $fieldtype->getTypeClass() === 'Image' ) {
             $datafield->setAllowMultipleUploads(1);
             $datafield->setShortenFilename(1);
@@ -3837,7 +3824,7 @@ if ($debug) {
             $form_obj->setUpdatedBy($user);
             switch($type_class) {
                 case 'File':
-                    $form_obj->setGraphable('0');
+//                    $form_obj->setGraphable('0');
                     break;
                 case 'Image':
                     $form_obj->setOriginal('0');

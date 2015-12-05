@@ -160,14 +160,6 @@ ODR\AdminBundle\Entity\DataRecordFields:
             joinColumns:
                 data_record_fields_id:
                     referencedColumnName: id
-#        xyzValue:
-#            targetEntity: DataRecordFields
-#            cascade: {  }
-#            mappedBy: dataRecordFields
-#            fetch: LAZY
-#            joinColumns:
-#                data_record_fields_id:
-#                    referencedColumnName: id
         radioSelection:
             targetEntity: RadioSelection
             cascade: {  }

@@ -1,28 +1,14 @@
-	<!-- Plugin Settings Dialog -->
-	<div class="pure-form pure-g" style="display: none;" id="dialog_plugin_settings" title="Render Plugin Settings">
-        <div class="form_contents pure-u-1">
-        </div>
-	</div><!-- End #dialog_plugin_settings -->
+{% spaceless %}
+
+<!-- Plugin Settings Dialog -->
+<div class="pure-form pure-g" style="display: none;" id="dialog_plugin_settings" title="Render Plugin Settings">
+    <div class="form_contents pure-u-1">
+    </div>
+</div><!-- End #dialog_plugin_settings -->
 	
-	<script>
+<script>
 
     function PluginSettingsFormInit() {
-        //
-        var reload_datatype = false;
-
-        // Initialize the form
-        $("#dialog_plugin_settings .ODRSubmitButton").unbind('click');
-        $("#dialog_plugin_settings .ODRSubmitButton").click(function() {
-            if ( $("#autofill_fields") !== undefined && $("#autofill_fields").is(':checked') ) {
-                if ( confirm('This will automatically create any missing DataFields required for this RenderPlugin in a new ThemeElement...are you sure?') ) {
-                    reload_datatype = true;
-                    $("#PluginSettingsForm").submit();
-                }
-            }
-            else {
-                $("#PluginSettingsForm").submit();
-            }
-        });
 
         $("#PluginSettingsForm").validationOptions({
             submitHandler: function(form){
@@ -105,5 +91,7 @@
         });
     }
 
-	</script>
-	<!--  End of Plugin Settings Dialog -->
+</script>
+<!--  End of Plugin Settings Dialog -->
+
+{% endspaceless %}

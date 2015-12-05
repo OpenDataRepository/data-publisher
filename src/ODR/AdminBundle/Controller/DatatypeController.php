@@ -19,11 +19,10 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\UserPermissions;
 // Forms
-use ODR\AdminBundle\Form\DatatypeForm;
+use ODR\AdminBundle\Form\CreateDatatypeForm;
 // Symfony
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
@@ -103,7 +102,7 @@ class DatatypeController extends ODRCustomController
 
             // Create new DataType form
             $datatype = new DataType();
-            $form = $this->createForm(new DatatypeForm($datatype), $datatype);
+            $form = $this->createForm(new CreateDatatypeForm($datatype), $datatype);
 
             // Render and return the html
             $return['d'] = array(
@@ -262,14 +261,15 @@ class DatatypeController extends ODRCustomController
 
             // Create new DataType form
             $datatype = new DataType();
-            $form = $this->createForm(new DatatypeForm($datatype), $datatype);
+            $form = $this->createForm(new CreateDatatypeForm($datatype), $datatype);
 
             // Verify 
             if ($request->getMethod() == 'POST') {
                 $form->bind($request, $datatype);
 
                 // Can't seem to figure out why it occassionally attempts to create an empty datatype, so...
-                $normal_fields = $request->request->get('DatatypeForm');
+//print_r($request->request);
+                $normal_fields = $request->request->get('CreateDatatypeForm');
                 $short_name = trim( $normal_fields['shortName'] );
                 $long_name = trim( $normal_fields['longName'] );
 
@@ -279,7 +279,6 @@ class DatatypeController extends ODRCustomController
                 if ($form->isValid()) {
                     // ----------------------------------------
                     // Set stuff that the form doesn't take care of
-                    $datatype->setMultipleRecordsPerParent(1);      // TODO - this needs to be deleted
                     $datatype->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
                     $datatype->setCreatedBy($admin);
                     $datatype->setUpdatedBy($admin);
@@ -328,7 +327,7 @@ class DatatypeController extends ODRCustomController
                     $user_manager = $this->container->get('fos_user.user_manager');
                     $users = $user_manager->findUsers();
                     foreach ($users as $user)
-                        $memcached->delete($memcached_prefix.'user_'.$user->getId().'_datatype_permissions');
+                        $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datatype_permissions');
 
                 }
                 else {
@@ -682,6 +681,7 @@ class DatatypeController extends ODRCustomController
                 $old_sort_datafield_id = strval( $datatype->getSortField()->getId() );
 
             if ($old_sort_datafield_id !== $sort_datafield_id) {
+                // Sort order for the datatype got changed, delete the cached string with the old order
                 $need_recache = true;
                 $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
 

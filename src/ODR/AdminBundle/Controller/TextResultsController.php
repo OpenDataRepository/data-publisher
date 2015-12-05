@@ -19,20 +19,6 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeElementField;
-use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RenderPluginFields;
-use ODR\AdminBundle\Entity\RenderPluginInstance;
-use ODR\AdminBundle\Entity\RenderPluginMap;
-use ODR\AdminBundle\Entity\RenderPluginOptions;
-use ODR\AdminBundle\Entity\UserPermissions;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -246,7 +232,7 @@ class TextResultsController extends ODRCustomController
                 $datarecord_list = '';
                 if ($search_key !== '') {
                     // 
-                    $data = parent::getSavedSearch($search_key, $logged_in, $request);
+                    $data = parent::getSavedSearch($datatype_id, $search_key, $logged_in, $request);
 //                    $encoded_search_key = $data['encoded_search_key'];
                     $datarecord_list = $data['datarecord_list'];
 

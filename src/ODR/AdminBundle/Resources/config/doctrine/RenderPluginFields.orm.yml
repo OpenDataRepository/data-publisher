@@ -13,6 +13,16 @@ ODR\AdminBundle\Entity\RenderPluginFields:
             nullable: false
             generator:
                 strategy: IDENTITY
+
+        allowedFieldtypes:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: allowed_fieldtypes
+            gedmo:
+                - versioned
+
         fieldName:
             type: string
             length: 32
@@ -63,17 +73,18 @@ ODR\AdminBundle\Entity\RenderPluginFields:
             gedmo:
                 - versioned
 
-        fieldType:
-            targetEntity: FieldType
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                field_type_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-            gedmo:
-                - versioned
+#        fieldType:
+#            targetEntity: FieldType
+#            cascade: {  }
+#            mappedBy: null
+#            inversedBy: null
+#            joinColumns:
+#                field_type_id:
+#                    referencedColumnName: id
+#            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }

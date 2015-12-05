@@ -159,9 +159,9 @@ odr_load_plugin_data:
         datafield_id:  \d+
         render_plugin_id:  \d+
 
-odr_save_datatype_plugin:
-    pattern:  /design/displaytemplate/savedatatypeplugin
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:savedatatypeplugin }
+odr_save_render_plugin_settings:
+    pattern:  /design/displaytemplate/saverenderpluginsettings
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:saverenderpluginsettings }
     requirements: { _method: POST }
 
 admin_manage_plugins:
@@ -863,10 +863,11 @@ odr_csv_cancel_import:
     defaults: { _controller: ODRAdminBundle:CSVImport:cancel }
 
 odr_csv_import_layout:
-    pattern: /edit/csv_import/layout/{datatype_id}
+    pattern: /edit/csv_import/layout/{source_datatype_id}/{target_datatype_id}
     defaults: { _controller: ODRAdminBundle:CSVImport:layout }
     requirements:
-        datatype_id: \d+
+        source_datatype_id: \d+
+        target_datatype_id: \d+
 
 
 odr_csv_import_start_validate:

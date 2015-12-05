@@ -9,9 +9,7 @@
 *
 * The ThemeElement Entity is automatically generated from 
 * ./Resources/config/doctrine/ThemeElement.orm.yml
-*
 */
-
 
 namespace ODR\AdminBundle\Entity;
 
@@ -81,6 +79,26 @@ class ThemeElement
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $updatedBy;
+
+    /**
+     * @var integer
+     */
+    private $displayOrder;
+
+    /**
+     * @var boolean
+     */
+    private $displayInResults;
+
+    /**
+     * @var string
+     */
+    private $cssWidthXL;
+
+    /**
+     * @var string
+     */
+    private $cssWidthMed;
 
     /**
      * Constructor
@@ -362,11 +380,6 @@ class ThemeElement
     {
         return $this->updatedBy;
     }
-    /**
-     * @var integer
-     */
-    private $displayOrder;
-
 
     /**
      * Set displayOrder
@@ -390,11 +403,6 @@ class ThemeElement
     {
         return $this->displayOrder;
     }
-    /**
-     * @var boolean
-     */
-    private $displayInResults;
-
 
     /**
      * Set displayInResults
@@ -418,17 +426,6 @@ class ThemeElement
     {
         return $this->displayInResults;
     }
-
-    /**
-     * @var string
-     */
-    private $cssWidthXL;
-
-    /**
-     * @var string
-     */
-    private $cssWidthMed;
-
 
     /**
      * Set cssWidthXL

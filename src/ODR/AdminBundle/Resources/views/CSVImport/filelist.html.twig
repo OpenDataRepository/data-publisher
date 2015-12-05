@@ -2,12 +2,17 @@
 
 <div id="ODRCSVImport_files">
 
+    <div id="ODRCSVImport_filediv">
 {#{% if presets == null %}#}
-    <button id="ODRCSVImport_refreshfilelist" class="pure-button" onclick="ODRCSVFileList_refresh();">Refresh File List</button>
-    <button id="ODRCSVImport_deletefilelist" class="pure-button" onclick="ODRCSVFileList_delete();">Delete Listed Files</button>
+        <button class="pure-button" onclick="ODRCSVFileList_refresh();">Refresh File List</button>
+        <button class="pure-button" onclick="ODRCSVFileList_delete();">Delete Listed Files</button>
 {#{% endif %}#}
 
-    <div id="ODRCSVImport_filelist"></div>
+        <div>
+            Number of Files currently uploaded: <b><span id="ODRCSVImport_filecount"></span></b>
+        </div>
+        <div id="ODRCSVImport_filelist"></div>
+    </div>
 
 {#{% if presets == null %}#}
     {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': 'csv_import_file_storage', 'single_file': false, 'upload_type': 'import_file_storage', 'datatype_id': datatype.id, 'datarecordfield_id': '', 'callback': 'ODRCSVFileList_refresh();'} %}
@@ -22,7 +27,7 @@
 
 <script>
     $(function() {
-        $("#ODRCSVImport_deletefilelist").hide();
+        $("#ODRCSVImport_filediv").hide();
         ODRCSVFileList_refresh();
     });
 
@@ -122,12 +127,13 @@
         str += '</tbody></table>';
 
         $("#ODRCSVImport_filelist").html(str);
+        $("#ODRCSVImport_filecount").html(num_files);
 
-        // If files exist in the table, show the "delete all" button
+        // If files exist in the table...show the table, buttons, and file count
         if ( num_files > 0 )
-            $("#ODRCSVImport_deletefilelist").show();
+            $("#ODRCSVImport_filediv").show();
         else
-            $("#ODRCSVImport_deletefilelist").hide();
+            $("#ODRCSVImport_filediv").hide();
     }
 
 </script>

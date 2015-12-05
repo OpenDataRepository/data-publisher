@@ -16,23 +16,11 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
-// Entites
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
+// Entities
 use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\LinkedDataTree;
 use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataRecordFields;
-use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\ImageSizes;
-use ODR\AdminBundle\Entity\ImageStorage;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
@@ -1236,7 +1224,7 @@ if ($write) {
                         $file_obj->setOriginalFileName($filename);
                         $file_obj->setOriginalChecksum('');
                         $file_obj->setLocalFileName('temp');
-                        $file_obj->setGraphable('1');
+//                        $file_obj->setGraphable('1');
                         $file_obj->setUpdatedBy($user);
                         $file_obj->setCreatedBy($user);
                         $file_obj->setDataField($datafield);

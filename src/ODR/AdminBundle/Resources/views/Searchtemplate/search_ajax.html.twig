@@ -27,12 +27,7 @@ function initPage() {
     // Setup Data Fields
     SetupDataFields();
     InitSlideout();
-/*
-    // Forms js workarounds
-    $(".SelectGroup").each(function() {
-        $(this).next().css('width', 'auto');
-    });
-*/
+
     // Setup Properties Tack
     $(".TackProperties").unbind('click');
     $(".TackProperties").click(function() {
@@ -62,15 +57,15 @@ function initPage() {
         var url = '{{ path('odr_search_template_add_theme_element', { 'datatype_id': 0, 'theme_id': 0 }) }}';
         url = url.substring(0, url.length-3);
         url += datatype_id + '/' + theme_id;
+
 //alert( url );
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     // Clear right slideout
@@ -121,15 +116,15 @@ function initPage() {
             var url = '{{ path('odr_search_template_delete_theme_element', { 'theme_element_id': 0 } ) }}';
             url = url.substring(0, (url.length - 1));
             url += theme_element_id;
+
 //alert( url );
 //return;
 
-            var dataType = "json";
             $.ajax({
                 cache: false,
                 type: 'GET',
                 url: url,
-                dataType: dataType,
+                dataType: "json",
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
                         // Will Cause removal from view
@@ -163,28 +158,25 @@ function initPage() {
     $(".ThemeElementProperties").unbind('click');
     $(".ThemeElementProperties").click(function() {
         // Load Properties into Element Data
-        var id = $(this).attr('rel');
+        var theme_element_id = $(this).attr('rel');
 
         // Load form for current datfield if not already loaded
-        $("#ElementData").hide("");
-        $("#ElementData").html("");
+        $("#ElementData").hide().html("");
         var url = '{{ path('odr_search_template_get_theme_element_properties', { 'theme_element_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
-        url += id;
+        url += theme_element_id;
+
 //alert( url );
 //return;
 
-        var dataType = "json";
-        // Ajax Load Form in box
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
-                    $("#ElementData").html(data.d);
-                    $("#ElementData").fadeIn('fast');
+                    $("#ElementData").html(data.d).fadeIn('fast');
                     InitThemeElementPropertiesForm();
                 }
             },
@@ -330,23 +322,21 @@ function SaveThemeElementOrder(container) {
     var theme_element_ids = {};
     $(container).children(".ODRThemeElement").each(function() {
         var id_data = $(this).attr('id').split(/_/);
-        var id = id_data[1];
-
-        theme_element_ids[i] = id;
+        theme_element_ids[i] = id_data[1];
         i++;
     });
 
     var url = '{{ path('odr_search_template_save_theme_element_order') }}';
+
 //alert( url );
 //return;
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'POST',
         data: theme_element_ids,
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
             }
@@ -379,9 +369,7 @@ function SaveDatafieldOrder(container, initial_theme_element_id, ending_theme_el
     var datafield_ids = {};
     $(container).children(".ODRDataField").each(function() {
         var id_data = $(this).attr('id').split(/_/);
-        var id = id_data[1];
-
-        datafield_ids[i] = id;
+        datafield_ids[i] = id_data[1];
         i++;
     });
 
@@ -395,16 +383,16 @@ function SaveDatafieldOrder(container, initial_theme_element_id, ending_theme_el
     var url = '{{ path('odr_search_template_save_datafield_order', {'initial_theme_element_id': 0, 'ending_theme_element_id' : 0} ) }}';
     url = url.substring(0, url.length-3);
     url += initial_theme_element_id + '/' + ending_theme_element_id;
+
 //alert( url );
 //return;
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'POST',
         data: datafield_ids,
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
             }
@@ -439,21 +427,21 @@ function AddToTemplate(datafield, theme_element) {
 
     // Get the id number of the passed-in theme element
     var theme_element_data = theme_element.split(/_/);
-    theme_element_id = theme_element_data[1];
+    var theme_element_id = theme_element_data[1];
 
     // Theme ID
     var url = '{{ path('odr_search_template_add_datafield', {'datafield_id': 0, 'theme_element_id': 0} ) }}';
     url = url.substring(0, url.length-3);
     url += datafield_id + '/' + theme_element_id;
+
 //alert( url );
 //return;
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 ReloadThemeElement(theme_element_id);
@@ -489,21 +477,21 @@ function RemoveFromTemplate(datafield, theme_element) {
 
     // Get the id number of the passed-in theme element
     var theme_element_data = theme_element.split(/_/);
-    theme_element_id = theme_element_data[1];
+    var theme_element_id = theme_element_data[1];
 
     // Theme ID
     var url = '{{ path('odr_search_template_remove_datafield', {'datafield_id': 0, 'theme_element_id': 0} ) }}';
     url = url.substring(0, url.length-3);
     url += datafield_id + '/' + theme_element_id;
+
 //alert( url );
 //return;
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 ReloadThemeElement(theme_element_id);
@@ -560,8 +548,7 @@ function SetupDataFields() {
 
         // Load form for current datafield if not already loaded
         if(form_id != datafield_id) {
-            $("#ElementData").hide("");
-            $("#ElementData").html("");
+            $("#ElementData").hide().html("");
 
             var url = '{{ path('odr_search_template_get_datafield_properties', { 'datafield_id': 0, 'theme_id': 0 } ) }}';
             url = url.substring(0, (url.length - 3));
@@ -570,17 +557,14 @@ function SetupDataFields() {
             if (datafield_xhr !== null)
                 datafield_xhr.abort();
 
-            // Ajax Load Form in box
-            var dataType = "json";
             datafield_xhr = $.ajax({
                 cache: false,
                 type: 'GET',
                 url: url,
-                dataType: dataType,
+                dataType: "json",
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
-                        $("#ElementData").html(data.d); 
-                        $("#ElementData").fadeIn('fast'); 
+                        $("#ElementData").html(data.d).fadeIn('fast');
                         InitDatafieldPropertiesForm();
                     }
                 },
@@ -609,12 +593,12 @@ function InitThemeElementPropertiesForm() {
     // Init Theme Element Properties forms
     $("#ElementData .ODRThemeElementPropertiesForm").find("select").each(function() {
         var id_data = $("#ElementData .ODRThemeElementPropertiesForm").attr('id').split(/_/);
-        var id =  id_data[1];
+        var theme_element_id =  id_data[1];
 
         $(this).unbind('change');
         $(this).change(function() {
-            SaveThemeElementInterval = window.clearInterval(SaveThemeElementInterval);
-            SaveThemeElementInterval = window.setInterval("SaveThemeElementProperties('" + id + "')", SaveTimeout);
+            SaveThemeElementInterval[theme_element_id] = window.clearInterval(SaveThemeElementInterval[theme_element_id]);
+            SaveThemeElementInterval[theme_element_id] = window.setInterval("SaveThemeElementProperties('" + theme_element_id + "')", SaveTimeout);
         });
     });
 }
@@ -626,39 +610,38 @@ function InitDatafieldPropertiesForm() {
     $("#ElementData .ODRThemeDatafieldPropertiesForm").find("select").each(function() {
         // Grab ThemeDatafield id
         var id_data = $("#ElementData .ODRThemeDatafieldPropertiesForm").attr('id').split(/_/);
-        var id =  id_data[1];
+        var theme_datafield_id =  id_data[1];
 
         // Save changes
         $(this).unbind('change');
         $(this).change(function() {
-            SaveThemeDatafieldProperty(id);
+            SaveThemeDatafieldProperty(theme_datafield_id);
         });
     });
 }
 
-var SaveThemeElementInterval = "";
-function SaveThemeElementProperties(id) {
-    if(SaveThemeElementInterval != "")
-        SaveThemeElementInterval = window.clearInterval(SaveThemeElementInterval);
+var SaveThemeElementInterval = [];
+function SaveThemeElementProperties(theme_element_id) {
+    if (SaveThemeElementInterval[theme_element_id] != undefined)
+        SaveThemeElementInterval[theme_element_id] = window.clearInterval(SaveThemeElementInterval[theme_element_id]);
 
     var url = '{{ path('odr_search_template_get_theme_element_properties', { 'theme_element_id': 0 } ) }}';
     url = url.substring(0, (url.length - 1));
-    url += id;
+    url += theme_element_id;
 //alert( url );
 //return;
 
-    var form_data = $("#ThemeElementPropertiesForm_" + id).serialize();
-    var dataType = "json";
+    var form_data = $("#ThemeElementPropertiesForm_" + theme_element_id).serialize();
 
     $.ajax({
         type: 'POST',
         url: url,
         data: form_data,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 //
-                ReloadThemeElement(id);
+                ReloadThemeElement(theme_element_id);
             }
             else {
                 // An error has occurred.
@@ -684,26 +667,25 @@ function SaveThemeElementProperties(id) {
 
 }
 
-var SaveThemeDatafieldPropertyInterval = "";
-function SaveThemeDatafieldProperty(id) {
-    if(SaveThemeDatafieldPropertyInterval != "") 
-        SaveThemeDatafieldPropertyInterval = window.clearInterval(SaveThemeDatafieldPropertyInterval);
+var SaveThemeDatafieldPropertyInterval = [];
+function SaveThemeDatafieldProperty(theme_datafield_id) {
+    if(SaveThemeDatafieldPropertyInterval[theme_datafield_id] != undefined)
+        SaveThemeDatafieldPropertyInterval[theme_datafield_id] = window.clearInterval(SaveThemeDatafieldPropertyInterval[theme_datafield_id]);
 
     var url = '{{ path('odr_search_template_save_theme_datafield', {'theme_datafield_id': 0}) }}';
     url = url.substring(0, url.length-1);
-    url += id;
+    url += theme_datafield_id;
 
 //alert(url);
 //return;
 
-    var datafield_id = $("#ThemeDatafieldPropertiesForm_" + id).attr('rel');
+    var datafield_id = $("#ThemeDatafieldPropertiesForm_" + theme_datafield_id).attr('rel');
 
-    var post_data = $("#ThemeDatafieldPropertiesForm_" + id).serialize();
-    var dataType = "json";
+    var post_data = $("#ThemeDatafieldPropertiesForm_" + theme_datafield_id).serialize();
     $.ajax({
         type: 'POST',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         data: post_data,
         success: function(data, textStatus, jqXHR) {
 
@@ -737,15 +719,13 @@ function SaveThemeDatafieldProperty(id) {
 
 function InitSlideout() {
     // Load display template menu
-    {#var url = '{{ path('odr_design_nav_slideout', {'datatype_id': datatype.id} ) }}';#}
     var url = '{{ path('odr_design_nav_slideout') }}';
-    var dataType = "json";
 
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 switch(data.t) {
@@ -830,7 +810,7 @@ function ReloadChild(datatype_id) {
         cache: false,
         type: 'GET',
         url: url,
-        dataType: 'json',
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             // remove old datatype
             $(datatype_div).fadeOut();
@@ -867,6 +847,7 @@ function ReloadThemeElement(theme_element_id) {
     var url = '{{ path('odr_search_template_reload_theme_element', { 'theme_element_id': 0, 'theme_id': 0 }) }}';
     url = url.substring(0,url.length-3);
     url += theme_element_id + '/' + theme_id;
+
 //alert( url );
 //return;
 
@@ -885,7 +866,7 @@ function ReloadThemeElement(theme_element_id) {
         cache: false,
         type: 'GET',
         url: url,
-        dataType: 'json',
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             // Remove old theme element
             $(theme_element).fadeOut();
@@ -922,6 +903,7 @@ function ReloadDatafield(datafield_id) {
     var url = '{{ path('odr_search_template_reload_datafield', { 'datafield_id': 0, 'theme_id': 0 }) }}';
     url = url.substring(0,url.length-3);
     url += datafield_id + '/' + theme_id;
+
 //alert( url );
 //return;
 
@@ -942,7 +924,7 @@ function ReloadDatafield(datafield_id) {
         cache: false,
         type: 'GET',
         url: url,
-        dataType: 'json',
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             // Remove old datafield
             $(datafield).remove();

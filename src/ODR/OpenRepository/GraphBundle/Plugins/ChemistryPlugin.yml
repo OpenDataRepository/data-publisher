@@ -9,7 +9,7 @@ ODR\OpenRepository\GraphBundle\Plugins\Chemistry:
         chemistry_field:
             name: Chemistry Field
             description: A datafield containing a chemical formula.
-            type: ShortVarchar
+            type: ShortVarchar|MediumVarchar|LongVarchar|LongText
     config_options:
         subscript_delimiter:
             name: Subscript Delimiter

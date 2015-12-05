@@ -123,13 +123,11 @@ function initPage() {
 //alert( url );
 //return;
 
-        // Ajax Load Form in box
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     $("#dialog_field_history .form_contents").html(data.d.html);
@@ -179,13 +177,11 @@ function initPage() {
 //alert('datarecord: ' + datarecord_id + ', datafield: ' + datafield_id);
 //return;
 
-            // Ajax Load Form in box
-            var dataType = "json";
             $.ajax({
                 cache: false,
                 type: 'GET',
                 url: url,
-                dataType: dataType,
+                dataType: "json",
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
                         // Will Cause removal from view
@@ -238,12 +234,11 @@ function initPage() {
 //alert('datarecord: ' + datarecord_id + ', datafield: ' + datafield_id);
 //return;
 
-            var dataType = "json";
             $.ajax({
                 cache: false,
                 type: 'GET',
                 url: url,
-                dataType: dataType,
+                dataType: "json",
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
                         // Remove file data from table area
@@ -286,12 +281,11 @@ function initPage() {
 //alert( url );
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     // Reload the file control
@@ -332,12 +326,11 @@ function initPage() {
 //alert( url );
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     // Reload the image control
@@ -374,15 +367,15 @@ function initPage() {
         var url = '{{ path('odr_record_public', { 'datarecord_id': 0 }) }}';
         url = url.substring(0, (url.length - 1));
         url += datarecord_id;
+
 //alert( url );
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     // Don't want to reload everything just to change one little icon...
@@ -434,15 +427,15 @@ function initPage() {
             var url  = '{{ path('odr_record_deletechild', {'datarecord_id': 0, 'datatype_id': 0} ) }}';
             url = url.substring(0,(url.length - 3));
             url += datarecord_id + '/' + datatype_id;
+
 //alert( url );
 //return;
 
-            var dataType = "json";
             $.ajax({
                 cache: false,
                 type: 'GET',
                 url: url,
-                dataType: dataType,
+                dataType: "json",
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
                         // Refresh child wrapper area
@@ -502,12 +495,11 @@ function initPage() {
 //alert( url );
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                 }
@@ -549,12 +541,11 @@ function initPage() {
 //alert( url );
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                 }
@@ -596,12 +587,11 @@ function initPage() {
 //alert( url );
 //return;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                 }
@@ -626,95 +616,6 @@ function initPage() {
             }
         });
     });
-
-/*
-    $(".MultipleSelectGroup").unbind('change');
-    $(".MultipleSelectGroup").change(function() {
-
-        var select_group_id = $(this).attr('id').split(/_/);
-        var select_group = "#SelectGroup_" + select_group_id[1];
-
-        // val() returns all selected options, need to determine which one changed
-        var selected_options_data = $(this).val();
-        var selected_options = [];
-        //var out = '';
-        for (var i in selected_options_data) {
-            selected_options.push( selected_options_data[i] );
-        }
-
-        var radio_option_id;
-        $(this).children().each( function(index) {
-            var option_id = $(this).val();
-            // Check to see if this element was previously selected and got de-selected
-            if ( $(this).hasClass("MultipleSelect_prev") ) {
-                if (jQuery.inArray(option_id, selected_options) === -1) {
-                    // This was the element that changed
-                    radio_option_id = option_id;
-                    $(select_group + " #Option_"+radio_option_id).removeClass("MultipleSelect_prev");
-                    return false;
-                }
-            }
-            // Check to see if this elment got selected
-            else {
-                if (jQuery.inArray(option_id, selected_options) !== -1) {
-                    // This was the element that was changed
-                    radio_option_id = option_id;
-                    $(select_group + " #Option_"+radio_option_id).addClass("MultipleSelect_prev");
-                    return false;
-                }
-            }
-        });
-
-        var data_record_field_id_data = $(this).attr('id').split(/_/);
-        var data_record_field_id = data_record_field_id_data[1];    // which data field to save the option
-
-        // Load display template menu
-        var url  = '{{ path('odr_record_radio_selection', {'data_record_field_id': 0, 'radio_option_id': 0, 'multiple': 0} ) }}';
-        url = url.substring(0,(url.length - 5));
-        url += data_record_field_id + '/' + radio_option_id + '/' + "1";    // multiple selection permitted
-
-alert( url );
-return;
-
-        var dataType = "json";
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: dataType,
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-    });
-*/
-
-{#
-    $(".ODROpenLinkedRecord").unbind('click');
-    $(".ODROpenLinkedRecord").click(function() {
-        var datarecord_id = $(this).attr('rel');
-        
-    });
-#}
 
     var starting_datafield = null;
     $(".ODRSortableImage").sortable({
@@ -780,7 +681,6 @@ return;
 
         var form_id = $(this).parent().parent().parent().attr('id');
         SaveRecordData('#' + form_id, '');
-
     });
 
 }
@@ -792,23 +692,21 @@ function SaveImageOrder(container) {
     var image_ids = {};
     $(container).children().each(function() {
         // Want thumbnail id's, not full-size image ids
-//        var id_data = $(this).attr('id').split(/_/);
-//        var id =  id_data[1];
-        var id = $(this).attr('rel');
-
-        image_ids[i] = id;
+        image_ids[i] = $(this).attr('rel');
         i++;
     });
 
     var url = '{{ path('odr_record_save_image_order') }}';
 
-    var dataType = "json";
+//alert( url );
+//return;
+
     $.ajax({
         cache: false,
         type: 'POST',
         data: image_ids,
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
             }
@@ -842,13 +740,11 @@ function AddChildRecord(datatype_id, parent_id, grandparent_id) {
 //alert( url );
 //return;
 
-    // Ajax Load Form in box
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
                 // Refresh child wrapper area
@@ -895,8 +791,7 @@ function LinkRecord(ancestor_datatype_id, descendant_datatype_id, local_datareco
 }
 
 function SaveRecordData(form_id, interval) {
-
-    // Clear the save interval
+    // Clear the save interval for this specific datafield...interval itself is defined in record_datafields.html.twig
     if(interval != "") 
         interval = window.clearInterval(interval);
 
@@ -904,9 +799,7 @@ function SaveRecordData(form_id, interval) {
     var the_form = $(form_id);
     var post_data = $(the_form).serialize();
 
-    // Theme ID
     var url = $(the_form).attr('action');
-    var dataType = "json";
 
 //alert( url );
 //alert( post_data );
@@ -915,7 +808,7 @@ function SaveRecordData(form_id, interval) {
     $.ajax({
         type: 'POST',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         data: post_data,
         success: function(data, textStatus, xhr) {
 
@@ -970,12 +863,11 @@ function ReloadChild(datatype_id, datarecord_id) {
     // Remove the datatype that's getting reloaded
     $("#ChildTypeWrapper_" + datatype_id + "_" + datarecord_id).children(".ODRDataType").remove();
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if (data.r == 0) {
                 // The returned html includes #ChildTypeWrapper...completely overwrite the contents of its parent div
@@ -1025,12 +917,11 @@ function ReloadDatafield(datarecord_id, datafield_id) {
         $(this).remove();
     });
 
-    var dataType = "json";
     $.ajax({
         cache: false,
         type: 'GET',
         url: url,
-        dataType: dataType,
+        dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if (data.r == 0) {
                 $(datafield_div).append(data.d.html);

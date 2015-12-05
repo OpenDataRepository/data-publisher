@@ -100,6 +100,13 @@ ODR\AdminBundle\Entity\DataFields:
             column: radio_option_name_sort
             gedmo:
                 - versioned
+        radio_option_display_unselected:
+            type: boolean
+            nullable: false
+            default: false
+            column: radio_option_display_unselected
+            gedmo:
+                - versioned
 
         searchable:
             type: integer
