@@ -740,8 +740,9 @@ class DataType
     public function getXMLShortName()
     {
         // http://unicode-table.com/en/
+        // http://www.xml.com/axml/target.html#sec-common-syn
         // http://www.xml.com/axml/target.html#NT-Letter
-        $pattern = '/[\\x0-\\x1F]|[\\x21-\\x2C]|[\\x2F-\\x40]|[\\x5B-\\x5E]|[\\x60]|[\\x7B-\\xBF]|[\\xD7]|[\\xF7]/';  // allow dash, period, alphabetical characters...in name TODO 
+        $pattern = '/[\\x0-\\x1F]|[\\x21-\\x2C]|[\\x2F][\\x3A-\\x40]|[\\x5B-\\x5E]|[\\x60]|[\\x7B-\\xBF]|[\\xD7]|[\\xF7]/';  // allow dash, period, alphanumeric characters...in name TODO
         $str = preg_replace($pattern, '', $this->shortName);
 
         if ( strpos($str, '-') === 0 || strpos($str, '.') === 0 )
@@ -755,5 +756,4 @@ class DataType
         return str_replace($search, $replacements, $this->optionName);
 */
     }
-
 }

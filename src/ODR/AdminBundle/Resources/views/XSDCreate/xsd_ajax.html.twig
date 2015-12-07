@@ -9,6 +9,7 @@
         </xsd:documentation>
     </xsd:annotation>
 
+{#
     <!-- simple attribute definition -->
     <xsd:complexType name="inline_attribute">
         <xsd:simpleContent>
@@ -18,6 +19,7 @@
             </xsd:extension>
         </xsd:simpleContent>
     </xsd:complexType>
+#}
 
     <!-- more normal datetime string definition... -->
     <xsd:simpleType name="normal_datetime">
@@ -26,28 +28,26 @@
         </xsd:restriction>
     </xsd:simpleType>
 
-    <!-- defintion of a normal datafield -->
-    <xsd:complexType name="datafield_type">
-        <xsd:all>
-            <xsd:element name="value" type="xsd:string" />
-            <xsd:element name="type" type="xsd:string" />
-        </xsd:all>
-    </xsd:complexType>
-
-    <!-- defintion of a name datafield -->
-    <xsd:complexType name="datafield_name_type">
-        <xsd:all>
-            <xsd:element name="value" type="xsd:string" />
-            <xsd:element name="type" type="xsd:string" />
-            <xsd:element name="odr_namefield" fixed="" />
-        </xsd:all>
-    </xsd:complexType>
-
     <!-- definition of a file -->
     <xsd:complexType name="file_type">
         <xsd:all>
             <xsd:element name="original_name" type="xsd:string" />
-            <xsd:element name="href" type="xsd:string" />
+            <xsd:element name="source">
+                <xsd:complexType>
+                    <xsd:simpleContent>
+                        <xsd:extension base="xsd:string">
+                            <xsd:attribute name="type">
+                                <xsd:simpleType>
+                                    <xsd:restriction base="xsd:string">
+                                        <xsd:pattern value="href|local_filename" />
+                                    </xsd:restriction>
+                                </xsd:simpleType>
+                            </xsd:attribute>
+                        </xsd:extension>
+                    </xsd:simpleContent>
+                </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="checksum" type="xsd:string" />
             <xsd:element name="_file_metadata" minOccurs="0" maxOccurs="1">
                 <xsd:complexType>
                     <xsd:all>
@@ -79,7 +79,22 @@
     <xsd:complexType name="image_type">
         <xsd:all>
             <xsd:element name="original_name" type="xsd:string" />
-            <xsd:element name="href" type="xsd:string" />
+            <xsd:element name="source">
+                <xsd:complexType>
+                    <xsd:simpleContent>
+                        <xsd:extension base="xsd:string">
+                            <xsd:attribute name="type">
+                                <xsd:simpleType>
+                                    <xsd:restriction base="xsd:string">
+                                        <xsd:pattern value="href|local_filename" />
+                                    </xsd:restriction>
+                                </xsd:simpleType>
+                            </xsd:attribute>
+                        </xsd:extension>
+                    </xsd:simpleContent>
+                </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="checksum" type="xsd:string" />
             <xsd:element name="caption" type="xsd:string" />
             <xsd:element name="_image_metadata" minOccurs="0" maxOccurs="1">
                 <xsd:complexType>
@@ -109,28 +124,6 @@
         </xsd:sequence>
     </xsd:complexType>
 
-    <!-- definition of a radio object -->
-    <xsd:complexType name="radio_option_metadata_type">
-{#
-        <xsd:all>
-            <xsd:element name="name" type="xsd:string" />
-            <xsd:element name="value" type="xsd:string" />
-            <xsd:element name="_radio_option_metadata" minOccurs="0" maxOccurs="1">
-                <xsd:complexType>
-#}
-                    <xsd:all>
-                        {#<xsd:element name="_parent_id" type="inline_attribute" minOccurs="0" maxOccurs="1" />#}
-                        <xsd:element name="_external_id" type="xsd:string" minOccurs="0" maxOccurs="1" />
-                        <xsd:element name="_create_date" type="normal_datetime" minOccurs="0" maxOccurs="1" />
-                        <xsd:element name="_create_auth" type="xsd:string" minOccurs="0" maxOccurs="1" />
-                    </xsd:all>
-{#
-                </xsd:complexType>
-            </xsd:element>
-        </xsd:all>
-#}
-    </xsd:complexType>
-
     <!-- metadata definition for datarecord -->
     <xsd:complexType name="datarecord_metadata_type">
         <xsd:all>
@@ -144,12 +137,13 @@
     <!-- actual definition of the datarecord -->
     <xsd:complexType name="datarecord_type">
         <xsd:all>
-            {% include 'ODRAdminBundle:XSDCreate:xsd_area.html.twig' with {'datatype_tree': datatype_tree} %}
+            {% import "ODRAdminBundle:XSDCreate:xsd_area_childtype.html.twig" as mychildform %}
+            {{ mychildform.input(datatype_tree) }}
 
             <xsd:element name="_datarecord_metadata" type="datarecord_metadata_type" minOccurs="0" maxOccurs="1" />
 
         </xsd:all>
-        <xsd:attribute name="name" type="xsd:string" use="required" />
+        <xsd:attribute name="datatype_name" type="xsd:string" use="required" />
     </xsd:complexType>
 
     <!-- allow for multiple datarecords -->

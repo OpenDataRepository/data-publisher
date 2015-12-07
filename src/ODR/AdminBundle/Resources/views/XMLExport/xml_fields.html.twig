@@ -1,13 +1,16 @@
+{% spaceless %}
+
 {% set datatype = datatype_tree.datatype %}
 {% set datarecord = dr_entry.datarecord %}
 {% set drf_list = dr_entry.datarecordfields %}
 
+{# describe datafields first #}
+<datafields>
 {% for data in datatype_tree.theme_elements %}
     {% set theme_element = data.theme_element %}
 
     {% if data.datafields != null %}
         {% for field in data.datafields %}
-            {#{% set theme_datafield = field.theme_datafield %}#}
             {% set datafield = field.datafield %}
             {% set datafield_id = datafield.id %}
 
@@ -16,22 +19,60 @@
             {% endif %}
 
         {% endfor %}
-    {% elseif data.datatype != null %}
-        {% set childtype = data.datatype.datatype %}
-        {% set datarecord_children = [] %}
-        {% if dr_entry.child_datarecords[childtype.id] is defined %}
-            {% set datarecord_children = dr_entry.child_datarecords[childtype.id] %}
-        {% endif %}
-
-        {% import "ODRAdminBundle:XMLExport:xml_childtype.html.twig" as mychildform %}
-        {% set content = mychildform.input(data.datatype, datarecord_children, using_metadata, baseurl) %}
-
-        {% if "<" in content|trim %}
-            <{{ childtype.getxmlshortname }}>
-            {{ content }}
-            </{{ childtype.getxmlshortname }}>
-        {% endif %}
-
     {% endif %}
-
 {% endfor %}
+</datafields>
+
+{# describe child datarecords second #}
+<child_datarecords>
+{% for data in datatype_tree.theme_elements %}
+    {% set theme_element = data.theme_element %}
+
+    {% if data.datatype != null %}
+        {% set is_link = data.datatype.is_link %}
+        {% if is_link == 0 %}
+            {% set childtype = data.datatype.datatype %}
+            {% set datarecord_children = [] %}
+            {% if dr_entry.child_datarecords[childtype.id] is defined %}
+                {% set datarecord_children = dr_entry.child_datarecords[childtype.id] %}
+            {% endif %}
+
+            {% import "ODRAdminBundle:XMLExport:xml_childtype.html.twig" as mychildform %}
+            {% set content = mychildform.input(data.datatype, datarecord_children, using_metadata, baseurl) %}
+
+            {% if "<" in content|trim %}
+                <{{ childtype.getxmlshortname }}>{{ content }}</{{ childtype.getxmlshortname }}>
+            {% endif %}
+
+        {% endif %}
+    {% endif %}
+{% endfor %}
+</child_datarecords>
+
+{# describe linked datarecords last #}
+<linked_datarecords>
+{% for data in datatype_tree.theme_elements %}
+    {% set theme_element = data.theme_element %}
+
+    {% if data.datatype != null %}
+        {% set is_link = data.datatype.is_link %}
+        {% if is_link == 1 %}
+            {% set childtype = data.datatype.datatype %}
+            {% set datarecord_children = [] %}
+            {% if dr_entry.child_datarecords[childtype.id] is defined %}
+                {% set datarecord_children = dr_entry.child_datarecords[childtype.id] %}
+            {% endif %}
+
+            {% import "ODRAdminBundle:XMLExport:xml_childtype.html.twig" as mychildform %}
+            {% set content = mychildform.input(data.datatype, datarecord_children, using_metadata, baseurl) %}
+
+            {% if "<" in content|trim %}
+                <{{ childtype.getxmlshortname }}>{{ content }}</{{ childtype.getxmlshortname }}>
+            {% endif %}
+
+        {% endif %}
+    {% endif %}
+{% endfor %}
+</linked_datarecords>
+
+{% endspaceless %}
