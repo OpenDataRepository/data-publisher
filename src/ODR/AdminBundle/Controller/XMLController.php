@@ -21,7 +21,7 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
-use ODR\OpenRepository\UserBundle\Entity\User;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -82,13 +82,12 @@ class XMLController extends ODRCustomController
     /**
      * Creates a beanstalk job that will scan the XML upload directory for all available files to import.
      * 
-     * @param string $type     'datatype' or 'datafield'...the type of importing that will happen
      * @param integer $id      The id of the object that will receive the import data
      * @param Request $request
      *
      * @return Response TODO
      */
-    public function importAction($type, $id, Request $request) {
+    public function importAction($id, Request $request) {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -107,18 +106,9 @@ class XMLController extends ODRCustomController
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->get('router');
 
-            $datatype = null;
-            $datatype_id = '';
-            $datafield_id = '';
-            if ($type == 'datatype') {
-                $datatype = $repo_datatype->find($id);
-                $datatype_id = $id;
-            }
-            else if ($type == 'datafield') {
-                $datafield = $repo_datafield->find($id);
-                $datafield_id = $id;
-                $datatype = $datafield->getDataType();
-            }
+            $datatype = $repo_datatype->find($id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
 
             // --------------------
             // Determine user privileges
@@ -138,8 +128,7 @@ class XMLController extends ODRCustomController
             // Insert the new job into the queue
             $payload = json_encode(
                 array(
-                    "datatype_id" => $datatype_id,
-                    "datafield_id" => $datafield_id,
+                    "datatype_id" => $datatype->getId(),
                     "user_id" => $user->getId(),
                     "memcached_prefix" => $memcached_prefix,    // debug purposes only
                     "url" => $url,
@@ -183,12 +172,11 @@ class XMLController extends ODRCustomController
             $post = $_POST;
 //print_r($post);
 //return;
-            if ( !isset($post['datatype_id']) || !isset($post['datafield_id']) || !isset($post['user_id']) || !isset($post['api_key']) )
+            if ( !isset($post['datatype_id']) || !isset($post['user_id']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid job data');
 
             // Pull data from the post
             $datatype_id = $post['datatype_id'];
-            $datafield_id = $post['datafield_id'];
             $user_id = $post['user_id'];
             $api_key = $post['api_key'];
 
@@ -196,37 +184,45 @@ class XMLController extends ODRCustomController
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
-            $logger = $this->get('logger');
             $router = $this->get('router');
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid job data');
 
 
-            // Enable user error handling
-            $xml_path = dirname(__FILE__).'/../../../../web/uploads/xml/';
+            $schema_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
+            $xml_path = dirname(__FILE__).'/../../../../web/uploads/xml/user_'.$user_id.'/';
             $ret = '';
 
+
+            // ----------------------------------------
             // Determine the schema filename
             $schema_filename = '';
             if ($datatype_id !== '') {
                 $datatype = $repo_datatype->find($datatype_id);
                 $schema_filename = $datatype->getXMLShortName().'.xsd';
             }
-            else if ($datafield_id !== '') {
-                $datafield = $repo_datafield->find($datafield_id);
-                $schema_filename = 'Datafield_'.$datafield->getId().'xsd';
-            }
             else {
                 throw new \Exception('Invalid job data');
             }
 
+            // Ensure schema file exists
+            if ( !file_exists($schema_path.$schema_filename) )
+                throw new \Exception('Unable to load schema file');
+
+            $handle =  fopen($schema_path.$schema_filename, 'r');
+            if (!$handle)
+                throw new \Exception('Unable to load schema file');
+            else
+                fclose($handle);
+
+
+            // ----------------------------------------
             // Grab the list of all files in the unprocessed xml directory
             $xml_filenames = scandir($xml_path.'unprocessed/');
             if ( count($xml_filenames) == 2 )   // TODO - currently assuming linux?  (directory will have a "." and a ".." file)
@@ -248,17 +244,12 @@ class XMLController extends ODRCustomController
                         'url' => $url,
                         'memcached_prefix' => $memcached_prefix,    // debug purposes only
                         'datatype_id' => $datatype_id,
-                        'datafield_id' => $datafield_id,
                         'user_id' => $user_id
                     )
                 );
                 $pheanstalk->useTube('validate_import')->put($payload);
 
-                if ($datatype_id !== '')
-                    $ret .= 'Scheduled "'.$xml_filename.'" of datatype '.$datatype_id.' for validation'."\n";
-                else if ($datafield_id !== '')
-                    $ret .= 'Scheduled "'.$xml_filename.'" of datafield '.$datafield_id.' for validation'."\n";
-
+                $ret .= 'Scheduled "'.$xml_filename.'" of datatype '.$datatype_id.' for validation'."\n";
             }
             $return['d'] = $ret;
         }
@@ -294,13 +285,12 @@ class XMLController extends ODRCustomController
             $post = $_POST;
 //print_r($post);
 //return;
-            if ( !isset($post['xml_filename']) || !isset($post['datatype_id']) || !isset($post['datafield_id']) || !isset($post['user_id']) || !isset($post['api_key']) )
+            if ( !isset($post['xml_filename']) || !isset($post['datatype_id']) || !isset($post['user_id']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid job data');
 
             // Pull data from the post
             $xml_filename = $post['xml_filename'];
             $datatype_id = $post['datatype_id'];
-            $datafield_id = $post['datafield_id'];
             $user_id = $post['user_id'];
             $api_key = $post['api_key'];
 
@@ -323,24 +313,35 @@ class XMLController extends ODRCustomController
 
             // Enable user error handling
             libxml_use_internal_errors(true);
+
             $schema_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
-            $xml_path = dirname(__FILE__).'/../../../../web/uploads/xml/';
+            $xml_path = dirname(__FILE__).'/../../../../web/uploads/xml/user_'.$user_id.'/';
             $ret = '';
 
+
+            // ----------------------------------------
             // Determine the schema filename
             $schema_filename = '';
             if ($datatype_id !== '') {
                 $datatype = $repo_datatype->find($datatype_id);
                 $schema_filename = $datatype->getXMLShortName().'.xsd';
             }
-            else if ($datafield_id !== '') {
-                $datafield = $repo_datafield->find($datafield_id);
-                $schema_filename = 'Datafield_'.$datafield->getId().'.xsd';
-            }
             else {
                 throw new \Exception('Invalid job data');
             }
 
+            // Ensure schema file exists
+            if ( !file_exists($schema_path.$schema_filename) )
+                throw new \Exception('Unable to load schema file');
+
+            $handle =  fopen($schema_path.$schema_filename, 'r');
+            if (!$handle)
+                throw new \Exception('Unable to load schema file');
+            else
+                fclose($handle);
+
+
+            // ----------------------------------------
             // Attempt to validate the given xml file against the correct XSD file
             // Load the file as an XML Document
             $xml_file = new \DOMDocument();
@@ -365,13 +366,15 @@ class XMLController extends ODRCustomController
 
                 }
                 else {
+                    // TODO - other validation?
+                    // TODO - tracked job
+
                     $ret .= 'Validated "'.$xml_filename.'"'."\n";
 
                     // Queue the file for a full import...
                     $url = $this->container->getParameter('site_baseurl');
                     $url .= $router->generate('odr_import_worker');
 
-                    $importing = true;
                     $payload = json_encode(
                         array(
                             'xml_filename' => $xml_filename,
@@ -379,7 +382,6 @@ class XMLController extends ODRCustomController
                             'url' => $url,
                             'memcached_prefix' => $memcached_prefix,    // debug purposes only
                             'datatype_id' => $datatype_id,
-                            'datafield_id' => $datafield_id,
                             'user_id' => $user_id
                         )
                     );
@@ -426,42 +428,38 @@ class XMLController extends ODRCustomController
             $post = $_POST;
 //print_r($post);
 //return;
-            if ( !isset($post['xml_filename']) || !isset($post['datatype_id']) || !isset($post['datafield_id']) || !isset($post['user_id']) || !isset($post['api_key']) )
+            if ( !isset($post['xml_filename']) || !isset($post['datatype_id']) || !isset($post['user_id']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid job data');
 
             // Pull data from the post
             $xml_filename = $post['xml_filename'];
             $datatype_id = $post['datatype_id'];
-            $datafield_id = $post['datafield_id'];
             $user_id = $post['user_id'];
             $api_key = $post['api_key'];
 
             // Load symfony objects
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
             $user = $repo_user->find($user_id);
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid job data');
 
-            if ($datatype_id == '' && $datafield_id == '')
+            if ($datatype_id == '')
                 throw new \Exception('Invalid job data');
 
             // Enable user error handling
             libxml_use_internal_errors(true);
-            $schema_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
-            $xml_path = dirname(__FILE__).'/../../../../web/uploads/xml/';
+            //$schema_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
+            $xml_path = dirname(__FILE__).'/../../../../web/uploads/xml/user_'.$user_id.'/';
             $ret = "\n----------\n";
 
             // Load the file as an XML Document
@@ -470,86 +468,63 @@ class XMLController extends ODRCustomController
             if ($xml_file->load($xml_path.'unprocessed/'.$xml_filename) === false)
                 throw new \Exception('Could not load "'.$xml_filename.'" for import >> '.self::libxml_display_errors());
 
+            $parent_datatype = $repo_datatype->find($datatype_id);
 
-            $parent_datatype = null;
-            $datafield = null;
-            if ($datatype_id !== '') {
-                $parent_datatype = $repo_datatype->find($datatype_id);
-            }
-            else if ($datafield_id !== '') {
-                $datafield = $repo_datafield->find($datafield_id);
-                $parent_datatype = $datafield->getDataType();
-            }
-
-
-            // Import the object
-            $xml_entities = null;
-            if ($datafield == null)
-                $xml_entities = $xml_file->getElementsByTagName('datarecord');
-            else
-                $xml_entities = $xml_file->getElementsByTagName('radio_option');
+            // $xml_file is currently document root
+            $xml_datarecords = $xml_file->childNodes->item(0);
 
 $write = true;
-//$write = false;
+$write = false;
 
-            foreach ($xml_entities as $xml_entity) {
-
+            foreach ($xml_datarecords->childNodes as $xml_datarecord) {
                 // Need to keep track of the entities created for this import
                 $created_objects = array();
                 $import_ret = null;
 
                 $indent = 0;
-                if ($datafield == null) {
 
-                    // TODO - uniqueness
+                // TODO - uniqueness
 
-                    // ----------------------------------------
-                    // Attempt to locate a pre-existing datarecord to import into
-                    $grandparent = null;
-                    $update_datarecord = false;
-                    // Attempt to locate an external id for the datarecord
-                    $metadata = self::getODRMetadata($xml_entity);
-                    if ( isset($metadata['external_id']) ) {
-                        $external_id = $metadata['external_id'];
-                        $grandparent = $repo_datarecord->findOneBy( array('external_id' => $external_id, 'dataType' => $parent_datatype->getId()) );
+                // ----------------------------------------
+                // Attempt to locate a pre-existing datarecord to import into
+                $grandparent = null;
+                $update_datarecord = false;
+                // Attempt to locate an external id for the datarecord
+                $metadata = self::getODRMetadata($xml_datarecord, 'datarecord');
+                if ( isset($metadata['external_id']) && $parent_datatype->getExternalIdField() !== null ) {
+                    $external_id_value = $metadata['external_id'];
+                    $grandparent = parent::getDatarecordByExternalId($em, $parent_datatype->getExternalIdField()->getId(), $external_id_value);
 
-                        $ret .= 'Attempting to find datarecord identified by external_id: "'.$external_id."\"...\n";
-                    }
+                    $ret .= 'Attempting to find datarecord identified by external_id: "'.$external_id_value."\"...\n";
+                }
 
-                    if ($grandparent == null) {
-                        // Create a new top-level DataRecord object for the database
+                if ($grandparent == null) {
+                    // Create a new top-level DataRecord object for the database
 if ($write) {
-                        $grandparent = parent::ODR_addDataRecord($em, $user, $parent_datatype);
-                        $grandparent->setParent($grandparent);
-                        $grandparent->setGrandparent($grandparent);
+                    $grandparent = parent::ODR_addDataRecord($em, $user, $parent_datatype);
+                    $grandparent->setParent($grandparent);
+                    $grandparent->setGrandparent($grandparent);
 
-                        $em->persist($grandparent);
-                        $em->flush();
-                        $em->refresh($grandparent);
+                    $em->persist($grandparent);
+                    $em->flush();
+                    $em->refresh($grandparent);
 
-                        // Create all datarecordfield and storage entities required for this datarecord
-//                        parent::verifyExistence($grandparent);   // this should already happen in parent::ODR_addDataRecord()
-                        $created_objects = array($grandparent);
+                    // Create all datarecordfield and storage entities required for this datarecord
+                    $created_objects = array($grandparent);
 }
 else {
     $grandparent = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( array("dataType" => $parent_datatype->getId()) );   // DEBUGGING
 }
 
-                        $ret .= 'Creating new datarecord...'."\n";
-                    }
-                    else {
-                        $update_datarecord = true;
-                        $ret .= 'Using existing datarecord...'."\n";
-                    }
-
-                    // Go through the process of importing this datarecord
-                    $import_ret = self::importDatarecord($em, $user, $xml_entity, $grandparent, $grandparent, $update_datarecord, $write, $indent);
-
+                    $ret .= 'Creating new datarecord...'."\n";
                 }
                 else {
-                    // Go through the process of importing this radio option
-                    $import_ret = self::importRadioOption($em, $user, $xml_entity, $datafield, $write, $indent);
+                    $update_datarecord = true;
+                    $ret .= 'Using existing datarecord...'."\n";
                 }
+
+                // Go through the process of importing this datarecord
+                $import_ret = self::importDatarecord($em, $user, $xml_datarecord, $grandparent, $grandparent, $update_datarecord, $write, $indent);
 
 
                 // ----------------------------------------
@@ -620,7 +595,7 @@ if ($write) {
     /**
      * Helper function for debugging importing.
      *
-     * @param integer $level How many tabs to print out so debug output looks nice
+     * @param integer $level
      *
      * @return string
      */
@@ -638,8 +613,8 @@ if ($write) {
      * Does the actual work of importing everything for a datarecord, and links to datarecords if necessary
      * 
      * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user
-     * @param DOMNodeList $xml_datarecord        The XML structure describing the data that is being imported into this datarecord
+     * @param ODRUser $user
+     * @param \DOMNode $xml_datarecord           The XML structure describing the data that is being imported into this datarecord
      * @param DataRecord $datarecord             The datarecord that is getting data imported into it
      * @param DataRecord $grandparent_datarecord The top-level datarecord, if this function is currently working on importing a child datarecord
      * @param boolean $update_datarecord         Whether to attempt to update the existing data in the datarecord, or just create new storage entities for everything
@@ -651,19 +626,18 @@ if ($write) {
      */
     private function importDatarecord($em, $user, $xml_datarecord, $datarecord, $grandparent_datarecord, $update_datarecord, $write, $indent)
     {
-
         // Need to keep track of whether an error occurred or not, and the objects created up to the point of the error
         $error_during_import = false;
         $created_objects = array();
 
         // ----------------------------------------
         // Import metadata about this datarecord
-        $metadata = self::getODRMetadata($xml_datarecord);
+        $metadata = self::getODRMetadata($xml_datarecord, 'datarecord');
 
         $external_id = null;
         if ( isset($metadata['external_id']) ) {
             $external_id = $metadata['external_id'];
-            $datarecord->setExternalId($external_id);
+//            $datarecord->setExternalId($external_id);
         }
 
         $create_date = null;
@@ -685,7 +659,7 @@ if ($write) {
         }
 
 if ($write) {
-            $em->persist($datarecord);
+        $em->persist($datarecord);
 }
 
         $ret = "\n";
@@ -702,25 +676,41 @@ if ($write) {
 
         // Import datafields directly attached to this datarecord
         $datatype = $datarecord->getDataType();
-        foreach ($datatype->getDataFields() as $datafield) {
-            // Locate the XML element that holds the data for this field...because xml document is valid, this will always return something
-            $xml_element = $xml_datarecord->getElementsByTagName( $datafield->getXMLFieldName() )->item(0);
-            $ret .= self::indent($indent+1).'>> '.$datafield->getXMLFieldName();
+        foreach ($xml_datarecord->childNodes as $child_node) {
+            // Don't want metadata, child datarecords, or linked datarecords
+            if ($child_node->nodeName !== 'datafields')
+                continue;
 
-            // Import the data from the XML element
-            $import_ret = self::importData($em, $user, $xml_element, $datarecord, $datafield, $update_datarecord, $write, $indent+2);
+            // $child_node now contains the 'datafields' element
+            foreach ($child_node->childNodes as $xml_datafield) {
+                // TEMP
+                $datafield = null;
+                foreach ($datatype->getDataFields() as $df) {
+                    if ($df->getXMLFieldName() == $xml_datafield->nodeName) {
+                        $datafield = $df;
+                        break;
+                    }
+                }
 
-            $ret .= ' => '.$import_ret['status'];
+                // Locate the XML element that holds the data for this field...because xml document is valid, this will always return something
+                $ret .= self::indent($indent + 1).'>> '.$xml_datafield->nodeName;
 
-            if ( $import_ret['error'] == true ) {
-                // Encountered some sort of error during importing, stop trying to import immediately
-                $error_during_import = true;
-                $ret .= $import_ret['status'];
-                break;
-            }
-            else {
-                // Save the entities created during the import of this datafield
-                $created_objects = array_merge($created_objects, $import_ret['objects']);
+                // Import the data from the XML element
+                $import_ret = self::importData($em, $user, $xml_datafield, $datarecord, $datafield, $update_datarecord, $write, $indent + 2);
+
+                $ret .= ' => '.$import_ret['status'];
+
+                if ($import_ret['error'] == true) {
+                    // Encountered some sort of error during importing, stop trying to import immediately
+                    $error_during_import = true;
+                    $ret .= $import_ret['status'];
+                    break;
+                }
+                else {
+                    // Save the entities created during the import of this datafield
+                    $created_objects = array_merge($created_objects, $import_ret['objects']);
+                }
+
             }
 
         }
@@ -728,6 +718,8 @@ if ($write) {
 
         // ----------------------------------------
         // Need to deal with any occurence of child/linked datatypes now...
+        $parent_external_id = $datarecord->getExternalId();  // TODO - possible problem due to datafield getting changed earlier?
+
         $child_datatypes = array();
         $linked_datatypes = array();
         if (!$error_during_import) {
@@ -758,94 +750,87 @@ if ($write) {
             }
         }
 
-
         // ----------------------------------------
-        $ret .= "\n";
-        $ret .= self::indent($indent).'-- child datarecords';
-
         // Search for any child datarecords that need to be created
         if (!$error_during_import) {
-            foreach ($child_datatypes as $num => $child_datatype) {
-                $ret .= self::indent($indent+1).'>> '.$child_datatype->getXMLShortName();
 
-                // ------------------------------
-                // Go looking through the xml for datarecord instances of childtypes
-                $tmp = $xml_datarecord->getElementsByTagName( $child_datatype->getXMLShortName() );
-                if ( $tmp->length > 0 ) {
-                    $xml_child_datarecords = $tmp->item(0)->getElementsByTagName( '_'.$child_datatype->getXMLShortName().'_child' );
-                    if ( $xml_child_datarecords->length == 0 )
-                        $xml_child_datarecords = array();
+            foreach ($xml_datarecord->childNodes as $child_node) {
+                // Don't want metadata, datafields, or linked datarecords
+                if ($child_node->nodeName !== 'child_datarecords')
+                    continue;
 
-                    foreach ($xml_child_datarecords as $xml_child_datarecord) {
-                        // ------------------------------
-                        // Grab metadata from child datarecord
-                        $external_id = null;
-                        $odr_keyfield = null;
-                        $odr_namefield = null;
+                // $child_node now contains the 'child_datarecords' element
 
-                        $direct = true;    // TODO - why the hell is this required...conceptually it shouldn't be...
-                        $metadata = self::getODRMetadata($xml_child_datarecord, $direct);
-                        if ( isset($metadata['external_id']) )
-                            $external_id = $metadata['external_id'];
-                        if ( isset($metadata['odr_keyfield']) )
-                            $odr_keyfield = $metadata['odr_keyfield'];
-                        if ( isset($metadata['odr_namefield']) )
-                            $odr_namefield = $metadata['odr_namefield'];
+                // TEMP
+                foreach ($child_datatypes as $num => $child_datatype) {
+                    foreach ($child_node->childNodes as $child_datatype_element) {
 
-                        $ret .= self::indent($indent+2).'-- looking for datarecord of datatype '.$child_datatype->getId().' with...';
+                        if ($child_datatype_element->nodeName == $child_datatype->getXMLShortName()) {
 
-                        // ------------------------------
-                        // Attempt to locate child datarecord with that metadata
-                        $child_datarecord = null;
-                        if ($external_id !== null) {
-                            $ret .= 'external_id: '.$external_id;
-                            $child_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( array('dataType' => $child_datatype->getId(), 'external_id' => $external_id) );
-                        }
-                        else if ($odr_keyfield !== null)  {
-                            $ret .= 'odr_keyfield: '.$odr_keyfield.' DISABLED';
-//                            $child_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( array('dataType' => $remote_datatype->getId(), '' => $odr_keyfield) );
-                        }
-                        else if ($odr_namefield !== null)  {
-                            $ret .= 'odr_namfield: '.$odr_namefield.' DISABLED';
-//                            $child_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( array('dataType' => $remote_datatype->getId(), '' => $odr_namefield) );
-                        }
+                            $ret .= "\n";
+                            $ret .= self::indent($indent).'---------------';
+                            $ret .= self::indent($indent).'-- child datarecords';
+                            $ret .= self::indent($indent+1).'>> '.$child_datatype_element->nodeName;
 
-                        // ------------------------------
-                        // Ensure a child datarecord entity exists to import into
-                        $update_child_datarecord = false;
-                        if ($child_datarecord == null) {
-                            $ret .= ' ...not found, creating new child_datarecord';
+                            $child_xml_datarecords = $child_datatype_element->childNodes->item(0);
+
+                            foreach ($child_xml_datarecords->childNodes as $child_xml_datarecord) {
+
+                                $ret .= self::indent($indent+1).'---------------';
+
+                                // ----------------------------------------
+                                // Grab child datarecord metadata
+                                $metadata = self::getODRMetadata($child_xml_datarecord, 'datarecord');
+
+                                // Attempt to locate the child datarecord
+                                $child_datarecord = null;
+                                if ( isset($metadata['external_id']) && $child_datatype->getExternalIdField() !== null ) {
+                                    $child_external_id = $metadata['external_id'];
+                                    $child_datarecord = parent::getChildDatarecordByExternalId($em, $child_datatype->getExternalIdField()->getId(), $child_external_id, $datatype->getExternalIdField()->getId(), $parent_external_id);
+                                }
+
+                                // ------------------------------
+                                // Ensure a child datarecord entity exists to import into
+                                $update_child_datarecord = false;
+                                if ($child_datarecord == null) {
+                                    $ret .= self::indent($indent+1).' ...not found, creating new child_datarecord';
 
 if ($write) {
-                            $child_datarecord = parent::ODR_addDataRecord($em, $user, $child_datatype);
-                            $child_datarecord->setParent($datarecord);
-                            $child_datarecord->setGrandparent($grandparent_datarecord);
+                                    $child_datarecord = parent::ODR_addDataRecord($em, $user, $child_datatype);
+                                    $child_datarecord->setParent($datarecord);
+                                    $child_datarecord->setGrandparent($grandparent_datarecord);
 
-                            $em->persist($child_datarecord);
-                            $em->flush();
-                            $em->refresh($child_datarecord);
+                                    $em->persist($child_datarecord);
+                                    $em->flush();
+                                    $em->refresh($child_datarecord);
 
-                            // Create all datarecordfield and storage entities required for this datarecord
-//                            parent::verifyExistence($child_datarecord); // ODR_addDataRecord() should take care of this...
-                            $created_objects = array_merge($created_objects, array($child_datarecord));
+                                    // Save the new child datarecord incase it needs to get deleted on an error
+                                    $created_objects = array_merge($created_objects, array($child_datarecord));
 }
 else {
-    $child_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( array("dataType" => $child_datatype->getId()) );   // TEST
+                                    $child_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( array("dataType" => $child_datatype->getId()) );   // TEST
 }
+                                }
+                                else {
+                                    $update_child_datarecord = true;
+                                    $ret .= self::indent($indent+1).' ...Using existing child_datarecord...';
+                                }
 
+                                // ----------------------------------------
+                                // Import into the child datarecord
+                                $import_ret = self::importDatarecord($em, $user, $child_xml_datarecord, $child_datarecord, $grandparent_datarecord, $update_child_datarecord, $write, $indent+3);
+
+                                $error_during_import = $import_ret['error'];
+                                $ret .= $import_ret['status'];
+                                $created_objects = array_merge($created_objects, $import_ret['objects']);
+
+                                if ($error_during_import)
+                                    break;
+                            }
+
+                            if ($error_during_import)
+                                break;
                         }
-                        else {
-                            $update_child_datarecord = true;
-                            $ret .= ' ...Using existing child_datarecord...'."\n";
-                        }
-
-                        // ------------------------------
-                        // Go through the process of importing this child datarecord
-                        $import_ret = self::importDatarecord($em, $user, $xml_child_datarecord, $child_datarecord, $grandparent_datarecord, $update_child_datarecord, $write, $indent+3);
-
-                        $error_during_import = $import_ret['error'];
-                        $ret .= $import_ret['status'];
-                        $created_objects = array_merge($created_objects, $import_ret['objects']);
 
                         if ($error_during_import)
                             break;
@@ -854,78 +839,69 @@ else {
                     if ($error_during_import)
                         break;
                 }
+
+                if ($error_during_import)
+                    break;
             }
         }
 
-
         // ----------------------------------------
-        $ret .= "\n";
-        $ret .= self::indent($indent).'-- linked datarecords';
-
-        // Search for any datarecords that need to be linked to...
-        // TODO - delete links not specified in the file
-        // TODO - modify schema to permit updating links from both sides, instead of just from the 'parent' side?
+        // Search for any linked datarecords that need to be created
         if (!$error_during_import) {
-            foreach ($linked_datatypes as $num => $remote_datatype) {
-                $ret .= self::indent($indent+1).'>> '.$remote_datatype->getXMLShortName();
 
-                $tmp = $xml_datarecord->getElementsByTagName( $remote_datatype->getXMLShortName() );
-                if ( $tmp->length > 0 ) {
-                    $linked_datarecords = $tmp->item(0)->getElementsByTagName('linked_type');
-                    foreach ($linked_datarecords as $linked_datarecord) {
-                        // ------------------------------
-                        // Grab metadata from linked datarecord
-                        $external_id = null;
-                        $odr_keyfield = null;
-                        $odr_namefield = null;
+            foreach ($xml_datarecord->childNodes as $child_node) {
+                // Don't want metadata, datafields, or child datarecords
+                if ($child_node->nodeName !== 'linked_datarecords')
+                    continue;
 
-                        $direct = true;
-                        $metadata = self::getODRMetadata($linked_datarecord, $direct);
-                        if ( isset($metadata['external_id']) )
-                            $external_id = $metadata['external_id'];
-                        if ( isset($metadata['odr_keyfield']) )
-                            $odr_keyfield = $metadata['odr_keyfield'];
-                        if ( isset($metadata['odr_namefield']) )
-                            $odr_namefield = $metadata['odr_namefield'];
+                // $child_node now contains the 'linked_datarecords' element
 
-                        $ret .= self::indent($indent+2).'-- looking for datarecord of datatype '.$remote_datatype->getId().' with...';
+                // TEMP
+                foreach ($linked_datatypes as $num => $linked_datatype) {
+                    foreach ($child_node->childNodes as $linked_datatype_element) {
 
-                        // ------------------------------
-                        // Attempt to locate remote datarecord with that metadata
-                        $remote_datarecord = null;
-                        if ($external_id !== null) {
-                            $ret .= 'external_id: '.$external_id;
-                            $remote_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( array('dataType' => $remote_datatype->getId(), 'external_id' => $external_id) );
-                        }
-                        else if ($odr_keyfield !== null)  {
-                            $ret .= 'odr_keyfield: '.$odr_keyfield.' DISABLED';
-//                            $remote_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( array('dataType' => $remote_datatype->getId(), '' => $odr_keyfield) );
-                        }
-                        else if ($odr_namefield !== null)  {
-                            $ret .= 'odr_namfield: '.$odr_namefield.' DISABLED';
-//                            $remote_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( array('dataType' => $remote_datatype->getId(), '' => $odr_namefield) );
-                        }
+                        if ($linked_datatype_element->nodeName == $linked_datatype->getXMLShortName()) {
 
-                        // ------------------------------
-                        // Attempt to link to that remote datarecord
-                        if ($remote_datarecord == null) {
-                            $ret .= ' ...ERROR: not found';
-                        }
-                        else {
-                            $ret .= ' ...found';
+                            $ret .= "\n";
+                            $ret .= self::indent($indent).'---------------';
+                            $ret .= self::indent($indent).'-- linked datarecords';
+                            $ret .= self::indent($indent + 1).'>> '.$linked_datatype_element->nodeName;
+
+                            $linked_xml_datarecords = $linked_datatype_element->childNodes->item(0);
+
+                            foreach ($linked_xml_datarecords->childNodes as $linked_xml_datarecord) {
+
+                                $ret .= self::indent($indent+1).'---------------';
+
+                                // Grab external ID of remote datarecord
+                                $remote_external_id = $linked_xml_datarecord->getElementsByTagname('_external_id')->item(0)->nodeValue;
+                                $ret .= self::indent($indent+1).$remote_external_id;
+
+                                // Attempt to locate the remote datarecord
+                                $remote_datarecord = null;
+                                if ( $linked_datatype->getExternalIdField() !== null )
+                                    $remote_datarecord = parent::getDatarecordByExternalId($em, $linked_datatype->getExternalIdField()->getId(), $remote_external_id);
+
+                                // ------------------------------
+                                // Attempt to link to that remote datarecord
+                                if ($remote_datarecord == null) {
+                                    $ret .= ' ...ERROR: not found';
+                                }
+                                else {
+                                    $ret .= ' ...found';
 if ($write) {
-                            // Create a link between the current datarecord and the remote datarecord
-                            parent::ODR_linkDataRecords($em, $user, $datarecord, $remote_datarecord);
-                            $ret .= ' ...linked';
+                                    // Create a link between the current datarecord and the remote datarecord
+                                    parent::ODR_linkDataRecords($em, $user, $datarecord, $remote_datarecord);
+                                    $ret .= ' ...linked';
 }
+                                }
+
+                            }
                         }
-                        $ret .= "\n";
                     }
                 }
             }
         }
-
-        $ret .= "\n".self::indent($indent).'---------------'."\n";
 
         // ----------------------------------------
         // Return results of importing this datarecord
@@ -942,181 +918,34 @@ if ($write) {
      * Given an XML DOMNodeList, converts the contents of any of the tags ['_datarecord_metadata', '_image_metadata', '_file_metadata', '_option_metadata'] into an array and returns it.
      * Each xml entity can only have one of the above tags at any given point by definition.
      * 
-     * @param DOMNodeList $xml_entity
-     * @param boolean $direct
+     * @param \DOMNode $xml_entity
+     * @param string $metadata_type 'datarecord'|'file'|'image'
      *
-     * @return Response TODO
+     * @return array
      */
-    private function getODRMetadata($xml_entity, $direct = false)
+    private function getODRMetadata($xml_entity, $metadata_type)
     {
         $odr_metadata = array();
+        $metadata_type = '_'.$metadata_type.'_metadata';
 
-        // Grab the metadata element
-        $metadata = null;
-        if ( !$direct ) {
-            $tmp = $xml_entity->getElementsByTagName('_datarecord_metadata');
-            if ($metadata == null && $tmp->length > 0)
-                $metadata = $tmp->item(0);
-            $tmp = $xml_entity->getElementsByTagName('_file_metadata');
-            if ($metadata == null && $tmp->length > 0)
-                $metadata = $tmp->item(0);
-            $tmp = $xml_entity->getElementsByTagName('_image_metadata');
-            if ($metadata == null && $tmp->length > 0)
-                $metadata = $tmp->item(0);
-            $tmp = $xml_entity->getElementsByTagName('_option_metadata');
-            if ($metadata == null && $tmp->length > 0)
-                $metadata = $tmp->item(0);
-        }
-        else {
-            $metadata = $xml_entity;
-        }
+        // Look for the metadata element
+        foreach ($xml_entity->childNodes as $childNode) {
+            if ($childNode->nodeName == $metadata_type) {
+                // Turn each property listed in the metadata element into an array element
+                foreach ($childNode->childNodes as $metadata_node) {
+                    $name = substr($metadata_node->nodeName, 1);
+                    $value = $metadata_node->nodeValue;
 
+                    // TODO - how to translate random names into useful info
+                    if ($name == 'create_auth')
+                        continue;
 
-        // If metadata exists...
-        if ($metadata !== null) {
-            // --------------------
-            // Common properties
-            $tmp = $metadata->getElementsByTagName('_create_date');
-            if ($tmp->length > 0)
-                $odr_metadata['create_date'] = $tmp->item(0)->nodeValue;
-//            $tmp = $metadata->getElementsByTagName('_create_auth');
-//            if ($tmp->length > 0)
-//                $odr_metadata['create_auth'] = $tmp->item(0)->nodeValue;
-            $tmp = $metadata->getElementsByTagName('_public_date');
-            if ($tmp->length > 0)
-                $odr_metadata['public_date'] = $tmp->item(0)->nodeValue;
-            $tmp = $metadata->getElementsByTagName('_external_id');
-            if ($tmp->length > 0)
-                $odr_metadata['external_id'] = $tmp->item(0)->nodeValue;
-
-
-            // --------------------
-            // Datarecord-only properties
-            /* none right now */
-
-            // --------------------
-            // File-only properties
-            /* none right now */
-
-            // --------------------
-            // Image-only properties
-            $tmp = $metadata->getElementsByTagName('_display_order');
-            if ($tmp->length > 0)
-                $odr_metadata['display_order'] = $tmp->item(0)->nodeValue;
-
-            // --------------------
-            // RadioOption-only properties
-            $tmp = $metadata->getElementsByTagName('_parent_id');
-            if ($tmp->length > 0)
-                $odr_metadata['parent_id'] = $tmp->item(0)->nodeValue;
+                    $odr_metadata[$name] = $value;
+                }
+            }
         }
 
         return $odr_metadata;
-    }
-
-    /**
-     * Does the actual work of importing everything for a radio option
-     * 
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user
-     * @param DOMNodeList $xml_entity The XML describing this RadioOption entity
-     * @param DataFields $datafield   The DataField this RadioOption belongs to
-     * 
-     * @param boolean $write  Whether to persist/flush all changes
-     * @param integer $indent Debugging purposes...
-     * 
-     * @return array
-     */
-    private function importRadioOption($em, $user, $xml_entity, $datafield, $write, $indent)
-    {
-
-        // Need to keep track of whether an error occurred or not, and the objects created up to the point of the error
-        $error_during_import = false;
-        $created_objects = array();
-
-        // Grab the required 
-        $option_name = $xml_entity->getElementsByTagName('option_name')->item(0)->nodeValue;
-
-        // Grab metadata if possible
-        $external_id = null;
-        $parent_id = null;
-        $create_date = null;
-
-        $metadata = self::getODRMetadata($xml_entity);
-        if ( isset($metadata['external_id']) )
-            $external_id = $metadata['external_id'];
-        if ( isset($metadata['parent_id']) )
-            $parent_id = $metadata['parent_id'];
-        if ( isset($metadata['create_date']) )
-            $create_date = $metadata['create_date'];
-
-
-        // Find a pre-existing radio option if possible
-        $ret = '';
-        $radio_option = null;
-        if ($external_id !== null) {
-            $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('dataFields' => $datafield->getId(), 'external_id' => $external_id) );
-        }
-
-        if ($radio_option == null) {
-            // No pre-existing radio option, need to create a new radio option
-
-if ($write) {
-            $radio_option = parent::ODR_addRadioOption($em, $user, $datafield);
-            $em->flush();
-            $em->refresh($radio_option);
-}
-else {
-    $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find(1);
-}
-
-            $ret = 'Created new radio_option for ';
-        }
-        else {
-            $ret = 'Loaded existing radio_option (id: '.$radio_option->getId().') for ';
-        }
-
-        // Save the option name
-        $radio_option->setOptionName($option_name);
-        $ret .= '"'.$option_name.'" >> ';
-
-        // Set the optional attributes
-        if ($create_date !== null) {
-            $radio_option->setCreated( new \DateTime($create_date) );
-            $ret .= 'create_date: '.$create_date.' ';
-        }
-        if ($external_id !== null) {
-            $radio_option->setExternalId($external_id);
-            $ret .= 'external_id: '.$external_id.' ';
-        }
-        if ($parent_id !== null && $parent_id !== '0') {
-            // TODO - parent using internal id?  only seems to make sense when it's external...
-
-            $parent = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('dataFields' => $datafield->getId(), 'external_id' => $parent_id) );
-            if ($parent == null) {
-                $error_during_import = true;
-                $ret .= 'ERROR: could not find parent';
-            }
-            else {
-                $ret .= 'parent_id (df '.$datafield->getId().'): '.$parent_id.' ';
-                $radio_option->setParent($parent);
-            }
-        }
-        $ret .= "\n";
-
-
-if ($write) {
-        $em->persist($radio_option);
-        $em->flush();
-}
-
-        // Return results of importing this datarecord
-        $return = array();
-        $return['status'] = $ret;
-        $return['error'] = $error_during_import;
-        $return['objects'] = $created_objects;
-
-        return $return;
     }
 
 
@@ -1124,8 +953,8 @@ if ($write) {
      * Creates a new Entity to hold the XML data from $element.
      * 
      * @param \Doctrine\ORM\EntityManager $entity_manager
-     * @param User $user
-     * @param DOMElement $element        The xml describing this element
+     * @param ODRUser $user
+     * @param \DOMNode $xml_element          The xml describing this element
      * @param DataRecord $datarecord     The datarecord getting this piece of data
      * @param DataFields $datafield      The datafield this data is being stored in
      * @param boolean $update_datarecord Whether to attempt to update the existing data in the datarecord, or just create new storage entities for everything
@@ -1135,7 +964,7 @@ if ($write) {
      * 
      * @return array
      */
-    private function importData($entity_manager, $user, $element, $datarecord, $datafield, $update_datarecord, $write, $indent)
+    private function importData($entity_manager, $user, $xml_element, $datarecord, $datafield, $update_datarecord, $write, $indent)
     {
         $status = '';
 
@@ -1145,12 +974,14 @@ if ($write) {
         $return['objects'] = array();
 
         // Shouldn't happen, obviously
-        if ($element == null) {
+        if ($xml_element == null) {
             $return['status'] = 'ERROR: element equal to null';
             return $return;
         }
 
         // Going to need these for file/image downloads...
+        $repo_datarecordfields = $entity_manager->getRepository('ODRAdminBundle:DataRecordFields');
+
         $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
         $api_key = $this->container->getParameter('beanstalk_api_key');
         $router = $this->container->get('router');
@@ -1159,39 +990,45 @@ if ($write) {
         $url .= $router->generate('odr_import_file');
 
 
-        if ($element->getElementsByTagName('file')->length > 0) {
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+        if ($typeclass == 'File') {
 
             try {
-                // Iterate through all the <file> tags for this element in the XML
-                $files = $element->getElementsByTagName('file');
-                foreach ($files as $file) {
-                    // ------------------------------
-                    // Grab the file's properties from the XML
-                    $filename = $file->getElementsByTagName('original_name')->item(0)->nodeValue;
-                    $href = $file->getElementsByTagName('href')->item(0)->nodeValue;
+                // Iterate through all the <file> tags for this xml element
+                foreach ($xml_element->childNodes as $file_element) {
+                    $original_name = $file_element->getElementsByTagName('original_name')->item(0)->nodeValue;
+                    $checksum = $file_element->getElementsByTagName('checksum')->item(0)->nodeValue;
 
-                    $filename = str_replace(array('&gt;', '&lt;', '&amp;', '&quot;'), array('>', '<', '&', '"'), $filename);
-                    $href = str_replace(array('&gt;', '&lt;', '&amp;', '&quot;'), array('>', '<', '&', '"'), $href);
+                    $source = '';
+                    $using_href = true;
+                    if ($file_element->getElementsByTagName('href')->length > 0) {
+                        // File has to be downloaded from some other server
+                        $source = $file_element->getElementsByTagName('href')->item(0)->nodeValue;
+                    }
+                    else {
+                        // File is already on the server
+                        $using_href = false;
+                        $source = $file_element->getElementsByTagName('local_filename')->item(0)->nodeValue;
+                    }
 
-//print $filename.' '.$href;
-
-                    // No point if there's no href?
-                    if ($href == '') {
-                        // No href specified, notify of failure
-                        $status .= self::indent($indent).'No href specified for file "'.$filename.'", skipping...';
+                    // No point if there's no href/filename...
+                    if ($source == '') {
+                        $status .= self::indent($indent).'No source specified for file "'.$original_name.'", skipping...';
                         continue;
 
                         // TODO - throw exception instead?
                     }
 
-                    // ------------------------------
+                    // TODO - need to decode all of these file properties?
+
+                    // ----------------------------------------
                     // Check for metadata
                     $create_date = null;
                     $create_auth = null;
                     $public_date = '2200-01-01 00:00:00';   // default to not public
                     $external_id = null;
 
-                    $metadata = self::getODRMetadata($file);
+                    $metadata = self::getODRMetadata($file_element, 'file');
                     if ( isset($metadata['create_date']) )
                         $create_date = $metadata['create_date'];
                     if ( isset($metadata['create_auth']) )
@@ -1201,147 +1038,110 @@ if ($write) {
                     if ( isset($metadata['external_id']) )
                         $external_id = $metadata['external_id'];
 
+                    // TODO - need to decode all of these metadata properties?
 
-                    // ------------------------------
-                    // Attempt to locate an already existing file entity
-                    $file_obj = null;
+                    // ----------------------------------------
+                    // Import the file
+                    $drf = $repo_datarecordfields->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
 
-                    if ($external_id !== null) {
-                        $file_obj = $entity_manager->getRepository('ODRAdminBundle:File')->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId(), 'external_id' => $external_id) );
+                    if (!$using_href) {
+                        // local filename provided..."upload" file from there
+                        $filepath = dirname(__FILE__).'/../../../../web/uploads/xml/user_'.$user->getId().'/storage';
 
-//                        print self::indent($indent).'Attempting to locate file for DataRecord '.$datarecord->getId().', DataField '.$datafield->getId().', with external_id '.$external_id.'...';
+                        // TODO - ...something else that i'm unable to think of right now
+                        // TODO - replace existing files?
+                        // TODO - delete files not mentioned in xml?
+
                         $status .= self::indent($indent).'Attempting to locate file for DataRecord '.$datarecord->getId().', DataField '.$datafield->getId().', with external_id '.$external_id.'...';
-                    }
 
-                    // If file object doesn't exist, create it
-                    if ($file_obj == null) {
 if ($write) {
-                        // Need to explicitely state this is a file fieldtype
-                        $fieldtype = $entity_manager->getRepository('ODRAdminBundle:FieldType')->find('2');
+                        parent::finishUpload($entity_manager, $filepath, $source, $user->getId(), $drf->getId());
+                        $status .= 'uploaded from xml file storage'."\n";
 
-                        $file_obj = new File();
-                        $file_obj->setFieldType($fieldtype);
-                        $file_obj->setOriginalFileName($filename);
-                        $file_obj->setOriginalChecksum('');
-                        $file_obj->setLocalFileName('temp');
-//                        $file_obj->setGraphable('1');
-                        $file_obj->setUpdatedBy($user);
-                        $file_obj->setCreatedBy($user);
-                        $file_obj->setDataField($datafield);
-                        $file_obj->setDataRecord($datarecord);
-//                        $file_obj->setExt('temp');
-                        $data_record_field = $entity_manager->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array("dataField" => $datafield->getId(), "dataRecord" => $datarecord->getId()) );
-                        $file_obj->setDataRecordFields($data_record_field);
-
-                        $file_obj->setPublicDate(new \DateTime($public_date));
-                        if ($create_date !== null)
-                            $file_obj->setCreated( new \DateTime($create_date) );
-                        if ($create_auth !== null)
-                            $file_obj->setCreatedBy($create_auth);
-                        if ($external_id !== null)
-                            $file_obj->setExternalId($external_id);
-
-                        $entity_manager->persist($file_obj);
-                        $entity_manager->flush();
-                        $entity_manager->refresh($file_obj);
-
-                        // Need to store all file objects so they can all be deleted if necessary
-                        $return['objects'][] = $file_obj;
-}    // end if ($write)
-else {
-    $file_obj = $entity_manager->getRepository('ODRAdminBundle:File')->findOneBy( array('deletedAt' => null) ); // just grab any file for debug purposes
+                        // TODO - modify finishUpload() so that it returns file/image?
+                        // TODO - set the metadata properties?
 }
-
-                        $status .= '...not found, creating new File';
                     }
                     else {
-                        // TODO - properties to update files with go here
-                        $file_obj->setPublicDate(new \DateTime($public_date));
-                        $file_obj->setOriginalFileName($filename);
+                        // href provided, set up a separate job to download it due to timeout concerns
 
 if ($write) {
-                        $entity_manager->persist($file_obj);
-}
+                        $status .= self::indent($indent).' >> scheduled file for download';
 
-                        $status .= 'found';
+                        $priority = 1024;   // should be roughly default priority
+                        $payload = json_encode(
+                            array(
+                                "object_type" => 'File',
+                                "user_id" => $user->getId(),
+                                "drf" => $drf->getId(),
+                                "href" => $source,
+                                "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                                "url" => $url,
+                                "api_key" => $api_key,
+                            )
+                        );
+
+                        $delay = 1;
+                        $pheanstalk->useTube('import_file')->put($payload, $priority, $delay);
+}
                     }
 
 
-if ($write) {
-
-                    // ------------------------------
-                    // Due to timeout concerns, get a separate worker process to download the file
-                    $status .= self::indent($indent).' >> scheduled file for download';
-
-                    $priority = 1024;   // should be roughly default priority
-                    $payload = json_encode(
-                        array(
-                            "object_type" => 'File',
-                            "object_id" => $file_obj->getId(),
-                            "user_id" => $user->getId(),
-                            "href" => $href,
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                            "url" => $url,
-                            "api_key" => $api_key,
-                        )
-                    );
-
-                    $delay = 1;
-                    $pheanstalk->useTube('import_file')->put($payload, $priority, $delay);
-}
-
-                    // ------------------------------
-                    $status .= self::indent($indent).'-- filename: '.$filename;
-                    $status .= self::indent($indent).'-- href: '.$href;
+                    // ----------------------------------------
+                    $status .= self::indent($indent).'-- original_name: '.$original_name;
+                    $status .= self::indent($indent).'-- source: '.$source;
+                    $status .= self::indent($indent).'-- checksum: '.$checksum;
                     $status .= self::indent($indent).'-- create_auth: '.$create_date;
                     $status .= self::indent($indent).'-- create_date: '.$create_auth;
                     $status .= self::indent($indent).'-- public_date: '.$public_date;
                     $status .= self::indent($indent).'-- external_id: '.$external_id;
                     $status .= "\n";
                 }
-
-
             }
             catch (\Exception $e) {
                 $return['error'] = true;
             }
         }
-        else if ($element->getElementsByTagName('image')->length > 0) {
+        else if ($typeclass == 'Image') {
 
             try {
-                // Iterate through all the <image> tags for this element in the XML
-                $images = $element->getElementsByTagName('image');
-                foreach ($images as $image) {
-                    // ------------------------------
-                    // Grab the image's properties from the XML
-                    $original_name = $image->getElementsByTagName('original_name')->item(0)->nodeValue;
-                    $href = $image->getElementsByTagName('href')->item(0)->nodeValue;
-                    $caption = $image->getElementsByTagName('caption')->item(0)->nodeValue;
+                // Iterate through all the <image> tags for this xml element
+                foreach ($xml_element->childNodes as $image_element) {
+                    $original_name = $image_element->getElementsByTagName('original_name')->item(0)->nodeValue;
+                    $checksum = $image_element->getElementsByTagName('checksum')->item(0)->nodeValue;
+                    $caption = $image_element->getElementsByTagName('caption')->item(0)->nodeValue;
 
-                    $original_name = str_replace(array('&gt;', '&lt;', '&amp;', '&quot;'), array('>', '<', '&', '"'), $original_name);
-                    $href = str_replace(array('&gt;', '&lt;', '&amp;', '&quot;'), array('>', '<', '&', '"'), $href);
-                    $caption = str_replace(array('&gt;', '&lt;', '&amp;', '&quot;'), array('>', '<', '&', '"'), $caption);
+                    $source = '';
+                    $using_href = true;
+                    if ($image_element->getElementsByTagName('href')->length > 0) {
+                        // Image has to be downloaded from some other server
+                        $source = $image_element->getElementsByTagName('href')->item(0)->nodeValue;
+                    }
+                    else {
+                        // Image is already on the server
+                        $using_href = false;
+                        $source = $image_element->getElementsByTagName('local_filename')->item(0)->nodeValue;
+                    }
 
-                    // No point if there's no href?
-                    if ($href == '') {
-                        // No href specified, notify of failure
-                        $status .= 'No href specified for image "'.$original_name.'", skipping...';
+                    // No point if there's no href/filename...
+                    if ($source == '') {
+                        $status .= self::indent($indent).'No source specified for file "'.$original_name.'", skipping...';
                         continue;
 
                         // TODO - throw exception instead?
                     }
 
-                    // ------------------------------
+                    // TODO - need to decode all of these image properties?
+
+                    // ----------------------------------------
                     // Check for metadata
                     $create_date = null;
                     $create_auth = null;
-                    $display_order = 0;
-                    $public_date = '1980-01-01 00:00:00';   // default to public?
+                    $public_date = '2200-01-01 00:00:00';   // default to not public
                     $external_id = null;
+                    $display_order = null;
 
-                    $metadata = self::getODRMetadata($image);
-                    if ( isset($metadata['display_order']) )
-                        $display_order = $metadata['display_order'];
+                    $metadata = self::getODRMetadata($image_element, 'image');
                     if ( isset($metadata['create_date']) )
                         $create_date = $metadata['create_date'];
                     if ( isset($metadata['create_auth']) )
@@ -1350,244 +1150,193 @@ if ($write) {
                         $public_date = $metadata['public_date'];
                     if ( isset($metadata['external_id']) )
                         $external_id = $metadata['external_id'];
+                    if ( isset($metadata['display_order']) )
+                        $display_order = $metadata['display_order'];
 
+                    // TODO - need to decode all of these metadata properties?
 
-                    // ------------------------------
-                    // Attempt to locate an already existing image entity
-                    $image_obj = null;
+                    // ----------------------------------------
+                    // Import the file
+                    $drf = $repo_datarecordfields->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
 
-                    if ($external_id !== null) {
-                        $image_obj = $entity_manager->getRepository('ODRAdminBundle:Image')->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId(), 'external_id' => $external_id) );
+                    if (!$using_href) {
+                        // local filename provided..."upload" file from there
+                        $filepath = dirname(__FILE__).'/../../../../web/uploads/xml/user_'.$user->getId().'/storage';
 
-                        $status .= 'Attempting to locate image for DataRecord '.$datarecord->getId().', DataField '.$datafield->getId().', with external_id '.$external_id.'...';
-                    }
+                        // TODO - ...something else that i'm unable to think of right now
+                        // TODO - replace existing images?
+                        // TODO - delete images not mentioned in xml?
 
-                    // If image object doesn't exist, create it
-                    if ($image_obj == null) {
-                        // Need to explicitely state this is an image fieldtype
-                        $fieldtype = $entity_manager->getRepository('ODRAdminBundle:FieldType')->find('3');
+                        $status .= self::indent($indent).'Attempting to locate file for DataRecord '.$datarecord->getId().', DataField '.$datafield->getId().', with external_id '.$external_id.'...';
 
 if ($write) {
-                        $image_obj = new Image();
-                        $image_obj->setFieldType($fieldtype);
-                        $image_obj->setOriginalFileName($original_name);
-                        $image_obj->setOriginalChecksum('');
-                        $image_obj->setLocalFileName('temp');
-                        $image_obj->setDisplayOrder($display_order);
-                        $image_obj->setUpdatedBy($user);
-                        $image_obj->setDataField($datafield);
-                        $image_obj->setDataRecord($datarecord);
-                        $image_obj->setCaption($caption);
-                        $image_obj->setOriginal(true);
+                        parent::finishUpload($entity_manager, $filepath, $source, $user->getId(), $drf->getId());
+                        $status .= 'uploaded from xml file storage'."\n";
 
-                        $image_obj->setPublicDate(new \DateTime($public_date));
-                        if ($create_date !== null)
-                            $image_obj->setCreated( new \DateTime($create_date) );
-                        if ($create_auth !== null)
-                            $image_obj->setCreatedBy($create_auth);
-                        if ($external_id !== null)
-                            $image_obj->setExternalId($external_id);
-
-                        $data_record_field = $entity_manager->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array("dataField" => $datafield->getId(), "dataRecord" => $datarecord->getId()) );
-                        $image_obj->setDataRecordFields($data_record_field);
-
-                        $entity_manager->persist($image_obj);
-                        $entity_manager->flush();
-                        $entity_manager->refresh($image_obj);
-
-                        $return['objects'][] = $image_obj;
-}    // end of if ($write)
-else {
-    $image_obj = $entity_manager->getRepository('ODRAdminBundle:Image')->findOneBy( array('deletedAt' => null) );   // just grab any image for debug purposes
+                        // TODO - modify finishUpload() so that it returns file/image?
+                        // TODO - set the metadata properties?
 }
-
-                        $status .= '...not found, creating new Image';
                     }
                     else {
-                        // TODO - properties of image to update here
-                        $image_obj->setDisplayOrder($display_order);
-                        $image_obj->setOriginalFileName($original_name);
-                        $image_obj->setPublicDate(new \DateTime($public_date));
+                        // href provided, set up a separate job to download it due to timeout concerns
 
 if ($write) {
-                        $entity_manager->persist($image_obj);
-}
+                        $status .= self::indent($indent).' >> scheduled file for download';
 
-                        $status .= 'found';
+                        $priority = 1024;   // should be roughly default priority
+                        $payload = json_encode(
+                            array(
+                                "object_type" => 'Image',
+                                "user_id" => $user->getId(),
+                                "drf" => $drf->getId(),
+                                "href" => $source,
+                                "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                                "url" => $url,
+                                "api_key" => $api_key,
+                            )
+                        );
+
+                        $delay = 1;
+                        $pheanstalk->useTube('import_file')->put($payload, $priority, $delay);
+}
                     }
 
 
-if ($write) {
-
-                    // ------------------------------
-                    // Due to timeout concerns, get a separate worker process to download the file
-                    $status .= self::indent($indent).' >> scheduled file for download';
-
-                    $priority = 1024;   // should be roughly default priority
-                    $payload = json_encode(
-                        array(
-                            "object_type" => 'Image',
-                            "object_id" => $image_obj->getId(),
-                            "user_id" => $user->getId(),
-                            "href" => $href,
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                            "url" => $url,
-                            "api_key" => $api_key,
-                        )
-                    );
-
-                    $delay = 1;
-                    $pheanstalk->useTube('import_file')->put($payload, $priority, $delay);
-}
-
-                    // ------------------------------
+                    // ----------------------------------------
                     $status .= self::indent($indent).'-- original_name: '.$original_name;
-                    $status .= self::indent($indent).'-- href: '.$href;
                     $status .= self::indent($indent).'-- caption: '.$caption;
+                    $status .= self::indent($indent).'-- source: '.$source;
+                    $status .= self::indent($indent).'-- checksum: '.$checksum;
                     $status .= self::indent($indent).'-- create_auth: '.$create_date;
                     $status .= self::indent($indent).'-- create_date: '.$create_auth;
                     $status .= self::indent($indent).'-- public_date: '.$public_date;
+                    $status .= self::indent($indent).'-- external_id: '.$external_id;
                     $status .= self::indent($indent).'-- display_order: '.$display_order;
                     $status .= "\n";
                 }
-
             }
             catch (\Exception $e) {
                 $return['error'] = true;
             }
         }
-        else if ($element->getElementsByTagName('radio_option')->length > 0) {
-
+        else if ($typeclass == 'Radio') {
             try {
-//                $status .= '~ ';
+                // Going to need these
+                $repo_datarecordfields = $entity_manager->getRepository('ODRAdminBundle:DataRecordFields');
+                $repo_radio_selection = $entity_manager->getRepository('ODRAdminBundle:RadioSelection');
+                $repo_radio_option = $entity_manager->getRepository('ODRAdminBundle:RadioOptions');
 
-                // Grab the type of option from the XML
-//                $option_type = $element->getAttribute('type');
-//                $status .= 'type="'.$option_type.'" ';
+                $drf = $repo_datarecordfields->findOneBy( array("dataField" => $datafield->getId(), "dataRecord" => $datarecord->getId()) );
+                $radio_options = $repo_radio_option->findBy( array("dataFields" => $datafield->getId()) );  // TEMP
 
-                // Iterate through all the <option> tags for this element in the XML
-                $options = $element->getElementsByTagName('radio_option');
-                foreach ($options as $option) {
-                    // Grab the option's properties from the XML
-                    $option_name = $option->getElementsByTagName('option_name')->item(0)->nodeValue;
-                    $value = $option->getElementsByTagName('value')->item(0)->nodeValue;
+                // Grab all the options stored in this xml entity
+                foreach ($xml_element->childNodes as $xml_radio_option) {
+                    $option_name = $xml_radio_option->nodeName;
+                    $option_value = intval($xml_radio_option->nodeValue);
 
-                    $option_name = str_replace(array('&gt;', '&lt;', '&amp;', '&quot;'), array('>', '<', '&', '"'), $option_name);
-                    $value = str_replace(array('&gt;', '&lt;', '&amp;', '&quot;'), array('>', '<', '&', '"'), $value);
+                    //$option_name = str_replace(array('&gt;', '&lt;', '&amp;', '&quot;'), array('>', '<', '&', '"'), $option_name);    // TODO - still needed?
+                    //$option_value = str_replace(array('&gt;', '&lt;', '&amp;', '&quot;'), array('>', '<', '&', '"'), $option_value);     // TODO - still needed?
 
-                    // Attempt to grab radio option metadata
-                    $external_id = null;
-                    $create_date = null;
-                    $create_auth = null;
-
-                    $metadata = self::getODRMetadata($option);
-                    if ( isset($metadata['external_id']) )
-                        $external_id = $metadata['external_id'];
-                    if ( isset($metadata['create_date']) )
-                        $create_date = $metadata['create_date'];
-                    if ( isset($metadata['create_auth']) )
-                        $create_auth = $metadata['create_auth'];
-
-
-                    // Grab the radio option this field is supposed to represent
+                    // TEMP
                     $radio_option = null;
-                    if ($external_id !== null) {
-                        // attempt to locate it via external id first
-                        $radio_option = $entity_manager->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array("external_id" => $external_id, "dataFields" => $datafield->getId()) );
-                    }
-                    else if ($option_name !== '') {
-                        // fall back to using option name
-                        $radio_option = $entity_manager->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array("optionName" => $option_name, "dataFields" => $datafield->getId()) );
+                    foreach ($radio_options as $ro) {
+                        if ($ro->getXMLOptionName() == $option_name) {
+                            $radio_option = $ro;
+                            break;
+                        }
                     }
 
                     if ($radio_option == null) {
                         // This shouldn't happen because the document is valid
-                        throw new \Exception('Could not find option_name: "'.$option_name.'", external_id: "'.$external_id.'" in the database');
+                        throw new \Exception('Could not find option_name: "'.$option_name.'" in the database');
                     }
 
+                    // TODO - delete options not mentioned in xml spec?
 
                     // Attempt to locate a radio_selction object for this
-                    $datarecordfield = $entity_manager->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array("dataField" => $datafield->getId(), "dataRecord" => $datarecord->getId()) );
-                    $radio_selection = $entity_manager->getRepository('ODRAdminBundle:RadioSelection')->findOneBy( array("radioOption" => $radio_option->getId(), "dataRecordFields" => $datarecordfield->getId()) );
-
-                    $selected = 0;
-                    if ($value == 'selected')   // TODO - change the xml to use something other than 'selected', probably
-                        $selected = 1;
+                    $radio_selection = $repo_radio_selection->findOneBy( array("radioOption" => $radio_option->getId(), "dataRecordFields" => $drf->getId()) );
 
 if ($write) {
+                    $update_radio_option = true;
                     if ($radio_selection == null) {
                         // Create a new RadioSelection object
-                        $radio_selection = parent::ODR_addRadioSelection($entity_manager, $user, $radio_option, $datarecordfield, $selected);
+                        $radio_selection = parent::ODR_addRadioSelection($entity_manager, $user, $radio_option, $drf, $option_value);
 
                         // Store the radio option so they can all be deleted if an error occurs
                         $return['objects'][] = $radio_selection;
                     }
                     else {
-                        $radio_selection->setSelected($selected);
+                        // Don't update the radio selection if the value didn't change
+                        if ($radio_selection->getSelected() == $option_value)
+                            $update_radio_option = false;
+                        else
+                            $radio_selection->setSelected($option_value);
                     }
 
-                    $entity_manager->persist($radio_selection);
-                    $entity_manager->flush();
+                    if ($update_radio_option) {
+                        $entity_manager->persist($radio_selection);
+                        $entity_manager->flush();
+                    }
 }
 
-                    $status .= self::indent($indent).'-- option_name: '.$option_name;
-                    $status .= self::indent($indent).'-- value: '.$selected;
-                    $status .= self::indent($indent).'-- external_id: '.$external_id;
-                    $status .= self::indent($indent).'-- create_auth: '.$create_date;
-                    $status .= "\n";
-
+                    $status .= self::indent($indent).'-- "'.$option_name.'": '.$option_value;
                 }
 
-//                $status .= '~';
             }
             catch (\Exception $e) {
                 $return['error'] = true;
             }
         }
-        else if ($element->getElementsByTagName('value')->length > 0) {
+        else {
+            // All other typeclasses
 
             try {
-                // Grab the field's value and type from the XML
-                $value = $element->getElementsByTagName('value')->item(0)->nodeValue;
-                $type = $element->getElementsByTagName('type')->item(0)->nodeValue; // not used at the moment
+                // Grab the field's value from the XML
+                $value = $xml_element->nodeValue;
 
-                $value = str_replace(array('&gt;', '&lt;', '&amp;', '&quot;'), array('>', '<', '&', '"'), $value);
-
-                // TODO - metadata for field?
+                //$value = str_replace(array('&gt;', '&lt;', '&amp;', '&quot;'), array('>', '<', '&', '"'), $value);    // TODO - needed still?
 
                 // This section doesn't care whether a datarecord is being created or updated, because the storage entity should ALWAYS exist at this point...
                 // ...verifyExistence() will have created the storage entity if the (child)datarecord was created for importing
 
                 // Locate the field in the database
-                $classname = "ODR\\AdminBundle\\Entity\\" . $datafield->getFieldType()->getTypeClass();
+                $classname = "ODR\\AdminBundle\\Entity\\".$typeclass;
                 $my_obj = $entity_manager->getRepository($classname)->findOneBy( array("dataField" => $datafield->getId(), "dataRecord" => $datarecord->getId()) );
 
-                if ($type == "Boolean" ) {
+                $update_storage_entity = true;
+                if ($typeclass == "Boolean" ) {
                     // special consideration for boolean field
-                    if ($value === "checked")
-                        $my_obj->setValue(1);
+                    $value = intval($value);
+
+                    if ($my_obj->getValue() == $value)
+                        $update_storage_entity = false;
                     else
-                        $my_obj->setValue(0);
+                        $my_obj->setValue($value);
                 }
-                else if ($type == "DateTime") {
+                else if ($typeclass == "DateTime") {
                     // also special consideration for datetime
-                    $my_obj->setValue( new \DateTime($value) );
+                    if ($my_obj->getValue()->format('Y-m-d') == $value)
+                        $update_storage_entity = false;
+                    else
+                        $my_obj->setValue( new \DateTime($value) );
                 }
                 else {
                     // rest of the fields are straightforward
-                    $my_obj->setValue( $value );
+                    if ($my_obj->getValue() == $value)
+                        $update_storage_entity = false;
+                    else
+                        $my_obj->setValue($value);
                 }
 
-                $my_obj->setUpdatedBy($user);
-
 if ($write) {
-                $entity_manager->persist($my_obj);
-                $entity_manager->flush();
-//                $return['objects'][] = $my_obj;   // TODO - should this be deleted on failure?  ...probably not
+                if ($update_storage_entity) {
+                    $my_obj->setUpdatedBy($user);
+                    $entity_manager->persist($my_obj);
+                    $entity_manager->flush();
+                }
 }
 
                 $status .= $value;
-
             }
             catch (\Exception $e) {
                 $return['error'] = true;
@@ -1926,80 +1675,4 @@ if ($write) {
         return $response;
     }
 
-
-    /** 
-     * utility function for changing the external id for a lot of datarecords
-     *
-     * @param Request $request
-     *
-     * @return Response TODO
-     */
-    public function testAction(Request $request) {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            $em = $this->getDoctrine()->getManager();
-/*
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-
-            $datarecords = $repo_datarecord->findBy( array('dataType' => 43) );
-            foreach ($datarecords as $datarecord) {
-                $datarecord->setExternalId( $datarecord->getNamefieldValue() );
-                $em->persist($datarecord);
-            }
-            $em->flush();
-*/
-
-/*
-            $query = $em->createQuery(
-               'SELECT appraisal.value AS sv_value, uamm.value AS uamm_id
-                FROM ODRAdminBundle:ShortVarchar AS appraisal
-                JOIN ODRAdminBundle:DataRecord AS dr WITH appraisal.dataRecord = dr
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                JOIN ODRAdminBundle:ShortVarchar AS uamm WITH uamm.dataRecordFields = drf
-                WHERE appraisal.dataField = 150 AND uamm.dataField = 141
-                AND appraisal.deletedAt IS NULL AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND uamm.deletedAt IS NULL');
-            $results = $query->getArrayResult();
-
-//print_r($results);
-//exit();
-
-            $datarecord_ids = array();
-            $values = array();
-            foreach ($results as $num => $data) {
-                $uamm_id = $data['uamm_id'];
-                $sv_value = $data['sv_value'];
-
-                $sv_value = str_replace( array('$', ','), '', $sv_value );
-                if ( strpos($sv_value, '.') ) {
-                    $tmp = explode('.', $sv_value);
-                    $sv_value = $tmp[0];
-                }
-                $sv_value = intval($sv_value);
-
-                if ($sv_value >= 30000) {
-                    $values[$uamm_id] = $sv_value;
-                }
-            }
-//            print_r($values);
-
-            foreach ($values as $uamm_id => $value)
-                print '"'.$uamm_id.'" || ';
-*/
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x841278653 ' . $e->getMessage();
-        }
-
-        // If error encountered, do a json return
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-
-    }
 }

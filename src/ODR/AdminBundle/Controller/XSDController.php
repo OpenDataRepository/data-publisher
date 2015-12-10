@@ -29,7 +29,6 @@ use Symfony\Component\HttpFoundation\Response;
 class XSDController extends ODRCustomController
 {
 
-
     /**
      * Writes an XSD file describing a datatype to the xsd directory on the server.
      * 
@@ -81,66 +80,6 @@ class XSDController extends ODRCustomController
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x233282314 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Writes an XSD file describing a radio_option datafield to the xsd directory on the server.
-     * 
-     * @param integer $datafield_id The DataField that is having its schema built.
-     * @param Request $request
-     * 
-     * @return Response TODO
-     */
-    public function buildradiooptionAction($datafield_id, Request $request) {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = "";
-        $return['d'] = "";
-
-        try {
-            // Grab necessary objects
-            $em = $this->getDoctrine()->getManager();
-            $repo = $em->getRepository('ODRAdminBundle:DataFields');
-            $datafield = $repo->find($datafield_id);
-            $datatype = $datafield->getDataType();
-            if ($datatype == null)
-                return parent::deletedEntityError('DataType');
-
-
-            $xsd_export_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
-            $filename = 'Datafield_'.$datafield_id.'.xsd';
-
-            $handle = fopen($xsd_export_path.$filename, 'w');
-            if ($handle !== false) {
-                // Build the schema and write it to the disk
-                $schema = self::radiooption_GetDisplayData($request, $datafield_id);
-                fwrite($handle, $schema);
-
-                fclose($handle);
-/*
-                $templating = $this->get('templating');
-                $return['d'] = array(
-                    'html' => $templating->render('ODRAdminBundle:XSDCreate:xsd_download.html.twig', array('datatype_id' => $datatype_id))
-                );
-*/
-            }
-            else {
-                // Shouldn't be an issue?
-                $return['r'] = 1;
-                $return['t'] = 'ex';
-                $return['d'] = 'Error 0x232139325 Could not open file at "'.$xsd_export_path.$filename.'"';
-            }
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x232812235 ' . $e->getMessage();
         }
 
         $response = new Response(json_encode($return));
@@ -261,32 +200,4 @@ if ($debug)
         return $html;
     }
 
-
-    /**
-     * Renders and returns the XSD schema definition for a radio_option DataField.
-     *
-     * @param Request $request
-     * @param integer $datafield_id
-     *
-     * @return string
-     */
-    private function radiooption_GetDisplayData(Request $request, $datafield_id)
-    {
-        // Required objects
-        $em = $this->getDoctrine()->getManager();
-        $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-
-        $templating = $this->get('templating');
-        $template = 'ODRAdminBundle:XSDCreate:xsd_radio_option.html.twig';
-
-        $html = $templating->render(
-            $template,
-            array(
-                'datafield' => $datafield,
-            )
-        );
-
-        return $html;
-
-    }
 }

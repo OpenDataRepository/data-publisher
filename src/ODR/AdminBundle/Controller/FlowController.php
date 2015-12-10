@@ -187,7 +187,8 @@ class FlowController extends ODRCustomController
                 case 'image':
                     $validation_params = $validation_params['image'];
                     break;
-                case 'import_file_storage':
+                case 'csv_import_file_storage':
+                case 'xml_import_file_storage':
                     $maxsize = max( intval($validation_params['file']['maxSize']), intval($validation_params['image']['maxSize']) );
                     $validation_params = array(
                         'maxSize' => $maxsize,
@@ -279,7 +280,7 @@ class FlowController extends ODRCustomController
                 }
                 else if ($upload_type == 'xml') {
                     // Upload is an XML Import file
-                    // TODO
+                    self::finishXMLUpload($destination_folder, $original_filename, $user_id, $request);
                 }
                 else if ($datafield_id !== null) {
                     // Upload meant for a file/image datafield...finish moving the uploaded file and store it properly
@@ -288,7 +289,7 @@ class FlowController extends ODRCustomController
                 else {
                     // Upload is a file/image meant to be referenced by a later CSV Import
                     $uploaded_file->move( $destination_folder, $original_filename );
-                    self::finishImportFileUpload($destination_folder, $original_filename, $user_id);
+                    self::finishImportFileUpload($destination_folder, $original_filename, $user_id, $upload_type);
                 }
 
                 // Return success
@@ -308,7 +309,6 @@ class FlowController extends ODRCustomController
 
     /**
      * Moves the specified file from the upload directory to the user's CSVImport directory.
-     * TODO - also eventually need one of these for xml upload
      *
      * @param string $filepath             The absolute path to the file
      * @param string $original_filename    The original name of the file
@@ -340,23 +340,66 @@ class FlowController extends ODRCustomController
         $session->set('csv_file', $final_filename);
     }
 
-
     /**
-     * Moves the specified file from the upload directory to the directory used for storing files/images referenced as part of a csv import...
-     * TODO - also eventually need this to work with xml upload
+     * Moves the specified file from the upload directory to the user's XMLImport directory.
      *
      * @param string $filepath             The absolute path to the file
      * @param string $original_filename    The original name of the file
      * @param integer $user_id             Which user is doing the uploading
+     * @param Request $request
      *
      */
-    private function finishImportFileUpload($filepath, $original_filename, $user_id)
+    private function finishXMLUpload($filepath, $original_filename, $user_id, Request $request)
+    {
+        // Grab the uploaded file at its current location
+        $xml_file = new SymfonyFile($filepath.'/'.$original_filename);
+
+        // Ensure a CSVImport directory exists for this user
+        $destination_folder = dirname(__FILE__).'/../../../../web/uploads/xml';
+        if ( !file_exists($destination_folder) )
+            mkdir( $destination_folder );
+        $destination_folder .= '/user_'.$user_id;
+        if ( !file_exists($destination_folder) )
+            mkdir( $destination_folder );
+        $destination_folder .= '/unprocessed';
+        if ( !file_exists($destination_folder) )
+            mkdir( $destination_folder );
+
+        // Splice a timestamp into the filename
+        $final_filename = $original_filename.'.'.time();
+
+        // Move the file from its current location to the correct CSVImport directory
+        $xml_file->move($destination_folder, $final_filename);
+
+        // Save the new filename in the user's session
+//        $session = $request->getSession();
+//        $session->set('csv_file', $final_filename);
+    }
+
+
+    /**
+     * Moves the specified file from the upload directory to the directory used for storing files/images referenced as part of a csv/xml import...
+     *
+     * @param string $filepath          The absolute path to the file
+     * @param string $original_filename The original name of the file
+     * @param integer $user_id          Which user is doing the uploading
+     * @param string $upload_type       csv|xml
+     *
+     */
+    private function finishImportFileUpload($filepath, $original_filename, $user_id, $upload_type)
     {
         // Grab the uploaded file at its current location
         $uploaded_file = new SymfonyFile($filepath.'/'.$original_filename);
 
+        // Determine which directory structure to switch to
+        $type = '';
+        if ($upload_type == 'csv_import_file_storage')
+            $type = 'csv';
+        else if ($upload_type == 'xml_import_file_storage')
+            $type = 'xml';
+
         // Ensure a CSVImport directory exists for this user
-        $destination_folder = dirname(__FILE__).'/../../../../web/uploads/csv';
+        $destination_folder = dirname(__FILE__).'/../../../../web/uploads/'.$type;
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
         $destination_folder .= '/user_'.$user_id;

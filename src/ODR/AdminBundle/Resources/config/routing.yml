@@ -714,12 +714,6 @@ odr_xsd_generate_datatype:
     requirements:
         datatype_id:  \d+
 
-odr_xsd_generate_radiooption:
-    pattern:  /admin/xsd/build/radiooption/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:XSD:buildradiooption }
-    requirements:
-        datafield_id:  \d+
-
 odr_xsd_download:
     pattern:  /admin/xsd/download/{datatype_id}
     defaults: { _controller: ODRAdminBundle:XSD:downloadXSD }
@@ -730,10 +724,9 @@ odr_xsd_download:
 #-----------------------------------------
 # XML Controller
 odr_xml_import:
-    pattern:  /admin/xml/import/{type}/{id}
+    pattern:  /admin/xml/import/{id}
     defaults: { _controller: ODRAdminBundle:XML:import }
     requirements:
-        type:  'datatype|datafield'
         id:  \d+
 
 odr_import_start:
@@ -912,7 +905,7 @@ odr_flow_upload:
     pattern: /edit/csv_import/flow/{upload_type}/{datatype_id}/{datarecordfield_id}
     defaults: { _controller: ODRAdminBundle:Flow:flow, datarecordfield_id: '' }
     requirements:
-        upload_type: 'xml|csv|import_file_storage|file|image'
+        upload_type: 'xml|csv|file|image|csv_import_file_storage|xml_import_file_storage'
         datatype_id: \d+
         datarecordfield_id: \d+
 
@@ -1096,9 +1089,13 @@ odr_force_decrypt:
     defaults: { _controller: ODRAdminBundle:Worker:decrypt }
     requirements: { _method: POST }
 
-odr_test:
-    pattern: /admin/test
-    defaults: { _controller:ODRAdminBundle:Worker:test }
+#odr_test:
+#    pattern: /admin/test
+#    defaults: { _controller:ODRAdminBundle:Worker:test }
+#odr_test_curl:
+#    pattern: /beanstalk/test_curl
+#    defaults: { _controller: ODRAdminBundle:Worker:testcURL }
+#    requirements: { _method: POST }
 
 odr_save_datafield_search_order:
     pattern:  /admin/save/datafieldorder/{datafield_ids}

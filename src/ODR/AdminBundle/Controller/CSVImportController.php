@@ -1464,7 +1464,7 @@ class CSVImportController extends ODRCustomController
 
                 $parent_external_id_field = $parent_datatype->getExternalIdField();
                 $parent_external_id_value = trim( $line[$parent_external_id_column] );
-                $dr = self::getDatarecordByExternalId($em, $parent_external_id_field->getId(), $parent_external_id_value);
+                $dr = parent::getDatarecordByExternalId($em, $parent_external_id_field->getId(), $parent_external_id_value);
 
                 // If a parent with this external id does not exist, warn the user (the row will be ignored)
                 if ($dr == null) {
@@ -1510,13 +1510,13 @@ class CSVImportController extends ODRCustomController
                 if ( $parent_external_id_column !== '' && $remote_external_id_column == '' ) {
                     // Importing into child datatype...attempt to locate the child datarecord
                     $parent_external_id = trim( $line[$parent_external_id_column] );
-                    $dr = self::getChildDatarecordByExternalId($em, $external_id_field->getId(), $value, $parent_datatype->getExternalIdField()->getId(), $parent_external_id);
+                    $dr = parent::getChildDatarecordByExternalId($em, $external_id_field->getId(), $value, $parent_datatype->getExternalIdField()->getId(), $parent_external_id);
                     if ($dr !== null)
                         $datarecord_id = $dr->getId();
                 }
                 else {
                     // Importing into top-level or linked datatype...attempt to locate the expected datarecord (or remote if linked)
-                    $dr = self::getDatarecordByExternalId($em, $external_id_field->getId(), $value);
+                    $dr = parent::getDatarecordByExternalId($em, $external_id_field->getId(), $value);
                     if ($dr !== null)
                         $datarecord_id = $dr->getId();
                 }
@@ -1901,86 +1901,6 @@ class CSVImportController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * Locates and returns a datarecord based on its external id
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $datafield_id
-     * @param string $external_id_value
-     *
-     * @return DataRecord|null
-     */
-    private function getDatarecordByExternalId($em, $datafield_id, $external_id_value)
-    {
-        // Get required information
-        $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-        $typeclass = $datafield->getFieldType()->getTypeClass();
-
-        // Attempt to locate the datarecord using the given external id
-        $query = $em->createQuery(
-           'SELECT dr
-            FROM ODRAdminBundle:'.$typeclass.' AS e
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-            WHERE e.dataField = :datafield AND e.value = :value
-            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-        )->setParameters( array('datafield' => $datafield_id, 'value' => $external_id_value) );
-        $results = $query->getResult();
-
-        // Return the datarecord if it exists
-        $datarecord = null;
-        if ( isset($results[0]) )
-            $datarecord = $results[0];
-
-        return $datarecord;
-    }
-
-
-    /**
-     * Locates and returns a child datarecord based on its external id and its parent's external id
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $child_datafield_id
-     * @param string $child_external_id_value
-     * @param integer $parent_datafield_id
-     * @param string $parent_external_id_value
-     *
-     * @return DataRecord|null
-     */
-    private function getChildDatarecordByExternalId($em, $child_datafield_id, $child_external_id_value, $parent_datafield_id, $parent_external_id_value)
-    {
-        // Get required information
-        $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-
-        $child_datafield = $repo_datafield->find($child_datafield_id);
-        $child_typeclass = $child_datafield->getFieldType()->getTypeClass();
-
-        $parent_datafield = $repo_datafield->find($parent_datafield_id);
-        $parent_typeclass = $parent_datafield->getFieldType()->getTypeClass();
-
-        // Attempt to locate the datarecord using the given external id
-        $query = $em->createQuery(
-           'SELECT dr
-            FROM ODRAdminBundle:'.$child_typeclass.' AS e_1
-            JOIN ODRAdminBundle:DataRecordFields AS drf_1 WITH e_1.dataRecordFields = drf_1
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf_1.dataRecord = dr
-            JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
-            JOIN ODRAdminBundle:DataRecordFields AS drf_2 WITH drf_2.dataRecord = parent
-            JOIN ODRAdminBundle:'.$parent_typeclass.' AS e_2
-            WHERE e_1.dataField = :child_datafield AND e_1.value = :child_value AND e_2.dataField = :parent_datafield AND e_2.value = :parent_value
-            AND e_1.deletedAt IS NULL AND drf_1.deletedAt IS NULL AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND drf_2.deletedAt IS NULL AND e_2.deletedAt IS NULL'
-        )->setParameters( array('child_datafield' => $child_datafield_id, 'child_value' => $child_external_id_value, 'parent_datafield' => $parent_datafield_id, 'parent_value' => $parent_external_id_value) );
-        $results = $query->getResult();
-
-        // Return the datarecord if it exists
-        $datarecord = null;
-        if ( isset($results[0]) )
-            $datarecord = $results[0];
-
-        return $datarecord;
     }
 
 
@@ -2616,7 +2536,7 @@ print_r($new_mapping);
 
                 // Since this is importing into a child datatype, parent datarecord must exist
                 // csvvalidateAction() purposely only gives a warning so the user is not prevented from importing the rest of the file
-                $parent_datarecord = self::getDatarecordByExternalId($em, $parent_external_id_field->getId(), $parent_external_id_value);
+                $parent_datarecord = parent::getDatarecordByExternalId($em, $parent_external_id_field->getId(), $parent_external_id_value);
                 if ($parent_datarecord == null)
                     throw new \Exception('Parent Datarecord does not exist');
             }
@@ -2638,11 +2558,11 @@ print_r($new_mapping);
 
                 if ($parent_external_id_column !== '') {
                     // Need to locate a child datarecord
-                    $datarecord = self::getChildDatarecordByExternalId($em, $external_id_field->getId(), $external_id_value, $parent_external_id_field->getId(), $parent_external_id_value);
+                    $datarecord = parent::getChildDatarecordByExternalId($em, $external_id_field->getId(), $external_id_value, $parent_external_id_field->getId(), $parent_external_id_value);
                 }
                 else {
                     // Need to locate a top-level datarecord
-                    $datarecord = self::getDatarecordByExternalId($em, $external_id_field->getId(), $external_id_value);
+                    $datarecord = parent::getDatarecordByExternalId($em, $external_id_field->getId(), $external_id_value);
                 }
             }
 //return;
@@ -3094,11 +3014,11 @@ print_r($new_mapping);
             // Locate "local" and "remote" datarecords
             $local_external_id_field = $parent_datatype->getExternalIdField();
             $local_external_id = trim( $line[$parent_external_id_column] );
-            $local_datarecord = self::getDatarecordByExternalId($em, $local_external_id_field->getId(), $local_external_id);
+            $local_datarecord = parent::getDatarecordByExternalId($em, $local_external_id_field->getId(), $local_external_id);
 
             $remote_external_id_field = $datatype->getExternalIdField();
             $remote_external_id = trim( $line[$remote_external_id_column] );
-            $remote_datarecord = self::getDatarecordByExternalId($em, $remote_external_id_field->getId(), $remote_external_id);
+            $remote_datarecord = parent::getDatarecordByExternalId($em, $remote_external_id_field->getId(), $remote_external_id);
 
 
             // ----------------------------------------

@@ -2,14 +2,13 @@
 
 /**
 * Open Data Repository Data Publisher
-* ClearImportWorker Command
+* ClearXMLImportFileDownload Command
 * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
 *
-* This Symfony console command deletes beanstalk jobs made to
-* import the contents of XML files into a DataRecord entity on
-* the server.
+* This Symfony console command clears requests for beanstalk to
+* download files and images from remote servers for XML Importing..
 *
 */
 
@@ -28,16 +27,16 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-//class RefreshCommand extends Command
-class ClearImportWorkerCommand extends ContainerAwareCommand
+
+class ClearXMLImportFileDownloadCommand extends ContainerAwareCommand
 {
     protected function configure()
     {
         parent::configure();
 
         $this
-            ->setName('odr_import:clear_worker')
-            ->setDescription('Deletes all jobs from the import_datarecord tube')
+            ->setName('odr_xml_import:clear_file_download')
+            ->setDescription('Deletes all jobs from the import_file tube')
             ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the memcached_prefix to the tube name for deleting jobs');
     }
 
@@ -46,14 +45,15 @@ class ClearImportWorkerCommand extends ContainerAwareCommand
         // Only need to load these once...
         $container = $this->getContainer();
         $pheanstalk = $container->get('pheanstalk');
+
         $memcached_prefix = $container->getParameter('memcached_key_prefix');
 
         while (true) {
             // Wait for a job?
             if ($input->getOption('old'))
-                $job = $pheanstalk->watch($memcached_prefix.'_import_datarecord')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch($memcached_prefix.'_import_file')->ignore('default')->reserve(); 
             else
-                $job = $pheanstalk->watch('import_datarecord')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch('import_file')->ignore('default')->reserve(); 
 
             $data = json_decode($job->getData());
             $datatype_id = $data->datatype_id;
@@ -62,9 +62,9 @@ class ClearImportWorkerCommand extends ContainerAwareCommand
             $pheanstalk->delete($job);
 
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted job for xml file "'.$data->xml_filename.'" of datatype '.$datatype_id.' from '.$memcached_prefix.'_import_datarecord');
+    $output->writeln( date('H:i:s').'  deleted import job for '.$data->object_type.' '.$data->object_id.' from '.$memcached_prefix.'_import_file');
 else
-    $output->writeln( date('H:i:s').'  deleted job for xml file "'.$data->xml_filename.'" of datatype '.$datatype_id.' from import_datarecord');
+    $output->writeln( date('H:i:s').'  deleted import job for '.$data->object_type.' '.$data->object_id.' from import_file');
 
             // Sleep for a bit
             usleep(100000); // sleep for 0.1 seconds

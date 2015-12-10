@@ -14,7 +14,9 @@
         <file>
             <original_name>{% if file.originalfilename != null %}{{ file.originalfilename|xml|raw }}{% else %}File_{{ file.id }}{% endif %}</original_name>
             {#<caption></caption>#}
-            <source type="href">{{ baseurl ~ path('odr_file_download', {'file_id': file.id}) }}</source>
+            <source>
+                <href>{{ baseurl ~ path('odr_file_download', {'file_id': file.id}) }}</href>
+            </source>
             <checksum>{{ file.getoriginalchecksum }}</checksum>
 
             {% if using_metadata == true %}
@@ -39,7 +41,9 @@
             {% for oimage in datarecordfield.getimage %}
                 {% if oimage.getimagesize.original == "1" and oimage.id == image.parent.id %}
                     <original_name>{% if image.originalfilename != null %}{{ image.originalfilename|xml|raw }}{% else %}Image_{{ oimage.id }}{% endif %}</original_name>
-                    <source type="href">{{ baseurl ~ path('odr_image_download', {'image_id': oimage.id}) }}</source>
+                    <source>
+                        <href>{{ baseurl ~ path('odr_image_download', {'image_id': oimage.id}) }}</href>
+                    </source>
                     <caption>{{ oimage.caption|xml|raw }}</caption>
                     <checksum>{{ oimage.getoriginalchecksum }}</checksum>
 

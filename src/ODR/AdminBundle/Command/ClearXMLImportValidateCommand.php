@@ -2,13 +2,13 @@
 
 /**
 * Open Data Repository Data Publisher
-* ClearImportFileDownload Command
+* ClearXMLImportValidate Command
 * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
 *
-* This Symfony console command clears requests for beanstalk to
-* download files and images from remote servers.
+* This Symfony console command deletes beanstalk jobs created to
+* validate uploaded XML files on the server prior to importing.
 *
 */
 
@@ -27,16 +27,16 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-//class RefreshCommand extends Command
-class ClearImportFileDownloadCommand extends ContainerAwareCommand
+
+class ClearXMLImportValidateCommand extends ContainerAwareCommand
 {
     protected function configure()
     {
         parent::configure();
 
         $this
-            ->setName('odr_import:clear_file_download')
-            ->setDescription('Deletes all jobs from the import_file tube')
+            ->setName('odr_xml_import:clear_validate')
+            ->setDescription('Deletes all jobs from the validate_import tube')
             ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the memcached_prefix to the tube name for deleting jobs');
     }
 
@@ -45,15 +45,14 @@ class ClearImportFileDownloadCommand extends ContainerAwareCommand
         // Only need to load these once...
         $container = $this->getContainer();
         $pheanstalk = $container->get('pheanstalk');
-
         $memcached_prefix = $container->getParameter('memcached_key_prefix');
 
         while (true) {
             // Wait for a job?
             if ($input->getOption('old'))
-                $job = $pheanstalk->watch($memcached_prefix.'_import_file')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch($memcached_prefix.'_validate_import')->ignore('default')->reserve(); 
             else
-                $job = $pheanstalk->watch('import_file')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch('validate_import')->ignore('default')->reserve(); 
 
             $data = json_decode($job->getData());
             $datatype_id = $data->datatype_id;
@@ -62,9 +61,9 @@ class ClearImportFileDownloadCommand extends ContainerAwareCommand
             $pheanstalk->delete($job);
 
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted import job for '.$data->object_type.' '.$data->object_id.' from '.$memcached_prefix.'_import_file');
+    $output->writeln( date('H:i:s').'  deleted job for xml file "'.$data->xml_filename.'" of datatype '.$datatype_id.' from '.$memcached_prefix.'_validate_import');
 else
-    $output->writeln( date('H:i:s').'  deleted import job for '.$data->object_type.' '.$data->object_id.' from import_file');
+    $output->writeln( date('H:i:s').'  deleted job for xml file "'.$data->xml_filename.'" of datatype '.$datatype_id.' from validate_import');
 
             // Sleep for a bit
             usleep(100000); // sleep for 0.1 seconds

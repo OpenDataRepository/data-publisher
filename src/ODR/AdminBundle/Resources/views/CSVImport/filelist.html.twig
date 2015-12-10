@@ -15,7 +15,7 @@
     </div>
 
 {#{% if presets == null %}#}
-    {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': 'csv_import_file_storage', 'single_file': false, 'upload_type': 'import_file_storage', 'datatype_id': datatype.id, 'datarecordfield_id': '', 'callback': 'ODRCSVFileList_refresh();'} %}
+    {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': 'csv_import_file_storage', 'single_file': false, 'upload_type': 'csv_import_file_storage', 'datatype_id': datatype.id, 'datarecordfield_id': '', 'callback': 'ODRCSVFileList_refresh();'} %}
 {#{% endif %}#}
 </div>
 

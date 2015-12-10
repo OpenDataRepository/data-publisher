@@ -34,17 +34,10 @@
             <xsd:element name="original_name" type="xsd:string" />
             <xsd:element name="source">
                 <xsd:complexType>
-                    <xsd:simpleContent>
-                        <xsd:extension base="xsd:string">
-                            <xsd:attribute name="type">
-                                <xsd:simpleType>
-                                    <xsd:restriction base="xsd:string">
-                                        <xsd:pattern value="href|local_filename" />
-                                    </xsd:restriction>
-                                </xsd:simpleType>
-                            </xsd:attribute>
-                        </xsd:extension>
-                    </xsd:simpleContent>
+                    <xsd:choice>
+                        <xsd:element name="href" type="xsd:string" />
+                        <xsd:element name="local_filename" type="xsd:string" />
+                    </xsd:choice>
                 </xsd:complexType>
             </xsd:element>
             <xsd:element name="checksum" type="xsd:string" />
@@ -81,17 +74,10 @@
             <xsd:element name="original_name" type="xsd:string" />
             <xsd:element name="source">
                 <xsd:complexType>
-                    <xsd:simpleContent>
-                        <xsd:extension base="xsd:string">
-                            <xsd:attribute name="type">
-                                <xsd:simpleType>
-                                    <xsd:restriction base="xsd:string">
-                                        <xsd:pattern value="href|local_filename" />
-                                    </xsd:restriction>
-                                </xsd:simpleType>
-                            </xsd:attribute>
-                        </xsd:extension>
-                    </xsd:simpleContent>
+                    <xsd:choice>
+                        <xsd:element name="href" type="xsd:string" />
+                        <xsd:element name="local_filename" type="xsd:string" />
+                    </xsd:choice>
                 </xsd:complexType>
             </xsd:element>
             <xsd:element name="checksum" type="xsd:string" />

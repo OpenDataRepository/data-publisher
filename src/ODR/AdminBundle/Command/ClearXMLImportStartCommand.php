@@ -2,7 +2,7 @@
 
 /**
 * Open Data Repository Data Publisher
-* ClearImportStart Command
+* ClearXMLImportStart Command
 * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
@@ -27,15 +27,15 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-//class RefreshCommand extends Command
-class ClearImportStartCommand extends ContainerAwareCommand
+
+class ClearXMLImportStartCommand extends ContainerAwareCommand
 {
     protected function configure()
     {
         parent::configure();
 
         $this
-            ->setName('odr_import:clear_start')
+            ->setName('odr_xml_import:clear_start')
             ->setDescription('Deletes all jobs from the import_datatype tube')
             ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the memcached_prefix to the tube name for deleting jobs');
     }
