@@ -215,6 +215,12 @@ class TextResultsController extends ODRCustomController
             // TODO - deleted datatype?
             // TODO - user permissions?
 
+            // Determine whether user is logged in or not
+            $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $logged_in = true;
+            if ( $user === 'anon.' )
+                $logged_in = false;
+
             // ----------------------------------------
             $datarecord_count = 0;
             $list = array();
@@ -227,7 +233,7 @@ class TextResultsController extends ODRCustomController
             }
             else {
                 // Get all datarecords from the search key
-                $logged_in = true;
+//                $logged_in = true;
                 $encoded_search_key = '';
                 $datarecord_list = '';
                 if ($search_key !== '') {
