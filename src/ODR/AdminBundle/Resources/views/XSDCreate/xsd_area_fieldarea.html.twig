@@ -3,7 +3,7 @@
 {% set datatype = datatype_tree.datatype %}
 
 {# describe datafields first #}
-<xsd:element name="datafields" minOccurs="0" maxOccurs="1">
+<xsd:element name="datafields" minOccurs="0">
     <xsd:complexType>
         <xsd:all>
             {% for data in datatype_tree.theme_elements %}
@@ -23,7 +23,7 @@
 </xsd:element>
 
 {# describe child datatypes second #}
-<xsd:element name="child_datarecords" minOccurs="0" maxOccurs="1">
+<xsd:element name="child_datarecords" minOccurs="0">
     <xsd:complexType>
         <xsd:all>
         {% for data in datatype_tree.theme_elements %}
@@ -36,16 +36,16 @@
                 {% if is_link == 0 %}
                     {% set childtype = data.datatype.datatype %}
 
-                    <xsd:element name="{{ childtype.getxmlshortname }}" minOccurs="0" maxOccurs="1">
+                    <xsd:element name="{{ childtype.getxmlshortname }}" minOccurs="0">
                         <xsd:complexType>
                             <xsd:sequence>
-                                <xsd:element name="datarecords" minOccurs="0" maxOccurs="1">
+                                <xsd:element name="datarecords" minOccurs="0">
                                     <xsd:complexType>
                                         <xsd:sequence>
                                             <xsd:element name="datarecord" minOccurs="0" maxOccurs="{% if multiple_allowed == 1 %}unbounded{% else %}1{% endif %}">
                                                 <xsd:complexType>
                                                     <xsd:all>
-                                                        <xsd:element name="_datarecord_metadata" type="datarecord_metadata_type" minOccurs="0" maxOccurs="1" />
+                                                        <xsd:element name="_datarecord_metadata" type="datarecord_metadata_type" minOccurs="0" />
 
                                                         {% import "ODRAdminBundle:XSDCreate:xsd_area_childtype.html.twig" as mychildform %}
                                                         {{ mychildform.input(data.datatype) }}
@@ -67,7 +67,7 @@
 </xsd:element>
 
 {# describe linked datatypes third #}
-<xsd:element name="linked_datarecords" minOccurs="0" maxOccurs="1">
+<xsd:element name="linked_datarecords" minOccurs="0">
     <xsd:complexType>
         <xsd:all>
         {% for data in datatype_tree.theme_elements %}
@@ -80,10 +80,10 @@
                 {% if is_link == 1 %}
                     {% set childtype = data.datatype.datatype %}
 
-                    <xsd:element name="{{ childtype.getxmlshortname }}" minOccurs="0" maxOccurs="1">
+                    <xsd:element name="{{ childtype.getxmlshortname }}" minOccurs="0">
                         <xsd:complexType>
                             <xsd:sequence>
-                                <xsd:element name="datarecords" minOccurs="0" maxOccurs="1">
+                                <xsd:element name="datarecords" minOccurs="0">
                                     <xsd:complexType>
                                         <xsd:sequence>
                                             <xsd:element name="datarecord" minOccurs="0" maxOccurs="{% if multiple_allowed == 1 %}unbounded{% else %}1{% endif %}">

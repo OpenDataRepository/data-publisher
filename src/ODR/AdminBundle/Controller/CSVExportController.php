@@ -701,6 +701,11 @@ print_r($line);
 
             // Open the indicated file
             $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/csv_export/';
+
+            // Ensure directory exists
+            if ( !file_exists($csv_export_path) )
+                mkdir( $csv_export_path );
+
             $filename = 'f_'.$random_key.'.csv';
             $handle = fopen($csv_export_path.'tmp/'.$filename, 'a');
             if ($handle !== false) {

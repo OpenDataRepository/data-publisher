@@ -82,12 +82,12 @@ class XMLController extends ODRCustomController
     /**
      * Creates a beanstalk job that will scan the XML upload directory for all available files to import.
      * 
-     * @param integer $id      The id of the object that will receive the import data
+     * @param integer $datatype_id
      * @param Request $request
      *
      * @return Response TODO
      */
-    public function importAction($id, Request $request) {
+    public function importAction($datatype_id, Request $request) {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -99,14 +99,13 @@ class XMLController extends ODRCustomController
             // Grab required objects
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->get('router');
 
-            $datatype = $repo_datatype->find($id);
+            $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
                 return parent::deletedEntityError('Datatype');
 
@@ -122,8 +121,7 @@ class XMLController extends ODRCustomController
 
             // Generate the url for cURL to use
             $url = $this->container->getParameter('site_baseurl');
-//            if ( $this->container->getParameter('kernel.environment') === 'dev') { $url .= './app_dev.php'; }
-                $url .= $router->generate('odr_import_start');
+            $url .= $router->generate('odr_xml_import_start');
 
             // Insert the new job into the queue
             $payload = json_encode(
@@ -194,6 +192,8 @@ class XMLController extends ODRCustomController
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid job data');
 
+            if ($datatype_id == '')
+                throw new \Exception('Invalid job data');
 
             $schema_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
             $xml_path = dirname(__FILE__).'/../../../../web/uploads/xml/user_'.$user_id.'/';
@@ -202,14 +202,8 @@ class XMLController extends ODRCustomController
 
             // ----------------------------------------
             // Determine the schema filename
-            $schema_filename = '';
-            if ($datatype_id !== '') {
-                $datatype = $repo_datatype->find($datatype_id);
-                $schema_filename = $datatype->getXMLShortName().'.xsd';
-            }
-            else {
-                throw new \Exception('Invalid job data');
-            }
+            $datatype = $repo_datatype->find($datatype_id);
+            $schema_filename = $datatype->getXMLShortName().'.xsd';
 
             // Ensure schema file exists
             if ( !file_exists($schema_path.$schema_filename) )
@@ -221,6 +215,9 @@ class XMLController extends ODRCustomController
             else
                 fclose($handle);
 
+            // Ensure xml directory exists
+            if ( !file_exists($xml_path.'unprocessed') )
+                mkdir( $xml_path.'unprocessed' );
 
             // ----------------------------------------
             // Grab the list of all files in the unprocessed xml directory
@@ -235,7 +232,7 @@ class XMLController extends ODRCustomController
 
                 // Queue the file for a full import...
                 $url = $this->container->getParameter('site_baseurl');
-                $url .= $router->generate('odr_validate_import');
+                $url .= $router->generate('odr_xml_import_validate');
 
                 $payload = json_encode(
                     array(
@@ -305,11 +302,12 @@ class XMLController extends ODRCustomController
 
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid job data');
 
+            if ($datatype_id == '')
+                throw new \Exception('Invalid job data');
 
             // Enable user error handling
             libxml_use_internal_errors(true);
@@ -321,14 +319,8 @@ class XMLController extends ODRCustomController
 
             // ----------------------------------------
             // Determine the schema filename
-            $schema_filename = '';
-            if ($datatype_id !== '') {
-                $datatype = $repo_datatype->find($datatype_id);
-                $schema_filename = $datatype->getXMLShortName().'.xsd';
-            }
-            else {
-                throw new \Exception('Invalid job data');
-            }
+            $datatype = $repo_datatype->find($datatype_id);
+            $schema_filename = $datatype->getXMLShortName().'.xsd';
 
             // Ensure schema file exists
             if ( !file_exists($schema_path.$schema_filename) )
@@ -346,7 +338,7 @@ class XMLController extends ODRCustomController
             // Load the file as an XML Document
             $xml_file = new \DOMDocument();
             $ret .= 'Attempting to load "'.$xml_path.'unprocessed/'.$xml_filename.'"'."\n";
-            if ($xml_file->load($xml_path.'unprocessed/'.$xml_filename) !== false) {
+            if ($xml_file->load($xml_path.'unprocessed/'.$xml_filename, LIBXML_NOBLANKS) !== false) {
                 $ret .= 'Loaded "'.$xml_filename.'"'."\n";
 
                 // Attempt to validate the XML file...
@@ -354,6 +346,10 @@ class XMLController extends ODRCustomController
                     // If validation failed, display errors
                     $ret .= 'Schema errors in "'.$xml_filename.'" >> '.self::libxml_display_errors()."\n";
                     $logger->err('WorkerController:importvalidateAction()  Schema errors in "'.$xml_filename.'" >> '.self::libxml_display_errors());
+
+                    // Ensure failed directory exists
+                    if ( !file_exists($xml_path.'failed') )
+                        mkdir( $xml_path.'failed' );
 
                     // Move to failed directory
                     if ( rename($xml_path.'unprocessed/'.$xml_filename, $xml_path.'failed/'.$xml_filename) ) {
@@ -366,14 +362,15 @@ class XMLController extends ODRCustomController
 
                 }
                 else {
-                    // TODO - other validation?
-                    // TODO - tracked job
+                    // TODO - validate existence of files
+                    // TODO - validate uniqueness
+                    // TODO - tracked job/errors
 
                     $ret .= 'Validated "'.$xml_filename.'"'."\n";
 
                     // Queue the file for a full import...
                     $url = $this->container->getParameter('site_baseurl');
-                    $url .= $router->generate('odr_import_worker');
+                    $url .= $router->generate('odr_xml_import_worker');
 
                     $payload = json_encode(
                         array(
@@ -446,7 +443,6 @@ class XMLController extends ODRCustomController
 
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
             $user = $repo_user->find($user_id);
 
@@ -456,16 +452,16 @@ class XMLController extends ODRCustomController
             if ($datatype_id == '')
                 throw new \Exception('Invalid job data');
 
+
             // Enable user error handling
             libxml_use_internal_errors(true);
-            //$schema_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
             $xml_path = dirname(__FILE__).'/../../../../web/uploads/xml/user_'.$user_id.'/';
             $ret = "\n----------\n";
 
             // Load the file as an XML Document
             $xml_file = new \DOMDocument();
             $ret .= 'Attempting to load '.$xml_path.'unprocessed/'.$xml_filename."\n";
-            if ($xml_file->load($xml_path.'unprocessed/'.$xml_filename) === false)
+            if ($xml_file->load($xml_path.'unprocessed/'.$xml_filename, LIBXML_NOBLANKS) === false)
                 throw new \Exception('Could not load "'.$xml_filename.'" for import >> '.self::libxml_display_errors());
 
             $parent_datatype = $repo_datatype->find($datatype_id);
@@ -482,8 +478,6 @@ $write = false;
                 $import_ret = null;
 
                 $indent = 0;
-
-                // TODO - uniqueness
 
                 // ----------------------------------------
                 // Attempt to locate a pre-existing datarecord to import into
@@ -544,6 +538,10 @@ if ($write) {
                         $em->remove($obj);
                     $em->flush();
 
+                    // Ensure failed directory exists
+                    if ( !file_exists($xml_path.'failed') )
+                        mkdir( $xml_path.'failed' );
+
                     // Move xml file to failed directory
                     if ( rename($xml_path.'unprocessed/'.$xml_filename, $xml_path.'failed/'.$xml_filename) ) {
                         $logger->info('Moved "'.$xml_filename.'" to failed directory');
@@ -561,6 +559,10 @@ if ($write) {
                     // No errors
                     // Flush all changes to the database
                     $em->flush();
+
+                    // Ensure succeeded directory exists
+                    if ( !file_exists($xml_path.'succeeded') )
+                        mkdir( $xml_path.'succeeded' );
 
                     // Move xml file to succeeded directory
                     if ( rename($xml_path.'unprocessed/'.$xml_filename, $xml_path.'succeeded/'.$xml_filename) ) {
@@ -649,7 +651,7 @@ if ($write) {
         $create_auth = null;
         if ( isset($metadata['create_auth']) ) {
             $create_auth = $metadata['create_auth'];
-            $datarecord->setCreatedBy($create_auth);
+//            $datarecord->setCreatedBy($create_auth);
         }
 
         $public_date = null;
@@ -750,6 +752,7 @@ if ($write) {
             }
         }
 
+
         // ----------------------------------------
         // Search for any child datarecords that need to be created
         if (!$error_during_import) {
@@ -808,7 +811,7 @@ if ($write) {
                                     $created_objects = array_merge($created_objects, array($child_datarecord));
 }
 else {
-                                    $child_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( array("dataType" => $child_datatype->getId()) );   // TEST
+    $child_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( array("dataType" => $child_datatype->getId()) );   // DEBUGGING
 }
                                 }
                                 else {
@@ -844,6 +847,7 @@ else {
                     break;
             }
         }
+
 
         // ----------------------------------------
         // Search for any linked datarecords that need to be created
@@ -936,8 +940,8 @@ if ($write) {
                     $name = substr($metadata_node->nodeName, 1);
                     $value = $metadata_node->nodeValue;
 
-                    // TODO - how to translate random names into useful info
-                    if ($name == 'create_auth')
+                    // Skip over create_auth for now...
+                    if ($name == 'create_auth')     // TODO - how to translate names from create_auth into useful info
                         continue;
 
                     $odr_metadata[$name] = $value;
@@ -979,40 +983,41 @@ if ($write) {
             return $return;
         }
 
-        // Going to need these for file/image downloads...
-        $repo_datarecordfields = $entity_manager->getRepository('ODRAdminBundle:DataRecordFields');
-
         $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
         $api_key = $this->container->getParameter('beanstalk_api_key');
         $router = $this->container->get('router');
         $pheanstalk = $this->get('pheanstalk');
         $url = $this->container->getParameter('site_baseurl');
-        $url .= $router->generate('odr_import_file');
+        $url .= $router->generate('odr_xml_import_file_download');
 
 
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ($typeclass == 'File') {
 
             try {
+                // ----------------------------------------
+                // Going to need these
+                $repo_datarecordfields = $entity_manager->getRepository('ODRAdminBundle:DataRecordFields');
+                $repo_file = $entity_manager->getRepository('ODRAdminBundle:File');
+                $drf = $repo_datarecordfields->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+
+                // Store the files listed in the xml file
+                $changelist = array();
+                $need_flush = false;
+
+
+                // ----------------------------------------
                 // Iterate through all the <file> tags for this xml element
                 foreach ($xml_element->childNodes as $file_element) {
                     $original_name = $file_element->getElementsByTagName('original_name')->item(0)->nodeValue;
-                    $checksum = $file_element->getElementsByTagName('checksum')->item(0)->nodeValue;
+//                    $checksum = $file_element->getElementsByTagName('checksum')->item(0)->nodeValue;
 
-                    $source = '';
-                    $using_href = true;
-                    if ($file_element->getElementsByTagName('href')->length > 0) {
-                        // File has to be downloaded from some other server
-                        $source = $file_element->getElementsByTagName('href')->item(0)->nodeValue;
-                    }
-                    else {
-                        // File is already on the server
-                        $using_href = false;
-                        $source = $file_element->getElementsByTagName('local_filename')->item(0)->nodeValue;
-                    }
+                    $href = '';
+                    if ($file_element->getElementsByTagName('href')->length > 0)
+                        $href = $file_element->getElementsByTagName('href')->item(0)->nodeValue;
 
                     // No point if there's no href/filename...
-                    if ($source == '') {
+                    if ($original_name == '' && $href == '') {
                         $status .= self::indent($indent).'No source specified for file "'.$original_name.'", skipping...';
                         continue;
 
@@ -1020,6 +1025,9 @@ if ($write) {
                     }
 
                     // TODO - need to decode all of these file properties?
+
+                    // Store that this filename was listed in the xml file
+                    $changelist[] = $original_name;
 
                     // ----------------------------------------
                     // Check for metadata
@@ -1035,6 +1043,8 @@ if ($write) {
                         $create_auth = $metadata['create_auth'];
                     if ( isset($metadata['public_date']) )
                         $public_date = $metadata['public_date'];
+                    else
+                        $metadata['public_date'] = $public_date;
                     if ( isset($metadata['external_id']) )
                         $external_id = $metadata['external_id'];
 
@@ -1042,61 +1052,73 @@ if ($write) {
 
                     // ----------------------------------------
                     // Import the file
-                    $drf = $repo_datarecordfields->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+                    $status .= self::indent($indent).' >> scheduled file for download...';
 
-                    if (!$using_href) {
-                        // local filename provided..."upload" file from there
-                        $filepath = dirname(__FILE__).'/../../../../web/uploads/xml/user_'.$user->getId().'/storage';
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+                            "object_type" => 'File',
+                            "drf_id" => $drf->getId(),
+                            "user_id" => $user->getId(),
+                            "href" => $href,
+                            "original_name" => $original_name,
+                            "metadata" => $metadata,
 
-                        // TODO - ...something else that i'm unable to think of right now
-                        // TODO - replace existing files?
-                        // TODO - delete files not mentioned in xml?
+                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
 
-                        $status .= self::indent($indent).'Attempting to locate file for DataRecord '.$datarecord->getId().', DataField '.$datafield->getId().', with external_id '.$external_id.'...';
-
-if ($write) {
-                        parent::finishUpload($entity_manager, $filepath, $source, $user->getId(), $drf->getId());
-                        $status .= 'uploaded from xml file storage'."\n";
-
-                        // TODO - modify finishUpload() so that it returns file/image?
-                        // TODO - set the metadata properties?
-}
-                    }
-                    else {
-                        // href provided, set up a separate job to download it due to timeout concerns
-
-if ($write) {
-                        $status .= self::indent($indent).' >> scheduled file for download';
-
-                        $priority = 1024;   // should be roughly default priority
-                        $payload = json_encode(
-                            array(
-                                "object_type" => 'File',
-                                "user_id" => $user->getId(),
-                                "drf" => $drf->getId(),
-                                "href" => $source,
-                                "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                                "url" => $url,
-                                "api_key" => $api_key,
-                            )
-                        );
-
-                        $delay = 1;
-                        $pheanstalk->useTube('import_file')->put($payload, $priority, $delay);
-}
-                    }
+                    $delay = 1;
+if ($write)
+                    $pheanstalk->useTube('import_file')->put($payload, $priority, $delay);
 
 
                     // ----------------------------------------
                     $status .= self::indent($indent).'-- original_name: '.$original_name;
-                    $status .= self::indent($indent).'-- source: '.$source;
-                    $status .= self::indent($indent).'-- checksum: '.$checksum;
+                    $status .= self::indent($indent).'-- href: '.$href;
+//                    $status .= self::indent($indent).'-- checksum: '.$checksum;
                     $status .= self::indent($indent).'-- create_auth: '.$create_date;
                     $status .= self::indent($indent).'-- create_date: '.$create_auth;
                     $status .= self::indent($indent).'-- public_date: '.$public_date;
                     $status .= self::indent($indent).'-- external_id: '.$external_id;
                     $status .= "\n";
                 }
+
+                // ----------------------------------------
+                // Determine whether to delete all files not listed in the xml file
+                if ($xml_element->hasAttributes() && $xml_element->attributes->item(0)->nodeName == '_delete_unlisted') {   // attribute is always false if it exists
+                    $status .= self::indent($indent).'>> preserving unlisted files';
+                }
+                else {
+                    $status .= self::indent($indent).'>> deleting all unlisted files...';
+
+                    // Grab all uploaded files in this datafield
+                    $files = $repo_file->findBy( array("dataRecordFields" => $drf->getId()) );
+                    foreach ($files as $file) {
+                        // If the file wasn't listed in the xml file...
+                        $filename = $file->getOriginalFileName();
+                        if ( !in_array($filename, $changelist) ) {
+                            // ...delete it
+if ($write) {
+                            $file->setDeletedAt(new \DateTime());
+                            $entity_manager->persist($file);
+                            $need_flush = true;
+}
+                            $status .= self::indent($indent+1).'-- "'.$filename.'"';
+                        }
+                    }
+
+                    $status .= self::indent($indent).'>> ...done';
+                }
+
+if ($write) {
+                // ----------------------------------------
+                // Commit changes if necessary
+                if ($need_flush)
+                    $entity_manager->flush();
+}
             }
             catch (\Exception $e) {
                 $return['error'] = true;
@@ -1105,26 +1127,30 @@ if ($write) {
         else if ($typeclass == 'Image') {
 
             try {
+                // ----------------------------------------
+                // Going to need these
+                $repo_datarecordfields = $entity_manager->getRepository('ODRAdminBundle:DataRecordFields');
+                $repo_image = $entity_manager->getRepository('ODRAdminBundle:Image');
+                $drf = $repo_datarecordfields->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+
+                // Store the images listed in the xml file
+                $changelist = array();
+                $need_flush = false;
+
+
+                // ----------------------------------------
                 // Iterate through all the <image> tags for this xml element
                 foreach ($xml_element->childNodes as $image_element) {
                     $original_name = $image_element->getElementsByTagName('original_name')->item(0)->nodeValue;
-                    $checksum = $image_element->getElementsByTagName('checksum')->item(0)->nodeValue;
+//                    $checksum = $image_element->getElementsByTagName('checksum')->item(0)->nodeValue;
                     $caption = $image_element->getElementsByTagName('caption')->item(0)->nodeValue;
 
-                    $source = '';
-                    $using_href = true;
-                    if ($image_element->getElementsByTagName('href')->length > 0) {
-                        // Image has to be downloaded from some other server
-                        $source = $image_element->getElementsByTagName('href')->item(0)->nodeValue;
-                    }
-                    else {
-                        // Image is already on the server
-                        $using_href = false;
-                        $source = $image_element->getElementsByTagName('local_filename')->item(0)->nodeValue;
-                    }
+                    $href = '';
+                    if ($image_element->getElementsByTagName('href')->length > 0)
+                        $href = $image_element->getElementsByTagName('href')->item(0)->nodeValue;
 
                     // No point if there's no href/filename...
-                    if ($source == '') {
+                    if ($original_name == '' && $href == '') {
                         $status .= self::indent($indent).'No source specified for file "'.$original_name.'", skipping...';
                         continue;
 
@@ -1148,6 +1174,8 @@ if ($write) {
                         $create_auth = $metadata['create_auth'];
                     if ( isset($metadata['public_date']) )
                         $public_date = $metadata['public_date'];
+                    else
+                        $metadata['public_date'] = $public_date;
                     if ( isset($metadata['external_id']) )
                         $external_id = $metadata['external_id'];
                     if ( isset($metadata['display_order']) )
@@ -1156,57 +1184,35 @@ if ($write) {
                     // TODO - need to decode all of these metadata properties?
 
                     // ----------------------------------------
-                    // Import the file
-                    $drf = $repo_datarecordfields->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+                    // Import the image
+                    $status .= self::indent($indent).' >> scheduled file for download';
 
-                    if (!$using_href) {
-                        // local filename provided..."upload" file from there
-                        $filepath = dirname(__FILE__).'/../../../../web/uploads/xml/user_'.$user->getId().'/storage';
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+                            "object_type" => 'Image',
+                            "drf_id" => $drf->getId(),
+                            "user_id" => $user->getId(),
+                            "href" => $href,
+                            "original_name" => $original_name,
+                            "metadata" => $metadata,
 
-                        // TODO - ...something else that i'm unable to think of right now
-                        // TODO - replace existing images?
-                        // TODO - delete images not mentioned in xml?
+                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
 
-                        $status .= self::indent($indent).'Attempting to locate file for DataRecord '.$datarecord->getId().', DataField '.$datafield->getId().', with external_id '.$external_id.'...';
-
-if ($write) {
-                        parent::finishUpload($entity_manager, $filepath, $source, $user->getId(), $drf->getId());
-                        $status .= 'uploaded from xml file storage'."\n";
-
-                        // TODO - modify finishUpload() so that it returns file/image?
-                        // TODO - set the metadata properties?
-}
-                    }
-                    else {
-                        // href provided, set up a separate job to download it due to timeout concerns
-
-if ($write) {
-                        $status .= self::indent($indent).' >> scheduled file for download';
-
-                        $priority = 1024;   // should be roughly default priority
-                        $payload = json_encode(
-                            array(
-                                "object_type" => 'Image',
-                                "user_id" => $user->getId(),
-                                "drf" => $drf->getId(),
-                                "href" => $source,
-                                "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                                "url" => $url,
-                                "api_key" => $api_key,
-                            )
-                        );
-
-                        $delay = 1;
-                        $pheanstalk->useTube('import_file')->put($payload, $priority, $delay);
-}
-                    }
+                    $delay = 1;
+if ($write)
+                    $pheanstalk->useTube('import_file')->put($payload, $priority, $delay);
 
 
                     // ----------------------------------------
                     $status .= self::indent($indent).'-- original_name: '.$original_name;
                     $status .= self::indent($indent).'-- caption: '.$caption;
-                    $status .= self::indent($indent).'-- source: '.$source;
-                    $status .= self::indent($indent).'-- checksum: '.$checksum;
+                    $status .= self::indent($indent).'-- href: '.$href;
+//                    $status .= self::indent($indent).'-- checksum: '.$checksum;
                     $status .= self::indent($indent).'-- create_auth: '.$create_date;
                     $status .= self::indent($indent).'-- create_date: '.$create_auth;
                     $status .= self::indent($indent).'-- public_date: '.$public_date;
@@ -1214,6 +1220,45 @@ if ($write) {
                     $status .= self::indent($indent).'-- display_order: '.$display_order;
                     $status .= "\n";
                 }
+
+                // ----------------------------------------
+                // Determine whether to delete all images not listed in the xml file
+                if ($xml_element->hasAttributes() && $xml_element->attributes->item(0)->nodeName == '_delete_unlisted') {   // attribute is always false if it exists
+                    $status .= self::indent($indent).'>> preserving unlisted images';
+                }
+                else {
+                    $status .= self::indent($indent).'>> deleting all unlisted images...';
+
+                    // Grab all uploaded files in this datafield
+                    $images = $repo_image->findBy( array("dataRecordFields" => $drf->getId()) );
+                    foreach ($images as $image) {
+                        // If the file wasn't listed in the xml file...
+                        $filename = $image->getOriginalFileName();
+                        if ( !in_array($filename, $changelist) ) {
+                            // ...delete it
+if ($write) {
+                            $image->setDeletedAt(new \DateTime());
+                            $entity_manager->persist($image);
+                            $need_flush = true;
+}
+
+                            $status .= self::indent($indent+1).'-- "'.$filename.'"';
+                            if ($image->getOriginal() == 1)
+                                $status .= ' (original)';
+                            else
+                                $status .= ' (thumbnail)';
+                        }
+                    }
+
+                    $status .= self::indent($indent).'>> ...done';
+                }
+
+if ($write) {
+                // ----------------------------------------
+                // Commit changes if necessary
+                if ($need_flush)
+                    $entity_manager->flush();
+}
             }
             catch (\Exception $e) {
                 $return['error'] = true;
@@ -1221,6 +1266,7 @@ if ($write) {
         }
         else if ($typeclass == 'Radio') {
             try {
+                // ----------------------------------------
                 // Going to need these
                 $repo_datarecordfields = $entity_manager->getRepository('ODRAdminBundle:DataRecordFields');
                 $repo_radio_selection = $entity_manager->getRepository('ODRAdminBundle:RadioSelection');
@@ -1229,6 +1275,12 @@ if ($write) {
                 $drf = $repo_datarecordfields->findOneBy( array("dataField" => $datafield->getId(), "dataRecord" => $datarecord->getId()) );
                 $radio_options = $repo_radio_option->findBy( array("dataFields" => $datafield->getId()) );  // TEMP
 
+                // Keep track of which radio options were changed
+                $changelist = array();
+                $need_flush = false;
+
+
+                // ----------------------------------------
                 // Grab all the options stored in this xml entity
                 foreach ($xml_element->childNodes as $xml_radio_option) {
                     $option_name = $xml_radio_option->nodeName;
@@ -1236,6 +1288,9 @@ if ($write) {
 
                     //$option_name = str_replace(array('&gt;', '&lt;', '&amp;', '&quot;'), array('>', '<', '&', '"'), $option_name);    // TODO - still needed?
                     //$option_value = str_replace(array('&gt;', '&lt;', '&amp;', '&quot;'), array('>', '<', '&', '"'), $option_value);     // TODO - still needed?
+
+                    // Store that this radio option was listed in the xml file
+                    $changelist[] = $option_name;
 
                     // TEMP
                     $radio_option = null;
@@ -1251,36 +1306,64 @@ if ($write) {
                         throw new \Exception('Could not find option_name: "'.$option_name.'" in the database');
                     }
 
-                    // TODO - delete options not mentioned in xml spec?
-
                     // Attempt to locate a radio_selction object for this
                     $radio_selection = $repo_radio_selection->findOneBy( array("radioOption" => $radio_option->getId(), "dataRecordFields" => $drf->getId()) );
 
 if ($write) {
-                    $update_radio_option = true;
                     if ($radio_selection == null) {
                         // Create a new RadioSelection object
                         $radio_selection = parent::ODR_addRadioSelection($entity_manager, $user, $radio_option, $drf, $option_value);
+                        $need_flush = true;
 
                         // Store the radio option so they can all be deleted if an error occurs
                         $return['objects'][] = $radio_selection;
                     }
                     else {
                         // Don't update the radio selection if the value didn't change
-                        if ($radio_selection->getSelected() == $option_value)
-                            $update_radio_option = false;
-                        else
+                        if ($radio_selection->getSelected() != $option_value) {
                             $radio_selection->setSelected($option_value);
-                    }
-
-                    if ($update_radio_option) {
-                        $entity_manager->persist($radio_selection);
-                        $entity_manager->flush();
+                            $entity_manager->persist($radio_selection);
+                            $need_flush = true;
+                        }
                     }
 }
 
                     $status .= self::indent($indent).'-- "'.$option_name.'": '.$option_value;
                 }
+
+                // ----------------------------------------
+                // Determine whether to deselect all radio options not listed in the xml file
+                if ($xml_element->hasAttributes() && $xml_element->attributes->item(0)->nodeName == '_deselect_unlisted') {     // attribute is always false if it exists
+                    $status .= self::indent($indent).'>> preserve selected status of unlisted radio options';
+                }
+                else {
+                    $status .= self::indent($indent).'>> deselecting all unlisted radio options...';
+
+                    // Grab all radio selection objects for this datafield
+                    $radio_selections = $repo_radio_selection->findBy( array("dataRecordFields" => $drf->getId()) );
+                    foreach ($radio_selections as $rs) {
+                        // If the radio option wasn't listed in the xml file...
+                        $option_name = $rs->getRadioOption()->getXMLOptionName();
+                        if ( !in_array($option_name, $changelist) && $rs->getSelected() == 1 ) {
+                            // ...deselect it
+if ($write) {
+                            $rs->setSelected(0);
+                            $entity_manager->persist($rs);
+                            $need_flush = true;
+}
+                            $status .= self::indent($indent+1).'-- "'.$option_name.'"';
+                        }
+                    }
+
+                    $status .= self::indent($indent).'>> ...done';
+                }
+
+if ($write) {
+                // ----------------------------------------
+                // Commit changes if necessary
+                if ($need_flush)
+                    $entity_manager->flush();
+}
 
             }
             catch (\Exception $e) {
@@ -1291,6 +1374,7 @@ if ($write) {
             // All other typeclasses
 
             try {
+                // ----------------------------------------
                 // Grab the field's value from the XML
                 $value = $xml_element->nodeValue;
 
@@ -1329,6 +1413,8 @@ if ($write) {
                 }
 
 if ($write) {
+                // ----------------------------------------
+                // Commit changes to the database if necessary
                 if ($update_storage_entity) {
                     $my_obj->setUpdatedBy($user);
                     $entity_manager->persist($my_obj);
@@ -1363,19 +1449,24 @@ if ($write) {
         $return['t'] = '';
         $return['d'] = '';
 
+        $ret = '';
+
         try {
             $post = $_POST;
 //print_r($post);
 //return;
-            if ( !isset($post['href']) || !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) || !isset($post['user_id']) )
+            if ( !isset($post['object_type']) || !isset($post['drf_id']) || !isset($post['user_id']) || !isset($post['original_name']) || !isset($post['href']) || !isset($post['metadata']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
-            $href = $post['href'];
             $object_type = $post['object_type'];
-            $object_id = $post['object_id'];
-            $api_key = $post['api_key'];
+            $drf_id = $post['drf_id'];
             $user_id = $post['user_id'];
+            $original_name = $post['original_name'];
+            $href = $post['href'];
+            $metadata = $post['metadata'];
+            $api_key = $post['api_key'];
+
 
             // Load symfony objects
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -1386,135 +1477,188 @@ if ($write) {
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
             $em = $this->getDoctrine()->getManager();
-            $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
+            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
+            $repo_datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields');
             $repo_file = $em->getRepository('ODRAdminBundle:File');
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
 
-            $ret = '';
+$write = true;
+$write = false;
 
+            // ----------------------------------------
             // Grab necessary objects
             $user = $repo_user->find($user_id);
-            $entity = null;
-            $file_path = '';
-            $local_filename = '';
-            if ($object_type == 'File') {
-                $entity = $repo_file->find($object_id);
-                $file_path = dirname(__FILE__).'/../../../../web/uploads/files/File_';
-                $local_filename = 'uploads/files/File_';
-            }
-            else if ($object_type == 'Image') {
-                $entity = $repo_image->find($object_id);
-                $file_path = dirname(__FILE__).'/../../../../web/uploads/images/Image_';
-                $local_filename = 'uploads/images/Image_';
+            $drf = $repo_datarecordfield->find($drf_id);
+            $storage_path = dirname(__FILE__).'/../../../../web/uploads/xml/user_'.$user_id.'/storage/';
+
+            // Ensure storage directory exists
+            if ( !file_exists($storage_path) )
+                mkdir( $storage_path );
+
+            $my_obj = null;
+            if ($object_type == 'File')
+                $my_obj = $repo_file->findOneBy( array('originalFileName' => $original_name, 'dataRecordFields' => $drf_id) );
+            else if ($object_type == 'Image')
+                $my_obj = $repo_image->findOneBy( array('originalFileName' => $original_name, 'dataRecordFields' => $drf_id, 'original' => true) );
+            else
+                throw new \Exception('Invalid Form');
+
+
+            // ----------------------------------------
+            // Attempt to grab the file/image
+            $file_contents = null;
+            if ($href == '') {
+                // File/Image already exists on server
+                $file_contents = file_get_contents($storage_path.$original_name);
             }
             else {
-                throw new \Exception('Invalid Form');
-            }
+                // Grab the file from a remote server using cURL...
+                $ret .= 'Attempting to download file from "'.$href.'" in DataRecord '.$drf->getDataRecord()->getId().' DataField '.$drf->getDataField()->getId().'...';
+                $ch = curl_init();
 
-            //
-            if ($entity == null) {
-                throw new \Exception('Invalid file/image object');
-            }
+                // Set the options for the cURL request
+                curl_setopt_array($ch,
+                    array(
+                        CURLOPT_HEADER => 0,
+                        CURLOPT_URL => $href,
+                        CURLOPT_RETURNTRANSFER => 1,
+                        CURLOPT_BINARYTRANSFER => 1,
+                        CURLOPT_FRESH_CONNECT => 1,
+                        CURLOPT_FORBID_REUSE => 1,
+                        CURLOPT_TIMEOUT => 120,  // TODO - timeout length?
+                    )
+                );
 
-            $ret .= 'Attempting to download file for DataRecord '.$entity->getDataRecord()->getId().' DataField '.$entity->getDataField()->getId().'...'."\n";
-
-            // Grab the file from its original location using cURL...
-            $ch = curl_init();
-
-            // Set the options for the cURL request
-            curl_setopt_array($ch,
-                array(
-                    CURLOPT_HEADER => 0,
-                    CURLOPT_URL => $href,
-                    CURLOPT_RETURNTRANSFER => 1,
-                    CURLOPT_BINARYTRANSFER => 1,
-                    CURLOPT_FRESH_CONNECT => 1,
-                    CURLOPT_FORBID_REUSE => 1,
-                    CURLOPT_TIMEOUT => 120,  // TODO - timeout length?
-                )
-            );
-
-            // Send the request
-            $file_contents = '';
-            if( ! $file_contents = curl_exec($ch)) {
-                if ( curl_errno($ch) == 6 ) {
-                    // Could not resolve host
-                    throw new \Exception( 'retry' );
-                }
-                else {
-                    throw new \Exception( curl_error($ch) );
-                }
-            }
-
-            if ($file_contents !== false) {
-
-                $downloaded_file_checksum = md5($file_contents);
-                if ( $entity->getOriginalChecksum() == $downloaded_file_checksum ) {
-                    $ret .= 'checksum match, not saving downloaded file'."\n";
-                }
-                else {
-                    $ret .= 'checksum mis-match...';
-
-                    // Determine the file's extension
-                    $period = strrpos($href, '.');
-                    $ext = substr($href, $period+1);
-                    $entity->setExt($ext);
-
-                    $handle = fopen( $file_path.$object_id.'.'.$ext, 'w' );
-                    if ($handle === false) {
-                        throw new \Exception('Could not write the file at "'.$href.'" to the server');
+                // Send the request
+                if ( !$file_contents = curl_exec($ch) ) {
+                    if (curl_errno($ch) == 6) {
+                        // Could not resolve host
+                        throw new \Exception('retry');
                     }
                     else {
-
-                        // Upload the file to the server
-                        fwrite($handle, $file_contents);
-                        fclose($handle);
-
-                        if ($object_type == 'Image') {
-                            $sizes = getimagesize( $file_path.$object_id.'.'.$ext );
-                            $entity->setImageWidth( $sizes[0] );
-                            $entity->setImageHeight( $sizes[1] );
-                        }
-
-                        // Update the file object's filename and save
-                        $entity->setLocalFileName( $local_filename.$object_id.'.'.$ext );
-                        $entity->setOriginalChecksum($downloaded_file_checksum);
-                        $em->persist($entity);
-                        $em->flush();
-
-                        $ret .= 'wrote downloaded file to "'.$file_path.$object_id.'.'.$ext.'"'."\n";
-
-                        if ($object_type == 'Image') {
-                            // Generate other sizes of image
-                            parent::resizeImages($entity, $user);
-                            $ret .= 'rebuilt thumbnails for downloaded image'."\n";
-                        }
-
-                        // (Re)encrypt the object
-                        self::encryptObject($object_id, $object_type);
-                        $ret .= 'encrypted downloaded file'."\n";
+                        throw new \Exception( curl_error($ch) );
                     }
                 }
+
+                // Ensure the remote server didn't return something weird...
+                $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                if ($code >= 400) {
+                    throw new \Exception('HTTP Request returned status code '.$code.'...aborting file download attempt');
+                }
+                else {
+                    // For convenience, temporarily save the file in the xml storage directory
+                    $handle = fopen($storage_path.$original_name, 'w');
+                    if ($handle == false)
+                        throw new \Exception('Could not save downloaded file to storage directory');
+
+                    fwrite($handle, $file_contents);
+                    fclose($handle);
+
+                    $ret .= 'success'."\n";
+                }
+            }
+
+
+            // ----------------------------------------
+            // Three possibilities...
+            $ret .= 'Attempting to save '.$object_type.' "'.$original_name.'" in DataRecord '.$drf->getDataRecord()->getId().' DataField '.$drf->getDataField()->getId().'...'."\n";
+            if ($my_obj == null) {
+                // ...need to add a new file/image
+                $ret .= '>> '.$object_type.' does not exist, uploading...';
+
+if ($write) {
+                $my_obj = parent::finishUpload($em, $storage_path, $original_name, $user_id, $drf_id);
+}
+            }
+            else if ($my_obj->getOriginalChecksum() == md5($file_contents)) {
+                // ...the specified file/image is already in datafield
+                $ret .= '>> '.$object_type.' is an exact copy of existing version, skipping...'."\n";
+
+                // Delete the file from the server since it already exists
+                unlink($storage_path.$original_name);
             }
             else {
-                // Could not load the file, notify of failure
-                throw new \Exception('Could not load the file "'.$href.'" for import');
+                // ...need to "update" the existing file/image
+                $ret .= '>> '.$object_type.' is different than uploaded version...';
+
+                // Determine the path to the current file/image
+                $file_path = dirname(__FILE__).'/../../../../web/uploads/files/File_';
+                if ($object_type == 'Image')
+                    $file_path = dirname(__FILE__).'/../../../../web/uploads/images/Image_';
+                $file_path .= $my_obj->getId().'.'.$my_obj->getExt();
+
+if ($write) {
+                $handle = fopen($file_path, 'w');
+                if ($handle == false)
+                    throw new \Exception('Could not write to '.$file_path);
+
+                // Update the current file/image with the new contents
+                fwrite($handle, $file_contents);
+                fclose($handle);
+
+                // Delete the uploaded file
+                unlink($storage_path.$original_name);
+                $ret .= 'overwritten...'."\n";
+
+                // Update other properties of the file/image that got changed
+                $my_obj->setOriginalChecksum( md5($file_contents) );
+
+                if ($object_type == 'Image') {
+                    $sizes = getimagesize($file_path);
+                    $my_obj->setImageWidth($sizes[0]);
+                    $my_obj->setImageHeight($sizes[1]);
+                }
+
+                $em->persist($my_obj);
+                $em->flush();
+
+                if ($object_type == 'Image') {
+                    // Generate other sizes of image
+                    parent::resizeImages($my_obj, $user);
+                    $ret .= 'rebuilt thumbnails...';
+                }
+
+                // (Re)encrypt the object
+                self::encryptObject($my_obj->getId(), $object_type);
+                $ret .= 'encrypted...';
+}
             }
+
+
+if ($write) {
+            // ----------------------------------------
+            // Update metadata for the file/image
+            if ( isset($metadata['create_date']) && $metadata['create_date'] !== '' )
+                $my_obj->setCreated( new \DateTime($metadata['create_date']) );
+//            if ( isset($metadata['create_auth']) && $metadata['create_auth'] !== '' )
+//                $my_obj->setCreatedBy( $user );
+            if ( isset($metadata['public_date']) && $metadata['public_date'] !== '' )
+                $my_obj->setPublicDate( new \DateTime($metadata['public_date']) );
+            if ( isset($metadata['external_id']) && $metadata['external_id'] !== '' )
+                $my_obj->setExternalId( $metadata['external_id'] );
+            if ( isset($metadata['display_order']) && $metadata['display_order'] !== '' )
+                $my_obj->setDisplayorder( $metadata['display_order'] );
+
+            $em->persist($my_obj);
+            $em->flush();
+
+            $ret .= 'done'."\n";
+}
 
             $return['d'] = $ret;
         }
         catch (\Exception $e) {
             if ( $e->getMessage() == 'retry' ) {
-                // Could not resolve host error
+                // Could not resolve host error...apparently using '6' because it matches cURL's error code
                 $return['r'] = 6;
             }
             else {
                 $return['r'] = 1;
                 $return['t'] = 'ex';
-                $return['d'] = 'Error 0x66271865: '.$e->getMessage()."\n".$ret;
+                $return['d'] = $ret."\n".'Error 0x66271865: '.$e->getMessage();
             }
         }
 
@@ -1542,11 +1686,16 @@ if ($write) {
             $em = $this->getDoctrine()->getManager();
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $datarecord = $repo_datarecord->find($datarecord_id);
-            $datatype = $datarecord->getDataType();
             $templating = $this->get('templating');
 
             $xml_export_path = dirname(__FILE__).'/../../../../web/uploads/xml_export/';
+
+            // Ensure directory exists
+            if ( !file_exists($xml_export_path) )
+                mkdir( $xml_export_path );
+
             $filename = 'DataRecord_'.$datarecord_id.'.xml';
+
 
             $handle = fopen($xml_export_path.$filename, 'w');
             if ($handle !== false) {

@@ -1211,6 +1211,7 @@ $save_permissions = false;
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
+        $response->setStatusCode(403);
         return $response;
     }
 
@@ -1984,6 +1985,7 @@ $save_permissions = false;
      * @param integer $user_id                 Which user is doing the uploading
      * @param integer $datarecordfield_id      Which DataRecordField entity to store the file under
      *
+     * @return File|Image
      */
     protected function finishUpload($em, $filepath, $original_filename, $user_id, $datarecordfield_id)
     {
@@ -2100,6 +2102,7 @@ $save_permissions = false;
         $em->persist($my_obj);
         $em->flush();
 
+        return $my_obj;
     }
 
 

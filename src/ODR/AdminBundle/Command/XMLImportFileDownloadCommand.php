@@ -58,10 +58,10 @@ class XMLImportFileDownloadCommand extends ContainerAwareCommand
                 $data = json_decode($job->getData());
 
                 // 
-                $str = 'XMLImportFileDownloadCommand.php: Attempting to import file at "'.$data->href.'" into '.$data->object_type.' '.$data->object_id.' from '.$data->memcached_prefix.'...';
+                $str = 'XMLImportFileDownloadCommand.php: Attempting to import the '.$data->object_type.' "'.$data->original_name.'" into drf '.$data->drf_id.' from '.$data->memcached_prefix.'...';
 
                 $current_time = new \DateTime();
-                $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
+                $output->writeln( "\n".$current_time->format('Y-m-d H:i:s').' (UTC-5)' );
                 $output->writeln($str);
                 $logger->info('XMLImportFileDownloadCommand.php: '.$str);
 
@@ -71,7 +71,15 @@ class XMLImportFileDownloadCommand extends ContainerAwareCommand
 $output->writeln($data->url);
 
                 // Create the required url and the parameters to send
-                $parameters = array('href' => $data->href, 'object_type' => $data->object_type, 'object_id' => $data->object_id, 'user_id' => $data->user_id, 'api_key' => $data->api_key);
+                $parameters = array(
+                    'object_type' => $data->object_type,
+                    'drf_id' => $data->drf_id,
+                    'user_id' => $data->user_id,
+                    'href' => $data->href,
+                    'original_name' => $data->original_name,
+                    'metadata' => $data->metadata,
+                    'api_key' => $data->api_key
+                );
 
                 // Set the options for the POST request
                 curl_setopt_array($ch, array(
@@ -88,7 +96,13 @@ $output->writeln($data->url);
 
                 // Send the request
                 if( ! $ret = curl_exec($ch)) {
-                    throw new \Exception( curl_error($ch) );
+                    if (curl_errno($ch) == 6) {
+                        // Could not resolve host
+                        throw new \Exception('retry');
+                    }
+                    else {
+                        throw new \Exception( curl_error($ch) );
+                    }
                 }
 
                 // Do things with the response returned by the controller?
@@ -125,6 +139,9 @@ $output->writeln($data->url);
 
                     // Release the job back into the ready queue to try again
                     $pheanstalk->release($job);
+
+                    // Sleep for a bit
+                    usleep(1000000);     // sleep for 1 second
                 }
                 else {
                     $output->writeln($e->getMessage());

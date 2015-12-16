@@ -89,7 +89,13 @@ $output->writeln($data->url);
 
                 // Send the request
                 if( ! $ret = curl_exec($ch)) {
-                    throw new \Exception( curl_error($ch) );
+                    if (curl_errno($ch) == 6) {
+                        // Could not resolve host
+                        throw new \Exception('retry');
+                    }
+                    else {
+                        throw new \Exception( curl_error($ch) );
+                    }
                 }
 
                 // Do things with the response returned by the controller?
@@ -114,11 +120,24 @@ $output->writeln($data->url);
 
             }
             catch (\Exception $e) {
-                $output->writeln($e->getMessage());
-                $logger->err('XMLImportWorkerCommand.php: '.$e->getMessage());
+                if ( $e->getMessage() == 'retry' ) {
+                    $output->writeln( 'Could not resolve host, releasing job to try again' );
+                    $logger->err('XMLImportWorkerCommand.php: '.$e->getMessage());
 
-                // Delete the job so the queue doesn't hang, in theory
-                $pheanstalk->delete($job);
+                    // Release the job back into the ready queue to try again
+                    $pheanstalk->release($job);
+
+                    // Sleep for a bit
+                    usleep(1000000);     // sleep for 1 second
+                }
+                else {
+                    $output->writeln($e->getMessage());
+
+                    $logger->err('XMLImportWorkerCommand.php: '.$e->getMessage());
+
+                    // Delete the job so the queue doesn't hang, in theory
+                    $pheanstalk->delete($job);
+                }
             }
         }
     }

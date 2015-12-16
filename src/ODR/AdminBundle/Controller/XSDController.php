@@ -53,6 +53,11 @@ class XSDController extends ODRCustomController
 
 
             $xsd_export_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
+
+            // Ensure directory exists
+            if ( !file_exists($xsd_export_path) )
+                mkdir( $xsd_export_path );
+
             $filename = $datatype->getXMLShortName().'.xsd';
 
             $handle = fopen($xsd_export_path.$filename, 'w');

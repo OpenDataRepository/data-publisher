@@ -56,15 +56,14 @@ class ClearXMLImportFileDownloadCommand extends ContainerAwareCommand
                 $job = $pheanstalk->watch('import_file')->ignore('default')->reserve(); 
 
             $data = json_decode($job->getData());
-            $datatype_id = $data->datatype_id;
 
             // Dealt with the job
             $pheanstalk->delete($job);
 
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted import job for '.$data->object_type.' '.$data->object_id.' from '.$memcached_prefix.'_import_file');
+    $output->writeln( date('H:i:s').'  deleted import job for '.$data->object_type.' drf '.$data->drf_id.' from '.$memcached_prefix.'_import_file');
 else
-    $output->writeln( date('H:i:s').'  deleted import job for '.$data->object_type.' '.$data->object_id.' from import_file');
+    $output->writeln( date('H:i:s').'  deleted import job for '.$data->object_type.' drf '.$data->drf_id.' from import_file');
 
             // Sleep for a bit
             usleep(100000); // sleep for 0.1 seconds

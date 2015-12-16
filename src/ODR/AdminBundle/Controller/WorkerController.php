@@ -257,6 +257,11 @@ $logger->info('WorkerController::recacherecordAction()  Attempting to recache Da
 
                     // Also recreate the XML version of the datarecord
                     $xml_export_path = dirname(__FILE__).'/../../../../web/uploads/xml_export/';
+
+                    // Ensure directory exists
+                    if ( !file_exists($xml_export_path) )
+                        mkdir( $xml_export_path );
+
                     $filename = 'DataRecord_'.$datarecord_id.'.xml';
                     $handle = fopen($xml_export_path.$filename, 'w');
                     if ($handle !== false) {

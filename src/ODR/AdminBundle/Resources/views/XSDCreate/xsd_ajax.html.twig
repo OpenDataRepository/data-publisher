@@ -9,18 +9,6 @@
         </xsd:documentation>
     </xsd:annotation>
 
-{#
-    <!-- simple attribute definition -->
-    <xsd:complexType name="inline_attribute">
-        <xsd:simpleContent>
-            <xsd:extension base="xsd:string">
-                <xsd:attribute name="attr" type="xsd:string">
-                </xsd:attribute>
-            </xsd:extension>
-        </xsd:simpleContent>
-    </xsd:complexType>
-#}
-
     <!-- more normal datetime string definition... -->
     <xsd:simpleType name="normal_datetime">
         <xsd:restriction base="xsd:string">
@@ -32,22 +20,15 @@
     <xsd:complexType name="file_type">
         <xsd:all>
             <xsd:element name="original_name" type="xsd:string" />
-            <xsd:element name="source">
-                <xsd:complexType>
-                    <xsd:choice>
-                        <xsd:element name="href" type="xsd:string" />
-                        <xsd:element name="local_filename" type="xsd:string" />
-                    </xsd:choice>
-                </xsd:complexType>
-            </xsd:element>
-            <xsd:element name="checksum" type="xsd:string" />
-            <xsd:element name="_file_metadata" minOccurs="0" maxOccurs="1">
+            <xsd:element name="href" type="xsd:string" minOccurs="0" />
+            <xsd:element name="checksum" type="xsd:string" minOccurs="0" />
+            <xsd:element name="_file_metadata" minOccurs="0">
                 <xsd:complexType>
                     <xsd:all>
-                        <xsd:element name="_create_date" type="normal_datetime" minOccurs="0" maxOccurs="1" />
-                        <xsd:element name="_create_auth" type="xsd:string" minOccurs="0" maxOccurs="1" />
-                        <xsd:element name="_public_date" type="normal_datetime" minOccurs="0" maxOccurs="1" />
-                        <xsd:element name="_external_id" type="xsd:string" minOccurs="0" maxOccurs="1" />
+                        <xsd:element name="_create_date" type="normal_datetime" minOccurs="0" />
+                        <xsd:element name="_create_auth" type="xsd:string" minOccurs="0" />
+                        <xsd:element name="_public_date" type="normal_datetime" minOccurs="0" />
+                        <xsd:element name="_external_id" type="xsd:string" minOccurs="0" />
                     </xsd:all>
                 </xsd:complexType>
             </xsd:element>
@@ -59,37 +40,32 @@
         <xsd:sequence>
             <xsd:element name="file" type="file_type" minOccurs="0" maxOccurs="unbounded" />
         </xsd:sequence>
+        <xsd:attribute name="_delete_unlisted" use="optional" type="xsd:boolean" fixed="false" />
     </xsd:complexType>
 
     <!-- definition of a file control permitting just one file upload -->
     <xsd:complexType name="datafield_file_type_single">
         <xsd:sequence>
-            <xsd:element name="file" type="file_type" minOccurs="0" maxOccurs="1" />
+            <xsd:element name="file" type="file_type" minOccurs="0" />
         </xsd:sequence>
+        <xsd:attribute name="_delete_unlisted" use="optional" type="xsd:boolean" fixed="false" />
     </xsd:complexType>
 
     <!-- definition of an image -->
     <xsd:complexType name="image_type">
         <xsd:all>
             <xsd:element name="original_name" type="xsd:string" />
-            <xsd:element name="source">
-                <xsd:complexType>
-                    <xsd:choice>
-                        <xsd:element name="href" type="xsd:string" />
-                        <xsd:element name="local_filename" type="xsd:string" />
-                    </xsd:choice>
-                </xsd:complexType>
-            </xsd:element>
-            <xsd:element name="checksum" type="xsd:string" />
+            <xsd:element name="href" type="xsd:string" minOccurs="0" />
+            <xsd:element name="checksum" type="xsd:string" minOccurs="0" />
             <xsd:element name="caption" type="xsd:string" />
-            <xsd:element name="_image_metadata" minOccurs="0" maxOccurs="1">
+            <xsd:element name="_image_metadata" minOccurs="0">
                 <xsd:complexType>
                     <xsd:all>
-                        <xsd:element name="_display_order" type="xsd:string" minOccurs="0" maxOccurs="1" />
-                        <xsd:element name="_create_date" type="normal_datetime" minOccurs="0" maxOccurs="1" />
-                        <xsd:element name="_create_auth" type="xsd:string" minOccurs="0" maxOccurs="1" />
-                        <xsd:element name="_public_date" type="normal_datetime" minOccurs="0" maxOccurs="1" />
-                        <xsd:element name="_external_id" type="xsd:string" minOccurs="0" maxOccurs="1" />
+                        <xsd:element name="_display_order" type="xsd:string" minOccurs="0" />
+                        <xsd:element name="_create_date" type="normal_datetime" minOccurs="0" />
+                        <xsd:element name="_create_auth" type="xsd:string" minOccurs="0" />
+                        <xsd:element name="_public_date" type="normal_datetime" minOccurs="0" />
+                        <xsd:element name="_external_id" type="xsd:string" minOccurs="0" />
                     </xsd:all>
                 </xsd:complexType>
             </xsd:element>
@@ -101,22 +77,24 @@
         <xsd:sequence>
             <xsd:element name="image" type="image_type" minOccurs="0" maxOccurs="unbounded" />
         </xsd:sequence>
+        <xsd:attribute name="_delete_unlisted" use="optional" type="xsd:boolean" fixed="false" />
     </xsd:complexType>
 
     <!-- definition of an image control permitting just one image upload -->
     <xsd:complexType name="datafield_image_type_single">
         <xsd:sequence>
-            <xsd:element name="image" type="image_type" minOccurs="0" maxOccurs="1" />
+            <xsd:element name="image" type="image_type" minOccurs="0" />
         </xsd:sequence>
+        <xsd:attribute name="_delete_unlisted" use="optional" type="xsd:boolean" fixed="false" />
     </xsd:complexType>
 
     <!-- metadata definition for datarecord -->
     <xsd:complexType name="datarecord_metadata_type">
         <xsd:all>
-            <xsd:element name="_external_id" type="xsd:string" minOccurs="0" maxOccurs="1" />
-            <xsd:element name="_create_date" type="normal_datetime" minOccurs="0" maxOccurs="1" />
-            <xsd:element name="_create_auth" type="xsd:string" minOccurs="0" maxOccurs="1" />
-            <xsd:element name="_public_date" type="normal_datetime" minOccurs="0" maxOccurs="1" />
+            <xsd:element name="_external_id" type="xsd:string" minOccurs="0" />
+            <xsd:element name="_create_date" type="normal_datetime" minOccurs="0" />
+            <xsd:element name="_create_auth" type="xsd:string" minOccurs="0" />
+            <xsd:element name="_public_date" type="normal_datetime" minOccurs="0" />
         </xsd:all>
     </xsd:complexType>
 
@@ -126,7 +104,7 @@
             {% import "ODRAdminBundle:XSDCreate:xsd_area_childtype.html.twig" as mychildform %}
             {{ mychildform.input(datatype_tree) }}
 
-            <xsd:element name="_datarecord_metadata" type="datarecord_metadata_type" minOccurs="0" maxOccurs="1" />
+            <xsd:element name="_datarecord_metadata" type="datarecord_metadata_type" minOccurs="0" />
 
         </xsd:all>
         <xsd:attribute name="datatype_name" type="xsd:string" use="required" />

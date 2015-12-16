@@ -709,7 +709,7 @@ odr_datatables_state_destroy:
 #-----------------------------------------
 # XSD Controller
 odr_xsd_generate_datatype:
-    pattern:  /admin/xsd/build/datatype/{datatype_id}
+    pattern:  /admin/xsd/build/{datatype_id}
     defaults: { _controller: ODRAdminBundle:XSD:builddatatype }
     requirements:
         datatype_id:  \d+
@@ -724,28 +724,28 @@ odr_xsd_download:
 #-----------------------------------------
 # XML Controller
 odr_xml_import:
-    pattern:  /admin/xml/import/{id}
+    pattern:  /admin/xml_import/{datatype_id}
     defaults: { _controller: ODRAdminBundle:XML:import }
     requirements:
-        id:  \d+
+        datatype_id:  \d+
 
-odr_import_start:
-    pattern: /beanstalk/import_start
+odr_xml_import_start:
+    pattern: /beanstalk/xml_import/start
     defaults: { _controller: ODRAdminBundle:XML:importstart }
     requirements: { _method: POST }
 
-odr_validate_import:
-    pattern: /beanstalk/import_validate
+odr_xml_import_validate:
+    pattern: /beanstalk/xml_import/validate
     defaults: { _controller: ODRAdminBundle:XML:importvalidate }
     requirements: { _method: POST }
 
-odr_import_worker:
-    pattern: /beanstalk/import_worker
+odr_xml_import_worker:
+    pattern: /beanstalk/xml_import/worker
     defaults: { _controller: ODRAdminBundle:XML:importworker }
     requirements: { _method: POST }
 
-odr_import_file:
-    pattern: /beanstalk/import_file
+odr_xml_import_file_download:
+    pattern: /beanstalk/xml_import/download_file
     defaults: { _controller: ODRAdminBundle:XML:importfile }
     requirements: { _method: POST }
 

@@ -44,7 +44,6 @@ class MassEditCommand extends ContainerAwareCommand
     {
         // Only need to load these once...
         $container = $this->getContainer();
-        $router = $container->get('router');
         $logger = $container->get('logger');
         $pheanstalk = $container->get('pheanstalk');
 
@@ -53,35 +52,8 @@ class MassEditCommand extends ContainerAwareCommand
             $job = null;
             try {
                 // Wait for a job?
-                $job = $pheanstalk->watch('mass_edit')->ignore('default')->reserve(); 
-            }
-            catch (\Exception $e) {
-$output->writeln($e->getMessage());
-                $logger->err('MassEditCommand.php: '.$e->getMessage());
+                $job = $pheanstalk->watch('mass_edit')->ignore('default')->reserve();
 
-                // Delete the job so the queue hopefully doesn't hang
-                $pheanstalk->delete($job);
-            }
-/*
-            // TODO - move this check inside MassEditController?  since commands can't have database connections...
-            // Check to see if there's any datafields that need migrating
-            while (true) {
-                try {
-                    $pheanstalk->useTube('migrate_datafields');
-                    $migrate_job = $pheanstalk->peekReady('migrate_datafields');
-
-                    // Don't care what job is in the tube, just that there is one
-                    $output->writeln('waiting for datafield migration to finish...');
-                    usleep(5000000);     // sleep for 5 seconds
-                }
-                catch (\Exception $e) {
-                    // peekReady() throws a bona-fide exception when the tube is empty instead of returning NULL
-                    // Since tube is empty, no datafields need migrating, so continue recaching
-                    break;
-                }
-            }
-*/
-            try {
                 // Get Job Data
                 $data = json_decode($job->getData()); 
 
@@ -118,8 +90,15 @@ $output->writeln($e->getMessage());
 
                 // Send the request
                 $delete_job = true;
+                // Send the request
                 if( ! $ret = curl_exec($ch)) {
-                    throw new \Exception( curl_error($ch) );
+                    if (curl_errno($ch) == 6) {
+                        // Could not resolve host
+                        throw new \Exception('retry');
+                    }
+                    else {
+                        throw new \Exception( curl_error($ch) );
+                    }
                 }
                 else {
                     // Do things with the response returned by the controller?
@@ -140,7 +119,7 @@ $output->writeln($e->getMessage());
                         // Should always be a json return...
                         throw new \Exception( print_r($ret, true) );
                     }
-//$logger->debug('MigrateCommand.php: curl results...'.print_r($result, true));
+//$logger->debug('MassEditCommand.php: curl results...'.print_r($result, true));
 
                     // Done with this cURL object
                     curl_close($ch);
@@ -157,11 +136,24 @@ $output->writeln($e->getMessage());
 
             }
             catch (\Exception $e) {
-$output->writeln($e->getMessage());
-                $logger->err('MassEditCommand.php: '.$e->getMessage());
+                if ( $e->getMessage() == 'retry' ) {
+                    $output->writeln( 'Could not resolve host, releasing job to try again' );
+                    $logger->err('MassEditCommand.php: '.$e->getMessage());
 
-                // Delete the job so the queue hopefully doesn't hang
-                $pheanstalk->delete($job);
+                    // Release the job back into the ready queue to try again
+                    $pheanstalk->release($job);
+
+                    // Sleep for a bit
+                    usleep(1000000);     // sleep for 1 second
+                }
+                else {
+                    $output->writeln($e->getMessage());
+
+                    $logger->err('MassEditCommand.php: '.$e->getMessage());
+
+                    // Delete the job so the queue doesn't hang, in theory
+                    $pheanstalk->delete($job);
+                }
             }
         }
     }

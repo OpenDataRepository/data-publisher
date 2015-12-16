@@ -27,9 +27,12 @@
             <xsd:complexType>
                 <xsd:all>
                 {% for radio_option in field.getRadioOptions %}
-                    <xsd:element name="{{ radio_option.getxmloptionname }}" type="xsd:boolean" minOccurs="0" maxOccurs="1" />
+                    <xsd:element name="{{ radio_option.getxmloptionname }}" type="xsd:boolean" minOccurs="0" />
                 {% endfor %}
                 </xsd:all>
+                {% if field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
+                    <xsd:attribute name="_deselect_unlisted" use="optional" type="xsd:boolean" fixed="false" />
+                {% endif %}
             </xsd:complexType>
         </xsd:element>
 
