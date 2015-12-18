@@ -728,7 +728,6 @@ class RecordController extends ODRCustomController
 
 
             // If the file is public, make it non-public...if file is non-public, make it public
-            $public_date = $file->getPublicDate();
             if ( $file->isPublic() ) {
                 // Make the record non-public
                 $file->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
@@ -738,8 +737,8 @@ class RecordController extends ODRCustomController
                 $filename = 'File_'.$file_id.'.'.$file->getExt();
                 $absolute_path = realpath($file_upload_path).'/'.$filename;
 
-//                if ( file_exists($absolute_path) )
-//                    unlink($absolute_path);
+                if ( file_exists($absolute_path) )
+                    unlink($absolute_path);
             }
             else {
                 // Make the record public
@@ -838,7 +837,6 @@ class RecordController extends ODRCustomController
             $images[] = $image;
 
             // If the images are public, make them non-public...if images are non-public, make them public
-            $public_date = $image->getPublicDate();
             if ( $image->isPublic() ) {
                 foreach ($images as $img) {
                     // Make the image non-public
@@ -851,8 +849,8 @@ class RecordController extends ODRCustomController
                     $filename = 'Image_'.$img->getId().'.'.$img->getExt();
                     $absolute_path = realpath($image_upload_path).'/'.$filename;
 
-//                    if ( file_exists($absolute_path) )
-//                        unlink($absolute_path);
+                    if ( file_exists($absolute_path) )
+                        unlink($absolute_path);
                 }
             }
             else {
@@ -950,11 +948,24 @@ class RecordController extends ODRCustomController
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-            // Grab all children of the original image (resizes, i believe) and remove them
+            // Grab all alternate sizes of the original image (thumbnail is only current one) and remove them
             $images = $repo_image->findBy( array('parent' => $image->getId()) );
-            foreach ($images as $img)
+            foreach ($images as $img) {
+                // Ensure no decrypted version of the image exists on the server
+                $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
+                if ( file_exists($local_filepath) )
+                    unlink($local_filepath);
+
+                // Delete the alternate sized image from the database
                 $em->remove($img);
-            // Remove the original image as well
+            }
+
+            // Ensure no decrypted version of the original image exists on the server
+            $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$image->getId().'.'.$image->getExt();
+            if ( file_exists($local_filepath) )
+                unlink($local_filepath);
+
+            // Remove the original image from the database as well
             $em->remove($image);
             $em->flush();
 

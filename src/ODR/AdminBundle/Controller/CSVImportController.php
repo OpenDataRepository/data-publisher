@@ -1630,19 +1630,6 @@ class CSVImportController extends ODRCustomController
                                             )
                                         );
                                     }
-
-                                    if ($already_uploaded) {
-                                        // TODO - should the upload replace existing files instead of doing nothing?
-                                        // Warn about file/image already being on the server
-                                        $errors[] = array(
-                                            'level' => 'Warning',
-                                            'body' => array(
-                                                'line_num' => $line_num,
-                                                'message' => 'The '.$typeclass.' "'.$filename.'" listed in column "'.$column_names[$column_num].'" has already been uploaded to this datarecord.',
-                                            )
-                                        );
-                                    }
-
                                 }
                             }
 
@@ -2681,12 +2668,12 @@ print_r($new_mapping);
                             }
 
                             // Store the path to the user's upload area...
-                            $filepath = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/storage';
+                            $storage_filepath = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/storage';
 
                             // Grab a list of the files already uploaded to this datafield
-                            $already_uploaded_files = array();
+                            $existing_files = array();
                             $query_str =
-                               'SELECT e.originalFileName
+                               'SELECT e
                                 FROM ODRAdminBundle:'.$typeclass.' AS e
                                 WHERE e.dataRecord = :datarecord AND e.dataField = :datafield ';
                             if ($typeclass == 'Image')
@@ -2694,23 +2681,85 @@ print_r($new_mapping);
                             $query_str .= 'AND e.deletedAt IS NULL';
 
                             $query = $em->createQuery($query_str)->setParameters( array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()) );
-                            $results = $query->getArrayResult();
+                            $results = $query->getResult();
 
-                            foreach ($results as $tmp => $result)
-                                $already_uploaded_files[] = $result['originalFileName'];
+                            foreach ($results as $tmp => $file)
+                                $existing_files[ $file->getOriginalFileName() ] = $file;    // TODO - duplicate original filenames in datafield?
 
                             $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.') '."\n";
 
+                            // ----------------------------------------
+                            // For each file/image listed in the csv file...
                             $filenames = explode( $column_delimiters[$column_num], $column_data );
                             foreach ($filenames as $filename) {
-                                // TODO - ability to replace existing files?
-                                // If the file doesn't already exist in the datafield, upload it
-                                if ( !in_array($filename, $already_uploaded_files) ) {
-                                    parent::finishUpload($em, $filepath, $filename, $user->getId(), $drf->getId());
+                                // ...there are three possibilities...
+                                if ( !isset($existing_files[$filename]) ) {
+                                    // ...need to add a new file/image
+                                    parent::finishUpload($em, $storage_filepath, $filename, $user->getId(), $drf->getId());
 
                                     $status .= '      ...uploaded new '.$typeclass.' ("'.$filename.'")'."\n";
                                 }
+                                else if ( $existing_files[$filename]->getOriginalChecksum() == md5_file($storage_filepath.'/'.$filename) ) {
+                                    // ...the specified file/image is already in datafield
+                                    $status .= '      ...'.$typeclass.' ("'.$filename.'") is an exact copy of existing version, skipping.'."\n";
+
+                                    // Delete the file/image from the server since it already officially exists
+                                    unlink($storage_filepath.'/'.$filename);
+                                }
+                                else {
+                                    // ...need to "update" the existing file/image
+                                    $status .= '      ...'.$typeclass.' ("'.$filename.'") is different than existing version, updating...';
+
+                                    // Determine the path to the current file/image
+                                    $my_obj = $existing_files[$filename];
+                                    $local_filepath = dirname(__FILE__).'/../../../../web/uploads/files/File_';
+                                    if ($typeclass == 'Image')
+                                        $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_';
+                                    $local_filepath .= $my_obj->getId().'.'.$my_obj->getExt();
+
+                                    $handle = fopen($local_filepath, 'w');
+                                    if ($handle == false)
+                                        throw new \Exception('Could not write to '.$local_filepath);
+
+                                    // Update the current file/image with the new contents
+                                    $file_contents = file_get_contents($storage_filepath.'/'.$filename);
+                                    fwrite($handle, $file_contents);
+                                    fclose($handle);
+
+                                    // Delete the uploaded file/image from the storage directory
+                                    unlink($storage_filepath.'/'.$filename);
+                                    $status .= 'overwritten...';
+
+                                    // Update other properties of the file/image that got changed
+                                    $my_obj->setOriginalChecksum( md5($file_contents) );
+
+                                    if ($typeclass == 'Image') {
+                                        $sizes = getimagesize($local_filepath);
+                                        $my_obj->setImageWidth($sizes[0]);
+                                        $my_obj->setImageHeight($sizes[1]);
+                                    }
+
+                                    $em->persist($my_obj);
+                                    $em->flush();
+
+                                    if ($typeclass == 'Image') {
+                                        // Generate other sizes of image
+                                        parent::resizeImages($my_obj, $user);
+                                        $status .= 'rebuilt thumbnails...';
+                                    }
+
+                                    // Re-encrypt the file/image
+                                    parent::encryptObject($my_obj->getId(), $typeclass);
+                                    $status .= 'encrypted...'."\n";
+
+                                    // A decrypted version of the File/Image might still exist on the server...delete it here since all its properties have been saved
+                                    if ( file_exists($local_filepath) )
+                                        unlink($local_filepath);
+                                }
                             }
+
+                            // ----------------------------------------
+                            // TODO - delete all files/images not listed in csv file if user selected that option
                         }
                     }
                     else if ($typeclass == 'IntegerValue') {

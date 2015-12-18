@@ -615,6 +615,8 @@ print "\n\n";
             $base_obj->setEncryptKey($hexEncoded_num);
             $em->persist($base_obj);
 
+            // TODO - delete the directory with the encrypted chunks prior to encryptFile()?  the crypto bundle still works properly (in linux at least), but the error log does mention "directory already exists"
+
             // Encrypt the file
             $crypto->encryptFile($absolute_path, $bytes);
 
@@ -663,7 +665,6 @@ print "\n\n";
 
             // Save all changes
             $em->flush();
-
         }
         catch (\Exception $e) {
             throw new \Exception($e->getMessage());
@@ -693,6 +694,7 @@ print "\n\n";
 
         $absolute_path = '';
         $base_obj = null;
+        $object_type = strtolower($object_type);
         if ($object_type == 'file') {
             // Grab the file and associated information
             $base_obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
@@ -1979,6 +1981,8 @@ $save_permissions = false;
     /**
      * Creates a new File/Image entity from the given file at the given filepath, and persists all required information to the database.
      *
+     * NOTE: the newly uploaded file/image will have its decrypted version deleted off the server...if you need it immediately after calling this function, you'll have to use decryptObject() to re-create it
+     *
      * @param \Doctrine\ORM\EntityManager $em
      * @param string $filepath                 The absolute path to the file
      * @param string $original_filename        The original name of the file
@@ -2053,6 +2057,7 @@ $save_permissions = false;
 
         // ----------------------------------------
         // Set the remaining properties of the new File/Image dependent on the new entities ID
+        $file_path = '';
         if ($typeclass == 'Image') {
             // Generate Local File Name
             $image_id = $my_obj->getId();
@@ -2101,6 +2106,9 @@ $save_permissions = false;
         // Save changes again
         $em->persist($my_obj);
         $em->flush();
+
+        // A decrypted version of the File/Image still exists on the server...delete it here since all its properties have been saved
+        unlink($file_path);
 
         return $my_obj;
     }
@@ -2423,6 +2431,8 @@ $save_permissions = false;
     /**
      * Usually called after an image is uploaded, this resizes the uploaded image for use in different areas.
      * Will automatically attempt to replace existing thumbnails if possible.
+     *
+     * NOTE: all thumbnails for the provided image will have their decrypted version deleted off the server...if for some reason you need it immediately after calling this function, you'll have to use decryptObject() to re-create it
      * 
      * @param Image $my_obj The Image that was just uploaded.
      * @param User $user    The user requesting this action
@@ -2485,13 +2495,17 @@ $save_permissions = false;
                     $image->setUpdatedBy($user);
                     $image->setParent($my_obj);
                     $image->setExt($my_obj->getExt());
-                    $image->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
+                    $image->setPublicDate( $my_obj->getPublicDate() );
                     $image->setExternalId('');
                     $image->setOriginalChecksum('');
-
-                    $em->persist($image);
-                    $em->flush();
                 }
+                else {
+                    // Ensure that thumbnail has same public date as original image
+                    $image->setPublicDate( $my_obj->getPublicDate() );
+                }
+
+                $em->persist($image);
+                $em->flush();
 
                 // Copy temp file to new file name
                 $filename = $image->getUploadDir()."/Image_" . $image->getId() . "." . $ext;
@@ -2514,6 +2528,9 @@ $save_permissions = false;
 
                 $em->persist($image);
                 $em->flush();
+
+                // A decrypted version of this thumbnail still exists on the server...delete it here since all its properties have been saved
+                unlink($file_path);
             }
         }
     }

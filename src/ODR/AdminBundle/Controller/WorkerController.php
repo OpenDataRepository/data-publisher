@@ -543,84 +543,103 @@ $ret .= '  Set current to '.$count."\n";
      * @param integer $datatype_id Which datatype should have all its image thumbnails rebuilt
      * @param Request $request
      *
+     * @return Response
      */
     public function startrebuildthumbnailsAction($datatype_id, Request $request)
     {
-        // TODO - wrap in try/catch
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
 
-        // Grab necessary objects
-        $em = $this->getDoctrine()->getManager();
-        $pheanstalk = $this->get('pheanstalk');
-        $router = $this->container->get('router');
-        $memcached = $this->get('memcached');
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-        $api_key = $this->container->getParameter('beanstalk_api_key');
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $pheanstalk = $this->get('pheanstalk');
+            $router = $this->container->get('router');
+            $memcached = $this->get('memcached');
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $api_key = $this->container->getParameter('beanstalk_api_key');
 
-        // --------------------
-        // Determine user privileges
-        $user = $this->container->get('security.context')->getToken()->getUser();
-        $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-        // TODO - check for permissions
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('DataType');
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            // TODO - check for permissions?  restrict rebuild of thumbnails to certain datatypes?
+
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                return parent::permissionDeniedError();
+            // --------------------
 
 
-        $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-        if ($datatype == null)
-            return parent::deletedEntityError('DataType');
+            // ----------------------------------------
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_rebuild_thumbnails');
 
-        // ----------------------------------------
-        // Generate the url for cURL to use
-        $url = $this->container->getParameter('site_baseurl');
-        $url .= $router->generate('odr_rebuild_thumbnails');
-
-        // Grab a list of all full-size images on the site
-        $query = $em->createQuery(
-           'SELECT e.id
+            // Grab a list of all full-size images on the site
+            $query = $em->createQuery(
+                'SELECT e.id
             FROM ODRAdminBundle:Image AS e
             JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
             WHERE dr.dataType = :datatype AND e.parent IS NULL
             AND e.deletedAt IS NULL AND dr.deletedAt IS NULL'
-        )->setParameters( array('datatype' => $datatype_id) );
-        $results = $query->getArrayResult();
+            )->setParameters(array('datatype' => $datatype_id));
+            $results = $query->getArrayResult();
 
 //print_r($results);
 //return;
 
-        if ( count($results) > 0 ) {
-            // ----------------------------------------
-            // Get/create an entity to track the progress of this thumbnail rebuild
-            $job_type = 'rebuild_thumbnails';
-            $target_entity = 'datatype_'.$datatype_id;
-            $additional_data = array('description' => 'Rebuild of all image thumbnails for DataType '.$datatype_id);
-            $restrictions = '';
-            $total = count($results);
-            $reuse_existing = false;
+            if (count($results) > 0) {
+                // ----------------------------------------
+                // Get/create an entity to track the progress of this thumbnail rebuild
+                $job_type = 'rebuild_thumbnails';
+                $target_entity = 'datatype_'.$datatype_id;
+                $additional_data = array('description' => 'Rebuild of all image thumbnails for DataType '.$datatype_id);
+                $restrictions = '';
+                $total = count($results);
+                $reuse_existing = false;
 
-            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
-            $tracked_job_id = $tracked_job->getId();
+                $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
+                $tracked_job_id = $tracked_job->getId();
 
-            // ----------------------------------------
-            $object_type = 'image';
-            foreach ($results as $num => $result) {
-                $object_id = $result['id'];
+                // ----------------------------------------
+                $object_type = 'image';
+                foreach ($results as $num => $result) {
+                    $object_id = $result['id'];
 
-                // Insert the new job into the queue
-                $priority = 1024;   // should be roughly default priority
-                $payload = json_encode(
-                    array(
-                        "tracked_job_id" => $tracked_job_id,
-                        "object_type" => $object_type,
-                        "object_id" => $object_id,
-                        "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                        "url" => $url,
-                        "api_key" => $api_key,
-                    )
-                );
+                    // Insert the new job into the queue
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+                            "tracked_job_id" => $tracked_job_id,
+                            "object_type" => $object_type,
+                            "object_id" => $object_id,
+                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
 
-                $delay = 1;
-                $pheanstalk->useTube('rebuild_thumbnails')->put($payload, $priority, $delay);
+                    $delay = 1;
+                    $pheanstalk->useTube('rebuild_thumbnails')->put($payload, $priority, $delay);
+                }
             }
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x38472782 ' . $e->getMessage();
         }
 
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
@@ -637,6 +656,8 @@ $ret .= '  Set current to '.$count."\n";
         $return['r'] = 0;
         $return['t'] = "";
         $return['d'] = "";
+
+        $tracked_job_id = -1;
 
         try {
             $post = $_POST;
@@ -691,7 +712,20 @@ $ret .= '  Set current to '.$count."\n";
             $return['d'] = '>> Rebuilt thumbnails for '.$object_type.' '.$object_id."\n";
         }
         catch (\Exception $e) {
-            // TODO - increment tracked job counter on error?
+            // Update the job tracker even if an error occurred...right? TODO
+            if ($tracked_job_id !== -1) {
+                $em = $this->getDoctrine()->getManager();
+                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+
+                $total = $tracked_job->getTotal();
+                $count = $tracked_job->incrementCurrent($em);
+
+                if ($count >= $total)
+                    $tracked_job->setCompleted( new \DateTime() );
+
+                $em->persist($tracked_job);
+                $em->flush();
+            }
 
             $return['r'] = 1;
             $return['t'] = 'ex';
@@ -701,7 +735,6 @@ $ret .= '  Set current to '.$count."\n";
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 

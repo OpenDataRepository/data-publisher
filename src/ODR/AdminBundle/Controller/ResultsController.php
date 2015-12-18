@@ -330,38 +330,42 @@ class ResultsController extends ODRCustomController
             }
             // --------------------
 
-
             // Ensure the file exists in decrypted format
-            $file_path = parent::decryptObject($file->getId(), 'file');
+            $file_path = realpath( dirname(__FILE__).'/../../../../web/'.$file->getLocalFilename() );     // realpath() returns false if file does not exist
+            if ( !$file->isPublic() || !$file_path )
+                $file_path = parent::decryptObject($file->getId(), 'file');
+
+            // Open the file for reading
             $handle = fopen($file_path, 'r');
-            if ($handle !== false) {
+            if ($handle === false)
+                throw new \Exception('Unable to open file at "'.$file_path.'"');
 
-                $display_filename = $file->getOriginalFileName();
-                if ($display_filename == null)
-                    $display_filename = 'File_'.$file_id.'.'.$file->getExt();
+            // Attach the original filename to the download
+            $display_filename = $file->getOriginalFileName();
+            if ($display_filename == null)
+                $display_filename = 'File_'.$file_id.'.'.$file->getExt();
 
-                // Set up a response to send the file back
-                $response->setPrivate();
-                $response->headers->set('Content-Type', mime_content_type($file_path));
-                $response->headers->set('Content-Length', filesize($file_path));
-                $response->headers->set('Content-Disposition', 'attachment; filename="'.$display_filename.'";');
+            // Set up a response to send the file back
+            $response->setPrivate();
+            $response->headers->set('Content-Type', mime_content_type($file_path));
+            $response->headers->set('Content-Length', filesize($file_path));
+            $response->headers->set('Content-Disposition', 'attachment; filename="'.$display_filename.'";');
 
-                $response->sendHeaders();
+            $response->sendHeaders();
 
-                $content = file_get_contents($file_path);   // using file_get_contents() because apparently readfile() tacks on # of bytes read at end of file for firefox
-                $response->setContent($content);
+            $content = file_get_contents($file_path);   // using file_get_contents() because apparently readfile() tacks on # of bytes read at end of file for firefox
+            $response->setContent($content);
 
-                fclose($handle);
+            fclose($handle);
 
-                // If the file isn't public, delete the decrypted version so isn't be accessible from web
-                if (!$file->isPublic())
-                    unlink($file_path);
-            }
+            // If the file isn't public, delete the decrypted version so it can't be accessed without going through symfony
+            if ( !$file->isPublic() )
+                unlink($file_path);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
-            $return['d'] = 'Error 0x848418123 ' . $e->getMessage();
+            $return['d'] = 'Error 0x848418123: ' . $e->getMessage();
         }
 
         if ($return['r'] !== 0) {
@@ -435,57 +439,63 @@ class ResultsController extends ODRCustomController
             // --------------------
 
 
-            // Ensure the image exists in decrypted form
-            $image_path = parent::decryptObject($image->getId(), 'image');
+            // Ensure the image exists in decrypted format
+            $image_path = realpath( dirname(__FILE__).'/../../../../web/'.$image->getLocalFilename() );     // realpath() returns false if file does not exist
+            if ( !$image->isPublic() || !$image_path )
+                $image_path = parent::decryptObject($image->getId(), 'image');
+
             $handle = fopen($image_path, 'r');
-            if ($handle !== false) {
+            if ($handle === false)
+                throw new \Exception('Unable to open image at "'.$image_path.'"');
 
-                // Have to send image headers first, apparently...
-                $response->setPrivate();
-                switch ($image->getExt()) {
-                    case 'GIF':
-                    case 'gif':
-                        $response->headers->set('Content-Type', 'image/gif');
-                        break;
-                    case 'PNG':
-                    case 'png':
-                        $response->headers->set('Content-Type', 'image/png');
-                        break;
-                    case 'JPG':
-                    case 'jpg':
-                    case 'jpeg':
-                        $response->headers->set('Content-Type', 'image/jpeg');
-                        break;
-                }
-                $response->sendHeaders();
 
-                // After headers are sent, send the image itself
-                switch ($image->getExt()) {
-                    case 'GIF':
-                    case 'gif':
-                        $im = imagecreatefromgif($image_path);
-                        imagegif($im);
-                        break;
-                    case 'PNG':
-                    case 'png':
-                        $im = imagecreatefrompng($image_path);
-                        imagepng($im);
-                        break;
-                    case 'JPG':
-                    case 'jpg':
-                    case 'jpeg':
-                        $im = imagecreatefromjpeg($image_path);
-                        imagejpeg($im);
-                        break;
-                }
-                imagedestroy($im);
-
-                fclose($handle);
-
-                // If the image isn't public, delete the decrypted version so isn't be accessible from web
-                if (!$image->isPublic())
-                    unlink($image_path);
+            // Have to send image headers first...
+            $response->setPrivate();
+            switch ( strtolower($image->getExt()) ) {
+                case 'gif':
+                    $response->headers->set('Content-Type', 'image/gif');
+                    break;
+                case 'png':
+                    $response->headers->set('Content-Type', 'image/png');
+                    break;
+                case 'jpg':
+                case 'jpeg':
+                    $response->headers->set('Content-Type', 'image/jpeg');
+                    break;
             }
+
+            // Attach the image's original name to the headers...
+            $display_filename = $image->getOriginalFileName();
+            if ($display_filename == null)
+                $display_filename = 'Image_'.$image_id.'.'.$image->getExt();
+            $response->headers->set('Content-Disposition', 'inline; filename="'.$display_filename.'";');
+
+            $response->sendHeaders();
+
+            // After headers are sent, send the image itself
+            $im = null;
+            switch ( strtolower($image->getExt()) ) {
+                case 'gif':
+                    $im = imagecreatefromgif($image_path);
+                    imagegif($im);
+                    break;
+                case 'png':
+                    $im = imagecreatefrompng($image_path);
+                    imagepng($im);
+                    break;
+                case 'jpg':
+                case 'jpeg':
+                    $im = imagecreatefromjpeg($image_path);
+                    imagejpeg($im);
+                    break;
+            }
+            imagedestroy($im);
+
+            fclose($handle);
+
+            // If the image isn't public, delete the decrypted version so it can't be accessed without going through symfony
+            if ( !$image->isPublic() )
+                unlink($image_path);
         }
         catch (\Exception $e) {
             $return['r'] = 1;

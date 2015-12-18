@@ -1577,7 +1577,7 @@ if ($write) {
                 // ...the specified file/image is already in datafield
                 $ret .= '>> '.$object_type.' is an exact copy of existing version, skipping...'."\n";
 
-                // Delete the file from the server since it already exists
+                // Delete the file/image from the server since it already officially exists
                 unlink($storage_path.$original_name);
             }
             else {
@@ -1585,29 +1585,29 @@ if ($write) {
                 $ret .= '>> '.$object_type.' is different than uploaded version...';
 
                 // Determine the path to the current file/image
-                $file_path = dirname(__FILE__).'/../../../../web/uploads/files/File_';
+                $local_filepath = dirname(__FILE__).'/../../../../web/uploads/files/File_';
                 if ($object_type == 'Image')
-                    $file_path = dirname(__FILE__).'/../../../../web/uploads/images/Image_';
-                $file_path .= $my_obj->getId().'.'.$my_obj->getExt();
+                    $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_';
+                $local_filepath .= $my_obj->getId().'.'.$my_obj->getExt();
 
 if ($write) {
-                $handle = fopen($file_path, 'w');
+                $handle = fopen($local_filepath, 'w');
                 if ($handle == false)
-                    throw new \Exception('Could not write to '.$file_path);
+                    throw new \Exception('Could not write to '.$local_filepath);
 
                 // Update the current file/image with the new contents
                 fwrite($handle, $file_contents);
                 fclose($handle);
 
-                // Delete the uploaded file
+                // Delete the uploaded file/image from the storage directory
                 unlink($storage_path.$original_name);
-                $ret .= 'overwritten...'."\n";
+                $ret .= 'overwritten...';
 
                 // Update other properties of the file/image that got changed
                 $my_obj->setOriginalChecksum( md5($file_contents) );
 
                 if ($object_type == 'Image') {
-                    $sizes = getimagesize($file_path);
+                    $sizes = getimagesize($local_filepath);
                     $my_obj->setImageWidth($sizes[0]);
                     $my_obj->setImageHeight($sizes[1]);
                 }
@@ -1621,10 +1621,13 @@ if ($write) {
                     $ret .= 'rebuilt thumbnails...';
                 }
 
-                // (Re)encrypt the object
-                self::encryptObject($my_obj->getId(), $object_type);
+                // Re-encrypt the uploaded file/image
+                parent::encryptObject($my_obj->getId(), $object_type);
                 $ret .= 'encrypted...';
 }
+                // A decrypted version of the File/Image might still exist on the server...delete it here since all its properties have been saved
+                if ( file_exists($local_filepath) )
+                    unlink($local_filepath);
             }
 
 
