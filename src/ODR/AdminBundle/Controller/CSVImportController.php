@@ -806,10 +806,14 @@ class CSVImportController extends ODRCustomController
             $fieldtype_mapping = null;
             if ( isset($post['fieldtype_mapping']) )
                 $fieldtype_mapping = $post['fieldtype_mapping'];
-            // Get secondary delimiters to use for multiple select/radio columns, if they exist
+            // Get secondary delimiters to use for file/image/multiple select/radio columns, if they exist
             $column_delimiters = array();
             if ( isset($post['column_delimiters']) )
                 $column_delimiters = $post['column_delimiters'];
+            // Get the file/image columns where all files/images in the datafield but not in the csv file will be deleted
+            $synch_columns = array();
+            if ( isset($post['synch_columns']) )
+                $synch_columns = $post['synch_columns'];
 
             // If the import is for a child or linked datatype, then one of the columns from the csv file has to be mapped to the parent (or local if linked import) datatype's external id datafield
             $parent_datatype_id = '';
@@ -923,7 +927,7 @@ class CSVImportController extends ODRCustomController
                     // Ensure fieldtype mapping entry exists
                     $fieldtype_mapping[$col_num] = $datafield->getFieldType()->getId();
 
-                    // If datafield is a multiple select/radio field, ensure secondary delimiters exist
+                    // If datafield is multiple select/radio field, or datafield is file/image, ensure secondary delimiters exist
                     $typename = $datafield->getFieldType()->getTypeName();
                     if ($typename == "Multiple Select" || $typename == "Multiple Radio" || $typename == "File" || $typename == "Image") {
                         if ( $column_delimiters == null )
@@ -1029,6 +1033,7 @@ class CSVImportController extends ODRCustomController
                 'datafield_mapping' => $datafield_mapping,
                 'fieldtype_mapping' => $fieldtype_mapping,
                 'column_delimiters' => $column_delimiters,
+                'synch_columns' => $synch_columns,
 
                 // Only used when importing into a child or linked datatype
                 'parent_external_id_column' => $parent_external_id_column,
@@ -1262,6 +1267,7 @@ class CSVImportController extends ODRCustomController
                         'datafield_mapping' => $datafield_mapping,
                         'fieldtype_mapping' => $fieldtype_mapping,
                         'column_delimiters' => $column_delimiters,
+                        'synch_columns' => $synch_columns,
 
                         // Only used when importing into a child/linked datatype
                         'parent_external_id_column' => $parent_external_id_column,
@@ -1414,6 +1420,9 @@ class CSVImportController extends ODRCustomController
             $column_delimiters = array();
             if ( isset($post['column_delimiters']) )
                 $column_delimiters = $post['column_delimiters'];
+            $synch_columns = array();
+            if ( isset($post['synch_columns']) )
+                $synch_columns = $post['synch_columns'];
 
             // If the import is for a child or linked datatype, then one of the columns from the csv file has to be mapped to the parent (or local if linked import) datatype's external id datafield
             $parent_datatype_id = '';
@@ -2273,6 +2282,7 @@ class CSVImportController extends ODRCustomController
             $datafield_mapping = $job_data['datafield_mapping'];
             $fieldtype_mapping = $job_data['fieldtype_mapping'];
             $column_delimiters = $job_data['column_delimiters'];
+            $synch_columns = $job_data['synch_columns'];
             $parent_external_id_column = $job_data['parent_external_id_column'];
             $parent_datatype_id = $job_data['parent_datatype_id'];
             $remote_external_id_column = $job_data['remote_external_id_column'];
@@ -2398,6 +2408,7 @@ print_r($new_mapping);
                         'memcached_prefix' => $memcached_prefix,    // debug purposes only
 
                         'column_delimiters' => $column_delimiters,
+                        'synch_columns' => $synch_columns,
                         'mapping' => $new_mapping,
                         'line' => $row,
 
@@ -2469,6 +2480,9 @@ print_r($new_mapping);
             $column_delimiters = null;
             if ( isset($post['column_delimiters']) )
                 $column_delimiters = $post['column_delimiters'];
+            $synch_columns = null;
+            if ( isset($post['synch_columns']) )
+                $synch_columns = $post['synch_columns'];
             $parent_external_id_column = '';
             if ( isset($post['parent_external_id_column']) )
                 $parent_external_id_column = $post['parent_external_id_column'];
@@ -2655,6 +2669,13 @@ print_r($new_mapping);
                         $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$checked.'"...'."\n";
                     }
                     else if ($typeclass == 'File' || $typeclass == 'Image') {
+
+                        // ----------------------------------------
+                        $csv_filenames = array();
+                        $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.') '."\n";
+
+
+                        // ----------------------------------------
                         // If a filename is in this column...
                         if ($column_data !== '') {
                             // Grab the associated datarecordfield entity
@@ -2670,7 +2691,7 @@ print_r($new_mapping);
                             // Store the path to the user's upload area...
                             $storage_filepath = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/storage';
 
-                            // Grab a list of the files already uploaded to this datafield
+                            // Grab a list of the files/images already uploaded to this datafield
                             $existing_files = array();
                             $query_str =
                                'SELECT e
@@ -2686,32 +2707,31 @@ print_r($new_mapping);
                             foreach ($results as $tmp => $file)
                                 $existing_files[ $file->getOriginalFileName() ] = $file;    // TODO - duplicate original filenames in datafield?
 
-                            $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.') '."\n";
 
                             // ----------------------------------------
                             // For each file/image listed in the csv file...
-                            $filenames = explode( $column_delimiters[$column_num], $column_data );
-                            foreach ($filenames as $filename) {
+                            $csv_filenames = explode( $column_delimiters[$column_num], $column_data );
+                            foreach ($csv_filenames as $csv_filename) {
                                 // ...there are three possibilities...
-                                if ( !isset($existing_files[$filename]) ) {
+                                if ( !isset($existing_files[$csv_filename]) ) {
                                     // ...need to add a new file/image
-                                    parent::finishUpload($em, $storage_filepath, $filename, $user->getId(), $drf->getId());
+                                    parent::finishUpload($em, $storage_filepath, $csv_filename, $user->getId(), $drf->getId());
 
-                                    $status .= '      ...uploaded new '.$typeclass.' ("'.$filename.'")'."\n";
+                                    $status .= '      ...uploaded new '.$typeclass.' ("'.$csv_filename.'")'."\n";
                                 }
-                                else if ( $existing_files[$filename]->getOriginalChecksum() == md5_file($storage_filepath.'/'.$filename) ) {
+                                else if ( $existing_files[$csv_filename]->getOriginalChecksum() == md5_file($storage_filepath.'/'.$csv_filename) ) {
                                     // ...the specified file/image is already in datafield
-                                    $status .= '      ...'.$typeclass.' ("'.$filename.'") is an exact copy of existing version, skipping.'."\n";
+                                    $status .= '      ...'.$typeclass.' ("'.$csv_filename.'") is an exact copy of existing version, skipping.'."\n";
 
                                     // Delete the file/image from the server since it already officially exists
-                                    unlink($storage_filepath.'/'.$filename);
+                                    unlink($storage_filepath.'/'.$csv_filename);
                                 }
                                 else {
                                     // ...need to "update" the existing file/image
-                                    $status .= '      ...'.$typeclass.' ("'.$filename.'") is different than existing version, updating...';
+                                    $status .= '      ...'.$typeclass.' ("'.$csv_filename.'") is different than existing version, updating...';
 
                                     // Determine the path to the current file/image
-                                    $my_obj = $existing_files[$filename];
+                                    $my_obj = $existing_files[$csv_filename];
                                     $local_filepath = dirname(__FILE__).'/../../../../web/uploads/files/File_';
                                     if ($typeclass == 'Image')
                                         $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_';
@@ -2722,12 +2742,12 @@ print_r($new_mapping);
                                         throw new \Exception('Could not write to '.$local_filepath);
 
                                     // Update the current file/image with the new contents
-                                    $file_contents = file_get_contents($storage_filepath.'/'.$filename);
+                                    $file_contents = file_get_contents($storage_filepath.'/'.$csv_filename);
                                     fwrite($handle, $file_contents);
                                     fclose($handle);
 
                                     // Delete the uploaded file/image from the storage directory
-                                    unlink($storage_filepath.'/'.$filename);
+                                    unlink($storage_filepath.'/'.$csv_filename);
                                     $status .= 'overwritten...';
 
                                     // Update other properties of the file/image that got changed
@@ -2757,10 +2777,39 @@ print_r($new_mapping);
                                         unlink($local_filepath);
                                 }
                             }
-
-                            // ----------------------------------------
-                            // TODO - delete all files/images not listed in csv file if user selected that option
                         }
+
+                        // ----------------------------------------
+                        // Delete all files/images not listed in csv file if user selected that option
+                        $need_flush = false;
+                        if ( isset($synch_columns[$column_num]) && $synch_columns[$column_num] == 1) {
+
+                            // Grab all files/images (including thumbnails) uploaded to this datarecord/datafield
+                            $query = $em->createQuery(
+                               'SELECT e
+                                FROM ODRAdminBundle:'.$typeclass.' AS e
+                                WHERE e.dataRecord = :datarecord AND e.dataField = :datafield
+                                AND e.deletedAt IS NULL'
+                            )->setParameters( array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()) );
+                            $results = $query->getResult();
+
+                            foreach ($results as $tmp => $file) {
+                                $original_filename = $file->getOriginalFileName();
+
+                                if ( !in_array($original_filename, $csv_filenames) ) {
+                                    if ($typeclass == 'File' || $file->getOriginal() == 1)
+                                        $status .= '      ...'.$typeclass.' ("'.$original_filename.'") not listed in csv file, deleting...'."\n";
+
+                                    // Silently delete thumbnails
+
+                                    $em->remove($file);
+                                    $need_flush = true;
+                                }
+                            }
+                        }
+
+                        if ($need_flush)
+                            $em->flush();
                     }
                     else if ($typeclass == 'IntegerValue') {
                         // Grab repository for entity

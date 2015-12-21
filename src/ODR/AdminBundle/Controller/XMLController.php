@@ -1102,8 +1102,7 @@ if ($write)
                         if ( !in_array($filename, $changelist) ) {
                             // ...delete it
 if ($write) {
-                            $file->setDeletedAt(new \DateTime());
-                            $entity_manager->persist($file);
+                            $entity_manager->remove($file);
                             $need_flush = true;
 }
                             $status .= self::indent($indent+1).'-- "'.$filename.'"';
@@ -1237,8 +1236,7 @@ if ($write)
                         if ( !in_array($filename, $changelist) ) {
                             // ...delete it
 if ($write) {
-                            $image->setDeletedAt(new \DateTime());
-                            $entity_manager->persist($image);
+                            $entity_manager->remove($image);
                             $need_flush = true;
 }
 
