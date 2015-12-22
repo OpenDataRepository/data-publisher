@@ -22,6 +22,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 // CSV Reader
 use Ddeboer\DataImport\Reader;
 use Ddeboer\DataImport\Writer;
@@ -1021,7 +1022,7 @@ print_r($line);
         $return['t'] = '';
         $return['d'] = ''; 
             
-        $response = new Response();
+        $response = new StreamedResponse();
         
         try {
             // Grab necessary objects
@@ -1063,12 +1064,17 @@ print_r($line);
                 $response->headers->set('Content-Length', filesize($csv_export_path.$filename));
                 $response->headers->set('Content-Disposition', 'attachment; filename="'.$filename.'";');
     
-                $response->sendHeaders();
+//                $response->sendHeaders();
 
-                $content = file_get_contents($csv_export_path.$filename);   // using file_get_contents() because apparently readfile() tacks on # of bytes read at end of file for firefox
-                $response->setContent($content);
-
-                fclose($handle);
+                // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
+                $response->setCallback(function() use ($handle) {
+                    while ( !feof($handle) ) {
+                        $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
+                        echo $buffer;
+                        flush();
+                    }
+                    fclose($handle);
+                });
             }
             else {
                 throw new \Exception('Could not open requested file');

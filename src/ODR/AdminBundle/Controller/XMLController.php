@@ -26,6 +26,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 
 class XMLController extends ODRCustomController
@@ -1743,7 +1744,7 @@ if ($write) {
         $return['t'] = 'html';
         $return['d'] = '';
 
-        $response = new Response();
+        $response = new StreamedResponse();
 
         try {
             $xml_export_path = dirname(__FILE__).'/../../../../web/uploads/xml_export/';
@@ -1758,12 +1759,17 @@ if ($write) {
                 $response->headers->set('Content-Length', filesize($xml_export_path.$filename));
                 $response->headers->set('Content-Disposition', 'attachment; filename="'.$filename.'";');
 
-                $response->sendHeaders();
+//                $response->sendHeaders();
 
-                $content = file_get_contents($xml_export_path.$filename);   // using file_get_contents() because apparently readfile() tacks on # of bytes read at end of file for firefox
-                $response->setContent($content);
-
-                fclose($handle);
+                // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
+                $response->setCallback(function() use ($handle) {
+                    while ( !feof($handle) ) {
+                        $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
+                        echo $buffer;
+                        flush();
+                    }
+                    fclose($handle);
+                });
             }
         }
         catch (\Exception $e) {

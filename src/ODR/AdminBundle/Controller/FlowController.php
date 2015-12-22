@@ -205,11 +205,11 @@ class FlowController extends ODRCustomController
                 // Extract useful info from the GET query
                 $identifier = $request->query->get('flowIdentifier');
                 $index = $request->query->get('flowChunkNumber');
-                $filesize = intval( $request->query->get('flowTotalSize') );
+                $expected_size = intval( $request->query->get('flowTotalSize') );
 
                 $allowed_filesize = intval( $validation_params['maxSize'] );
 
-                if ( $filesize > ($allowed_filesize * 1024 * 1024) ) {
+                if ( $expected_size > ($allowed_filesize * 1024 * 1024) ) {
                     // TODO - delete uploaded chunks on abort/cancel?
                     // Expected filesize is too big, don't continue to upload
                     return self::flowAbort( $validation_params['maxSizeErrorMessage'] );

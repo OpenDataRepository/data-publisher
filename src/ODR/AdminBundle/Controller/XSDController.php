@@ -24,6 +24,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 
 class XSDController extends ODRCustomController
@@ -107,7 +108,7 @@ class XSDController extends ODRCustomController
         $return['t'] = 'html';
         $return['d'] = '';
 
-        $response = new Response();
+        $response = new StreamedResponse();
 
         try {
             $datatype = $this->getDoctrine()->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -125,12 +126,17 @@ class XSDController extends ODRCustomController
                 $response->headers->set('Content-Disposition', 'attachment;filename="'.$filename.'"');
                 $response->headers->set('Content-length', filesize($xsd_export_path.$filename));
 
-                $response->sendHeaders();
+//                $response->sendHeaders();
 
-                $content = file_get_contents($xsd_export_path.$filename);   // using file_get_contents() because apparently readfile() appends # of bytes read when firefox is used
-                $response->setContent($content);
-
-                fclose($handle);
+                // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
+                $response->setCallback(function() use ($handle) {
+                    while ( !feof($handle) ) {
+                        $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
+                        echo $buffer;
+                        flush();
+                    }
+                    fclose($handle);
+                });
             }
         }
         catch (\Exception $e) {
