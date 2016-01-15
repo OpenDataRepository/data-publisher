@@ -51,36 +51,54 @@
         {% set has_file = false %}
         <fieldset>
             <div class="pure-u-1">
-                <table class="ODRTable pure-u-1">
+                <table class="NotODRTable pure-table pure-u-1">
                     <thead class="pure-u-1">
                         <tr class="pure-u-1">
-                            <th class="pure-u-1-24">&nbsp;</th>
                             <th class="pure-u-20-24">{{ field.fieldname }}</th>
-                            <th class="pure-u-3-24">Options</th>
+                            <th class="pure-u-1-24">Options</th>
                         </tr>
                     </thead>
                     <tbody class="pure-u-1">
                     {% for file in datarecordfield.getfile %}
                         {% set has_file = true %}
                         <tr id="File_{{ file.id }}" class="pure-u-1">
-                            <td class="pure-u-1-24">&nbsp;</td>
-
                             <td class="pure-u-20-24" {% if file.originalfilename != null and field.getshortenfilename == 1 and file.originalfilename|length > 35 %}title="{{ file.originalfilename }}"{% endif %}>
-                                <a target="_blank" href="{{ path('odr_file_download', { 'file_id': file.id } ) }}">
-                                {% if file.originalfilename == null %}
-                                File_{{ file.id }}.txt
-                                {% elseif field.getshortenfilename == 1 and file.originalfilename|length > 35 %}
-                                {{ file.originalfilename|slice(0,30) }}...
+                                {% if file.getoriginalchecksum != '' %}
+                                    <a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="truncate ODRFileDownload" rel="{{ file.id }}">
+                                        {% if file.originalfilename == null %}File_{{ file.id }}.txt{% else %}{{ file.originalfilename }}{% endif %}
+                                    </a>
+                                    <span id="ODRFileDownload_{{ file.id }}" class="ODRFileDownloadProgress" style="cursor:default; margin-left:10px;">
+                                        <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRProgressBar" style="margin-left:15px; display:inline-block;">
+                                            <span class="ODRProgressBarLabel" style="left:35%;">Decrypting...</span>
+                                        </span>
+                                        <span id="ODRFileDownload_{{ file.id }}_cancel" class="ODRFileDownloadCancel pure-button pure-button-primary" rel="{{ file.id }}" style="vertical-align: top; margin-left: 10px;">Cancel</span>
+                                    </span>
                                 {% else %}
-                                {{ file.originalfilename }}
+                                    <span class="Cursor">
+                                        {% if file.originalfilename == null %}File_{{ file.id }}.txt{% else %}{{ file.originalfilename }}{% endif %}
+                                    </span>
+                                    <span id="ODRFileEncrypt_{{ file.id }}_progress" class="ODRProgressBar" style="margin-left:15px; display:inline-block;">
+                                        <span class="ODRProgressBarLabel" style="left:35%;">Encrypting...</span>
+                                    </span>
+                                    <script>
+                                        $(function() {
+                                            createFileEncryptProgressCheck({{ file.id }}, {{ datarecord.id }}, {{ field.id }});
+                                            $("#ODRFileEncrypt_{{ file.id }}_progress").progressbar({
+                                                value: false
+                                            });
+                                        });
+                                    </script>
                                 {% endif %}
-                                </a>
                             </td>
 
-                            <td class="pure-u-3-24">
-                                <a><i class="Pointer tooltip fa fa-globe fa-lg ODRPublicFile {% if file.ispublic == 0 %}IconRed{% endif %}" title="{% if file.ispublic == 0 %}File is not public{% else %}Public since {{ file.publicdate|date('Y-m-d') }}{% endif %}" rel="{{ file.id }}"></i></a>
-                                <i class="Cursor tooltip fa fa-calendar fa-lg" title="Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdby.getuserstring }}"></i>
-                                <a><i class="Pointer tooltip fa fa-trash-o fa-lg ODRDeleteFile" title="Delete File" rel="{{ file.id }}"></i></a>
+                            <td class="pure-u-4-24">
+                                {% if file.getoriginalchecksum != '' %}
+                                    <a><i class="Pointer tooltip fa fa-globe fa-lg ODRPublicFile {% if file.ispublic == 0 %}IconRed{% endif %}" title="{% if file.ispublic == 0 %}File is not public{% else %}Public since {{ file.publicdate|date('Y-m-d') }}{% endif %}" rel="{{ file.id }}"></i></a>
+                                    <i class="Cursor tooltip fa fa-calendar fa-lg" title="Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdby.getuserstring }}"></i>
+                                    <a><i class="Pointer tooltip fa fa-trash-o fa-lg ODRDeleteFile" title="Delete File" rel="{{ file.id }}"></i></a>
+                                {% else %}
+                                    &nbsp;
+                                {% endif %}
                             </td>
                         </tr>
                     {% endfor %}

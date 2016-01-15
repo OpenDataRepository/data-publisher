@@ -31,20 +31,39 @@
                         {% if file.ispublic == 1 or public_only == false %}    {# don't display non-public files to the public #}
                         <tr id="File_{{ file.id }}" class="pure-u-1">
                             <td class="pure-u-20-24" {% if file.originalfilename != null and field.getshortenfilename == 1 and file.originalfilename|length > 35 %}title="{{ file.originalfilename }}"{% endif %}>
-                                <a target="_blank" href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="pure-u-1 truncate">
-                                {% if file.originalfilename == null %}
-                                File_{{ file.id }}.txt
-                                {# {% elseif field.getshortenfilename == 1 and file.originalfilename|length > 35 %}
-                                {{ file.originalfilename|slice(0,30) }}... #}
+                                {% if file.getoriginalchecksum != '' %}
+                                    <a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="truncate ODRFileDownload" rel="{{ file.id }}">
+                                        {% if file.originalfilename == null %}File_{{ file.id }}.txt{% else %}{{ file.originalfilename }}{% endif %}
+                                    </a>
+                                    <span id="ODRFileDownload_{{ file.id }}" class="ODRFileDownloadProgress" style="cursor:default; margin-left:10px;">
+                                        <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRProgressBar" style="margin-left:15px; display:inline-block;">
+                                            <span class="ODRProgressBarLabel" style="left:35%;">Decrypting...</span>
+                                        </span>
+                                        <span id="ODRFileDownload_{{ file.id }}_cancel" class="ODRFileDownloadCancel pure-button pure-button-primary" rel="{{ file.id }}" style="vertical-align: top; margin-left: 10px;">Cancel</span>
+                                    </span>
                                 {% else %}
-                                {{ file.originalfilename }}
+                                    <span class="Cursor">
+                                        {% if file.originalfilename == null %}File_{{ file.id }}.txt{% else %}{{ file.originalfilename }}{% endif %}
+                                    </span>
+                                    <span id="ODRFileEncrypt_{{ file.id }}_progress" class="ODRProgressBar" style="margin-left:15px; display:inline-block;">
+                                        <span class="ODRProgressBarLabel" style="left:35%;">Encrypting...</span>
+                                    </span>
+                                    <script>
+                                        $(function() {
+                                            createFileEncryptProgressCheck({{ file.id }}, {{ datarecord.id }}, {{ field.id }});
+                                            $("#ODRFileEncrypt_{{ file.id }}_progress").progressbar({
+                                                value: false
+                                            });
+                                        });
+                                    </script>
                                 {% endif %}
-                                </a>
                             </td>
                             
                             <td class="pure-u-4-24">
-                                <i class="Cursor FRight tooltip fa fa-globe fa-lg ODRPublicFile {% if file.ispublic == 0 %}IconRed{% endif %}" title="{% if file.ispublic == 0 %}File is not public{% else %}Public since {{ file.publicdate|date('Y-m-d') }}{% endif %}" rel="{{ file.id }}"></i>
-                                <i class="Cursor FRight tooltip fa fa-calendar fa-lg" title="Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy.getuserstring }}"></i>
+                                {% if file.getoriginalchecksum != '' %}
+                                    <i class="Cursor FRight tooltip fa fa-globe fa-lg ODRPublicFile {% if file.ispublic == 0 %}IconRed{% endif %}" title="{% if file.ispublic == 0 %}File is not public{% else %}Public since {{ file.publicdate|date('Y-m-d') }}{% endif %}" rel="{{ file.id }}"></i>
+                                    <i class="Cursor FRight tooltip fa fa-calendar fa-lg" title="Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy.getuserstring }}"></i>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endif %}

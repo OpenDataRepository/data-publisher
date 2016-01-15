@@ -19,54 +19,39 @@
     {% elseif field_typename == "File" %}
         <fieldset>
             <div class="pure-u-1">
-                <table class="ODRTable pure-u-1">
+                <table class="NotODRTable pure-table pure-u-1">
                     <thead class="pure-u-1">
                         <tr class="pure-u-1">
-                            <th class="pure-u-1-24">&nbsp;</th>
                             <th class="pure-u-20-24">{{ field.fieldname }}</th>
-                            <th class="pure-u-3-24">Options</th>
+                            <th class="pure-u-1-24">Options</th>
                         </tr>
                     </thead>
                     <tbody class="pure-u-1">
                     {% for file in datarecordfield.getfile %}
+                        {% if file.getoriginalchecksum != '' %}
                         <tr id="File_{{ file.id }}" class="pure-u-1">
-                            <td class="pure-u-1-24">&nbsp;</td>
-
                             <td class="pure-u-20-24" {% if file.originalfilename != null and field.getshortenfilename == 1 and file.originalfilename|length > 35 %}title="{{ file.originalfilename }}"{% endif %}>
-                                <a class="ODRDownload" target="_blank" href="{{ path('odr_file_download', { 'file_id': file.id } ) }}">
-                                {% if file.originalfilename == null %}
-                                File_{{ file.id }}.txt
-                                {% elseif field.getshortenfilename == 1 and file.originalfilename|length > 35 %}
-                                {{ file.originalfilename|slice(0,30) }}...
-                                {% else %}
-                                {{ file.originalfilename }}
-                                {% endif %}
+                                <a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="truncate ODRFileDownload" rel="{{ file.id }}">
+                                    {% if file.originalfilename == null %}File_{{ file.id }}.txt{% else %}{{ file.originalfilename }}{% endif %}
                                 </a>
+                                <span id="ODRFileDownload_{{ file.id }}" class="ODRFileDownloadProgress" style="cursor:default; margin-left:10px;">
+                                    <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRProgressBar" style="margin-left:15px; display:inline-block;">
+                                        <span class="ODRProgressBarLabel" style="left:35%;">Decrypting...</span>
+                                    </span>
+                                    <span id="ODRFileDownload_{{ file.id }}_cancel" class="ODRFileDownloadCancel pure-button pure-button-primary" rel="{{ file.id }}" style="vertical-align: top; margin-left: 10px;">Cancel</span>
+                                </span>
                             </td>
                             
-                            <td class="pure-u-3-24">
-                                <i class="Cursor tooltip fa fa-globe fa-lg ODRPublicFile {% if file.ispublic == 0 %}fa-muted{% endif %}" title="{% if file.ispublic == 0 %}File is not public{% else %}Public since {{ file.publicdate|date('Y-m-d') }}{% endif %}" rel="{{ file.id }}"></i>
-                                <i class="Cursor tooltip fa fa-calendar fa-lg" title="Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy.getuserstring }}"></i>
-                                {#<a><i class="Pointer tooltip fa fa-trash-o fa-lg ODRDeleteFile" title="Delete File" rel="{{ file.id }}"></i></a>#}
+                            <td class="pure-u-4-24">
+                                <i class="Cursor FRight tooltip fa fa-globe fa-lg ODRPublicFile {% if file.ispublic == 0 %}IconRed{% endif %}" title="{% if file.ispublic == 0 %}File is not public{% else %}Public since {{ file.publicdate|date('Y-m-d') }}{% endif %}" rel="{{ file.id }}"></i>
+                                <i class="Cursor FRight tooltip fa fa-calendar fa-lg" title="Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy.getuserstring }}"></i>
                             </td>
                         </tr>
+                        {% endif %}
                     {% endfor %}
                     </tbody>
                 </table>
             </div>
-{#
-            <div class="pure-u-1">
-            {% if field.allowmultipleuploads == 1 or has_file == false %}
-                <!-- show upload area only if multiples are allowed or nothing has been uploaded yet -->
-                <div class="pure-u-1-24"></div>
-                <div class="pure-u-23-24">
-                    {{ form_errors(form.uploaded_file) }}
-                    {{ form_widget(form.uploaded_file, { 'attr': {'data-error-type': 'inline' } }) }}
-                    <span id="FileUploadResult_{{ datarecordfield.id }}"></span>
-                </div>
-            {% endif %}
-            </div>
-#}
         </fieldset>
 
     {% elseif field_typename == "Image" %}

@@ -2,14 +2,14 @@
 
 /**
 * Open Data Repository Data Publisher
-* Encrypt Command
+* Crypto Command
 * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
 *
 * This Symfony console command takes beanstalk jobs from the
-* mass_encrypt tube and passes the parameters to WorkerController
-* to either encrypt or decrypt a file or image entity.
+* crypto_requests tube and passes the parameters to WorkerController
+* to either encrypt a file/image entity, or decrypt a file entity.
 *
 */
 
@@ -24,18 +24,15 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
-// dunno if needed
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataType;
 
-class EncryptCommand extends ContainerAwareCommand
+class CryptoCommand extends ContainerAwareCommand
 {
     protected function configure()
     {
         parent::configure();
 
         $this
-            ->setName('odr_encrypt:encrypt')
+            ->setName('odr_crypto:worker')
             ->setDescription('Encrypts/Decrypts a File or Image object');
     }
 
@@ -51,16 +48,16 @@ class EncryptCommand extends ContainerAwareCommand
             $job = null;
             try {
                 // Wait for a job?
-                $job = $pheanstalk->watch('mass_encrypt')->ignore('default')->reserve();
+                $job = $pheanstalk->watch('crypto_requests')->ignore('default')->reserve();
 
                 // Get Job Data
                 $data = json_decode($job->getData()); 
 
                 // 
-                $logger->info('EncryptCommand.php: Encrypt request for '.$data->object_type.' '.$data->object_id.' from '.$data->memcached_prefix.'...');
+                $logger->info('CryptoCommand.php: '.$data->crypto_type.' request for '.$data->object_type.' '.$data->object_id.' from '.$data->memcached_prefix.'...');
                 $current_time = new \DateTime();
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );                
-                $output->writeln('Encrypt request for '.$data->object_type.' '.$data->object_id.' from '.$data->memcached_prefix.'...');
+                $output->writeln($data->crypto_type.' request for '.$data->object_type.' '.$data->object_id.' from '.$data->memcached_prefix.'...');
 
                 // Need to use cURL to send a POST request...thanks symfony
                 $ch = curl_init();
@@ -69,6 +66,8 @@ class EncryptCommand extends ContainerAwareCommand
                 $parameters = array(
                     'object_type' => $data->object_type,
                     'object_id' => $data->object_id,
+                    'target_filepath' => $data->target_filepath,
+                    'crypto_type' => $data->crypto_type,
                     'api_key' => $data->api_key
                 );
 
@@ -80,7 +79,7 @@ class EncryptCommand extends ContainerAwareCommand
                         CURLOPT_FRESH_CONNECT => 1,
                         CURLOPT_RETURNTRANSFER => 1,
                         CURLOPT_FORBID_REUSE => 1,
-                        CURLOPT_TIMEOUT => 120, 
+                        CURLOPT_TIMEOUT => 0,   // TODO - actual timeout value instead of "never"?
                         CURLOPT_POSTFIELDS => http_build_query($parameters)
                     )
                 );
@@ -123,7 +122,7 @@ class EncryptCommand extends ContainerAwareCommand
             catch (\Exception $e) {
                 if ( $e->getMessage() == 'retry' ) {
                     $output->writeln( 'Could not resolve host, releasing job to try again' );
-                    $logger->err('EncryptCommand.php: '.$e->getMessage());
+                    $logger->err('CryptoCommand.php: '.$e->getMessage());
 
                     // Release the job back into the ready queue to try again
                     $pheanstalk->release($job);
@@ -134,7 +133,7 @@ class EncryptCommand extends ContainerAwareCommand
                 else {
                     $output->writeln($e->getMessage());
 
-                    $logger->err('EncryptCommand.php: '.$e->getMessage());
+                    $logger->err('CryptoCommand.php: '.$e->getMessage());
 
                     // Delete the job so the queue doesn't hang, in theory
                     $pheanstalk->delete($job);

@@ -275,11 +275,11 @@ class FlowController extends ODRCustomController
                 }
 
                 if ($upload_type == 'csv') {
-                    // Upload is a CSV Import file
+                    // Upload is a CSVImport file
                     self::finishCSVUpload($destination_folder, $original_filename, $user_id, $request);
                 }
                 else if ($upload_type == 'xml') {
-                    // Upload is an XML Import file
+                    // Upload is an XMLImport file
                     self::finishXMLUpload($destination_folder, $original_filename, $user_id, $request);
                 }
                 else if ($datafield_id !== null) {
@@ -287,7 +287,7 @@ class FlowController extends ODRCustomController
                     parent::finishUpload($em, $destination_folder, $original_filename, $user_id, $datarecordfield_id);
                 }
                 else {
-                    // Upload is a file/image meant to be referenced by a later CSV Import
+                    // Upload is a file/image meant to be referenced by a later XML/CSV Import
                     $uploaded_file->move( $destination_folder, $original_filename );
                     self::finishImportFileUpload($destination_folder, $original_filename, $user_id, $upload_type);
                 }
@@ -354,7 +354,7 @@ class FlowController extends ODRCustomController
         // Grab the uploaded file at its current location
         $xml_file = new SymfonyFile($filepath.'/'.$original_filename);
 
-        // Ensure a CSVImport directory exists for this user
+        // Ensure an XMLImport directory exists for this user
         $destination_folder = dirname(__FILE__).'/../../../../web/uploads/xml';
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
@@ -368,7 +368,7 @@ class FlowController extends ODRCustomController
         // Splice a timestamp into the filename
         $final_filename = $original_filename.'.'.time();
 
-        // Move the file from its current location to the correct CSVImport directory
+        // Move the file from its current location to the correct XMLImport directory
         $xml_file->move($destination_folder, $final_filename);
 
         // Save the new filename in the user's session
@@ -378,7 +378,7 @@ class FlowController extends ODRCustomController
 
 
     /**
-     * Moves the specified file from the upload directory to the directory used for storing files/images referenced as part of a csv/xml import...
+     * Moves the specified file from the upload directory to the directory used for storing files/images referenced as part of a CSV/XML Import...
      *
      * @param string $filepath          The absolute path to the file
      * @param string $original_filename The original name of the file
@@ -398,7 +398,7 @@ class FlowController extends ODRCustomController
         else if ($upload_type == 'xml_import_file_storage')
             $type = 'xml';
 
-        // Ensure a CSVImport directory exists for this user
+        // Ensure a CSV/XML Import directory exists for this user
         $destination_folder = dirname(__FILE__).'/../../../../web/uploads/'.$type;
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
@@ -409,7 +409,7 @@ class FlowController extends ODRCustomController
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
         
-        // Move the file from its current location to the correct CSVImport directory
+        // Move the file from its current location to the correct CSV/XML Import directory
         $uploaded_file->move($destination_folder, $original_filename);
     }
 

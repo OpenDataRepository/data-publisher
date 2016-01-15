@@ -21,6 +21,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\File;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -708,6 +709,175 @@ print_r($grandparent_list);
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x365824256 '. $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Returns a simple JSON array of progress made towards decrypting a given file.
+     * TODO - allow for images as well?
+     *
+     * @param integer $file_id
+     * @param Request $request
+     *
+     * @return Response TODO
+     */
+    public function getfiledecryptprogressAction($file_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $repo_file = $em->getRepository('ODRAdminBundle:File');
+
+            $file = $repo_file->find($file_id);
+            if ($file == null)
+                return parent::deletedEntityError('File');
+            $datarecord = $file->getDataRecord();
+            if ($datarecord == null)
+                return parent::deletedEntityError('DataRecord');
+            $datatype = $datarecord->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('DataType');
+
+            // Files that aren't done encrypting shouldn't be checked for decryption progress
+            if ($file->getOriginalChecksum() == '')
+                return parent::deletedEntityError('File');
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
+                return parent::permissionDeniedError();
+            // --------------------
+
+            $progress = array('current_value' => 0, 'max_value' => 100);
+
+            // Shouldn't really be necessary if the file is public, but including anyways for completeness/later use
+            if ( $file->isPublic() ) {
+                $absolute_path = realpath( $file->getUploadDir().'/'.$file->getLocalFileName() );
+
+                if (!$absolute_path) {
+                    // File doesn't exist for some reason...
+                    // TODO - decrypt it?
+                }
+                else {
+                    // Grab current filesize of file
+                    clearstatcache(true, $absolute_path);
+                    $current_filesize = filesize($absolute_path);
+
+                    $progress['current_value'] = intval( (floatval($current_filesize) / floatval($file->getFilesize()) ) * 100);
+                }
+            }
+            else {
+                // Determine temporary filename
+                $temp_filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId());
+                $temp_filename .= '.'.$file->getExt();
+                $absolute_path = realpath( dirname(__FILE__).'/../../../../web/uploads/files/'.$temp_filename );
+
+                if (!$absolute_path) {
+                    // File doesn't exist
+                }
+                else {
+                    // Grab current filesize of file
+                    clearstatcache(true, $absolute_path);
+                    $current_filesize = filesize($absolute_path);
+
+                    $progress['current_value'] = intval( (floatval($current_filesize) / floatval($file->getFilesize()) ) * 100);
+                }
+            }
+
+            $return['d'] = $progress;
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x533652426 '. $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Returns a simple JSON array of progress made towards encrypting a given file.
+     * TODO - allow for images as well?
+     *
+     * @param integer $file_id
+     * @param Request $request
+     *
+     * @return Response TODO
+     */
+    public function getfileencryptprogressAction($file_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $repo_file = $em->getRepository('ODRAdminBundle:File');
+
+            $file = $repo_file->find($file_id);
+            if ($file == null)
+                return parent::deletedEntityError('File');
+            $datarecord = $file->getDataRecord();
+            if ($datarecord == null)
+                return parent::deletedEntityError('DataRecord');
+            $datatype = $datarecord->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('DataType');
+
+            // Files that have been encrypted shouldn't be checked for encryption progress
+            if ($file->getOriginalChecksum() !== '' || $file->getFilesize() == '')
+                return parent::permissionDeniedError();
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
+                return parent::permissionDeniedError();
+            // --------------------
+
+            $progress = array('current_value' => 0, 'max_value' => 100);
+
+            // TODO - load from config file somehow?
+            $crypto_dir = dirname(__FILE__).'/../../../../app/crypto_dir/File_'.$file_id;
+            $chunk_size = 2 * 1024 * 1024;  // 2Mb in bytes
+
+            $num_chunks = intval( floatval($file->getFilesize()) / floatval( $chunk_size ) ) + 1;
+
+            // Going to have to use scandir() to count how many chunks have already been encrypted
+            if ( file_exists($crypto_dir) ) {
+                $files = scandir($crypto_dir);
+                // TODO - assumes linux machine
+                $progress['current_value'] = intval( (floatval(count($files)-2) / floatval($num_chunks)) * 100 );
+            }
+
+            $return['d'] = $progress;
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x365246261 '. $e->getMessage();
         }
 
         $response = new Response(json_encode($return));

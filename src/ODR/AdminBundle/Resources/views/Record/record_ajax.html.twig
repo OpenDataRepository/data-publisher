@@ -106,6 +106,18 @@ function initPage() {
             $(this).css( "display", "none" );
     });
 */
+    $(".ODRFileDownloadProgress").hide();
+
+    $("a.ODRFileDownload").unbind('click');
+    $("a.ODRFileDownload").click(function(event) {
+        // Grab necessary attributes
+        var file_id = $(this).attr('rel');
+        var href = $(this).attr('href');
+
+        var short_form = false;
+        handleFileDownload(event, file_id, href, short_form);
+    });
+
     $(".ODRDataField").find('.ODRDatafieldHistory').unbind('click');
     $(".ODRDataField").find('.ODRDatafieldHistory').click(function() {
 

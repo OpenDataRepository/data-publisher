@@ -529,7 +529,6 @@ class RecordController extends ODRCustomController
      */
     public function deletechildrecordAction($datarecord_id, $datatype_id, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -618,19 +617,19 @@ class RecordController extends ODRCustomController
             $file = $repo_file->find($file_id);
             if ( $file == null )
                 return parent::deletedEntityError('File');
-
             $datafield = $file->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
-
             $datarecord = $file->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
-
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            // Files that aren't done encrypting shouldn't be modified
+            if ($file->getOriginalChecksum() == '')
+                return parent::deletedEntityError('File');
 
             // --------------------
             // Determine user privileges
@@ -699,19 +698,19 @@ class RecordController extends ODRCustomController
             $file = $repo_file->find($file_id);
             if ( $file == null )
                 return parent::deletedEntityError('File');
-
             $datafield = $file->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
-
             $datarecord = $file->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
-
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            // Files that aren't done encrypting shouldn't be modified
+            if ($file->getOriginalChecksum() == '')
+                return parent::deletedEntityError('File');
 
             // --------------------
             // Determine user privileges
@@ -805,19 +804,19 @@ class RecordController extends ODRCustomController
             $image = $repo_image->find($image_id);
             if ( $image == null )
                 return parent::deletedEntityError('Image');
-
             $datafield = $image->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
-
             $datarecord = $image->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
-
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            // Images that aren't done encrypting shouldn't be downloaded
+            if ($image->getOriginalChecksum() == '')
+                return parent::deletedEntityError('Image');
 
             // --------------------
             // Determine user privileges
@@ -921,19 +920,19 @@ class RecordController extends ODRCustomController
             $image = $repo_image->find($image_id);
             if ( $image == null )
                 return parent::deletedEntityError('Image');
-
             $datafield = $image->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
-
             $datarecord = $image->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
-
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            // Images that aren't done encrypting shouldn't be modified
+            if ($image->getOriginalChecksum() == '')
+                return parent::deletedEntityError('Image');
 
             // --------------------
             // Determine user privileges
@@ -1457,7 +1456,6 @@ class RecordController extends ODRCustomController
      */
     public function getlinkablerecordsAction($ancestor_datatype_id, $descendant_datatype_id, $local_datarecord_id, $search_key, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'html';
@@ -1920,7 +1918,6 @@ if ($debug)
     */  
     public function reloaddatafieldAction($datafield_id, $datarecord_id, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'html';
@@ -1929,9 +1926,31 @@ if ($debug)
         try {
             // Grab necessary objects
             $em = $this->getDoctrine()->getManager();
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-            if ( $datafield == null )
+            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+            $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
+            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
+
+            $datarecord = $repo_datarecord->find($datarecord_id);
+            if ($datarecord == null)
+                return parent::deletedEntityError('Datarecord');
+            $datafield = $repo_datafields->find($datafield_id);
+            if ($datafield == null)
                 return parent::deletedEntityError('DataField');
+            $datatype = $datafield->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $logged_in = true;
+
+            // Ensure user has permissions to be doing this
+            if ( !( isset($user_permissions[$datatype->getId()]) && ( isset($user_permissions[$datatype->getId()]['edit']) || isset($user_permissions[$datatype->getId()]['child_edit']) ) ) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
 
             $theme_datafield = $datafield->getThemeDataField();
             foreach ($theme_datafield as $tdf) {
@@ -1941,18 +1960,7 @@ if ($debug)
                 }
             }
 
-            // --------------------
-            // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
-//            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            // --------------------
-
-            $datatype = $datafield->getDataType();
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if ( $datarecord == null )
-                return parent::deletedEntityError('DataRecord');
-
-            $datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );
+            $datarecordfield = $repo_datarecordfields->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );
             $form = parent::buildForm($em, $user, $datarecord, $datafield, $datarecordfield, false, 0);
 
             $templating = $this->get('templating');
@@ -2347,7 +2355,8 @@ if ($debug)
     * 
     * @return Response TODO
     */
-    public function getfieldhistoryAction($datarecordfield_id, $entity_id, Request $request) {
+    public function getfieldhistoryAction($datarecordfield_id, $entity_id, Request $request)
+    {
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';

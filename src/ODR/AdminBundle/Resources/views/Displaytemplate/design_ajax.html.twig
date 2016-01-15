@@ -913,7 +913,7 @@ function SaveThemeDatafieldProperty(theme_datafield_id) {
 
     var url = '{{ path('odr_design_save_theme_datafield', {'theme_datafield_id': 0}) }}';
     url = url.substring(0, url.length-1);
-    url += id;
+    url += theme_datafield_id;
 
     var datafield = $("#ThemeDatafieldPropertiesForm_" + theme_datafield_id).next().attr('id').split(/_/);
     var datafield_id = datafield[1];

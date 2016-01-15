@@ -80,18 +80,17 @@
         });
 {% endif %}
 
-        // Attach required attributes to any <a> element in the table
-        $(".ODRShortResults").each(function() {
-            $(this).find('a').each(function() {
-                $(this).addClass('ODRDownload');
-                $(this).attr('target', '_blank');
-            });
-        });
+        $(".ODRFileDownloadProgress").hide();
 
-        // Prevent the click handler for <tr> elements from firing if a file download href is clicked
-        $("a.ODRDownload").unbind('click');
-        $("a.ODRDownload").click(function(event) {
-            event.stopImmediatePropagation();
+        $("a.ODRFileDownload").unbind('click');
+        $("a.ODRFileDownload").click(function(event) {
+            // Grab necessary attributes
+            var file_id = $(this).attr('rel');
+            var href = $(this).attr('href');
+
+            // Prevent the click handler for <tr> elements from firing if a file download href is clicked
+            var short_form = true;
+            handleFileDownload(event, file_id, href, short_form);
         });
 
         // Hide empty fieldareas

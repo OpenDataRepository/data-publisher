@@ -31,7 +31,7 @@ use Symfony\Component\HttpFoundation\Response;
 class SearchtemplateController extends ODRCustomController
 {
 
-   /**
+    /**
      * Loads and returns the SearchTemplate HTML for this DataType/Theme pair.
      * 
      * @param integer $datatype_id The database of the DataType to be modified.
@@ -108,11 +108,10 @@ class SearchtemplateController extends ODRCustomController
      */
     public function addthemeelementAction($datatype_id, $theme_id, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
-        $return['t'] = "";
-        $return['d'] = "";
+        $return['t'] = '';
+        $return['d'] = '';
 
         try {
             // Grab necessary objects
@@ -277,7 +276,7 @@ class SearchtemplateController extends ODRCustomController
     }
 
 
-   /**
+    /**
      * Attach a DataField created in DisplayTemplate Controller to this specific ShortResults theme.
      * 
      * @param integer $datafield_id     The database id of the DataField to attach.
@@ -399,7 +398,7 @@ class SearchtemplateController extends ODRCustomController
     }
 
 
-   /**
+    /**
      * Detach a DataField from this specific ShortResults theme, so it won't show up...TODO
      * 
      * @param integer $datafield_id     The database id of the DataField to detach.
@@ -495,8 +494,8 @@ class SearchtemplateController extends ODRCustomController
     {
         $return = array();
         $return['r'] = 0;
-        $return['t'] = "";
-        $return['d'] = "";
+        $return['t'] = '';
+        $return['d'] = '';
 
         try {
             // Grab necessary objects
@@ -580,11 +579,10 @@ class SearchtemplateController extends ODRCustomController
      */
     public function savethemedatafieldAction($theme_datafield_id, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
-        $return['t'] = "";
-        $return['d'] = "";
+        $return['t'] = '';
+        $return['d'] = '';
 
         try {
             // Grab necessary objects
@@ -900,11 +898,10 @@ if ($debug)
      */
     public function datafieldpropertiesAction($datafield_id, $theme_id, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
-        $return['t'] = "";
-        $return['d'] = "";
+        $return['t'] = '';
+        $return['d'] = '';
 
         try {
             // Grag necessary objects
@@ -954,7 +951,7 @@ if ($debug)
             }
 */
             // Populate new DataFields form
-            $datafield_form = $this->createForm(new UpdateDatafieldsForm(), $datafield);
+            $datafield_form = $this->createForm(new UpdateDatafieldsForm( array() ), $datafield);
             $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm(), $theme_datafield);
             $templating = $this->get('templating');
 
@@ -1107,7 +1104,6 @@ if ($debug)
      */
     public function themeelementorderAction(Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
