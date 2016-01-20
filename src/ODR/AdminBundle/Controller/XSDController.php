@@ -38,7 +38,8 @@ class XSDController extends ODRCustomController
      * 
      * @return Response TODO
      */
-    public function builddatatypeAction($datatype_id, Request $request) {
+    public function builddatatypeAction($datatype_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -102,7 +103,8 @@ class XSDController extends ODRCustomController
      * 
      * @return Response TODO
      */
-    public function downloadXSDAction($datatype_id, Request $request) {
+    public function downloadXSDAction($datatype_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'html';

@@ -14,7 +14,8 @@
         function AddDatatypeFormInit() {
             // Initialize the form
 
-            $("#AddDatatypeForm").validationOptions({
+            //$("#AddDatatypeForm").validationOptions({
+            $("#AddDatatypeForm").validate({
                 submitHandler: function(form){
                     var data = $(form).serialize();
                     var url = $(form).attr('action');

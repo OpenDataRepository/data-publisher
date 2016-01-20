@@ -855,6 +855,22 @@ $ret .= '  Set current to '.$count."\n";
 
                 // Don't need to do anything else
 */
+
+                // TEMP - decrypt files, calculate and store their decrypted filesize in the database, then delete them
+                $file = $em->getRepository('ODRAdminBundle:File')->find($object_id);
+                if ($file == null)
+                    throw new \Exception('Deleted File');
+
+                $absolute_path = parent::decryptObject($object_id, $object_type);
+
+                clearstatcache(true, $absolute_path);
+                $filesize = filesize($absolute_path);
+
+                $file->setFilesize($filesize);
+                $em->persist($file);
+                $em->flush();
+
+                unlink($absolute_path);
             }
 
         }
@@ -1369,59 +1385,69 @@ print '</pre>';
      */
     public function startdecryptAction($object_type, Request $request)
     {
-/*
-        // Grab necessary objects
-        $em = $this->getDoctrine()->getManager();
-        $pheanstalk = $this->get('pheanstalk');
-        $router = $this->container->get('router');
-        $memcached = $this->get('memcached');
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
 
-        $api_key = $this->container->getParameter('beanstalk_api_key');
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $pheanstalk = $this->get('pheanstalk');
+            $router = $this->container->get('router');
+            $memcached = $this->get('memcached');
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        // Generate the url for cURL to use
-        $url = $this->container->getParameter('site_baseurl');
-        $url .= $router->generate('odr_force_decrypt');
+            $api_key = $this->container->getParameter('beanstalk_api_key');
 
-        if ($object_type == 'file' || $object_type == 'File')
-            $object_type = 'File';
-        else if ($object_type == 'image' || $object_type == 'Image')
-            $object_type = 'Image';
-        else
-            return null;
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_crypto_request');
 
-        $query = $em->createQuery(
-           'SELECT e.id
+            if ($object_type == 'file' || $object_type == 'File')
+                $object_type = 'File';
+//            else if ($object_type == 'image' || $object_type == 'Image')
+//                $object_type = 'Image';
+            else
+                return null;
+
+            $query = $em->createQuery(
+                'SELECT e
             FROM ODRAdminBundle:'.$object_type.' AS e
             WHERE e.deletedAt IS NULL'
-        );
-        $results = $query->getResult();
-
-//print_r($results);
-//return;
-
-        $object_type = strtolower($object_type);
-        foreach ($results as $num => $result) {
-            $object_id = $result['id'];
-
-            // Insert the new job into the queue
-            $priority = 1024;   // should be roughly default priority
-            $payload = json_encode(
-                array(
-                    "object_type" => $object_type,
-                    "object_id" => $object_id,
-                    "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                    "url" => $url,
-                    "api_key" => $api_key,
-                )
             );
+            $results = $query->getResult();
 
-            $delay = 1;
-            $pheanstalk->useTube('mass_encrypt')->put($payload, $priority, $delay);
+            $object_type = strtolower($object_type);
+            foreach ($results as $num => $file) {
+                // Insert the new job into the queue
+                $priority = 1024;   // should be roughly default priority
+                $payload = json_encode(
+                    array(
+                        "object_type" => $object_type,
+                        "object_id" => $file->getId(),
+                        "target_filepath" => '',
+                        "crypto_type" => 'decrypt',
+                        "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                        "url" => $url,
+                        "api_key" => $api_key,
+                    )
+                );
 
-//return;
+                $delay = 1;
+                $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+            }
+
         }
-*/
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x45387831 '.$e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 

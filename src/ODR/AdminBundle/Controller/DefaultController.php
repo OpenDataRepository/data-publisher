@@ -365,8 +365,8 @@ class DefaultController extends ODRCustomController
     * 
     * @return TODO
     */
-    public function buildsitemapAction(Request $request) {
-
+    public function buildsitemapAction(Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';

@@ -39,7 +39,8 @@ class XMLController extends ODRCustomController
      * 
      * @return string
      */
-    public function libxml_display_error($error) {
+    public function libxml_display_error($error)
+    {
         $return = "<br/>\n";
         switch ($error->level) {
             case LIBXML_ERR_WARNING:
@@ -67,7 +68,8 @@ class XMLController extends ODRCustomController
      * 
      * @return string
      */
-    public function libxml_display_errors() {
+    public function libxml_display_errors()
+    {
         $status = '';
 
         $errors = libxml_get_errors();
@@ -88,7 +90,8 @@ class XMLController extends ODRCustomController
      *
      * @return Response TODO
      */
-    public function importAction($datatype_id, Request $request) {
+    public function importAction($datatype_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -1678,7 +1681,8 @@ if ($write) {
      * 
      * @return Response TODO
      */
-    public function exportAction($datarecord_id, Request $request) {
+    public function exportAction($datarecord_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'html';
@@ -1738,7 +1742,8 @@ if ($write) {
      * 
      * @return Response TODO
      */
-    public function downloadXMLAction($datarecord_id, Request $request) {
+    public function downloadXMLAction($datarecord_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'html';
@@ -1800,7 +1805,8 @@ if ($write) {
      * 
      * @return Response TODO
      */
-    public function getXMLAction($datarecord_id, Request $request) {
+    public function getXMLAction($datarecord_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'xml';

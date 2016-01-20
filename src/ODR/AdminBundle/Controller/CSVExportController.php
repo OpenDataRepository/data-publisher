@@ -1016,7 +1016,8 @@ print_r($line);
      *          
      * @return Response TODO
      */
-    public function downloadCSVAction($user_id, $tracked_job_id, Request $request) {
+    public function downloadCSVAction($user_id, $tracked_job_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
