@@ -16,6 +16,7 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\OpenRepository\UserBundle\ODROpenRepositoryUserBundle;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -453,13 +454,12 @@ class DatatypeController extends ODRCustomController
                     $parent_datatype_ids = $tmp_datatype_ids;
                 }
 
-
                 // Locate all users that can access this datatype
                 $query = $em->createQuery(
-                   'SELECT DISTINCT(u.id)
+                   'SELECT DISTINCT(up.user_id)
                     FROM ODRAdminBundle:UserPermissions AS up
-                    JOIN ODROpenRepositoryUserBundle:User AS u
-                    WHERE up.dataType IN (:datatypes)'
+                    WHERE up.dataType IN (:datatypes)
+                    AND (up.can_view_type = 1 OR up.can_edit_record = 1 OR up.can_add_record = 1 OR up.can_delete_record = 1 OR up.can_design_type = 1 OR up.is_type_admin = 1)'
                 )->setParameters(array('datatypes' => $all_datatype_ids));
                 $results = $query->getArrayResult();
 
@@ -470,7 +470,7 @@ class DatatypeController extends ODRCustomController
 
                     if (!isset($all_permissions[$user_id])) {
                         $site_user = $repo_user->find($user_id);
-                        if (!$site_user->hasRole('ROLE_SUPER_ADMIN'))
+                        if ($site_user->isEnabled() == 1 && !$site_user->hasRole('ROLE_SUPER_ADMIN'))   // only display this user's permissions for this datatype if they're not deleted and aren't super admin
                             $all_permissions[$user_id] = array('user' => $site_user, 'permissions' => parent::getPermissionsArray($user_id, $request, false));
                     }
                 }
