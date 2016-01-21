@@ -44,8 +44,8 @@
 
                     <td>
                         <input type="checkbox" id="column_{{ column_id }}_unique" class="unique_checkbox" name="unique_columns[{{ column_id }}]" value="1" disabled rel="{{ column_id }}" />
-                        <span class="inline_warning" title="{% if parent_datatype == null %}This column of the CSV file must NOT contain any duplicates{% else %}TODO{% endif %}">
-                            &nbsp;<i class="fa fa-lg fa-question-circle Pointer"></i>
+                        <span class="inline_warning" title="{% if parent_datatype == null %}The validation process will check for and warn of duplicate values in this column of the CSV file{% else %}TODO{% endif %}">
+                            &nbsp;<i class="fa fa-lg fa-question-circle" style="cursor:help;"></i>
                         </span>
                     </td>
 
