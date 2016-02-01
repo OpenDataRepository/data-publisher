@@ -89,7 +89,7 @@ class CSVExportController extends ODRCustomController
                 $datarecord_list = $data['datarecord_list'];
 
                 // If there is no tab id for some reason, or the user is attempting to view a datarecord from a search that returned no results...
-                if ( $odr_tab_id === '' || ($encoded_search_key !== '' && $datarecord_list === '') ) {
+                if ( $odr_tab_id === '' || $data['error'] == true || ($encoded_search_key !== '' && $datarecord_list === '') ) {
                     // ...get the search controller to redirect to "no results found" page
                     $search_controller = $this->get('odr_search_controller', $request);
                     return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);

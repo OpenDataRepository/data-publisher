@@ -222,7 +222,7 @@ class TextResultsController extends ODRCustomController
                 $logged_in = false;
 
             // ----------------------------------------
-            $datarecord_count = 0;
+//            $datarecord_count = 0;
             $list = array();
             if ( $search_key == '' ) {
                 // Grab the sorted list of datarecords for this datatype
@@ -234,8 +234,8 @@ class TextResultsController extends ODRCustomController
             else {
                 // Get all datarecords from the search key
 //                $logged_in = true;
-                $encoded_search_key = '';
-                $datarecord_list = '';
+//                $encoded_search_key = '';
+//                $datarecord_list = '';
                 if ($search_key !== '') {
                     // 
                     $data = parent::getSavedSearch($datatype_id, $search_key, $logged_in, $request);
@@ -250,11 +250,10 @@ class TextResultsController extends ODRCustomController
                     }
 */
 
+                    // Convert the comma-separated list into an array
+                    if ( $data['error'] == false && trim($datarecord_list) !== '')
+                        $list = explode(',', $datarecord_list);
                 }
-
-                // Convert the comma-separated list into an array
-                if ( trim($datarecord_list) !== '')
-                    $list = explode(',', $datarecord_list);
             }
 
             // Save how many records total there are before filtering...

@@ -48,41 +48,50 @@ class DefaultController extends Controller
 
     /**
      *  Returns a formatted 404 error from the search page.
-     * TODO - this doesn't work like it should?
-     * 
+     *
      * @param string $error_message
-     * @param string $status_code
-     * 
+     *
      * @return Response TODO
      */
-    private function searchPageError($error_message, $status_code)
+    public function searchPageError($error_message)
     {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
 
-        // Grab user and their permissions if possible
-        $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+        try
+        {
+            // Grab user and their permissions if possible
+            $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
-        // Store if logged in or not
-        $logged_in = true;
-        if ($user === 'anon.') {
-            $user = null;
-            $logged_in = false;
+            // Store if logged in or not
+            $logged_in = true;
+            if ($user === 'anon.') {
+                $user = null;
+                $logged_in = false;
+            }
+
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODROpenRepositorySearchBundle:Default:searchpage_error.html.twig',
+                    array(
+                        'logged_in' => $logged_in,
+                        'error_message' => $error_message,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x22127327 ' . $e->getMessage();
         }
 
-        $html = $this->renderView(
-            'ODROpenRepositorySearchBundle:Default:searchpage_error.html.twig',
-            array(
-                // required twig/javascript parameters
-                'user' => $user,
-                'logged_in' => $logged_in,
-                'error_message' => $error_message,
-            )
-        );
-
-        $response = new Response($html);
-        $response->headers->set('Content-Type', 'text/html');
-        $response->setStatusCode($status_code);
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -678,6 +687,8 @@ if ($debug) {
                 throw new \Exception('Invalid search string');
 
             $search_params = $odrcc->getSavedSearch($datatype_id, $search_key, $logged_in, $request);
+            if ( $search_params['error'] == true )
+                return self::searchPageError($search_params['message']);
 
             // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
             $datatype = $repo_datatype->find( $search_params['datatype_id'] );
@@ -779,6 +790,7 @@ if ($debug) {
      * @param string $search_key The terms the user wants to search on
      * @param Request $request
      *
+     * @return boolean|array true if no error, or array with necessary data otherwise
      */
     public function performSearch($search_key, Request $request)
     {
@@ -827,7 +839,7 @@ if ($debug) {
         // --------------------------------------------------
         // If there's something in the cache, use that
         if ($cached_datarecord_str != null) {
-            $datarecords = $cached_datarecord_str;
+            //$datarecords = $cached_datarecord_str;
         }
         else {
             // Turn the URL $search_string into a $_POST array
@@ -943,7 +955,7 @@ if ($debug) {
             $target_datatype_id = $post['dt_id'];
             $datatype = $repo_datatype->find($target_datatype_id);
             if ($datatype == null)
-                return self::searchPageError("Page not found", 404);
+                return array('message' => "This datatype is deleted", 'encoded_search_key' => $encoded_search_key);
 
             $session->set('prev_searched_datatype_id', $target_datatype_id);
 
@@ -1108,6 +1120,17 @@ if ($debug)
 
             // For each datafield the user is searching on...
             foreach ($datafields as $df_id => $value) {
+                if ( !isset($datafield_array['datatype_of'][$df_id]) ) {
+                    $tmp_datafield = $repo_datafield->find($df_id);
+
+                    if ( $tmp_datafield == null || $tmp_datafield->getSearchable() == 0 || $tmp_datafield->getDataType()->getId() !== $datatype->getId() )
+                        return array('message' => "Invalid search query", 'encoded_search_key' => $encoded_search_key);
+                    else if (!$logged_in)
+                        return array('message' => "Permission denied...try logging in", 'encoded_search_key' => $encoded_search_key);
+                    else
+                        return array('message' => "Permission denied", 'encoded_search_key' => $encoded_search_key);
+                }
+
                 $dt_id = $datafield_array['datatype_of'][$df_id];
                 if ( !( isset($user_permissions[$dt_id]) && isset($user_permissions[$dt_id]['view']) ) ) {
                     // ...if the user does not have view permissions for the datatype this datafield belongs to, enforce viewing of public datarecords only
@@ -1553,6 +1576,7 @@ if ($debug) {
 }
         }
 
+        return true;
     }
 
 

@@ -106,18 +106,17 @@ class ResultsController extends ODRCustomController
 
 
             // ----------------------------------------
-            // If this datarecord is being viewed from a search result list, attempt to grab the list of datarecords from that search result
+            // If this datarecord is being viewed from a search result list...
             $datarecord_list = '';
             $encoded_search_key = '';
             if ($search_key !== '') {
-                // 
+                // ...attempt to grab the list of datarecords from that search result
                 $data = parent::getSavedSearch($datatype->getId(), $search_key, $logged_in, $request);
                 $encoded_search_key = $data['encoded_search_key'];
                 $datarecord_list = $data['datarecord_list'];
 
-                // If the user is attempting to view a datarecord from a search that returned no results...
-                if ($encoded_search_key !== '' && $datarecord_list === '') {
-                    // ...get the search controller to redirect to "no results found" page
+                if ($data['error'] == true || ($encoded_search_key !== '' && $datarecord_list === '') ) {
+                    // Some sort of error encounted...bad search query, invalid permissions, or empty datarecord list
                     $search_controller = $this->get('odr_search_controller', $request);
                     return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
                 }

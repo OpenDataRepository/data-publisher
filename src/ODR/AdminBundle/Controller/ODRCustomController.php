@@ -459,6 +459,7 @@ print "\n\n";
             $str = 'not_logged_in';
 
         // Attempt to load the search result for this search_key
+        $data = array();
         $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
         if ( $cached_searches == null
             || !isset($cached_searches[$datatype_id])
@@ -466,7 +467,16 @@ print "\n\n";
             || !isset($cached_searches[$datatype_id][$search_checksum][$str]) ) {
 
             // Saved search doesn't exist, redo the search and reload the results
-            $search_controller->performSearch($search_key, $request);
+            $ret = $search_controller->performSearch($search_key, $request);
+            if ($ret !== true) {
+                $data['error'] = true;
+                $data['message'] = $ret['message'];
+                $data['encoded_search_key'] = $ret['encoded_search_key'];
+                $data['datarecord_list'] = '';
+
+                return $data;
+            }
+
             $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
         }
 
@@ -474,7 +484,7 @@ print "\n\n";
         $search_params = $cached_searches[$datatype_id][$search_checksum];
 
         // Pull the individual pieces of info out of the search results
-        $data = array();
+        $data['error'] = false;
         $data['search_checksum'] = $search_checksum;
         $data['datatype_id'] = $datatype_id;
         $data['logged_in'] = $logged_in;
