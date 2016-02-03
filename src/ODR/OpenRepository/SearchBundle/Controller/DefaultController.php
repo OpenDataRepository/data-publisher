@@ -1909,7 +1909,7 @@ if ($debug) {
                         case 'o':
                         case 'O':
                             // only count this as an operator if the 'O' is part of the substring ' OR '
-                            if ( $str[$i-1] == ' ' && ($str[$i+1] == 'R' || $str[$i+1] == 'r') && $str[$i+2] == ' ' ) {
+                            if ( $i != 0 && $str[$i-1] == ' ' && ($str[$i+1] == 'R' || $str[$i+1] == 'r') && $str[$i+2] == ' ' ) {
                                 $pieces[] = '||';
         //                        $i++;
                                 $i += 2;
