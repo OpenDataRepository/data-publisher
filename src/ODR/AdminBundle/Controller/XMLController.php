@@ -207,7 +207,7 @@ class XMLController extends ODRCustomController
             // ----------------------------------------
             // Determine the schema filename
             $datatype = $repo_datatype->find($datatype_id);
-            $schema_filename = $datatype->getXMLShortName().'.xsd';
+            $schema_filename = $datatype->getXmlShortName().'.xsd';
 
             // Ensure schema file exists
             if ( !file_exists($schema_path.$schema_filename) )
@@ -324,7 +324,7 @@ class XMLController extends ODRCustomController
             // ----------------------------------------
             // Determine the schema filename
             $datatype = $repo_datatype->find($datatype_id);
-            $schema_filename = $datatype->getXMLShortName().'.xsd';
+            $schema_filename = $datatype->getXmlShortName().'.xsd';
 
             // Ensure schema file exists
             if ( !file_exists($schema_path.$schema_filename) )
@@ -692,7 +692,7 @@ if ($write) {
                 // TEMP
                 $datafield = null;
                 foreach ($datatype->getDataFields() as $df) {
-                    if ($df->getXMLFieldName() == $xml_datafield->nodeName) {
+                    if ($df->getXmlFieldName() == $xml_datafield->nodeName) {
                         $datafield = $df;
                         break;
                     }
@@ -772,7 +772,7 @@ if ($write) {
                 foreach ($child_datatypes as $num => $child_datatype) {
                     foreach ($child_node->childNodes as $child_datatype_element) {
 
-                        if ($child_datatype_element->nodeName == $child_datatype->getXMLShortName()) {
+                        if ($child_datatype_element->nodeName == $child_datatype->getXmlShortName()) {
 
                             $ret .= "\n";
                             $ret .= self::indent($indent).'---------------';
@@ -868,7 +868,7 @@ else {
                 foreach ($linked_datatypes as $num => $linked_datatype) {
                     foreach ($child_node->childNodes as $linked_datatype_element) {
 
-                        if ($linked_datatype_element->nodeName == $linked_datatype->getXMLShortName()) {
+                        if ($linked_datatype_element->nodeName == $linked_datatype->getXmlShortName()) {
 
                             $ret .= "\n";
                             $ret .= self::indent($indent).'---------------';
@@ -1297,7 +1297,7 @@ if ($write) {
                     // TEMP
                     $radio_option = null;
                     foreach ($radio_options as $ro) {
-                        if ($ro->getXMLOptionName() == $option_name) {
+                        if ($ro->getXmlOptionName() == $option_name) {
                             $radio_option = $ro;
                             break;
                         }
@@ -1345,7 +1345,7 @@ if ($write) {
                     $radio_selections = $repo_radio_selection->findBy( array("dataRecordFields" => $drf->getId()) );
                     foreach ($radio_selections as $rs) {
                         // If the radio option wasn't listed in the xml file...
-                        $option_name = $rs->getRadioOption()->getXMLOptionName();
+                        $option_name = $rs->getRadioOption()->getXmlOptionName();
                         if ( !in_array($option_name, $changelist) && $rs->getSelected() == 1 ) {
                             // ...deselect it
 if ($write) {
@@ -1837,4 +1837,159 @@ if ($write) {
         return $response;
     }
 
+
+    public function testAction($str, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+
+        $result = self::isValidXMLName($str);
+
+        $return['d'] = array('result' => $result);
+
+        // If error encountered, do a json return
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Returns whether the provided string is valid for use as an XML "name"
+     * @see http://www.w3.org/TR/xml/#sec-common-syn
+     *
+     * @param $str
+     *
+     * @return boolean
+     */
+    public function isValidXMLName($str)
+    {
+        // Ensure str doesn't start with 'xml'
+        if ( strpos( strtolower($str) , 'xml') !== false ) {
+            print 'a';
+            return false;
+        }
+
+        // Ensure str doesn't start with an invalid character
+        $pattern = self::xml_invalidnamestartchar();
+        print $pattern."\n";
+        if ( preg_match($pattern, substr($str, 0, 1)) == 1 ) {
+            print 'b';
+            return false;
+        }
+
+        // Ensure rest of str only has legal characters
+        $pattern = self::xml_invalidnamechar();
+        print $pattern."\n";
+        if ( preg_match($pattern, substr($str, 1)) == 1 ) {
+            print 'c';
+            return false;
+        }
+
+        // No error in name
+        print 'd';
+        return true;
+    }
+
+
+    /**
+     * Utility function to return a regexp pattern for finding illegal "NameStartCharacters" for XML strings
+     * @see http://www.w3.org/TR/xml/#sec-common-syn
+     *
+     * @return string
+     */
+    private function xml_invalidnamestartchar()
+    {
+        $tmp = array(
+            "[\\x0-\\x39]",
+            //"[\\x3A]",            // colon
+            "[\\x3B-\\x40]",
+            //"[\\x41-\\x5A]",      // A-Z
+            "[\\x5B-\\x5E]",
+            //"[\\x5F]",            // underscore
+            "[\\x60]",
+            //"[\\x61-\\x7A]",      // a-z
+            "[\\x7B-\\xBF]",
+            //"[\\xC0-\\xD6]",
+            "[\\xD7]",              // multiplication sign
+            //"[\\xD8-\\xF6]",
+            "[\\xF7]",              // division sign
+            //"[\\xF8-\\x2FF]",
+            "[\\x300-\\x36F]",
+            //"[\\x370-\\x37D]",
+            "[\\x37E]",             // greek semicolon
+            //"[\\x37F-\\x1FFF]",
+            "[\\x{2000}-\\x{200B}]",
+            //"[\\x200C-\\x200D]",
+            "[\\x{200E}-\\x{206F}]",
+            //"[\\x2070-\\x218F]",
+            "[\\x{2190}-\\x{2BFF}]",
+            //"[\\x2C00-\\x2FEF]",
+            "[\\x{2FF0}-\\x{3000}]",
+            //"[\\x3001-\\xD7FF]",
+            "[\\x{D800}-\\x{F8FF}]",    // private use area
+            //"[\\xF900-\\xFDCF]",
+            "[\\x{FDD0}-\\x{FDEF}]",    // not characters
+            //"[\\xFDF0-\\xFFFD]",
+            "[\\x{FFFE}-\\x{FFFF}]",    // not characters
+            //"[\\x10000-\\xEFFFF]"
+        );
+
+        return '/'.implode("|", $tmp).'/u';
+    }
+
+
+    /**
+     * Utility function to return a regexp pattern for finding illegal "NameCharacters" for XML strings
+     * @see http://www.w3.org/TR/xml/#sec-common-syn
+     *
+     * @return string
+     */
+    private function xml_invalidnamechar()
+    {
+        $tmp = array(
+            "[\\x0-\\x2C]",
+            //"[\\x2D-\\x2E]",      // hyphen, period
+            "[\\x2F]",
+            //"[\\x30-\\x39]",      // 0-9
+            //"[\\x3A]",            // colon
+            "[\\x3B-\\x40]",
+            //"[\\x41-\\x5A]",      // A-Z
+            "[\\x5B-\\x5E]",
+            //"[\\x5F]",            // underscore
+            "[\\x60]",
+            //"[\\x61-\\x7A]",      // a-z
+            "[\\x7B-\\xB6]",
+            //"[\\xB7]",            // "middle dot"
+            "[\\xB8-\\xBF]",
+            //"[\\xC0-\\xD6]",
+            "[\\xD7]",              // multiplication sign
+            //"[\\xD8-\\xF6]",
+            "[\\xF7]",              // division sign
+            //"[\\xF8-\\x2FF]",
+            //"[\\x300-\\x36F]",
+            //"[\\x370-\\x37D]",
+            "[\\x37E]",             // greek semicolon
+            //"[\\x37F-\\x1FFF]",
+            "[\\x{2000}-\\x{200B}]",
+            //"[\\x200C-\\x200D]",
+            "[\\x{200E}-\\x{203E}]",
+            //"[\\x203F-\\x2040]",
+            "[\\x{2041}-\\x{206F}]",
+            //"[\\x2070-\\x218F]",
+            "[\\x{2190}-\\x{2BFF}]",
+            //"[\\x2C00-\\x2FEF]",
+            "[\\x{2FF0}-\\x{3000}]",
+            //"[\\x3001-\\xD7FF]",
+            "[\\x{D800}-\\x{F8FF}]",    // private use area
+            //"[\\xF900-\\xFDCF]",
+            "[\\x{FDD0}-\\x{FDEF}]",    // not characters
+            //"[\\xFDF0-\\xFFFD]",
+            "[\\x{FFFE}-\\x{FFFF}]",    // not characters
+            //"[\\x10000-\\xEFFFF]"
+        );
+
+        return '/'.implode("|", $tmp).'/u';
+    }
 }

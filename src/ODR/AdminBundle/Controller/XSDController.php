@@ -60,7 +60,7 @@ class XSDController extends ODRCustomController
             if ( !file_exists($xsd_export_path) )
                 mkdir( $xsd_export_path );
 
-            $filename = $datatype->getXMLShortName().'.xsd';
+            $filename = $datatype->getXmlShortName().'.xsd';
 
             $handle = fopen($xsd_export_path.$filename, 'w');
             if ($handle !== false) {
@@ -118,7 +118,7 @@ class XSDController extends ODRCustomController
                 return parent::deletedEntityError('DataType');
 
             $xsd_export_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
-            $filename = $datatype->getXMLShortName().'.xsd';
+            $filename = $datatype->getXmlShortName().'.xsd';
 
             $handle = fopen($xsd_export_path.$filename, 'r');
             if ($handle !== false) {

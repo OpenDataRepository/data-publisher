@@ -35,6 +35,11 @@ class RadioOptions
     private $optionName;
 
     /**
+     * @var string
+     */
+    private $xml_optionName;
+
+    /**
      * @var integer
      */
     private $displayOrder;
@@ -151,6 +156,39 @@ class RadioOptions
     public function getOptionName()
     {
         return $this->optionName;
+    }
+
+    /**
+     * Set xml_optionName
+     *
+     * @param string $xmlOptionName
+     * @return RadioOptions
+     */
+    public function setXmlOptionName($xmlOptionName)
+    {
+        $this->xml_optionName = $xmlOptionName;
+
+        return $this;
+    }
+
+    /**
+     * Get xml_optionName
+     *
+     * @return string
+     */
+    public function getXmlOptionName()
+    {
+        if ($this->xml_optionName !== '') {
+            // Use whatever is specified for this radio option's XML name if it exists...
+            return $this->xml_optionName;
+        }
+        else {
+            // ...otherwise, perform character substitutions on the radio option's name that should work in most cases
+            $searches = array(" ", "!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "/", ":", ";", "<", "=", ">", "?", "@", "[", "\\", "]", "^", "`", "{", "|", "}", "~");
+            $replacements = array("_", "");
+
+            return str_replace($searches, $replacements, $this->optionName);
+        }
     }
 
     /**
@@ -414,30 +452,5 @@ class RadioOptions
     public function getUpdatedBy()
     {
         return $this->updatedBy;
-    }
-
-    /**
-     * Get XMLOptionName
-     *
-     * @return string
-     */
-    public function getXMLOptionName()
-    {
-        // http://unicode-table.com/en/
-        // http://www.xml.com/axml/target.html#sec-common-syn
-        // http://www.xml.com/axml/target.html#NT-Letter
-        $pattern = '/[\\x0-\\x1F]|[\\x21-\\x2C]|[\\x2F][\\x3A-\\x40]|[\\x5B-\\x5E]|[\\x60]|[\\x7B-\\xBF]|[\\xD7]|[\\xF7]/';  // allow dash, period, alphanumeric characters...in name TODO
-        $str = preg_replace($pattern, '', $this->optionName);
-
-        if ( strpos($str, '-') === 0 || strpos($str, '.') === 0 )
-            $str = substr($str, 1);
-
-        return str_replace(' ', '_', $str);
-/*
-        $search = array(" ", "\'", "\"", "<", ">", "&", "?", "(", ")");
-        $replacements = array("_", "", "", "&lt;", "&gt;", "&amp;", "", "", "");
-
-        return str_replace($search, $replacements, $this->optionName);
-*/
     }
 }

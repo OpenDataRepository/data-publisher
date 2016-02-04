@@ -1115,15 +1115,12 @@ odr_duplicate_radio_check:
 #        object_type: 'file|File|image|Image'
 
 #odr_test:
-#    pattern: /admin/test
-#    defaults: { _controller:ODRAdminBundle:Worker:test }
+#    pattern: /admin/test/{str}
+#    defaults: { _controller:ODRAdminBundle:XML:test }
+#    requirements:
+#        str: .+
+
 #odr_test_curl:
 #    pattern: /beanstalk/test_curl
 #    defaults: { _controller: ODRAdminBundle:Worker:testcURL }
 #    requirements: { _method: POST }
-
-odr_save_datafield_search_order:
-    pattern:  /admin/save/datafieldorder/{datafield_ids}
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:savedatafieldsearchorder }
-    requirements:
-        datafield_ids: '[\d\,]+'

@@ -46,6 +46,11 @@ class DataType
     private $description;
 
     /**
+     * @var string
+     */
+    private $xml_shortName;
+
+    /**
      * @var boolean
      */
     private $useShortResults;
@@ -250,6 +255,39 @@ class DataType
     public function getDescription()
     {
         return $this->description;
+    }
+
+    /**
+     * Set xml_shortName
+     *
+     * @param string $xmlShortName
+     * @return DataType
+     */
+    public function setXmlShortName($xmlShortName)
+    {
+        $this->xml_shortName = $xmlShortName;
+
+        return $this;
+    }
+
+    /**
+     * Get xml_shortName
+     *
+     * @return string
+     */
+    public function getXmlShortName()
+    {
+        if ($this->xml_shortName !== '') {
+            // Use whatever is specified for this datatype's XML name if it exists...
+            return $this->xml_shortName;
+        }
+        else {
+            // ...otherwise, perform character substitutions on the datatype's shortname that should work in most cases
+            $searches = array(" ", "!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "/", ":", ";", "<", "=", ">", "?", "@", "[", "\\", "]", "^", "`", "{", "|", "}", "~");
+            $replacements = array("_", "");
+
+            return str_replace($searches, $replacements, $this->shortName);
+        }
     }
 
     /**
@@ -730,30 +768,5 @@ class DataType
             return false;
         else
             return true;
-    }
-
-    /**
-     * Get XMLFieldName
-     *
-     * @return string
-     */
-    public function getXMLShortName()
-    {
-        // http://unicode-table.com/en/
-        // http://www.xml.com/axml/target.html#sec-common-syn
-        // http://www.xml.com/axml/target.html#NT-Letter
-        $pattern = '/[\\x0-\\x1F]|[\\x21-\\x2C]|[\\x2F][\\x3A-\\x40]|[\\x5B-\\x5E]|[\\x60]|[\\x7B-\\xBF]|[\\xD7]|[\\xF7]/';  // allow dash, period, alphanumeric characters...in name TODO
-        $str = preg_replace($pattern, '', $this->shortName);
-
-        if ( strpos($str, '-') === 0 || strpos($str, '.') === 0 )
-            $str = substr($str, 1);
-
-        return str_replace(' ', '_', $str);
-/*
-        $search = array(" ", "\'", "\"", "<", ">", "&", "?", "(", ")");
-        $replacements = array("_", "", "", "&lt;", "&gt;", "&amp;", "", "", "");
-
-        return str_replace($search, $replacements, $this->optionName);
-*/
     }
 }

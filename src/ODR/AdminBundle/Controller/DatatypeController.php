@@ -288,6 +288,7 @@ class DatatypeController extends ODRCustomController
                     $datatype->setRenderPlugin($render_plugin);
 
                     // Set defaults for other stuff...
+                    $datatype->setXmlShortName('');
                     $datatype->setUseShortResults(1);
                     $datatype->setExternalIdField(null);
                     $datatype->setNameField(null);
