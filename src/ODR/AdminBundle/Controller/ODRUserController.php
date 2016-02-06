@@ -454,7 +454,7 @@ class ODRUserController extends ODRCustomController
 
             if ( !isset($post['ODRUserProfileForm']) )
                 throw new \Exception('Invalid Form');
-            $user_id = intval( $post['ODRUserProfileForm']['id'] );
+            $user_id = intval( $post['ODRUserProfileForm']['user_id'] );
 
             $em = $this->getDoctrine()->getManager();
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');

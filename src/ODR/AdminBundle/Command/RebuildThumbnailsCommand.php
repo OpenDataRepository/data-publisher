@@ -43,7 +43,6 @@ class RebuildThumbnailsCommand extends ContainerAwareCommand
     {
         // Only need to load these once...
         $container = $this->getContainer();
-        $router = $container->get('router');
         $logger = $container->get('logger');
         $pheanstalk = $container->get('pheanstalk');
 
@@ -52,8 +51,7 @@ class RebuildThumbnailsCommand extends ContainerAwareCommand
             $job = null;
             try {
                 // Wait for a job?
-//                $job = $pheanstalk->watch($memcached_prefix.'_migrate_datafields')->ignore('default')->reserve(); 
-                $job = $pheanstalk->watch('rebuild_thumbnails')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch('rebuild_thumbnails')->ignore('default')->reserve();
 
                 // Get Job Data
                 $data = json_decode($job->getData()); 
@@ -90,7 +88,13 @@ class RebuildThumbnailsCommand extends ContainerAwareCommand
 
                 // Send the request
                 if( ! $ret = curl_exec($ch)) {
-                    throw new \Exception( curl_error($ch) );
+                    if (curl_errno($ch) == 6) {
+                        // Could not resolve host
+                        throw new \Exception('retry');
+                    }
+                    else {
+                        throw new \Exception( curl_error($ch) );
+                    }
                 }
 
                 // Do things with the response returned by the controller?
@@ -105,7 +109,7 @@ class RebuildThumbnailsCommand extends ContainerAwareCommand
                     // Should always be a json return...
                     throw new \Exception( print_r($ret, true) );
                 }
-//$logger->debug('MigrateCommand.php: curl results...'.print_r($result, true));
+//$logger->debug('RebuildThumbnailsCommand.php: curl results...'.print_r($result, true));
 
                 // Done with this cURL object
                 curl_close($ch);
@@ -118,11 +122,24 @@ class RebuildThumbnailsCommand extends ContainerAwareCommand
 
             }
             catch (\Exception $e) {
-$output->writeln($e->getMessage());
-                $logger->err('RebuildThumbnailsCommand.php: '.$e->getMessage());
+                if ( $e->getMessage() == 'retry' ) {
+                    $output->writeln( 'Could not resolve host, releasing job to try again' );
+                    $logger->err('RebuildThumbnailsCommand.php: '.$e->getMessage());
 
-                // Delete the job so the queue hopefully doesn't hang
-                $pheanstalk->delete($job);
+                    // Release the job back into the ready queue to try again
+                    $pheanstalk->release($job);
+
+                    // Sleep for a bit
+                    usleep(1000000);     // sleep for 1 second
+                }
+                else {
+                    $output->writeln($e->getMessage());
+
+                    $logger->err('RebuildThumbnailsCommand.php: '.$e->getMessage());
+
+                    // Delete the job so the queue doesn't hang, in theory
+                    $pheanstalk->delete($job);
+                }
             }
         }
     }

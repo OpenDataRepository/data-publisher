@@ -1,0 +1,219 @@
+{% spaceless %}
+<script>
+    var pending_file_decryptions = {};
+    $(window).unload(function() {
+        jQuery.each(pending_file_decryptions, function(file_id, download) {
+            if (download != null)
+                cancelFileDecryption(download, file_id);
+        });
+    });
+
+    function handleFileDownload(event, file_id, href, short_form) {
+        // Prevent a normal file download
+        event.preventDefault();
+        // If using ShortResults, this click will trigger a load of the datarecord this file belongs to...prevent that
+        if (short_form)
+            event.stopImmediatePropagation();
+
+/*
+console.log(pending_file_decryptions);
+console.log(file_decrypt_timeouts);
+*/
+        // Don't start a new download if one is already in progress
+        if ( pending_file_decryptions[file_id] != null || pending_file_decryptions[file_id] != undefined || file_decrypt_timeouts[file_id] != null || file_decrypt_timeouts[file_id] != undefined) {
+            //alert('download in progress already');
+            return false;
+        }
+
+        var download_div = $("#ODRFileDownload_" + file_id);
+        var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress");
+        var cancel_button = $("#ODRFileDownload_" + file_id + "_cancel");
+
+        var download = $.fileDownload(href, {
+            prepareCallback: function(url) {
+//console.log('prepare for file ' + file_id);
+                // Show div for progress of decryption
+                $(download_div).show();
+                $(decrypt_progress).progressbar({
+                    value: false
+                });
+                createFileDecryptProgressCheck(file_id);
+
+                // Store that a decryption for this file is in progress...
+                pending_file_decryptions[ file_id ] = download;
+
+                // Activate the cancel button for this file decryption...
+                $(cancel_button).unbind('click');
+                $(cancel_button).click(function(event) {
+                    // If using ShortResults, this click will trigger a load of the datarecord this file belongs to...prevent that
+                    if (short_form)
+                        event.stopImmediatePropagation();
+
+                    cancelFileDecryption(download, file_id);
+                });
+            },
+            successCallback: function (url) {
+//console.log('success for file ' + file_id);
+                // File is finished
+                pending_file_decryptions[ file_id ] = null;
+                file_decrypt_timeouts[ file_id ] = null;
+
+                // Download is done, No longer need these
+                $(download_div).hide();
+                $(cancel_button).unbind('click');
+            },
+            failCallback: function (responseHtml, url, error) {
+//console.log('fail for file ' + file_id);
+                // Something went wrong...
+                pending_file_decryptions[ file_id ] = null;
+                file_decrypt_timeouts[ file_id ] = null;
+
+                // Download is done, No longer need these
+                $(download_div).hide();
+                $(cancel_button).unbind('click');
+            }
+        });
+    }
+
+    function cancelFileDecryption(download, file_id) {
+//console.log('cancel for file ' + file_id);
+        var url = "{{ path('odr_cancel_file_decrypt', {'file_id': 0}) }}";
+        url = url.substr(0, url.length-1);
+        url += file_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json"
+        });
+
+        // This will trigger failCallback for this download
+        download.abort();
+    }
+
+    var file_decrypt_timeouts = {};
+    function createFileDecryptProgressCheck(file_id) {
+        // Ensure that at most a single timeout is running for a given file at any given time
+        if ( file_decrypt_timeouts[ file_id ] == null || file_decrypt_timeouts[ file_id ] == undefined ) {
+            file_decrypt_timeouts[ file_id ] = 1;
+            window.setTimeout( "checkFileDecryptProgress(" + file_id + ");", 1000 );
+        }
+    }
+
+    function checkFileDecryptProgress(file_id) {
+        // Get progress of file encryption from server
+        var url = "{{ path('odr_get_file_decrypt_progress', {'file_id': 0}) }}";
+        url = url.substr(0, url.length-1);
+        url += file_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if (data.r == 0) {
+                    var current_value = parseInt(data.d.current_value);
+                    var max_value = parseInt(data.d.max_value);
+
+                    var file_decrypt_progress_bar = $("#ODRFileDecrypt_" + file_id + "_progress");
+                    if ( !$(file_decrypt_progress_bar).is(':visible') ) {
+//console.log('stopping timeout cycle for file ' + file_id);
+                        /* element no longer exists, do nothing */
+                        file_decrypt_timeouts[ file_id ] = null;
+                    }
+                    else if ( file_decrypt_timeouts[ file_id ] != null ) {
+                        // Update the progressbar
+                        $(file_decrypt_progress_bar).progressbar('destroy');
+                        window.setTimeout( "checkFileDecryptProgress(" + file_id + ");", 1000 );
+
+                        if (current_value == 0) {
+//console.log('progress for file ' + file_id + ': false');
+                            // Indeterminate progress bar if encryption hasn't started yet...
+                            $(file_decrypt_progress_bar).progressbar({
+                                value: false
+                            });
+                        }
+                        else {
+//console.log('progress for file ' + file_id + ': ' + (current_value / max_value) );
+                            // ...conventional progress bar otherwise
+                            $(file_decrypt_progress_bar).progressbar({
+                                value: current_value,
+                                max: max_value
+                            });
+                        }
+                    }
+
+                }
+                else {
+                    alert( data.d );
+                }
+            }
+        });
+    }
+
+    var file_encrypt_timeouts = {};
+    function createFileEncryptProgressCheck(file_id, datarecord_id, datafield_id) {
+        // Ensure that at most a single timeout is running for a given file at any given time
+        if ( file_encrypt_timeouts[ file_id ] == null || file_encrypt_timeouts[ file_id ] == undefined ) {
+            file_encrypt_timeouts[ file_id ] = 1;
+            window.setTimeout( "checkFileEncryptProgress(" + file_id + ", " + datarecord_id + ", " + datafield_id + ");", 1000 );
+        }
+    }
+
+    function checkFileEncryptProgress(file_id, datarecord_id, datafield_id) {
+        // Get progress of file encryption from server
+        var url = "{{ path('odr_get_file_encrypt_progress', {'file_id': 0}) }}";
+        url = url.substr(0, url.length-1);
+        url += file_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if (data.r == 0) {
+                    var current_value = parseInt(data.d.current_value);
+                    var max_value = parseInt(data.d.max_value);
+
+                    var file_encrypt_progress_bar = $("#ODRFileEncrypt_" + file_id + "_progress");
+                    if (file_encrypt_progress_bar == null || file_encrypt_progress_bar == undefined || file_encrypt_progress_bar[0] == null || file_encrypt_progress_bar[0] == undefined) {
+                        /* element no longer exists, do nothing */
+                        file_encrypt_timeouts[ file_id ] = null;
+                    }
+                    else if (current_value == 100) {
+                        // Reload the datafield
+                        file_encrypt_timeouts[ file_id ] = null;
+                        ReloadDatafield(datarecord_id, datafield_id);
+                    }
+                    else if (file_encrypt_timeouts[ file_id ] != null) {
+                        // Update the progressbar
+                        $(file_encrypt_progress_bar).progressbar('destroy');
+                        window.setTimeout( "checkFileEncryptProgress(" + file_id + ", " + datarecord_id + ", " + datafield_id + ");", 1000 );
+
+                        if (current_value == 0) {
+                            // Indeterminate progress bar if encryption hasn't started yet...
+                            $(file_encrypt_progress_bar).progressbar({
+                                value: false
+                            });
+                        }
+                        else {
+                            // ...conventional progress bar otherwise
+                            $(file_encrypt_progress_bar).progressbar({
+                                value: current_value,
+                                max: max_value
+                            });
+                        }
+                    }
+
+                }
+                else {
+                    alert( data.d );
+                }
+            }
+        });
+    }
+</script>
+{% endspaceless %}

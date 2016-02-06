@@ -44,7 +44,6 @@ class CSVImportValidateCommand extends ContainerAwareCommand
         // Only need to load these once...
         $container = $this->getContainer();
         $logger = $container->get('logger');
-        $router = $container->get('router');
         $pheanstalk = $container->get('pheanstalk');
 
         // Run command until manually stopped
@@ -52,7 +51,6 @@ class CSVImportValidateCommand extends ContainerAwareCommand
             $job = null;
             try {
                 // Wait for a job?
-//                $job = $pheanstalk->watch($memcached_prefix.'_import_datatype')->ignore('default')->reserve();
                 $job = $pheanstalk->watch('csv_import_validate')->ignore('default')->reserve();
 
                 // Get Job Data
@@ -87,6 +85,7 @@ $output->writeln($data->url);
                     'datafield_mapping' => $data->datafield_mapping,
                     'fieldtype_mapping' => $data->fieldtype_mapping,
                     'column_delimiters' => $data->column_delimiters,
+                    'synch_columns' => $data->synch_columns,
 
                     // Only used when importing into a child/linked datatype
                     'parent_external_id_column' => $data->parent_external_id_column,
@@ -111,7 +110,13 @@ $output->writeln($data->url);
 
                 // Send the request
                 if( ! $ret = curl_exec($ch)) {
-                    throw new \Exception( curl_error($ch) );
+                    if (curl_errno($ch) == 6) {
+                        // Could not resolve host
+                        throw new \Exception('retry');
+                    }
+                    else {
+                        throw new \Exception( curl_error($ch) );
+                    }
                 }
 
                 // Do things with the response returned by the controller?
@@ -136,11 +141,24 @@ $output->writeln($data->url);
 
             }
             catch (\Exception $e) {
-                $output->writeln($e->getMessage());
-                $logger->err('CSVImportValidateCommand.php: '.$e->getMessage());
+                if ( $e->getMessage() == 'retry' ) {
+                    $output->writeln( 'Could not resolve host, releasing job to try again' );
+                    $logger->err('CSVImportValidateCommand.php: '.$e->getMessage());
 
-                // Delete the job so the queue doesn't hang, in theory
-                $pheanstalk->delete($job);
+                    // Release the job back into the ready queue to try again
+                    $pheanstalk->release($job);
+
+                    // Sleep for a bit
+                    usleep(1000000);     // sleep for 1 second
+                }
+                else {
+                    $output->writeln($e->getMessage());
+
+                    $logger->err('CSVImportValidateCommand.php: '.$e->getMessage());
+
+                    // Delete the job so the queue doesn't hang, in theory
+                    $pheanstalk->delete($job);
+                }
             }
         }
     }

@@ -365,8 +365,8 @@ class DefaultController extends ODRCustomController
     * 
     * @return TODO
     */
-    public function buildsitemapAction(Request $request) {
-
+    public function buildsitemapAction(Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -438,7 +438,7 @@ class DefaultController extends ODRCustomController
 
             foreach ($datatypes as $datatype) {
                 // Write that datatype's shortresultlist? link as a url in the sitemap file
-                $url = $this->generateUrl( 'odr_api_map_datatype', array('datatype_id' => $datatype->getId(), 'datatype_name' => $datatype->getXMLShortName()) );
+                $url = $this->generateUrl( 'odr_api_map_datatype', array('datatype_id' => $datatype->getId(), 'datatype_name' => $datatype->getXmlShortName()) );
                 fwrite($sitemap, '<url>');
                 fwrite($sitemap, '<loc>'.$baseurl.$url.'</loc>');
                 // also need a <lastmod> tag?

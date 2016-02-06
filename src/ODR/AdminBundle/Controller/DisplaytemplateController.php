@@ -1714,6 +1714,7 @@ print '</pre>';
             $datatype->setShortName("New Child");
             $datatype->setLongName("New Child");
             $datatype->setDescription("New Child Type");
+            $datatype->setXmlShortName('');
             $datatype->setRenderPlugin($render_plugin);
             $datatype->setUseShortResults('1');
             $datatype->setExternalIdField(null);

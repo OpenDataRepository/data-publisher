@@ -257,6 +257,11 @@ $logger->info('WorkerController::recacherecordAction()  Attempting to recache Da
 
                     // Also recreate the XML version of the datarecord
                     $xml_export_path = dirname(__FILE__).'/../../../../web/uploads/xml_export/';
+
+                    // Ensure directory exists
+                    if ( !file_exists($xml_export_path) )
+                        mkdir( $xml_export_path );
+
                     $filename = 'DataRecord_'.$datarecord_id.'.xml';
                     $handle = fopen($xml_export_path.$filename, 'w');
                     if ($handle !== false) {
@@ -538,84 +543,103 @@ $ret .= '  Set current to '.$count."\n";
      * @param integer $datatype_id Which datatype should have all its image thumbnails rebuilt
      * @param Request $request
      *
+     * @return Response
      */
     public function startrebuildthumbnailsAction($datatype_id, Request $request)
     {
-        // TODO - wrap in try/catch
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
 
-        // Grab necessary objects
-        $em = $this->getDoctrine()->getManager();
-        $pheanstalk = $this->get('pheanstalk');
-        $router = $this->container->get('router');
-        $memcached = $this->get('memcached');
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-        $api_key = $this->container->getParameter('beanstalk_api_key');
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $pheanstalk = $this->get('pheanstalk');
+            $router = $this->container->get('router');
+            $memcached = $this->get('memcached');
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $api_key = $this->container->getParameter('beanstalk_api_key');
 
-        // --------------------
-        // Determine user privileges
-        $user = $this->container->get('security.context')->getToken()->getUser();
-        $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-        // TODO - check for permissions
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('DataType');
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            // TODO - check for permissions?  restrict rebuild of thumbnails to certain datatypes?
+
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                return parent::permissionDeniedError();
+            // --------------------
 
 
-        $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-        if ($datatype == null)
-            return parent::deletedEntityError('DataType');
+            // ----------------------------------------
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_rebuild_thumbnails');
 
-        // ----------------------------------------
-        // Generate the url for cURL to use
-        $url = $this->container->getParameter('site_baseurl');
-        $url .= $router->generate('odr_rebuild_thumbnails');
-
-        // Grab a list of all full-size images on the site
-        $query = $em->createQuery(
-           'SELECT e.id
+            // Grab a list of all full-size images on the site
+            $query = $em->createQuery(
+                'SELECT e.id
             FROM ODRAdminBundle:Image AS e
             JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
             WHERE dr.dataType = :datatype AND e.parent IS NULL
             AND e.deletedAt IS NULL AND dr.deletedAt IS NULL'
-        )->setParameters( array('datatype' => $datatype_id) );
-        $results = $query->getArrayResult();
+            )->setParameters(array('datatype' => $datatype_id));
+            $results = $query->getArrayResult();
 
 //print_r($results);
 //return;
 
-        if ( count($results) > 0 ) {
-            // ----------------------------------------
-            // Get/create an entity to track the progress of this thumbnail rebuild
-            $job_type = 'rebuild_thumbnails';
-            $target_entity = 'datatype_'.$datatype_id;
-            $additional_data = array('description' => 'Rebuild of all image thumbnails for DataType '.$datatype_id);
-            $restrictions = '';
-            $total = count($results);
-            $reuse_existing = false;
+            if (count($results) > 0) {
+                // ----------------------------------------
+                // Get/create an entity to track the progress of this thumbnail rebuild
+                $job_type = 'rebuild_thumbnails';
+                $target_entity = 'datatype_'.$datatype_id;
+                $additional_data = array('description' => 'Rebuild of all image thumbnails for DataType '.$datatype_id);
+                $restrictions = '';
+                $total = count($results);
+                $reuse_existing = false;
 
-            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
-            $tracked_job_id = $tracked_job->getId();
+                $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
+                $tracked_job_id = $tracked_job->getId();
 
-            // ----------------------------------------
-            $object_type = 'image';
-            foreach ($results as $num => $result) {
-                $object_id = $result['id'];
+                // ----------------------------------------
+                $object_type = 'image';
+                foreach ($results as $num => $result) {
+                    $object_id = $result['id'];
 
-                // Insert the new job into the queue
-                $priority = 1024;   // should be roughly default priority
-                $payload = json_encode(
-                    array(
-                        "tracked_job_id" => $tracked_job_id,
-                        "object_type" => $object_type,
-                        "object_id" => $object_id,
-                        "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                        "url" => $url,
-                        "api_key" => $api_key,
-                    )
-                );
+                    // Insert the new job into the queue
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+                            "tracked_job_id" => $tracked_job_id,
+                            "object_type" => $object_type,
+                            "object_id" => $object_id,
+                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
 
-                $delay = 1;
-                $pheanstalk->useTube('rebuild_thumbnails')->put($payload, $priority, $delay);
+                    $delay = 1;
+                    $pheanstalk->useTube('rebuild_thumbnails')->put($payload, $priority, $delay);
+                }
             }
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x38472782 ' . $e->getMessage();
         }
 
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
@@ -632,6 +656,8 @@ $ret .= '  Set current to '.$count."\n";
         $return['r'] = 0;
         $return['t'] = "";
         $return['d'] = "";
+
+        $tracked_job_id = -1;
 
         try {
             $post = $_POST;
@@ -686,7 +712,20 @@ $ret .= '  Set current to '.$count."\n";
             $return['d'] = '>> Rebuilt thumbnails for '.$object_type.' '.$object_id."\n";
         }
         catch (\Exception $e) {
-            // TODO - increment tracked job counter on error?
+            // Update the job tracker even if an error occurred...right? TODO
+            if ($tracked_job_id !== -1) {
+                $em = $this->getDoctrine()->getManager();
+                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+
+                $total = $tracked_job->getTotal();
+                $count = $tracked_job->incrementCurrent($em);
+
+                if ($count >= $total)
+                    $tracked_job->setCompleted( new \DateTime() );
+
+                $em->persist($tracked_job);
+                $em->flush();
+            }
 
             $return['r'] = 1;
             $return['t'] = 'ex';
@@ -696,7 +735,154 @@ $ret .= '  Set current to '.$count."\n";
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
 
+
+    /**
+     * TODO
+     *
+     * @param Request $request
+     *
+     * @return Response TODO
+     */
+    public function cryptoRequestAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
+
+        try {
+            $post = $_POST;
+//print_r($post);
+//return;
+            if ( !isset($post['crypto_type']) || !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['target_filepath']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $crypto_type = $post['crypto_type'];
+            $object_type = strtolower( $post['object_type'] );
+            $object_id = $post['object_id'];
+            $target_filepath = $post['target_filepath'];
+            $api_key = $post['api_key'];
+
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $crypto = $this->get("dterranova_crypto.crypto_adapter");
+            $crypto_dir = dirname(__FILE__).'/../../../../app/crypto_dir/';     // TODO - load from config file somehow?
+
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+            if ( !is_numeric($post['object_id']) )
+                throw new \Exception('Invalid Form');
+            else
+                $object_id = intval($object_id);
+
+
+            // ----------------------------------------
+            // Locate the directory with the encrypted file chunks
+            $base_obj = null;
+            if ($object_type == 'file') {
+                $crypto_dir .= 'File_'.$object_id;
+                $base_obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
+            }
+            /*
+            else if ($object_type == 'image') {
+                $crypto_dir .= 'Image_'.$object_id;
+                $base_obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
+            }
+            */
+
+            if ($base_obj == null)
+                throw new \Exception('Invalid Form');
+
+
+            // ----------------------------------------
+            if ($crypto_type == 'encrypt') {
+                // Move file from completed directory to decrypted directory in preparation for encryption...
+                $destination_path = dirname(__FILE__).'/../../../../web';
+                $destination_filename = $base_obj->getUploadDir().'/File_'.$object_id.'.'.$base_obj->getExt();
+                rename( $base_obj->getLocalFileName(), $destination_path.'/'.$destination_filename );
+
+                // Update local filename in database...
+                $base_obj->setLocalFileName($destination_filename);
+
+                // Encryption of a given file/image is simple...
+                self::encryptObject($object_id, $object_type);
+
+                // Calculate/store the checksum of the file to indicate the encryption process is complete
+                $filepath = self::decryptObject($object_id, $object_type);
+                $original_checksum = md5_file($filepath);
+                $base_obj->setOriginalChecksum($original_checksum);
+
+                $em->persist($base_obj);
+                $em->flush();
+                $em->refresh($base_obj);
+
+                // Delete the decrypted version of the file/image off the server after it's completed
+                unlink($filepath);
+            }
+            else {
+/*
+                // ...otherwise, need to manually decrypt all file chunks and write them to the specified file
+
+                // ----------------------------------------
+                // Grab the hex string representation that the file was encrypted with
+                $key = $base_obj->getEncryptKey();
+                // Convert the hex string representation to binary...php had a function to go bin->hex, but didn't have a function for hex->bin for at least 7 years?!?
+                $key = pack("H*" , $key);   // don't have hex2bin() in current version of php...this appears to work based on the "if it decrypts to something intelligible, you did it right" theory
+
+
+                // ----------------------------------------
+                // Open the target file
+                $handle = fopen($target_filepath, "wb");
+                if (!$handle)
+                    throw new \Exception('Unable to open "'.$target_filepath.'" for writing');
+
+                // Decrypt each chunk and write to target file
+                $chunk_id = 0;
+                while( file_exists($crypto_dir.'/'.'enc.'.$chunk_id) ) {
+                    if ( !file_exists($crypto_dir.'/'.'enc.'.$chunk_id) )
+                        throw new \Exception('Encrypted chunk not found: '.$crypto_dir.'/'.'enc.'.$chunk_id);
+
+                    $data = file_get_contents($crypto_dir.'/'.'enc.'.$chunk_id);
+                    fwrite($handle, $crypto->decrypt($data, $key));
+                    $chunk_id++;
+                }
+                fclose($handle);
+
+                // Don't need to do anything else
+*/
+
+                // TEMP - decrypt files, calculate and store their decrypted filesize in the database, then delete them
+                $file = $em->getRepository('ODRAdminBundle:File')->find($object_id);
+                if ($file == null)
+                    throw new \Exception('Deleted File');
+
+                $absolute_path = parent::decryptObject($object_id, $object_type);
+
+                clearstatcache(true, $absolute_path);
+                $filesize = filesize($absolute_path);
+
+                $file->setFilesize($filesize);
+                $em->persist($file);
+                $em->flush();
+
+                unlink($absolute_path);
+            }
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x65384782 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
@@ -1080,14 +1266,14 @@ print '</pre>';
 
     /**
      * Begins the process of forcibly (re)encrypting every uploaded file/image on the site
-     * 
+     *
      * @param string $object_type "File" or "Image"...which type of entity to encrypt
      * @param Request $request
      *
      */
     public function startencryptAction($object_type, Request $request)
     {
-
+/*
         $em = $this->getDoctrine()->getManager();
         $pheanstalk = $this->get('pheanstalk');
         $router = $this->container->get('router');
@@ -1138,19 +1324,20 @@ print '</pre>';
 
 //return;
         }
-
+*/
     }
 
 
     /**
      * Called by the mass_encrypt worker background process to (re)encrypt a single file or image.
-     * 
+     *
      * @param Request $request
-     * 
+     *
      * @return Response TODO
      */
     public function encryptAction(Request $request)
     {
+/*
         $return = array();
         $return['r'] = 0;
         $return['t'] = "";
@@ -1185,83 +1372,95 @@ print '</pre>';
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
+*/
     }
 
 
     /**
      * Begins the process of forcibly decrypting every uploaded file/image on the site.
-     * 
+     *
      * @param string $object_type "File" or "Image"...which type of entity to encrypt
      * @param Request $request
      *
      */
     public function startdecryptAction($object_type, Request $request)
     {
-        // Grab necessary objects
-        $em = $this->getDoctrine()->getManager();
-        $pheanstalk = $this->get('pheanstalk');
-        $router = $this->container->get('router');
-        $memcached = $this->get('memcached');
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
 
-        $api_key = $this->container->getParameter('beanstalk_api_key');
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $pheanstalk = $this->get('pheanstalk');
+            $router = $this->container->get('router');
+            $memcached = $this->get('memcached');
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        // Generate the url for cURL to use
-        $url = $this->container->getParameter('site_baseurl');
-        $url .= $router->generate('odr_force_decrypt');
+            $api_key = $this->container->getParameter('beanstalk_api_key');
 
-        if ($object_type == 'file' || $object_type == 'File')
-            $object_type = 'File';
-        else if ($object_type == 'image' || $object_type == 'Image')
-            $object_type = 'Image';
-        else
-            return null;
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_crypto_request');
 
-        $query = $em->createQuery(
-           'SELECT e.id
+            if ($object_type == 'file' || $object_type == 'File')
+                $object_type = 'File';
+//            else if ($object_type == 'image' || $object_type == 'Image')
+//                $object_type = 'Image';
+            else
+                return null;
+
+            $query = $em->createQuery(
+                'SELECT e
             FROM ODRAdminBundle:'.$object_type.' AS e
             WHERE e.deletedAt IS NULL'
-        );
-        $results = $query->getResult();
-
-//print_r($results);
-//return;
-
-        $object_type = strtolower($object_type);
-        foreach ($results as $num => $result) {
-            $object_id = $result['id'];
-
-            // Insert the new job into the queue
-            $priority = 1024;   // should be roughly default priority
-            $payload = json_encode(
-                array(
-                    "object_type" => $object_type,
-                    "object_id" => $object_id,
-                    "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                    "url" => $url,
-                    "api_key" => $api_key,
-                )
             );
+            $results = $query->getResult();
 
-            $delay = 1;
-            $pheanstalk->useTube('mass_encrypt')->put($payload, $priority, $delay);
+            $object_type = strtolower($object_type);
+            foreach ($results as $num => $file) {
+                // Insert the new job into the queue
+                $priority = 1024;   // should be roughly default priority
+                $payload = json_encode(
+                    array(
+                        "object_type" => $object_type,
+                        "object_id" => $file->getId(),
+                        "target_filepath" => '',
+                        "crypto_type" => 'decrypt',
+                        "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                        "url" => $url,
+                        "api_key" => $api_key,
+                    )
+                );
 
-//return;
+                $delay = 1;
+                $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+            }
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x45387831 '.$e->getMessage();
         }
 
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
     /**
      * Called by the mass_encrypt worker background process to decrypt a single file/image.
-     * 
+     *
      * @param Request $request
-     * 
+     *
      * @return Response TODO
      */
     public function decryptAction(Request $request)
     {
+/*
         $return = array();
         $return['r'] = 0;
         $return['t'] = "";
@@ -1279,28 +1478,26 @@ print '</pre>';
 
             // Load symfony objects
             $em = $this->getDoctrine()->getManager();
+
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
 
-            parent::decryptObject($object_id, $object_type);
-            $return['d'] = '>> Decrypted '.$object_type.' '.$object_id."\n";
-/*
             $obj = null;
             if ($object_type == 'file')
                 $obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
-            else if ($object_type == 'image')
-                $obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
+//            else if ($object_type == 'image')
+//                $obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
 
-            $file_path = parent::decryptObject($object_id, $object_type);
-            $original_checksum = md5_file($file_path);
+            $absolute_path = parent::decryptObject($object_id, $object_type);
+            $return['d'] = '>> Decrypted '.$object_type.' '.$object_id."\n";
 
-            $obj->setOriginalChecksum($original_checksum);
+            $obj->setFilesize( filesize($absolute_path) );
+
             $em->persist($obj);
             $em->flush();
-            
-            $return['d'] = '>> Decrypted and stored checksum for '.$object_type.' '.$object_id."\n";
-*/
+
+            unlink($absolute_path);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1311,7 +1508,7 @@ print '</pre>';
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
+*/
     }
 
 

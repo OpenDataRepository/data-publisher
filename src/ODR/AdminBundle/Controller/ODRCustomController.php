@@ -459,6 +459,7 @@ print "\n\n";
             $str = 'not_logged_in';
 
         // Attempt to load the search result for this search_key
+        $data = array();
         $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
         if ( $cached_searches == null
             || !isset($cached_searches[$datatype_id])
@@ -466,7 +467,16 @@ print "\n\n";
             || !isset($cached_searches[$datatype_id][$search_checksum][$str]) ) {
 
             // Saved search doesn't exist, redo the search and reload the results
-            $search_controller->performSearch($search_key, $request);
+            $ret = $search_controller->performSearch($search_key, $request);
+            if ($ret !== true) {
+                $data['error'] = true;
+                $data['message'] = $ret['message'];
+                $data['encoded_search_key'] = $ret['encoded_search_key'];
+                $data['datarecord_list'] = '';
+
+                return $data;
+            }
+
             $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
         }
 
@@ -474,7 +484,7 @@ print "\n\n";
         $search_params = $cached_searches[$datatype_id][$search_checksum];
 
         // Pull the individual pieces of info out of the search results
-        $data = array();
+        $data['error'] = false;
         $data['search_checksum'] = $search_checksum;
         $data['datatype_id'] = $datatype_id;
         $data['logged_in'] = $logged_in;
@@ -615,6 +625,8 @@ print "\n\n";
             $base_obj->setEncryptKey($hexEncoded_num);
             $em->persist($base_obj);
 
+            // TODO - delete the directory with the encrypted chunks prior to encryptFile()?  the crypto bundle still works properly (in linux at least), but the error log does mention "directory already exists"
+
             // Encrypt the file
             $crypto->encryptFile($absolute_path, $bytes);
 
@@ -663,7 +675,6 @@ print "\n\n";
 
             // Save all changes
             $em->flush();
-
         }
         catch (\Exception $e) {
             throw new \Exception($e->getMessage());
@@ -674,6 +685,7 @@ print "\n\n";
 
     /**
      * Utility function that does the work of decrypting a given File/Image entity.
+     * Note that the filename of the decrypted file/image is determined solely by $object_id and $object_type because of constraints in the $crypto->decryptFile() function
      * 
      * @param integer $object_id  The id of the File/Image to decrypt
      * @param string $object_type "File" or "Image"
@@ -693,6 +705,7 @@ print "\n\n";
 
         $absolute_path = '';
         $base_obj = null;
+        $object_type = strtolower($object_type);
         if ($object_type == 'file') {
             // Grab the file and associated information
             $base_obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
@@ -723,7 +736,7 @@ print "\n\n";
             // Convert the hex string representation to binary...php had a function to go bin->hex, but didn't have a function for hex->bin for at least 7 years?!?
             $key = pack("H*" , $key);   // don't have hex2bin() in current version of php...this appears to work based on the "if it decrypts to something intelligible, you did it right" theory
 
-            // Decrypt the file (does NOT delete the encrypted version)
+            // Decrypt the file (do NOT delete the encrypted version)
             $crypto->decryptFile($absolute_path, $key, false);
         }
 
@@ -1211,6 +1224,7 @@ $save_permissions = false;
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
+        $response->setStatusCode(403);
         return $response;
     }
 
@@ -1813,7 +1827,8 @@ $save_permissions = false;
      * @param Theme $theme          
      *
      */
-    protected function ODR_checkThemeDataField($user, $datafield, $theme) {
+    protected function ODR_checkThemeDataField($user, $datafield, $theme)
+    {
         $em = $this->getDoctrine()->getManager();
         $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield->getId(), 'theme' => $theme->getId()) );
 
@@ -1978,12 +1993,15 @@ $save_permissions = false;
     /**
      * Creates a new File/Image entity from the given file at the given filepath, and persists all required information to the database.
      *
+     * NOTE: the newly uploaded file/image will have its decrypted version deleted off the server...if you need it immediately after calling this function, you'll have to use decryptObject() to re-create it
+     *
      * @param \Doctrine\ORM\EntityManager $em
      * @param string $filepath                 The absolute path to the file
      * @param string $original_filename        The original name of the file
      * @param integer $user_id                 Which user is doing the uploading
      * @param integer $datarecordfield_id      Which DataRecordField entity to store the file under
      *
+     * @return File|Image
      */
     protected function finishUpload($em, $filepath, $original_filename, $user_id, $datarecordfield_id)
     {
@@ -2035,10 +2053,11 @@ $save_permissions = false;
         if ($typeclass == 'Image') {
             $my_obj->setOriginalFileName($original_filename);
             $my_obj->setOriginal('1');
-            $my_obj->setDisplayOrder(0);
+            $my_obj->setDisplayorder(0);
             $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public    TODO - let user decide default status
         }
         else if ($typeclass == 'File') {
+            $my_obj->setFilesize(0);
             $my_obj->setOriginalFileName($original_filename);
 //            $my_obj->setGraphable('1');
             $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
@@ -2051,11 +2070,12 @@ $save_permissions = false;
 
         // ----------------------------------------
         // Set the remaining properties of the new File/Image dependent on the new entities ID
+        //$file_path = '';
         if ($typeclass == 'Image') {
-            // Generate Local File Name
+            // Generate local filename
             $image_id = $my_obj->getId();
 
-            // Move file to correct spot
+            // Move image to correct spot
             $filename = 'Image_'.$image_id.'.'.$my_obj->getExt();
             rename($filepath.'/'.$original_filename, $destination_path.'/'.$filename);
 
@@ -2072,34 +2092,75 @@ $save_permissions = false;
             self::encryptObject($image_id, 'image');
 
             // Set original checksum for original image
-            $file_path = self::decryptObject($image_id, 'image');
-            $original_checksum = md5_file($file_path);
+            $filepath = self::decryptObject($image_id, 'image');
+            $original_checksum = md5_file($filepath);
             $my_obj->setOriginalChecksum($original_checksum);
+
+            // A decrypted version of the Image still exists on the server...delete it
+            unlink($filepath);
         }
         else if ($typeclass == 'File') {
-            // Generate Local File Name
-            $file_id = $my_obj->getId();
+            // Generate local filename
+            //$file_id = $my_obj->getId();
 
             // Move file to correct spot
-            $filename = 'File_'.$file_id.'.'.$my_obj->getExt();
-            rename($filepath.'/'.$original_filename, $destination_path.'/'.$filename);
+            //$filename = 'File_'.$file_id.'.'.$my_obj->getExt();
+            //rename($filepath.'/'.$original_filename, $destination_path.'/'.$filename);
 
-            $local_filename = $my_obj->getUploadDir().'/'.$filename;
+            //$local_filename = $my_obj->getUploadDir().'/'.$filename;
+            $local_filename = realpath( dirname(__FILE__).'/../../../../web/'.$my_obj->getUploadDir().'/chunks/user_'.$user_id.'/completed/'.$original_filename );
             $my_obj->setLocalFileName($local_filename);
 
+            clearstatcache(true, $local_filename);
+            $my_obj->setFilesize( filesize($local_filename) );
+
             // Encrypt the file before it's used
-            self::encryptObject($file_id, 'file');
+            //self::encryptObject($file_id, 'file');
 
             // Decrypt the file and store its checksum in the database
-            $file_path = self::decryptObject($file_id, 'file');
-            $original_checksum = md5_file($file_path);
-            $my_obj->setOriginalChecksum($original_checksum);
+            //$file_path = self::decryptObject($file_id, 'file');
+            //$original_checksum = md5_file($file_path);
+            //$my_obj->setOriginalChecksum($original_checksum);
+
+            // ----------------------------------------
+            // Use beanstalk to encrypt the file so the UI doesn't block on huge files
+            $pheanstalk = $this->get('pheanstalk');
+            $router = $this->container->get('router');
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            $api_key = $this->container->getParameter('beanstalk_api_key');
+
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_crypto_request');
+
+            // Insert the new job into the queue
+            $priority = 1024;   // should be roughly default priority
+            $payload = json_encode(
+                array(
+                    "object_type" => $typeclass,
+                    "object_id" => $my_obj->getId(),
+                    "target_filepath" => '',
+                    "crypto_type" => 'encrypt',
+                    "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                    "url" => $url,
+                    "api_key" => $api_key,
+                )
+            );
+
+            $delay = 1;
+            $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
         }
 
         // Save changes again
         $em->persist($my_obj);
         $em->flush();
 
+
+        // A decrypted version of the File/Image still exists on the server...delete it here since all its properties have been saved
+        //unlink($file_path);
+
+        return $my_obj;
     }
 
 
@@ -2183,6 +2244,7 @@ $save_permissions = false;
         $radio_option = new RadioOptions();
         $radio_option->setValue(0);
         $radio_option->setOptionName($option_name);
+        $radio_option->setXmlOptionName('');
         $radio_option->setDisplayOrder(0);
         $radio_option->setIsDefault(false);
         $radio_option->setDataFields($datafield);
@@ -2248,6 +2310,7 @@ $save_permissions = false;
         $datafield = new DataFields();
         $datafield->setFieldName('New Field');
         $datafield->setDescription('Field description.');
+        $datafield->setXmlFieldName('');
         $datafield->setMarkdownText('');
         $datafield->setCreatedBy($user);
         $datafield->setUpdatedBy($user);
@@ -2420,6 +2483,8 @@ $save_permissions = false;
     /**
      * Usually called after an image is uploaded, this resizes the uploaded image for use in different areas.
      * Will automatically attempt to replace existing thumbnails if possible.
+     *
+     * NOTE: all thumbnails for the provided image will have their decrypted version deleted off the server...if for some reason you need it immediately after calling this function, you'll have to use decryptObject() to re-create it
      * 
      * @param Image $my_obj The Image that was just uploaded.
      * @param User $user    The user requesting this action
@@ -2475,20 +2540,24 @@ $save_permissions = false;
                     $image->setDataRecord($my_obj->getDataRecord());
                     $image->setDataRecordFields($my_obj->getDataRecordFields());
                     $image->setOriginal(0);
-                    $image->setDisplayOrder(0);
+                    $image->setDisplayorder(0);
                     $image->setImageSize($size);
                     $image->setOriginalFileName($my_obj->getOriginalFileName());
                     $image->setCreatedBy($user);
                     $image->setUpdatedBy($user);
                     $image->setParent($my_obj);
                     $image->setExt($my_obj->getExt());
-                    $image->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
+                    $image->setPublicDate( $my_obj->getPublicDate() );
                     $image->setExternalId('');
                     $image->setOriginalChecksum('');
-
-                    $em->persist($image);
-                    $em->flush();
                 }
+                else {
+                    // Ensure that thumbnail has same public date as original image
+                    $image->setPublicDate( $my_obj->getPublicDate() );
+                }
+
+                $em->persist($image);
+                $em->flush();
 
                 // Copy temp file to new file name
                 $filename = $image->getUploadDir()."/Image_" . $image->getId() . "." . $ext;
@@ -2511,8 +2580,91 @@ $save_permissions = false;
 
                 $em->persist($image);
                 $em->flush();
+
+                // A decrypted version of this thumbnail still exists on the server...delete it here since all its properties have been saved
+                unlink($file_path);
             }
         }
+    }
+
+
+    /**
+     * Locates and returns a datarecord based on its external id
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $datafield_id
+     * @param string $external_id_value
+     *
+     * @return DataRecord|null
+     */
+    protected function getDatarecordByExternalId($em, $datafield_id, $external_id_value)
+    {
+        // Get required information
+        $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+
+        // Attempt to locate the datarecord using the given external id
+        $query = $em->createQuery(
+            'SELECT dr
+            FROM ODRAdminBundle:'.$typeclass.' AS e
+            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+            WHERE e.dataField = :datafield AND e.value = :value
+            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+        )->setParameters( array('datafield' => $datafield_id, 'value' => $external_id_value) );
+        $results = $query->getResult();
+
+        // Return the datarecord if it exists
+        $datarecord = null;
+        if ( isset($results[0]) )
+            $datarecord = $results[0];
+
+        return $datarecord;
+    }
+
+
+    /**
+     * Locates and returns a child datarecord based on its external id and its parent's external id
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $child_datafield_id
+     * @param string $child_external_id_value
+     * @param integer $parent_datafield_id
+     * @param string $parent_external_id_value
+     *
+     * @return DataRecord|null
+     */
+    protected function getChildDatarecordByExternalId($em, $child_datafield_id, $child_external_id_value, $parent_datafield_id, $parent_external_id_value)
+    {
+        // Get required information
+        $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+
+        $child_datafield = $repo_datafield->find($child_datafield_id);
+        $child_typeclass = $child_datafield->getFieldType()->getTypeClass();
+
+        $parent_datafield = $repo_datafield->find($parent_datafield_id);
+        $parent_typeclass = $parent_datafield->getFieldType()->getTypeClass();
+
+        // Attempt to locate the datarecord using the given external id
+        $query = $em->createQuery(
+            'SELECT dr
+            FROM ODRAdminBundle:'.$child_typeclass.' AS e_1
+            JOIN ODRAdminBundle:DataRecordFields AS drf_1 WITH e_1.dataRecordFields = drf_1
+            JOIN ODRAdminBundle:DataRecord AS dr WITH drf_1.dataRecord = dr
+            JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
+            JOIN ODRAdminBundle:DataRecordFields AS drf_2 WITH drf_2.dataRecord = parent
+            JOIN ODRAdminBundle:'.$parent_typeclass.' AS e_2
+            WHERE e_1.dataField = :child_datafield AND e_1.value = :child_value AND e_2.dataField = :parent_datafield AND e_2.value = :parent_value
+            AND e_1.deletedAt IS NULL AND drf_1.deletedAt IS NULL AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND drf_2.deletedAt IS NULL AND e_2.deletedAt IS NULL'
+        )->setParameters( array('child_datafield' => $child_datafield_id, 'child_value' => $child_external_id_value, 'parent_datafield' => $parent_datafield_id, 'parent_value' => $parent_external_id_value) );
+        $results = $query->getResult();
+
+        // Return the datarecord if it exists
+        $datarecord = null;
+        if ( isset($results[0]) )
+            $datarecord = $results[0];
+
+        return $datarecord;
     }
 
 
@@ -2620,8 +2772,8 @@ if ($debug)
                             // ...should only be one file in here anyways
                             $file = $collection[0];
 
-                            // Only show the file if the user is allowed to see it
-                            if ( $file->isPublic() || $can_view_datatype ) {
+                            // Only show the file if it's been encrypted, and the user is allowed to see it
+                            if ( $file->getOriginalChecksum() !== '' && ($file->isPublic() || $can_view_datatype) ) {
                                 $url = $router->generate('odr_file_download', array('file_id' => $file->getId()));
                                 $str = '<a href='.$url.'>'.$file->getOriginalFileName().'</a>'; // textresultslist.html.twig will add other required attributes because of str_replace later in this function
                             }
@@ -2679,7 +2831,8 @@ if ($debug) {
      * 
      * @return string
      */
-    public function Short_GetDisplayData(Request $request, $datarecord_id, $theme_id = 2, $template_name = 'default') {
+    public function Short_GetDisplayData(Request $request, $datarecord_id, $theme_id = 2, $template_name = 'default')
+    {
         // Required objects
         $em = $this->getDoctrine()->getManager();
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
@@ -3379,7 +3532,8 @@ if ($debug)
      * 
      * @return string
      */
-    protected function ODR_getErrorMessages(\Symfony\Component\Form\Form $form) {
+    protected function ODR_getErrorMessages(\Symfony\Component\Form\Form $form)
+    {
 /*
         $errors = array();
         if ($form->hasChildren()) {

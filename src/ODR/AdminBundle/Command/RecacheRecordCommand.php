@@ -28,7 +28,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-//class RecacheRecordCommand extends Command
 class RecacheRecordCommand extends ContainerAwareCommand
 {
     protected function configure()
@@ -45,7 +44,6 @@ class RecacheRecordCommand extends ContainerAwareCommand
         // Only need to load these once...
         $container = $this->getContainer();
         $logger = $container->get('logger');
-        $router = $container->get('router');
         $pheanstalk = $container->get('pheanstalk');
 
         while (true) {
@@ -53,37 +51,8 @@ class RecacheRecordCommand extends ContainerAwareCommand
             $job = null;
             try {
                 // Wait for a job?
-//                $job = $pheanstalk->watch($memcached_prefix.'_recache_record')->ignore('default')->reserve(); 
-                $job = $pheanstalk->watch('recache_record')->ignore('default')->reserve(); 
-            }
-            catch (\Exception $e) {
-$output->writeln($e->getMessage());
-                $logger->err('RecacheRecordCommand.php: '.$e->getMessage());
+                $job = $pheanstalk->watch('recache_record')->ignore('default')->reserve();
 
-                // Delete the job so the queue won't hang, in theory
-                $pheanstalk->delete($job);
-            }
-/*
-            // TODO - move this check inside WorkerController?  since commands can't have database connections...
-            // Check to see if there's any datafields that need migrating
-            while (true) {
-                try {
-                    $pheanstalk->useTube('migrate_datafields');
-                    $migrate_job = $pheanstalk->peekReady('migrate_datafields');
-
-                    // Don't care what job is in the tube, just that there is one
-                    $output->writeln('waiting for datafield migration to finish...');
-                    usleep(5000000);     // sleep for 5 seconds
-                }
-                catch (\Exception $e) {
-                    // peekReady() throws a bona-fide exception when the tube is empty instead of returning NULL
-                    // Since tube is empty, no datafields need migrating, so continue recaching
-                    break;
-                }
-            }
-*/
-
-            try {
                 // Get Job Data
                 $data = json_decode($job->getData());
 

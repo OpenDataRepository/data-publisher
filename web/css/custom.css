@@ -1102,3 +1102,17 @@ form .row {
 #ElementData label {
     color: black;
 }
+
+
+.ui-progressbar {
+    position: relative;
+    min-width: 300px;
+}
+
+.ODRProgressBarLabel {
+    position: absolute;
+    left: 45%;
+    top: 4px;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 #fff;
+}

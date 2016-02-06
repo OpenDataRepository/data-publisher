@@ -1,66 +1,6 @@
-{% extends '::base.html.twig' %}
-
-{# set variables used by the parent template...http://stackoverflow.com/questions/17244162/symfony2-twig-how-can-i-send-parameters-to-the-parent-template #}
-
-{% set current_user = '' %}
-{% if user != null %}
-    {% set current_user = user.getuserstring %}
-{% endif %}
-
-{% if logged_in == false %}
-    {% set header_left_title = 'Search' %}
-    {% set header_left_path = path('odr_search') %}
-
-    {% set header_middle_title = '' %}
-    {% set header_middle_path = '' %}
-
-    {% set header_right_title = 'Login' %}
-    {% set header_right_path = '' %}
-    {% set header_right_js = 'ODRLogin();' %}
-{% else %}
-    {% set header_left_title = 'Dashboard' %}
-    {% set header_left_path = path('odr_admin_homepage') %}
-
-    {% set header_middle_title = 'Search' %}
-    {% set header_middle_path = path('odr_search') %}
-
-    {% set header_right_title = 'Logout' %}
-    {% set header_right_path = path('odr_logout') %}
-    {% set header_right_js = '' %}
-{% endif %}
-
-
-{% block title %}ODR Admin{% endblock %}
-
-{% set use_navigation_block = false %}
-
-{#
-{% block navigation_top %}
-{% include 'ODRAdminBundle::navigation.html.twig' with {'user': user} %}
-{% endblock %}
-
-{% block navigation_bottom %}
-{% include 'ODRAdminBundle::navigation_bottom.html.twig' %}
-{% endblock %}
-#}
-
-{% block body %}
-
-    {#{% include 'ODROpenRepositorySearchBundle:Default:search.html.twig' %}#}
+{% spaceless %}
+    </br>
     <center>
         <strong>{{ error_message }}</strong>
     </center>
-
-    {% set logged_in = false %} {# prevent dashboard from loading automatically #}
-    {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
-    {{ js.write(logged_in) }}
-
-    <script>
-        function ODRLogin() {
-            $(function() {
-                window.location.href = "{{ path('odr_admin_homepage') }}";
-            });
-        }
-    </script>
-{% endblock %}
-
+{% endspaceless %}

@@ -349,6 +349,7 @@
             changeMonth: true,
             changeYear: true,
             dateFormat: 'yy-mm-dd',
+            yearRange: '1800:+10',
 
             onSelect: function(dateText, inst) {
                 var field_id = $(this).attr('rel');
@@ -561,7 +562,7 @@
                 {% endif %}
                 }
                 else {
-                    alert( data.d );
+                    alert( data.d.html );
                 }
             },
             complete: function(jqXHR, textStatus) {

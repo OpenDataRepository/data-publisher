@@ -42,6 +42,11 @@ class DataFields
     /**
      * @var string
      */
+    private $xml_fieldName;
+
+    /**
+     * @var string
+     */
     private $markdownText;
 
     /**
@@ -228,6 +233,39 @@ class DataFields
     public function getDescription()
     {
         return $this->description;
+    }
+
+    /**
+     * Set xml_fieldName
+     *
+     * @param string $xmlFieldName
+     * @return DataFields
+     */
+    public function setXmlFieldName($xmlFieldName)
+    {
+        $this->xml_fieldName = $xmlFieldName;
+
+        return $this;
+    }
+
+    /**
+     * Get xml_fieldName
+     *
+     * @return string
+     */
+    public function getXmlFieldName()
+    {
+        if ($this->xml_fieldName !== '') {
+            // Use whatever is specified for this datafield's XML name if it exists...
+            return $this->xml_fieldName;
+        }
+        else {
+            // ...otherwise, perform character substitutions on the datafield's name that should work in most cases
+            $searches = array(" ", "!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "/", ":", ";", "<", "=", ">", "?", "@", "[", "\\", "]", "^", "`", "{", "|", "}", "~");
+            $replacements = array("_", "");
+
+            return str_replace($searches, $replacements, $this->fieldName);
+        }
     }
 
     /**
@@ -833,18 +871,5 @@ class DataFields
     public function getFieldType()
     {
         return $this->fieldType;
-    }
-
-    /**
-     * Get XMLFieldName
-     *
-     * @return string
-     */
-    public function getXMLFieldName()
-    {
-        $search = array(" ", "\'", "\"", "<", ">", "&", "?", "(", ")");
-        $replacements = array("_", "", "", "&lt;", "&gt;", "&amp;", "", "", "");
-
-        return str_replace($search, $replacements, $this->fieldName);
     }
 }

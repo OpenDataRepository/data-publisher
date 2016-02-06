@@ -27,6 +27,15 @@ ODR\AdminBundle\Entity\RadioOptions:
             column: option_name
             gedmo:
                 - versioned
+        xml_optionName:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: xml_option_name
+            gedmo:
+                - versioned
+
         displayOrder:
             type: integer
             unsigned: false

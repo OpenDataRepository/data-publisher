@@ -102,6 +102,12 @@ ODR\AdminBundle\Entity\File:
             column: checksum
             gedmo:
                 - versioned
+        filesize:
+            type: integer
+            unsigned: true
+            nullable: false
+            gedmo:
+                - versioned
 
     oneToMany:
         FileChecksum:

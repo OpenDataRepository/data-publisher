@@ -529,7 +529,6 @@ class RecordController extends ODRCustomController
      */
     public function deletechildrecordAction($datarecord_id, $datatype_id, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -618,19 +617,19 @@ class RecordController extends ODRCustomController
             $file = $repo_file->find($file_id);
             if ( $file == null )
                 return parent::deletedEntityError('File');
-
             $datafield = $file->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
-
             $datarecord = $file->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
-
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            // Files that aren't done encrypting shouldn't be modified
+            if ($file->getOriginalChecksum() == '')
+                return parent::deletedEntityError('File');
 
             // --------------------
             // Determine user privileges
@@ -699,19 +698,19 @@ class RecordController extends ODRCustomController
             $file = $repo_file->find($file_id);
             if ( $file == null )
                 return parent::deletedEntityError('File');
-
             $datafield = $file->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
-
             $datarecord = $file->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
-
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            // Files that aren't done encrypting shouldn't be modified
+            if ($file->getOriginalChecksum() == '')
+                return parent::deletedEntityError('File');
 
             // --------------------
             // Determine user privileges
@@ -728,7 +727,6 @@ class RecordController extends ODRCustomController
 
 
             // If the file is public, make it non-public...if file is non-public, make it public
-            $public_date = $file->getPublicDate();
             if ( $file->isPublic() ) {
                 // Make the record non-public
                 $file->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
@@ -738,8 +736,8 @@ class RecordController extends ODRCustomController
                 $filename = 'File_'.$file_id.'.'.$file->getExt();
                 $absolute_path = realpath($file_upload_path).'/'.$filename;
 
-//                if ( file_exists($absolute_path) )
-//                    unlink($absolute_path);
+                if ( file_exists($absolute_path) )
+                    unlink($absolute_path);
             }
             else {
                 // Make the record public
@@ -806,19 +804,19 @@ class RecordController extends ODRCustomController
             $image = $repo_image->find($image_id);
             if ( $image == null )
                 return parent::deletedEntityError('Image');
-
             $datafield = $image->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
-
             $datarecord = $image->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
-
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            // Images that aren't done encrypting shouldn't be downloaded
+            if ($image->getOriginalChecksum() == '')
+                return parent::deletedEntityError('Image');
 
             // --------------------
             // Determine user privileges
@@ -838,7 +836,6 @@ class RecordController extends ODRCustomController
             $images[] = $image;
 
             // If the images are public, make them non-public...if images are non-public, make them public
-            $public_date = $image->getPublicDate();
             if ( $image->isPublic() ) {
                 foreach ($images as $img) {
                     // Make the image non-public
@@ -851,8 +848,8 @@ class RecordController extends ODRCustomController
                     $filename = 'Image_'.$img->getId().'.'.$img->getExt();
                     $absolute_path = realpath($image_upload_path).'/'.$filename;
 
-//                    if ( file_exists($absolute_path) )
-//                        unlink($absolute_path);
+                    if ( file_exists($absolute_path) )
+                        unlink($absolute_path);
                 }
             }
             else {
@@ -923,19 +920,19 @@ class RecordController extends ODRCustomController
             $image = $repo_image->find($image_id);
             if ( $image == null )
                 return parent::deletedEntityError('Image');
-
             $datafield = $image->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
-
             $datarecord = $image->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
-
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            // Images that aren't done encrypting shouldn't be modified
+            if ($image->getOriginalChecksum() == '')
+                return parent::deletedEntityError('Image');
 
             // --------------------
             // Determine user privileges
@@ -950,11 +947,24 @@ class RecordController extends ODRCustomController
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-            // Grab all children of the original image (resizes, i believe) and remove them
+            // Grab all alternate sizes of the original image (thumbnail is only current one) and remove them
             $images = $repo_image->findBy( array('parent' => $image->getId()) );
-            foreach ($images as $img)
+            foreach ($images as $img) {
+                // Ensure no decrypted version of the image exists on the server
+                $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
+                if ( file_exists($local_filepath) )
+                    unlink($local_filepath);
+
+                // Delete the alternate sized image from the database
                 $em->remove($img);
-            // Remove the original image as well
+            }
+
+            // Ensure no decrypted version of the original image exists on the server
+            $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$image->getId().'.'.$image->getExt();
+            if ( file_exists($local_filepath) )
+                unlink($local_filepath);
+
+            // Remove the original image from the database as well
             $em->remove($image);
             $em->flush();
 
@@ -1446,7 +1456,6 @@ class RecordController extends ODRCustomController
      */
     public function getlinkablerecordsAction($ancestor_datatype_id, $descendant_datatype_id, $local_datarecord_id, $search_key, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'html';
@@ -1909,7 +1918,6 @@ if ($debug)
     */  
     public function reloaddatafieldAction($datafield_id, $datarecord_id, Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'html';
@@ -1918,9 +1926,31 @@ if ($debug)
         try {
             // Grab necessary objects
             $em = $this->getDoctrine()->getManager();
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-            if ( $datafield == null )
+            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+            $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
+            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
+
+            $datarecord = $repo_datarecord->find($datarecord_id);
+            if ($datarecord == null)
+                return parent::deletedEntityError('Datarecord');
+            $datafield = $repo_datafields->find($datafield_id);
+            if ($datafield == null)
                 return parent::deletedEntityError('DataField');
+            $datatype = $datafield->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $logged_in = true;
+
+            // Ensure user has permissions to be doing this
+            if ( !( isset($user_permissions[$datatype->getId()]) && ( isset($user_permissions[$datatype->getId()]['edit']) || isset($user_permissions[$datatype->getId()]['child_edit']) ) ) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
 
             $theme_datafield = $datafield->getThemeDataField();
             foreach ($theme_datafield as $tdf) {
@@ -1930,18 +1960,7 @@ if ($debug)
                 }
             }
 
-            // --------------------
-            // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
-//            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            // --------------------
-
-            $datatype = $datafield->getDataType();
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if ( $datarecord == null )
-                return parent::deletedEntityError('DataRecord');
-
-            $datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );
+            $datarecordfield = $repo_datarecordfields->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );
             $form = parent::buildForm($em, $user, $datarecord, $datafield, $datarecordfield, false, 0);
 
             $templating = $this->get('templating');
@@ -2220,18 +2239,17 @@ if ($debug)
 
 
             // ----------------------------------------
-            // If this datarecord is being viewed from a search result list, attempt to grab the list of datarecords from that search result
+            // If this datarecord is being viewed from a search result list...
             $datarecord_list = '';
             $encoded_search_key = '';
             if ($search_key !== '') {
-                //
-                $data = parent::getSavedSearch($datatype_id, $search_key, $logged_in, $request);
+                // ...attempt to grab the list of datarecords from that search result
+                $data = parent::getSavedSearch($datatype->getId(), $search_key, $logged_in, $request);
                 $encoded_search_key = $data['encoded_search_key'];
                 $datarecord_list = $data['datarecord_list'];
 
-                // If the user is attempting to view a datarecord from a search that returned no results...
-                if ($encoded_search_key !== '' && $datarecord_list === '') {
-                    // ...get the search controller to redirect to "no results found" page
+                if ($data['error'] == true || ($encoded_search_key !== '' && $datarecord_list === '') ) {
+                    // Some sort of error encounted...bad search query, invalid permissions, or empty datarecord list
                     $search_controller = $this->get('odr_search_controller', $request);
                     return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
                 }
@@ -2336,7 +2354,8 @@ if ($debug)
     * 
     * @return Response TODO
     */
-    public function getfieldhistoryAction($datarecordfield_id, $entity_id, Request $request) {
+    public function getfieldhistoryAction($datarecordfield_id, $entity_id, Request $request)
+    {
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';

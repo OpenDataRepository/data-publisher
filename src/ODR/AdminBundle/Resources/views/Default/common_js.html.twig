@@ -58,7 +58,7 @@
             // always scroll to the top of the page?
 //            window.scrollTo(0,0);
 
-            // If the hashchange event is manually triggered, event.original event won't be defined...
+            // If the hashchange event is manually triggered, event.originalEvent won't be defined...
             var url = '';
             if ( event.originalEvent !== undefined && event.originalEvent.newURL !== undefined ) {
                 // Grab the URL from the hashchange event
@@ -357,6 +357,7 @@
     }
 </script>
 
+{% include 'ODRAdminBundle:Default:file_handling.html.twig' %}
 {% include 'ODRAdminBundle:Flow:flow_common.html.twig' %}
 
 {% endmacro %}

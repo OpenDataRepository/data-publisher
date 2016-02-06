@@ -187,7 +187,8 @@ class FlowController extends ODRCustomController
                 case 'image':
                     $validation_params = $validation_params['image'];
                     break;
-                case 'import_file_storage':
+                case 'csv_import_file_storage':
+                case 'xml_import_file_storage':
                     $maxsize = max( intval($validation_params['file']['maxSize']), intval($validation_params['image']['maxSize']) );
                     $validation_params = array(
                         'maxSize' => $maxsize,
@@ -204,11 +205,11 @@ class FlowController extends ODRCustomController
                 // Extract useful info from the GET query
                 $identifier = $request->query->get('flowIdentifier');
                 $index = $request->query->get('flowChunkNumber');
-                $filesize = intval( $request->query->get('flowTotalSize') );
+                $expected_size = intval( $request->query->get('flowTotalSize') );
 
                 $allowed_filesize = intval( $validation_params['maxSize'] );
 
-                if ( $filesize > ($allowed_filesize * 1024 * 1024) ) {
+                if ( $expected_size > ($allowed_filesize * 1024 * 1024) ) {
                     // TODO - delete uploaded chunks on abort/cancel?
                     // Expected filesize is too big, don't continue to upload
                     return self::flowAbort( $validation_params['maxSizeErrorMessage'] );
@@ -274,21 +275,21 @@ class FlowController extends ODRCustomController
                 }
 
                 if ($upload_type == 'csv') {
-                    // Upload is a CSV Import file
+                    // Upload is a CSVImport file
                     self::finishCSVUpload($destination_folder, $original_filename, $user_id, $request);
                 }
                 else if ($upload_type == 'xml') {
-                    // Upload is an XML Import file
-                    // TODO
+                    // Upload is an XMLImport file
+                    self::finishXMLUpload($destination_folder, $original_filename, $user_id, $request);
                 }
                 else if ($datafield_id !== null) {
                     // Upload meant for a file/image datafield...finish moving the uploaded file and store it properly
                     parent::finishUpload($em, $destination_folder, $original_filename, $user_id, $datarecordfield_id);
                 }
                 else {
-                    // Upload is a file/image meant to be referenced by a later CSV Import
+                    // Upload is a file/image meant to be referenced by a later XML/CSV Import
                     $uploaded_file->move( $destination_folder, $original_filename );
-                    self::finishImportFileUpload($destination_folder, $original_filename, $user_id);
+                    self::finishImportFileUpload($destination_folder, $original_filename, $user_id, $upload_type);
                 }
 
                 // Return success
@@ -308,7 +309,6 @@ class FlowController extends ODRCustomController
 
     /**
      * Moves the specified file from the upload directory to the user's CSVImport directory.
-     * TODO - also eventually need one of these for xml upload
      *
      * @param string $filepath             The absolute path to the file
      * @param string $original_filename    The original name of the file
@@ -340,23 +340,66 @@ class FlowController extends ODRCustomController
         $session->set('csv_file', $final_filename);
     }
 
-
     /**
-     * Moves the specified file from the upload directory to the directory used for storing files/images referenced as part of a csv import...
-     * TODO - also eventually need this to work with xml upload
+     * Moves the specified file from the upload directory to the user's XMLImport directory.
      *
      * @param string $filepath             The absolute path to the file
      * @param string $original_filename    The original name of the file
      * @param integer $user_id             Which user is doing the uploading
+     * @param Request $request
      *
      */
-    private function finishImportFileUpload($filepath, $original_filename, $user_id)
+    private function finishXMLUpload($filepath, $original_filename, $user_id, Request $request)
+    {
+        // Grab the uploaded file at its current location
+        $xml_file = new SymfonyFile($filepath.'/'.$original_filename);
+
+        // Ensure an XMLImport directory exists for this user
+        $destination_folder = dirname(__FILE__).'/../../../../web/uploads/xml';
+        if ( !file_exists($destination_folder) )
+            mkdir( $destination_folder );
+        $destination_folder .= '/user_'.$user_id;
+        if ( !file_exists($destination_folder) )
+            mkdir( $destination_folder );
+        $destination_folder .= '/unprocessed';
+        if ( !file_exists($destination_folder) )
+            mkdir( $destination_folder );
+
+        // Splice a timestamp into the filename
+        $final_filename = $original_filename.'.'.time();
+
+        // Move the file from its current location to the correct XMLImport directory
+        $xml_file->move($destination_folder, $final_filename);
+
+        // Save the new filename in the user's session
+//        $session = $request->getSession();
+//        $session->set('csv_file', $final_filename);
+    }
+
+
+    /**
+     * Moves the specified file from the upload directory to the directory used for storing files/images referenced as part of a CSV/XML Import...
+     *
+     * @param string $filepath          The absolute path to the file
+     * @param string $original_filename The original name of the file
+     * @param integer $user_id          Which user is doing the uploading
+     * @param string $upload_type       csv|xml
+     *
+     */
+    private function finishImportFileUpload($filepath, $original_filename, $user_id, $upload_type)
     {
         // Grab the uploaded file at its current location
         $uploaded_file = new SymfonyFile($filepath.'/'.$original_filename);
 
-        // Ensure a CSVImport directory exists for this user
-        $destination_folder = dirname(__FILE__).'/../../../../web/uploads/csv';
+        // Determine which directory structure to switch to
+        $type = '';
+        if ($upload_type == 'csv_import_file_storage')
+            $type = 'csv';
+        else if ($upload_type == 'xml_import_file_storage')
+            $type = 'xml';
+
+        // Ensure a CSV/XML Import directory exists for this user
+        $destination_folder = dirname(__FILE__).'/../../../../web/uploads/'.$type;
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
         $destination_folder .= '/user_'.$user_id;
@@ -366,7 +409,7 @@ class FlowController extends ODRCustomController
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
         
-        // Move the file from its current location to the correct CSVImport directory
+        // Move the file from its current location to the correct CSV/XML Import directory
         $uploaded_file->move($destination_folder, $original_filename);
     }
 

@@ -806,10 +806,14 @@ class CSVImportController extends ODRCustomController
             $fieldtype_mapping = null;
             if ( isset($post['fieldtype_mapping']) )
                 $fieldtype_mapping = $post['fieldtype_mapping'];
-            // Get secondary delimiters to use for multiple select/radio columns, if they exist
+            // Get secondary delimiters to use for file/image/multiple select/radio columns, if they exist
             $column_delimiters = array();
             if ( isset($post['column_delimiters']) )
                 $column_delimiters = $post['column_delimiters'];
+            // Get the file/image columns where all files/images in the datafield but not in the csv file will be deleted
+            $synch_columns = array();
+            if ( isset($post['synch_columns']) )
+                $synch_columns = $post['synch_columns'];
 
             // If the import is for a child or linked datatype, then one of the columns from the csv file has to be mapped to the parent (or local if linked import) datatype's external id datafield
             $parent_datatype_id = '';
@@ -923,7 +927,7 @@ class CSVImportController extends ODRCustomController
                     // Ensure fieldtype mapping entry exists
                     $fieldtype_mapping[$col_num] = $datafield->getFieldType()->getId();
 
-                    // If datafield is a multiple select/radio field, ensure secondary delimiters exist
+                    // If datafield is multiple select/radio field, or datafield is file/image, ensure secondary delimiters exist
                     $typename = $datafield->getFieldType()->getTypeName();
                     if ($typename == "Multiple Select" || $typename == "Multiple Radio" || $typename == "File" || $typename == "Image") {
                         if ( $column_delimiters == null )
@@ -1029,6 +1033,7 @@ class CSVImportController extends ODRCustomController
                 'datafield_mapping' => $datafield_mapping,
                 'fieldtype_mapping' => $fieldtype_mapping,
                 'column_delimiters' => $column_delimiters,
+                'synch_columns' => $synch_columns,
 
                 // Only used when importing into a child or linked datatype
                 'parent_external_id_column' => $parent_external_id_column,
@@ -1262,6 +1267,7 @@ class CSVImportController extends ODRCustomController
                         'datafield_mapping' => $datafield_mapping,
                         'fieldtype_mapping' => $fieldtype_mapping,
                         'column_delimiters' => $column_delimiters,
+                        'synch_columns' => $synch_columns,
 
                         // Only used when importing into a child/linked datatype
                         'parent_external_id_column' => $parent_external_id_column,
@@ -1414,6 +1420,9 @@ class CSVImportController extends ODRCustomController
             $column_delimiters = array();
             if ( isset($post['column_delimiters']) )
                 $column_delimiters = $post['column_delimiters'];
+            $synch_columns = array();
+            if ( isset($post['synch_columns']) )
+                $synch_columns = $post['synch_columns'];
 
             // If the import is for a child or linked datatype, then one of the columns from the csv file has to be mapped to the parent (or local if linked import) datatype's external id datafield
             $parent_datatype_id = '';
@@ -1464,7 +1473,7 @@ class CSVImportController extends ODRCustomController
 
                 $parent_external_id_field = $parent_datatype->getExternalIdField();
                 $parent_external_id_value = trim( $line[$parent_external_id_column] );
-                $dr = self::getDatarecordByExternalId($em, $parent_external_id_field->getId(), $parent_external_id_value);
+                $dr = parent::getDatarecordByExternalId($em, $parent_external_id_field->getId(), $parent_external_id_value);
 
                 // If a parent with this external id does not exist, warn the user (the row will be ignored)
                 if ($dr == null) {
@@ -1510,13 +1519,13 @@ class CSVImportController extends ODRCustomController
                 if ( $parent_external_id_column !== '' && $remote_external_id_column == '' ) {
                     // Importing into child datatype...attempt to locate the child datarecord
                     $parent_external_id = trim( $line[$parent_external_id_column] );
-                    $dr = self::getChildDatarecordByExternalId($em, $external_id_field->getId(), $value, $parent_datatype->getExternalIdField()->getId(), $parent_external_id);
+                    $dr = parent::getChildDatarecordByExternalId($em, $external_id_field->getId(), $value, $parent_datatype->getExternalIdField()->getId(), $parent_external_id);
                     if ($dr !== null)
                         $datarecord_id = $dr->getId();
                 }
                 else {
                     // Importing into top-level or linked datatype...attempt to locate the expected datarecord (or remote if linked)
-                    $dr = self::getDatarecordByExternalId($em, $external_id_field->getId(), $value);
+                    $dr = parent::getDatarecordByExternalId($em, $external_id_field->getId(), $value);
                     if ($dr !== null)
                         $datarecord_id = $dr->getId();
                 }
@@ -1630,19 +1639,6 @@ class CSVImportController extends ODRCustomController
                                             )
                                         );
                                     }
-
-                                    if ($already_uploaded) {
-                                        // TODO - should the upload replace existing files instead of doing nothing?
-                                        // Warn about file/image already being on the server
-                                        $errors[] = array(
-                                            'level' => 'Warning',
-                                            'body' => array(
-                                                'line_num' => $line_num,
-                                                'message' => 'The '.$typeclass.' "'.$filename.'" listed in column "'.$column_names[$column_num].'" has already been uploaded to this datarecord.',
-                                            )
-                                        );
-                                    }
-
                                 }
                             }
 
@@ -1901,86 +1897,6 @@ class CSVImportController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * Locates and returns a datarecord based on its external id
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $datafield_id
-     * @param string $external_id_value
-     *
-     * @return DataRecord|null
-     */
-    private function getDatarecordByExternalId($em, $datafield_id, $external_id_value)
-    {
-        // Get required information
-        $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-        $typeclass = $datafield->getFieldType()->getTypeClass();
-
-        // Attempt to locate the datarecord using the given external id
-        $query = $em->createQuery(
-           'SELECT dr
-            FROM ODRAdminBundle:'.$typeclass.' AS e
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-            WHERE e.dataField = :datafield AND e.value = :value
-            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-        )->setParameters( array('datafield' => $datafield_id, 'value' => $external_id_value) );
-        $results = $query->getResult();
-
-        // Return the datarecord if it exists
-        $datarecord = null;
-        if ( isset($results[0]) )
-            $datarecord = $results[0];
-
-        return $datarecord;
-    }
-
-
-    /**
-     * Locates and returns a child datarecord based on its external id and its parent's external id
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $child_datafield_id
-     * @param string $child_external_id_value
-     * @param integer $parent_datafield_id
-     * @param string $parent_external_id_value
-     *
-     * @return DataRecord|null
-     */
-    private function getChildDatarecordByExternalId($em, $child_datafield_id, $child_external_id_value, $parent_datafield_id, $parent_external_id_value)
-    {
-        // Get required information
-        $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-
-        $child_datafield = $repo_datafield->find($child_datafield_id);
-        $child_typeclass = $child_datafield->getFieldType()->getTypeClass();
-
-        $parent_datafield = $repo_datafield->find($parent_datafield_id);
-        $parent_typeclass = $parent_datafield->getFieldType()->getTypeClass();
-
-        // Attempt to locate the datarecord using the given external id
-        $query = $em->createQuery(
-           'SELECT dr
-            FROM ODRAdminBundle:'.$child_typeclass.' AS e_1
-            JOIN ODRAdminBundle:DataRecordFields AS drf_1 WITH e_1.dataRecordFields = drf_1
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf_1.dataRecord = dr
-            JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
-            JOIN ODRAdminBundle:DataRecordFields AS drf_2 WITH drf_2.dataRecord = parent
-            JOIN ODRAdminBundle:'.$parent_typeclass.' AS e_2
-            WHERE e_1.dataField = :child_datafield AND e_1.value = :child_value AND e_2.dataField = :parent_datafield AND e_2.value = :parent_value
-            AND e_1.deletedAt IS NULL AND drf_1.deletedAt IS NULL AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND drf_2.deletedAt IS NULL AND e_2.deletedAt IS NULL'
-        )->setParameters( array('child_datafield' => $child_datafield_id, 'child_value' => $child_external_id_value, 'parent_datafield' => $parent_datafield_id, 'parent_value' => $parent_external_id_value) );
-        $results = $query->getResult();
-
-        // Return the datarecord if it exists
-        $datarecord = null;
-        if ( isset($results[0]) )
-            $datarecord = $results[0];
-
-        return $datarecord;
     }
 
 
@@ -2366,6 +2282,7 @@ class CSVImportController extends ODRCustomController
             $datafield_mapping = $job_data['datafield_mapping'];
             $fieldtype_mapping = $job_data['fieldtype_mapping'];
             $column_delimiters = $job_data['column_delimiters'];
+            $synch_columns = $job_data['synch_columns'];
             $parent_external_id_column = $job_data['parent_external_id_column'];
             $parent_datatype_id = $job_data['parent_datatype_id'];
             $remote_external_id_column = $job_data['remote_external_id_column'];
@@ -2491,6 +2408,7 @@ print_r($new_mapping);
                         'memcached_prefix' => $memcached_prefix,    // debug purposes only
 
                         'column_delimiters' => $column_delimiters,
+                        'synch_columns' => $synch_columns,
                         'mapping' => $new_mapping,
                         'line' => $row,
 
@@ -2562,6 +2480,9 @@ print_r($new_mapping);
             $column_delimiters = null;
             if ( isset($post['column_delimiters']) )
                 $column_delimiters = $post['column_delimiters'];
+            $synch_columns = null;
+            if ( isset($post['synch_columns']) )
+                $synch_columns = $post['synch_columns'];
             $parent_external_id_column = '';
             if ( isset($post['parent_external_id_column']) )
                 $parent_external_id_column = $post['parent_external_id_column'];
@@ -2616,7 +2537,7 @@ print_r($new_mapping);
 
                 // Since this is importing into a child datatype, parent datarecord must exist
                 // csvvalidateAction() purposely only gives a warning so the user is not prevented from importing the rest of the file
-                $parent_datarecord = self::getDatarecordByExternalId($em, $parent_external_id_field->getId(), $parent_external_id_value);
+                $parent_datarecord = parent::getDatarecordByExternalId($em, $parent_external_id_field->getId(), $parent_external_id_value);
                 if ($parent_datarecord == null)
                     throw new \Exception('Parent Datarecord does not exist');
             }
@@ -2638,11 +2559,11 @@ print_r($new_mapping);
 
                 if ($parent_external_id_column !== '') {
                     // Need to locate a child datarecord
-                    $datarecord = self::getChildDatarecordByExternalId($em, $external_id_field->getId(), $external_id_value, $parent_external_id_field->getId(), $parent_external_id_value);
+                    $datarecord = parent::getChildDatarecordByExternalId($em, $external_id_field->getId(), $external_id_value, $parent_external_id_field->getId(), $parent_external_id_value);
                 }
                 else {
                     // Need to locate a top-level datarecord
-                    $datarecord = self::getDatarecordByExternalId($em, $external_id_field->getId(), $external_id_value);
+                    $datarecord = parent::getDatarecordByExternalId($em, $external_id_field->getId(), $external_id_value);
                 }
             }
 //return;
@@ -2748,6 +2669,13 @@ print_r($new_mapping);
                         $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$checked.'"...'."\n";
                     }
                     else if ($typeclass == 'File' || $typeclass == 'Image') {
+
+                        // ----------------------------------------
+                        $csv_filenames = array();
+                        $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.') '."\n";
+
+
+                        // ----------------------------------------
                         // If a filename is in this column...
                         if ($column_data !== '') {
                             // Grab the associated datarecordfield entity
@@ -2761,12 +2689,12 @@ print_r($new_mapping);
                             }
 
                             // Store the path to the user's upload area...
-                            $filepath = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/storage';
+                            $storage_filepath = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/storage';
 
-                            // Grab a list of the files already uploaded to this datafield
-                            $already_uploaded_files = array();
+                            // Grab a list of the files/images already uploaded to this datafield
+                            $existing_files = array();
                             $query_str =
-                               'SELECT e.originalFileName
+                               'SELECT e
                                 FROM ODRAdminBundle:'.$typeclass.' AS e
                                 WHERE e.dataRecord = :datarecord AND e.dataField = :datafield ';
                             if ($typeclass == 'Image')
@@ -2774,24 +2702,114 @@ print_r($new_mapping);
                             $query_str .= 'AND e.deletedAt IS NULL';
 
                             $query = $em->createQuery($query_str)->setParameters( array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()) );
-                            $results = $query->getArrayResult();
+                            $results = $query->getResult();
 
-                            foreach ($results as $tmp => $result)
-                                $already_uploaded_files[] = $result['originalFileName'];
+                            foreach ($results as $tmp => $file)
+                                $existing_files[ $file->getOriginalFileName() ] = $file;    // TODO - duplicate original filenames in datafield?
 
-                            $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.') '."\n";
 
-                            $filenames = explode( $column_delimiters[$column_num], $column_data );
-                            foreach ($filenames as $filename) {
-                                // TODO - ability to replace existing files?
-                                // If the file doesn't already exist in the datafield, upload it
-                                if ( !in_array($filename, $already_uploaded_files) ) {
-                                    parent::finishUpload($em, $filepath, $filename, $user->getId(), $drf->getId());
+                            // ----------------------------------------
+                            // For each file/image listed in the csv file...
+                            $csv_filenames = explode( $column_delimiters[$column_num], $column_data );
+                            foreach ($csv_filenames as $csv_filename) {
+                                // ...there are three possibilities...
+                                if ( !isset($existing_files[$csv_filename]) ) {
+                                    // ...need to add a new file/image
+                                    parent::finishUpload($em, $storage_filepath, $csv_filename, $user->getId(), $drf->getId());
 
-                                    $status .= '      ...uploaded new '.$typeclass.' ("'.$filename.'")'."\n";
+                                    $status .= '      ...uploaded new '.$typeclass.' ("'.$csv_filename.'")'."\n";
+                                }
+                                else if ( $existing_files[$csv_filename]->getOriginalChecksum() == md5_file($storage_filepath.'/'.$csv_filename) ) {
+                                    // ...the specified file/image is already in datafield
+                                    $status .= '      ...'.$typeclass.' ("'.$csv_filename.'") is an exact copy of existing version, skipping.'."\n";
+
+                                    // Delete the file/image from the server since it already officially exists
+                                    unlink($storage_filepath.'/'.$csv_filename);
+                                }
+                                else {
+                                    // ...need to "update" the existing file/image
+                                    $status .= '      ...'.$typeclass.' ("'.$csv_filename.'") is different than existing version, updating...';
+
+                                    // Determine the path to the current file/image
+                                    $my_obj = $existing_files[$csv_filename];
+                                    $local_filepath = dirname(__FILE__).'/../../../../web/uploads/files/File_';
+                                    if ($typeclass == 'Image')
+                                        $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_';
+                                    $local_filepath .= $my_obj->getId().'.'.$my_obj->getExt();
+
+                                    $handle = fopen($local_filepath, 'w');
+                                    if ($handle == false)
+                                        throw new \Exception('Could not write to '.$local_filepath);
+
+                                    // Update the current file/image with the new contents
+                                    $file_contents = file_get_contents($storage_filepath.'/'.$csv_filename);
+                                    fwrite($handle, $file_contents);
+                                    fclose($handle);
+
+                                    // Delete the uploaded file/image from the storage directory
+                                    unlink($storage_filepath.'/'.$csv_filename);
+                                    $status .= 'overwritten...';
+
+                                    // Update other properties of the file/image that got changed
+                                    $my_obj->setOriginalChecksum( md5($file_contents) );
+
+                                    if ($typeclass == 'Image') {
+                                        $sizes = getimagesize($local_filepath);
+                                        $my_obj->setImageWidth($sizes[0]);
+                                        $my_obj->setImageHeight($sizes[1]);
+                                    }
+
+                                    $em->persist($my_obj);
+                                    $em->flush();
+
+                                    if ($typeclass == 'Image') {
+                                        // Generate other sizes of image
+                                        parent::resizeImages($my_obj, $user);
+                                        $status .= 'rebuilt thumbnails...';
+                                    }
+
+                                    // Re-encrypt the file/image
+                                    parent::encryptObject($my_obj->getId(), $typeclass);
+                                    $status .= 'encrypted...'."\n";
+
+                                    // A decrypted version of the File/Image might still exist on the server...delete it here since all its properties have been saved
+                                    if ( file_exists($local_filepath) )
+                                        unlink($local_filepath);
                                 }
                             }
                         }
+
+                        // ----------------------------------------
+                        // Delete all files/images not listed in csv file if user selected that option
+                        $need_flush = false;
+                        if ( isset($synch_columns[$column_num]) && $synch_columns[$column_num] == 1) {
+
+                            // Grab all files/images (including thumbnails) uploaded to this datarecord/datafield
+                            $query = $em->createQuery(
+                               'SELECT e
+                                FROM ODRAdminBundle:'.$typeclass.' AS e
+                                WHERE e.dataRecord = :datarecord AND e.dataField = :datafield
+                                AND e.deletedAt IS NULL'
+                            )->setParameters( array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()) );
+                            $results = $query->getResult();
+
+                            foreach ($results as $tmp => $file) {
+                                $original_filename = $file->getOriginalFileName();
+
+                                if ( !in_array($original_filename, $csv_filenames) ) {
+                                    if ($typeclass == 'File' || $file->getOriginal() == 1)
+                                        $status .= '      ...'.$typeclass.' ("'.$original_filename.'") not listed in csv file, deleting...'."\n";
+
+                                    // Silently delete thumbnails
+
+                                    $em->remove($file);
+                                    $need_flush = true;
+                                }
+                            }
+                        }
+
+                        if ($need_flush)
+                            $em->flush();
                     }
                     else if ($typeclass == 'IntegerValue') {
                         // Grab repository for entity
@@ -3094,11 +3112,11 @@ print_r($new_mapping);
             // Locate "local" and "remote" datarecords
             $local_external_id_field = $parent_datatype->getExternalIdField();
             $local_external_id = trim( $line[$parent_external_id_column] );
-            $local_datarecord = self::getDatarecordByExternalId($em, $local_external_id_field->getId(), $local_external_id);
+            $local_datarecord = parent::getDatarecordByExternalId($em, $local_external_id_field->getId(), $local_external_id);
 
             $remote_external_id_field = $datatype->getExternalIdField();
             $remote_external_id = trim( $line[$remote_external_id_column] );
-            $remote_datarecord = self::getDatarecordByExternalId($em, $remote_external_id_field->getId(), $remote_external_id);
+            $remote_datarecord = parent::getDatarecordByExternalId($em, $remote_external_id_field->getId(), $remote_external_id);
 
 
             // ----------------------------------------

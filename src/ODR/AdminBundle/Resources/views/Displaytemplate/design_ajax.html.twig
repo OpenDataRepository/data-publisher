@@ -913,7 +913,7 @@ function SaveThemeDatafieldProperty(theme_datafield_id) {
 
     var url = '{{ path('odr_design_save_theme_datafield', {'theme_datafield_id': 0}) }}';
     url = url.substring(0, url.length-1);
-    url += id;
+    url += theme_datafield_id;
 
     var datafield = $("#ThemeDatafieldPropertiesForm_" + theme_datafield_id).next().attr('id').split(/_/);
     var datafield_id = datafield[1];
@@ -2051,66 +2051,6 @@ function AddOption(datafield_id) {
 
                 // Reload the datafield to get the new radio option
                 ReloadDatafield(datafield_id);
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
-
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
-
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-}
-
-function ImportRadioOption(datafield_id) {
-    var url = '{{ path('odr_xsd_generate_radiooption', { 'datafield_id': 0 }) }}';
-    url = url.substring(0,(url.length - 1));
-    url += datafield_id;
-
-//alert(url);
-//return;
-
-    $.ajax({
-        cache: false,
-        type: 'GET',
-        url: url,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                alert('schema built, beginning import process...');
-
-                var url = '{{ path('odr_xml_import', { 'type': 'datafield', 'id': 0 } ) }}';
-                url = url.substring(0,(url.length - 1));
-                url += datafield_id;
-
-//alert(url);
-//return;
-                $.ajax({
-                    cache: false,
-                    type: 'GET',
-                    url: url,
-                    dataType: dataType,
-                });
-/*
-                // Refresh right slideout
-                $("#Field_" + datafield_id + "_radio_options").trigger('click');
-
-                // Reload the datafield to get the new radio option
-                ReloadDatafield(datafield_id);
-*/
             }
             else {
                 // An error has occurred.

@@ -51,39 +51,39 @@
 
         var table = $("#TextResults").dataTable({
 
-            columns: [{{ column_names | raw }} {% if can_edit_datarecord %}{"title":"","searchable":false,"orderable":false}{% endif %}], {# column_names|raw already has trailing comma #}
-            order: [[1, 'asc']],
-            searching: false,
-            pageLength: {{ page_length }},
-            autoWidth: false,
+            "columns": [{{ column_names | raw }} {% if can_edit_datarecord %}{"title":"","searchable":false,"orderable":false}{% endif %}], {# column_names|raw already has trailing comma #}
+            "order": [[1, 'asc']],
+            "searching": false,
+            "pageLength": {{ page_length }},
+            "autoWidth": false,
 
             // https://datatables.net/manual/server-side
-            processing: true,   // only displays a little "processing..." blurb
-            serverSide: true,
+            "processing": true,   // only displays a little "processing..." blurb
+            "serverSide": true,
 
-            stateSave: true,
-            stateSaveCallback: function(settings, data) {
+            "stateSave": true,
+            "stateSaveCallback": function(settings, data) {
                 // stateSaveParams apparently doesn't let you insert new data to send to the server...have to do it here
                 data.odr_tab_id = window.sessionStorage.getItem('odr_tab_id');
 
                 $.ajax({
-                    url: "{{ path('odr_datatables_state_save') }}",
-                    data: data,
-                    dataType: "json",
-                    type: "POST",
+                    "url": "{{ path('odr_datatables_state_save') }}",
+                    "data": data,
+                    "dataType": "json",
+                    "type": "POST"
                 });
             },
-            stateLoadCallback: function(settings) {
+            "stateLoadCallback": function(settings) {
                 var state;
                 var data = {odr_tab_id: window.sessionStorage.getItem('odr_tab_id')};
 
                 $.ajax({
-                    url: "{{ path('odr_datatables_state_load') }}",
-                    data: data,
-                    async: false,
-                    dataType: "json",
-                    type: "POST",
-                    success: function(json) {
+                    "url": "{{ path('odr_datatables_state_load') }}",
+                    "data": data,
+                    "async": false,
+                    "dataType": "json",
+                    "type": "POST",
+                    "success": function(json) {
                         // Symfony properly quotes everything in the JSON return, but DataTables state loading will break if some of the properties are strings...
                         // TODO - change the php function to fix these before returning the json to this callback?
                         if ( json.start !== undefined) {
@@ -107,20 +107,24 @@
                 return state;
             },
 
-            ajax: {
-                url: "{{ path('odr_datatables_row_request') }}",
-                type: "POST",
-                data: {
-                    'datatype_id': {{ datatype.id }},
-                    'search_key': "{{ search_key }}",
-                    'odr_tab_id': window.sessionStorage.getItem('odr_tab_id'),
-                },
+            "ajax": {
+                "url": "{{ path('odr_datatables_row_request') }}",
+                "type": "POST",
+                "data": {
+                    "datatype_id": {{ datatype.id }},
+                    "search_key": "{{ search_key }}",
+                    "odr_tab_id": window.sessionStorage.getItem('odr_tab_id'),
+                }
             },
 
-            createdRow: function( row, data, index ) {
+            "createdRow": function( row, data, index ) {
                 $(row).attr('onclick', 'loadDataRecord(' + data[0] + ');');
                 $(row).addClass('Pointer DataRecord_' + data[0]);
             },
+
+            "language": {
+                "emptyTable": "No Datarecords found"
+            }
 
         });
 

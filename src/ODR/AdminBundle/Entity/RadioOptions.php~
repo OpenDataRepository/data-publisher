@@ -35,6 +35,11 @@ class RadioOptions
     private $optionName;
 
     /**
+     * @var string
+     */
+    private $xml_optionName;
+
+    /**
      * @var integer
      */
     private $displayOrder;
@@ -151,6 +156,39 @@ class RadioOptions
     public function getOptionName()
     {
         return $this->optionName;
+    }
+
+    /**
+     * Set xml_optionName
+     *
+     * @param string $xmlOptionName
+     * @return RadioOptions
+     */
+    public function setXmlOptionName($xmlOptionName)
+    {
+        $this->xml_optionName = $xmlOptionName;
+
+        return $this;
+    }
+
+    /**
+     * Get xml_optionName
+     *
+     * @return string
+     */
+    public function getXmlOptionName()
+    {
+        if ($this->xml_optionName !== '') {
+            // Use whatever is specified for this radio option's XML name if it exists...
+            return $this->xml_optionName;
+        }
+        else {
+            // ...otherwise, perform character substitutions on the radio option's name that should work in most cases
+            $searches = array(" ", "!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "/", ":", ";", "<", "=", ">", "?", "@", "[", "\\", "]", "^", "`", "{", "|", "}", "~");
+            $replacements = array("_", "");
+
+            return str_replace($searches, $replacements, $this->optionName);
+        }
     }
 
     /**
@@ -414,18 +452,5 @@ class RadioOptions
     public function getUpdatedBy()
     {
         return $this->updatedBy;
-    }
-
-    /**
-     * Get XMLOptionName
-     *
-     * @return string
-     */
-    public function getXMLOptionName()
-    {
-        $search = array(" ", "\'", "\"", "<", ">", "&", "?", "(", ")");
-        $replacements = array("_", "", "", "&lt;", "&gt;", "&amp;", "", "", "");
-
-        return str_replace($search, $replacements, $this->optionName);
     }
 }

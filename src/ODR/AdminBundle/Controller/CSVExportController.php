@@ -22,6 +22,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 // CSV Reader
 use Ddeboer\DataImport\Reader;
 use Ddeboer\DataImport\Writer;
@@ -88,7 +89,7 @@ class CSVExportController extends ODRCustomController
                 $datarecord_list = $data['datarecord_list'];
 
                 // If there is no tab id for some reason, or the user is attempting to view a datarecord from a search that returned no results...
-                if ( $odr_tab_id === '' || ($encoded_search_key !== '' && $datarecord_list === '') ) {
+                if ( $odr_tab_id === '' || $data['error'] == true || ($encoded_search_key !== '' && $datarecord_list === '') ) {
                     // ...get the search controller to redirect to "no results found" page
                     $search_controller = $this->get('odr_search_controller', $request);
                     return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
@@ -701,6 +702,11 @@ print_r($line);
 
             // Open the indicated file
             $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/csv_export/';
+
+            // Ensure directory exists
+            if ( !file_exists($csv_export_path) )
+                mkdir( $csv_export_path );
+
             $filename = 'f_'.$random_key.'.csv';
             $handle = fopen($csv_export_path.'tmp/'.$filename, 'a');
             if ($handle !== false) {
@@ -1010,13 +1016,14 @@ print_r($line);
      *          
      * @return Response TODO
      */
-    public function downloadCSVAction($user_id, $tracked_job_id, Request $request) {
+    public function downloadCSVAction($user_id, $tracked_job_id, Request $request)
+    {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = ''; 
             
-        $response = new Response();
+        $response = new StreamedResponse();
         
         try {
             // Grab necessary objects
@@ -1058,12 +1065,17 @@ print_r($line);
                 $response->headers->set('Content-Length', filesize($csv_export_path.$filename));
                 $response->headers->set('Content-Disposition', 'attachment; filename="'.$filename.'";');
     
-                $response->sendHeaders();
+//                $response->sendHeaders();
 
-                $content = file_get_contents($csv_export_path.$filename);   // using file_get_contents() because apparently readfile() tacks on # of bytes read at end of file for firefox
-                $response->setContent($content);
-
-                fclose($handle);
+                // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
+                $response->setCallback(function() use ($handle) {
+                    while ( !feof($handle) ) {
+                        $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
+                        echo $buffer;
+                        flush();
+                    }
+                    fclose($handle);
+                });
             }
             else {
                 throw new \Exception('Could not open requested file');

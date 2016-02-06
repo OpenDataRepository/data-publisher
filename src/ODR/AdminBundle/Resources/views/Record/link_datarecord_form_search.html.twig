@@ -65,23 +65,25 @@
             var reload_page = false;
             var original_num_columns = {{ num_columns }};
 
-            // If number of columns is different from what's expected, reload the page
-            if ( json.data[0].length !== original_num_columns )
-                reload_page = true;
+            if ( json.data[0] != undefined ) {
+                // If number of columns is different from what's expected, reload the page
+                if (json.data[0].length != original_num_columns)
+                    reload_page = true;
 
-            // If the json data has fewer columns than expected, splice in enough columns so datatables doesn't throw an alert before reloading the page
-            if ( json.data[0].length < original_num_columns ) {
-                for (var i = 0; i < json.data.length; i++) {
-                    for (var j = json.data[i].length; j < original_num_columns; j++)
-                        json.data[i].push('');
+                // If the json data has fewer columns than expected, splice in enough columns so datatables doesn't throw an alert before reloading the page
+                if (json.data[0].length < original_num_columns) {
+                    for (var i = 0; i < json.data.length; i++) {
+                        for (var j = json.data[i].length; j < original_num_columns; j++)
+                            json.data[i].push('');
+                    }
                 }
-            }
 
-            // Reload the page if necessary
-            // TODO - better notification
-            if (reload_page)
-                alert('A designer user has changed the number of columns for this table...please reset and redo your search');
+                // Reload the page if necessary
+                // TODO - better notification
+                if (reload_page)
+                    alert('A designer user has changed the number of columns for this table...please reset and redo your search');
 //                window.location.reload();
+            }
         });
 
 

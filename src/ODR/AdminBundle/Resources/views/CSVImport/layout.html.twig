@@ -44,8 +44,8 @@
 
                     <td>
                         <input type="checkbox" id="column_{{ column_id }}_unique" class="unique_checkbox" name="unique_columns[{{ column_id }}]" value="1" disabled rel="{{ column_id }}" />
-                        <span class="inline_warning" title="{% if parent_datatype == null %}This column of the CSV file must NOT contain any duplicates{% else %}TODO{% endif %}">
-                            &nbsp;<i class="fa fa-lg fa-question-circle Pointer"></i>
+                        <span class="inline_warning" title="{% if parent_datatype == null %}The validation process will check for and warn of duplicate values in this column of the CSV file{% else %}TODO{% endif %}">
+                            &nbsp;<i class="fa fa-lg fa-question-circle" style="cursor:help;"></i>
                         </span>
                     </td>
 
@@ -117,12 +117,12 @@
 
 {% if not linked_importing %}
 
-    {% for df in datafields %}{% if df.getisunique == 1 %}
+{% for df in datafields %}{% if df.getisunique == 1 %}
         unique_datafields.push("{{ df.id }}");
-    {% endif %}{% endfor %}
-    {% for ft in fieldtypes %}{% if ft.getcanbeunique == 1 %}
+{% endif %}{% endfor %}
+{% for ft in fieldtypes %}{% if ft.getcanbeunique == 1 %}
         unique_fieldtypes.push("{{ ft.id }}");
-    {% endif %}{% endfor %}
+{% endif %}{% endfor %}
 
         $(".inline_warning").hide();
 
@@ -218,8 +218,16 @@
                 preventImport();
         });
 
+        $(".secondary_delimiter").unbind('change');
+        $(".secondary_delimiter").click(function() {
+            if (block_changes)
+                preventImport();
+        });
+
+
 {% if presets != null %}
 
+        // Initialize the page to display the correct settings for this import
     {% for column_id, target in presets.datafield_mapping %}
         $("#import_checkbox_{{ column_id }}").trigger('click');
         $("#column_{{ column_id }}").val("{{ target }}");
@@ -227,10 +235,12 @@
         $("#column_{{ column_id }}_fieldtype").attr('disabled', 'disabled');    // don't want this fieldtype selector to be enabled
         {% endif %}
     {% endfor %}
+
     {% for column_id, target in presets.fieldtype_mapping %}
         $("#column_{{ column_id }}_fieldtype").val("{{ target }}");
         $("#column_{{ column_id }}_fieldtype").trigger('change');
     {% endfor %}
+
     {% for column_id, target in presets.column_delimiters %}
 //        $("#column_{{ column_id }}_delimiter").removeAttr('disabled');
         $("#column_{{ column_id }}_delimiter").val("{{ target }}");
@@ -241,6 +251,10 @@
             $("#column_{{ column_id }}_unique").trigger('click');
             setUniqueWarnings("{{ column_id }}", unique_datafields, unique_fieldtypes);
         }
+    {% endfor %}
+
+    {% for column_id, tmp in presets.synch_columns %}
+        $("#unlisted_{{ column_id }}_checkbox").attr('checked', 'checked');
     {% endfor %}
 
         // Ensure header warnings are accurate
@@ -261,20 +275,33 @@
 {% if not linked_importing %}
     function updateDatafieldMeta(column_id) {
 
-        var fieldtype = "#column_" + column_id + "_fieldtype";
+        var datafield_id = $("#column_" + column_id).val();
+        var fieldtype_id = $("#column_" + column_id + "_fieldtype").val();
+        var meta_column = "#column_" + column_id + "_meta";
 
         // Display some metadata about the selected fieldtype if needed
-        if ( $(fieldtype).val()  == '5' )
-            $("#column_" + column_id + "_meta").html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;No character limit');
-        else if ( $(fieldtype).val()  == '6' )
-            $("#column_" + column_id + "_meta").html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;255 character limit');
-        else if ( $(fieldtype).val()  == '7' )
-            $("#column_" + column_id + "_meta").html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;64 character limit');
-        else if ( $(fieldtype).val()  == '9' )
-            $("#column_" + column_id + "_meta").html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;32 character limit');
+        // TODO - naming fieldtypes by number
+        if ( (fieldtype_id == '2' || fieldtype_id == '3') && datafield_id != 'new') {
+            $(meta_column).html('<span id="unlisted_' + column_id + '_note" class="Pointer"><input id="unlisted_' + column_id + '_checkbox" class="synch_checkbox" type="checkbox" name="synch_columns[' + column_id + ']" value="1" />&nbsp;Delete files/images not listed in CSV File</span>');
+            $('#unlisted_' + column_id + '_note').attr('title', "The import process will always attempt to upload all files/images listed in the CSV file to this datafield, replacing the contents of any file/image that has already been uploaded.\nIf this option is checked, the import process will also delete any files/images in this datafield that are not listed in the CSV file.");
+
+            if (block_changes) {
+                $(".synch_checkbox").unbind('click');
+                $(".synch_checkbox").click(function () {
+                    preventImport();
+                });
+            }
+        }
+        else if (fieldtype_id == '5')
+            $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;No character limit');
+        else if (fieldtype_id == '6')
+            $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;255 character limit');
+        else if (fieldtype_id == '7')
+            $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;64 character limit');
+        else if (fieldtype_id == '9')
+            $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;32 character limit');
         else
             $("#column_" + column_id + "_meta").html('');
-
     }
 
     function setUniqueWarnings(column_id, unique_datafields) {

@@ -44,6 +44,14 @@ ODR\AdminBundle\Entity\DataType:
             column: description
             gedmo:
                 - versioned
+        xml_shortName:
+            type: string
+            length: 32
+            fixed: false
+            nullable: false
+            column: xml_short_name
+            gedmo:
+                - versioned
 
         useShortResults:
             type: boolean

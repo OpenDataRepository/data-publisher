@@ -82,6 +82,11 @@ class File
     private $original_checksum;
 
     /**
+     * @var integer
+     */
+    private $filesize;
+
+    /**
      * @var \Doctrine\Common\Collections\Collection
      */
     private $FileChecksum;
@@ -398,6 +403,29 @@ class File
     public function getOriginalChecksum()
     {
         return $this->original_checksum;
+    }
+
+    /**
+     * Set filesize
+     *
+     * @param integer $filesize
+     * @return File
+     */
+    public function setFilesize($filesize)
+    {
+        $this->filesize = $filesize;
+
+        return $this;
+    }
+
+    /**
+     * Get filesize
+     *
+     * @return integer
+     */
+    public function getFilesize()
+    {
+        return $this->filesize;
     }
 
     /**
