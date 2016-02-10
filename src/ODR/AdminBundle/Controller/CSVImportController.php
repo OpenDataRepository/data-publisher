@@ -2689,7 +2689,8 @@ print_r($new_mapping);
                             }
 
                             // Store the path to the user's upload area...
-                            $storage_filepath = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/storage';
+                            $path_prefix = dirname(__FILE__).'/../../../../web/';
+                            $storage_filepath = 'uploads/csv/user_'.$user->getId().'/storage';
 
                             // Grab a list of the files/images already uploaded to this datafield
                             $existing_files = array();
@@ -2719,12 +2720,12 @@ print_r($new_mapping);
 
                                     $status .= '      ...uploaded new '.$typeclass.' ("'.$csv_filename.'")'."\n";
                                 }
-                                else if ( $existing_files[$csv_filename]->getOriginalChecksum() == md5_file($storage_filepath.'/'.$csv_filename) ) {
+                                else if ( $existing_files[$csv_filename]->getOriginalChecksum() == md5_file($path_prefix.$storage_filepath.'/'.$csv_filename) ) {
                                     // ...the specified file/image is already in datafield
                                     $status .= '      ...'.$typeclass.' ("'.$csv_filename.'") is an exact copy of existing version, skipping.'."\n";
 
                                     // Delete the file/image from the server since it already officially exists
-                                    unlink($storage_filepath.'/'.$csv_filename);
+                                    unlink($path_prefix.$storage_filepath.'/'.$csv_filename);
                                 }
                                 else {
                                     // ...need to "update" the existing file/image
@@ -2732,9 +2733,9 @@ print_r($new_mapping);
 
                                     // Determine the path to the current file/image
                                     $my_obj = $existing_files[$csv_filename];
-                                    $local_filepath = dirname(__FILE__).'/../../../../web/uploads/files/File_';
+                                    $local_filepath = $path_prefix.'uploads/files/File_';
                                     if ($typeclass == 'Image')
-                                        $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_';
+                                        $local_filepath = $path_prefix.'uploads/images/Image_';
                                     $local_filepath .= $my_obj->getId().'.'.$my_obj->getExt();
 
                                     $handle = fopen($local_filepath, 'w');
@@ -2742,12 +2743,12 @@ print_r($new_mapping);
                                         throw new \Exception('Could not write to '.$local_filepath);
 
                                     // Update the current file/image with the new contents
-                                    $file_contents = file_get_contents($storage_filepath.'/'.$csv_filename);
+                                    $file_contents = file_get_contents($path_prefix.$storage_filepath.'/'.$csv_filename);
                                     fwrite($handle, $file_contents);
                                     fclose($handle);
 
                                     // Delete the uploaded file/image from the storage directory
-                                    unlink($storage_filepath.'/'.$csv_filename);
+                                    unlink($path_prefix.$storage_filepath.'/'.$csv_filename);
                                     $status .= 'overwritten...';
 
                                     // Update other properties of the file/image that got changed

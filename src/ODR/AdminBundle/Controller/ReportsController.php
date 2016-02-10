@@ -843,9 +843,8 @@ print_r($grandparent_list);
             if ($datatype == null)
                 return parent::deletedEntityError('DataType');
 
-            // Files that have been encrypted shouldn't be checked for encryption progress
-            if ($file->getOriginalChecksum() !== '' || $file->getFilesize() == '')
-                return parent::permissionDeniedError();
+            if ($file->getFilesize() == '')
+                throw new \Exception('filesize not set');
 
             // --------------------
             // Determine user privileges
@@ -857,19 +856,21 @@ print_r($grandparent_list);
                 return parent::permissionDeniedError();
             // --------------------
 
-            $progress = array('current_value' => 0, 'max_value' => 100);
+            $progress = array('current_value' => 100, 'max_value' => 100);
 
-            // TODO - load from config file somehow?
-            $crypto_dir = dirname(__FILE__).'/../../../../app/crypto_dir/File_'.$file_id;
-            $chunk_size = 2 * 1024 * 1024;  // 2Mb in bytes
+            if ($file->getOriginalChecksum() === '') {
+                // TODO - load from config file somehow?
+                $crypto_dir = dirname(__FILE__).'/../../../../app/crypto_dir/File_'.$file_id;
+                $chunk_size = 2 * 1024 * 1024;  // 2Mb in bytes
 
-            $num_chunks = intval( floatval($file->getFilesize()) / floatval( $chunk_size ) ) + 1;
+                $num_chunks = intval(floatval($file->getFilesize()) / floatval($chunk_size)) + 1;
 
-            // Going to have to use scandir() to count how many chunks have already been encrypted
-            if ( file_exists($crypto_dir) ) {
-                $files = scandir($crypto_dir);
-                // TODO - assumes linux machine
-                $progress['current_value'] = intval( (floatval(count($files)-2) / floatval($num_chunks)) * 100 );
+                // Going to have to use scandir() to count how many chunks have already been encrypted
+                if (file_exists($crypto_dir)) {
+                    $files = scandir($crypto_dir);
+                    // TODO - assumes linux machine
+                    $progress['current_value'] = intval((floatval(count($files) - 2) / floatval($num_chunks)) * 100);
+                }
             }
 
             $return['d'] = $progress;

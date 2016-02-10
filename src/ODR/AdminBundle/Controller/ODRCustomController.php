@@ -2012,12 +2012,13 @@ $save_permissions = false;
         $typeclass = $drf->getDataField()->getFieldType()->getTypeClass();
 
         // Get Symfony to guess the extension of the file via mimetype...a potential wrong extension shouldn't matter since Results::filedownloadAction() renames the file during downloads anyways
-        $uploaded_file = new SymfonyFile($filepath.'/'.$original_filename);
+        $path_prefix = dirname(__FILE__).'/../../../../web/';
+        $uploaded_file = new SymfonyFile($path_prefix.$filepath.'/'.$original_filename);
         $extension = $uploaded_file->guessExtension();
 
         // ----------------------------------------
         // Determine where the file should ultimately be moved to
-        $destination_path = dirname(__FILE__).'/../../../../web/uploads/';
+        $destination_path = $path_prefix.'uploads/';
         $my_obj = null;
         if ($typeclass == 'File') {
             $my_obj = new File();
@@ -2066,6 +2067,7 @@ $save_permissions = false;
         // Save changes
         $em->persist($my_obj);
         $em->flush();
+        $em->refresh($my_obj);
 
 
         // ----------------------------------------
@@ -2077,7 +2079,7 @@ $save_permissions = false;
 
             // Move image to correct spot
             $filename = 'Image_'.$image_id.'.'.$my_obj->getExt();
-            rename($filepath.'/'.$original_filename, $destination_path.'/'.$filename);
+            rename($path_prefix.$filepath.'/'.$original_filename, $destination_path.'/'.$filename);
 
             $local_filename = $my_obj->getUploadDir().'/'.$filename;
             $my_obj->setLocalFileName($local_filename);
@@ -2098,6 +2100,10 @@ $save_permissions = false;
 
             // A decrypted version of the Image still exists on the server...delete it
             unlink($filepath);
+
+            // Save changes again
+            $em->persist($my_obj);
+            $em->flush();
         }
         else if ($typeclass == 'File') {
             // Generate local filename
@@ -2108,11 +2114,18 @@ $save_permissions = false;
             //rename($filepath.'/'.$original_filename, $destination_path.'/'.$filename);
 
             //$local_filename = $my_obj->getUploadDir().'/'.$filename;
-            $local_filename = realpath( dirname(__FILE__).'/../../../../web/'.$my_obj->getUploadDir().'/chunks/user_'.$user_id.'/completed/'.$original_filename );
-            $my_obj->setLocalFileName($local_filename);
+            $local_filename = realpath( $path_prefix.$filepath.'/'.$original_filename );
+            //dirname(__FILE__).'/../../../../web/'.$my_obj->getUploadDir().'/chunks/user_'.$user_id.'/completed/'.$original_filename );
+
+            $my_obj->setLocalFileName($filepath.'/'.$original_filename);
 
             clearstatcache(true, $local_filename);
             $my_obj->setFilesize( filesize($local_filename) );
+
+            // Save changes again before encryption process takes over
+            $em->persist($my_obj);
+            $em->flush();
+            $em->refresh($my_obj);
 
             // Encrypt the file before it's used
             //self::encryptObject($file_id, 'file');
@@ -2151,14 +2164,6 @@ $save_permissions = false;
             $delay = 1;
             $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
         }
-
-        // Save changes again
-        $em->persist($my_obj);
-        $em->flush();
-
-
-        // A decrypted version of the File/Image still exists on the server...delete it here since all its properties have been saved
-        //unlink($file_path);
 
         return $my_obj;
     }
