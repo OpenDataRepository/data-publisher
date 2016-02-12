@@ -809,10 +809,10 @@ $ret .= '  Set current to '.$count."\n";
                 $base_obj->setLocalFileName($destination_filename);
 
                 // Encryption of a given file/image is simple...
-                self::encryptObject($object_id, $object_type);
+                parent::encryptObject($object_id, $object_type);
 
                 // Calculate/store the checksum of the file to indicate the encryption process is complete
-                $filepath = self::decryptObject($object_id, $object_type);
+                $filepath = parent::decryptObject($object_id, $object_type);
                 $original_checksum = md5_file($filepath);
                 $base_obj->setOriginalChecksum($original_checksum);
 

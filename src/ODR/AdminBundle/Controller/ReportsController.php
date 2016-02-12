@@ -858,7 +858,7 @@ print_r($grandparent_list);
 
             $progress = array('current_value' => 100, 'max_value' => 100);
 
-            if ($file->getOriginalChecksum() === '') {
+            if ($file->getOriginalChecksum() == null || $file->getOriginalChecksum() == '') {
                 // TODO - load from config file somehow?
                 $crypto_dir = dirname(__FILE__).'/../../../../app/crypto_dir/File_'.$file_id;
                 $chunk_size = 2 * 1024 * 1024;  // 2Mb in bytes
@@ -870,6 +870,10 @@ print_r($grandparent_list);
                     $files = scandir($crypto_dir);
                     // TODO - assumes linux machine
                     $progress['current_value'] = intval((floatval(count($files) - 2) / floatval($num_chunks)) * 100);
+                }
+                else {
+                    // Encrypted directory doesn't exist yet, so no progress has been made
+                    $progress['current_value'] = 0;
                 }
             }
 
