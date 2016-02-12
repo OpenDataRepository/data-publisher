@@ -766,11 +766,10 @@ print_r($grandparent_list);
 
             // Shouldn't really be necessary if the file is public, but including anyways for completeness/later use
             if ( $file->isPublic() ) {
-                $absolute_path = realpath( $file->getUploadDir().'/'.$file->getLocalFileName() );
+                $absolute_path = realpath( dirname(__FILE__).'/../../../../web/'.$file->getLocalFileName() );
 
                 if (!$absolute_path) {
-                    // File doesn't exist for some reason...
-                    // TODO - decrypt it?
+                    // File doesn't exist, so no progress yet
                 }
                 else {
                     // Grab current filesize of file
@@ -787,7 +786,7 @@ print_r($grandparent_list);
                 $absolute_path = realpath( dirname(__FILE__).'/../../../../web/uploads/files/'.$temp_filename );
 
                 if (!$absolute_path) {
-                    // File doesn't exist
+                    // File doesn't exist, so no progress yet
                 }
                 else {
                     // Grab current filesize of file

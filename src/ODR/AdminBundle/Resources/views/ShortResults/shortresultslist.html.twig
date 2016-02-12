@@ -90,7 +90,8 @@
 
             // Prevent the click handler for <tr> elements from firing if a file download href is clicked
             var short_form = true;
-            handleFileDownload(event, file_id, href, short_form);
+            var can_cancel = true;
+            handleFileDownload(event, file_id, href, short_form, can_cancel);
         });
 
         // Hide empty fieldareas

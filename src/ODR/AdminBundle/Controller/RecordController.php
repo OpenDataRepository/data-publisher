@@ -727,9 +727,15 @@ class RecordController extends ODRCustomController
 
 
             // If the file is public, make it non-public...if file is non-public, make it public
+            $public_date = null;
             if ( $file->isPublic() ) {
                 // Make the record non-public
-                $file->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
+                $public_date = new \DateTime('2200-01-01 00:00:00');
+                $file->setPublicDate($public_date);
+
+                $file->setUpdatedBy($user);
+                $em->persist($file);
+                $em->flush();
 
                 // Delete the decrypted version of the file, if it exists
                 $file_upload_path = dirname(__FILE__).'/../../../../web/uploads/files/';
@@ -741,21 +747,22 @@ class RecordController extends ODRCustomController
             }
             else {
                 // Make the record public
-                $file->setPublicDate(new \DateTime());
+                $public_date = new \DateTime();
+                $file->setPublicDate($public_date);
+
+                $file->setUpdatedBy($user);
+                $em->persist($file);
+                $em->flush();
 
                 // Immediately decrypt the file
                 parent::decryptObject($file->getId(), 'file');
             }
 
-            $file->setUpdatedBy($user);
-            $em->persist($file);
-            $em->flush();
-
             // Need to rebuild this particular datafield's html to reflect the changes...
             $return['t'] = 'html';
             $return['d'] = array(
-                'datarecord' => $datarecord->getId(),
-                'datafield' => $datafield->getId()
+                'is_public' => $file->isPublic(),
+                'public_date' => $public_date->format('Y-m-d'),
             );
 
             // Determine whether ShortResults needs a recache
