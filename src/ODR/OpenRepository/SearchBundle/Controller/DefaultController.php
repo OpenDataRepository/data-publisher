@@ -108,18 +108,21 @@ class DefaultController extends Controller
     {
         // Grab all entities out of the 
         $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, descendant.publicDate AS public_date, dt.is_link AS is_link
+           'SELECT ancestor.id AS ancestor_id, ancestor.shortName AS ancestor_name, descendant.id AS descendant_id, descendant.shortName AS descendant_name, descendant.publicDate AS public_date, dt.is_link AS is_link
             FROM ODRAdminBundle:DataTree AS dt
             JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
             WHERE dt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL');
         $results = $query->getArrayResult();
 
+        $datatype_names = array();
         $descendant_of = array();
         $links = array();
         foreach ($results as $num => $result) {
             $ancestor_id = $result['ancestor_id'];
+            $ancestor_name = $result['ancestor_name'];
             $descendant_id = $result['descendant_id'];
+            $descendant_name = $result['descendant_name'];
             $public_date = $result['public_date'];
             $is_link = $result['is_link'];
 
@@ -130,21 +133,29 @@ class DefaultController extends Controller
 
             if ($is_link == 0) {
                 // Save childtypes encountered
-                if ( !isset($descendant_of[$ancestor_id]) )
+                if ( !isset($descendant_of[$ancestor_id]) ) {
                     $descendant_of[$ancestor_id] = array();
+                    $datatype_names[$ancestor_id] = $ancestor_name;
+                }
 
                 // Only save this datatype if the user is allowed to view it
-                if ( $is_public || (isset($user_permissions[$descendant_id]) && isset($user_permissions[$descendant_id]['view'])) )
+                if ( $is_public || (isset($user_permissions[$descendant_id]) && isset($user_permissions[$descendant_id]['view'])) ) {
                     $descendant_of[$ancestor_id][] = $descendant_id;
+                    $datatype_names[$descendant_id] = $descendant_name;
+                }
             }
             else {
                 // Save datatype links encountered
-                if ( !isset($links[$ancestor_id]) )
+                if ( !isset($links[$ancestor_id]) ) {
                     $links[$ancestor_id] = array();
+                    $datatype_names[$ancestor_id] = $ancestor_name;
+                }
 
                 // Only save this datatype if the user is allowed to view it
-                if ( $is_public || (isset($user_permissions[$descendant_id]) && isset($user_permissions[$descendant_id]['view'])) )
+                if ( $is_public || (isset($user_permissions[$descendant_id]) && isset($user_permissions[$descendant_id]['view'])) ) {
                     $links[$ancestor_id][] = $descendant_id;
+                    $datatype_names[$descendant_id] = $descendant_name;
+                }
             }
         }
 
@@ -198,6 +209,7 @@ print '$links: '.print_r($links, true)."\n";
             'target_datatype' => $target_datatype_id,
             'child_datatypes' => $descendants,
             'linked_datatypes' => $linked_datatypes,
+            'datatype_names' => $datatype_names,
         );
 /*
 print '<pre>';
@@ -1444,19 +1456,19 @@ if ($debug) {
                 // Now, need to turn the metadata/datafield array into a list of datarecord ids
                 $has_result = false;
                 $datarecords = array();
-                foreach ($adv_results as $datafield_id => $data) {
-                    if ($data !== 'any') {
+                foreach ($adv_results as $datafield_id => $tmp) {
+                    if ($tmp !== 'any') {
                         $has_result = true;
                         // Due to this search being an implicit AND, if one of the datafields had no hits on the search term, everything fails
-                        if ( count($data) == 0 ) {
+                        if ( count($tmp) == 0 ) {
                             $datarecords = array();
                             break;
                         }
 
                         // Otherwise, flatten $data into a 2D array where $datarecords[$datafield_id] = <list of datarecords matching search term for $datafield_id>
                         $datarecord_list = array();
-                        foreach ($data as $key => $tmp)
-                            $datarecord_list[] = $tmp['id'];
+                        foreach ($tmp as $key => $data)
+                            $datarecord_list[] = $data['id'];
                         $datarecords[] = $datarecord_list;
                     }
                 }
@@ -1538,6 +1550,7 @@ if ($debug)
                 $datarecords = $odrcc->getSortedDatarecords($datatype);
             }
 
+print '$datarecords: '.$datarecords."\n";
 
             // --------------------------------------------------
             // Store the list of datarecord ids for later use
@@ -1550,6 +1563,8 @@ if ($debug)
 
             $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
 
+print '$cached_searches: '.print_r($cached_searches, true)."\n";
+exit();
             // Create pieces of the array if they don't exist
             if ($cached_searches == null)
                 $cached_searches = array();
@@ -1683,8 +1698,8 @@ $debug = false;
         // Different typeclasses need different queries...
         if ($typeclass == 'Radio') {
             // Build the native SQL query specifically for Radio datafields
-            $query = 
-               'SELECT grandparent.id
+            $query =
+               'SELECT grandparent.id AS id
                 FROM odr_data_record AS grandparent
                 INNER JOIN odr_data_record AS dr ON grandparent.id = dr.grandparent_id
                 '.$drf_join.'
@@ -1702,7 +1717,7 @@ $debug = false;
         else if ($typeclass == 'Image' || $typeclass == 'File') {
             // Build the native SQL query that will check for (non)existence of files/images in this datafield
             $query =
-               'SELECT grandparent.id
+               'SELECT grandparent.id AS id
                 FROM odr_data_record AS grandparent
                 INNER JOIN odr_data_record AS dr ON grandparent.id = dr.grandparent_id
                 '.$drf_join.'
@@ -1719,7 +1734,7 @@ $debug = false;
         else {
             // Build the native SQL query that will check content of any other datafields
             $query =
-               'SELECT grandparent.id
+               'SELECT grandparent.id AS id
                 FROM odr_data_record AS grandparent
                 INNER JOIN odr_data_record AS dr ON grandparent.id = dr.grandparent_id
                 '.$drf_join.'
