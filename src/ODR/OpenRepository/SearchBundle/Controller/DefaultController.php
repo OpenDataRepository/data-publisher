@@ -1550,7 +1550,8 @@ if ($debug)
                 $datarecords = $odrcc->getSortedDatarecords($datatype);
             }
 
-print '$datarecords: '.$datarecords."\n";
+if ($debug)
+    print '$datarecords: '.$datarecords."\n";
 
             // --------------------------------------------------
             // Store the list of datarecord ids for later use
@@ -1563,8 +1564,11 @@ print '$datarecords: '.$datarecords."\n";
 
             $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
 
-print '$cached_searches: '.print_r($cached_searches, true)."\n";
-exit();
+if ($debug) {
+    print '$cached_searches: '.print_r($cached_searches, true)."\n";
+    exit();
+}
+
             // Create pieces of the array if they don't exist
             if ($cached_searches == null)
                 $cached_searches = array();

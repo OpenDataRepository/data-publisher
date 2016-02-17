@@ -30,51 +30,30 @@
         </select>
     </fieldset>
 
-
-{#
     {% elseif field_typename == "File" %}
     <fieldset>
+        <label id="Label_{{ field.id }}" class="ODRFieldLabel pure-u-1" title="{{ field.description }}">{{ field.fieldname }}</label>
         <div class="pure-u-1">
-            <table class="ODRTable pure-u-1">
-                <thead class="pure-u-1">
-                    <tr class="pure-u-1">
-                        <th class="pure-u-1-24">&nbsp;</th>
-                        <th class="pure-u-20-24">{{ field.fieldname }}</th>
-                        <th class="pure-u-3-24">Options</th>
-                    </tr>
-                </thead>
-                <tbody class="pure-u-1">
-                    <tr class="pure-u-1">
-                        <td class="pure-u-1-24">&nbsp;</td>
-                        <td class="pure-u-20-24">file_name_here</td>
-                        <td class="pure-u-3-24">
-                            <i class="Cursor tooltip fa fa-globe fa-lg ODRPublicFile" title="Public since [YYYY-MM-DD]"></i>
-                            <i class="Cursor tooltip fa fa-calendar fa-lg" title="Uploaded [YYYY-MM-DD] by John Doe"></i>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="pure-u-1">
-            <div class="pure-u-1-24"></div>
-            <div class="pure-u-23-24">
-                <input disabled id="Input_{{ field.id }}" type="file" id="f6_file" name="f6_file"/>
-            </div>
+            <select id="SelectGroup_{{ field.id }}" class="ODRFile">
+                <option value="-1">Make all Files non-public</option>
+                <option value="0" selected>Don't change public status</option>
+                <option value="1">Make all Files public</option>
+            </select>
         </div>
     </fieldset>
-#}
-{#
+
     {% elseif field_typename == "Image" %}
     <fieldset>
         <label id="Label_{{ field.id }}" class="ODRFieldLabel pure-u-1" title="{{ field.description }}">{{ field.fieldname }}</label>
         <div class="pure-u-1">
-            <div class="pure-u-1">&nbsp;<i class="ODRDeleteImage Pointer fa fa-lg fa-trash-o" title="Delete Image"></i>&nbsp;<i class="PublicImage Pointer fa fa-lg fa-globe"></i>&nbsp;</div>
-            <div class="pure-u-1">
-                <img class="pure-img" src="/img/_demo/_tmb/1.jpg" />
-            </div>
+            <select id="SelectGroup_{{ field.id }}" class="ODRFile">
+                <option value="-1">Make all Images non-public</option>
+                <option value="0" selected>Don't change public status</option>
+                <option value="1">Make all Images public</option>
+            </select>
         </div>
     </fieldset>
-#}
+
     {% elseif field_typename == "Paragraph Text" %}
     <fieldset>
         <label id="Label_{{ field.id }}" for="Input_{{ field.id }}" class="ODRFieldLabel">{{ field.fieldname }}</label>

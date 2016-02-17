@@ -101,7 +101,7 @@ $(function() {
 
 function initPage() {
 
-    // Hide all TEDs without input fields
+    // Hide all theme elements without input fields
     $(".ODRThemeElement").each(function() {
         var found = false;
         $(this).find("input").each(function() {
@@ -122,7 +122,7 @@ function initPage() {
         // Apply dimensions of parent div to loading div
         $(this).css({"height": height, "line-height": height, "width": width});
 
-        $(this).attr('title', "This Datafield is marked as unique, and therefore can't be mass updated...multiple Datarecords would have the same value if that happened.");
+        $(this).attr('title', "This Datafield is marked as unique, and therefore can't be mass updated...multiple Datarecords would have the same value afterwards.");
     });
 
     $(".ODRDatePicker").datepicker({
@@ -142,10 +142,7 @@ function initPage() {
     $(".ODRDatePicker_clear").unbind('click');
     $(".ODRDatePicker_clear").click(function() {
         $(this).parent().parent().find(".ODRDatePicker").datepicker('setDate', null);
-//        var form_id = $(this).parent().parent().parent().parent().attr('id');
-//        SaveRecordData('#' + form_id, '');
     });
-
 }
 
 function doMassUpdate() {
@@ -181,6 +178,23 @@ function doMassUpdate() {
         }
     });
 
+    // Files/Images
+    $(".ODRFile").each(function() {
+        // Grab the ID of the field
+        var datafield_id_data = $(this).attr('id').split('_');
+        var datafield_id = datafield_id_data[1];
+
+        // Remove any value for this datafield currently stored in the form
+        if ( $("#Value_" + datafield_id) !== null )
+            $("#Value_" + datafield_id).remove();
+
+        // Save any value currently in this datafield
+        var val = $(this).val();
+        if (val !== '' && val !== '0') {
+            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            $("#massedit_form").append(element);
+        }
+    });
 
     // Single Selects
     $(".ODRSingleSelect").each(function() {
@@ -313,6 +327,8 @@ function doMassUpdate() {
 
     var data = $("#massedit_form").serialize();
     var url = $("#massedit_form").attr('action');
+
+//    console.log( $("#massedit_form") );
 //alert(url);
 //return;
 

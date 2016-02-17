@@ -7,14 +7,13 @@
 
     {% if datatype_tree.top_level == 0 %}
         {# current datatype is a child or linked datatype #}
-{#
         <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a id="Datatype_{{ datatype.id }}_ShortName">{{ datatype.shortname }}</a>
 
-            {% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {'datatype_tree': datatype_tree, 'datatype': datatype} %}
+            {#{% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {'datatype_tree': datatype_tree, 'datatype': datatype} %}#}
         </h3>
-#}
+
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datatype.id }}">
             {% include 'ODRAdminBundle:MassEdit:massedit_fieldarea.html.twig' with {'datatype_tree': datatype_tree, 'datafield_permissions': datafield_permissions} %}
         </div><!-- End of #FieldArea_{{ datatype.id }} -->
@@ -23,11 +22,11 @@
         {# current datatype is top-level #}
 {#
         {% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {'datatype_tree': datatype_tree, 'datatype': datatype} %}
-
         <div class="header">
             <h3 id="Datatype_{{ datatype.id }}_ShortName">{{ datatype.shortname }}</h3>
         </div>
 #}
+
         <div class="ODRFieldArea pure-u-1" id="FieldArea_{{ datatype.id }}">
             {% include 'ODRAdminBundle:MassEdit:massedit_fieldarea.html.twig' with {'datatype_tree': datatype_tree, 'datafield_permissions': datafield_permissions} %}
         </div><!-- End of #FieldArea_{{ datatype.id }} -->

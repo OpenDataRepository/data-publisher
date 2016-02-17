@@ -155,7 +155,8 @@ class MassEditController extends ODRCustomController
         $indent = 0;
         $is_link = 0;
         $top_level = 1;
-        $short_form = true;     // ?
+        $short_form = true;     // don't load/display child datatype information
+        //$short_form = false;
 
 $debug = true;
 $debug = false;
@@ -276,14 +277,11 @@ if ($debug)
                 if ( $df->getIsUnique() == 1 )
                     unset($datafields[$df_id]);
             }
-
 /*
 print '$datarecords: '.print_r($datarecords, true)."\n";
 print '$datafields: '.print_r($datafields, true)."\n";
 return;
 */
-
-
             // ----------------------------------------
             // If content of datafields was modified, get/create an entity to track the progress of this mass edit
             // Don't create a TrackedJob if this mass_edit just changes public status
@@ -299,7 +297,6 @@ return;
                 $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
                 $tracked_job_id = $tracked_job->getId();
             }
-
 
             // ----------------------------------------
             // Deal with datarecord public status first, if needed
@@ -533,13 +530,111 @@ $ret .= 'setting datafield '.$datafield->getId().' ('.$field_typename.') of data
                         $em->persist($entity);
                     }
                     else {
-$old_value = null;
-if ($entity->getValue() !== null)
-    $old_value = $entity->getValue();
+                        $old_value = null;
+                        if ($entity->getValue() !== null)
+                            $old_value = $entity->getValue();
 
 $ret .= 'not changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$old_value->format('Y-m-d').'" identical to desired value "'.$value."\"\n";
                     }
+                }
+                else if ($field_typeclass == 'File') {
+                    // Load all files associated with this entity
+                    if ($value !== 0) {
+                        $query = $em->createQuery(
+                           'SELECT file
+                            FROM ODRAdminBundle:File AS file
+                            WHERE file.dataRecordFields = :drf
+                            AND file.deletedAt IS NULL'
+                        )->setParameters( array('drf' => $datarecordfield_id) );
+                        $results = $query->getResult();
 
+                        if ( count($results) > 0 ) {
+                            foreach ($results as $num => $file) {
+                                if ( $file->isPublic() && $value == -1 ) {
+                                    // File is public, but needs to be non-public
+                                    $public_date = new \DateTime('2200-01-01 00:00:00');
+                                    $file->setPublicDate($public_date);
+
+                                    $file->setUpdatedBy($user);
+                                    $em->persist($file);
+
+                                    // Delete the decrypted version of the file, if it exists
+                                    $file_upload_path = dirname(__FILE__).'/../../../../web/uploads/files/';
+                                    $filename = 'File_'.$file->getId().'.'.$file->getExt();
+                                    $absolute_path = realpath($file_upload_path).'/'.$filename;
+
+                                    if ( file_exists($absolute_path) )
+                                        unlink($absolute_path);
+
+$ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
+                                }
+                                else if ( !$file->isPublic() && $value == 1 ) {
+                                    // File is non-public, but needs to be public
+                                    $public_date = new \DateTime();
+                                    $file->setPublicDate($public_date);
+
+                                    $file->setUpdatedBy($user);
+                                    $em->persist($file);
+
+                                    // Immediately decrypt the file
+                                    parent::decryptObject($file->getId(), 'file');
+
+$ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
+                                }
+                            }
+
+                            $em->flush();
+                        }
+                    }
+                }
+                else if ($field_typeclass == 'Image') {
+                    // Load all images associated with this entity
+                    if ($value !== 0) {
+                        $query = $em->createQuery(
+                           'SELECT image
+                            FROM ODRAdminBundle:Image AS image
+                            WHERE image.dataRecordFields = :drf
+                            AND image.deletedAt IS NULL'
+                        )->setParameters( array('drf' => $datarecordfield_id) );
+                        $results = $query->getResult();
+
+                        if ( count($results) > 0 ) {
+                            foreach ($results as $num => $image) {
+                                if ( $image->isPublic() && $value == -1 ) {
+                                    // File is public, but needs to be non-public
+                                    $public_date = new \DateTime('2200-01-01 00:00:00');
+                                    $image->setPublicDate($public_date);
+
+                                    $image->setUpdatedBy($user);
+                                    $em->persist($image);
+
+                                    // Delete the decrypted version of the file, if it exists
+                                    $image_upload_path = dirname(__FILE__).'/../../../../web/uploads/images/';
+                                    $filename = 'Image_'.$image->getId().'.'.$image->getExt();
+                                    $absolute_path = realpath($image_upload_path).'/'.$filename;
+
+                                    if ( file_exists($absolute_path) )
+                                        unlink($absolute_path);
+
+$ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
+                                }
+                                else if ( !$image->isPublic() && $value == 1 ) {
+                                    // File is non-public, but needs to be public
+                                    $public_date = new \DateTime();
+                                    $image->setPublicDate($public_date);
+
+                                    $image->setUpdatedBy($user);
+                                    $em->persist($image);
+
+                                    // Immediately decrypt the file
+                                    parent::decryptObject($image->getId(), 'image');
+$ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
+                                }
+                            }
+
+                            $em->flush();
+                        }
+                    }
                 }
                 else {
                     // Save the value in the referenced entity
