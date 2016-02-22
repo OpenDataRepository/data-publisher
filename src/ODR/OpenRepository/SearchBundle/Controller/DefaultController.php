@@ -47,18 +47,22 @@ class DefaultController extends Controller
 {
 
     /**
-     *  Returns a formatted 404 error from the search page.
+     * TODO
      *
      * @param string $error_message
+     * @param Request $request
+     * @param boolean $inline
      *
      * @return Response TODO
      */
-    public function searchPageError($error_message)
+    public function searchPageError($error_message, Request $request, $inline = false)
     {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
+
+        $html = '';
 
         try
         {
@@ -72,16 +76,55 @@ class DefaultController extends Controller
                 $logged_in = false;
             }
 
-            $templating = $this->get('templating');
-            $return['d'] = array(
-                'html' => $templating->render(
-                    'ODROpenRepositorySearchBundle:Default:searchpage_error.html.twig',
+            if ($inline) {
+                $templating = $this->get('templating');
+                $return['d'] = array(
+                    'html' => $templating->render(
+                        'ODROpenRepositorySearchBundle:Default:searchpage_error.html.twig',
+                        array(
+                            'logged_in' => $logged_in,
+                            'error_message' => $error_message,
+                        )
+                    )
+                );
+            }
+            else {
+                // Grab user permissions if possible
+                $user_permissions = array();
+                if ($logged_in) {
+                    $odrcc = $this->get('odr_custom_controller', $request);
+                    $odrcc->setContainer($this->container);
+                    $user_permissions = $odrcc->getPermissionsArray($user->getId(), $request);
+                }
+
+                $site_baseurl = $this->container->getParameter('site_baseurl');
+                if ($this->container->getParameter('kernel.environment') === 'dev')
+                    $site_baseurl .= '/app_dev.php';
+
+                // Generate a random key to identify this tab
+                $tokenGenerator = $this->container->get('fos_user.util.token_generator');
+                $odr_tab_id = substr($tokenGenerator->generateToken(), 0, 15);
+
+                $html = $this->renderView(
+                    'ODROpenRepositorySearchBundle:Default:index_error.html.twig',
                     array(
+                        // required twig/javascript parameters
+                        'user' => $user,
+                        'user_permissions' => $user_permissions,
+
+//                        'user_list' => $user_list,
                         'logged_in' => $logged_in,
+                        'window_title' => 'ODR Admin',
+                        'source' => 'searching',
+                        'search_slug' => 'admin',
+                        'site_baseurl' => $site_baseurl,
+                        'search_string' => '',
+                        'odr_tab_id' => $odr_tab_id,
+
                         'error_message' => $error_message,
                     )
-                )
-            );
+                );
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -89,8 +132,16 @@ class DefaultController extends Controller
             $return['d'] = 'Error 0x22127327 ' . $e->getMessage();
         }
 
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
+        $response = null;
+        if ($inline) {
+            $response = new Response(json_encode($return));
+            $response->headers->set('Content-Type', 'application/json');
+        }
+        else {
+            $response = new Response($html);
+            $response->headers->set('Content-Type', 'text/html');
+        }
+
         return $response;
     }
 
@@ -302,20 +353,18 @@ exit();
             // Locate the datatype referenced by the search slug, if possible...
             $target_datatype = null;
             if ($search_slug == '') {
-
                 if ( $cookies->has('prev_searched_datatype') ) {
                     $search_slug = $cookies->get('prev_searched_datatype');
                     return $this->redirect( $this->generateURL('odr_search', array( 'search_slug' => $search_slug ) ));
                 }
                 else {
-//                    return new Response("Page not found", 404);
-                    return self::searchPageError("Page not found", 404);
+                    return self::searchPageError("Page not found", $request);
                 }
             }
             else {
                 $target_datatype = $repo_datatype->findOneBy( array('searchSlug' => $search_slug) );
                 if ($target_datatype == null)
-                    return self::searchPageError("Page not found", 404);
+                    return self::searchPageError("Page not found", $request);
             }
 
 
@@ -339,8 +388,7 @@ exit();
             // Check if user has permission to view datatype
             $target_datatype_id = $target_datatype->getId();
             if ( !$target_datatype->isPublic() && !(isset($user_permissions[ $target_datatype_id ]) && isset($user_permissions[ $target_datatype_id ][ 'view' ])) )
-//                return $odrcc->permissionDeniedError('search');
-                return self::searchPageError("You don't have permission to access this DataType.", 403);
+                return self::searchPageError("You don't have permission to access this DataType.", $request);
 
             // Need to grab all searchable datafields for the target_datatype and its descendants
 
@@ -699,8 +747,10 @@ if ($debug) {
                 throw new \Exception('Invalid search string');
 
             $search_params = $odrcc->getSavedSearch($datatype_id, $search_key, $logged_in, $request);
-            if ( $search_params['error'] == true )
-                return self::searchPageError($search_params['message']);
+            if ( $search_params['error'] == true ) {
+                $render_inline = true;
+                return self::searchPageError($search_params['message'], $request, $render_inline);
+            }
 
             // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
             $datatype = $repo_datatype->find( $search_params['datatype_id'] );
