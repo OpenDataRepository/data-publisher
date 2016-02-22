@@ -75,9 +75,12 @@ class ODRCustomController extends Controller
         $session = $this->get('session');
         $repo_datarecord = $this->getDoctrine()->getManager()->getRepository('ODRAdminBundle:DataRecord');
 
+        $logged_in = false;
         $user_permissions = array();
-        if ($user !== 'anon.')
+        if ($user !== 'anon.') {
+            $logged_in = true;
             $user_permissions = self::getPermissionsArray($user->getId(), $request);
+        }
 
         // Grab the tab's id, if it exists
         $params = $request->query->all();
@@ -167,6 +170,8 @@ class ODRCustomController extends Controller
                     'user_permissions' => $user_permissions,
                     'odr_tab_id' => $odr_tab_id,
 
+                    'logged_in' => $logged_in,
+
                     // required for load_datarecord_js.html.twig
                     'target' => $target,
                     'search_key' => $search_key,
@@ -206,6 +211,8 @@ print "\n\n";
                     'scroll_target' => $scroll_target,
                     'user' => $user,
                     'user_permissions' => $user_permissions,
+
+                    'logged_in' => $logged_in,
 
                     // required for load_datarecord_js.html.twig
                     'target' => $target,
@@ -3703,6 +3710,8 @@ if ($debug) {
                         WHERE dt.ancestor = :ancestor AND dt.descendant = :descendant AND dt.deletedAt IS NULL'
                     )->setParameters( array('ancestor' => $datatype, 'descendant' => $childtype) );
                     $result = $query->getResult();
+
+                    // TODO - empty query results?
 
                     $tree['has_childtype'] = 1;
                     $top_level = 0;
