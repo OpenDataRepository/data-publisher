@@ -2707,6 +2707,7 @@ $save_permissions = false;
         $results = $query->getArrayResult();
         foreach ($results as $num => $data) {
             $fieldname = $data['field_name'];
+            $fieldname = str_replace('"', "\\\"", $fieldname);
             $column_names .= '{"title":"'.$fieldname.'"},';
             $num_columns++;
         }
