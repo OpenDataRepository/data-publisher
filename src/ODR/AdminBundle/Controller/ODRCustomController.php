@@ -479,6 +479,7 @@ print "\n\n";
                 $data['error'] = true;
                 $data['message'] = $ret['message'];
                 $data['encoded_search_key'] = $ret['encoded_search_key'];
+                $data['complete_datarecord_list'] = '';
                 $data['datarecord_list'] = '';
 
                 return $data;
@@ -499,7 +500,8 @@ print "\n\n";
         $data['searched_datafields'] = $search_params['searched_datafields'];
         $data['encoded_search_key'] = $search_params['encoded_search_key'];
 
-        $data['datarecord_list'] = $search_params[$str]['datarecord_list'];
+        $data['datarecord_list'] = $search_params[$str]['datarecord_list'];                     // ...just top-level datarecords
+        $data['complete_datarecord_list'] = $search_params[$str]['complete_datarecord_list'];   // ...top-level, child, and linked datarecords
 
         return $data;
     }
@@ -1663,6 +1665,7 @@ $save_permissions = false;
 //print_r($results);
 
 
+                // TODO - why is this here?  does mysql not handle ordering properly in this case?
                 // Flatten the array
                 $datarecords = array();
                 foreach ($results as $num => $data) {
