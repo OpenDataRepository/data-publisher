@@ -1743,6 +1743,9 @@ if ($timing)
             $grandparents = '';
 
             if ( $general_string === null && count($searched_datafields) == 0 && count($metadata) == 0 ) {
+                // Ensure that datarecord_id 0 doesn't get in the final search results...
+                unset( $matched_datarecords[0] );
+
                 // In the case when there was nothing entered in the search at all...every possible datarecord satisfies the search
                 foreach ($matched_datarecords as $dr_id => $flag)
                     $datarecords .= $dr_id.',';
