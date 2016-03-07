@@ -401,6 +401,58 @@ function initPage() {
         });
     });
 
+    $(".ODRRotateImage").unbind('click');
+    $(".ODRRotateImage").click(function() {
+        var image_id = $(this).attr('rel');
+
+        var direction = 1;
+        if ( $(this).hasClass('fa-rotate-left') )
+            direction = -1;
+
+        var url  = '{{ path('odr_record_rotate_image', {'image_id': 0, 'direction': 1} ) }}';
+        url = url.substring(0,(url.length-3));
+        url += image_id + '/' + direction;
+
+//alert( url );
+//return;
+
+        var tmp = $(this).parents(".ODRDataField").first().attr('id');
+        tmp = tmp.split('_');
+        var datarecord_id = tmp[1];
+        var datafield_id = tmp[2];
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    // Reload the image datafield
+                    ReloadDatafield(datarecord_id, datafield_id);
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    });
+
     $(".ODRPublicChildRecord").unbind('click');
     $(".ODRPublicChildRecord").click(function() {
         var datarecord_id = $(this).attr('rel');

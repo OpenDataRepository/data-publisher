@@ -603,6 +603,13 @@ odr_record_delete_image:
     requirements:
         image_id:  \d+
 
+odr_record_rotate_image:
+    pattern:  /edit/record/rotateimage/{image_id}/{direction}
+    defaults: { _controller: ODRAdminBundle:Record:rotateimage }
+    requirements:
+        image_id:  \d+
+        direction: -1|1
+
 odr_record_save_image_order:
     pattern:  /edit/record/saveimageorder
     defaults: { _controller: ODRAdminBundle:Record:saveimageorder }
@@ -665,7 +672,6 @@ odr_image_download:
     defaults: { _controller: ODRAdminBundle:Results:imagedownload }
     requirements:
         image_id:  \d+
-
 
 
 #-----------------------------------------

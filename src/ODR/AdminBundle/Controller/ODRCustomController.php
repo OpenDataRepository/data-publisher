@@ -653,7 +653,6 @@ print "\n\n";
                 $checksum = md5_file($encrypted_basedir.'enc.'.$chunk_id);
 
                 // Attempt to load a checksum object
-                // TODO: is this always going to be null?
                 $obj = null;
                 if ($object_type == 'file')
                     $obj = $repo_filechecksum->findOneBy( array('File' => $object_id, 'chunk_id' => $chunk_id) );

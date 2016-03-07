@@ -61,7 +61,7 @@
                 {% if datafield.fieldtype.typename == "Markdown" %}
                     {% include 'ODRAdminBundle:Results:results_markdown.html.twig' with {'field': datafield} %}
                 {% elseif datatype_tree.is_link == 0 and can_view_datafield == 1 and can_edit_datafield == 1 %}
-                    {% include 'ODRAdminBundle:Record:record_datafield.html.twig' with {'fieldtheme': theme_datafield, 'field': datafield, 'datatype': datatype, 'datarecord': datarecord, 'datarecordfield': drf_list[datafield_id], 'form': form_list[datafield_id]} %}
+                    {% include 'ODRAdminBundle:Record:record_datafield.html.twig' with {'fieldtheme': theme_datafield, 'field': datafield, 'datatype': datatype, 'datarecord': datarecord, 'datarecordfield': drf_list[datafield_id], 'form': form_list[datafield_id], 'force_image_reload' : false} %}
                 {% elseif can_view_datafield == 1 %}
                     {% include 'ODRAdminBundle:Results:results_datafield.html.twig' with {'fieldtheme': theme_datafield, 'field': datafield, 'datatype': datatype, 'datarecord': datarecord, 'datarecordfield': drf_list[datafield_id], 'form': form_list[datafield_id], 'public_only': false} %}
                 {% else %}

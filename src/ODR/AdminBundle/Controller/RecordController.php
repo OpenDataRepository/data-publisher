@@ -957,7 +957,7 @@ class RecordController extends ODRCustomController
             // Grab all alternate sizes of the original image (thumbnail is only current one) and remove them
             $images = $repo_image->findBy( array('parent' => $image->getId()) );
             foreach ($images as $img) {
-                // Ensure no decrypted version of the image exists on the server
+                // Ensure no decrypted version of any of the thumbnails exist on the server
                 $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
                 if ( file_exists($local_filepath) )
                     unlink($local_filepath);
@@ -987,6 +987,155 @@ class RecordController extends ODRCustomController
             // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
             if ($datafield->getAllowMultipleUploads() == "0")
                 $return['d'] = array('need_reload' => true);
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x2078485256 '. $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Rotates a given image by 90 degrees (counter)clockwise, and saves it
+     *
+     * @param integer $image_id The database id of the Image to delete.
+     * @param integer $direction -1 for 90 degrees counter-clockwise rotation, 1 for 90 degrees clockwise rotation
+     * @param Request $request
+     *
+     * @return Response TODO
+     */
+    public function rotateimageAction($image_id, $direction, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Get Entity Manager and setup repo
+            $em = $this->getDoctrine()->getManager();
+            $repo_image = $em->getRepository('ODRAdminBundle:Image');
+
+            // Grab the necessary entities
+            $image = $repo_image->find($image_id);
+            if ( $image == null )
+                return parent::deletedEntityError('Image');
+            $datafield = $image->getDataField();
+            if ( $datafield == null )
+                return parent::deletedEntityError('DataField');
+            $datarecord = $image->getDataRecord();
+            if ( $datarecord == null )
+                return parent::deletedEntityError('DataRecord');
+            $datatype = $datarecord->getDataType();
+            if ( $datatype == null )
+                return parent::deletedEntityError('DataType');
+
+            // Images that aren't done encrypting shouldn't be modified
+            if ($image->getOriginalChecksum() == '')
+                return parent::deletedEntityError('Image');
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+                return parent::permissionDeniedError("edit");
+            if ( !(isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'edit' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+
+            // Image is going to be rotated, so clear the original checksum for the original image and its thumbnails
+            $image_path = parent::decryptObject($image_id, 'image');
+            $image->setUpdatedBy($user);
+            $image->setOriginalChecksum('');
+            $em->persist($image);
+
+            $image_thumbnail_id = null;
+            $images = $repo_image->findBy( array('parent' => $image->getId()) );
+            foreach ($images as $img) {
+                // Ensure no decrypted version of any of the thumbnails exist on the server
+                $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
+                if ( file_exists($local_filepath) )
+                    unlink($local_filepath);
+
+                $img->setUpdatedBy($user);
+                $img->setOriginalChecksum('');
+                $em->persist($img);
+
+                $image_thumbnail_id = $img->getId();
+            }
+            $em->flush();
+
+            // Rotate and save image back to server...apparently positive degrees mean counter-clockwise rotation with imagerotate()
+            $degrees = 90;
+            if ($direction == 1)
+                $degrees = -90;
+
+            $im = null;
+            switch ( strtolower($image->getExt()) ) {
+                case 'gif':
+                    $im = imagecreatefromgif($image_path);
+                    $im = imagerotate($im, $degrees, 0);
+                    imagegif($im, $image_path);
+                    break;
+                case 'png':
+                    $im = imagecreatefrompng($image_path);
+                    $im = imagerotate($im, $degrees, 0);
+                    imagepng($im, $image_path);
+                    break;
+                case 'jpg':
+                case 'jpeg':
+                    $im = imagecreatefromjpeg($image_path);
+                    $im = imagerotate($im, $degrees, 0);
+                    imagejpeg($im, $image_path);
+                    break;
+            }
+            imagedestroy($im);
+
+
+            // Update the image's height/width as stored in the database
+            $sizes = getimagesize($image_path);
+            $image->setImageWidth( $sizes[0] );
+            $image->setImageHeight( $sizes[1] );
+            // Create thumbnails and other sizes/versions of the uploaded image
+            self::resizeImages($image, $user);
+
+            // Encrypt parent image AFTER thumbnails are created
+            self::encryptObject($image_id, 'image');
+
+            // Set original checksum for original image
+            $filepath = self::decryptObject($image_id, 'image');
+            $original_checksum = md5_file($filepath);
+            $image->setOriginalChecksum($original_checksum);
+
+            // A decrypted version of the Image still exists on the server...delete it
+            unlink($filepath);
+
+            // Save changes again
+            $em->persist($image);
+            $em->flush();
+
+
+            // Determine whether ShortResults needs a recache
+            $options = array();
+            $options['mark_as_updated'] = true;
+            if ( parent::inShortResults($datafield) )
+                $options['force_shortresults_recache'] = true;
+
+            // Refresh the cache entries for this datarecord
+            parent::updateDatarecordCache($datarecord->getId(), $options);
+
+            // Always want the image datafield to get reloaded...
+            $return['d'] = array('need_reload' => true, 'image_thumbnail_id' => $image_thumbnail_id);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1980,6 +2129,7 @@ if ($debug)
                     'datarecord' => $datarecord,
                     'datarecordfield' => $datarecordfield,
                     'form' => $form,
+                    'force_image_reload' => true,
                 )
             );
 
