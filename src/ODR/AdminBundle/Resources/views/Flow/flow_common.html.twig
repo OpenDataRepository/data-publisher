@@ -4,7 +4,7 @@
     // Called by a flow.js instance when a file is slated for upload
     function ODRFileUpload_filesAdded(files, event, target) {
         // Hide any current progress bars
-        $("#ODRFileUploadProgress_" + target).html('');
+        //$("#ODRFileUploadProgress_" + target).html('');
 
         // Create a progress bar div for each of the files...
         $.each(files, function(index, file) {
@@ -16,7 +16,8 @@
             $("#ODRFileUploadProgress_" + target).append(html);
 
             // Attach a cancel handler for this file
-            $("#ODRFileUploadProgress_" + target + " .ODRFileUploadCancel").on('click', function() {
+            $("#" + id + " > .ODRFileUploadCancel").unbind('click');
+            $("#" + id + " > .ODRFileUploadCancel").on('click', function() {
                 // Abort uploading this file
                 file.cancel();
 
@@ -26,9 +27,12 @@
                     $(this).parent().remove();
                 }
 
+                // Remove this progress div since the user cancelled the upload
+                $("#" + id).remove();
+
                 // Re-enable file upload on cancel
-                $("#ODRFileUpload_" + target + " input").removeAttr('disabled');
-                $("#ODRFileUpload_" + target + " .ODRUploadBlurb").show();
+                //$("#ODRFileUpload_" + target + " input").removeAttr('disabled');
+                //$("#ODRFileUpload_" + target + " .ODRUploadBlurb").show();
 
                 // TODO - Notify server to delete all chunks of this file?                
             });

@@ -603,6 +603,13 @@ odr_record_delete_image:
     requirements:
         image_id:  \d+
 
+odr_record_rotate_image:
+    pattern:  /edit/record/rotateimage/{image_id}/{direction}
+    defaults: { _controller: ODRAdminBundle:Record:rotateimage }
+    requirements:
+        image_id:  \d+
+        direction: -1|1
+
 odr_record_save_image_order:
     pattern:  /edit/record/saveimageorder
     defaults: { _controller: ODRAdminBundle:Record:saveimageorder }
@@ -665,7 +672,6 @@ odr_image_download:
     defaults: { _controller: ODRAdminBundle:Results:imagedownload }
     requirements:
         image_id:  \d+
-
 
 
 #-----------------------------------------
@@ -919,7 +925,7 @@ odr_csv_link_worker:
 #-----------------------------------------
 # Flow Controller
 odr_flow_upload:
-    pattern: /edit/csv_import/flow/{upload_type}/{datatype_id}/{datarecordfield_id}
+    pattern: /edit/flow/{upload_type}/{datatype_id}/{datarecordfield_id}
     defaults: { _controller: ODRAdminBundle:Flow:flow, datarecordfield_id: '' }
     requirements:
         upload_type: 'xml|csv|file|image|csv_import_file_storage|xml_import_file_storage'

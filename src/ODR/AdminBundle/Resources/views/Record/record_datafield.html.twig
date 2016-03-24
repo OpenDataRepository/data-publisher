@@ -65,7 +65,7 @@
                             <td class="pure-u-20-24" {% if file.originalfilename != null and field.getshortenfilename == 1 and file.originalfilename|length > 35 %}title="{{ file.originalfilename }}"{% endif %}>
                                 {% if file.getoriginalchecksum != '' %}
                                     <a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="truncate ODRFileDownload" rel="{{ file.id }}">
-                                        {% if file.originalfilename == null %}File_{{ file.id }}.txt{% else %}{{ file.originalfilename }}{% endif %}
+                                        {% if file.originalfilename == null %}File_{{ file.id }}.{{ file.getext }}{% else %}{{ file.originalfilename }}{% endif %}
                                     </a>
                                     <span id="ODRFileDownload_{{ file.id }}" class="ODRFileDownloadProgress" style="cursor:default; margin-left:10px;">
                                         <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRProgressBar" style="margin-left:15px; display:inline-block;">
@@ -145,11 +145,13 @@
                             <div class="pure-u-1">
                                 &nbsp;<i class="ODRDeleteImage tooltip Pointer fa fa-lg fa-trash-o" title="Delete Image" rel="{{ oimage.id }}"></i>
                                 &nbsp;<i class="ODRPublicImage tooltip Pointer fa fa-lg fa-globe {% if oimage.ispublic == 0 %}IconRed{% endif %}" title="{% if oimage.ispublic == 0 %}Image is not public{% else %}Public since {{ oimage.publicdate|date('Y-m-d') }}{% endif %}" rel="{{ oimage.id }}"></i>
+                                &nbsp;<i class="ODRRotateImage tooltip Pointer fa fa-lg fa-rotate-left" title="Rotate Image 90 degrees counter-clockwise" rel="{{ oimage.id }}"></i>
+                                &nbsp;<i class="ODRRotateImage tooltip Pointer fa fa-lg fa-rotate-right" title="Rotate Image 90 degrees clockwise" rel="{{ oimage.id }}"></i>
                                 &nbsp;
                             </div>
                             <div class="pure-u-23-24">
                                 <a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ oimage.caption }}">
-                                    <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}" title="{% if image.originalfilename != null %}{{ image.originalfilename }}{% else %}Image_{{ image.id }}.{{ image.ext }}{% endif %}" />
+                                    <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}{% if force_image_reload %}?{{ date().timestamp }}{% endif %}" title="{% if image.originalfilename != null %}{{ image.originalfilename }}{% else %}Image_{{ image.id }}.{{ image.ext }}{% endif %}" />
                                 </a>
                             </div>
                         </div>

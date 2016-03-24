@@ -206,8 +206,7 @@
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
                         // Reload this area of the page
-//                        LoadContentFullAjax('{{ path('odr_list_types', { 'section': 'design' }) }}');
-                        window.location.reload(true);
+                        window.location.replace( "{{ path('odr_admin_homepage') }}" + "#" + "{{ path('odr_list_types', { 'section': 'design' }) }}" );
                     }
                     else {
                         // Error occurred

@@ -47,18 +47,22 @@ class DefaultController extends Controller
 {
 
     /**
-     *  Returns a formatted 404 error from the search page.
+     * TODO
      *
      * @param string $error_message
+     * @param Request $request
+     * @param boolean $inline
      *
      * @return Response TODO
      */
-    public function searchPageError($error_message)
+    public function searchPageError($error_message, Request $request, $inline = false)
     {
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
+
+        $html = '';
 
         try
         {
@@ -72,16 +76,55 @@ class DefaultController extends Controller
                 $logged_in = false;
             }
 
-            $templating = $this->get('templating');
-            $return['d'] = array(
-                'html' => $templating->render(
-                    'ODROpenRepositorySearchBundle:Default:searchpage_error.html.twig',
+            if ($inline) {
+                $templating = $this->get('templating');
+                $return['d'] = array(
+                    'html' => $templating->render(
+                        'ODROpenRepositorySearchBundle:Default:searchpage_error.html.twig',
+                        array(
+                            'logged_in' => $logged_in,
+                            'error_message' => $error_message,
+                        )
+                    )
+                );
+            }
+            else {
+                // Grab user permissions if possible
+                $user_permissions = array();
+                if ($logged_in) {
+                    $odrcc = $this->get('odr_custom_controller', $request);
+                    $odrcc->setContainer($this->container);
+                    $user_permissions = $odrcc->getPermissionsArray($user->getId(), $request);
+                }
+
+                $site_baseurl = $this->container->getParameter('site_baseurl');
+                if ($this->container->getParameter('kernel.environment') === 'dev')
+                    $site_baseurl .= '/app_dev.php';
+
+                // Generate a random key to identify this tab
+                $tokenGenerator = $this->container->get('fos_user.util.token_generator');
+                $odr_tab_id = substr($tokenGenerator->generateToken(), 0, 15);
+
+                $html = $this->renderView(
+                    'ODROpenRepositorySearchBundle:Default:index_error.html.twig',
                     array(
+                        // required twig/javascript parameters
+                        'user' => $user,
+                        'user_permissions' => $user_permissions,
+
+//                        'user_list' => $user_list,
                         'logged_in' => $logged_in,
+                        'window_title' => 'ODR Admin',
+                        'source' => 'searching',
+                        'search_slug' => 'admin',
+                        'site_baseurl' => $site_baseurl,
+                        'search_string' => '',
+                        'odr_tab_id' => $odr_tab_id,
+
                         'error_message' => $error_message,
                     )
-                )
-            );
+                );
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -89,8 +132,16 @@ class DefaultController extends Controller
             $return['d'] = 'Error 0x22127327 ' . $e->getMessage();
         }
 
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
+        $response = null;
+        if ($inline) {
+            $response = new Response(json_encode($return));
+            $response->headers->set('Content-Type', 'application/json');
+        }
+        else {
+            $response = new Response($html);
+            $response->headers->set('Content-Type', 'text/html');
+        }
+
         return $response;
     }
 
@@ -108,18 +159,21 @@ class DefaultController extends Controller
     {
         // Grab all entities out of the 
         $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, descendant.publicDate AS public_date, dt.is_link AS is_link
+           'SELECT ancestor.id AS ancestor_id, ancestor.shortName AS ancestor_name, descendant.id AS descendant_id, descendant.shortName AS descendant_name, descendant.publicDate AS public_date, dt.is_link AS is_link
             FROM ODRAdminBundle:DataTree AS dt
             JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
             WHERE dt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL');
         $results = $query->getArrayResult();
 
+        $datatype_names = array();
         $descendant_of = array();
         $links = array();
         foreach ($results as $num => $result) {
             $ancestor_id = $result['ancestor_id'];
+            $ancestor_name = $result['ancestor_name'];
             $descendant_id = $result['descendant_id'];
+            $descendant_name = $result['descendant_name'];
             $public_date = $result['public_date'];
             $is_link = $result['is_link'];
 
@@ -130,21 +184,29 @@ class DefaultController extends Controller
 
             if ($is_link == 0) {
                 // Save childtypes encountered
-                if ( !isset($descendant_of[$ancestor_id]) )
+                if ( !isset($descendant_of[$ancestor_id]) ) {
                     $descendant_of[$ancestor_id] = array();
+                    $datatype_names[$ancestor_id] = $ancestor_name;
+                }
 
                 // Only save this datatype if the user is allowed to view it
-                if ( $is_public || (isset($user_permissions[$descendant_id]) && isset($user_permissions[$descendant_id]['view'])) )
+                if ( $is_public || (isset($user_permissions[$descendant_id]) && isset($user_permissions[$descendant_id]['view'])) ) {
                     $descendant_of[$ancestor_id][] = $descendant_id;
+                    $datatype_names[$descendant_id] = $descendant_name;
+                }
             }
             else {
                 // Save datatype links encountered
-                if ( !isset($links[$ancestor_id]) )
+                if ( !isset($links[$ancestor_id]) ) {
                     $links[$ancestor_id] = array();
+                    $datatype_names[$ancestor_id] = $ancestor_name;
+                }
 
                 // Only save this datatype if the user is allowed to view it
-                if ( $is_public || (isset($user_permissions[$descendant_id]) && isset($user_permissions[$descendant_id]['view'])) )
+                if ( $is_public || (isset($user_permissions[$descendant_id]) && isset($user_permissions[$descendant_id]['view'])) ) {
                     $links[$ancestor_id][] = $descendant_id;
+                    $datatype_names[$descendant_id] = $descendant_name;
+                }
             }
         }
 
@@ -198,6 +260,7 @@ print '$links: '.print_r($links, true)."\n";
             'target_datatype' => $target_datatype_id,
             'child_datatypes' => $descendants,
             'linked_datatypes' => $linked_datatypes,
+            'datatype_names' => $datatype_names,
         );
 /*
 print '<pre>';
@@ -290,20 +353,18 @@ exit();
             // Locate the datatype referenced by the search slug, if possible...
             $target_datatype = null;
             if ($search_slug == '') {
-
                 if ( $cookies->has('prev_searched_datatype') ) {
                     $search_slug = $cookies->get('prev_searched_datatype');
                     return $this->redirect( $this->generateURL('odr_search', array( 'search_slug' => $search_slug ) ));
                 }
                 else {
-//                    return new Response("Page not found", 404);
-                    return self::searchPageError("Page not found", 404);
+                    return self::searchPageError("Page not found", $request);
                 }
             }
             else {
                 $target_datatype = $repo_datatype->findOneBy( array('searchSlug' => $search_slug) );
                 if ($target_datatype == null)
-                    return self::searchPageError("Page not found", 404);
+                    return self::searchPageError("Page not found", $request);
             }
 
 
@@ -327,8 +388,7 @@ exit();
             // Check if user has permission to view datatype
             $target_datatype_id = $target_datatype->getId();
             if ( !$target_datatype->isPublic() && !(isset($user_permissions[ $target_datatype_id ]) && isset($user_permissions[ $target_datatype_id ][ 'view' ])) )
-//                return $odrcc->permissionDeniedError('search');
-                return self::searchPageError("You don't have permission to access this DataType.", 403);
+                return self::searchPageError("You don't have permission to access this DataType.", $request);
 
             // Need to grab all searchable datafields for the target_datatype and its descendants
 
@@ -687,8 +747,10 @@ if ($debug) {
                 throw new \Exception('Invalid search string');
 
             $search_params = $odrcc->getSavedSearch($datatype_id, $search_key, $logged_in, $request);
-            if ( $search_params['error'] == true )
-                return self::searchPageError($search_params['message']);
+            if ( $search_params['error'] == true ) {
+                $render_inline = true;
+                return self::searchPageError($search_params['message'], $request, $render_inline);
+            }
 
             // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
             $datatype = $repo_datatype->find( $search_params['datatype_id'] );
@@ -832,6 +894,16 @@ if ($debug) {
 
 $debug = true;
 $debug = false;
+$more_debug = true;
+$more_debug = false;
+$timing = true;
+$timing = false;
+
+$start_time = microtime(true);
+
+if ($debug || $more_debug || $timing)
+    print '<pre>';
+
 if ($debug) {
     print 'cached datarecord str: '.$cached_datarecord_str."\n";
 }
@@ -935,29 +1007,25 @@ if ($debug) {
 
             $encoded_search_key = substr($encoded_search_key, 0, -1);
 if ($debug) {
-//$params = $request->query->all();
-//print '$_GET string: '.print_r($params, true)."\n\n";
-
     print 'search_key: '.$search_key."\n";
     print 'md5('.$search_key.'): '.md5($search_key)."\n";
     print 'encoded_search_key: '.$encoded_search_key."\n";
     print 'md5('.$encoded_search_key.'): '.md5($encoded_search_key)."\n";
     print 'post: '.print_r($post, true)."\n";
 }
-//return;
-
-            //
-            $searched_datafields = array();
-            foreach ($post['datafields'] as $df_id => $df_value)
-                $searched_datafields[] = $df_id;
-            $searched_datafields = implode(',', $searched_datafields);
 
             $target_datatype_id = $post['dt_id'];
             $datatype = $repo_datatype->find($target_datatype_id);
             if ($datatype == null)
                 return array('message' => "This datatype is deleted", 'encoded_search_key' => $encoded_search_key);
 
-            $session->set('prev_searched_datatype_id', $target_datatype_id);
+
+            // General Search will search all datafields of these fieldtypse that belong to this datatype and its childtypes
+            $search_entities = array('ShortVarchar', 'MediumVarchar', 'LongVarchar', 'LongText', 'IntegerValue', 'Radio');   // TODO - DecimalValue too? or not...
+            // NOTE - this purposefully ignores boolean...otherwise a general search string of '1' would return all checked boolean entities, and '0' would return all unchecked boolean entities
+
+
+            $session->set('prev_searched_datatype_id', $target_datatype_id);    // TODO - storing previously searched datatype in session doesn't really work for users
 
             $datafields = array();
             if ( isset($post['datafields']) )
@@ -965,17 +1033,6 @@ if ($debug) {
             $general_string = null;
             if ( isset($post['gen']) )
                 $general_string = trim($post['gen']);
-
-            // Get rid of empty/blank search strings for datafields
-//            if ($datafields !== null) {
-                foreach ($datafields as $id => $str) {
-                    if ( !is_array($str) && trim($str) === '' )
-                        unset( $datafields[$id] );
-                }
-
-//                if ( count($datafields) == 0 )
-//                    $datafields = null;
-//            }
 
 
             // --------------------------------------------------
@@ -991,24 +1048,29 @@ if ($debug) {
                 $user_permissions = $odrcc->getPermissionsArray($user->getId(), $request);
             }
 
-if ($debug) {
-//    print 'logged_in: '.$logged_in."\n";
-//    print 'has_view_permission: '.$has_view_permission."\n";
-//    print '$user_permissions: '.print_r($user_permissions, true)."\n";
-}
-            $using_adv_search = false;
-            $basic_search_datarecords = array();
-            $adv_search_datarecords = array();
+
+            // --------------------------------------------------
+            // Get rid of empty/blank search strings for datafields
+            foreach ($datafields as $id => $str) {
+                if ( !is_array($str) && trim($str) === '' )
+                    unset( $datafields[$id] );
+            }
+
+            // Keep track of the datafields that are being searched on...this will get stored in memcached so cached searches involving these datafield can be deleted when changes are made to their contents
+            $searched_datafields = array();
+            foreach ($datafields as $df_id => $search_value)
+                $searched_datafields[] = $df_id;
 
 
             // --------------------------------------------------
             // Grab all datatypes related to the one being searched
+            $searched_datatypes = array();
             $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $user_permissions);
 
 if ($debug)
     print '$related_datatypes: '.print_r($related_datatypes, true)."\n";
 
-            // The next query needs just a comma separated list of datatype ids...
+            // The next DQL query needs a comma separated list of datatype ids...
             $datatype_list = array();
             foreach ($related_datatypes['child_datatypes'] as $child_datatype_id => $tmp)
                 $datatype_list[] = $child_datatype_id;
@@ -1017,7 +1079,7 @@ if ($debug)
 
 
             // TODO - partial duplicate of self::getSearchableDatafields()...
-            // Grab typeclasses for each of the searchable datafields in this DataType
+            // Grab typeclasses for each of the searchable datafields in all datatypes related to the target datatype
             $query_str =
                'SELECT ft.typeClass AS type_class, dt.id AS dt_id, dt.publicDate AS dt_public_date, df.id AS df_id, df.user_only_search AS user_only_search
                 FROM ODRAdminBundle:DataFields AS df
@@ -1029,7 +1091,7 @@ if ($debug)
             $results = $query->getArrayResult();
 
             // Organize the datafields into lists, and remove the ones the user can't search
-            $datafield_array = array('by_typeclass' => array(), 'by_id' => array(), 'datatype_of' => array());
+            $datafield_array = array('by_typeclass' => array(), 'by_id' => array(), 'datatype_of' => array(), 'by_datatype' => array());
             foreach ($results as $num => $result) {
                 $typeclass = $result['type_class'];
                 $dt_id = $result['dt_id'];
@@ -1054,20 +1116,34 @@ if ($debug)
                     /* either the datafield isn't visible to non-logged in users, or the user isn't allowed to see the datatype itself...either way, don't save the datafield */
                 }
                 else {
-                    // ...first list being by typeclass, to use during general search
-                    if ( !isset($datafield_array['by_typeclass'][$typeclass]) )
-                        $datafield_array['by_typeclass'][$typeclass] = array();
-                    $datafield_array['by_typeclass'][$typeclass][$dt_id][] = $df_id;
+                    // The first list of datafield ids is organized by typeclass then by datatype, and is used during general search
+                    if ( in_array($typeclass, $search_entities) ) {
+                        if (!isset($datafield_array['by_typeclass'][$typeclass]))
+                            $datafield_array['by_typeclass'][$typeclass] = array();
+                        $datafield_array['by_typeclass'][$typeclass][$dt_id][] = $df_id;
 
-                    // ...second list being by datafield, to use during advanced search
+                        if ($general_string !== null)
+                            $searched_datatypes[] = $dt_id;
+                    }
+
+                    // The second list stores the typeclass for each datafield, and is used during advanced search
                     $datafield_array['by_id'][$df_id] = $typeclass;
 
-                    // ...third list mentioning what datatype they belong to
+                    // The third list stores the datatype id for each datafield, and is used for finding some query errors and also during advanced search
                     $datafield_array['datatype_of'][$df_id] = $dt_id;
+
+                    // The fourth list stores the datafields for each datatype...makes computing the intersection of search results easier after general/advanced searches are completed
+                    if ( !isset($datafield_array['by_datatype'][$dt_id]) )
+                        $datafield_array['by_datatype'][$dt_id] = array();
+                    $datafield_array['by_datatype'][$dt_id][] = $df_id;
+
+
+                    // Also store the datatypes of the datafields the user is searching on
+                    if ( in_array($df_id, $searched_datafields) )
+                        $searched_datatypes[] = $dt_id;
                 }
             }
-if ($debug)
-    print '$datafield_array: '.print_r($datafield_array, true)."\n";
+
 
             // --------------------------------------------------
             // Deal with metadata, if it exists
@@ -1077,8 +1153,16 @@ if ($debug)
 
                 // Fix the metadata array
                 foreach ($metadata as $datatype_id => $data) {
+                    // This datatype is being searched on
+                    $searched_datatypes[] = $datatype_id;
+
+                    // In case one of the searched datafields doesn't cover it, ensure an entry exists for this datatype's metadata...will be used later during the intersection calculations
+                    if ( !isset($datafield_array['by_datatype'][$datatype_id]) )
+                        $datafield_array['by_datatype'][$datatype_id] = array();
+                    $datafield_array['by_datatype'][$datatype_id][] = 'dt_'.$datatype_id.'_metadata';
+
                     foreach ($data as $key => $tmp) {
-                        // Don't change the public key
+                        // Don't change the public_date key
                         if ($key == 'public')
                             continue;
 
@@ -1097,7 +1181,6 @@ if ($debug)
                             $date_end->add(new \DateInterval('P1D'));
                             $date_end = $date_end->format('Y-m-d');
                             $metadata[$datatype_id][$key]['end'] = $date_end;
-
 if ($debug)
     print 'changed $'.$key.'_date_end to '.$date_end."\n";
 
@@ -1140,25 +1223,184 @@ if ($debug)
                 }
             }
 
-if ($debug)
-    print '$metadata: '.print_r($metadata, true)."\n";
-//exit();
+            // Not strictly necessary, but remove any duplicates from the array of datatypes being searched on
+            $searched_datatypes = array_unique($searched_datatypes);
 
+if ($debug) {
+    print '$datafield_array: '.print_r($datafield_array, true)."\n";
+    print '$metadata: '.print_r($metadata, true)."\n";
+    print '$searched_datatypes: '.print_r($searched_datatypes, true)."\n";
+//exit();
+}
+
+if ($timing)
+    print 'base arrays built in: '.((microtime(true) - $start_time)*1000)."ms \n";
+
+            // --------------------------------------------------
+            // Get all top-level datarecords of this datatype that could possibly match the desired search
+            // ...has to be done this way so that when the user searches on criteria for both childtypes A and B, a top-level datarecord that only has either childtype A or childtype B won't match
+            $allowed_grandparents = null;
+            foreach ($searched_datatypes as $num => $dt_id) {
+                // Doesn't matter if the the top-level datatype is being searched on...
+                if ($dt_id == $target_datatype_id)
+                    continue;
+
+                // Linked datarecords needs a different query to extract "grandparents", since we actually want the grandparent of the datarecord that is linking to this linked datarecord
+                $sub_query = null;
+                if ( in_array($dt_id, $related_datatypes['linked_datatypes']) ) {
+                    $sub_query = $em->createQuery(
+                       'SELECT grandparent.id
+                        FROM ODRAdminBundle:DataRecord AS ldr
+                        JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldr = ldt.descendant
+                        JOIN ODRAdminBundle:DataRecord AS dr WITH dr = ldt.ancestor
+                        JOIN ODRAdminBundle:DataRecord AS grandparent WITH grandparent = dr.grandparent
+                        WHERE ldr.dataType = :linked_datatype_id AND grandparent.dataType = :target_datatype_id
+                        AND ldr.deletedAt IS NULL AND ldt.deletedAt IS NULL AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
+                    )->setParameters( array('linked_datatype_id' => $dt_id, 'target_datatype_id' => $target_datatype_id) );
+                }
+                else {
+                    $sub_query = $em->createQuery(
+                       'SELECT grandparent.id
+                        FROM ODRAdminBundle:DataRecord AS dr
+                        JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
+                        WHERE dr.dataType = :dt_id AND grandparent.dataType = :target_datatype_id
+                        AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
+                    )->setParameters(array('dt_id' => $dt_id, 'target_datatype_id' => $target_datatype_id));
+                }
+                $result = $sub_query->getArrayResult();
+
+                // Flatten the array doctrine returns so array_intersect works properly
+                $sub_result = array();
+                foreach ($result as $tmp => $data)
+                    $sub_result[] = $data['id'];
+                $sub_result = array_unique($sub_result);
+
+                // Intersect the flattened array with the array of currently allowed top-level datarecords
+                if ($allowed_grandparents == null)
+                    $allowed_grandparents = $sub_result;
+                else
+                    $allowed_grandparents = array_intersect($allowed_grandparents, $sub_result);
+            }
+
+
+            // Get every single child datarecord of each of the allowed top-level datarecords
+            $parameters = array();
+            $query_str =
+               'SELECT dr.id AS dr_id, parent.id AS parent_id, dt.id AS datatype_id
+                FROM ODRAdminBundle:DataRecord as dr
+                JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
+                JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
+                JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
+                WHERE grandparent.dataType = :target_datatype';
+            $parameters['target_datatype'] = $target_datatype_id;
+
+            // If there's some restriction on the top-level datarecords to return, splice that into the query
+            if ( $allowed_grandparents !== null && count($allowed_grandparents) > 0 ) {
+                $query_str .= ' AND grandparent.id IN (:allowed_grandparents)';
+                $parameters['allowed_grandparents'] = $allowed_grandparents;
+            }
+            $query_str .= ' AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL AND dt.deletedAt IS NULL';
+
+            // Run the query to get all child datarecords
+            $query = $em->createQuery($query_str)->setParameters($parameters);
+            $child_datarecords = $query->getArrayResult();
+
+
+            // Get every single linked datarecord of each of the allowed top-level datarecords
+            $parameters = array();
+            $query_str =
+               'SELECT ldr.id AS dr_id, parent.id AS parent_id, ldr_dt.id AS datatype_id
+                FROM ODRAdminBundle:DataRecord as ldr
+                JOIN ODRAdminBundle:DataType AS ldr_dt WITH ldr.dataType = ldr_dt
+                JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.descendant = ldr
+                JOIN ODRAdminBundle:DataRecord AS parent WITH ldt.ancestor = parent
+                JOIN ODRAdminBundle:DataRecord AS grandparent WITH parent.grandparent = grandparent
+                WHERE grandparent.dataType = :target_datatype';
+            $parameters['target_datatype'] = $target_datatype_id;
+
+            // If there's some restriction on the top-level datarecords to return, splice that into the query
+            if ( $allowed_grandparents !== null && count($allowed_grandparents) > 0 ) {
+                $query_str .= ' AND grandparent.id IN (:allowed_grandparents)';
+                $parameters['allowed_grandparents'] = $allowed_grandparents;
+            }
+            $query_str .= ' AND ldr.deletedAt IS NULL AND ldr_dt.deletedAt IS NULL AND ldt.deletedAt IS NULL AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL';
+
+            // Run the query to get all linked datarecords
+            $query = $em->createQuery($query_str)->setParameters($parameters);
+            $linked_datarecords = $query->getArrayResult();
+
+
+            // Merge all child and linked datarecords together into the same array
+            $results = array_merge($child_datarecords, $linked_datarecords);
+
+
+            // @see self::buildDatarecordTree() for structure of this array
+            $descendants_of_datarecord = array();
+
+            // Need to recursively enforce these logical rules for searching...
+            // 1) A child datarecord of a child datatype that isn't being directly searched on is automatically included if its parent is included
+            // 2) A datarecord of a datatype that is being directly searched on must match criteria to be included
+            // 3) If none of the child datarecords of a given child datatype for a given parent datarecord match the search query, that parent datarecord must also be excluded
+
+            // $matched_datarecords is an array where every single datarecord id listed in $descendants_of_datarecord points to the integers -1, 0, or 1
+            // -1 denotes "does not match search, exclude", 0 denotes "not being searched on", and 1 denotes "matched search"
+            // All datarecords of every datatype that are being searched on are initialized to -1...their contents must match the search for them to be included in the results.
+            // During the very last phase of searching, $descendants_of_datarecords is recursively traversed...datarecords with a 0 or 1 are included in the final list of search results unless it would violate rule 3 above.
+            $matched_datarecords = array();
+
+            foreach ($results as $result) {
+                $dr_id = $result['dr_id'];
+                $parent_id = $result['parent_id'];
+                $dt_id = $result['datatype_id'];
+
+                // Keep track of which children this datarecord has
+                if ($dr_id == $parent_id) {
+                    // ...this is a top-level datarecord
+                    if ( !isset($descendants_of_datarecord[0]) ) {
+                        $descendants_of_datarecord[0] = array();
+                        $descendants_of_datarecord[0][$target_datatype_id] = array();
+                    }
+                    $descendants_of_datarecord[0][$target_datatype_id][$dr_id] = '';
+                }
+                else {
+                    // ...this is a some child or linked datarecord
+                    if ( !isset($descendants_of_datarecord[$parent_id]) )
+                        $descendants_of_datarecord[$parent_id] = array();
+                    if ( !isset($descendants_of_datarecord[$parent_id][$dt_id]) )
+                        $descendants_of_datarecord[$parent_id][$dt_id] = array();
+                    $descendants_of_datarecord[$parent_id][$dt_id][$dr_id] = '';
+                }
+
+                // If this datarecord's datatype is being searched on somehow...require any datarecords of that datatype to be directly matched by the search queries
+                $flag = 0;
+                if ( in_array($dt_id, $searched_datatypes) )
+                    $flag = -1;
+
+                $matched_datarecords[$dr_id] = $flag;
+            }
+
+            // $descendants_of_datarecord array is currently partially flattened..."inflate" it into the true tree structure described above
+            $matched_datarecords[0] = 0;
+            $descendants_of_datarecord = array(0 => self::buildDatarecordTree($descendants_of_datarecord, 0));
+
+if ($more_debug) {
+    print '$matched_datarecords: '.print_r($matched_datarecords, true)."\n";
+    print '$descendants_of_datarecord: '.print_r($descendants_of_datarecord, true)."\n";
+}
+
+
+if ($timing)
+    print 'datarecord trees built in: '.((microtime(true) - $start_time)*1000)."ms \n";
 
             // --------------------------------------------------
             // General search
-            if (trim($general_string) !== '') {
+            $basic_results = array();
+            if ($general_string !== null) {
 
                 // Assume user wants exact search...
-                $general_search_params = self::parseField($general_string, $debug);
-if ($debug)
+                $general_search_params = self::parseField($general_string, $more_debug);
+if ($more_debug)
     print '$general_search_params: '.print_r($general_search_params, true)."\n";
-
-                $basic_results = array();
-                // Search all datafields belonging to this datatype that are of these fieldtypes
-                $search_entities = array('ShortVarchar', 'MediumVarchar', 'LongVarchar', 'LongText', 'IntegerValue', 'Radio');   // TODO - DecimalValue too? or not...
-
-                // NOTE - this purposefully ignores boolean...otherwise a general search string of '1' would return all checked boolean entities, and '0' would return all unchecked boolean entities
 
                 foreach ($search_entities as $typeclass) {
                     // Grab list of datafields to search with this typeclass
@@ -1171,12 +1413,9 @@ if ($debug)
                         if ( in_array($datatype_id, $related_datatypes['linked_datatypes']) )
                             continue;
 
-//print '$datafields: '.print_r($datafields, true)."\n";
-
                         $results = array();
                         if ($typeclass == 'Radio') {
                             // Radio requires a different set of parameters
-                            $general_string = trim($general_string);
                             $comparision = '=';
 
                             // If general_string has quotes around it, strip them
@@ -1197,51 +1436,33 @@ if ($debug)
                             );
 
                             // Run the radio-typeclass-specific query
-                            $results = self::runSearchQuery($em, $datafield_list, $typeclass, $datatype_id, $radio_search_params, $related_datatypes, $metadata);
+                            $results = self::runSearchQuery($em, $datafield_list, $typeclass, $datatype_id, $radio_search_params, $related_datatypes, $metadata, $more_debug);
                         }
                         else {
                             // Run the query for most of the typeclasses
-                            $results = self::runSearchQuery($em, $datafield_list, $typeclass, $datatype_id, $general_search_params, $related_datatypes, $metadata);
+                            $results = self::runSearchQuery($em, $datafield_list, $typeclass, $datatype_id, $general_search_params, $related_datatypes, $metadata, $more_debug);
                         }
 
-//print_r($results);
                         // Save the results
-                        $basic_results = array_merge($basic_results, $results);
+                        foreach ($results as $dr_id => $grandparent_id) {
+                            if ( !isset($basic_results[$dr_id]) )
+                                $basic_results[$dr_id] = $grandparent_id;
+                        }
 
                         // Save that metadata was applied to this datatype
                         $metadata[$datatype_id]['searched'] = 1;
                     }
                 }
+            }
 
 if ($debug) {
     print '----------'."\n";
     print '$basic_results: '.print_r($basic_results, true)."\n";
-    print '----------'."\n";
+//exit();
 }
 
-                // --------------------------------------------------
-                // Now, need to turn the array into a list of datarecord ids
-                $seen_datarecords = array();
-                $datarecords = array();
-                foreach ($basic_results as $num => $data) {
-                    $dr = $data['id'];
-
-                    if ( !isset($seen_datarecords[$dr]) ) {
-                        $seen_datarecords[$dr] = 0;
-                        $datarecords[] = $dr;
-                    }
-                }
-
-                // Convert into a string of datarecord ids
-                $str = '';
-                foreach ($datarecords as $num => $dr_id)
-                    $str .= $dr_id.',';
-                $datarecord_str = substr($str, 0, strlen($str)-1);
-
-                // Sort the subset of datarecords, if possible
-                $basic_search_datarecords = $odrcc->getSortedDatarecords($datatype, $datarecord_str);
-            }
-
+if ($timing)
+    print 'general search results found in: '.((microtime(true) - $start_time)*1000)."ms \n";
 
             // --------------------------------------------------
             // Want the next block to run always, because it has to catch instances where metadata for a datatype is specified, but there are no searches performed on datafields of that datatype...
@@ -1356,14 +1577,14 @@ if ($debug)
                         // Every other FieldType...
 
                         // Assume user wants exact search...
-                        $search_params = self::parseField($search_string, $debug);
+                        $search_params = self::parseField($search_string, $more_debug);
 //print_r($search_params);
                     }
 
                     // Run the query and save the results
                     $datafields = array( $datafield_id );
                     $typeclass = $datafield_array['by_id'][$datafield_id];
-                    $results = self::runSearchQuery($em, $datafields, $typeclass, $datatype_id, $search_params, $related_datatypes, $metadata);
+                    $results = self::runSearchQuery($em, $datafields, $typeclass, $datatype_id, $search_params, $related_datatypes, $metadata, $more_debug);
 
                     $using_adv_search = true;
                     $adv_results[$datafield_id] = $results;
@@ -1372,8 +1593,8 @@ if ($debug)
                     $metadata[$datatype_id]['searched'] = 1;
                 }
 
-if ($debug)
-    print 'after normal searches: '.print_r($metadata, true)."\n";
+if ($more_debug)
+    print 'after general/advanced searches: '.print_r($metadata, true)."\n";
 
                 // --------------------------------------------------
                 // Check to see if any pieces of metadata didn't get searched on
@@ -1407,14 +1628,14 @@ if ($debug)
                         $metadata_str = $search_metadata['metadata_str'].' GROUP BY grandparent.id';
                         $parameters = $search_metadata['metadata_params'];
 
-                        $query = '
-                            SELECT grandparent.id
+                        $query =
+                           'SELECT dr.id AS dr_id, grandparent.id AS grandparent_id
                             FROM odr_data_record AS grandparent
                             INNER JOIN odr_data_record AS dr ON grandparent.id = dr.grandparent_id
                             '.$linked_join.'
                             '.$where.' AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL '.$metadata_str;
 
-if ($debug) {
+if ($more_debug) {
     print $query."\n";
     print '$parameters: '.print_r($parameters, true)."\n";
 }
@@ -1424,119 +1645,159 @@ if ($debug) {
                         $conn = $em->getConnection();
                         $results = $conn->fetchAll($query, $parameters);
 
-if ($debug) {
+if ($more_debug) {
     print '>> '.print_r($results, true)."\n";
 }
 
                         // Save the query result so the search results are correctly restricted
                         $using_adv_search = true;
-                        $adv_results['dt_'.$datatype_id.'_metadata'] = $results;
+                        foreach ($results as $result) {
+                            $dr_id = $result['dr_id'];
+                            $grandparent_id = $result['grandparent_id'];
+
+                            if ( !isset($adv_results['dt_'.$datatype_id.'_metadata']) )
+                                $adv_results['dt_'.$datatype_id.'_metadata'] = array();
+                            $adv_results['dt_'.$datatype_id.'_metadata'][$dr_id] = $grandparent_id;
+                        }
                     }
                 }
+            }
+
 if ($debug) {
     print '----------'."\n";
     print '$adv_results: '.print_r($adv_results, true)."\n";
-    print '----------'."\n";
+//exit();
 }
 
+if ($timing)
+    print 'adv search/metadata results gathered in: '.((microtime(true) - $start_time)*1000)."ms \n";
 
-                // --------------------------------------------------
-                // Now, need to turn the metadata/datafield array into a list of datarecord ids
-                $has_result = false;
-                $datarecords = array();
-                foreach ($adv_results as $datafield_id => $data) {
-                    if ($data !== 'any') {
-                        $has_result = true;
-                        // Due to this search being an implicit AND, if one of the datafields had no hits on the search term, everything fails
-                        if ( count($data) == 0 ) {
-                            $datarecords = array();
-                            break;
+
+            // ----------------------------------------
+            // Now, need to combine both $basic_results and $adv_results into a list of datarecord ids that matched the search...
+
+            // $adv_results stores all results for all datafields on the same level for simplicity...but intersections need to be performed only within a datatype
+            foreach ($datafield_array['by_datatype'] as $dt_id => $tmp) {
+                // Use $intersection to temporarily hold...
+                $intersection = array();
+
+                // Check for each possible piece of data that could have been searched on
+                foreach ($tmp as $num => $df_id) {
+                    // Don't bother if the datafield/metadata wasn't searched on
+                    if ( !isset($adv_results[$df_id]) )
+                        continue;
+
+                    // If no datarecords matched the search, do nothing
+                    if ( !is_array($intersection) || count($adv_results[$df_id]) == 0 ) {
+                        $intersection = false;
+                    }
+                    else if ( count($intersection) == 0 ) {
+                        // ...if nothing has been stored in $intersection yet, store this
+                        $intersection = $adv_results[$df_id];
+                    }
+                    else {
+                        // ...otherwise, remove datarecords from $intersection that aren't in $adv_results[$df_id]
+                        foreach ($intersection as $dr_id => $gp_id) {
+                            if ( !isset($adv_results[$df_id][$dr_id]) )
+                                unset( $intersection[$dr_id] );
                         }
-
-                        // Otherwise, flatten $data into a 2D array where $datarecords[$datafield_id] = <list of datarecords matching search term for $datafield_id>
-                        $datarecord_list = array();
-                        foreach ($data as $key => $tmp)
-                            $datarecord_list[] = $tmp['id'];
-                        $datarecords[] = $datarecord_list;
                     }
                 }
 
-                if ($has_result == true) {
-                    // Reduce $datarecords into a list of datarecord ids that matched all search terms
-                    if ( count($datarecords) == 1 ) {
-                        $datarecords = $datarecords[0];
-                    }
-                    else if ( count($datarecords) > 1 ) {
-                        $tmp = $datarecords[0];
-                        for ($i = 1; $i < count($datarecords); $i++)
-                            $tmp = array_intersect($tmp, $datarecords[$i]);
-                        $datarecords = $tmp;
-                    }
-
-                    // Convert into a string of datarecord ids
-                    $str = '';
-                    foreach ($datarecords as $num => $dr_id)
-                        $str .= $dr_id.',';
-                    $datarecord_str = substr($str, 0, strlen($str)-1);
-
-                    // Sort the subset of datarecords, if possible
-                    $adv_search_datarecords = $odrcc->getSortedDatarecords($datatype, $datarecord_str);
-                }
-                else {
-                    // Metadata and datafield searches produced no results...datarecord list restriction will depend solely on general search
-                    $adv_search_datarecords = 'any';
+                // If there was a general search string, remove datarecords from $intersection that aren't in $basic_results
+                if ($general_string !== null) {
+                    foreach ($intersection as $dr_id => $gp_id)
+                        if ( !isset($basic_results[$dr_id]) )
+                            unset( $intersection[$dr_id] );
                 }
 
+                // ...now that $intersection has the correct set of datarecords of this datatype that matched the search, update $matched_datarecords with the results
+                if ( is_array($intersection) && count($intersection) > 0 ) {
+if ($debug)
+    print '$intersection of dt '.$dt_id.': '.print_r($intersection, true)."\n";
+
+                    // Mark each of the datarecords left after the intersections as matching the search
+                    foreach ($intersection as $dr_id => $gp_id)
+                        $matched_datarecords[$dr_id] = 1;
+                }
+            }
+
+if ($timing)
+    print 'search results intersection calculated in: '.((microtime(true) - $start_time)*1000)."ms \n";
+
+            // Deal with the case where there's only a general search string
+            if ( $general_string !== null && count($basic_results) > 0 && count($adv_results) == 0 ) {
+                foreach ($basic_results as $dr_id => $gp_id) {
+                    // All datarecords in $basic_results match the general search string by definition
+                    $matched_datarecords[$dr_id] = 1;
+
+                    // All of their grandparents are also considered to match by definition
+                    $matched_datarecords[$gp_id] = 1;
+                }
+            }
+
+
+            // ----------------------------------------
+            // Compute the final list of datarecords/grandparent datarecords...
+            $datarecords = '';
+            $grandparents = '';
+
+            if ( $general_string === null && count($searched_datafields) == 0 && count($metadata) == 0 ) {
+                // Ensure that datarecord_id 0 doesn't get in the final search results...
+                unset( $matched_datarecords[0] );
+
+                // In the case when there was nothing entered in the search at all...every possible datarecord satisfies the search
+                foreach ($matched_datarecords as $dr_id => $flag)
+                    $datarecords .= $dr_id.',';
+                $datarecords = substr($datarecords, 0, -1);
+
+                $grandparents = $odrcc->getSortedDatarecords($datatype);
+            }
+            else {
+                // In the case where something was searched on...
+
+if ($more_debug) {
+    print '$matched_datarecords: '.print_r($matched_datarecords, true)."\n";
+    print '$descendants_of_datarecord: '.print_r($descendants_of_datarecord, true)."\n";
+}
+
+                // Build the final list of datarecords/grandparent datarecords matched by the query
+                foreach ($descendants_of_datarecord[0] as $dt_id => $top_level_datarecords) {
+                    foreach ($top_level_datarecords as $gp_id => $tmp) {
+                        $results = self::getFinalSearchResults($matched_datarecords, $descendants_of_datarecord[0][$dt_id], $gp_id);
+
+                        $datarecords .= $results;
+                        if ($results !== '')
+                            $grandparents .= $gp_id.',';
+                    }
+                }
+
+                // Remove trailing commas
+                if (strpos($datarecords, ',') !== false)
+                    $datarecords = substr($datarecords, 0, -1);
+                if (strpos($grandparents, ',') !== false) {
+                    $grandparents = substr($grandparents, 0, -1);
+                    $grandparents = $odrcc->getSortedDatarecords($datatype, $grandparents);
+                }
             }
 
 if ($debug) {
     print '----------'."\n";
-    print '$basic_search_datarecords: '.print_r($basic_search_datarecords, true)."\n";
-    print '$adv_search_datarecords: '.print_r($adv_search_datarecords, true)."\n";
     print '----------'."\n";
+    print '$datarecords: '.$datarecords."\n";
+    print '$grandparents: '.$grandparents."\n";
+
+    if ($grandparents == '')
+        print 'count($grandparents): 0'."\n";
+    else
+        print 'count($grandparents): '.(substr_count($grandparents,',')+1)."\n";
+
+    print '----------'."\n";
+//    exit();
 }
 
-
-            // --------------------------------------------------
-            // Combine advanced and basic search results if necessary
-            $datarecords = '';
-            if ($using_adv_search && trim($general_string) !== '') {
-if ($debug)
-    print "a\n";
-                if ($adv_search_datarecords == 'any') {
-                    $datarecords = $basic_search_datarecords;
-                }
-                else {
-                    // Some combination of both basic and adv search...only return records that are in both basic and adv search
-                    $basic_search_datarecords = explode(',', $basic_search_datarecords);
-                    $adv_search_datarecords = explode(',', $adv_search_datarecords);
-
-                    $str = '';
-                    foreach ($basic_search_datarecords as $b_dr) {
-                        if ( in_array($b_dr, $adv_search_datarecords) )
-                            $str .= $b_dr.',';
-                    }
-                    $datarecords = substr($str, 0, strlen($str)-1);
-                }
-            }
-            else if (trim($general_string) !== '') {
-if ($debug)
-    print "b\n";
-                // used basic search, return any results
-                $datarecords = $basic_search_datarecords;
-            }
-            else if ($using_adv_search && $adv_search_datarecords != 'any') {
-if ($debug)
-    print "c\n";
-                // used adv search, return any results
-                $datarecords = $adv_search_datarecords;
-            }
-            else {
-if ($debug)
-    print "d\n";
-                // Nothing entered in either search, return everything
-                $datarecords = $odrcc->getSortedDatarecords($datatype);
-            }
+if ($timing)
+    print 'final datarecord lists calculated in: '.((microtime(true) - $start_time)*1000)."ms \n";
 
 
             // --------------------------------------------------
@@ -1547,8 +1808,17 @@ if ($debug)
 
             $search_checksum = md5($search_key);
             $datatype_id = $datatype->getId();
+            $searched_datafields = implode(',', $searched_datafields);
 
             $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+
+if ($debug || $more_debug || $timing)
+    print '</pre>';
+
+if ($timing) {
+    print 'total execution time: '.((microtime(true) - $start_time)*1000)."ms \n";
+    exit();
+}
 
             // Create pieces of the array if they don't exist
             if ($cached_searches == null)
@@ -1563,20 +1833,125 @@ if ($debug)
 
             // Store the data in the memcached entry
             if ($logged_in)
-                $cached_searches[$datatype_id][$search_checksum]['logged_in'] = array('datarecord_list' => $datarecords);
+                $cached_searches[$datatype_id][$search_checksum]['logged_in'] = array('complete_datarecord_list' => $datarecords, 'datarecord_list' => $grandparents);
             else
-                $cached_searches[$datatype_id][$search_checksum]['not_logged_in'] = array('datarecord_list' => $datarecords);
+                $cached_searches[$datatype_id][$search_checksum]['not_logged_in'] = array('complete_datarecord_list' => $datarecords, 'datarecord_list' => $grandparents);
 
             $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
 
-if ($debug) {
-    print 'saving datarecord_str: '.$datarecords."\n";
-
+if ($more_debug) {
+//    print 'saving datarecord_str: '.$datarecords."\n";
     print_r($cached_searches);
 }
         }
 
         return true;
+    }
+
+
+    /**
+     * Turns the originally flattened $descendants_of_datarecord array into a recursive tree structure of the form...
+     *
+     * parent_datarecord_id => array(
+     *     child_datatype_1_id => array(
+     *         child_datarecord_1_id of child_datatype_1 => '',
+     *         child_datarecord_2_id of child_datatype_1 => '',
+     *         ...
+     *     ),
+     *     child_datatype_2_id => array(
+     *         child_datarecord_1_id of child_datatype_2 => '',
+     *         child_datarecord_2_id of child_datatype_2 => '',
+     *         ...
+     *     ),
+     *     ...
+     * )
+     *
+     * If child_datarecord_X_id has children of its own, then it is also a parent datarecord, and it points to another recursive tree structure of this type instead of an empty string.
+     * Linked datatypes/datarecords are handled identically to child datatypes/datarecords.
+     *
+     * The tree's root looks like...
+     *
+     * 0 => array(
+     *     target_datatype_id => array(
+     *         top_level_datarecord_1_id => ...
+     *         top_level_datarecord_2_id => ...
+     *         ...
+     *     )
+     * )
+     *
+     * @param array $descendants_of_datarecord
+     * @param string|integer $current_datarecord_id
+     *
+     * @return array
+     */
+    private function buildDatarecordTree($descendants_of_datarecord, $current_datarecord_id)
+    {
+        if ( !isset($descendants_of_datarecord[$current_datarecord_id]) ) {
+            // $current_datarecord_id has no children
+            return '';
+        }
+        else {
+            // $current_datarecord_id has children
+            $result = array();
+
+            // For every child datatype this datarecord has...
+            foreach ($descendants_of_datarecord[$current_datarecord_id] as $dt_id => $datarecords) {
+                // For every child datarecord of this child datatype...
+                foreach ($datarecords as $dr_id => $tmp) {
+                    // ...get all children of this child datarecord and store them
+                    $result[$dt_id][$dr_id] = self::buildDatarecordTree($descendants_of_datarecord, $dr_id);
+                }
+            }
+
+            return $result;
+        }
+    }
+
+
+    /**
+     * Recursively traverses the datarecord tree for all datarecords if the datatype being searched on, and returns a comma-separated
+     *  list of all child/linked/top-level datarecords that effectively match the search query
+     *
+     * @param array $matched_datarecords
+     * @param array $descendants_of_datarecord
+     * @param string|integer $current_datarecord_id
+     *
+     * @return string
+     */
+    private function getFinalSearchResults($matched_datarecords, $descendants_of_datarecord, $current_datarecord_id)
+    {
+        // If this datarecord is excluded from the search results for some reason, don't bother checking any child datarecords...they're also excluded by definition
+        if ( $matched_datarecords[$current_datarecord_id] == -1 ) {
+            return '';
+        }
+        // If this datarecord has children...
+        else if ( is_array($descendants_of_datarecord[$current_datarecord_id]) ) {
+            // ...keep track of whether each child datarecord matched the search
+            $datarecords = '';
+
+            foreach ($descendants_of_datarecord[$current_datarecord_id] as $dt_id => $child_datarecords) {
+
+                $dr_matches = '';
+                foreach ($child_datarecords as $dr_id => $tmp)
+                    $dr_matches .= self::getFinalSearchResults($matched_datarecords, $descendants_of_datarecord[$current_datarecord_id][$dt_id], $dr_id);
+
+                if ($dr_matches == '') {
+                    // None of the child datarecords of this datatype matched the search...therefore the parent datarecord doesn't match either
+                    return '';
+                }
+                else {
+                    // Save the child datarecords that matched this search
+                    $datarecords .= $dr_matches;
+                }
+            }
+
+            // ...otherwise, return this datarecord and all of the child datarecords that matched
+            return $current_datarecord_id.','.$datarecords;
+        }
+        else {
+            // ...otherwise, this datarecord has no children, and either matches the search or is not otherwise excluded
+            return $current_datarecord_id.',';
+        }
     }
 
 
@@ -1589,14 +1964,15 @@ if ($debug) {
      * @param string $typeclass        The typeclass of every datafield in $datafield_list
      * @param array $search_params     
      * @param array $related_datatypes @see self::getRelatedDatatypes()
-     * @param array $metadata          
+     * @param array $metadata
+     * @param boolean $debug
      *
      * @return array TODO
      */
-    private function runSearchQuery($em, $datafield_list, $typeclass, $datatype_id, $search_params, $related_datatypes, $metadata)
+    private function runSearchQuery($em, $datafield_list, $typeclass, $datatype_id, $search_params, $related_datatypes, $metadata, $debug)
     {
-$debug = true;
-$debug = false;
+//$debug = true;
+//$debug = false;
 
         // Conversion array from typeclass to physical table name
         $table_names = array(
@@ -1635,7 +2011,6 @@ $debug = false;
         // Always include created/updated/public metadata for the grandparent if it exists...
         $metadata_str = '';
         $target_datatype_id = $related_datatypes['target_datatype'];
-        $from_linked_datatype = false;
         if ( isset($metadata[$target_datatype_id]) )  {
             $search_metadata = self::buildMetadataQueryStr($metadata[$target_datatype_id], 'grandparent');
 
@@ -1659,17 +2034,9 @@ $debug = false;
             }
         }
         else if ( in_array($datatype_id, $related_datatypes['linked_datatypes']) ) {
-
-            $from_linked_datatype = true;
-
-            // Searching from a linked datatype requires different INNER JOINs
-            $drf_join = 'INNER JOIN odr_linked_data_tree AS ldt ON dr.id = ldt.ancestor_id
-                INNER JOIN odr_data_record AS ldr ON ldt.descendant_id = ldr.id
-                INNER JOIN odr_data_record_fields AS drf ON drf.data_record_id = ldr.id';
-
             // Searching from a linked datatype also requires different metadata
             if ( isset($metadata[$datatype_id]) ) {
-                $search_metadata = self::buildMetadataQueryStr($metadata[$datatype_id], 'ldr');
+                $search_metadata = self::buildMetadataQueryStr($metadata[$datatype_id], 'dr');
 
                 if ( $search_metadata['metadata_str'] !== '' ) {
                     $metadata_str .= $search_metadata['metadata_str'];
@@ -1683,8 +2050,8 @@ $debug = false;
         // Different typeclasses need different queries...
         if ($typeclass == 'Radio') {
             // Build the native SQL query specifically for Radio datafields
-            $query = 
-               'SELECT grandparent.id
+            $query =
+               'SELECT dr.id AS dr_id, grandparent.id AS grandparent_id
                 FROM odr_data_record AS grandparent
                 INNER JOIN odr_data_record AS dr ON grandparent.id = dr.grandparent_id
                 '.$drf_join.'
@@ -1693,16 +2060,12 @@ $debug = false;
                 WHERE drf.data_field_id IN ('.$datafields.') AND ('.$search_params['str'].')
                 AND grandparent.deletedAt IS NULL AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL ';
 
-            if ($from_linked_datatype)
-                $query .= 'AND ldt.deletedAt IS NULL AND ldr.deletedAt IS NULL AND dr.data_type_id = '.$target_datatype_id.' '; // TODO - links to childtypes?
-
             $query .= $metadata_str;
-            $query .= ' GROUP BY grandparent.id';
         }
         else if ($typeclass == 'Image' || $typeclass == 'File') {
             // Build the native SQL query that will check for (non)existence of files/images in this datafield
             $query =
-               'SELECT grandparent.id
+               'SELECT dr.id AS dr_id, grandparent.id AS grandparent_id
                 FROM odr_data_record AS grandparent
                 INNER JOIN odr_data_record AS dr ON grandparent.id = dr.grandparent_id
                 '.$drf_join.'
@@ -1710,16 +2073,12 @@ $debug = false;
                 WHERE drf.data_field_id IN ('.$datafields.') AND ('.$search_params['str'].')
                 AND grandparent.deletedAt IS NULL AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL ';
 
-            if ($from_linked_datatype)
-                $query .= 'AND ldt.deletedAt IS NULL AND dr.data_type_id = '.$target_datatype_id.' ';   // TODO - links to childtypes?
-
             $query .= $metadata_str;
-            $query .= ' GROUP BY grandparent.id';
         }
         else {
             // Build the native SQL query that will check content of any other datafields
             $query =
-               'SELECT grandparent.id
+               'SELECT dr.id AS dr_id, grandparent.id AS grandparent_id
                 FROM odr_data_record AS grandparent
                 INNER JOIN odr_data_record AS dr ON grandparent.id = dr.grandparent_id
                 '.$drf_join.'
@@ -1727,11 +2086,7 @@ $debug = false;
                 WHERE '.$datafield_str.' AND ('.$search_params['str'].')
                 AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL ';
 
-            if ($from_linked_datatype)
-                $query .= 'AND ldt.deletedAt IS NULL AND ldr.deletedAt IS NULL AND dr.data_type_id = '.$target_datatype_id.' '; // TODO - links to childtypes?
-
             $query .= $metadata_str;
-            $query .= ' GROUP BY grandparent.id';
         }
 
 if ($debug) {
@@ -1748,7 +2103,11 @@ if ($debug) {
     print '>> '.print_r($results, true)."\n";
 }
 
-        return $results;
+        $datarecords = array();
+        foreach ($results as $result)
+            $datarecords[ $result['dr_id'] ] = $result['grandparent_id'];
+
+        return $datarecords;
     }
 
 

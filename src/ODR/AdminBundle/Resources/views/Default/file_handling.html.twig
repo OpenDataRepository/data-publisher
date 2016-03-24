@@ -8,7 +8,7 @@
         });
     });
 
-    function handleFileDownload(event, file_id, href, short_form) {
+    function handleFileDownload(event, file_id, href, short_form, can_cancel) {
         // Prevent a normal file download
         event.preventDefault();
         // If using ShortResults, this click will trigger a load of the datarecord this file belongs to...prevent that
@@ -42,15 +42,21 @@ console.log(file_decrypt_timeouts);
                 // Store that a decryption for this file is in progress...
                 pending_file_decryptions[ file_id ] = download;
 
-                // Activate the cancel button for this file decryption...
-                $(cancel_button).unbind('click');
-                $(cancel_button).click(function(event) {
-                    // If using ShortResults, this click will trigger a load of the datarecord this file belongs to...prevent that
-                    if (short_form)
-                        event.stopImmediatePropagation();
+                if (can_cancel) {
+                    // Activate the cancel button for this file decryption...
+                    $(cancel_button).unbind('click');
+                    $(cancel_button).click(function (event) {
+                        // If using ShortResults, this click will trigger a load of the datarecord this file belongs to...prevent that
+                        if (short_form)
+                            event.stopImmediatePropagation();
 
-                    cancelFileDecryption(download, file_id);
-                });
+                        cancelFileDecryption(download, file_id);
+                    });
+                }
+                else {
+                    // Not allowed to cancel this decryption, hide the button
+                    $(cancel_button).hide();
+                }
             },
             successCallback: function (url) {
 //console.log('success for file ' + file_id);
@@ -59,6 +65,7 @@ console.log(file_decrypt_timeouts);
                 file_decrypt_timeouts[ file_id ] = null;
 
                 // Download is done, No longer need these
+                $(cancel_button).show();
                 $(download_div).hide();
                 $(cancel_button).unbind('click');
             },
@@ -69,6 +76,7 @@ console.log(file_decrypt_timeouts);
                 file_decrypt_timeouts[ file_id ] = null;
 
                 // Download is done, No longer need these
+                $(cancel_button).show();
                 $(download_div).hide();
                 $(cancel_button).unbind('click');
             }
@@ -142,6 +150,10 @@ console.log(file_decrypt_timeouts);
                                 value: current_value,
                                 max: max_value
                             });
+
+                            // If file got decrypted, stop querying server for progress
+                            if (current_value == 100)
+                                file_decrypt_timeouts[ file_id ] = null;
                         }
                     }
 

@@ -75,9 +75,12 @@ class ODRCustomController extends Controller
         $session = $this->get('session');
         $repo_datarecord = $this->getDoctrine()->getManager()->getRepository('ODRAdminBundle:DataRecord');
 
+        $logged_in = false;
         $user_permissions = array();
-        if ($user !== 'anon.')
+        if ($user !== 'anon.') {
+            $logged_in = true;
             $user_permissions = self::getPermissionsArray($user->getId(), $request);
+        }
 
         // Grab the tab's id, if it exists
         $params = $request->query->all();
@@ -167,6 +170,8 @@ class ODRCustomController extends Controller
                     'user_permissions' => $user_permissions,
                     'odr_tab_id' => $odr_tab_id,
 
+                    'logged_in' => $logged_in,
+
                     // required for load_datarecord_js.html.twig
                     'target' => $target,
                     'search_key' => $search_key,
@@ -206,6 +211,8 @@ print "\n\n";
                     'scroll_target' => $scroll_target,
                     'user' => $user,
                     'user_permissions' => $user_permissions,
+
+                    'logged_in' => $logged_in,
 
                     // required for load_datarecord_js.html.twig
                     'target' => $target,
@@ -472,6 +479,7 @@ print "\n\n";
                 $data['error'] = true;
                 $data['message'] = $ret['message'];
                 $data['encoded_search_key'] = $ret['encoded_search_key'];
+                $data['complete_datarecord_list'] = '';
                 $data['datarecord_list'] = '';
 
                 return $data;
@@ -492,7 +500,8 @@ print "\n\n";
         $data['searched_datafields'] = $search_params['searched_datafields'];
         $data['encoded_search_key'] = $search_params['encoded_search_key'];
 
-        $data['datarecord_list'] = $search_params[$str]['datarecord_list'];
+        $data['datarecord_list'] = $search_params[$str]['datarecord_list'];                     // ...just top-level datarecords
+        $data['complete_datarecord_list'] = $search_params[$str]['complete_datarecord_list'];   // ...top-level, child, and linked datarecords
 
         return $data;
     }
@@ -644,7 +653,6 @@ print "\n\n";
                 $checksum = md5_file($encrypted_basedir.'enc.'.$chunk_id);
 
                 // Attempt to load a checksum object
-                // TODO: is this always going to be null?
                 $obj = null;
                 if ($object_type == 'file')
                     $obj = $repo_filechecksum->findOneBy( array('File' => $object_id, 'chunk_id' => $chunk_id) );
@@ -1656,6 +1664,7 @@ $save_permissions = false;
 //print_r($results);
 
 
+                // TODO - why is this here?  does mysql not handle ordering properly in this case?
                 // Flatten the array
                 $datarecords = array();
                 foreach ($results as $num => $data) {
@@ -2012,12 +2021,13 @@ $save_permissions = false;
         $typeclass = $drf->getDataField()->getFieldType()->getTypeClass();
 
         // Get Symfony to guess the extension of the file via mimetype...a potential wrong extension shouldn't matter since Results::filedownloadAction() renames the file during downloads anyways
-        $uploaded_file = new SymfonyFile($filepath.'/'.$original_filename);
+        $path_prefix = dirname(__FILE__).'/../../../../web/';
+        $uploaded_file = new SymfonyFile($path_prefix.$filepath.'/'.$original_filename);
         $extension = $uploaded_file->guessExtension();
 
         // ----------------------------------------
         // Determine where the file should ultimately be moved to
-        $destination_path = dirname(__FILE__).'/../../../../web/uploads/';
+        $destination_path = $path_prefix.'uploads/';
         $my_obj = null;
         if ($typeclass == 'File') {
             $my_obj = new File();
@@ -2066,6 +2076,7 @@ $save_permissions = false;
         // Save changes
         $em->persist($my_obj);
         $em->flush();
+        $em->refresh($my_obj);
 
 
         // ----------------------------------------
@@ -2077,7 +2088,7 @@ $save_permissions = false;
 
             // Move image to correct spot
             $filename = 'Image_'.$image_id.'.'.$my_obj->getExt();
-            rename($filepath.'/'.$original_filename, $destination_path.'/'.$filename);
+            rename($path_prefix.$filepath.'/'.$original_filename, $destination_path.'/'.$filename);
 
             $local_filename = $my_obj->getUploadDir().'/'.$filename;
             $my_obj->setLocalFileName($local_filename);
@@ -2098,6 +2109,10 @@ $save_permissions = false;
 
             // A decrypted version of the Image still exists on the server...delete it
             unlink($filepath);
+
+            // Save changes again
+            $em->persist($my_obj);
+            $em->flush();
         }
         else if ($typeclass == 'File') {
             // Generate local filename
@@ -2108,11 +2123,18 @@ $save_permissions = false;
             //rename($filepath.'/'.$original_filename, $destination_path.'/'.$filename);
 
             //$local_filename = $my_obj->getUploadDir().'/'.$filename;
-            $local_filename = realpath( dirname(__FILE__).'/../../../../web/'.$my_obj->getUploadDir().'/chunks/user_'.$user_id.'/completed/'.$original_filename );
-            $my_obj->setLocalFileName($local_filename);
+            $local_filename = realpath( $path_prefix.$filepath.'/'.$original_filename );
+            //dirname(__FILE__).'/../../../../web/'.$my_obj->getUploadDir().'/chunks/user_'.$user_id.'/completed/'.$original_filename );
+
+            $my_obj->setLocalFileName($filepath.'/'.$original_filename);
 
             clearstatcache(true, $local_filename);
             $my_obj->setFilesize( filesize($local_filename) );
+
+            // Save changes again before encryption process takes over
+            $em->persist($my_obj);
+            $em->flush();
+            $em->refresh($my_obj);
 
             // Encrypt the file before it's used
             //self::encryptObject($file_id, 'file');
@@ -2151,14 +2173,6 @@ $save_permissions = false;
             $delay = 1;
             $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
         }
-
-        // Save changes again
-        $em->persist($my_obj);
-        $em->flush();
-
-
-        // A decrypted version of the File/Image still exists on the server...delete it here since all its properties have been saved
-        //unlink($file_path);
 
         return $my_obj;
     }
@@ -2695,6 +2709,7 @@ $save_permissions = false;
         $results = $query->getArrayResult();
         foreach ($results as $num => $data) {
             $fieldname = $data['field_name'];
+            $fieldname = str_replace('"', "\\\"", $fieldname);
             $column_names .= '{"title":"'.$fieldname.'"},';
             $num_columns++;
         }
@@ -3698,6 +3713,8 @@ if ($debug) {
                         WHERE dt.ancestor = :ancestor AND dt.descendant = :descendant AND dt.deletedAt IS NULL'
                     )->setParameters( array('ancestor' => $datatype, 'descendant' => $childtype) );
                     $result = $query->getResult();
+
+                    // TODO - empty query results?
 
                     $tree['has_childtype'] = 1;
                     $top_level = 0;

@@ -58,17 +58,19 @@
 
         {# render children of target datatype next #}
         {% for child_datatype_id, datafield_list in related_datatypes['child_datatypes'] %}
-            {% if target_datatype.id != child_datatype_id and searchable_datafields[child_datatype_id] is defined %}
+            {% if target_datatype.id != child_datatype_id and (searchable_datafields[child_datatype_id] is defined or logged_in == true) %}
             <fieldset>
                 <div class="ODRAdvSearch_header {#pure-u-1#}">
-                    <span>{{ searchable_datafields[ child_datatype_id ][0].getdatatype.getshortname }}</span>
+                    <span>{{ related_datatypes['datatype_names'][ child_datatype_id ] }}</span>
                     <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
                 </div>
                 {#<div class="pure-u-1-24"></div>#}
                 <div class="ODRAdvSearch_content {#pure-u-23-24#} pure-u-1">
-                {% for datafield in searchable_datafields[ child_datatype_id ] %}
-                    {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with { 'datafield': datafield } %}
-                {% endfor %}
+                {% if searchable_datafields[child_datatype_id] is defined %}
+                    {% for datafield in searchable_datafields[child_datatype_id] %}
+                        {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with { 'datafield': datafield } %}
+                    {% endfor %}
+                {% endif %}
 
                 {# created/modified by, created/modified date, public status of child datarecord #}
                 {% if logged_in == true %}
@@ -84,7 +86,7 @@
             {% if searchable_datafields[linked_datatype_id] is defined %}
             <fieldset>
                 <div class="ODRAdvSearch_header {#pure-u-1#}">
-                    <span>{{ searchable_datafields[ linked_datatype_id ][0].getdatatype.getshortname }}</span>
+                    <span>{{ related_datatypes['datatype_names'][ linked_datatype_id ] }}</span>
                     <span class="ODRAdvSearch_caret"><i class="fa fa-lg fa-caret-up"></i></span>
                 </div>
                 {#<div class="pure-u-1-24"></div>#}

@@ -80,6 +80,7 @@ class MassEditController extends ODRCustomController
                 $data = parent::getSavedSearch($datatype_id, $search_key, $logged_in, $request);
                 $encoded_search_key = $data['encoded_search_key'];
                 $datarecord_list = $data['datarecord_list'];
+                $complete_datarecord_list = $data['complete_datarecord_list'];
 
                 // If there is no tab id for some reason, or the user is attempting to view a datarecord from a search that returned no results...
                 if ( $odr_tab_id === '' || $data['error'] == true || ($encoded_search_key !== '' && $datarecord_list === '') ) {
@@ -94,7 +95,7 @@ class MassEditController extends ODRCustomController
                 if ($list == null)
                     $list = array();
 
-                $list[$odr_tab_id] = array('datarecord_list' => $datarecord_list, 'encoded_search_key' => $encoded_search_key);
+                $list[$odr_tab_id] = array('datarecord_list' => $datarecord_list, 'complete_datarecord_list' => $complete_datarecord_list, 'encoded_search_key' => $encoded_search_key);
                 $session->set('mass_edit_datarecord_lists', $list);
             }
 
@@ -155,7 +156,8 @@ class MassEditController extends ODRCustomController
         $indent = 0;
         $is_link = 0;
         $top_level = 1;
-        $short_form = true;     // ?
+//        $short_form = true;     // don't load/display child datatype information
+        $short_form = false;
 
 $debug = true;
 $debug = false;
@@ -199,10 +201,10 @@ if ($debug)
         try {
             // Ensure post is valid
             $post = $_POST;
-//print_r($post);
+print_r($post);
 //return;
-//            if ( !(isset($post['search_key']) && (isset($post['datafields']) || isset($post['datarecord_public'])) && isset($post['datatype_id'])) )
-            if ( !(isset($post['odr_tab_id']) && (isset($post['datafields']) || isset($post['datarecord_public'])) && isset($post['datatype_id'])) )
+
+            if ( !(isset($post['odr_tab_id']) && (isset($post['datafields']) || isset($post['public_status'])) && isset($post['datatype_id'])) )
                 throw new \Exception('bad post request');
 
             $odr_tab_id = $post['odr_tab_id'];
@@ -211,9 +213,9 @@ if ($debug)
                 $datafields = $post['datafields'];
             $datatype_id = $post['datatype_id'];
 
-            $datarecord_public = 0;
-            if ( isset($post['datarecord_public']) )
-                $datarecord_public = $post['datarecord_public'];
+            $public_status = array();
+            if ( isset($post['public_status']) )
+                $public_status = $post['public_status'];
 
             // Grab necessary objects
             $em = $this->getDoctrine()->getManager();
@@ -244,13 +246,15 @@ if ($debug)
 
 
             // ----------------------------------------
-            // Grab datarecord list and search key from user session...not using memcached because the possibility exists that it could be deleted
+            // Grab datarecord list and search key from user session...not using memcached because the possibility exists that the list could have been deleted
             $list = $session->get('mass_edit_datarecord_lists');
 
+            $complete_datarecord_list = '';
             $datarecords = '';
             $encoded_search_key = null;
 
             if ( isset($list[$odr_tab_id]) ) {
+                $complete_datarecord_list = explode(',', $list[$odr_tab_id]['complete_datarecord_list']);
                 $datarecords = $list[$odr_tab_id]['datarecord_list'];
                 $encoded_search_key = $list[$odr_tab_id]['encoded_search_key'];
             }
@@ -267,7 +271,7 @@ if ($debug)
             // TODO - delete the datarecord list/search key out of the user's session?
 
 
-            $datarecords = explode(',', $datarecords);
+//            $datarecords = explode(',', $datarecords);
 
             // ----------------------------------------
             // Ensure no unique datafields managed to get marked for this mass update
@@ -276,13 +280,11 @@ if ($debug)
                 if ( $df->getIsUnique() == 1 )
                     unset($datafields[$df_id]);
             }
-
 /*
 print '$datarecords: '.print_r($datarecords, true)."\n";
 print '$datafields: '.print_r($datafields, true)."\n";
 return;
 */
-
 
             // ----------------------------------------
             // If content of datafields was modified, get/create an entity to track the progress of this mass edit
@@ -293,7 +295,7 @@ return;
                 $target_entity = 'datatype_'.$datatype_id;
                 $additional_data = array('description' => 'Mass Edit of DataType '.$datatype_id);
                 $restrictions = '';
-                $total = count($datarecords) * count($datafields);
+                $total = -1;    // TODO - better way of dealing with this?
                 $reuse_existing = false;
 
                 $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
@@ -304,16 +306,32 @@ return;
             // ----------------------------------------
             // Deal with datarecord public status first, if needed
             $updated = false;
-            if ( $datarecord_public !== null ) {
-                $query_str = 'UPDATE ODRAdminBundle:DataRecord AS dr SET dr.publicDate = :public_date, dr.updated = :updated, dr.updatedBy = :updated_by WHERE dr.id IN (:datarecords)';    // TODO - doesn't update log
-                $parameters = array('datarecords' => $datarecords, 'other_date' => new \DateTime('2200-01-01 00:00:00'), 'updated' => new \DateTime(), 'updated_by' => $user->getId());
+            foreach ($public_status as $dt_id => $status) {
+                // TODO - is this necessary?
+                // Get all datarecords of this datatype
+                $query = $em->createQuery(
+                   'SELECT dr.id AS id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.dataType = :datatype_id AND dr.deletedAt IS NULL'
+                )->setParameters( array('datatype_id' => $dt_id) );
+                $results = $query->getArrayResult();
+
+                $all_datarecord_ids = array();
+                foreach ($results as $num => $tmp)
+                    $all_datarecord_ids[] = $tmp['id'];
+
+                $affected_datarecord_ids = array_intersect($all_datarecord_ids, $complete_datarecord_list);
+
+                // Build a query to set all affected datarecords of this datatype to the correct public status
+                $query_str = 'UPDATE ODRAdminBundle:DataRecord AS dr SET dr.publicDate = :public_date, dr.updated = :updated, dr.updatedBy = :updated_by WHERE dr.id IN (:datarecords) AND dr.dataType = :datatype';    // TODO - doesn't update log
+                $parameters = array('datarecords' => $affected_datarecord_ids, 'datatype' => $dt_id, 'other_date' => new \DateTime('2200-01-01 00:00:00'), 'updated' => new \DateTime(), 'updated_by' => $user->getId());
 
                 $updated = true;
-                if ($datarecord_public == '-1') {
+                if ($status == '-1') {
                     $query_str .= ' AND dr.publicDate != :other_date';
                     $parameters['public_date'] = new \DateTime('2200-01-01 00:00:00');
                 }
-                else if ($datarecord_public == '1') {
+                else if ($status == '1') {
                     $query_str .= ' AND dr.publicDate = :other_date';
                     $parameters['public_date'] = new \DateTIme();
                 }
@@ -321,13 +339,10 @@ return;
                     $updated = false;
                 }
 
-//print $query_str."\n";
-//print_r($parameters);
-
                 if ($updated) {
                     $query = $em->createQuery($query_str)->setParameters( $parameters );
                     $num_updated = $query->execute();
-//print '$num_updated: '.$num_updated."\n";
+//print 'datatype_id: '.$dt_id.'  $num_updated: '.$num_updated."\n";
                 }
             }
 
@@ -344,32 +359,57 @@ return;
 
 
             // ----------------------------------------
-            foreach ($datarecords as $num => $datarecord_id) {
-                foreach ($datafields as $datafield_id => $value) {
-                    $drf = $repo_datarecordfields->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );    // TODO - needs to be a single query performed earlier
+            $job_count = 0;
+            foreach ($datafields as $df_id => $value) {
+                // TODO - is this necessary?
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id, drf.id AS drf_id
+                    FROM ODRAdminBundle:DataFields AS df
+                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataField = df
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                    WHERE df.id = :datafield_id
+                    AND df.deletedAt IS NULL AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL'
+                )->setParameters( array('datafield_id' => $df_id) );
+                $results = $query->getArrayResult();
 
-                    // Create a new pheanstalk job
-                    $priority = 1024;   // should be roughly default priority
-                    $payload = json_encode(
-                        array(
-                            "tracked_job_id" => $tracked_job_id,
-                            "user_id" => $user->getId(),
-                            "datarecordfield_id" => $drf->getId(),
-                            "value" => $value,
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                            "url" => $url,
-                            "api_key" => $api_key,
-                        )
-                    );
+                $affected_drfs = array();
+                foreach ($results as $num => $tmp) {
+                    $dr_id = $tmp['dr_id'];
+                    $drf_id = $tmp['drf_id'];
 
-                    $delay = 5;
-                    $pheanstalk->useTube('mass_edit')->put($payload, $priority, $delay);
+                    $affected_drfs[ $dr_id ] = $drf_id;
+                }
 
+                foreach ($affected_drfs as $dr_id => $drf_id) {
+                    // If this datarecord matched the search...
+                    if ( in_array($dr_id, $complete_datarecord_list) ) {
+                        // ...create a new beanstalk job
+                        $job_count++;
+
+                        $priority = 1024;   // should be roughly default priority
+                        $payload = json_encode(
+                            array(
+                                "tracked_job_id" => $tracked_job_id,
+                                "user_id" => $user->getId(),
+                                "datarecordfield_id" => $drf_id,
+                                "value" => $value,
+                                "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                                "url" => $url,
+                                "api_key" => $api_key,
+                            )
+                        );
+
+                        $delay = 15;    // TODO - delay set rather high because unable to determine how many jobs need to be created beforehand...better way of dealing with this?
+                        $pheanstalk->useTube('mass_edit')->put($payload, $priority, $delay);
+                    }
                 }
             }
 
-//            $router = $this->get('router');
-//            $return['d'] = array( 'url' => $router->generate('odr_search_render', array('search_key' => $search_key, 'offset' => 1, 'source' => 'searching')) );
+            // TODO - better way of dealing with this?
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+            $tracked_job->setTotal($job_count);
+            $em->persist($tracked_job);
+            $em->flush();
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -533,13 +573,111 @@ $ret .= 'setting datafield '.$datafield->getId().' ('.$field_typename.') of data
                         $em->persist($entity);
                     }
                     else {
-$old_value = null;
-if ($entity->getValue() !== null)
-    $old_value = $entity->getValue();
+                        $old_value = null;
+                        if ($entity->getValue() !== null)
+                            $old_value = $entity->getValue();
 
 $ret .= 'not changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$old_value->format('Y-m-d').'" identical to desired value "'.$value."\"\n";
                     }
+                }
+                else if ($field_typeclass == 'File') {
+                    // Load all files associated with this entity
+                    if ($value !== 0) {
+                        $query = $em->createQuery(
+                           'SELECT file
+                            FROM ODRAdminBundle:File AS file
+                            WHERE file.dataRecordFields = :drf
+                            AND file.deletedAt IS NULL'
+                        )->setParameters( array('drf' => $datarecordfield_id) );
+                        $results = $query->getResult();
 
+                        if ( count($results) > 0 ) {
+                            foreach ($results as $num => $file) {
+                                if ( $file->isPublic() && $value == -1 ) {
+                                    // File is public, but needs to be non-public
+                                    $public_date = new \DateTime('2200-01-01 00:00:00');
+                                    $file->setPublicDate($public_date);
+
+                                    $file->setUpdatedBy($user);
+                                    $em->persist($file);
+
+                                    // Delete the decrypted version of the file, if it exists
+                                    $file_upload_path = dirname(__FILE__).'/../../../../web/uploads/files/';
+                                    $filename = 'File_'.$file->getId().'.'.$file->getExt();
+                                    $absolute_path = realpath($file_upload_path).'/'.$filename;
+
+                                    if ( file_exists($absolute_path) )
+                                        unlink($absolute_path);
+
+$ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
+                                }
+                                else if ( !$file->isPublic() && $value == 1 ) {
+                                    // File is non-public, but needs to be public
+                                    $public_date = new \DateTime();
+                                    $file->setPublicDate($public_date);
+
+                                    $file->setUpdatedBy($user);
+                                    $em->persist($file);
+
+                                    // Immediately decrypt the file
+                                    parent::decryptObject($file->getId(), 'file');
+
+$ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
+                                }
+                            }
+
+                            $em->flush();
+                        }
+                    }
+                }
+                else if ($field_typeclass == 'Image') {
+                    // Load all images associated with this entity
+                    if ($value !== 0) {
+                        $query = $em->createQuery(
+                           'SELECT image
+                            FROM ODRAdminBundle:Image AS image
+                            WHERE image.dataRecordFields = :drf
+                            AND image.deletedAt IS NULL'
+                        )->setParameters( array('drf' => $datarecordfield_id) );
+                        $results = $query->getResult();
+
+                        if ( count($results) > 0 ) {
+                            foreach ($results as $num => $image) {
+                                if ( $image->isPublic() && $value == -1 ) {
+                                    // File is public, but needs to be non-public
+                                    $public_date = new \DateTime('2200-01-01 00:00:00');
+                                    $image->setPublicDate($public_date);
+
+                                    $image->setUpdatedBy($user);
+                                    $em->persist($image);
+
+                                    // Delete the decrypted version of the file, if it exists
+                                    $image_upload_path = dirname(__FILE__).'/../../../../web/uploads/images/';
+                                    $filename = 'Image_'.$image->getId().'.'.$image->getExt();
+                                    $absolute_path = realpath($image_upload_path).'/'.$filename;
+
+                                    if ( file_exists($absolute_path) )
+                                        unlink($absolute_path);
+
+$ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
+                                }
+                                else if ( !$image->isPublic() && $value == 1 ) {
+                                    // File is non-public, but needs to be public
+                                    $public_date = new \DateTime();
+                                    $image->setPublicDate($public_date);
+
+                                    $image->setUpdatedBy($user);
+                                    $em->persist($image);
+
+                                    // Immediately decrypt the file
+                                    parent::decryptObject($image->getId(), 'image');
+$ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
+                                }
+                            }
+
+                            $em->flush();
+                        }
+                    }
                 }
                 else {
                     // Save the value in the referenced entity
@@ -559,13 +697,13 @@ $ret .= 'not changing datafield '.$datafield->getId().' ('.$field_typename.') of
 
                 // ----------------------------------------
                 // Update the job tracker if necessary
-                if ($tracked_job_id !== -1) {
+                if ($tracked_job_id != -1) {
                     $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
 
                     $total = $tracked_job->getTotal();
                     $count = $tracked_job->incrementCurrent($em);
 
-                    if ($count >= $total)
+                    if ($count >= $total && $total != -1)
                         $tracked_job->setCompleted( new \DateTime() );
 
                     $em->persist($tracked_job);

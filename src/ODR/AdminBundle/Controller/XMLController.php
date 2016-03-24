@@ -1494,11 +1494,12 @@ $write = false;
             // Grab necessary objects
             $user = $repo_user->find($user_id);
             $drf = $repo_datarecordfield->find($drf_id);
-            $storage_path = dirname(__FILE__).'/../../../../web/uploads/xml/user_'.$user_id.'/storage/';
+            $path_prefix = dirname(__FILE__).'/../../../../web/';
+            $storage_path = 'uploads/xml/user_'.$user_id.'/storage/';
 
             // Ensure storage directory exists
-            if ( !file_exists($storage_path) )
-                mkdir( $storage_path );
+            if ( !file_exists($path_prefix.$storage_path) )
+                mkdir( $path_prefix.$storage_path );
 
             $my_obj = null;
             if ($object_type == 'File')
@@ -1514,7 +1515,7 @@ $write = false;
             $file_contents = null;
             if ($href == '') {
                 // File/Image already exists on server
-                $file_contents = file_get_contents($storage_path.$original_name);
+                $file_contents = file_get_contents($path_prefix.$storage_path.$original_name);
             }
             else {
                 // Grab the file from a remote server using cURL...
@@ -1552,7 +1553,7 @@ $write = false;
                 }
                 else {
                     // For convenience, temporarily save the file in the xml storage directory
-                    $handle = fopen($storage_path.$original_name, 'w');
+                    $handle = fopen($path_prefix.$storage_path.$original_name, 'w');
                     if ($handle == false)
                         throw new \Exception('Could not save downloaded file to storage directory');
 
@@ -1580,16 +1581,16 @@ if ($write) {
                 $ret .= '>> '.$object_type.' is an exact copy of existing version, skipping...'."\n";
 
                 // Delete the file/image from the server since it already officially exists
-                unlink($storage_path.$original_name);
+                unlink($path_prefix.$storage_path.$original_name);
             }
             else {
                 // ...need to "update" the existing file/image
                 $ret .= '>> '.$object_type.' is different than uploaded version...';
 
                 // Determine the path to the current file/image
-                $local_filepath = dirname(__FILE__).'/../../../../web/uploads/files/File_';
+                $local_filepath = $path_prefix.'uploads/files/File_';
                 if ($object_type == 'Image')
-                    $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_';
+                    $local_filepath = $path_prefix.'uploads/images/Image_';
                 $local_filepath .= $my_obj->getId().'.'.$my_obj->getExt();
 
 if ($write) {
@@ -1602,7 +1603,7 @@ if ($write) {
                 fclose($handle);
 
                 // Delete the uploaded file/image from the storage directory
-                unlink($storage_path.$original_name);
+                unlink($path_prefix.$storage_path.$original_name);
                 $ret .= 'overwritten...';
 
                 // Update other properties of the file/image that got changed

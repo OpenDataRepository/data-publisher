@@ -253,11 +253,12 @@ class FlowController extends ODRCustomController
             }
 
             // Check whether file is uploaded completely and properly
-            $destination_folder = dirname(__FILE__).'/../../../../web/uploads/files/chunks/user_'.$user_id.'/completed';
-            if ( !file_exists($destination_folder) )
-                mkdir( $destination_folder );
+            $path_prefix = dirname(__FILE__).'/../../../../web/';
+            $destination_folder = 'uploads/files/chunks/user_'.$user_id.'/completed';
+            if ( !file_exists($path_prefix.$destination_folder) )
+                mkdir( $path_prefix.$destination_folder );
 
-            $destination = $destination_folder.'/'.$original_filename;
+            $destination = $path_prefix.$destination_folder.'/'.$original_filename;
 
             if ( self::validateFile($user_id, $identifier, $total_chunks, $expected_size) && self::saveFile($user_id, $identifier, $total_chunks, $destination) ) {
                 // All file chunks sucessfully uploaded and spliced back together
@@ -276,11 +277,11 @@ class FlowController extends ODRCustomController
 
                 if ($upload_type == 'csv') {
                     // Upload is a CSVImport file
-                    self::finishCSVUpload($destination_folder, $original_filename, $user_id, $request);
+                    self::finishCSVUpload($path_prefix.$destination_folder, $original_filename, $user_id, $request);
                 }
                 else if ($upload_type == 'xml') {
                     // Upload is an XMLImport file
-                    self::finishXMLUpload($destination_folder, $original_filename, $user_id, $request);
+                    self::finishXMLUpload($path_prefix.$destination_folder, $original_filename, $user_id, $request);
                 }
                 else if ($datafield_id !== null) {
                     // Upload meant for a file/image datafield...finish moving the uploaded file and store it properly
@@ -288,8 +289,8 @@ class FlowController extends ODRCustomController
                 }
                 else {
                     // Upload is a file/image meant to be referenced by a later XML/CSV Import
-                    $uploaded_file->move( $destination_folder, $original_filename );
-                    self::finishImportFileUpload($destination_folder, $original_filename, $user_id, $upload_type);
+                    $uploaded_file->move( $path_prefix.$destination_folder, $original_filename );
+                    self::finishImportFileUpload($path_prefix.$destination_folder, $original_filename, $user_id, $upload_type);
                 }
 
                 // Return success

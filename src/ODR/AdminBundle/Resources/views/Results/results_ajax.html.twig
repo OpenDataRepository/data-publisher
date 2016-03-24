@@ -58,7 +58,8 @@ function initPage() {
         var href = $(this).attr('href');
 
         var short_form = false;
-        handleFileDownload(event, file_id, href, short_form);
+        var can_cancel = true;
+        handleFileDownload(event, file_id, href, short_form, can_cancel);
     });
 }
 

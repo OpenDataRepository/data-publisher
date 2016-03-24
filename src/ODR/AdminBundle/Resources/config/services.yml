@@ -2,19 +2,19 @@ parameters:
     file_validation:
         xml:
             maxSize: 100   # maximum allowed filesize (in Mb) for this type of uploaded file
-            maxSizeErrorMessage: The uploaded file is too large.  Allowed maximum size is 100 MB.
+            maxSizeErrorMessage: The uploaded xml file is too large.  Allowed maximum size is 100 MB.
             mimeTypes: [ text/xml ]
             mimeTypesErrorMessage: Please upload a valid XML file.
 
         csv:
             maxSize: 100   # maximum allowed filesize (in Mb) for this type of uploaded file
-            maxSizeErrorMessage: The uploaded file is too large.  Allowed maximum size is 100 MB.
+            maxSizeErrorMessage: The uploaded csv file is too large.  Allowed maximum size is 100 MB.
             mimeTypes: [ ]
             mimeTypesErrorMessage: Please upload a valid CSV file.
 
         image:
             maxSize: 100   # maximum allowed filesize (in Mb) for this type of uploaded file
-            maxSizeErrorMessage: The uploaded file is too large.  Allowed maximum size is 100 MB.
+            maxSizeErrorMessage: The uploaded image is too large.  Allowed maximum size is 100 MB.
             mimeTypes: [ application/pdf, application/x-pdf, image/jpeg, image/jpg, image/png, image/gif ]
             mimeTypesErrorMessage: Please upload a valid PDF, GIF, JPG or PNG file.
 

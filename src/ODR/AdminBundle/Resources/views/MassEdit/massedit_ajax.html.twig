@@ -1,9 +1,18 @@
 {% spaceless %}
 
 {% set datatype = datatype_tree.datatype %}
-<h1 class="grid_12 no-margin-top-phone">
-    <span>Mass Update &raquo; {{ datatype.shortname }}</span>
-</h1>
+<div class="grid_12 no-margin-top-phone">
+    <h1 style="display: inline;">
+        <span>Mass Update &raquo; {{ datatype.shortname }}</span>
+    </h1>
+    <span>
+        <select class="ODRPublicSelect" style="margin-left: 15px;" rel="{{ datatype.id }}">
+            <option value="-1">Make all Datarecords non-public</option>
+            <option value="0" selected>Don't change public status</option>
+            <option value="1">Make all Datarecords public</option>
+        </select>
+    </span>
+</div>
 
 <form id="massedit_form" style="display:none;" action="{{ path('odr_mass_update_start') }}">
     <input type="hidden" value="{{ odr_tab_id }}" name="odr_tab_id"/>
@@ -11,17 +20,10 @@
 </form>
 
 <div>
-    <select id="public_select" class="SelectGroup">
-        <option value="-1">Make all Datarecords non-public</option>
-        <option value="0" selected>Don't change public status</option>
-        <option value="1">Make all Datarecords public</option>
-    </select>
-    </br></br>
-</div>
-
-<div>
     <button class="pure-button pure-button-primary" type="button" onclick="doMassUpdate();">Save Changes</button>
 </div>
+
+</br></br>
 
 {% include 'ODRAdminBundle:MassEdit:massedit_area.html.twig' with {'datatype_tree': datatype_tree, 'datafield_permissions': datafield_permissions} %}
 
@@ -101,7 +103,7 @@ $(function() {
 
 function initPage() {
 
-    // Hide all TEDs without input fields
+    // Hide all theme elements without input fields
     $(".ODRThemeElement").each(function() {
         var found = false;
         $(this).find("input").each(function() {
@@ -122,7 +124,7 @@ function initPage() {
         // Apply dimensions of parent div to loading div
         $(this).css({"height": height, "line-height": height, "width": width});
 
-        $(this).attr('title', "This Datafield is marked as unique, and therefore can't be mass updated...multiple Datarecords would have the same value if that happened.");
+        $(this).attr('title', "This Datafield is marked as unique, and therefore can't be mass updated...multiple Datarecords would have the same value afterwards.");
     });
 
     $(".ODRDatePicker").datepicker({
@@ -142,10 +144,7 @@ function initPage() {
     $(".ODRDatePicker_clear").unbind('click');
     $(".ODRDatePicker_clear").click(function() {
         $(this).parent().parent().find(".ODRDatePicker").datepicker('setDate', null);
-//        var form_id = $(this).parent().parent().parent().parent().attr('id');
-//        SaveRecordData('#' + form_id, '');
     });
-
 }
 
 function doMassUpdate() {
@@ -157,11 +156,21 @@ function doMassUpdate() {
     $(".massedit_form_input").remove();
 
     // Public status
-    var val = $("#public_select").val();
-    if (val == '-1' || val == '1') {
-        var element = $("<input>", {id: "Value_public", class: "massedit_form_input", type: "hidden", value: val, name: "datarecord_public"});
-        $("#massedit_form").append(element);
-    }
+    $(".ODRPublicSelect").each(function() {
+        // Grab the ID of the datatype
+        var datatype_id = $(this).attr('rel');
+
+        // Remove any value for this field currently stored in the form
+        if ( $("#PublicStatus_" + datatype_id) !== null )
+            $("#PublicStatus_" + datatype_id).remove();
+
+        // Save any value currently in this field
+        var val = $(this).val();
+        if (val == '-1' || val == '1') {
+            var element = $("<input>", {id: "PublicStatus_" + datatype_id, class: "massedit_form_input", type: "hidden", value: val, name: "public_status[" + datatype_id + "]"});
+            $("#massedit_form").append(element);
+        }
+    });
 
     // Checkboxes
     $(".ODRBoolean").each(function() {
@@ -181,6 +190,23 @@ function doMassUpdate() {
         }
     });
 
+    // Files/Images
+    $(".ODRFile").each(function() {
+        // Grab the ID of the field
+        var datafield_id_data = $(this).attr('id').split('_');
+        var datafield_id = datafield_id_data[1];
+
+        // Remove any value for this datafield currently stored in the form
+        if ( $("#Value_" + datafield_id) !== null )
+            $("#Value_" + datafield_id).remove();
+
+        // Save any value currently in this datafield
+        var val = $(this).val();
+        if (val !== '' && val !== '0') {
+            var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
+            $("#massedit_form").append(element);
+        }
+    });
 
     // Single Selects
     $(".ODRSingleSelect").each(function() {
@@ -276,7 +302,7 @@ function doMassUpdate() {
             $("#Value_" + datafield_id).remove();
 
         // Save any value currently in this datafield
-        var val = $(this).html().trim();
+        var val = $(this).val().trim();
         if (val !== '') {
             var element = $("<input>", {id: "Value_" + datafield_id, class: "massedit_form_input", type: "hidden", value: val, name: "datafields[" + datafield_id + "]"});
             $("#massedit_form").append(element);
@@ -313,6 +339,8 @@ function doMassUpdate() {
 
     var data = $("#massedit_form").serialize();
     var url = $("#massedit_form").attr('action');
+
+//    console.log( $("#massedit_form") );
 //alert(url);
 //return;
 

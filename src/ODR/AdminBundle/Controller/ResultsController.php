@@ -435,8 +435,8 @@ class ResultsController extends ODRCustomController
             if ( $file->isPublic() ) {
                 $local_filepath = realpath( dirname(__FILE__).'/../../../../web/'.$file->getLocalFileName() );
                 if (!$local_filepath) {
-                    // File doesn't exist on server for some reason
-                    parent::decryptObject($file_id, 'file');
+                    // File is public, but doesn't exist in decrypted format for some reason
+                    $local_filepath = parent::decryptObject($file_id, 'file');
                 }
                 else if ( filesize($local_filepath) < $file->getFilesize() ) {
                     // File exists but isn't fully decrypted yet for some reason...it's most likely in the process of being decrypted

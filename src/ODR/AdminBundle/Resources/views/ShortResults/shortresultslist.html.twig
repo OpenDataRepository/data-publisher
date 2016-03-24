@@ -22,8 +22,10 @@
     <div class="ODRShortResult">
     {{ html | raw }}
     </div>
+{% elseif logged_in %}
+    <center>No Datarecords found</center>
 {% else %}
-    <center>No Records found!</center>
+    <center>No Datarecords found...try logging in</center>
 {% endif %}
 
 </div><!-- End of .ODRFormWrap -->
@@ -90,7 +92,8 @@
 
             // Prevent the click handler for <tr> elements from firing if a file download href is clicked
             var short_form = true;
-            handleFileDownload(event, file_id, href, short_form);
+            var can_cancel = true;
+            handleFileDownload(event, file_id, href, short_form, can_cancel);
         });
 
         // Hide empty fieldareas

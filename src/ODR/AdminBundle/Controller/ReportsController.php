@@ -766,11 +766,10 @@ print_r($grandparent_list);
 
             // Shouldn't really be necessary if the file is public, but including anyways for completeness/later use
             if ( $file->isPublic() ) {
-                $absolute_path = realpath( $file->getUploadDir().'/'.$file->getLocalFileName() );
+                $absolute_path = realpath( dirname(__FILE__).'/../../../../web/'.$file->getLocalFileName() );
 
                 if (!$absolute_path) {
-                    // File doesn't exist for some reason...
-                    // TODO - decrypt it?
+                    // File doesn't exist, so no progress yet
                 }
                 else {
                     // Grab current filesize of file
@@ -787,7 +786,7 @@ print_r($grandparent_list);
                 $absolute_path = realpath( dirname(__FILE__).'/../../../../web/uploads/files/'.$temp_filename );
 
                 if (!$absolute_path) {
-                    // File doesn't exist
+                    // File doesn't exist, so no progress yet
                 }
                 else {
                     // Grab current filesize of file
@@ -843,9 +842,8 @@ print_r($grandparent_list);
             if ($datatype == null)
                 return parent::deletedEntityError('DataType');
 
-            // Files that have been encrypted shouldn't be checked for encryption progress
-            if ($file->getOriginalChecksum() !== '' || $file->getFilesize() == '')
-                return parent::permissionDeniedError();
+            if ($file->getFilesize() == '')
+                throw new \Exception('filesize not set');
 
             // --------------------
             // Determine user privileges
@@ -857,19 +855,25 @@ print_r($grandparent_list);
                 return parent::permissionDeniedError();
             // --------------------
 
-            $progress = array('current_value' => 0, 'max_value' => 100);
+            $progress = array('current_value' => 100, 'max_value' => 100);
 
-            // TODO - load from config file somehow?
-            $crypto_dir = dirname(__FILE__).'/../../../../app/crypto_dir/File_'.$file_id;
-            $chunk_size = 2 * 1024 * 1024;  // 2Mb in bytes
+            if ($file->getOriginalChecksum() == null || $file->getOriginalChecksum() == '') {
+                // TODO - load from config file somehow?
+                $crypto_dir = dirname(__FILE__).'/../../../../app/crypto_dir/File_'.$file_id;
+                $chunk_size = 2 * 1024 * 1024;  // 2Mb in bytes
 
-            $num_chunks = intval( floatval($file->getFilesize()) / floatval( $chunk_size ) ) + 1;
+                $num_chunks = intval(floatval($file->getFilesize()) / floatval($chunk_size)) + 1;
 
-            // Going to have to use scandir() to count how many chunks have already been encrypted
-            if ( file_exists($crypto_dir) ) {
-                $files = scandir($crypto_dir);
-                // TODO - assumes linux machine
-                $progress['current_value'] = intval( (floatval(count($files)-2) / floatval($num_chunks)) * 100 );
+                // Going to have to use scandir() to count how many chunks have already been encrypted
+                if (file_exists($crypto_dir)) {
+                    $files = scandir($crypto_dir);
+                    // TODO - assumes linux machine
+                    $progress['current_value'] = intval((floatval(count($files) - 2) / floatval($num_chunks)) * 100);
+                }
+                else {
+                    // Encrypted directory doesn't exist yet, so no progress has been made
+                    $progress['current_value'] = 0;
+                }
             }
 
             $return['d'] = $progress;

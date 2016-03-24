@@ -745,7 +745,7 @@ $ret .= '  Set current to '.$count."\n";
      *
      * @return Response TODO
      */
-    public function cryptoRequestAction(Request $request)
+    public function cryptorequestAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -782,25 +782,24 @@ $ret .= '  Set current to '.$count."\n";
 
 
             // ----------------------------------------
-            // Locate the directory with the encrypted file chunks
-            $base_obj = null;
-            if ($object_type == 'file') {
-                $crypto_dir .= 'File_'.$object_id;
-                $base_obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
-            }
-            /*
-            else if ($object_type == 'image') {
-                $crypto_dir .= 'Image_'.$object_id;
-                $base_obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
-            }
-            */
-
-            if ($base_obj == null)
-                throw new \Exception('Invalid Form');
-
-
-            // ----------------------------------------
             if ($crypto_type == 'encrypt') {
+
+                // ----------------------------------------
+                // Locate the directory with the encrypted file chunks
+                $base_obj = null;
+                if ($object_type == 'file') {
+                    $crypto_dir .= 'File_'.$object_id;
+                    $base_obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
+                }
+/*
+                else if ($object_type == 'image') {
+                    $crypto_dir .= 'Image_'.$object_id;
+                    $base_obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
+                }
+*/
+                if ($base_obj == null)
+                    throw new \Exception('Invalid Form');
+
                 // Move file from completed directory to decrypted directory in preparation for encryption...
                 $destination_path = dirname(__FILE__).'/../../../../web';
                 $destination_filename = $base_obj->getUploadDir().'/File_'.$object_id.'.'.$base_obj->getExt();
@@ -810,10 +809,10 @@ $ret .= '  Set current to '.$count."\n";
                 $base_obj->setLocalFileName($destination_filename);
 
                 // Encryption of a given file/image is simple...
-                self::encryptObject($object_id, $object_type);
+                parent::encryptObject($object_id, $object_type);
 
                 // Calculate/store the checksum of the file to indicate the encryption process is complete
-                $filepath = self::decryptObject($object_id, $object_type);
+                $filepath = parent::decryptObject($object_id, $object_type);
                 $original_checksum = md5_file($filepath);
                 $base_obj->setOriginalChecksum($original_checksum);
 
@@ -855,22 +854,41 @@ $ret .= '  Set current to '.$count."\n";
 
                 // Don't need to do anything else
 */
+/*
+                $obj = null;
+                if ( strtolower($object_type) == 'file')
+                    $obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
+                else if ( strtolower($object_type) == 'image')
+                    $obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
+                else
+                    throw new \Exception('Invalid Form, got "'.strtolower($object_type).'"');
 
-                // TEMP - decrypt files, calculate and store their decrypted filesize in the database, then delete them
-                $file = $em->getRepository('ODRAdminBundle:File')->find($object_id);
-                if ($file == null)
-                    throw new \Exception('Deleted File');
+                if ($obj == null)
+                    throw new \Exception('Deleted '.$object_type);
+
 
                 $absolute_path = parent::decryptObject($object_id, $object_type);
 
-                clearstatcache(true, $absolute_path);
-                $filesize = filesize($absolute_path);
+                if ( strtolower($object_type) == 'file') {
+                    clearstatcache(true, $absolute_path);
+                    $filesize = filesize($absolute_path);
+                    $checksum = md5_file($absolute_path);
 
-                $file->setFilesize($filesize);
-                $em->persist($file);
-                $em->flush();
+                    $obj->setFilesize($filesize);
+                    $obj->setOriginalChecksum($checksum);
+                    $em->persist($obj);
+                    $em->flush();
+                }
+                else if ( strtolower($object_type) == 'image') {
+                    $checksum = md5_file($absolute_path);
+
+                    $obj->setOriginalChecksum($checksum);
+                    $em->persist($obj);
+                    $em->flush();
+                }
 
                 unlink($absolute_path);
+*/
             }
 
         }
@@ -1406,16 +1424,26 @@ print '</pre>';
 
             if ($object_type == 'file' || $object_type == 'File')
                 $object_type = 'File';
-//            else if ($object_type == 'image' || $object_type == 'Image')
-//                $object_type = 'Image';
+            else if ($object_type == 'image' || $object_type == 'Image')
+                $object_type = 'Image';
             else
                 return null;
 
-            $query = $em->createQuery(
-                'SELECT e
-            FROM ODRAdminBundle:'.$object_type.' AS e
-            WHERE e.deletedAt IS NULL'
-            );
+            $query = null;
+            if ($object_type == 'File') {
+                $query = $em->createQuery(
+                    'SELECT e.id
+                    FROM ODRAdminBundle:'.$object_type.' AS e
+                    WHERE e.deletedAt IS NULL AND (e.original_checksum IS NULL OR e.filesize = 0)'
+                );
+            }
+            else if ($object_type == 'Image') {
+                $query = $em->createQuery(
+                    'SELECT e.id
+                    FROM ODRAdminBundle:'.$object_type.' AS e
+                    WHERE e.deletedAt IS NULL AND e.original_checksum IS NULL'
+                );
+            }
             $results = $query->getResult();
 
             $object_type = strtolower($object_type);
@@ -1425,7 +1453,7 @@ print '</pre>';
                 $payload = json_encode(
                     array(
                         "object_type" => $object_type,
-                        "object_id" => $file->getId(),
+                        "object_id" => $file['id'],
                         "target_filepath" => '',
                         "crypto_type" => 'decrypt',
                         "memcached_prefix" => $memcached_prefix,    // debug purposes only
