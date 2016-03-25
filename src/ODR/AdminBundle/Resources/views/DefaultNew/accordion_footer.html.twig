@@ -1,0 +1,11 @@
+{% spaceless %}
+
+    {% if childtype.display_type == 0 %}
+    </div><!-- End of .FormAccordion Type 0 -- {{ childtype.id }} -->
+    {% elseif childtype.display_type == 1 %}
+    </div><!-- End of .TabAccordion Type 1 -- {{ childtype.id }} -->
+    {% elseif childtype.display_type == 2 %}
+    </div><!-- End of .DropdownAccordion Type 2 -- {{ childtype.id }} -->
+    {% endif %}
+
+{% endspaceless %}

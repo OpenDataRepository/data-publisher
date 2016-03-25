@@ -27,6 +27,7 @@ framework:
 twig:
     debug:            %kernel.debug%
     strict_variables: %kernel.debug%
+    cache: false
 
 # Assetic Configuration
 assetic:

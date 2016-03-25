@@ -1,0 +1,45 @@
+{% extends '::base.html.twig' %}
+
+{# set variables used by the parent template...http://stackoverflow.com/questions/17244162/symfony2-twig-how-can-i-send-parameters-to-the-parent-template #}
+{% set header_right_title = 'Logout' %}
+{% set header_right_path = path('odr_logout') %}
+{% set header_right_js = '' %}
+
+{% set current_user = '' %}
+{% if user != null %}
+    {% set current_user = user.getuserstring %}
+{% endif %}
+
+{% set header_left_title = 'Dashboard' %}
+{% set header_left_path = path('odr_admin_homepage') %}
+
+{% set header_middle_title = 'Search' %}
+{% set header_middle_path = path('odr_search') %}
+
+
+{% block title %}ODR Admin{% endblock %}
+
+{% set use_navigation_block = false %}
+{% if user != null %}
+    {% set use_navigation_block = true %}
+{% endif %}
+
+{% block navigation_top %}
+{#{% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'site_baseurl': site_baseurl, 'search_slug': search_slug} %}#}
+{% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'user_permissions': user_permissions} %}
+{% endblock %}
+
+{#
+{% block navigation_bottom %}
+{% include 'ODRAdminBundle::navigation_bottom.html.twig' %}
+{% endblock %}
+#}
+
+{% block body %}
+
+    {% set logged_in = true %}
+    {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
+    {{ js.write(logged_in) }}
+
+{% endblock %}
+

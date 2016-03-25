@@ -1,0 +1,126 @@
+{% spaceless %}
+{% set datatype = data_record_array[data_record_id][data_record_id].dataType.id %}
+
+<h1 class="no-margin-top-phone">
+    <span>Search Result &raquo; {{ data_record_array[data_record_id][data_record_id].dataType.shortName }}</span>
+</h1>
+
+{%
+  include 'ODRAdminBundle:Display:results_area.html.twig' with {'parent_data_record_id': data_record_id, 'data_record_id': data_record_id, 'data_record_array': data_record_array, 'linked_data_array': linked_data_array, 'theme_data_by_type': theme_data_by_type}
+%}
+
+{#
+
+// Get first data record type (43)
+// Set First Parent
+// Create Initial TED
+// Determine if there are multiple children to make multi-header...
+// Count array at level count(dr['parent'])
+    // foreach child of parent (could only be one)
+        // foreach(ted in theme_data_by_type)
+            // if TED matches dataType of parent
+            // Render TED
+            // foreach grandchild of child
+                // repeat process....
+    // If child count is zero - render empty?
+
+#}
+
+<script>
+
+$(function() {
+    initPage();
+    $(".MenuDesignArea").remove();
+    window.scrollTo(0,0);
+});
+
+function initPage() {
+
+    // Resize all elements dependent on window size
+    $(window).unbind('resize');
+    $(window).resize(function() {
+        WindowResizeInterval = window.clearInterval(WindowResizeInterval);
+        WindowResizeInterval = window.setInterval("onWindowResize()", 500);
+    });
+
+    // Resize everything prior to divs being hidden
+    onWindowResize();
+
+
+    // Set up image galleries
+    $(".ODRImageGallery").each(function() {
+        var id_data = $(this).attr('id').split(/_/);
+        var datafield_id = id_data[1];
+        var datarecord_id = id_data[2];
+
+        var count = 0;
+        var images_per_row = parseInt( $("#imagestorage_" + datafield_id + "_" + datarecord_id).attr('rel') );
+
+//        var width = $("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage").width();
+//        var height = width * 0.75;
+//        $("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage").css('width', width);
+//        $("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage").css('height', height);
+
+        $("#imagestorage_" + datafield_id + "_" + datarecord_id).children(".ODRImage").each(function() {
+//            $(this).find("img").css('max-width', width);
+//            $(this).find("img").css('max-height', height);
+
+            if ( count < images_per_row ) {
+                $(this).remove().appendTo($("#imagegallery_" + datafield_id + "_" + datarecord_id).find(".ODRImageGalleryImage"));
+            }
+            count++;
+        });
+
+
+        if (count <= images_per_row) {
+            $("#ODRImageLeft_" + datafield_id + "_" + datarecord_id).hide();
+            $("#ODRImageRight_" + datafield_id + "_" + datarecord_id).hide();
+
+            if (count == 0)
+                $(this).html('<center><strong>No Images Found</strong></center>');
+        }
+    });
+
+    $(".ODRGalleryLeftArrow").unbind('click');
+    $(".ODRGalleryLeftArrow").click(function() {
+        var id_data = $(this).attr('rel');
+        var gallery = "#imagegallery_" + id_data + " .ODRImageGalleryImage";
+        var storage = "#imagestorage_" + id_data;
+
+        $(gallery).children(".ODRImage").last().remove().appendTo(storage);
+        $(storage).children(".ODRImage").first().remove().prependTo(gallery);
+    });
+
+    $(".ODRGalleryRightArrow").unbind('click');
+    $(".ODRGalleryRightArrow").click(function() {
+        var id_data = $(this).attr('rel');
+        var gallery = "#imagegallery_" + id_data + " .ODRImageGalleryImage";
+        var storage = "#imagestorage_" + id_data;
+
+        $(gallery).children(".ODRImage").first().remove().prependTo(storage);
+        $(storage).children(".ODRImage").last().remove().appendTo(gallery);
+    });
+
+
+    // Hide divs for accordion purposes
+    setupAccordions();
+
+    // Hide empty theme element divs
+    $(".ODRThemeElement").each(function() {
+        var has_children = false;
+        $(this).find(".ODRFieldArea").each(function() {
+            has_children = true;
+        });
+
+        $(this).find(".ODRDataField").each(function() {
+            has_children = true;
+        });
+
+        if (!has_children)
+            $(this).css( "display", "none" );
+    });
+
+}
+
+</script>
+{% endspaceless %}
