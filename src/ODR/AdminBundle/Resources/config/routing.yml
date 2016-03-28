@@ -639,6 +639,15 @@ odr_record_get_field_history:
 #-----------------------------------------
 
 #-----------------------------------------
+# Display Controller
+odr_display_view:
+    pattern:  /display/view/{datarecord_id}/{search_key}/{offset}
+    defaults: { _controller: ODRAdminBundle:Display:view, search_key: '', offset: '' }
+    requirements:
+        datarecord_id:  \d+
+        search_key: '[^\/]*'
+        offset: \d+
+
 # Results Controller
 odr_results_view:
     pattern:  /results/view/{datarecord_id}/{search_key}/{offset}

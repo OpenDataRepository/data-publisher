@@ -49,7 +49,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Cookie;
 
-class DefaultController extends Controller
+class DefaultupdatedController extends Controller
 {
 
     /**

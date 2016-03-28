@@ -57,7 +57,7 @@ use Doctrine\ORM\Query\ResultSetMappingBuilder;
 //use Symfony\Co+mponent\Security\Core\Exception\AccessDeniedException;
 
 
-class ResultsController extends ODRCustomController
+class DisplayController extends ODRCustomController
 {
 
     private function GetDataRecordData($datarecord_id) {
