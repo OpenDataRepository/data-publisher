@@ -201,7 +201,7 @@ if ($debug)
         try {
             // Ensure post is valid
             $post = $_POST;
-print_r($post);
+//print_r($post);
 //return;
 
             if ( !(isset($post['odr_tab_id']) && (isset($post['datafields']) || isset($post['public_status'])) && isset($post['datatype_id'])) )
@@ -472,6 +472,7 @@ return;
 
             // ----------------------------------------
             $user = $repo_user->find($user_id);
+
             $datarecordfield = $repo_datarecordfield->find($datarecordfield_id);
             if ($datarecordfield == null)
                 throw new \Exception('MassEditCommand.php: DataRecordField '.$datarecordfield_id.' is deleted, skipping');
@@ -510,6 +511,7 @@ return;
             if (!$block) {
                 $field_typeclass = $datafield->getFieldType()->getTypeClass();
                 $field_typename = $datafield->getFieldType()->getTypeName();
+
                 if ($field_typeclass == 'Radio') {
                     // Grab all selection objects attached to this radio object
                     $radio_selections = array();
@@ -517,31 +519,39 @@ return;
                     foreach ($tmp as $radio_selection)
                         $radio_selections[ $radio_selection->getRadioOption()->getId() ] = $radio_selection;
 
-                    // Set radio_selection objects to the desired state        
-                    $selected = $radio_option_id = null;
-                    foreach ($value as $id => $val) {
-                        $radio_option_id = $id;
-                        $selected = $val;
+                    // $value is in format array('radio_option_id' => desired_state)
+                    // Set radio_selection objects to the desired state
+                    foreach ($value as $radio_option_id => $selected) {
+
+                        $radio_option = $repo_radio_option->find($radio_option_id);
 
                         if ( !isset($radio_selections[$radio_option_id]) ) {
-                            $radio_option = $repo_radio_option->find($radio_option_id);
+                            // A RadioSelection entity for this RadioOption doesn't exist...create it
+                            $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, $selected);
+                            $em->persist($new_radio_selection);
 
-                            $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, $selected);
-$ret .= 'created radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...setting selected to '.$selected."\n";
+                            $ret .= 'created radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...setting selected to '.$selected."\n";
                         }
                         else {
+                            // A RadioSelection entity for this RadioOption already exists...
                             $radio_selection = $radio_selections[$radio_option_id];
+
                             if ( $selected != $radio_selection->getSelected() ) {
-                                $radio_selection->setSelected($selected);
-                                $radio_selection->setUpdatedBy($user);
-                                $em->persist($radio_selection);
-$ret .= 'found radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...setting selected to '.$selected."\n";
+                                // ...but the value stored in it does not match the desired state...delete the old entity
+                                $em->remove($radio_selection);
+
+                                // Create a new RadioSelection entity with the desired state
+                                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, $selected);
+                                $em->persist($new_radio_selection);
+
+                                $ret .= 'found radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...setting selected to '.$selected."\n";
                             }
                             else {
-$ret .= 'not changing radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...current selected status to desired status'."\n";
+                                /* value stored in RadioSelection entity matches desired state, do nothing */
+                                $ret .= 'not changing radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...current selected status to desired status'."\n";
                             }
 
-                            // Need to keep track of which radio_selection was modified for Single Radio/Select
+                            // Need to keep track of which radio_selection was modified for Single Radio/Select...
                             unset( $radio_selections[$radio_option_id] );
                         }
                     }
@@ -549,35 +559,17 @@ $ret .= 'not changing radio_selection object for datafield '.$datafield->getId()
                     // If only a single selection is allowed, deselect the other existing radio_selection objects
                     if ( $field_typename == "Single Radio" || $field_typename == "Single Select" ) {
                         foreach ($radio_selections as $radio_option_id => $radio_selection) {
-                            if ( $radio_selection->getSelected() != 0 ) {
-                                $radio_selection->setSelected(0);
-                                $radio_selection->setUpdatedBy($user);
-                                $em->persist($radio_selection);
-$ret .= 'deselecting radio_option_id '.$radio_option_id.' for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
+                            if ( $radio_selection->getSelected() == 1 ) {
+                                // Delete the old RadioSelection entity
+                                $em->remove($radio_selection);
+
+                                // Create a new RadioSelection entity with the desired state
+                                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, 0);
+                                $em->persist($new_radio_selection);
+
+                                $ret .= 'deselecting radio_option_id '.$radio_option_id.' for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
                             }
                         }
-                    }
-                }
-                else if ($field_typeclass == 'DatetimeValue') {
-                    // Save the value in the referenced entity
-                    $entity = $datarecordfield->getAssociatedEntity();
-
-                    if ( $entity->getValue() !== null && $entity->getValue()->format('Y-m-d') !== $value ) {
-$ret .= 'setting datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$entity->getValue()->format('Y-m-d').'" to "'.$value."\"\n";
-                        if ($value !== '')
-                            $entity->setValue(new \DateTime($value));
-                        else
-                            $entity->setValue(null);
-
-                        $entity->setUpdatedBy($user);
-                        $em->persist($entity);
-                    }
-                    else {
-                        $old_value = null;
-                        if ($entity->getValue() !== null)
-                            $old_value = $entity->getValue();
-
-$ret .= 'not changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$old_value->format('Y-m-d').'" identical to desired value "'.$value."\"\n";
                     }
                 }
                 else if ($field_typeclass == 'File') {
@@ -609,7 +601,7 @@ $ret .= 'not changing datafield '.$datafield->getId().' ('.$field_typename.') of
                                     if ( file_exists($absolute_path) )
                                         unlink($absolute_path);
 
-$ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
+                                    $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
                                 }
                                 else if ( !$file->isPublic() && $value == 1 ) {
                                     // File is non-public, but needs to be public
@@ -622,7 +614,7 @@ $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' 
                                     // Immediately decrypt the file
                                     parent::decryptObject($file->getId(), 'file');
 
-$ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
+                                    $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
                                 }
                             }
 
@@ -659,7 +651,7 @@ $ret .= 'setting File '.$file->getId().' of datarecord '.$datarecord->getId().' 
                                     if ( file_exists($absolute_path) )
                                         unlink($absolute_path);
 
-$ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
+                                    $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
                                 }
                                 else if ( !$image->isPublic() && $value == 1 ) {
                                     // File is non-public, but needs to be public
@@ -671,7 +663,8 @@ $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().
 
                                     // Immediately decrypt the file
                                     parent::decryptObject($image->getId(), 'image');
-$ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
+
+                                    $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";
                                 }
                             }
 
@@ -679,18 +672,62 @@ $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().
                         }
                     }
                 }
-                else {
-                    // Save the value in the referenced entity
+                else if ($field_typeclass == 'DatetimeValue') {
+                    // For the DateTime fieldtype...
                     $entity = $datarecordfield->getAssociatedEntity();
 
-                    if ( $entity->getValue() !== $value ) {
-$ret .= 'setting datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$entity->getValue().'" to "'.$value."\"\n";
-                        $entity->setValue($value);
-                        $entity->setUpdatedBy($user);
-                        $em->persist($entity);
+                    if ($entity === null) {
+                        // Create a new storage entity if one doesn't exist for some reason
+                        $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                        $new_entity->setValue( new \DateTime($value) );
+                        $em->persist($new_entity);
+
+                        $ret .= 'storage entity for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' did not exist...created and set to "'.$value."\"\n";
+                    }
+                    else if ($entity->getValue()->format('Y-m-d') != $value) {
+                        // Delete old storage entity
+                        $old_value = $entity->getValue()->format('Y-m-d');
+                        $em->remove($entity);
+
+                        // Create new storage entity with desired value
+                        $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                        $new_entity->setValue( new \DateTime($value) );
+                        $em->persist($new_entity);
+
+                        $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
                     }
                     else {
-$ret .= 'not changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$entity->getValue().'" identical to desired value "'.$value.'"'."\n";
+                        /* do nothing, current value in entity already matches desired value */
+                        $ret .= 'ignoring datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$entity->getValue()->format('Y-m-d').'" identical to desired value "'.$value.'"'."\n";
+                    }
+                }
+                else {
+                    // For every other fieldtype...
+                    $entity = $datarecordfield->getAssociatedEntity();
+
+                    if ($entity === null) {
+                        // Create a new storage entity if one doesn't exist for some reason
+                        $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                        $new_entity->setValue($value);
+                        $em->persist($new_entity);
+
+                        $ret .= 'storage entity for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' did not exist...created and set to "'.$value."\"\n";
+                    }
+                    else if ($entity->getValue() != $value) {
+                        // Delete old storage entity
+                        $old_value = $entity->getValue();
+                        $em->remove($entity);
+
+                        // Create new storage entity with desired value
+                        $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                        $new_entity->setValue($value);
+                        $em->persist($new_entity);
+
+                        $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
+                    }
+                    else {
+                        /* do nothing, current value in entity already matches desired value */
+                        $ret .= 'ignoring datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$entity->getValue().'" identical to desired value "'.$value.'"'."\n";
                     }
                 }
 
@@ -711,9 +748,12 @@ $ret .= 'not changing datafield '.$datafield->getId().' ('.$field_typename.') of
 $ret .= '  Set current to '.$count."\n";
                 }
 
+                // Save all the changes that were made
                 $em->flush();
 
+
                 // ----------------------------------------
+                // TODO - replace this block with code to directly update the cached version of the datarecord
                 // Determine whether short/textresults needs to be updated
                 $options = array();
                 $options['user_id'] = $user->getId();

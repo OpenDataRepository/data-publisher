@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\RadioSelection:
     type: entity
     table: odr_radio_selection
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -18,23 +18,23 @@ ODR\AdminBundle\Entity\RadioSelection:
             unsigned: false
             nullable: false
             default: 0
-            gedmo:
-                - versioned            
+#            gedmo:
+#                - versioned
         deletedAt:
-            type: date
+            type: datetime
             nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         created:
             type: datetime
             gedmo:
                 timestampable:
                     on: create
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
+#        updated:
+#            type: datetime
+#            gedmo:
+#                timestampable:
+#                    on: update
     manyToOne:
         radioOption:
             targetEntity: RadioOptions
@@ -45,8 +45,8 @@ ODR\AdminBundle\Entity\RadioSelection:
                 radio_option_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -59,17 +59,17 @@ ODR\AdminBundle\Entity\RadioSelection:
 #            gedmo:
 #                blameable:
 #                    on: create
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-            gedmo:
-                - versioned
+#        updatedBy:
+#            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+#            cascade: {  }
+#            mappedBy: null
+#            inversedBy: null
+#            joinColumns:
+#                updatedBy:
+#                    referencedColumnName: id
+#            orphanRemoval: false
+#            gedmo:
+#                - versioned
 #            gedmo:
 #                blameable:
 #                    on: update
@@ -82,6 +82,6 @@ ODR\AdminBundle\Entity\RadioSelection:
                 data_record_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
     lifecycleCallbacks: {  }

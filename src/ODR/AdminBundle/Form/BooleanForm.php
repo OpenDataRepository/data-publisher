@@ -32,8 +32,7 @@ class BooleanForm extends AbstractType
     /**
     * TODO: short description.
     * 
-    * @param EntityManager $em 
-    * 
+    * @param \Doctrine\ORM\EntityManager $em
     */
     public function __construct($em)
     {  
@@ -86,12 +85,12 @@ class BooleanForm extends AbstractType
             $builder->create('createdBy', 'hidden')
                 ->addModelTransformer($u_transformer)
         );
-
+/*
         $builder->add(
             $builder->create('updatedBy', 'hidden')
                 ->addModelTransformer($u_transformer)
         );
-
+*/
     }
     
     public function getName() {

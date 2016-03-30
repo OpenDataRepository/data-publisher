@@ -34,8 +34,7 @@ class ShortVarcharForm extends AbstractType
     /**
     * TODO: short description.
     * 
-    * @param EntityManager $em 
-    * 
+    * @param \Doctrine\ORM\EntityManager $em
     */
     public function __construct($em)
     {
@@ -89,13 +88,13 @@ class ShortVarcharForm extends AbstractType
             $builder->create('createdBy', 'hidden')
                 ->addModelTransformer($u_transformer)
         ); 
-
+/*
         $u_transformer = new UserToNumberTransformer($this->em);
         $builder->add(
             $builder->create('updatedBy', 'hidden')
                 ->addModelTransformer($u_transformer)
         ); 
-
+*/
 /*
         $builder->add(
             'createdBy',

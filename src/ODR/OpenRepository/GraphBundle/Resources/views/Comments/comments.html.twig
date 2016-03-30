@@ -15,9 +15,9 @@
             {% for sort_value, drf in comments %}
                 {% if public_only == false or drf.getdatarecord.ispublic == true %}
                 <tr id="datarecordchild_{{ drf.id }}" class="pure-u-1">
-                    <td class="pure-u-1-4">{{ drf.getAssociatedEntity.getUpdated|date("Y-m-d") }}</td>
+                    <td class="pure-u-1-4">{{ drf.getAssociatedEntity.getCreated|date("Y-m-d") }}</td>
                     <td class="pure-u-1-2">{{ drf|plug(drf.getdatafield.getrenderplugin,'', 'TextResults')|raw }}</td>
-                    <td class="pure-u-1-4">{{ drf.getAssociatedEntity.getUpdatedBy.getUserString }}</td>
+                    <td class="pure-u-1-4">{{ drf.getAssociatedEntity.getCreatedBy.getUserString }}</td>
                 </tr>
                 {% endif %}
             {% endfor %}

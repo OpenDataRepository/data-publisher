@@ -2644,29 +2644,36 @@ print_r($new_mapping);
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
-                        if ($entity == null) {
-                            $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                            $em->persist($entity);
-                            $em->flush($entity);
-                            $em->refresh($entity);
-                            $status .= '    -- >> created new '.$typeclass."\n";
-                        }
 
-                        // Save value from csv file
-                        $checked = '';
-                        if ( $column_data !== '' ) {
-                            // Any character in the field counts as checked
-                            $checked = 'checked';
-                            $entity->setValue(1);
+                        // Any character in the field counts as checked
+                        $checked = 0;
+                        if ( $column_data !== '' )
+                            $checked = 1;
+
+                        if ($entity === null) {
+                            // Create a new storage entity if one doesn't exist
+                            $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                            $new_entity->setValue($checked);
+                            $em->persist($new_entity);
+
+                            $status .= '    -- >> created new '.$typeclass.', set to "'.$checked."\n";
                         }
                         else {
-                            $checked = 'unchecked';
-                            $entity->setValue(0);
+                            // If old storage entity doesn't match desired state...
+                            if ($entity->getValue() != $checked) {
+                                // ...delete it and create a new storage entity
+                                $em->remove($entity);
+
+                                $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                                $new_entity->setValue($checked);
+                                $em->persist($new_entity);
+
+                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$checked.'"...'."\n";
+                            }
+                            else {
+                                /* do nothing, current value in entity already matches desired value */
+                            }
                         }
-
-                        $em->persist($entity);
-
-                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$checked.'"...'."\n";
                     }
                     else if ($typeclass == 'File' || $typeclass == 'Image') {
 
@@ -2816,88 +2823,143 @@ print_r($new_mapping);
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
-                        if ($entity == null) {
-                            $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                            $em->persist($entity);
-                            $em->flush($entity);
-                            $em->refresh($entity);
-                            $status .= '    -- >> created new '.$typeclass."\n";
+
+                        // Turn the data into an integer...csvvalidateAction() already would've warned if column data isn't actually an integer
+                        $value = null;
+                        if ( $column_data !== '' )
+                            $value = intval($column_data);
+
+                        if ($entity === null) {
+                            // Create a new storage entity if one doesn't exist
+                            $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                            $new_entity->setValue($value);
+                            $em->persist($new_entity);
+
+                            $status .= '    -- >> created new '.$typeclass.', set to "'.$value."\n";
                         }
+                        else {
+                            // If old storage entity doesn't match desired state...
+                            if ($entity->getValue() != $value) {
+                                // ...delete it and create a new storage entity
+                                $em->remove($entity);
 
-                        // Save value from csv file
-                        if ($column_data !== '')
-                            $entity->setValue( intval($column_data) );
-                        else
-                            $entity->setValue( null );
-                        $em->persist($entity);
+                                $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                                $new_entity->setValue($value);
+                                $em->persist($new_entity);
 
-                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$column_data.'"...'."\n";
+                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
+                            }
+                            else {
+                                /* do nothing, current value in entity already matches desired value */
+                            }
+                        }
                     }
                     else if ($typeclass == 'DecimalValue') {
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
-                        if ($entity == null) {
-                            $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                            $em->persist($entity);
-                            $em->flush($entity);
-                            $em->refresh($entity);
-                            $status .= '    -- >> created new '.$typeclass."\n";
+
+                        // NOTE - intentionally not using floatval here, whereas IntegerValue still uses intval()...DecimalValue::setValue() will deal with any string received
+                        $value = null;
+                        if ( $column_data !== '' )
+                            $value = $column_data;
+
+                        if ($entity === null) {
+                            // Create a new storage entity if one doesn't exist
+                            $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                            $new_entity->setValue($value);
+                            $em->persist($new_entity);
+
+                            $status .= '    -- >> created new '.$typeclass.', set to "'.$value."\n";
                         }
+                        else {
+                            // If old storage entity doesn't match desired state...
+                            if ($entity->getValue() != $value) {
+                                // ...delete it and create a new storage entity
+                                $em->remove($entity);
 
-                        // Save value from csv file
-                        if ($column_data !== '')
-                            $entity->setValue( $column_data );  // NOTE - intentionally not using floatval here, whereas IntegerValue still uses intval()...DecimalValue::setValue() will deal with any string received
-                        else
-                            $entity->setValue( null );
-                        $em->persist($entity);
+                                $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                                $new_entity->setValue($value);
+                                $em->persist($new_entity);
 
-                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$column_data.'"...'."\n";
+                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
+                            }
+                            else {
+                                /* do nothing, current value in entity already matches desired value */
+                            }
+                        }
                     }
                     else if ($typeclass == 'LongText' || $typeclass == 'LongVarchar' || $typeclass == 'MediumVarchar' || $typeclass == 'ShortVarchar') {
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
-                        if ($entity == null) {
-                            $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                            $em->persist($entity);
-                            $em->flush($entity);
-                            $em->refresh($entity);
-                            $status .= '    -- >> created new '.$typeclass."\n";
+
+                        if ($entity === null) {
+                            // Create a new storage entity if one doesn't exist
+                            $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                            $new_entity->setValue($column_data);
+                            $em->persist($new_entity);
+
+                            $status .= '    -- >> created new '.$typeclass.', set to "'.$value."\n";
                         }
+                        else {
+                            // If old storage entity doesn't match desired state...
+                            if ($entity->getValue() != $column_data) {
+                                // ...delete it and create a new storage entity
+                                $em->remove($entity);
 
-                        // Save value from csv file
-                        $entity->setValue($column_data);
-                        $em->persist($entity);
+                                $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                                $new_entity->setValue($column_data);
+                                $em->persist($new_entity);
 
-                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$column_data.'"...'."\n";
+                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'"...'."\n";
+                            }
+                            else {
+                                /* do nothing, current value in entity already matches desired value */
+                            }
+                        }
                     }
                     else if ($typeclass == 'DatetimeValue') {
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
-                        if ($entity == null) {
-                            $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                            $em->persist($entity);
-                            $em->flush($entity);
-                            $em->refresh($entity);
-                            $status .= '    -- >> created new '.$typeclass."\n";
-                        }
 
-                        // Save value from csv file...different formats are already taken care of courtesy of the bundle used for csv importing
-                        if ($column_data !== '') {
-                            $datetime = new \DateTime($column_data);
-                            $entity->setValue($datetime);
-                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to "'.$datetime->format('Y-m-d H:i:s').'"...'."\n";
+                        // Turn the data into a DateTime object...csvvalidateAction() already would've warned if column data isn't actually a date
+                        $value = null;
+                        if ( $column_data !== '' )
+                            $value = new \DateTime($column_data);
+
+                        if ($entity === null) {
+                            // Create a new storage entity if one doesn't exist
+                            $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                            $new_entity->setValue($value);
+                            $em->persist($new_entity);
+
+                            $status .= '    -- >> created new '.$typeclass.', set to "'.$value."\n";
                         }
                         else {
-                            $entity->setValue(null);
-                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') to ""...'."\n";
+                            // If old storage entity doesn't match desired state...
+                            if ($entity->getValue() != $value) {
+                                // ...delete it and create a new storage entity
+                                $em->remove($entity);
+
+                                // Save value from csv file...different formats are already taken care of courtesy of the bundle used for csv importing
+                                $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                                $new_entity->setValue($value);
+                                $em->persist($new_entity);
+
+                                if ($value == null)
+                                    $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to ""...'."\n";
+                                else
+                                    $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value->format('Y-m-d H:i:s').'"...'."\n";
+                            }
+                            else {
+                                /* do nothing, current value in entity already matches desired value */
+                            }
                         }
-                        $em->persist($entity);
                     }
                     else if ($typeclass == 'Radio') {
-                        $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.' '/*.$entity->getId()*/.') ';
+                        $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.') ';
 
                         // If multiple radio/select, get an array of all the options...
                         $options = array($column_data);
@@ -2915,7 +2977,7 @@ print_r($new_mapping);
                             if ($radio_option == null) {
                                 // TODO - CURRENTLY WORKS, BUT MIGHT WANT TO LOOK INTO AN OFFICIAL MUTEX...
 
-                                // define and execute a query to manually create the absolute minimum required for a RadioOption entity...
+                                // Define and execute a query to manually create the absolute minimum required for a RadioOption entity...
                                 $query = 
                                    'INSERT INTO odr_radio_options (option_name, data_fields_id)
                                     SELECT * FROM (SELECT :name AS option_name, :df_id AS df_id) AS tmp
@@ -2942,12 +3004,27 @@ print_r($new_mapping);
                                 $em->persist($radio_option);
                             }
 
-                            // Now that the radio option is guaranteed to exist...
+                            // Now that the radio option is guaranteed to exist...grab the relevant RadioSelection entity...
                             $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
-                            $selected = 1;  // default to selected
-                            $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, $selected);
+                            $radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy( array('dataRecordFields' => $drf->getId(), 'radioOption' => $radio_option->getId()) );
 
-                            $status .= '...selected';
+                            if ($radio_selection == null) {
+                                // ...doesn't exist, create it
+                                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, 1);
+                                $em->persist($new_radio_selection);
+
+                                $status .= '    ...created new radio_selection for radio_option ("'.$radio_option->getOptionName().'")'."\n";
+                            }
+                            else if ($radio_selection->getSelected() == 0) {
+                                // ...exists, but the value stored in it does not match the desired state...delete the old entity
+                                $em->remove($radio_selection);
+
+                                // Create a new RadioSelection entity with the desired state
+                                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, 1);
+                                $em->persist($new_radio_selection);
+
+                                $status .= '    ...radio_selection for radio_option ("'.$radio_option->getOptionName().'") now selected'."\n";
+                            }
                         }
                         $status .= "\n";
                     }

@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\DecimalValue:
     type: entity
     table: odr_decimal_value
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -18,35 +18,33 @@ ODR\AdminBundle\Entity\DecimalValue:
             type: string
             length: 255
             fixed: false
-#            nullable: false
             nullable: true
             default: 0
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         value:
             type: float
             unsigned: false
-#            nullable: false
             nullable: true
             default: 0
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 
         deletedAt:
-            type: date
+            type: datetime
             nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         created:
             type: datetime
             gedmo:
                 timestampable:
                     on: create
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
+#        updated:
+#            type: datetime
+#            gedmo:
+#                timestampable:
+#                    on: update
     manyToOne:
         dataField:
             targetEntity: DataFields
@@ -57,8 +55,8 @@ ODR\AdminBundle\Entity\DecimalValue:
                 data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         fieldType:
             targetEntity: FieldType
             cascade: {  }
@@ -68,8 +66,8 @@ ODR\AdminBundle\Entity\DecimalValue:
                 field_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         dataRecord:
             targetEntity: DataRecord
             cascade: {  }
@@ -79,8 +77,8 @@ ODR\AdminBundle\Entity\DecimalValue:
                 data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -93,21 +91,21 @@ ODR\AdminBundle\Entity\DecimalValue:
 #            gedmo:
 #                blameable:
 #                    on: create
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-            gedmo:
-                - versioned
+#        updatedBy:
+#            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+#            cascade: {  }
+#            mappedBy: null
+#            inversedBy: null
+#            joinColumns:
+#                updatedBy:
+#                    referencedColumnName: id
+#            orphanRemoval: false
+#            gedmo:
+#                - versioned
 #            gedmo:
 #                blameable:
 #                    on: update
-    oneToOne:
+#    oneToOne:
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
@@ -116,6 +114,6 @@ ODR\AdminBundle\Entity\DecimalValue:
                 data_record_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
     lifecycleCallbacks: {  }

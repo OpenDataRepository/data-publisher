@@ -141,7 +141,7 @@ class CommentPlugin
                         if ($drf->getDataField()->getId() == $rpm->getDataField()->getId()) {
                             // Use the date the entity was last modified as a sorting key
                             $count++;
-                            $date = $drf->getAssociatedEntity()->getUpdated()->format('Y-m-d');
+                            $date = $drf->getAssociatedEntity()->getCreated()->format('Y-m-d');
                             $comments[$date.'_'.$count] = $drf;
                         }
                     }

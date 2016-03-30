@@ -41,11 +41,6 @@ class RadioSelection
     private $created;
 
     /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
      * @var \ODR\AdminBundle\Entity\RadioOptions
      */
     private $radioOption;
@@ -54,11 +49,6 @@ class RadioSelection
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
-
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataRecordFields
@@ -146,29 +136,6 @@ class RadioSelection
     }
 
     /**
-     * Set updated
-     *
-     * @param \DateTime $updated
-     * @return RadioSelection
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
-    }
-
-    /**
      * Set radioOption
      *
      * @param \ODR\AdminBundle\Entity\RadioOptions $radioOption
@@ -212,29 +179,6 @@ class RadioSelection
     public function getCreatedBy()
     {
         return $this->createdBy;
-    }
-
-    /**
-     * Set updatedBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return RadioSelection
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
     }
 
     /**

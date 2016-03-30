@@ -34,8 +34,7 @@ class LongVarcharForm extends AbstractType
     /**
     * TODO: short description.
     * 
-    * @param EntityManager $em 
-    * 
+    * @param \Doctrine\ORM\EntityManager $em
     */
     public function __construct($em)
     {  
@@ -87,12 +86,12 @@ class LongVarcharForm extends AbstractType
             $builder->create('createdBy', 'hidden')
                 ->addModelTransformer($u_transformer)
         );
-
+/*
         $builder->add(
             $builder->create('updatedBy', 'hidden')
                 ->addModelTransformer($u_transformer)
         );
-
+*/
     }
     
     public function getName() {

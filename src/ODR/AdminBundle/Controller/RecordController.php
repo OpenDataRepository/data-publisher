@@ -28,127 +28,6 @@ use Symfony\Component\Form\FormError;
 
 class RecordController extends ODRCustomController
 {
-
-    /**
-     * Handles selection changes made to SingleRadio, MultipleRadio, SingleSelect, and MultipleSelect DataFields
-     * 
-     * @param integer $data_record_field_id The database id of the DataRecord/DataField pair being modified.
-     * @param integer $radio_option_id      The database id of the RadioOption entity being (de)selected.
-     * @param integer $multiple             '1' if RadioOption allows multiple selections, '0' otherwise.
-     * @param Request $request
-     * 
-     * @return Response TODO
-     */
-    public function radioselectionAction($data_record_field_id, $radio_option_id, $multiple, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Grab necessary objects
-            $em = $this->getDoctrine()->getManager();
-            $datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields')->find($data_record_field_id);
-            if ( $datarecordfield == null )
-                return parent::deletedEntityError('DataRecordField');
-
-            $datafield = $datarecordfield->getDataField();
-            if ( $datafield == null )
-                return parent::deletedEntityError('DataField');
-
-            $datatype = $datafield->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
-
-            // --------------------
-            // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
-                return parent::permissionDeniedError("edit");
-            if ( !(isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'edit' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-
-            $radio_selections = $em->getRepository('ODRAdminBundle:RadioSelection')->findBy( array('dataRecordFields' => $datarecordfield->getId()) );
-
-            $radio_option = null;
-            if ($radio_option_id != "0") {
-                $repo_radio_options = $em->getRepository('ODRAdminBundle:RadioOptions');
-                $radio_option = $repo_radio_options->find($radio_option_id);
-                if ( $radio_option == null )
-                    return parent::deletedEntityError('RadioOption');
-            }
-
-            // Go through all the radio selections
-            $found = false;
-            if ($radio_selections != null) {
-                foreach ($radio_selections as $selection) {
-
-                    // If the radio selection already exists
-                    if ($radio_option_id == $selection->getRadioOption()->getId()) {
-                        // Found the one that was selected
-                        $found = true;
-                        $selection->setUpdatedBy($user);
-
-                        if ($multiple == "1") {
-                            // Radio group permits multiple selections, toggle the selected option
-                            if ($selection->getSelected() == 0)
-                                $selection->setSelected(1);
-                            else
-                                $selection->setSelected(0);
-                        }
-                        else {
-                            // Radio group only permits single selection, set to selected
-                            $selection->setSelected(1);
-                        }
-                    }
-                    else if ($multiple == "0") {  // if the radio group only permits a single selection
-                        // Unselect the other options
-                        $selection->setUpdatedBy($user);
-                        $selection->setSelected(0);
-                    }
-                }
-            }
-
-            if (!$found && $radio_option_id != "0") {
-                // Create a new radio selection
-                $initial_value = 1;
-                parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, $initial_value);
-            }
-
-            // Flush all changes
-            $em->flush();
-
-            // Determine whether ShortResults needs a recache
-            $options = array();
-            $options['mark_as_updated'] = true;
-            if ( parent::inShortResults($datafield) )
-                $options['force_shortresults_recache'] = true;
-
-            // Refresh the cache entries for this datarecord
-            $datarecord = $datarecordfield->getDataRecord();
-            parent::updateDatarecordCache($datarecord->getId(), $options);
-
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x18373679 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-
-    }
-
-
     /**
      * Creates a new DataRecord.
      * 
@@ -1322,10 +1201,164 @@ class RecordController extends ODRCustomController
 
 
     /**
+     * Handles selection changes made to SingleRadio, MultipleRadio, SingleSelect, and MultipleSelect DataFields
+     *
+     * @param integer $data_record_field_id The database id of the DataRecord/DataField pair being modified.
+     * @param integer $radio_option_id      The database id of the RadioOption entity being (de)selected.  If 0, then no RadioOption should be selected.
+     * @param Request $request
+     *
+     * @return Response TODO
+     */
+    public function radioselectionAction($data_record_field_id, $radio_option_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
+
+            $datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields')->find($data_record_field_id);
+            if ( $datarecordfield == null )
+                return parent::deletedEntityError('DataRecordField');
+
+            $datafield = $datarecordfield->getDataField();
+            if ( $datafield == null )
+                return parent::deletedEntityError('DataField');
+
+            $datatype = $datafield->getDataType();
+            if ( $datatype == null )
+                return parent::deletedEntityError('DataType');
+
+            if ($radio_option_id != 0) {
+                $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find($radio_option_id);
+                if ($radio_option == null)
+                    return parent::deletedEntityError('RadioOption');
+            }
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+                return parent::permissionDeniedError("edit");
+            if ( !(isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'edit' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+
+            // ----------------------------------------
+            // Course of action differs based on whether multiple selections are allowed
+            $typename = $datafield->getFieldType()->getTypeName();
+
+            // A RadioOption id of 0 has no effect on a Multiple Radio/Select datafield
+            if ( $radio_option_id != 0 && ($typename == 'Multiple Radio' || $typename == 'Multiple Select') ) {
+                // Don't care about selected status of other RadioSelection entities...
+                $old_radio_selection = $repo_radio_selection->findOneBy( array('radioOption' => $radio_option_id, 'dataRecordFields' => $data_record_field_id) );
+
+                // Default to a value of 'selected' if an older RadioSelection entity does not exist
+                $new_value = 1;
+                if ($old_radio_selection !== null) {
+                    // An older version does exist...determine what the new value should be
+                    if ($old_radio_selection->getSelected() == 1)
+                        $new_value = 0;
+
+                    // Delete the old entity
+                    $em->remove($old_radio_selection);
+                }
+
+                // Create the new RadioSelection entity
+                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, $new_value);
+                $em->persist($new_radio_selection);
+                $em->flush();
+            }
+            else if ($typename == 'Single Radio' || $typename == 'Single Select') {
+                // Probably need to change selected status of at least one other RadioSelection entity...
+                $radio_selections = $repo_radio_selection->findBy( array('dataRecordFields' => $data_record_field_id) );
+
+                $found = false;
+                foreach ($radio_selections as $radio_selection) {
+
+                    if ( $radio_option_id != $radio_selection->getRadioOption()->getId() ) {
+                        if ($radio_selection->getSelected() == 1) {
+                            // Deselect all RadioOptions that are selected and are not the one the user wants to be selected
+                            $radio_option_tmp = $radio_selection->getRadioOption();
+                            $em->remove($radio_selection);
+
+                            $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option_tmp, $datarecordfield, 0);
+                            $em->persist($new_radio_selection);
+                        }
+                    }
+                    else {
+                        // Found a prior entry for the RadioOption the user is attempting to modify...
+                        $found = true;
+
+                        if ($radio_selection->getSelected() == 0) {
+                            // The RadioOption the user wants to be selected is not selected...delete the old entity and create a RadioSelection for this one
+                            $radio_option_tmp = $radio_selection->getRadioOption();
+                            $em->remove($radio_selection);
+
+                            $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option_tmp, $datarecordfield, 1);
+                            $em->persist($new_radio_selection);
+                        }
+                        else {
+                            // The RadioOption the user wants to be selected is somehow already selected...do nothing in this case
+                        }
+                    }
+                }
+
+                // If a RadioSelection entity for this RadioOption doesn't exist, create it
+                if (!$found && $radio_option_id != 0) {
+                    $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, 1);
+                    $em->persist($new_radio_selection);
+                }
+
+                $em->flush();
+            }
+            else {
+                // No point doing anything if not a radio fieldtype
+                throw new \Exception('RecordController::radioselectionAction() called on Datafield that is not a Radio FieldType');
+            }
+
+
+            // ----------------------------------------
+            // TODO - replace this block with code to directly update the cached version of the datarecord
+            // Determine whether ShortResults needs a recache
+            $options = array();
+            $options['mark_as_updated'] = true;
+            if ( parent::inShortResults($datafield) )
+                $options['force_shortresults_recache'] = true;
+
+            // Refresh the cache entries for this datarecord
+            $datarecord = $datarecordfield->getDataRecord();
+            parent::updateDatarecordCache($datarecord->getId(), $options);
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x18373679 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+
+    }
+
+
+    /**
      * Parses a $_POST request to update the contents of a datafield.
-     * File and Image uploads are handled by FlowController
+     * File and Image uploads are handled by @see FlowController
+     * Changes to RadioSelections are handled by RecordController::radioselectionAction()
      * 
-     * @param string $record_type    Apparently, the typeclass of the datafield being modified.
+     * @param string $record_type    Apparently, the typeclass of the datafield being modified.     TODO - change the variable name to $typeclass or something?
      * @param integer $datarecord_id The database id of the datarecord being modified.
      * @param Request $request
      * 
@@ -1391,21 +1424,31 @@ class RecordController extends ODRCustomController
             $form = null;
             $my_obj = null;
             switch($record_type) {
+                case 'Boolean':
                 case 'DatetimeValue':
-                case 'ShortVarchar':
-                case 'MediumVarchar':
+                case 'DecimalValue':
+                case 'IntegerValue':
                 case 'LongVarchar':
                 case 'LongText':    // paragraph text
-                case 'IntegerValue':
-                case 'DecimalValue':
-                case 'Boolean':
+                case 'MediumVarchar':
+                case 'ShortVarchar':
                     $my_obj = new $obj_classname();
                     $post = $_POST;
                     if ( isset($post['id']) && $post['id'] > 0 ) {
                         $repo = $em->getRepository('ODRAdminBundle:'.$record_type);
                         $my_obj = $repo->find($post['id']);
                     }
-                break;
+                    break;
+
+                case 'File':
+                case 'Image':
+                    /* do nothing */
+                    break;
+
+                case 'Radio':
+                    // No point continuing if a radio fieldtype
+                    throw new \Exception('RecordController::updateAction() called on Datafield with a Radio FieldType');
+                    break;
             }
             $form = $this->createForm(
                 new $form_classname($em), 
@@ -1462,12 +1505,41 @@ class RecordController extends ODRCustomController
                         $em->persist($datarecord);
                     }
 */
-                    // Save changes
-                    $em->persist($my_obj);
-                    $em->flush();
-
+//                    // Save changes
+//                    $em->persist($my_obj);
+//                    $em->flush();
 
                     // ----------------------------------------
+                    // Save the change in the database
+                    switch($record_type) {
+                        case 'Boolean':
+                        case 'DatetimeValue':
+                        case 'DecimalValue':
+                        case 'IntegerValue':
+                        case 'LongVarchar':
+                        case 'LongText':    // paragraph text
+                        case 'MediumVarchar':
+                        case 'ShortVarchar':
+                            // Delete the old storage entity and create a new one to take its place
+                            $em->remove($my_obj);
+
+                            $new_obj = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                            $new_obj->setValue($new_value);
+
+                            $em->persist($new_obj);
+                            $em->flush();
+                            break;
+
+                        case 'File':
+                        case 'Image':
+                            // Save changes
+                            $em->persist($my_obj);
+                            $em->flush();
+                            break;
+                    }
+
+                    // ----------------------------------------
+                    // TODO - replace this block with code to directly update the cached version of the datarecord
                     // Determine whether ShortResults needs a recache
                     $options = array();
                     $options['mark_as_updated'] = true;
@@ -2518,6 +2590,9 @@ if ($debug)
         $return['d'] = '';
 
         try {
+
+            throw new \Exception('DISABLED UNTIL SOFT-DELETION OF DATAFIELDS IS WORKING PROPERLY');
+
             // Ensure user has permissions to be doing this
             $user = $this->container->get('security.context')->getToken()->getUser();
             if (!$user->hasRole('ROLE_SUPER_ADMIN')) {

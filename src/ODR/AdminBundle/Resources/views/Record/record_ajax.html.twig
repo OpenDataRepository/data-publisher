@@ -403,6 +403,10 @@ function initPage() {
 
     $(".ODRRotateImage").unbind('click');
     $(".ODRRotateImage").click(function() {
+
+        if ( $(this).hasClass('fa-muted') )
+            return;
+
         var image_id = $(this).attr('rel');
 
         var direction = 1;
@@ -415,6 +419,9 @@ function initPage() {
 
 //alert( url );
 //return;
+
+        // Allow only one 90 degree rotation of this image at a time
+        $("#Image_" + image_id).find(".ODRRotateImage").addClass('fa-muted');
 
         var tmp = $(this).parents(".ODRDataField").first().attr('id');
         tmp = tmp.split('_');
@@ -581,9 +588,9 @@ function initPage() {
         var datarecordfield_id = id_data[1];
         var radio_option_id = id_data[2];
 
-        var url  = '{{ path('odr_record_radio_selection', {'data_record_field_id': 0, 'radio_option_id': 0, 'multiple': 0 } ) }}';
-        url = url.substring(0,(url.length - 5));
-        url += datarecordfield_id + '/' + radio_option_id + '/' + "0";    // only single selection permitted
+        var url  = '{{ path('odr_record_radio_selection', {'data_record_field_id': 0, 'radio_option_id': 0} ) }}';
+        url = url.substring(0,(url.length - 3));
+        url += datarecordfield_id + '/' + radio_option_id;
 
 //alert( url );
 //return;
@@ -627,9 +634,9 @@ function initPage() {
         var radio_option_id = id_data[2];
 
         // Load display template menu
-        var url  = '{{ path('odr_record_radio_selection', {'data_record_field_id': 0, 'radio_option_id': 0, 'multiple': 0} ) }}';
-        url = url.substring(0,(url.length - 5));
-        url += datarecordfield_id + '/' + radio_option_id + '/' + "1";    // multiple selections permitted
+        var url  = '{{ path('odr_record_radio_selection', {'data_record_field_id': 0, 'radio_option_id': 0} ) }}';
+        url = url.substring(0,(url.length - 3));
+        url += datarecordfield_id + '/' + radio_option_id;
 
 //alert( url );
 //return;
@@ -673,9 +680,9 @@ function initPage() {
         var datarecordfield_id = id_data[1];    // which data field to save the option
 
         // Load display template menu
-        var url  = '{{ path('odr_record_radio_selection', {'data_record_field_id': 0, 'radio_option_id': 0, 'multiple': 0} ) }}';
-        url = url.substring(0,(url.length - 5));
-        url += datarecordfield_id + '/' + radio_option_id + '/' + "0";    // only single selection permitted
+        var url  = '{{ path('odr_record_radio_selection', {'data_record_field_id': 0, 'radio_option_id': 0} ) }}';
+        url = url.substring(0,(url.length - 3));
+        url += datarecordfield_id + '/' + radio_option_id;
 
 //alert( url );
 //return;

@@ -1277,7 +1277,7 @@ $save_permissions = false;
     {
 
 //print "call to update datatype cache\n";
-//return;
+return;
 
         // ----------------------------------------
         // Grab necessary objects
@@ -1447,7 +1447,7 @@ $save_permissions = false;
     public function updateDatarecordCache($id, $options = array())
     {
 //print 'call to updateDatarecordCache()';
-//return;
+return;
 
         // Grab necessary objects
         $em = $this->getDoctrine()->getManager();
@@ -1863,6 +1863,7 @@ $save_permissions = false;
     {
         $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
         if ($drf == null) {
+            // TODO - better method for doing this?
             $query =
                'INSERT INTO odr_data_record_fields (data_record_id, data_field_id)
                 SELECT * FROM (SELECT :datarecord AS dr_id, :datafield AS df_id) AS tmp
@@ -1876,8 +1877,8 @@ $save_permissions = false;
             $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
             $drf->setCreated( new \DateTime() );
             $drf->setCreatedBy($user);
-            $drf->setUpdated( new \DateTime() );
-            $drf->setUpdatedBy($user);
+//            $drf->setUpdated( new \DateTime() );
+//            $drf->setUpdatedBy($user);
 
             $em->persist($drf);
             $em->flush($drf);
@@ -2230,12 +2231,12 @@ $save_permissions = false;
             }
 
             $storage_entity->setCreatedBy($user);
-            $storage_entity->setUpdatedBy($user);
+//            $storage_entity->setUpdatedBy($user);
             $em->persist($storage_entity);
 
             // TODO - is this necessary?
             // Attach the new object to the associated datarecordfield entity
-            self::saveToDataRecordField($em, $drf, $typeclass, $storage_entity);
+//            self::saveToDataRecordField($em, $drf, $typeclass, $storage_entity);
         }
 
         return $storage_entity;
@@ -2290,7 +2291,7 @@ $save_permissions = false;
         $radio_selection->setRadioOption($radio_option);
         $radio_selection->setDataRecordFields($datarecordfield);
         $radio_selection->setCreatedBy($user);
-        $radio_selection->setUpdatedBy($user);
+//        $radio_selection->setUpdatedBy($user);
 
         if ($initial_value == "auto") {
             if ($radio_option->getIsDefault() == true)
@@ -3488,7 +3489,7 @@ if ($debug)
 
     /**
      * Assigns a data entity (Boolean, File, etc) to a DataRecordFields entity.
-     * TODO - does this actually do anything?
+     * TODO - does this actually do anything?  ...unlikely it ever did something, but leaving it in for right now
      * 
      * @param \Doctrine\ORM\EntityManager $em
      * @param DataRecordFields $datarecordfields
@@ -3497,6 +3498,7 @@ if ($debug)
      * 
      * @return TODO
      */
+/*
     protected function saveToDataRecordField($em, $datarecordfields, $type_class, $my_obj) {
         switch ($type_class) {
             case 'Boolean':
@@ -3538,7 +3540,7 @@ if ($debug)
         $em->persist($my_obj);
         $em->flush();
     }
-
+*/
 
     /**
      * Returns errors encounted while processing a Symfony Form object as a string.
@@ -3992,7 +3994,7 @@ if ($debug) {
             $form_obj->setDataRecord($datarecord);
             $form_obj->setDataRecordFields($datarecordfield);
             $form_obj->setCreatedBy($user);
-            $form_obj->setUpdatedBy($user);
+//            $form_obj->setUpdatedBy($user);
             switch($type_class) {
                 case 'File':
 //                    $form_obj->setGraphable('0');

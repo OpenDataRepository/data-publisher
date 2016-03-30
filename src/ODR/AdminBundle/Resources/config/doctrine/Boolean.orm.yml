@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\Boolean:
     type: entity
     table: odr_boolean
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -16,23 +16,23 @@ ODR\AdminBundle\Entity\Boolean:
         value:
             type: boolean
             nullable: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         deletedAt:
-            type: date
+            type: datetime
             nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         created:
             type: datetime
             gedmo:
                 timestampable:
                     on: create
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
+#        updated:
+#            type: datetime
+#            gedmo:
+#                timestampable:
+#                    on: update
     manyToOne:
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -46,17 +46,17 @@ ODR\AdminBundle\Entity\Boolean:
 #            gedmo:
 #                blameable:
 #                    on: create
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-            gedmo:
-                - versioned
+#        updatedBy:
+#            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+#            cascade: {  }
+#            mappedBy: null
+#            inversedBy: null
+#            joinColumns:
+#                updatedBy:
+#                    referencedColumnName: id
+#            orphanRemoval: false
+#            gedmo:
+#                - versioned
 #            gedmo:
 #                blameable:
 #                    on: update
@@ -69,8 +69,8 @@ ODR\AdminBundle\Entity\Boolean:
                 data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         fieldType:
             targetEntity: FieldType
             cascade: {  }
@@ -80,8 +80,8 @@ ODR\AdminBundle\Entity\Boolean:
                 field_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         dataRecord:
             targetEntity: DataRecord
             cascade: {  }
@@ -91,18 +91,18 @@ ODR\AdminBundle\Entity\Boolean:
                 data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
-    oneToOne:
+#            gedmo:
+#                - versioned
+#    oneToOne:
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
-            mappedBy: null
+#            mappedBy: null
             inversedBy: boolean
             joinColumns:
                 data_record_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
     lifecycleCallbacks: {  }

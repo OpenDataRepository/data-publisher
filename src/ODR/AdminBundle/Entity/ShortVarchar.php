@@ -41,11 +41,6 @@ class ShortVarchar
     private $created;
 
     /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
      * @var \ODR\AdminBundle\Entity\DataRecordFields
      */
     private $dataRecordFields;
@@ -69,11 +64,6 @@ class ShortVarchar
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
-
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
 
 
     /**
@@ -153,29 +143,6 @@ class ShortVarchar
     public function getCreated()
     {
         return $this->created;
-    }
-
-    /**
-     * Set updated
-     *
-     * @param \DateTime $updated
-     * @return ShortVarchar
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
     }
 
     /**
@@ -291,28 +258,5 @@ class ShortVarchar
     public function getCreatedBy()
     {
         return $this->createdBy;
-    }
-
-    /**
-     * Set updatedBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return ShortVarchar
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
     }
 }

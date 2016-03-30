@@ -41,11 +41,6 @@ class Boolean
     private $created;
 
     /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
      * @var \ODR\AdminBundle\Entity\DataRecordFields
      */
     private $dataRecordFields;
@@ -54,11 +49,6 @@ class Boolean
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
-
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataFields
@@ -156,29 +146,6 @@ class Boolean
     }
 
     /**
-     * Set updated
-     *
-     * @param \DateTime $updated
-     * @return Boolean
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
-    }
-
-    /**
      * Set dataRecordFields
      *
      * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
@@ -222,29 +189,6 @@ class Boolean
     public function getCreatedBy()
     {
         return $this->createdBy;
-    }
-
-    /**
-     * Set updatedBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return Boolean
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
     }
 
     /**

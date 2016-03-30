@@ -572,12 +572,11 @@ odr_record_deletechild:
         datatype_id:  \d+
 
 odr_record_radio_selection:
-    pattern:  /edit/record/radioselection/{data_record_field_id}/{radio_option_id}/{multiple}
+    pattern:  /edit/record/radioselection/{data_record_field_id}/{radio_option_id}
     defaults: { _controller: ODRAdminBundle:Record:radioselection }
     requirements:
         data_record_field_id:  \d+
         radio_option_id:  \d+
-        multiple:  \d
 
 odr_record_delete_file:
     pattern:  /edit/record/deletefile/{file_id}

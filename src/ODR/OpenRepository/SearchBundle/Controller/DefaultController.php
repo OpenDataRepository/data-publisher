@@ -1241,8 +1241,8 @@ if ($timing)
             // ...has to be done this way so that when the user searches on criteria for both childtypes A and B, a top-level datarecord that only has either childtype A or childtype B won't match
             $allowed_grandparents = null;
             foreach ($searched_datatypes as $num => $dt_id) {
-                // Doesn't matter if the the top-level datatype is being searched on...
-                if ($dt_id == $target_datatype_id)
+                // Don't restrict datarecords by top-level datatype here, and don't restrict datarecord list at all if user is just running a general search
+                if ($dt_id == $target_datatype_id || ($general_string !== null && count($datafields) == 0) )
                     continue;
 
                 // Linked datarecords needs a different query to extract "grandparents", since we actually want the grandparent of the datarecord that is linking to this linked datarecord

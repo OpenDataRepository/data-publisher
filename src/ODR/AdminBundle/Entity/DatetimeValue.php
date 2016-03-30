@@ -43,11 +43,6 @@ class DatetimeValue
     private $created;
 
     /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
      * @var \ODR\AdminBundle\Entity\DataFields
      */
     private $dataField;
@@ -66,11 +61,6 @@ class DatetimeValue
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
-
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataRecordFields
@@ -174,29 +164,6 @@ class DatetimeValue
     }
 
     /**
-     * Set updated
-     *
-     * @param \DateTime $updated
-     * @return DatetimeValue
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-    
-        return $this;
-    }
-
-    /**
-     * Get updated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
-    }
-
-    /**
      * Set dataField
      *
      * @param \ODR\AdminBundle\Entity\DataFields $dataField
@@ -286,29 +253,6 @@ class DatetimeValue
     public function getCreatedBy()
     {
         return $this->createdBy;
-    }
-
-    /**
-     * Set updatedBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return DatetimeValue
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-    
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
     }
 
     /**

@@ -1075,9 +1075,9 @@ if ($write) {
                     );
 
                     $delay = 1;
-if ($write)
+if ($write) {
                     $pheanstalk->useTube('import_file')->put($payload, $priority, $delay);
-
+}
 
                     // ----------------------------------------
                     $status .= self::indent($indent).'-- original_name: '.$original_name;
@@ -1207,9 +1207,9 @@ if ($write) {
                     );
 
                     $delay = 1;
-if ($write)
+if ($write) {
                     $pheanstalk->useTube('import_file')->put($payload, $priority, $delay);
-
+}
 
                     // ----------------------------------------
                     $status .= self::indent($indent).'-- original_name: '.$original_name;
@@ -1321,9 +1321,13 @@ if ($write) {
                         $return['objects'][] = $radio_selection;
                     }
                     else {
-                        // Don't update the radio selection if the value didn't change
+                        // Update the radio selection if the value changed
                         if ($radio_selection->getSelected() != $option_value) {
-                            $radio_selection->setSelected($option_value);
+                            // Delete the old radio selection
+                            $entity_manager->remove($radio_selection);
+
+                            // Create a new radio selection
+                            $radio_selection = parent::ODR_addRadioSelection($entity_manager, $user, $radio_option, $drf, $option_value);
                             $entity_manager->persist($radio_selection);
                             $need_flush = true;
                         }
@@ -1345,11 +1349,14 @@ if ($write) {
                     $radio_selections = $repo_radio_selection->findBy( array("dataRecordFields" => $drf->getId()) );
                     foreach ($radio_selections as $rs) {
                         // If the radio option wasn't listed in the xml file...
-                        $option_name = $rs->getRadioOption()->getXmlOptionName();
+                        $radio_option = $rs->getRadioOption();
+                        $option_name = $radio_option->getXmlOptionName();
                         if ( !in_array($option_name, $changelist) && $rs->getSelected() == 1 ) {
                             // ...deselect it
 if ($write) {
-                            $rs->setSelected(0);
+                            $entity_manager->remove($rs);
+
+                            $rs = parent::ODR_addRadioSelection($entity_manager, $user, $radio_option, $drf, 0);
                             $entity_manager->persist($rs);
                             $need_flush = true;
 }
@@ -1390,36 +1397,40 @@ if ($write) {
                 $my_obj = $entity_manager->getRepository($classname)->findOneBy( array("dataField" => $datafield->getId(), "dataRecord" => $datarecord->getId()) );
 
                 $update_storage_entity = true;
+                $new_value = $value;
                 if ($typeclass == "Boolean" ) {
                     // special consideration for boolean field
-                    $value = intval($value);
+                    $new_value = intval($value);
 
                     if ($my_obj->getValue() == $value)
                         $update_storage_entity = false;
-                    else
-                        $my_obj->setValue($value);
                 }
                 else if ($typeclass == "DateTime") {
                     // also special consideration for datetime
                     if ($my_obj->getValue()->format('Y-m-d') == $value)
                         $update_storage_entity = false;
                     else
-                        $my_obj->setValue( new \DateTime($value) );
+                        $new_value = new \DateTime($value);
                 }
                 else {
                     // rest of the fields are straightforward
                     if ($my_obj->getValue() == $value)
                         $update_storage_entity = false;
-                    else
-                        $my_obj->setValue($value);
                 }
 
 if ($write) {
                 // ----------------------------------------
                 // Commit changes to the database if necessary
                 if ($update_storage_entity) {
-                    $my_obj->setUpdatedBy($user);
-                    $entity_manager->persist($my_obj);
+                    // Delete old storage entity
+                    $entity_manager->remove($my_obj);
+
+                    // Create new storage entity with new value
+                    $new_obj = parent::ODR_addStorageEntity($entity_manager, $user, $datarecord, $datafield);
+                    $new_obj->setValue($new_value);
+                    $entity_manager->persist($new_obj);
+
+                    // Save changes
                     $entity_manager->flush();
                 }
 }

@@ -3428,6 +3428,8 @@ if ($debug)
                 $prevent_fieldtype_change_message = "The Fieldtype can't be changed because the Datafield is currently marked as Unique.";
             }
 
+            $prevent_fieldtype_change = true;
+            $prevent_fieldtype_change_message = "DISABLED UNTIL SOFT-DELETION OF DATAFIELDS IS WORKING PROPERLY";
 
             // --------------------
             // Populate new DataFields form
@@ -4017,6 +4019,9 @@ if ($force_slideout_reload)
         $return['d'] = "";
 
         try {
+
+            throw new \Exception('DISABLED UNTIL SOFT-DELETION OF DATAFIELDS AND THEME STUFF IS WORKING PROPERLY');
+
             $post = $_POST;
 //print_r($post);
 //return;
