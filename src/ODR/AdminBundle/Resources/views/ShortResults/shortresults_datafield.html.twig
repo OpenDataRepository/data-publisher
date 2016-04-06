@@ -63,14 +63,16 @@
                 {% if image.getimagesize.imagetype == "thumbnail" %}
 
                     {% set oimage = image.parent %}
-                    {% set has_image = true %}
+                    {% set image_ext = oimage.ext %}
+                    {% set image_caption = oimage.caption %}
+                    {% set image_filename = oimage.originalfilename %}
 
                     {% if found == false and oimage.ispublic == 1 %}
                     {% set found = true %}
                     <div id="Image_{{ oimage.id }}" class="ODRImage pure-u-23-24" rel="{{ image.id }}">    {# rel is the id of the thumbnail, id attr is the id of the full-size image #}
                         <div class="pure-u-1">
-                            {#<a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ oimage.caption }}">#}
-                                <img class="{#pure-img#}pure-u-1" src="{{ path('odr_image_download', {'image_id': image.id}) }}" title="{% if image.originalfilename != null %}{{ image.originalfilename }}{% else %}Image_{{ image.id }}.{{ image.ext }}{% endif %}" />
+                            {#<a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ image_caption }}">#}
+                                <img class="{#pure-img#}pure-u-1" src="{{ path('odr_image_download', {'image_id': image.id}) }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
                             {#</a>#}
                         </div>
                     </div>

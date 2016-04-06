@@ -205,9 +205,16 @@ class DisplaytemplateController extends ODRCustomController
         try {
             // Grab necessary objects
             $em = $this->getDoctrine()->getManager();
+
             $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find( $radio_option_id );
-            $datatype = $radio_option->getDataFields()->getDataType();
+            if ($radio_option == null)
+                return parent::deletedEntityError('RadioOption');
             $datafield = $radio_option->getDataFields();
+            if ($datafield == null)
+                return parent::deletedEntityError('Datafield');
+            $datatype = $datafield->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
 
             // --------------------
             // Determine user privileges
@@ -219,9 +226,10 @@ class DisplaytemplateController extends ODRCustomController
                 return parent::permissionDeniedError("change layout of");
             // --------------------
 
-            // Delete the radio option
+            // Delete the radio option and its current associated metadata entry
+            $radio_option_meta = $radio_option->getRadioOptionsMeta();
             $em->remove($radio_option);
-            $em->flush();
+            $em->remove($radio_option_meta);
 
             // Delete all radio selection entities attached to the radio option
             $query = $em->createQuery(
@@ -231,7 +239,10 @@ class DisplaytemplateController extends ODRCustomController
             )->setParameters( array('now' => new \DateTime(), 'radio_option_id' => $radio_option_id) );
             $updated = $query->execute();
 
+            $em->flush();
+
             // Schedule the cache for an update
+            // TODO - how to update all datarecords of this datatype?
             $options = array();
             $options['mark_as_updated'] = true;
             $search_theme_data_field = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield, 'theme' => 2) );
@@ -272,9 +283,17 @@ class DisplaytemplateController extends ODRCustomController
             // Grab necessary objects
             $em = $this->getDoctrine()->getManager();
             $repo_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions');
+            $repo_radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta');
+
             $radio_option = $repo_radio_option->find( $radio_option_id );
+            if ($radio_option == null)
+                return parent::deletedEntityError('RadioOption');
             $datafield = $radio_option->getDataFields();
+            if ($datafield == null)
+                return parent::deletedEntityError('Datafield');
             $datatype = $datafield->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
 
             // --------------------
             // Determine user privileges
@@ -289,29 +308,38 @@ class DisplaytemplateController extends ODRCustomController
 
             $field_typename = $datafield->getFieldType()->getTypeName();
             if ( $field_typename == 'Single Radio' || $field_typename == 'Single Select' ) {
-                // TODO - this probably needs to be done via DQL update
-                // Only one option allowed to be default for Single Radio/Select DataFields, clear all other options
-                $all_radio_options = $repo_radio_option->findBy( array('dataFields' => $datafield->getId()) );
-                foreach ($all_radio_options as $option) {
-                    $option->setIsDefault(false);
-                    $em->persist($option);
+                // Only one option allowed to be default for Single Radio/Select DataFields, find the other option(s) where isDefault == true
+                $query = $em->createQuery(
+                   'SELECT rom.id
+                    FROM ODRAdminBundle:RadioOptionsMeta AS rom
+                    JOIN ODRAdminBundle:RadioOptions AS ro WITH rom.radioOptions = ro
+                    WHERE rom.isDefault = 1 AND ro.dataFields = :datafield
+                    AND rom.deletedAt IS NULL AND ro.deletedAt IS NULL'
+                )->setParameters( array('datafield' => $datafield->getId()) );
+                $results = $query->getResult();
+
+                foreach ($results as $num => $result) {
+                    $radio_option_meta = $repo_radio_option_meta->find( $result['id'] );
+                    $ro = $radio_option_meta->getRadioOptions();
+
+                    $properties = array('is_default' => false);
+                    parent::ODR_copyRadioOptionsMeta($em, $user, $ro, $properties);
                 }
 
                 // TODO - currently not allowed to remove a default option from one of these fields once a a default has been set
-                // Set this option as default
-                $radio_option->setIsDefault(true);
+                // Set this radio option as selected by default
+                $properties = array('is_default' => true);
+                parent::ODR_copyRadioOptionsMeta($em, $user, $radio_option, $properties);
             }
             else {
-                // Multiple options allowed as defaults, toggle default status of current
+                // Multiple options allowed as defaults, toggle default status of current radio option
+                $properties = array('is_default' => true);
                 if ($radio_option->getIsDefault() == true)
-                    $radio_option->setIsDefault(false);
-                else
-                    $radio_option->setIsDefault(true);
+                    $properties['is_default'] = false;
+
+                parent::ODR_copyRadioOptionsMeta($em, $user, $radio_option, $properties);
             }
 
-            // Save the changes
-            $em->persist($radio_option);
-            $em->flush();
 
             // Schedule the cache for an update
             $options = array();
@@ -1478,15 +1506,20 @@ print '</pre>';
             $new_name = trim($post['option_name']);
             if ($radio_option->getOptionName() !== $new_name) {
                 // TODO - regexp validation on new name?
+                // TODO - reset xml_fieldname on change?
 
+                // Update the radio option's name to prevent concurrency issues during CSV/XML importing
                 $radio_option->setOptionName($new_name);
-                $radio_option->setUpdatedBy($user);
                 $em->persist($radio_option);
-                $em->flush();
+
+                // Create a new meta entry using the new radio option's name
+                $properties = array('option_name' => $new_name);
+                parent::ODR_copyRadioOptionsMeta($em, $user, $radio_option, $properties);
             }
 
 
             // Schedule the cache for an update
+            // TODO - how to update all datarecords of this datatype?
             $options = array();
             $options['mark_as_updated'] = true;
             $search_theme_data_field = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield, 'theme' => 2) );   // TODO
@@ -1527,12 +1560,10 @@ print '</pre>';
             // Grab necessary objects
             $em = $this->getDoctrine()->getManager();
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions');
 
             $datafield = $repo_datafield->find($datafield_id);
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
-
             $datatype = $datafield->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
@@ -1550,48 +1581,75 @@ print '</pre>';
 
 
             if ($alphabetical_sort == 1 ) {
-                // (Re)sort all non-deleted radio options by their name
-                $radio_options = $datafield->getRadioOptions();
+                // Load all RadioOptionMeta entities for this datafield
+                $query = $em->createQuery(
+                   'SELECT rom
+                    FROM ODRAdminBundle:RadioOptionsMeta AS rom
+                    JOIN ODRAdminBundle:RadioOptions AS ro WITH rom.radioOptions = ro
+                    WHERE ro.dataFields = :datafield
+                    AND rom.deletedAt IS NULL AND ro.deletedAt IS NULL'
+                )->setParameters( array('datafield' => $datafield_id) );
+                $results = $query->getResult();
 
-                $all_radio_options = array();
-                foreach ($radio_options as $radio_option)
-                    $all_radio_options[ $radio_option->getOptionName() ] = $radio_option;
+                // Organize by name, and re-sort the list
+                $all_options_meta = array();
+                foreach ($results as $radio_option_meta)
+                    $all_options_meta[ $radio_option_meta->getOptionName() ] = $radio_option_meta;
+                ksort($all_options_meta);
 
-                ksort($all_radio_options);
-
+                // Save any changes in the sort order
                 $index = 0;
-                foreach ($all_radio_options as $name => $radio_option) {
-//print $radio_option->getOptionName()."\n";
+                foreach ($all_options_meta as $option_name => $radio_option_meta) {
+                    $radio_option = $radio_option_meta->getRadioOptions();
 
-                    $em->refresh($radio_option);
-                    $radio_option->setDisplayOrder($index);
-                    $radio_option->setUpdatedBy($user);
+                    if ($radio_option_meta->getDisplayOrder() != $index) {
+//print 'updated "'.$radio_option_meta->getOptionName().'" to index '.$index."\n";
+                        $properties = array('display_order' => $index);
+                        parent::ODR_copyRadioOptionsMeta($em, $user, $radio_option, $properties);
+                    }
+
                     $index++;
-
-                    $em->persist($radio_option);
                 }
             }
             else {
-                // Otherwise, look to the $_POST for the new order
+                // Load all RadioOptionMeta entities for this datafield
+                $query = $em->createQuery(
+                   'SELECT rom
+                    FROM ODRAdminBundle:RadioOptionsMeta AS rom
+                    JOIN ODRAdminBundle:RadioOptions AS ro WITH rom.radioOptions = ro
+                    WHERE ro.dataFields = :datafield
+                    AND rom.deletedAt IS NULL AND ro.deletedAt IS NULL'
+                )->setParameters( array('datafield' => $datafield_id) );
+                $results = $query->getResult();
+
+                // Organize by radio option id
+                $all_options_meta = array();
+                foreach ($results as $radio_option_meta)
+                    $all_options_meta[ $radio_option_meta->getRadioOptions()->getId() ] = $radio_option_meta;
+
+                // Look to the $_POST for the new order
                 $post = $_POST;
                 foreach ($post as $index => $radio_option_id) {
-                    $radio_option = $repo_radio_option->find($radio_option_id);
-//print $radio_option->getOptionName()."\n";
-                    $em->refresh($radio_option);
+                    if ( !isset($all_options_meta[$radio_option_id]) )
+                        throw new \Exception('Invalid POST request');
 
-                    $radio_option->setDisplayOrder($index);
-                    $radio_option->setUpdatedBy($user);
+                    $radio_option_meta = $all_options_meta[$radio_option_id];
+                    $radio_option = $radio_option_meta->getRadioOptions();
 
-                    $em->persist($radio_option);
+                    if ( $radio_option_meta->getDisplayOrder() != $index ) {
+//print 'updated "'.$radio_option_meta->getOptionName().'" to index '.$index."\n";
+                        $properties = array('display_order' => $index);
+                        parent::ODR_copyRadioOptionsMeta($em, $user, $radio_option, $properties);
+                    }
                 }
             }
-            $em->flush();
+
 
             // Schedule the cache for an update
+            // TODO - how to update all datarecords of this datatype?
             $options = array();
             $options['mark_as_updated'] = true;
             parent::updateDatatypeCache($datatype->getId(), $options);
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1643,7 +1701,8 @@ print '</pre>';
 
 
             // Create a new RadioOption
-            $radio_option = parent::ODR_addRadioOption($em, $user, $datafield);
+            $force_create = true;
+            $radio_option = parent::ODR_addRadioOption($em, $user, $datafield, $force_create);
             $em->flush();
             $em->refresh($radio_option);
 

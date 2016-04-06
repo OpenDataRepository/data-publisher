@@ -1,6 +1,6 @@
-ODR\AdminBundle\Entity\RadioOptions:
+ODR\AdminBundle\Entity\RadioOptionsMeta:
     type: entity
-    table: odr_radio_options
+    table: odr_radio_options_meta
     gedmo:
 #        loggable: true
         soft_deleteable:
@@ -14,7 +14,6 @@ ODR\AdminBundle\Entity\RadioOptions:
             generator:
                 strategy: IDENTITY
 
-        # This property MUST exist and be kept up to date, otherwise CSV/XML importing are unable to concurrently check whether a RadioOption exists
         optionName:
             type: string
             length: 64
@@ -23,7 +22,6 @@ ODR\AdminBundle\Entity\RadioOptions:
             column: option_name
 #            gedmo:
 #                - versioned
-
         xml_optionName:
             type: string
             length: 64
@@ -57,35 +55,20 @@ ODR\AdminBundle\Entity\RadioOptions:
             gedmo:
                 timestampable:
                     on: create
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
-
-    oneToMany:
-        radioOptionsMeta:
-            targetEntity: RadioOptionsMeta
-            cascade: {  }
-            mappedBy: radioOptions
-            inversedBy: null
-            joinColumns:
-                radio_meta_id:
-                    referencedColumnName: id
-#            gedmo:
-#                - versioned
 
     manyToOne:
-        dataFields:
-            targetEntity: DataFields
+        radioOptions:
+            targetEntity: RadioOptions
             cascade: {  }
-            inversedBy: radioOptions
+            mappedBy: null
+            inversedBy: radioOptionsMeta
             joinColumns:
-                data_fields_id:
+                radio_option_id:
                     referencedColumnName: id
             orphanRemoval: false
 #            gedmo:
 #                - versioned
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -98,19 +81,5 @@ ODR\AdminBundle\Entity\RadioOptions:
 #            gedmo:
 #                blameable:
 #                    on: create
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
-#            gedmo:
-#                blameable:
-#                    on: update
 
     lifecycleCallbacks: {  }

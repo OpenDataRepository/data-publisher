@@ -25,10 +25,13 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileChecksum;
+use ODR\AdminBundle\Entity\FileMeta;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageChecksum;
+use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\LinkedDataTree;
 use ODR\AdminBundle\Entity\RadioOptions;
+use ODR\AdminBundle\Entity\RadioOptionsMeta;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\TrackedJob;
@@ -2057,27 +2060,65 @@ return;
         $my_obj->setExt($extension);
         $my_obj->setLocalFileName('temp');
         $my_obj->setCreatedBy($user);
-        $my_obj->setUpdatedBy($user);
-        $my_obj->setExternalId('');
         $my_obj->setOriginalChecksum('');
+        // encrypt_key set by self::encryptObject() somewhat later
+
+        // TODO - delete this property
+        $my_obj->setUpdatedBy($user);
 
         if ($typeclass == 'Image') {
-            $my_obj->setOriginalFileName($original_filename);
             $my_obj->setOriginal('1');
+
+            // TODO - delete these five properties
+            $my_obj->setOriginalFileName($original_filename);
             $my_obj->setDisplayorder(0);
             $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public    TODO - let user decide default status
+            $my_obj->setCaption(null);
+            $my_obj->setExternalId('');
         }
         else if ($typeclass == 'File') {
             $my_obj->setFilesize(0);
+
+            // TODO - delete these four properties
             $my_obj->setOriginalFileName($original_filename);
-//            $my_obj->setGraphable('1');
             $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
+            $my_obj->setCaption(null);
+            $my_obj->setExternalId('');
         }
 
         // Save changes
         $em->persist($my_obj);
         $em->flush();
         $em->refresh($my_obj);
+
+        // Also create the initial metadata entry for this new entity
+        if ($typeclass == 'Image') {
+            $new_image_meta = new ImageMeta();
+            $new_image_meta->setImage($my_obj);
+
+            $new_image_meta->setOriginalFileName($original_filename);
+            $new_image_meta->setDisplayorder(0);
+            $new_image_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public    TODO - let user decide default status
+            $new_image_meta->setCaption(null);
+            $new_image_meta->setExternalId('');
+
+            $new_image_meta->setCreatedBy($user);
+            $em->persist($new_image_meta);
+        }
+        else if ($typeclass == 'File') {
+            $new_file_meta = new FileMeta();
+            $new_file_meta->setFile($my_obj);
+
+            $new_file_meta->setOriginalFileName($original_filename);
+            $new_file_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
+            $new_file_meta->setDescription(null);
+            $new_file_meta->setExternalId('');
+
+            $new_file_meta->setCreatedBy($user);
+            $em->persist($new_file_meta);
+        }
+
+        $em->flush();
 
 
         // ----------------------------------------
@@ -2244,32 +2285,329 @@ return;
 
 
     /**
+     * Modifies a meta entry for a given File entity by copying the old meta entry to a new meta entry,
+     *  updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'description', 'original_filename', 'external_id', and/or 'public_date' (MUST BE A DATETIME OBJECT).
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user                       The user requesting the modification of this meta entry.
+     * @param File $file                       The File entity of the meta entry being modified
+     * @param array $properties
+     *
+     * @return FileMeta
+     */
+    protected function ODR_copyFileMeta($em, $user, $file, $properties)
+    {
+        // Load the old meta entry
+        $old_meta_entry = $em->getRepository('ODRAdminBundle:FileMeta')->findOneBy( array('File' => $file->getId()) );
+
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'description' => $old_meta_entry->getDescription(),
+            'original_filename' => $old_meta_entry->getOriginalFileName(),
+            'external_id' => $old_meta_entry->getExternalId(),
+            'public_date' => $old_meta_entry->getPublicDate(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value)
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $old_meta_entry;
+
+
+        // Create a new meta entry and copy the old entry's data over
+        $file_meta = new FileMeta();
+        $file_meta->setFile($file);
+
+        $file_meta->setDescription( $old_meta_entry->getDescription() );
+        $file_meta->setOriginalFileName( $old_meta_entry->getOriginalFileName() );
+        $file_meta->setExternalId( $old_meta_entry->getExternalId() );
+        $file_meta->setPublicDate( $old_meta_entry->getPublicDate() );
+
+        $file_meta->setCreatedBy($user);
+        $file_meta->setCreated( new \DateTime() );
+
+        // Set any new properties
+        if ( isset($properties['description']) )
+            $file_meta->setDescription( $properties['description'] );
+        if ( isset($properties['original_filename']) )
+            $file_meta->setOriginalFileName( $properties['original_filename'] );
+        if ( isset($properties['external_id']) )
+            $file_meta->setExternalId( $properties['external_id'] );
+        if ( isset($properties['public_date']) )
+            $file_meta->setPublicDate( $properties['public_date'] );
+
+        // Save the new meta entry and delete the old one
+        $em->remove($old_meta_entry);
+        $em->persist($file_meta);
+        $em->flush();
+
+        // Return the new entry
+        return $file_meta;
+    }
+
+
+    /**
+     * Modifies a meta entry for a given Image entity by copying the old meta entry to a new meta entry,
+     *  updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'caption', 'original_filename', 'external_id', 'public_date' (MUST BE A DATETIME OBJECT), and/or 'display_order.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user                       The user requesting the modification of this meta entry.
+     * @param Image $image                     The Image entity of the meta entry being modified
+     * @param array $properties
+     *
+     * @return ImageMeta
+     */
+    protected function ODR_copyImageMeta($em, $user, $image, $properties)
+    {
+        // Load the old meta entry
+        /** @var ImageMeta $old_meta_entry */
+        $old_meta_entry = $em->getRepository('ODRAdminBundle:ImageMeta')->findOneBy( array('Image' => $image->getId()) );
+
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'caption' => $old_meta_entry->getCaption(),
+            'original_filename' => $old_meta_entry->getOriginalFileName(),
+            'external_id' => $old_meta_entry->getExternalId(),
+            'public_date' => $old_meta_entry->getPublicDate(),
+            'display_order' => $old_meta_entry->getPublicDate()
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value)
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $old_meta_entry;
+
+
+        // Create a new meta entry and copy the old entry's data over
+        $image_meta = new ImageMeta();
+        $image_meta->setImage($image);
+
+        $image_meta->setCaption( $old_meta_entry->getCaption() );
+        $image_meta->setOriginalFileName( $old_meta_entry->getOriginalFileName() );
+        $image_meta->setExternalId( $old_meta_entry->getExternalId() );
+        $image_meta->setPublicDate( $old_meta_entry->getPublicDate() );
+        $image_meta->setDisplayorder( $old_meta_entry->getDisplayorder() );
+
+        $image_meta->setCreatedBy($user);
+        $image_meta->setCreated( new \DateTime() );
+
+        // Set any new properties
+        if ( isset($properties['caption']) )
+            $image_meta->setCaption( $properties['caption'] );
+        if ( isset($properties['original_filename']) )
+            $image_meta->setOriginalFileName( $properties['original_filename'] );
+        if ( isset($properties['external_id']) )
+            $image_meta->setExternalId( $properties['external_id'] );
+        if ( isset($properties['public_date']) )
+            $image_meta->setPublicDate( $properties['public_date'] );
+        if ( isset($properties['display_order']) )
+            $image_meta->setDisplayorder( $properties['display_order'] );
+
+        // Save the new meta entry and delete the old one
+        $em->remove($old_meta_entry);
+        $em->persist($image_meta);
+        $em->flush();
+
+        // Return the new entry
+        return $image_meta;
+    }
+
+
+    /**
      * Creates a new RadioOption entity
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user            The user requesting the creation of this entity.
      * @param DataFields $datafield
+     * @param boolean $force_create If true, always create a new RadioOption...otherwise find and return the existing RadioOption with $datafield and $option_name, or create one if it doesn't exist
      * @param string $option_name   An optional name to immediately assign to the RadioOption entity
      *
      * @return RadioOptions
      */
-    protected function ODR_addRadioOption($em, $user, $datafield, $option_name = "Option")
+    protected function ODR_addRadioOption($em, $user, $datafield, $force_create, $option_name = "Option")
     {
-        //
-        $radio_option = new RadioOptions();
-        $radio_option->setValue(0);
-        $radio_option->setOptionName($option_name);
-        $radio_option->setXmlOptionName('');
-        $radio_option->setDisplayOrder(0);
-        $radio_option->setIsDefault(false);
-        $radio_option->setDataFields($datafield);
-        $radio_option->setExternalId(0);
-        $radio_option->setParent(null);
-        $radio_option->setCreatedBy($user);
-        $radio_option->setUpdatedBy($user);
-        $em->persist($radio_option);
+        if ($force_create) {
+            // Create a new RadioOption entity
+            $radio_option = new RadioOptions();
+            $radio_option->setDataFields($datafield);
+            $radio_option->setOptionName($option_name);     // exists to prevent potential concurrency issues, see below
 
-        return $radio_option;
+            $radio_option->setCreatedBy($user);
+            $radio_option->setCreated(new \DateTime());
+
+            // TODO - delete these five properties
+            $radio_option->setXmlOptionName('');
+            $radio_option->setDisplayOrder(0);
+            $radio_option->setIsDefault(false);
+            $radio_option->setUpdatedBy($user);
+            $radio_option->setUpdated(new \DateTime());
+
+            // Save and reload the RadioOption so the associated meta entry can access it
+            $em->persist($radio_option);
+            $em->flush($radio_option);
+            $em->refresh($radio_option);
+
+            // Create a new RadioOptionMeta entity
+            $radio_option_meta = new RadioOptionsMeta();
+            $radio_option_meta->setRadioOptions($radio_option);
+            $radio_option_meta->setOptionName($option_name);
+            $radio_option_meta->setXmlOptionName('');
+            $radio_option_meta->setDisplayOrder(0);
+            $radio_option_meta->setIsDefault(false);
+
+            $radio_option_meta->setCreatedBy($user);
+            $radio_option_meta->setCreated( new \DateTime() );
+
+            $em->persist($radio_option_meta);
+            $em->flush($radio_option_meta);
+
+            return $radio_option;
+        }
+        else {
+            // See if a RadioOption entity for this datafield with this name already exists
+            $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('optionName' => $option_name, 'dataFields' => $datafield->getId()) );
+            if ($radio_option == null) {
+                // TODO - CURRENTLY WORKS, BUT MIGHT WANT TO LOOK INTO AN OFFICIAL MUTEX...
+
+                // Define and execute a query to manually create the absolute minimum required for a RadioOption entity...
+                $query =
+                    'INSERT INTO odr_radio_options (option_name, data_fields_id)
+                     SELECT * FROM (SELECT :name AS option_name, :df_id AS df_id) AS tmp
+                     WHERE NOT EXISTS (
+                         SELECT option_name FROM odr_radio_options WHERE option_name = :name AND data_fields_id = :df_id AND deletedAt IS NULL
+                     ) LIMIT 1;';
+                $params = array('name' => $option_name, 'df_id' => $datafield->getId());
+                $conn = $em->getConnection();
+                $rowsAffected = $conn->executeUpdate($query, $params);
+
+                // Now that it exists, fill out the properties of a RadioOption entity that were skipped during the manual creation...
+                $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(array('optionName' => $option_name, 'dataFields' => $datafield->getId()));
+//            $radio_option->setOptionName($option_name);
+                $radio_option->setCreatedBy($user);
+                $radio_option->setCreated(new \DateTime());
+
+                // TODO - delete these five properties
+                $radio_option->setXmlOptionName('');
+                $radio_option->setDisplayOrder(0);
+                $radio_option->setIsDefault(false);
+                $radio_option->setUpdatedBy($user);
+                $radio_option->setUpdated(new \DateTime());
+
+                // Save and reload the RadioOption so the associated meta entry can access it
+                $em->persist($radio_option);
+                $em->flush($radio_option);
+                $em->refresh($radio_option);
+
+                // See if a RadioOptionMeta entity exists for this RadioOption...
+                $radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOptions' => $radio_option->getId()) );
+                if ($radio_option_meta == null) {
+                    // Define and execute a query to manually create the absolute minimum required for a RadioOption entity...
+                    $query =
+                       'INSERT INTO odr_radio_options_meta (radio_option_id)
+                        SELECT * FROM (SELECT :ro_id AS ro_id) AS tmp
+                        WHERE NOT EXISTS (
+                            SELECT radio_option_id FROM odr_radio_options_meta WHERE radio_option_id = :ro_id AND deletedAt IS NULL
+                        ) LIMIT 1;';
+                    $params = array('ro_id' => $radio_option->getId());
+                    $conn = $em->getConnection();
+                    $rowsAffected = $conn->executeUpdate($query, $params);
+
+                    // Now that it exists, fill out the properties of a RadioOptionMeta entity that were skipped during the manual creation...
+                    $radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOptions' => $radio_option->getId()) );
+                    $radio_option_meta->setOptionName($option_name);
+                    $radio_option_meta->setXmlOptionName('');
+                    $radio_option_meta->setDisplayOrder(0);
+                    $radio_option_meta->setIsDefault(false);
+
+                    $radio_option_meta->setCreatedBy($user);
+                    $radio_option_meta->setCreated( new \DateTime() );
+
+                    $em->persist($radio_option_meta);
+                    $em->flush($radio_option_meta);
+                }
+            }
+
+            return $radio_option;
+        }
+    }
+
+
+    /**
+     * Modifies a meta entry for a given RadioOptions entity by copying the old meta entry to a new meta entry,
+     *  updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'option_name', 'xml_option_name', 'display_order', and/or 'is_default'.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user                       The user requesting the modification of this meta entry.
+     * @param RadioOptions $radio_option       The RadioOption entity of the meta entry being modified
+     * @param array $properties
+     *
+     * @return RadioOptionsMeta
+     */
+    protected function ODR_copyRadioOptionsMeta($em, $user, $radio_option, $properties)
+    {
+        // Load the old meta entry
+        $old_meta_entry = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOptions' => $radio_option->getId()) );
+
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'option_name' => $old_meta_entry->getOptionName(),
+            'xml_option_name' => $old_meta_entry->getXmlOptionName(),
+            'display_order' => $old_meta_entry->getDisplayOrder(),
+            'is_default' => $old_meta_entry->getIsDefault(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value)
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $old_meta_entry;
+
+        // Create a new meta entry and copy the old entry's data over
+        $radio_option_meta = new RadioOptionsMeta();
+        $radio_option_meta->setRadioOptions($radio_option);
+
+        $radio_option_meta->setOptionName( $old_meta_entry->getOptionName() );
+        $radio_option_meta->setXmlOptionName( $old_meta_entry->getXmlOptionName() );
+        $radio_option_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
+        $radio_option_meta->setIsDefault( $old_meta_entry->getIsDefault() );
+
+        $radio_option_meta->setCreatedBy($user);
+        $radio_option_meta->setCreated( new \DateTime() );
+
+        // Set any new properties
+        if ( isset($properties['option_name']) )
+            $radio_option_meta->setOptionName( $properties['option_name'] );
+        if ( isset($properties['xml_option_name']) )
+            $radio_option_meta->setXmlOptionName( $properties['xml_option_name'] );
+        if ( isset($properties['display_order']) )
+            $radio_option_meta->setDisplayOrder( $properties['display_order'] );
+        if ( isset($properties['is_default']) )
+            $radio_option_meta->setIsDefault( $properties['is_default'] );
+
+        // Save the new meta entry and delete the old one
+        $em->remove($old_meta_entry);
+        $em->persist($radio_option_meta);
+        $em->flush();
+
+        // Return the new entry
+        return $radio_option_meta;
     }
 
 

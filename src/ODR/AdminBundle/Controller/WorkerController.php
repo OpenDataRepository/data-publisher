@@ -18,6 +18,10 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\FileMeta;
+use ODR\AdminBundle\Entity\ImageMeta;
+use ODR\AdminBundle\Entity\RadioOptions;
+use ODR\AdminBundle\Entity\RadioOptionsMeta;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -822,6 +826,8 @@ $ret .= '  Set current to '.$count."\n";
 
                 // Delete the decrypted version of the file/image off the server after it's completed
                 unlink($filepath);
+
+                // TODO - run graph plugin on new file
             }
             else {
 /*
@@ -1709,5 +1715,598 @@ print '</pre>';
 
 //$em->flush();
 
+    }
+
+
+    /**
+     * Looks for entities without metadata entries in the database, and schedules them for beanstalk to create
+     *
+     * @param integer $datatype_id Which datatype should have all its image thumbnails rebuilt
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function startbuildmetadataentriesAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $em = $this->getDoctrine()->getManager();
+            $pheanstalk = $this->get('pheanstalk');
+            $router = $this->container->get('router');
+            $memcached = $this->get('memcached');
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $api_key = $this->container->getParameter('beanstalk_api_key');
+
+
+            // --------------------
+            // Determine user privileges
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            // TODO - check for permissions?  restrict rebuild of thumbnails to certain datatypes?
+
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                return parent::permissionDeniedError();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Radio Options
+            // ----------------------------------------
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_radio_option_metadata');
+
+            // Grab a list of all radio options in the database
+            $em->getFilters()->disable('softdeleteable');
+            $query = $em->createQuery(
+                'SELECT ro.id AS id
+                 FROM ODRAdminBundle:RadioOptions AS ro'
+            );
+            $results = $query->getArrayResult();
+            $em->getFilters()->enable('softdeleteable');
+
+//print_r($results);
+//return;
+
+            if (count($results) > 0) {
+                $object_type = 'radio_option';
+                foreach ($results as $num => $result) {
+                    $object_id = $result['id'];
+
+                    // Insert the new job into the queue
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+//                            "tracked_job_id" => $tracked_job_id,
+                            "object_type" => $object_type,
+                            "object_id" => $object_id,
+                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
+
+                    $delay = 1;
+                    $pheanstalk->useTube('build_metadata')->put($payload, $priority, $delay);
+                }
+            }
+
+            // ----------------------------------------
+            // Files
+            // ----------------------------------------
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_file_metadata');
+
+            // Grab a list of all radio options in the database
+            $em->getFilters()->disable('softdeleteable');
+            $query = $em->createQuery(
+                'SELECT e.id AS id
+                 FROM ODRAdminBundle:File AS e'
+            );
+            $results = $query->getArrayResult();
+            $em->getFilters()->enable('softdeleteable');
+
+//print_r($results);
+//return;
+
+            if (count($results) > 0) {
+                $object_type = 'file';
+                foreach ($results as $num => $result) {
+                    $object_id = $result['id'];
+
+                    // Insert the new job into the queue
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+//                            "tracked_job_id" => $tracked_job_id,
+                            "object_type" => $object_type,
+                            "object_id" => $object_id,
+                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
+
+                    $delay = 1;
+                    $pheanstalk->useTube('build_metadata')->put($payload, $priority, $delay);
+                }
+            }
+
+            // ----------------------------------------
+            // Images
+            // ----------------------------------------
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_image_metadata');
+
+            // Grab a list of all radio options in the database
+            $em->getFilters()->disable('softdeleteable');
+            $query = $em->createQuery(
+                'SELECT e.id AS id
+                 FROM ODRAdminBundle:Image AS e
+                 WHERE e.original = 1'
+            );
+            $results = $query->getArrayResult();
+            $em->getFilters()->enable('softdeleteable');
+
+//print_r($results);
+//return;
+
+            if (count($results) > 0) {
+                $object_type = 'image';
+                foreach ($results as $num => $result) {
+                    $object_id = $result['id'];
+
+                    // Insert the new job into the queue
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+//                            "tracked_job_id" => $tracked_job_id,
+                            "object_type" => $object_type,
+                            "object_id" => $object_id,
+                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
+
+                    $delay = 1;
+                    $pheanstalk->useTube('build_metadata')->put($payload, $priority, $delay);
+                }
+            }
+
+            // ----------------------------------------
+            // TODO - Datafields
+            // ----------------------------------------
+
+            // ----------------------------------------
+            // TODO - Datarecords
+            // ----------------------------------------
+
+            // ----------------------------------------
+            // TODO - Datatypes
+            // ----------------------------------------
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x472127862 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Builds metadata entry for a specified radio option if needed
+     *
+     * @param Request $request
+     */
+    public function buildradiooptionmetadataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $object_type = $post['object_type'];
+            $object_id = $post['object_id'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->get('pheanstalk');
+            $logger = $this->get('logger');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+
+            $em = $this->getDoctrine()->getManager();
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+            // ----------------------------------------
+            // Want to create a metadata entry for deleted radio options too
+            $em->getFilters()->disable('softdeleteable');
+
+            // Ensure the radio option entity exists...
+            $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find($object_id);
+            if ($radio_option == null)
+                throw new \Exception('Radio Option does not exist');
+
+            // Attempt to locate a metadata entry for the provided entity
+            $radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOptions' => $object_id) );
+
+            // No longer need softdeleteable filter disabled
+            $em->getFilters()->enable('softdeleteable');
+
+            if ($radio_option_meta !== null) {
+                $return['d'] = 'Metadata entry already exists for Radio Option '.$object_id.', skipping';
+            }
+            else {
+                // Create a new meta entry and populate from original entity
+                $radio_option_meta = new RadioOptionsMeta();
+                $radio_option_meta->setRadioOptions( $radio_option );
+
+                $radio_option_meta->setOptionName( $radio_option->getOptionNameOriginal() );
+                $radio_option_meta->setXmlOptionName( $radio_option->getXmlOptionNameOriginal() );
+                $radio_option_meta->setDisplayOrder( $radio_option->getDisplayOrderOriginal() );
+                $radio_option_meta->setIsDefault( $radio_option->getIsDefaultOriginal() );
+
+                $radio_option_meta->setCreatedBy( $radio_option->getUpdatedBy() );
+                $radio_option_meta->setCreated( $radio_option->getUpdated() );
+
+                $radio_option_meta->setDeletedAt( $radio_option->getDeletedAt() );
+
+                $em->persist($radio_option_meta);
+                $em->flush();
+
+                $return['d'] = 'Created new metadata entry for Radio Option '.$object_id;
+            }
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x212738622 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Builds metadata entry for a specified file if needed
+     *
+     * @param Request $request
+     */
+    public function buildfilemetadataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $object_type = $post['object_type'];
+            $object_id = $post['object_id'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->get('pheanstalk');
+            $logger = $this->get('logger');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+
+            $em = $this->getDoctrine()->getManager();
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+            // ----------------------------------------
+            // Want to create a metadata entry for deleted files too
+            $em->getFilters()->disable('softdeleteable');
+
+            // Ensure the file entity exists...
+            $file = $em->getRepository('ODRAdminBundle:File')->find($object_id);
+            if ($file == null)
+                throw new \Exception('File does not exist');
+
+            // Attempt to locate a metadata entry for the provided entity
+            $file_meta = $em->getRepository('ODRAdminBundle:FileMeta')->findOneBy( array('File' => $object_id) );
+
+            // No longer need softdeleteable filter disabled
+            $em->getFilters()->enable('softdeleteable');
+
+            if ($file_meta !== null) {
+                $return['d'] = 'Metadata entry already exists for File '.$object_id.', skipping';
+            }
+            else {
+                // Create a new meta entry and populate from original entity
+                $file_meta = new FileMeta();
+                $file_meta->setFile( $file );
+
+                $file_meta->setDescription( $file->getDescriptionOriginal() );
+                $file_meta->setOriginalFileName( $file->getOriginalFileNameOriginal() );
+                $file_meta->setExternalId( $file->getExternalIdOriginal() );
+                $file_meta->setPublicDate( $file->getPublicDateOriginal() );
+
+                $file_meta->setCreatedBy( $file->getUpdatedBy() );
+                $file_meta->setCreated( $file->getUpdated() );
+
+                $file_meta->setDeletedAt( $file->getDeletedAt() );
+
+                $em->persist($file_meta);
+                $em->flush();
+
+                $return['d'] = 'Created new metadata entry for File '.$object_id;
+            }
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x271386622 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Builds metadata entry for a specified image if needed
+     *
+     * @param Request $request
+     */
+    public function buildimagemetadataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $object_type = $post['object_type'];
+            $object_id = $post['object_id'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->get('pheanstalk');
+            $logger = $this->get('logger');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+
+            $em = $this->getDoctrine()->getManager();
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+            // ----------------------------------------
+            // Want to create a metadata entry for deleted images too
+            $em->getFilters()->disable('softdeleteable');
+
+            // Ensure the file entity exists...
+            $image = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
+            if ($image == null)
+                throw new \Exception('Image does not exist');
+
+            // Attempt to locate a metadata entry for the provided entity
+            $image_meta = $em->getRepository('ODRAdminBundle:ImageMeta')->findOneBy( array('Image' => $object_id) );
+
+            // No longer need softdeleteable filter disabled
+            $em->getFilters()->enable('softdeleteable');
+
+            if ($image_meta !== null) {
+                $return['d'] = 'Metadata entry already exists for Image '.$object_id.', skipping';
+            }
+            else {
+                // Create a new meta entry and populate from original entity
+                $image_meta = new ImageMeta();
+                $image_meta->setImage( $image );
+
+                $image_meta->setDisplayorder( $image->getDisplayorderOriginal() );
+                $image_meta->setCaption( $image->getCaptionOriginal() );
+                $image_meta->setOriginalFileName( $image->getOriginalFileNameOriginal() );
+                $image_meta->setExternalId( $image->getExternalIdOriginal() );
+                $image_meta->setPublicDate( $image->getPublicDateOriginal() );
+
+                $image_meta->setCreatedBy( $image->getUpdatedBy() );
+                $image_meta->setCreated( $image->getUpdated() );
+
+                $image_meta->setDeletedAt( $image->getDeletedAt() );
+
+                $em->persist($image_meta);
+                $em->flush();
+
+                $return['d'] = 'Created new metadata entry for Image '.$object_id;
+            }
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x273786222 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Builds metadata entry for a specified datafield if needed
+     *
+     * @param Request $request
+     */
+    public function builddatafieldmetadataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $object_type = $post['object_type'];
+            $object_id = $post['object_id'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->get('pheanstalk');
+            $logger = $this->get('logger');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+
+            $em = $this->getDoctrine()->getManager();
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+            // TODO - stuff here
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x2738672902 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Builds metadata entry for a specified datarecord if needed
+     *
+     * @param Request $request
+     */
+    public function builddatarecordmetadataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $object_type = $post['object_type'];
+            $object_id = $post['object_id'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->get('pheanstalk');
+            $logger = $this->get('logger');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+
+            $em = $this->getDoctrine()->getManager();
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+            // TODO - stuff here
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x239864522 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Builds metadata entry for a specified datatype if needed
+     *
+     * @param Request $request
+     */
+    public function builddatatypemetadataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $object_type = $post['object_type'];
+            $object_id = $post['object_id'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->get('pheanstalk');
+            $logger = $this->get('logger');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+
+            $em = $this->getDoctrine()->getManager();
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+            // TODO - stuff here
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x738863422 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 }

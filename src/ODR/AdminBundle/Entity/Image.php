@@ -112,6 +112,11 @@ class Image
     private $ImageChecksum;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $ImageMeta;
+
+    /**
      * @var \ODR\AdminBundle\Entity\Image
      */
     private $parent;
@@ -158,6 +163,7 @@ class Image
     {
         $this->children = new \Doctrine\Common\Collections\ArrayCollection();
         $this->ImageChecksum = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->ImageMeta = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -213,7 +219,10 @@ class Image
      */
     public function getDisplayorder()
     {
-        return $this->displayorder;
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getDisplayorder();
+        else
+            return $this->getParent()->getImageMeta()->getDisplayorder();
     }
 
     /**
@@ -236,7 +245,10 @@ class Image
      */
     public function getCaption()
     {
-        return $this->caption;
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getCaption();
+        else
+            return $this->getParent()->getImageMeta()->getCaption();
     }
 
     /**
@@ -282,7 +294,10 @@ class Image
      */
     public function getOriginalFileName()
     {
-        return $this->originalFileName;
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getOriginalFileName();
+        else
+            return $this->getParent()->getImageMeta()->getOriginalFileName();
     }
 
     /**
@@ -397,20 +412,10 @@ class Image
      */
     public function getPublicDate()
     {
-        return $this->publicDate;
-    }
-
-    /**
-     * Is public
-     *
-     * @return boolean
-     */
-    public function isPublic()
-    {
-        if ($this->publicDate->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-            return false;
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getPublicDate();
         else
-            return true;
+            return $this->getParent()->getImageMeta()->getPublicDate();
     }
 
     /**
@@ -456,7 +461,10 @@ class Image
      */
     public function getExternalId()
     {
-        return $this->external_id;
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getExternalId();
+        else
+            return $this->getParent()->getImageMeta()->getExternalId();
     }
 
     /**
@@ -592,6 +600,39 @@ class Image
     public function getImageChecksum()
     {
         return $this->ImageChecksum;
+    }
+
+    /**
+     * Add ImageMeta
+     *
+     * @param \ODR\AdminBundle\Entity\ImageMeta $imageMeta
+     * @return Image
+     */
+    public function addImageMetum(\ODR\AdminBundle\Entity\ImageMeta $imageMeta)
+    {
+        $this->ImageMeta[] = $imageMeta;
+
+        return $this;
+    }
+
+    /**
+     * Remove ImageMeta
+     *
+     * @param \ODR\AdminBundle\Entity\ImageMeta $imageMeta
+     */
+    public function removeImageMetum(\ODR\AdminBundle\Entity\ImageMeta $imageMeta)
+    {
+        $this->ImageMeta->removeElement($imageMeta);
+    }
+
+    /**
+     * Get ImageMeta
+     *
+     * @return \ODR\AdminBundle\Entity\ImageMeta
+     */
+    public function getImageMeta()
+    {
+        return $this->ImageMeta->first();
     }
 
     /**
@@ -778,6 +819,20 @@ class Image
         return $this->dataRecordFields;
     }
 
+    /**
+     * Is public
+     *
+     * @return boolean
+     */
+    public function isPublic()
+    {
+        // Return whether the original image is public or not
+        if ( $this->getPublicDate()->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' )
+            return false;
+        else
+            return true;
+    }
+
     /*
      * ----------------------------------------
      * ----------------------------------------
@@ -925,5 +980,57 @@ class Image
         // get rid of the __DIR__ so it doesn't screw up
         // when displaying uploaded doc/image in the view.
         return 'uploads/images';
+    }
+
+    // ----------------------------------------
+    // TODO - delete these five functions
+    /**
+     * Get displayorder original
+     *
+     * @return integer
+     */
+    public function getDisplayorderOriginal()
+    {
+        return $this->displayorder;
+    }
+
+    /**
+     * Get caption original
+     *
+     * @return string
+     */
+    public function getCaptionOriginal()
+    {
+        return $this->caption;
+    }
+
+    /**
+     * Get originalFileName original
+     *
+     * @return string
+     */
+    public function getOriginalFileNameOriginal()
+    {
+        return $this->originalFileName;
+    }
+
+    /**
+     * Get external_id original
+     *
+     * @return string
+     */
+    public function getExternalIdOriginal()
+    {
+        return $this->external_id;
+    }
+
+    /**
+     * Get publicDate original
+     *
+     * @return \DateTime
+     */
+    public function getPublicDateOriginal()
+    {
+        return $this->publicDate;
     }
 }

@@ -55,6 +55,7 @@ class ImageForm extends AbstractType
                 'label'  => 'Value',
             )
         );
+/*
         $builder->add(
             'caption', 
             'text', 
@@ -63,7 +64,7 @@ class ImageForm extends AbstractType
                 'label'  => 'Image File',
             )
         );
-
+*/
         $builder->add(
             'file', 
             'file', 

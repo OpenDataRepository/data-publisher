@@ -166,9 +166,9 @@ ODR\AdminBundle\Entity\DataFields:
             cascade: {  }
             mappedBy: dataFields
 #            inversedBy: radioOptions
-            orderBy:
-                displayOrder: ASC
-                id: ASC
+#            orderBy:
+#                displayOrder: ASC
+#                id: ASC
             gedmo:
                 - versioned
     manyToOne:

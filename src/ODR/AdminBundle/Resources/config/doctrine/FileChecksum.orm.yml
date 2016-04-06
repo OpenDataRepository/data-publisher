@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\FileChecksum:
     type: entity
     table: odr_file_checksum
     gedmo:
-        loggable: true
+#        loggable: true
 #        soft_deleteable:
 #            field_name: deletedAt
     fields:
@@ -41,3 +41,5 @@ ODR\AdminBundle\Entity\FileChecksum:
             orphanRemoval: false
 #            gedmo:
 #                - versioned
+
+    lifecycleCallbacks: {  }

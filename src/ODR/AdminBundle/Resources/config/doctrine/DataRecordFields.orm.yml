@@ -145,9 +145,9 @@ ODR\AdminBundle\Entity\DataRecordFields:
             cascade: {  }
             mappedBy: dataRecordFields
             fetch: LAZY
-            orderBy:
-                displayorder: ASC
-                id: ASC
+#            orderBy:
+#                displayorder: ASC
+#                id: ASC
             joinColumns:
                 data_record_fields_id:
                     referencedColumnName: id

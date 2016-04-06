@@ -17,7 +17,6 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\TrackedError;
 // Forms
 // Symfony
@@ -2731,13 +2730,62 @@ print_r($new_mapping);
                                     // ...the specified file/image is already in datafield
                                     $status .= '      ...'.$typeclass.' ("'.$csv_filename.'") is an exact copy of existing version, skipping.'."\n";
 
-                                    // Delete the file/image from the server since it already officially exists
+                                    // Delete the file/image from the csv import storage directory on the server since it already exists as an officially uploaded file
                                     unlink($path_prefix.$storage_filepath.'/'.$csv_filename);
                                 }
                                 else {
                                     // ...need to "update" the existing file/image
-                                    $status .= '      ...'.$typeclass.' ("'.$csv_filename.'") is different than existing version, updating...';
+                                    $status .= '      ...'.$typeclass.' ("'.$csv_filename.'") is different than existing version, "updating"...';
 
+                                    // Load old file/image and its associated metadata
+                                    $old_obj = $existing_files[$csv_filename];
+                                    $old_obj_meta = null;
+                                    $properties = array();
+                                    if ($typeclass == 'File') {
+                                        $old_obj_meta = $old_obj->getFileMeta();
+                                        $properties = array(
+                                            'description' => $old_obj_meta->getDescription(),
+                                            'original_filename' => $old_obj_meta->getOriginalFileName(),
+                                            'external_id' => $old_obj_meta->getExternalId(),
+                                            'public_date' => $old_obj_meta->getPublicDate(),
+                                        );
+
+                                        // Ensure no decrypted version of the original file remains on the server
+                                        $filepath = dirname(__FILE__).'/../../../../web/uploads/files/File_'.$old_obj->getId().'.'.$old_obj->getExt();
+                                        if ( file_exists($filepath) )
+                                            unlink($filepath);
+                                    }
+                                    else {
+                                        $old_obj_meta = $old_obj->getImageMeta();
+                                        $properties = array(
+                                            'caption' => $old_obj_meta->getCaption(),
+                                            'original_filename' => $old_obj_meta->getOriginalFileName(),
+                                            'external_id' => $old_obj_meta->getExternalId(),
+                                            'public_date' => $old_obj_meta->getPublicDate(),
+                                            'display_order' => $old_obj_meta->getDisplayorder()
+                                        );
+
+                                        // Ensure no decrypted version of the original image or its thumbnails remain on the server
+                                        $old_images = $em->getRepository('ODRAdminBundle:Image')->findBy( array('parent' => $old_obj->getId()) );
+                                        foreach ($old_images as $img) {
+                                            $filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
+                                            if ( file_exists($filepath) )
+                                                unlink($filepath);
+                                        }
+                                    }
+
+                                    // "Upload" the new file, and copy over the existing metadata
+                                    $new_obj = parent::finishUpload($em, $storage_filepath, $csv_filename, $user->getId(), $drf->getId());
+                                    if ($typeclass == 'File')
+                                        parent::ODR_copyFileMeta($em, $user, $new_obj, $properties);
+                                    else
+                                        parent::ODR_copyImageMeta($em, $user, $new_obj, $properties);
+
+                                    // Delete the old object and its metadata entry
+                                    $em->remove($old_obj);
+                                    $em->remove($old_obj_meta);
+                                    $em->flush();
+/*
                                     // Determine the path to the current file/image
                                     $my_obj = $existing_files[$csv_filename];
                                     $local_filepath = $path_prefix.'uploads/files/File_';
@@ -2783,6 +2831,7 @@ print_r($new_mapping);
                                     // A decrypted version of the File/Image might still exist on the server...delete it here since all its properties have been saved
                                     if ( file_exists($local_filepath) )
                                         unlink($local_filepath);
+*/
                                 }
                             }
                         }
@@ -2805,13 +2854,41 @@ print_r($new_mapping);
                                 $original_filename = $file->getOriginalFileName();
 
                                 if ( !in_array($original_filename, $csv_filenames) ) {
-                                    if ($typeclass == 'File' || $file->getOriginal() == 1)
+                                    if ($typeclass == 'File') {
                                         $status .= '      ...'.$typeclass.' ("'.$original_filename.'") not listed in csv file, deleting...'."\n";
 
-                                    // Silently delete thumbnails
+                                        // Delete the decrypted version of this file from the server, if it exists
+                                        $file_upload_path = dirname(__FILE__).'/../../../../web/uploads/files/';
+                                        $filename = 'File_'.$file->getId().'.'.$file->getExt();
+                                        $absolute_path = realpath($file_upload_path).'/'.$filename;
 
-                                    $em->remove($file);
-                                    $need_flush = true;
+                                        if ( file_exists($absolute_path) )
+                                            unlink($absolute_path);
+
+                                        // Delete the file entity and its associated metadata entry
+                                        $file_meta = $file->getFileMeta();
+                                        $em->remove($file);
+                                        $em->remove($file_meta);
+                                        $need_flush = true;
+                                    }
+                                    else if ($typeclass == 'Image') {
+                                        if ($file->getOriginal() == 1) {
+                                            $status .= '      ...'.$typeclass.' ("'.$original_filename.'") not listed in csv file, deleting...'."\n";
+
+                                            // Delete the image's associated metadata entry
+                                            $image_meta = $file->getImageMeta();
+                                            $em->remove($image_meta);
+                                        }
+
+                                        // Ensure no decrypted version of the image (or thumbnails) exists on the server
+                                        $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$file->getId().'.'.$file->getExt();
+                                        if ( file_exists($local_filepath) )
+                                            unlink($local_filepath);
+
+                                        // Delete the image (thumbnails are deleted by this as well)
+                                        $em->remove($file);
+                                        $need_flush = true;
+                                    }
                                 }
                             }
                         }
@@ -2971,7 +3048,7 @@ print_r($new_mapping);
                             $option_name = trim($option_name);
                             if ( $option_name == '' )
                                 continue;
-
+/*
                             // See if a radio_option entity with this name already exists
                             $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('optionName' => $option_name, 'dataFields' => $datafield->getId()) );
                             if ($radio_option == null) {
@@ -3003,6 +3080,10 @@ print_r($new_mapping);
 
                                 $em->persist($radio_option);
                             }
+*/
+                            // Create a radio_option entity for this datafield with this name if it doesn't already exist
+                            $force_create = false;
+                            $radio_option = parent::ODR_addRadioOption($em, $user, $datafield, $force_create, $option_name);
 
                             // Now that the radio option is guaranteed to exist...grab the relevant RadioSelection entity...
                             $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );

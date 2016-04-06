@@ -16,6 +16,7 @@
 
 namespace ODR\AdminBundle\Entity;
 
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -476,7 +477,23 @@ class DataRecordFields
      */
     public function getImage()
     {
-        return $this->image;
+//        return $this->image;
+
+        // Adapted from http://stackoverflow.com/a/16707694
+        $iterator = $this->image->getIterator();
+        $iterator->uasort(function ($a, $b) {
+            // Sort by display order first if possible
+            $a_display_order = $a->getDisplayOrder();
+            $b_display_order = $b->getDisplayOrder();
+            if ($a_display_order < $b_display_order)
+                return -1;
+            else if ($a_display_order > $b_display_order)
+                return 1;
+            else
+                // otherwise, sort by image_id
+                return ($a->getId() < $b->getId()) ? -1 : 1;
+        });
+        return new ArrayCollection(iterator_to_array($iterator));
     }
 
     /**

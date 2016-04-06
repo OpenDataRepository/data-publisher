@@ -1146,6 +1146,20 @@ if ($debug)
 
 
             // --------------------------------------------------
+            // All datatypes being searched on receive an initial "flag" that is applied to each possible datarecord that could satisfy the search...by default, most of them don't have to match search criteria exactly...
+            $initial_datatype_flags = array();
+            foreach ($searched_datatypes as $num => $dt_id)
+                $initial_datatype_flags[$dt_id] = 0;
+
+            // If the user is searching on a datafield, then datarecords of that datafield's datatype MUST match search query to be included
+            foreach ($datafields as $df_id => $value)
+                $initial_datatype_flags[ $datafield_array['datatype_of'][$df_id] ] = -1;
+
+            // Top-level datarecords must also be set to -1, otherwise most searches would always return all top-level datarecords
+            $initial_datatype_flags[$target_datatype_id] = -1;
+
+
+            // --------------------------------------------------
             // Deal with metadata, if it exists
             $metadata = array();
             if ( isset($post['metadata']) ) {
@@ -1155,6 +1169,7 @@ if ($debug)
                 foreach ($metadata as $datatype_id => $data) {
                     // This datatype is being searched on
                     $searched_datatypes[] = $datatype_id;
+                    $initial_datatype_flags[$datatype_id] = -1;
 
                     // In case one of the searched datafields doesn't cover it, ensure an entry exists for this datatype's metadata...will be used later during the intersection calculations
                     if ( !isset($datafield_array['by_datatype'][$datatype_id]) )
@@ -1199,6 +1214,10 @@ if ($debug)
             if ( !( isset($user_permissions[$target_datatype_id]) && isset($user_permissions[$target_datatype_id]['view']) ) ) {
                 $metadata[$target_datatype_id] = array();   // clears updated/created (by)
                 $metadata[$target_datatype_id]['public'] = 1;
+
+                // Ensure that the intersection calculation is aware that this datatype is restricted to public datarecords
+                if ( !in_array('dt_'.$target_datatype_id.'_metadata', $datafield_array['by_datatype'][$target_datatype_id]) )
+                    $datafield_array['by_datatype'][$target_datatype_id][] = 'dt_'.$target_datatype_id.'_metadata';
             }
 
             // For each datafield the user is searching on...
@@ -1217,9 +1236,12 @@ if ($debug)
                 $dt_id = $datafield_array['datatype_of'][$df_id];
                 if ( !( isset($user_permissions[$dt_id]) && isset($user_permissions[$dt_id]['view']) ) ) {
                     // ...if the user does not have view permissions for the datatype this datafield belongs to, enforce viewing of public datarecords only
-//                    if ( !isset($metadata[$dt_id]) )
-                        $metadata[$dt_id] = array();    // always want to clear updated/created (by)
+                    $metadata[$dt_id] = array();    // always want to clear updated/created (by)
                     $metadata[$dt_id]['public'] = 1;
+
+                    // Ensure that the intersection calculation is aware that this datatype is restricted to public datarecords
+                    if ( !in_array('dt_'.$dt_id.'_metadata', $datafield_array['by_datatype'][$dt_id]) )
+                        $datafield_array['by_datatype'][$dt_id][] = 'dt_'.$dt_id.'_metadata';
                 }
             }
 
@@ -1230,6 +1252,7 @@ if ($debug) {
     print '$datafield_array: '.print_r($datafield_array, true)."\n";
     print '$metadata: '.print_r($metadata, true)."\n";
     print '$searched_datatypes: '.print_r($searched_datatypes, true)."\n";
+    print '$initial_datatype_flags: '.print_r($initial_datatype_flags, true)."\n";
 //exit();
 }
 
@@ -1241,8 +1264,8 @@ if ($timing)
             // ...has to be done this way so that when the user searches on criteria for both childtypes A and B, a top-level datarecord that only has either childtype A or childtype B won't match
             $allowed_grandparents = null;
             foreach ($searched_datatypes as $num => $dt_id) {
-                // Don't restrict datarecords by top-level datatype here, and don't restrict datarecord list at all if user is just running a general search
-                if ($dt_id == $target_datatype_id || ($general_string !== null && count($datafields) == 0) )
+                // Don't restrict by top-level datatype here, and also don't restrict if the user isn't directly searching on a datafield of the datatype
+                if ($dt_id == $target_datatype_id || $initial_datatype_flags[$dt_id] == 0)
                     continue;
 
                 // Linked datarecords needs a different query to extract "grandparents", since we actually want the grandparent of the datarecord that is linking to this linked datarecord
@@ -1371,10 +1394,10 @@ if ($timing)
                     $descendants_of_datarecord[$parent_id][$dt_id][$dr_id] = '';
                 }
 
-                // If this datarecord's datatype is being searched on somehow...require any datarecords of that datatype to be directly matched by the search queries
+                // Apply the default inclusion flag to this datarecord, if specified
                 $flag = 0;
-                if ( in_array($dt_id, $searched_datatypes) )
-                    $flag = -1;
+                if ( isset($initial_datatype_flags[$dt_id]) )
+                    $flag = $initial_datatype_flags[$dt_id];
 
                 $matched_datarecords[$dr_id] = $flag;
             }
@@ -1382,12 +1405,12 @@ if ($timing)
             // $descendants_of_datarecord array is currently partially flattened..."inflate" it into the true tree structure described above
             $matched_datarecords[0] = 0;
             $descendants_of_datarecord = array(0 => self::buildDatarecordTree($descendants_of_datarecord, 0));
-
+/*
 if ($more_debug) {
     print '$matched_datarecords: '.print_r($matched_datarecords, true)."\n";
     print '$descendants_of_datarecord: '.print_r($descendants_of_datarecord, true)."\n";
 }
-
+*/
 
 if ($timing)
     print 'datarecord trees built in: '.((microtime(true) - $start_time)*1000)."ms \n";
@@ -1780,6 +1803,11 @@ if ($more_debug) {
                     $grandparents = $odrcc->getSortedDatarecords($datatype, $grandparents);
                 }
             }
+
+            // Get rid of any duplicates in the datarecord list...linked datarecords should theoretically be the only ones, but don't want any duplicates
+            $datarecords = explode(',', $datarecords);
+            $datarecords = array_unique($datarecords);
+            $datarecords = implode(',', $datarecords);
 
 if ($debug) {
     print '----------'."\n";

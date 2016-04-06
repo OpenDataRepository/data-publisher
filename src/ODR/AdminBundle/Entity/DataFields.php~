@@ -17,6 +17,7 @@
 
 namespace ODR\AdminBundle\Entity;
 
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -755,7 +756,23 @@ class DataFields
      */
     public function getRadioOptions()
     {
-        return $this->radioOptions;
+//        return $this->radioOptions;
+
+        // Adapted from http://stackoverflow.com/a/16707694
+        $iterator = $this->radioOptions->getIterator();
+        $iterator->uasort(function ($a, $b) {
+            // Sort by display order first if possible
+            $a_display_order = $a->getDisplayOrder();
+            $b_display_order = $b->getDisplayOrder();
+            if ($a_display_order < $b_display_order)
+                return -1;
+            else if ($a_display_order > $b_display_order)
+                return 1;
+            else
+                // otherwise, sort by radio_option_id
+                return ($a->getId() < $b->getId()) ? -1 : 1;
+        });
+        return new ArrayCollection(iterator_to_array($iterator));
     }
 
     /**

@@ -92,6 +92,11 @@ class File
     private $FileChecksum;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $FileMeta;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataFields
      */
     private $dataField;
@@ -127,6 +132,7 @@ class File
     public function __construct()
     {
         $this->FileChecksum = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->FileMeta = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -159,7 +165,7 @@ class File
      */
     public function getCaption()
     {
-        return $this->caption;
+        return $this->getFileMeta()->getDescription();
     }
 
     /**
@@ -205,7 +211,7 @@ class File
      */
     public function getOriginalFileName()
     {
-        return $this->originalFileName;
+        return $this->getFileMeta()->getOriginalFileName();
     }
 
     /**
@@ -320,20 +326,7 @@ class File
      */
     public function getPublicDate()
     {
-        return $this->publicDate;
-    }
-
-    /**
-     * Is public
-     *
-     * @return boolean
-     */
-    public function isPublic()
-    {
-        if ($this->publicDate->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-            return false;
-        else
-            return true;
+return $this->getFileMeta()->getPublicDate();
     }
 
     /**
@@ -379,7 +372,7 @@ class File
      */
     public function getExternalId()
     {
-        return $this->external_id;
+        return $this->getFileMeta()->getExternalId();
     }
 
     /**
@@ -421,7 +414,7 @@ class File
     /**
      * Get filesize
      *
-     * @return integer
+     * @return integer 
      */
     public function getFilesize()
     {
@@ -459,6 +452,39 @@ class File
     public function getFileChecksum()
     {
         return $this->FileChecksum;
+    }
+
+    /**
+     * Add FileMeta
+     *
+     * @param \ODR\AdminBundle\Entity\FileMeta $fileMeta
+     * @return File
+     */
+    public function addFileMetum(\ODR\AdminBundle\Entity\FileMeta $fileMeta)
+    {
+        $this->FileMeta[] = $fileMeta;
+
+        return $this;
+    }
+
+    /**
+     * Remove FileMeta
+     *
+     * @param \ODR\AdminBundle\Entity\FileMeta $fileMeta
+     */
+    public function removeFileMetum(\ODR\AdminBundle\Entity\FileMeta $fileMeta)
+    {
+        $this->FileMeta->removeElement($fileMeta);
+    }
+
+    /**
+     * Get FileMeta
+     *
+     * @return \ODR\AdminBundle\Entity\FileMeta
+     */
+    public function getFileMeta()
+    {
+        return $this->FileMeta->first();
     }
 
     /**
@@ -599,6 +625,19 @@ class File
         return $this->dataRecordFields;
     }
 
+    /**
+     * Is public
+     *
+     * @return boolean
+     */
+    public function isPublic()
+    {
+        if ($this->getPublicDate()->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+            return false;
+        else
+            return true;
+    }
+    
     /*
      * ----------------------------------------
      * ----------------------------------------
@@ -746,5 +785,47 @@ class File
         // get rid of the __DIR__ so it doesn't screw up
         // when displaying uploaded doc/image in the view.
         return 'uploads/files';
+    }
+
+    // ----------------------------------------
+    // TODO - delete these four functions
+    /**
+     * Get description original
+     *
+     * @return string
+     */
+    public function getDescriptionOriginal()
+    {
+        return $this->caption;
+    }
+
+    /**
+     * Get originalFileName original
+     *
+     * @return string
+     */
+    public function getOriginalFileNameOriginal()
+    {
+        return $this->originalFileName;
+    }
+
+    /**
+     * Get external_id original
+     *
+     * @return string
+     */
+    public function getExternalIdOriginal()
+    {
+        return $this->external_id;
+    }
+
+    /**
+     * Get publicDate original
+     *
+     * @return \DateTime
+     */
+    public function getPublicDateOriginal()
+    {
+        return $this->publicDate;
     }
 }

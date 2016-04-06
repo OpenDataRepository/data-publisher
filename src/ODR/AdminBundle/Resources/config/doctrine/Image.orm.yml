@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\Image:
     type: entity
     table: odr_image
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -16,50 +16,50 @@ ODR\AdminBundle\Entity\Image:
         original:
             type: boolean
             nullable: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         displayorder:
             type: integer
             column: display_order
             unsigned: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         caption:
             type: string
             length: 96
             fixed: false
             nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         ext:
             type: string
             length: 8
             fixed: false
             nullable: true
             column: ext
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         originalFileName:
             type: string
             length: 128
             fixed: false
             nullable: true
             column: original_file_name
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         localFileName:
             type: string
             length: 128
             fixed: false
             nullable: true
             column: local_file_name
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         deletedAt:
-            type: date
+            type: datetime
             nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         created:
             type: datetime
             gedmo:
@@ -74,8 +74,8 @@ ODR\AdminBundle\Entity\Image:
             type: datetime
             nullable: false
             column: public_date
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 
         encrypt_key:
             type: string
@@ -90,31 +90,31 @@ ODR\AdminBundle\Entity\Image:
             fixed: false
             nullable: false
             column: external_id
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         original_checksum:
             type: string
             nullable: true
             length: 32
             fixed: false
             column: checksum
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 
         imageWidth:
             type: integer
             column: image_width
             nullable: true
             unsigned: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         imageHeight:
             type: integer
             column: image_height
             nullable: true
             unsigned: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
     oneToMany:
         children:
             targetEntity: Image
@@ -125,9 +125,21 @@ ODR\AdminBundle\Entity\Image:
             cascade: { }
             mappedBy: Image
             inversedBy: null
-            joinColumns:
-                image_checksum_id:
-                    referencedColumnName: id
+#            joinColumns:
+#                image_checksum_id:
+#                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
+        ImageMeta:
+            targetEntity: ImageMeta
+            cascade: { }
+            mappedBy: Image
+            inversedBy: null
+#            joinColumns:
+#                image_checksum_id:
+#                    referencedColumnName: id
             orphanRemoval: false
 #            gedmo:
 #                - versioned
@@ -145,8 +157,8 @@ ODR\AdminBundle\Entity\Image:
                 data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         fieldType:
             targetEntity: FieldType
             cascade: {  }
@@ -156,8 +168,8 @@ ODR\AdminBundle\Entity\Image:
                 field_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         dataRecord:
             targetEntity: DataRecord
             cascade: {  }
@@ -167,8 +179,8 @@ ODR\AdminBundle\Entity\Image:
                 data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         imageSize:
             targetEntity: ImageSizes
             cascade: {  }
@@ -178,8 +190,8 @@ ODR\AdminBundle\Entity\Image:
                 image_size_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -201,8 +213,8 @@ ODR\AdminBundle\Entity\Image:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 #            gedmo:
 #                blameable:
 #                    on: update
@@ -214,8 +226,8 @@ ODR\AdminBundle\Entity\Image:
                 data_record_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
     lifecycleCallbacks: 
         prePersist: [ preUpload ]
         postPersist: [ upload ]

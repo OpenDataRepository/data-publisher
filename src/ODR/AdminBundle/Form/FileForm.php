@@ -55,7 +55,7 @@ class FileForm extends AbstractType
             )
         );
 */
-
+/*
         $builder->add(
             'caption', 
             'text', 
@@ -64,7 +64,7 @@ class FileForm extends AbstractType
                 'label'  => 'Image File',
             )
         );
-
+*/
         $builder->add(
             'uploaded_file', 
             'file', 

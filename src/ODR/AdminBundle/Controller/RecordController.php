@@ -7,13 +7,14 @@
 * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
 * Released under the GPLv2
 *
-* The record handles everything required to edit any kind of
+* This controller handles everything required to edit any kind of
 * data stored in a DataRecord.
 *
 */
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\AdminBundle\Entity\ImageMeta;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -490,10 +491,9 @@ class RecordController extends ODRCustomController
         try {
             // Get Entity Manager and setup repo
             $em = $this->getDoctrine()->getManager();
-            $repo_file = $em->getRepository('ODRAdminBundle:File');
 
             // Grab the necessary entities
-            $file = $repo_file->find($file_id);
+            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ( $file == null )
                 return parent::deletedEntityError('File');
             $datafield = $file->getDataField();
@@ -524,15 +524,30 @@ class RecordController extends ODRCustomController
             // --------------------
 
 
+            // Delete the decrypted version of this file from the server, if it exists
+            $file_upload_path = dirname(__FILE__).'/../../../../web/uploads/files/';
+            $filename = 'File_'.$file_id.'.'.$file->getExt();
+            $absolute_path = realpath($file_upload_path).'/'.$filename;
+
+            if ( file_exists($absolute_path) )
+                unlink($absolute_path);
+
+            // Delete the file and its current metadata entry
+            $file_meta = $file->getFileMeta();
+
+            $em->remove($file);
+            $em->remove($file_meta);
+            $em->flush();
+
+
             // Determine whether ShortResults needs a recache
+            // TODO - replace this block with code to directly update the cached version of the datarecord
+            // TODO - execute graph plugin if needed
             $options = array();
             $options['mark_as_updated'] = true;
             if ( parent::inShortResults($datafield) )
                 $options['force_shortresults_recache'] = true;
 
-            // Delete the file entity like the user wanted
-            $em->remove($file);
-            $em->flush();
 
             // Refresh the cache entries for this datarecord
             parent::updateDatarecordCache($datarecord->getId(), $options);
@@ -571,10 +586,9 @@ class RecordController extends ODRCustomController
         try {
             // Get Entity Manager and setup repo
             $em = $this->getDoctrine()->getManager();
-            $repo_file = $em->getRepository('ODRAdminBundle:File');
 
             // Grab the necessary entities
-            $file = $repo_file->find($file_id);
+            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ( $file == null )
                 return parent::deletedEntityError('File');
             $datafield = $file->getDataField();
@@ -605,16 +619,14 @@ class RecordController extends ODRCustomController
             // --------------------
 
 
-            // If the file is public, make it non-public...if file is non-public, make it public
+            // Toggle public status of specified file...
             $public_date = null;
             if ( $file->isPublic() ) {
-                // Make the record non-public
+                // Make the file non-public
                 $public_date = new \DateTime('2200-01-01 00:00:00');
-                $file->setPublicDate($public_date);
 
-                $file->setUpdatedBy($user);
-                $em->persist($file);
-                $em->flush();
+                $properties = array('public_date' => $public_date);
+                parent::ODR_copyFileMeta($em, $user, $file, $properties);
 
                 // Delete the decrypted version of the file, if it exists
                 $file_upload_path = dirname(__FILE__).'/../../../../web/uploads/files/';
@@ -625,17 +637,18 @@ class RecordController extends ODRCustomController
                     unlink($absolute_path);
             }
             else {
-                // Make the record public
+                // Make the file public
                 $public_date = new \DateTime();
-                $file->setPublicDate($public_date);
 
-                $file->setUpdatedBy($user);
-                $em->persist($file);
-                $em->flush();
+                $properties = array('public_date' => $public_date);
+                parent::ODR_copyFileMeta($em, $user, $file, $properties);
 
                 // Immediately decrypt the file
                 parent::decryptObject($file->getId(), 'file');
             }
+
+            // Reload the file entity so its associated meta entry gets updated in the EntityManager
+            $em->refresh($file);
 
             // Need to rebuild this particular datafield's html to reflect the changes...
             $return['t'] = 'html';
@@ -644,7 +657,10 @@ class RecordController extends ODRCustomController
                 'public_date' => $public_date->format('Y-m-d'),
             );
 
+
             // Determine whether ShortResults needs a recache
+            // TODO - replace this block with code to directly update the cached version of the datarecord
+            // TODO - execute graph plugin if needed
             $options = array();
             $options['mark_as_updated'] = true;
             if ( parent::inShortResults($datafield) )
@@ -652,7 +668,6 @@ class RecordController extends ODRCustomController
 
             // Refresh the cache entries for this datarecord
             parent::updateDatarecordCache($datarecord->getId(), $options);
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -718,18 +733,17 @@ class RecordController extends ODRCustomController
             // --------------------
 
             // Grab all children of the original image (resizes, i believe)
-            $images = $repo_image->findBy( array('parent' => $image->getId()) );
-            $images[] = $image;
+            $all_images = $repo_image->findBy( array('parent' => $image->getId()) );
+            $all_images[] = $image;
 
-            // If the images are public, make them non-public...if images are non-public, make them public
+            // Toggle public status of specified image...
             if ( $image->isPublic() ) {
-                foreach ($images as $img) {
-                    // Make the image non-public
-                    $img->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
-                    $img->setUpdatedBy($user);
-                    $em->persist($img);
+                // Make the original image non-public
+                $properties = array('public_date' => new \DateTime('2200-01-01 00:00:00'));
+                parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
-                    // Delete the decrypted version of the image, if it exists
+                // Delete the decrypted version of the image and all of its children, if any of them exist
+                foreach ($all_images as $img) {
                     $image_upload_path = dirname(__FILE__).'/../../../../web/uploads/images/';
                     $filename = 'Image_'.$img->getId().'.'.$img->getExt();
                     $absolute_path = realpath($image_upload_path).'/'.$filename;
@@ -739,18 +753,14 @@ class RecordController extends ODRCustomController
                 }
             }
             else {
-                foreach ($images as $img) {
-                    // Make the image public
-                    $img->setPublicDate(new \DateTime());
-                    $img->setUpdatedBy($user);
-                    $em->persist($img);
+                // Make the original image public
+                $properties = array('public_date' => new \DateTime());
+                parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
-                    // Immediately decrypt the image
+                // Immediately decrypt the image and all of its children
+                foreach ($all_images as $img)
                     parent::decryptObject($img->getId(), 'image');
-                }
             }
-
-            $em->flush();
 
 
             // Need to rebuild this particular datafield's html to reflect the changes...
@@ -760,7 +770,9 @@ class RecordController extends ODRCustomController
                 'datafield' => $datafield->getId()
             );
 
+
             // Determine whether ShortResults needs a recache
+            // TODO - replace this block with code to directly update the cached version of the datarecord?
             $options = array();
             $options['mark_as_updated'] = true;
             if ( parent::inShortResults($datafield) )
@@ -768,7 +780,6 @@ class RecordController extends ODRCustomController
 
             // Refresh the cache entries for this datarecord
             parent::updateDatarecordCache($datarecord->getId(), $options);
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -850,11 +861,16 @@ class RecordController extends ODRCustomController
             if ( file_exists($local_filepath) )
                 unlink($local_filepath);
 
-            // Remove the original image from the database as well
+            // Delete the original image and its associated meta entry as well
+            $image_meta = $image->getImageMeta();
+
             $em->remove($image);
+            $em->remove($image_meta);
             $em->flush();
 
+
             // Determine whether ShortResults needs a recache
+            // TODO - replace this block with code to directly update the cached version of the datarecord?
             $options = array();
             $options['mark_as_updated'] = true;
             if ( parent::inShortResults($datafield) )
@@ -932,13 +948,26 @@ class RecordController extends ODRCustomController
             // --------------------
 
 
+            // Determine how long it's been since the creation of this image...
+            $create_date = $image->getCreated();
+            $current_date = new \DateTime();
+            $interval = $create_date->diff($current_date);
+
+            // TODO - duration in which image can be rotated without creating new entry?
+            // If the image has existed on the server for less than 30 minutes
+            $replace_existing = false;
+            if ($interval->days == 0 && $interval->h == 0 && $interval->i <= 30)
+                $replace_existing = true;
+
+
+            // ----------------------------------------
             // Image is going to be rotated, so clear the original checksum for the original image and its thumbnails
             $image_path = parent::decryptObject($image_id, 'image');
-            $image->setUpdatedBy($user);
-            $image->setOriginalChecksum('');
-            $em->persist($image);
+            if ($replace_existing) {
+                $image->setOriginalChecksum('');    // checksum of the image will be replaced after rotation
+                $em->persist($image);
+            }
 
-            $image_thumbnail_id = null;
             $images = $repo_image->findBy( array('parent' => $image->getId()) );
             foreach ($images as $img) {
                 // Ensure no decrypted version of any of the thumbnails exist on the server
@@ -946,13 +975,37 @@ class RecordController extends ODRCustomController
                 if ( file_exists($local_filepath) )
                     unlink($local_filepath);
 
-                $img->setUpdatedBy($user);
-                $img->setOriginalChecksum('');
-                $em->persist($img);
-
-                $image_thumbnail_id = $img->getId();
+                if ($replace_existing) {
+                    $img->setOriginalChecksum('');    // checksum of the thumbnail will be replaced after rotation
+                    $em->persist($img);
+                }
             }
-            $em->flush();
+
+            if ($replace_existing)
+                $em->flush();
+
+
+            // ----------------------------------------
+            // If not replacing existing image, have image rotation write back to the same file
+            $dest_path = $image_path;
+            if (!$replace_existing) {
+                // ...otherwise, determine the path to the user's upload folder
+                // The image rotation function will save the rotated image there so it can be "uploaded again"...this is the easiest way to ensure everything neccessary exists
+                $dest_path = dirname(__FILE__).'/../../../../web/uploads/files';
+                if ( !file_exists($dest_path) )
+                    mkdir( $dest_path );
+                $dest_path .= '/chunks';
+                if ( !file_exists($dest_path) )
+                    mkdir( $dest_path );
+                $dest_path .= '/user_'.$user->getId();
+                if ( !file_exists($dest_path) )
+                    mkdir( $dest_path );
+                $dest_path .= '/completed';
+                if ( !file_exists($dest_path) )
+                    mkdir( $dest_path );
+
+                $dest_path.= '/'.$image->getOriginalFileName();
+            }
 
             // Rotate and save image back to server...apparently positive degrees mean counter-clockwise rotation with imagerotate()
             $degrees = 90;
@@ -964,44 +1017,81 @@ class RecordController extends ODRCustomController
                 case 'gif':
                     $im = imagecreatefromgif($image_path);
                     $im = imagerotate($im, $degrees, 0);
-                    imagegif($im, $image_path);
+                    imagegif($im, $dest_path);
                     break;
                 case 'png':
                     $im = imagecreatefrompng($image_path);
                     $im = imagerotate($im, $degrees, 0);
-                    imagepng($im, $image_path);
+                    imagepng($im, $dest_path);
                     break;
                 case 'jpg':
                 case 'jpeg':
                     $im = imagecreatefromjpeg($image_path);
                     $im = imagerotate($im, $degrees, 0);
-                    imagejpeg($im, $image_path);
+                    imagejpeg($im, $dest_path);
                     break;
             }
             imagedestroy($im);
 
 
-            // Update the image's height/width as stored in the database
-            $sizes = getimagesize($image_path);
-            $image->setImageWidth( $sizes[0] );
-            $image->setImageHeight( $sizes[1] );
-            // Create thumbnails and other sizes/versions of the uploaded image
-            self::resizeImages($image, $user);
+            // ----------------------------------------
+            if ($replace_existing) {
+                // Update the image's height/width as stored in the database
+                $sizes = getimagesize($image_path);
+                $image->setImageWidth($sizes[0]);
+                $image->setImageHeight($sizes[1]);
+                // Create thumbnails and other sizes/versions of the uploaded image
+                self::resizeImages($image, $user);
 
-            // Encrypt parent image AFTER thumbnails are created
-            self::encryptObject($image_id, 'image');
+                // Encrypt parent image AFTER thumbnails are created
+                self::encryptObject($image_id, 'image');
 
-            // Set original checksum for original image
-            $filepath = self::decryptObject($image_id, 'image');
-            $original_checksum = md5_file($filepath);
-            $image->setOriginalChecksum($original_checksum);
+                // Set original checksum for original image
+                $filepath = self::decryptObject($image_id, 'image');
+                $original_checksum = md5_file($filepath);
+                $image->setOriginalChecksum($original_checksum);
 
-            // A decrypted version of the Image still exists on the server...delete it
-            unlink($filepath);
+                // A decrypted version of the Image still exists on the server...delete it
+                unlink($filepath);
 
-            // Save changes again
-            $em->persist($image);
-            $em->flush();
+                // Save changes again
+                $em->persist($image);
+                $em->flush();
+            }
+            else {
+                // "Upload" the "new" rotated image
+                $filepath = 'uploads/files/chunks/user_'.$user->getId().'/completed';
+                $original_filename = $image->getOriginalFileName();
+
+                $new_image = parent::finishUpload($em, $filepath, $original_filename, $user->getId(), $image->getDataRecordFields());
+
+                // Copy any metadata from the old image over to the new image
+                $old_image_meta = $image->getImageMeta();
+                $properties = array(
+                    'caption' => $old_image_meta->getCaption(),
+                    'original_filename' => $old_image_meta->getOriginalFileName(),
+                    'external_id' => $old_image_meta->getExternalId(),
+                    'public_date' => $old_image_meta->getPublicDate(),
+                    'display_order' => $old_image_meta->getDisplayorder()
+                );
+                parent::ODR_copyImageMeta($em, $user, $new_image, $properties);
+
+
+                // Ensure no decrypted version of the original image exists on the server
+                $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$image->getId().'.'.$image->getExt();
+                if ( file_exists($local_filepath) )
+                    unlink($local_filepath);
+
+                // Delete the original image and its metadata entry
+                $em->remove($image);
+                $em->remove($old_image_meta);
+
+                // Delete any thumbnails of the original image
+                foreach ($images as $img)
+                    $em->remove($img);
+
+                $em->flush();
+            }
 
 
             // Determine whether ShortResults needs a recache
@@ -1012,9 +1102,6 @@ class RecordController extends ODRCustomController
 
             // Refresh the cache entries for this datarecord
             parent::updateDatarecordCache($datarecord->getId(), $options);
-
-            // Always want the image datafield to get reloaded...
-            $return['d'] = array('need_reload' => true, 'image_thumbnail_id' => $image_thumbnail_id);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1060,11 +1147,9 @@ class RecordController extends ODRCustomController
             $datafield = $image->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
-
             $datarecord = $image->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
-
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
@@ -1083,20 +1168,45 @@ class RecordController extends ODRCustomController
                 return parent::permissionDeniedError("edit");
             // --------------------
 
+            // Ensure that the provided image ids are all from the same datarecordfield, and that all images from that datarecordfield are listed in the post
+            $query = $em->createQuery(
+               'SELECT e
+                FROM ODRAdminBundle:Image AS e
+                WHERE e.dataRecordFields = :drf AND e.original = 1
+                AND e.deletedAt IS NULL'
+            )->setParameters( array('drf' => $image->getDataRecordFields()->getId()) );
+            $results = $query->getResult();
 
-            // If user has permissions, go through all of the image thumbnails setting the order
-            for($i = 0; $i < count($post); $i++) {
-                $image = $repo_image->find( $post[$i] );
-                $em->refresh($image);
+            $all_images = array();
+            foreach ($results as $image)
+                $all_images[ $image->getId() ] = $image;
 
-                $image->setDisplayorder($i);
-                $image->setUpdatedBy($user);
-
-                $em->persist($image);
+            // Throw exceptions if the post request doesn't match the expected image list
+            if ( count($post) !== count($all_images) ) {
+                throw new \Exception('Invalid POST request...wrong number of images');
             }
-            $em->flush();
+            else {
+                foreach ($post as $index => $image_id) {
+                    if ( !isset($all_images[$image_id]) )
+                        throw new \Exception('Invalid POST request...unexpected image id');
+                }
+            }
+
+
+            // Update the image order based on the post request if required
+            foreach ($post as $index => $image_id) {
+                $image = $all_images[$image_id];
+
+                if ( $image->getDisplayorder() != $index ) {
+//print 'set "'.$image->getOriginalFilename().'" to index '.$index."\n";
+                    $properties = array('display_order' => $index);
+                    parent::ODR_copyImageMeta($em, $user, $image, $properties);
+                }
+            }
+
 
             // Determine whether ShortResults needs a recache
+            // TODO - replace this block with code to directly update the cached version of the datarecord?
             $options = array();
             $options['mark_as_updated'] = true;
             if ( parent::inShortResults($datafield) )

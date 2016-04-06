@@ -754,12 +754,27 @@ print_r($grandparent_list);
 
             // --------------------
             // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            if ( $file->isPublic() ) {
+                // public file, anybody can view
+            }
+            else if ( $user === 'anon.' ) {
+                // non-public file and anonymous user, can't view
+                return parent::permissionDeniedError('view');
+            }
+            else {
+                // Grab user's permissions
+                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
-                return parent::permissionDeniedError();
+                // If user has view permissions, show non-public sections of the datarecord
+                $has_view_permission = false;
+                if ( isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ]) )
+                    $has_view_permission = true;
+
+                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+                if ( !$file->isPublic() && !$has_view_permission )
+                    return parent::permissionDeniedError('view');
+            }
             // --------------------
 
             $progress = array('current_value' => 0, 'max_value' => 100);
@@ -847,12 +862,27 @@ print_r($grandparent_list);
 
             // --------------------
             // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            if ( $file->isPublic() ) {
+                // public file, anybody can view
+            }
+            else if ( $user === 'anon.' ) {
+                // non-public file and anonymous user, can't view
+                return parent::permissionDeniedError('view');
+            }
+            else {
+                // Grab user's permissions
+                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
-                return parent::permissionDeniedError();
+                // If user has view permissions, show non-public sections of the datarecord
+                $has_view_permission = false;
+                if ( isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ]) )
+                    $has_view_permission = true;
+
+                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+                if ( !$file->isPublic() && !$has_view_permission )
+                    return parent::permissionDeniedError('view');
+            }
             // --------------------
 
             $progress = array('current_value' => 100, 'max_value' => 100);

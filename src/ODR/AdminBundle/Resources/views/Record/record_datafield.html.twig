@@ -119,7 +119,7 @@
                 {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'file', 'datatype_id': field.datatype.id, 'datarecordfield_id': datarecordfield.id, 'callback': callback} %}
             {% endif %}
             </div>
-    </fieldset>
+        </fieldset>
 
     {% elseif field_typename == "Image" %}
         {% set has_image = false %}
@@ -132,14 +132,12 @@
 #}
                 {% for image in datarecordfield.getimage %}
                     {% if image.getimagesize.imagetype == "thumbnail" %}
-{#
-                        {% set count = count + 1 %}
-                        {% if count == field.childrenperrow %}
-                            </div><div class="ODRImageRow">
-                            {% set count = 0 %}
-                        {% endif %}
-#}
+
                         {% set oimage = image.parent %}
+                        {% set image_ext = oimage.ext %}
+                        {% set image_caption = oimage.caption %}
+                        {% set image_filename = oimage.originalfilename %}
+
                         {% set has_image = true %}
 
                         <div id="Image_{{ oimage.id }}" class="pure-u-1 pure-u-md-1-{{ field.childrenperrow }}" rel="{{ image.id }}">    {# rel is the id of the thumbnail, id attr is the id of the full-size image #}
@@ -151,8 +149,8 @@
                                 &nbsp;
                             </div>
                             <div class="pure-u-23-24">
-                                <a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ oimage.caption }}">
-                                    <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}{% if force_image_reload %}?{{ date().timestamp }}{% endif %}" title="{% if image.originalfilename != null %}{{ image.originalfilename }}{% else %}Image_{{ image.id }}.{{ image.ext }}{% endif %}" />
+                                <a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ image_caption }}">
+                                    <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}{% if force_image_reload %}?{{ date().timestamp }}{% endif %}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
                                 </a>
                             </div>
                         </div>

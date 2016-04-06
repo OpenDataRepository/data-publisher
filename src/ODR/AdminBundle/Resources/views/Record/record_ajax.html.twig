@@ -791,8 +791,9 @@ function SaveImageOrder(container) {
     var i = 0;
     var image_ids = {};
     $(container).children().each(function() {
-        // Want thumbnail id's, not full-size image ids
-        image_ids[i] = $(this).attr('rel');
+        // Want full-size image ids, not thumbnails
+        var id_data = $(this).attr('id').split('_');
+        image_ids[i] = id_data[1];
         i++;
     });
 

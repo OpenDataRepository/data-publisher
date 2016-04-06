@@ -1069,13 +1069,13 @@ odr_design_analyze_radio_selections:
         datafield_id: \d+
 
 odr_get_file_decrypt_progress:
-    pattern:  /edit/decrypt_progress/file/{file_id}
+    pattern:  /results/decrypt_progress/file/{file_id}
     defaults: { _controller: ODRAdminBundle:Reports:getfiledecryptprogress }
     requirements:
         file_id: \d+
 
 odr_get_file_encrypt_progress:
-    pattern:  /edit/encrypt_progress/file/{file_id}
+    pattern:  /results/encrypt_progress/file/{file_id}
     defaults: { _controller: ODRAdminBundle:Reports:getfileencryptprogress }
     requirements:
         file_id: \d+
@@ -1134,7 +1134,38 @@ odr_duplicate_radio_check:
 #    requirements:
 #        str: .+
 
-#odr_test_curl:
-#    pattern: /beanstalk/test_curl
-#    defaults: { _controller: ODRAdminBundle:Worker:testcURL }
-#    requirements: { _method: POST }
+#-----------------------------------------
+# Metadata creation (one-time use)
+odr_start_build_metadata_entries:
+    pattern:  /admin/build_metadata_entries
+    defaults: { _controller:ODRAdminBundle:Worker:startbuildmetadataentries }
+
+odr_radio_option_metadata:
+    pattern: /beanstalk/radio_option_metadata
+    defaults: { _controller: ODRAdminBundle:Worker:buildradiooptionmetadata }
+    requirements: { _method: POST }
+
+odr_file_metadata:
+    pattern: /beanstalk/file_metadata
+    defaults: { _controller: ODRAdminBundle:Worker:buildfilemetadata }
+    requirements: { _method: POST }
+
+odr_image_metadata:
+    pattern: /beanstalk/image_metadata
+    defaults: { _controller: ODRAdminBundle:Worker:buildimagemetadata }
+    requirements: { _method: POST }
+
+odr_datafield_metadata:
+    pattern: /beanstalk/datafield_metadata
+    defaults: { _controller: ODRAdminBundle:Worker:builddatafieldmetadata }
+    requirements: { _method: POST }
+
+odr_datarecord_metadata:
+    pattern: /beanstalk/datarecord_metadata
+    defaults: { _controller: ODRAdminBundle:Worker:builddatarecordmetadata }
+    requirements: { _method: POST }
+
+odr_datatype_metadata:
+    pattern: /beanstalk/datatype_metadata
+    defaults: { _controller: ODRAdminBundle:Worker:builddatatypemetadata }
+    requirements: { _method: POST }
