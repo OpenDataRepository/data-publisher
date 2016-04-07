@@ -2892,20 +2892,29 @@ return;
                     $image->setFieldType($my_obj->getFieldType());
                     $image->setDataRecord($my_obj->getDataRecord());
                     $image->setDataRecordFields($my_obj->getDataRecordFields());
+
                     $image->setOriginal(0);
-                    $image->setDisplayorder(0);
                     $image->setImageSize($size);
-                    $image->setOriginalFileName($my_obj->getOriginalFileName());
-                    $image->setCreatedBy($user);
-                    $image->setUpdatedBy($user);
                     $image->setParent($my_obj);
                     $image->setExt($my_obj->getExt());
-                    $image->setPublicDate( $my_obj->getPublicDate() );
-                    $image->setExternalId('');
                     $image->setOriginalChecksum('');
+
+                    $image->setCreatedBy($user);
+
+                    // TODO - delete these six properties
+                    $image->setOriginalFileName( $my_obj->getOriginalFileName() );
+                    $my_obj->setDisplayorder(0);
+                    $my_obj->setPublicDate( $my_obj->getPublicDate() );
+                    $my_obj->setCaption( $my_obj->getCaption() );
+                    $my_obj->setExternalId('');
+
+                    $image->setUpdatedBy($user);
+
+                    /* DO NOT create a new metadata entry for the thumbnail...all of its metadata properties are slaved to the parent image */
                 }
                 else {
                     // Ensure that thumbnail has same public date as original image
+                    // TODO - delete this property
                     $image->setPublicDate( $my_obj->getPublicDate() );
                 }
 

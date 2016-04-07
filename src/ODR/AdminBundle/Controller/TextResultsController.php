@@ -280,8 +280,9 @@ class TextResultsController extends ODRCustomController
                 if ($typeclass == 'Radio') {
                     // Get the list of radio options
                     $query = $em->createQuery(
-                       'SELECT ro.optionName AS option_name, dr.id AS dr_id
+                       'SELECT rom.optionName AS option_name, dr.id AS dr_id
                         FROM ODRAdminBundle:RadioOptions AS ro
+                        JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOptions = ro
                         JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
                         JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
                         JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
@@ -314,13 +315,14 @@ class TextResultsController extends ODRCustomController
                 else if ($typeclass == 'File') {
                     // Get the list of file names...have to left join the file table because datarecord id is required, but there may not always be a file uploaded
                     $query = $em->createQuery(
-                       'SELECT f.originalFileName AS file_name, dr.id AS dr_id
+                       'SELECT fm.originalFileName AS file_name, dr.id AS dr_id
                         FROM ODRAdminBundle:DataRecord AS dr
                         JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
                         JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
                         LEFT JOIN ODRAdminBundle:File AS f WITH f.dataRecordFields = drf
+                        LEFT JOIN ODRAdminBundle:FileMeta AS fm WITH fm.File = f
                         WHERE dr.id IN (:datarecords) AND df.displayOrder = :display_order
-                        AND f.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL
+                        AND f.deletedAt IS NULL AND fm.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL
                         ORDER BY f.originalFileName '.$sort_dir
                     )->setParameters( array('datarecords' => $list, 'display_order' => $sort_column) );
                     $results = $query->getArrayResult();

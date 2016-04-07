@@ -1580,17 +1580,18 @@ print '</pre>';
             // --------------------
 
 
-            if ($alphabetical_sort == 1 ) {
-                // Load all RadioOptionMeta entities for this datafield
-                $query = $em->createQuery(
-                   'SELECT rom
-                    FROM ODRAdminBundle:RadioOptionsMeta AS rom
-                    JOIN ODRAdminBundle:RadioOptions AS ro WITH rom.radioOptions = ro
-                    WHERE ro.dataFields = :datafield
-                    AND rom.deletedAt IS NULL AND ro.deletedAt IS NULL'
-                )->setParameters( array('datafield' => $datafield_id) );
-                $results = $query->getResult();
+            // Load all RadioOptionMeta entities for this datafield
+            $query = $em->createQuery(
+               'SELECT rom
+                FROM ODRAdminBundle:RadioOptionsMeta AS rom
+                JOIN ODRAdminBundle:RadioOptions AS ro WITH rom.radioOptions = ro
+                WHERE ro.dataFields = :datafield
+                AND rom.deletedAt IS NULL AND ro.deletedAt IS NULL'
+            )->setParameters( array('datafield' => $datafield_id) );
+            $results = $query->getResult();
 
+
+            if ($alphabetical_sort == 1 ) {
                 // Organize by name, and re-sort the list
                 $all_options_meta = array();
                 foreach ($results as $radio_option_meta)
@@ -1612,16 +1613,6 @@ print '</pre>';
                 }
             }
             else {
-                // Load all RadioOptionMeta entities for this datafield
-                $query = $em->createQuery(
-                   'SELECT rom
-                    FROM ODRAdminBundle:RadioOptionsMeta AS rom
-                    JOIN ODRAdminBundle:RadioOptions AS ro WITH rom.radioOptions = ro
-                    WHERE ro.dataFields = :datafield
-                    AND rom.deletedAt IS NULL AND ro.deletedAt IS NULL'
-                )->setParameters( array('datafield' => $datafield_id) );
-                $results = $query->getResult();
-
                 // Organize by radio option id
                 $all_options_meta = array();
                 foreach ($results as $radio_option_meta)

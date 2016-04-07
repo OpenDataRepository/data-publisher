@@ -587,11 +587,8 @@ return;
                             foreach ($results as $num => $file) {
                                 if ( $file->isPublic() && $value == -1 ) {
                                     // File is public, but needs to be non-public
-                                    $public_date = new \DateTime('2200-01-01 00:00:00');
-                                    $file->setPublicDate($public_date);
-
-                                    $file->setUpdatedBy($user);
-                                    $em->persist($file);
+                                    $properties = array('public_date' => new \DateTime('2200-01-01 00:00:00'));
+                                    parent::ODR_copyFileMeta($em, $user, $file, $properties);
 
                                     // Delete the decrypted version of the file, if it exists
                                     $file_upload_path = dirname(__FILE__).'/../../../../web/uploads/files/';
@@ -605,11 +602,8 @@ return;
                                 }
                                 else if ( !$file->isPublic() && $value == 1 ) {
                                     // File is non-public, but needs to be public
-                                    $public_date = new \DateTime();
-                                    $file->setPublicDate($public_date);
-
-                                    $file->setUpdatedBy($user);
-                                    $em->persist($file);
+                                    $properties = array('public_date' => new \DateTime());
+                                    parent::ODR_copyFileMeta($em, $user, $file, $properties);
 
                                     // Immediately decrypt the file
                                     parent::decryptObject($file->getId(), 'file');
@@ -636,12 +630,9 @@ return;
                         if ( count($results) > 0 ) {
                             foreach ($results as $num => $image) {
                                 if ( $image->isPublic() && $value == -1 ) {
-                                    // File is public, but needs to be non-public
-                                    $public_date = new \DateTime('2200-01-01 00:00:00');
-                                    $image->setPublicDate($public_date);
-
-                                    $image->setUpdatedBy($user);
-                                    $em->persist($image);
+                                    // Image is public, but needs to be non-public
+                                    $properties = array('public_date' => new \DateTime('2200-01-01 00:00:00'));
+                                    parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
                                     // Delete the decrypted version of the file, if it exists
                                     $image_upload_path = dirname(__FILE__).'/../../../../web/uploads/images/';
@@ -654,14 +645,11 @@ return;
                                     $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be non-public'."\n";
                                 }
                                 else if ( !$image->isPublic() && $value == 1 ) {
-                                    // File is non-public, but needs to be public
-                                    $public_date = new \DateTime();
-                                    $image->setPublicDate($public_date);
+                                    // Image is non-public, but needs to be public
+                                    $properties = array('public_date' => new \DateTime());
+                                    parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
-                                    $image->setUpdatedBy($user);
-                                    $em->persist($image);
-
-                                    // Immediately decrypt the file
+                                    // Immediately decrypt the image
                                     parent::decryptObject($image->getId(), 'image');
 
                                     $ret .= 'setting Image '.$image->getId().' of datarecord '.$datarecord->getId().' datafield '.$datafield->getId().' to be public'."\n";

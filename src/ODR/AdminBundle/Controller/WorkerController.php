@@ -403,13 +403,14 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
             if ( ($old_typename == 'Multiple Radio' || $old_typename == 'Multiple Select') && ($new_typename == 'Single Radio' || $new_typename == 'Single Select') ) {
                 // Grab all selected radio options
                 $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id, rs.id AS rs_id, rs.selected AS selected, ro.id AS ro_id, ro.optionName AS option_name
+                   'SELECT dr.id AS dr_id, rs.id AS rs_id, rs.selected AS selected, ro.id AS ro_id, rom.optionName AS option_name
                     FROM ODRAdminBundle:DataRecord AS dr
                     JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
                     JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.dataRecordFields = drf
                     JOIN ODRAdminBundle:RadioOptions AS ro WITH rs.radioOption = ro
+                    JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOptions = ro
                     WHERE drf.dataRecord = :datarecord AND drf.dataField = :datafield AND rs.selected = 1
-                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL'
+                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
                 )->setParameters( array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()) );
                 $results = $query->getArrayResult();
 
@@ -587,11 +588,11 @@ $ret .= '  Set current to '.$count."\n";
 
             // Grab a list of all full-size images on the site
             $query = $em->createQuery(
-                'SELECT e.id
-            FROM ODRAdminBundle:Image AS e
-            JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
-            WHERE dr.dataType = :datatype AND e.parent IS NULL
-            AND e.deletedAt IS NULL AND dr.deletedAt IS NULL'
+               'SELECT e.id
+                FROM ODRAdminBundle:Image AS e
+                JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
+                WHERE dr.dataType = :datatype AND e.parent IS NULL
+                AND e.deletedAt IS NULL AND dr.deletedAt IS NULL'
             )->setParameters(array('datatype' => $datatype_id));
             $results = $query->getArrayResult();
 
@@ -1083,12 +1084,13 @@ print '<pre>';
                     switch ($fieldtype) {
                         case 'Radio':
                             $query = $em->createQuery(
-                               'SELECT drf.id AS drf_id, ro.optionName AS option_name
+                               'SELECT drf.id AS drf_id, rom.optionName AS option_name
                                  FROM ODRAdminBundle:RadioOptions AS ro
+                                 JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOptions = ro
                                  JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
                                  JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
                                  WHERE ro.dataFields = :datafield AND (drf.id = :old_drf OR drf.id = :new_drf) AND rs.selected = 1
-                                 AND ro.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL'
+                                 AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL'
                             )->setParameters( array('datafield' => $datafield_id, 'old_drf' => $old_drf->getId(), 'new_drf' => $new_drf->getId()) );
                             $sub_results = $query->getResult();
 //print_r($sub_results);
@@ -1598,16 +1600,17 @@ return;
         $em = $this->getDoctrine()->getManager();
 
         $query = $em->createQuery(
-           'SELECT dt.id AS dt_id, dt.shortName, dr.id AS dr_id, df.id AS df_id, df.fieldName, ro.id AS ro_id, ro.optionName, rs.id AS rs_id, rs.selected
+           'SELECT dt.id AS dt_id, dt.shortName, dr.id AS dr_id, df.id AS df_id, df.fieldName, ro.id AS ro_id, rom.optionName, rs.id AS rs_id, rs.selected
             FROM ODRAdminBundle:DataType AS dt
             JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
             JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
             JOIN ODRAdminBundle:RadioOptions AS ro WITH ro.dataFields = df
+            JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOptions = ro
             JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
             JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
             JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
             WHERE dt.id = :datatype AND ft.typeClass = :typeclass
-            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND ro.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
+            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
             ORDER BY dt.id, dr.id, df.id, ro.id'
         )->setParameters( array('datatype' => $datatype_id, 'typeclass' => 'Radio') );
         $results = $query->getArrayResult();
@@ -1764,8 +1767,8 @@ print '</pre>';
             // Grab a list of all radio options in the database
             $em->getFilters()->disable('softdeleteable');
             $query = $em->createQuery(
-                'SELECT ro.id AS id
-                 FROM ODRAdminBundle:RadioOptions AS ro'
+               'SELECT ro.id AS id
+                FROM ODRAdminBundle:RadioOptions AS ro'
             );
             $results = $query->getArrayResult();
             $em->getFilters()->enable('softdeleteable');
@@ -1806,8 +1809,8 @@ print '</pre>';
             // Grab a list of all radio options in the database
             $em->getFilters()->disable('softdeleteable');
             $query = $em->createQuery(
-                'SELECT e.id AS id
-                 FROM ODRAdminBundle:File AS e'
+               'SELECT e.id AS id
+                FROM ODRAdminBundle:File AS e'
             );
             $results = $query->getArrayResult();
             $em->getFilters()->enable('softdeleteable');
@@ -1848,9 +1851,9 @@ print '</pre>';
             // Grab a list of all radio options in the database
             $em->getFilters()->disable('softdeleteable');
             $query = $em->createQuery(
-                'SELECT e.id AS id
-                 FROM ODRAdminBundle:Image AS e
-                 WHERE e.original = 1'
+               'SELECT e.id AS id
+                FROM ODRAdminBundle:Image AS e
+                WHERE e.original = 1'
             );
             $results = $query->getArrayResult();
             $em->getFilters()->enable('softdeleteable');
