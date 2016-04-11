@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\LinkedDataTree:
     type: entity
     table: odr_linked_data_tree
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -13,16 +13,10 @@ ODR\AdminBundle\Entity\LinkedDataTree:
             nullable: false
             generator:
                 strategy: IDENTITY
-        deletedAt:
-            type: date
-            nullable: true
-            gedmo:
-                - versioned
 
-#        multipleRecordsPerParent:
-#            type: boolean
-#            nullable: false
-#            column: multiple_records_per_parent
+        deletedAt:
+            type: datetime
+            nullable: true
 #            gedmo:
 #                - versioned
 
@@ -31,11 +25,11 @@ ODR\AdminBundle\Entity\LinkedDataTree:
             gedmo:
                 timestampable:
                     on: create
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
+#        updated:
+#            type: datetime
+#            gedmo:
+#                timestampable:
+#                    on: update
     manyToOne:
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -49,17 +43,17 @@ ODR\AdminBundle\Entity\LinkedDataTree:
 #            gedmo:
 #                blameable:
 #                    on: create
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-            gedmo:
-                - versioned
+#        updatedBy:
+#            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+#            cascade: {  }
+#            mappedBy: null
+#            inversedBy: null
+#            joinColumns:
+#                updatedBy:
+#                    referencedColumnName: id
+#            orphanRemoval: false
+#            gedmo:
+#                - versioned
 #            gedmo:
 #                blameable:
 #                    on: update
@@ -72,8 +66,8 @@ ODR\AdminBundle\Entity\LinkedDataTree:
                 ancestor_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         descendant:
             targetEntity: DataRecord
             cascade: {  }
@@ -83,6 +77,6 @@ ODR\AdminBundle\Entity\LinkedDataTree:
                 descendant_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
     lifecycleCallbacks: {  }

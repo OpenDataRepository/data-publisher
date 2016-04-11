@@ -9,6 +9,7 @@
  *
  * The DataTree Entity is automatically generated from
  * ./Resources/config/doctrine/DataTree.orm.yml
+ *
  */
 
 namespace ODR\AdminBundle\Entity;
@@ -26,21 +27,6 @@ class DataTree
     private $id;
 
     /**
-     * @var \DateTime
-     */
-    private $deletedAt;
-
-    /**
-     * @var \DateTime
-     */
-    private $created;
-
-    /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
      * @var boolean
      */
     private $is_link;
@@ -51,14 +37,24 @@ class DataTree
     private $multiple_allowed;
 
     /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     * @var \DateTime
      */
-    private $createdBy;
+    private $deletedAt;
+
+    /**
+     * @var \DateTime
+     */
+    private $created;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $DataTreeMeta;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
-    private $updatedBy;
+    private $createdBy;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataType
@@ -70,6 +66,13 @@ class DataTree
      */
     private $descendant;
 
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->DataTreeMeta = new \Doctrine\Common\Collections\ArrayCollection();
+    }
 
     /**
      * Get id
@@ -79,6 +82,52 @@ class DataTree
     public function getId()
     {
         return $this->id;
+    }
+
+    /**
+     * Set is_link
+     *
+     * @param boolean $isLink
+     * @return DataTree
+     */
+    public function setIsLink($isLink)
+    {
+        $this->is_link = $isLink;
+
+        return $this;
+    }
+
+    /**
+     * Get is_link
+     *
+     * @return boolean 
+     */
+    public function getIsLink()
+    {
+        return $this->getDataTreeMeta()->getIsLink();
+    }
+
+    /**
+     * Set multiple_allowed
+     *
+     * @param boolean $multipleAllowed
+     * @return DataTree
+     */
+    public function setMultipleAllowed($multipleAllowed)
+    {
+        $this->multiple_allowed = $multipleAllowed;
+
+        return $this;
+    }
+
+    /**
+     * Get multiple_allowed
+     *
+     * @return boolean 
+     */
+    public function getMultipleAllowed()
+    {
+        return $this->getDataTreeMeta()->getMultipleAllowed();
     }
 
     /**
@@ -128,72 +177,36 @@ class DataTree
     }
 
     /**
-     * Set updated
+     * Add DataTreeMeta
      *
-     * @param \DateTime $updated
+     * @param \ODR\AdminBundle\Entity\DataTreeMeta $dataTreeMeta
      * @return DataTree
      */
-    public function setUpdated($updated)
+    public function addDataTreeMetum(\ODR\AdminBundle\Entity\DataTreeMeta $dataTreeMeta)
     {
-        $this->updated = $updated;
+        $this->DataTreeMeta[] = $dataTreeMeta;
 
         return $this;
     }
 
     /**
-     * Get updated
+     * Remove DataTreeMeta
      *
-     * @return \DateTime 
+     * @param \ODR\AdminBundle\Entity\DataTreeMeta $dataTreeMeta
      */
-    public function getUpdated()
+    public function removeDataTreeMetum(\ODR\AdminBundle\Entity\DataTreeMeta $dataTreeMeta)
     {
-        return $this->updated;
+        $this->DataTreeMeta->removeElement($dataTreeMeta);
     }
 
     /**
-     * Set is_link
+     * Get DataTreeMeta
      *
-     * @param boolean $isLink
-     * @return DataTree
+     * @return \ODR\AdminBundle\Entity\DataTreeMeta
      */
-    public function setIsLink($isLink)
+    public function getDataTreeMeta()
     {
-        $this->is_link = $isLink;
-
-        return $this;
-    }
-
-    /**
-     * Get is_link
-     *
-     * @return boolean 
-     */
-    public function getIsLink()
-    {
-        return $this->is_link;
-    }
-
-    /**
-     * Set multiple_allowed
-     *
-     * @param boolean $multipleAllowed
-     * @return DataTree
-     */
-    public function setMultipleAllowed($multipleAllowed)
-    {
-        $this->multiple_allowed = $multipleAllowed;
-
-        return $this;
-    }
-
-    /**
-     * Get multiple_allowed
-     *
-     * @return boolean 
-     */
-    public function getMultipleAllowed()
-    {
-        return $this->multiple_allowed;
+        return $this->DataTreeMeta->first();
     }
 
     /**
@@ -217,29 +230,6 @@ class DataTree
     public function getCreatedBy()
     {
         return $this->createdBy;
-    }
-
-    /**
-     * Set updatedBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return DataTree
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
     }
 
     /**
@@ -286,5 +276,27 @@ class DataTree
     public function getDescendant()
     {
         return $this->descendant;
+    }
+
+    // ----------------------------------------
+    // TODO - delete these two functions
+    /**
+     * Get is_link original
+     *
+     * @return bool
+     */
+    public function getIsLinkOriginal()
+    {
+        return $this->is_link;
+    }
+
+    /**
+     * Get multiple_allowed original
+     *
+     * @return bool
+     */
+    public function getMultipleAllowedOriginal()
+    {
+        return $this->multiple_allowed;
     }
 }

@@ -1,17 +1,16 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* LinkedDataTree Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The LinkedDataTree Entity is automatically generated from 
-* ./Resources/config/doctrine/LinkedDataTree.orm.yml
-*
-*/
-
+ * Open Data Repository Data Publisher
+ * LinkedDataTree Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The LinkedDataTree Entity is automatically generated from
+ * ./Resources/config/doctrine/LinkedDataTree.orm.yml
+ *
+ */
 
 namespace ODR\AdminBundle\Entity;
 
@@ -38,19 +37,9 @@ class LinkedDataTree
     private $created;
 
     /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
-
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataRecord
@@ -82,7 +71,7 @@ class LinkedDataTree
     public function setDeletedAt($deletedAt)
     {
         $this->deletedAt = $deletedAt;
-    
+
         return $this;
     }
 
@@ -105,7 +94,7 @@ class LinkedDataTree
     public function setCreated($created)
     {
         $this->created = $created;
-    
+
         return $this;
     }
 
@@ -120,29 +109,6 @@ class LinkedDataTree
     }
 
     /**
-     * Set updated
-     *
-     * @param \DateTime $updated
-     * @return LinkedDataTree
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-    
-        return $this;
-    }
-
-    /**
-     * Get updated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
-    }
-
-    /**
      * Set createdBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
@@ -151,7 +117,7 @@ class LinkedDataTree
     public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
     {
         $this->createdBy = $createdBy;
-    
+
         return $this;
     }
 
@@ -166,29 +132,6 @@ class LinkedDataTree
     }
 
     /**
-     * Set updatedBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return LinkedDataTree
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-    
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
-    }
-
-    /**
      * Set ancestor
      *
      * @param \ODR\AdminBundle\Entity\DataRecord $ancestor
@@ -197,7 +140,7 @@ class LinkedDataTree
     public function setAncestor(\ODR\AdminBundle\Entity\DataRecord $ancestor = null)
     {
         $this->ancestor = $ancestor;
-    
+
         return $this;
     }
 
@@ -220,7 +163,7 @@ class LinkedDataTree
     public function setDescendant(\ODR\AdminBundle\Entity\DataRecord $descendant = null)
     {
         $this->descendant = $descendant;
-    
+
         return $this;
     }
 

@@ -46,7 +46,8 @@ class UpdateDataTreeForm extends AbstractType
      */
     public function setDefaultOptions(OptionsResolverInterface $resolver)
     {
-        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataTree'));
+//        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataTree'));
+        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataTreeMeta'));
     }
 
 

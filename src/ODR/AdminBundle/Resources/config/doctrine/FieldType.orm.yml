@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\FieldType:
     type: entity
     table: odr_field_type
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -13,73 +13,6 @@ ODR\AdminBundle\Entity\FieldType:
             nullable: false
             generator:
                 strategy: IDENTITY
-        typeName:
-            type: string
-            length: 45
-            fixed: false
-            nullable: false
-            column: type_name
-            gedmo:
-                - versioned
-        position:
-            type: string
-            length: 12 
-            fixed: false
-            nullable: false
-            column: position
-            gedmo:
-                - versioned
-        description:
-            type: text
-            nullable: true
-            gedmo:
-                - versioned
-        isImage:
-            type: boolean
-            nullable: false
-            column: is_image
-            gedmo:
-                - versioned
-        isFile:
-            type: boolean
-            nullable: false
-            column: is_file
-            gedmo:
-                - versioned
-        allowMultiple:
-            type: boolean
-            nullable: false
-            column: allow_multiple
-            gedmo:
-                - versioned
-        hasBlob:
-            type: boolean
-            nullable: false
-            column: has_blob
-            gedmo:
-                - versioned
-        insertOnCreate:
-            type: boolean
-            nullable: false
-            column: insert_on_create
-            default: 1
-            gedmo:
-                - versioned
-
-        canBeUnique:
-            type: boolean
-            nullable: false
-            column: can_be_unique
-            default: false
-            gedmo:
-                - versioned
-        canBeSortField:
-            type: boolean
-            nullable: false
-            column: can_be_sort_field
-            default: false
-            gedmo:
-                - versioned
 
         typeClass:
             type: string
@@ -87,23 +20,91 @@ ODR\AdminBundle\Entity\FieldType:
             fixed: false
             nullable: false
             column: type_class
-            gedmo:
-                - versioned
-        deletedAt:
-            type: date
+#            gedmo:
+#                - versioned
+        typeName:
+            type: string
+            length: 45
+            fixed: false
+            nullable: false
+            column: type_name
+#            gedmo:
+#                - versioned
+#        position:
+#            type: string
+#            length: 12
+#            fixed: false
+#            nullable: false
+#            column: position
+#            gedmo:
+#                - versioned
+        description:
+            type: text
             nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
+#        isImage:
+#            type: boolean
+#            nullable: false
+#            column: is_image
+#            gedmo:
+#                - versioned
+#        isFile:
+#            type: boolean
+#            nullable: false
+#            column: is_file
+#            gedmo:
+#                - versioned
+        allowMultiple:
+            type: boolean
+            nullable: false
+            column: allow_multiple
+#            gedmo:
+#                - versioned
+#        hasBlob:
+#            type: boolean
+#            nullable: false
+#            column: has_blob
+#            gedmo:
+#                - versioned
+        insertOnCreate:
+            type: boolean
+            nullable: false
+            column: insert_on_create
+            default: 1
+#            gedmo:
+#                - versioned
+
+        canBeUnique:
+            type: boolean
+            nullable: false
+            column: can_be_unique
+            default: false
+#            gedmo:
+#                - versioned
+        canBeSortField:
+            type: boolean
+            nullable: false
+            column: can_be_sort_field
+            default: false
+#            gedmo:
+#                - versioned
+
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
         created:
             type: datetime
             gedmo:
                 timestampable:
                     on: create
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
+#        updated:
+#            type: datetime
+#            gedmo:
+#                timestampable:
+#                    on: update
     manyToOne:
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -117,17 +118,17 @@ ODR\AdminBundle\Entity\FieldType:
 #            gedmo:
 #                blameable:
 #                    on: create
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-            gedmo:
-                - versioned
+#        updatedBy:
+#            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+#            cascade: {  }
+#            mappedBy: null
+#            inversedBy: null
+#            joinColumns:
+#                updatedBy:
+#                    referencedColumnName: id
+#            orphanRemoval: false
+#            gedmo:
+#                - versioned
 #            gedmo:
 #                blameable:
 #                    on: update

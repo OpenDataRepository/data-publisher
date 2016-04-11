@@ -26,25 +26,17 @@ CREATE TABLE `odr_field_type` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `type_name` varchar(45) NOT NULL,
   `description` text,
-  `is_image` tinyint(1) NOT NULL,
-  `has_blob` tinyint(1) NOT NULL,
-  `deletedAt` date DEFAULT NULL,
   `created` datetime NOT NULL,
-  `updated` datetime NOT NULL,
   `createdBy` int(11) DEFAULT NULL,
-  `updatedBy` int(11) DEFAULT NULL,
   `insert_on_create` tinyint(1) NOT NULL,
   `type_class` varchar(45) NOT NULL,
-  `is_file` tinyint(1) NOT NULL,
   `allow_multiple` tinyint(1) NOT NULL,
-  `position` varchar(12) NOT NULL,
   `can_be_unique` tinyint(1) NOT NULL,
   `can_be_sort_field` tinyint(1) NOT NULL,
+  `deletedAt` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `IDX_9A1792BCD3564642` (`createdBy`),
-  KEY `IDX_9A1792BCE8DE7170` (`updatedBy`),
-  CONSTRAINT `FK_9A1792BCD3564642` FOREIGN KEY (`createdBy`) REFERENCES `fos_user` (`id`),
-  CONSTRAINT `FK_9A1792BCE8DE7170` FOREIGN KEY (`updatedBy`) REFERENCES `fos_user` (`id`)
+  CONSTRAINT `FK_9A1792BCD3564642` FOREIGN KEY (`createdBy`) REFERENCES `fos_user` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -54,7 +46,7 @@ CREATE TABLE `odr_field_type` (
 
 LOCK TABLES `odr_field_type` WRITE;
 /*!40000 ALTER TABLE `odr_field_type` DISABLE KEYS */;
-INSERT INTO `odr_field_type` VALUES (1,'Boolean','Boolean values have states of true/false or 1/0.',0,0,NULL,'0000-00-00 00:00:00','0000-00-00 00:00:00',NULL,NULL,1,'Boolean',0,0,'absolute',0,0),(2,'File','Files can be uploaded for storage or parsing into field values.',0,0,NULL,'0000-00-00 00:00:00','0000-00-00 00:00:00',NULL,NULL,0,'File',0,0,'relative',0,0),(3,'Image','Images for storage or display.',1,0,NULL,'0000-00-00 00:00:00','0000-00-00 00:00:00',NULL,NULL,0,'Image',0,0,'relative',0,0),(4,'Integer','Stores integer values.',0,0,NULL,'0000-00-00 00:00:00','0000-00-00 00:00:00',NULL,NULL,1,'IntegerValue',0,0,'absolute',1,1),(5,'Paragraph Text','A long text field for storage of very large character strings.',0,0,NULL,'0000-00-00 00:00:00','0000-00-00 00:00:00',NULL,NULL,1,'LongText',0,0,'absolute',0,0),(6,'Long Text','Character strings up to 255 characters in length.',0,0,NULL,'0000-00-00 00:00:00','0000-00-00 00:00:00',NULL,NULL,1,'LongVarchar',0,0,'absolute',1,1),(7,'Medium Text','Medium length character strings up to 64 characters in length.',0,0,NULL,'0000-00-00 00:00:00','0000-00-00 00:00:00',NULL,NULL,1,'MediumVarchar',0,0,'absolute',1,1),(8,'Single Radio','A set of radio buttons that allow a single selection.',0,0,NULL,'0000-00-00 00:00:00','0000-00-00 00:00:00',NULL,NULL,0,'Radio',0,0,'absolute',0,0),(9,'Short Text','A short text field up to 32 characters in length.',0,0,NULL,'0000-00-00 00:00:00','0000-00-00 00:00:00',NULL,NULL,1,'ShortVarchar',0,0,'absolute',1,1),(10,'XYZ Data','X, Y, Z data for plotting and download.  Usually, this data is parsed from an input file.',0,0,'2014-04-07','0000-00-00 00:00:00','0000-00-00 00:00:00',NULL,NULL,1,'XyzValue',0,0,'absolute',0,0),(11,'DateTime','A date value with time.',0,0,NULL,'0000-00-00 00:00:00','0000-00-00 00:00:00',NULL,NULL,1,'DatetimeValue',0,0,'absolute',0,1),(12,'Checkbox','A dual or three state checkbox.',0,0,'2014-04-07','2013-02-01 00:00:00','2013-02-01 00:00:00',1,1,0,'Checkbox',0,0,'absolute',0,0),(13,'Multiple Radio','A set of radio buttons that allow multiple selections.',0,0,NULL,'2013-07-24 00:00:00','0000-00-00 00:00:00',2,2,0,'Radio',0,0,'absolute',0,0),(14,'Single Select','A dropdown menu that allows a single selection.',0,0,NULL,'2013-07-24 00:00:00','0000-00-00 00:00:00',2,2,0,'Radio',0,0,'absolute',0,0),(15,'Multiple Select','A dropdown menu that allows multiple selections.',0,0,NULL,'2013-07-24 00:00:00','0000-00-00 00:00:00',2,2,0,'Radio',0,0,'absolute',0,0),(16,'Decimal','Stores decimal values.',0,0,NULL,'0000-00-00 00:00:00','0000-00-00 00:00:00',2,2,1,'DecimalValue',0,0,'absolute',1,1),(17,'Markdown','Datafield that displays the same Markdown-compliant text across all DataRecords.',0,0,NULL,'0000-00-00 00:00:00','0000-00-00 00:00:00',2,2,0,'Markdown',0,0,'absolute',0,0);
+INSERT INTO `odr_field_type` VALUES (1,'Boolean','Boolean values have states of true/false or 1/0.','0000-00-00 00:00:00',1,1,'Boolean',0,0,0,NULL),(2,'File','Files can be uploaded for storage or parsing into field values.','0000-00-00 00:00:00',1,0,'File',0,0,0,NULL),(3,'Image','Images for storage or display.','0000-00-00 00:00:00',1,0,'Image',0,0,0,NULL),(4,'Integer','Stores integer values.','0000-00-00 00:00:00',1,1,'IntegerValue',0,1,1,NULL),(5,'Paragraph Text','A long text field for storage of very large character strings.','0000-00-00 00:00:00',1,1,'LongText',0,0,0,NULL),(6,'Long Text','Character strings up to 255 characters in length.','0000-00-00 00:00:00',1,1,'LongVarchar',0,1,1,NULL),(7,'Medium Text','Medium length character strings up to 64 characters in length.','0000-00-00 00:00:00',1,1,'MediumVarchar',0,1,1,NULL),(8,'Single Radio','A set of radio buttons that allow a single selection.','0000-00-00 00:00:00',1,0,'Radio',0,0,0,NULL),(9,'Short Text','A short text field up to 32 characters in length.','0000-00-00 00:00:00',1,1,'ShortVarchar',0,1,1,NULL),(10,'XYZ Data','X, Y, Z data for plotting and download.  Usually, this data is parsed from an input file.','0000-00-00 00:00:00',1,1,'XyzValue',0,0,0,'2014-04-07 00:00:00'),(11,'DateTime','A date value with time.','0000-00-00 00:00:00',1,1,'DatetimeValue',0,0,1,NULL),(12,'Checkbox','A dual or three state checkbox.','2013-02-01 00:00:00',1,0,'Checkbox',0,0,0,'2014-04-07 00:00:00'),(13,'Multiple Radio','A set of radio buttons that allow multiple selections.','2013-07-24 00:00:00',2,0,'Radio',0,0,0,NULL),(14,'Single Select','A dropdown menu that allows a single selection.','2013-07-24 00:00:00',2,0,'Radio',0,0,0,NULL),(15,'Multiple Select','A dropdown menu that allows multiple selections.','2013-07-24 00:00:00',2,0,'Radio',0,0,0,NULL),(16,'Decimal','Stores decimal values.','2014-04-07 00:00:00',2,1,'DecimalValue',0,1,1,NULL),(17,'Markdown','Datafield that displays the same Markdown-compliant text across all DataRecords.','2014-12-15 00:00:00',2,0,'Markdown',0,0,0,NULL)
 /*!40000 ALTER TABLE `odr_field_type` ENABLE KEYS */;
 UNLOCK TABLES;
 

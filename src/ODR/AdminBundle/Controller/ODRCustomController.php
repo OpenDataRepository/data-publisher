@@ -21,6 +21,8 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\DataTree;
+use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
@@ -45,6 +47,7 @@ use ODR\AdminBundle\Entity\UserFieldPermissions;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
+use Symfony\Component\Form\Extension\Core\DataTransformer\DataTransformerChain;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
@@ -778,10 +781,11 @@ print "\n\n";
         $query = $em->createQuery(
            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
             FROM ODRAdminBundle:DataTree AS dt
+            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
             JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE dt.is_link = 0
-            AND dt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+            WHERE dtm.is_link = 0
+            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
         );
         $results = $query->getArrayResult();
 
@@ -812,11 +816,12 @@ print "\n\n";
     {
         // 
         $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dt.is_link AS is_link
+           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link
             FROM ODRAdminBundle:DataType AS ancestor
             JOIN ODRAdminBundle:DataTree AS dt WITH ancestor = dt.ancestor
+            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND descendant.deletedAt IS NULL');
+            WHERE ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL');
         $results = $query->getArrayResult();
 
         $datatree_array = array(
@@ -1050,9 +1055,10 @@ print '</pre>';
            'SELECT descendant.id
             FROM ODRAdminBundle:DataType AS ancestor
             JOIN ODRAdminBundle:DataTree AS dt WITH dt.ancestor = ancestor
+            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE ancestor.id = :datatype AND dt.is_link = 0
-            AND ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+            WHERE ancestor.id = :datatype AND dtm.is_link = 0
+            AND ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL'
         )->setParameters( array('datatype' => $datatype_id) );
         $results = $query->getArrayResult();
 
@@ -1949,8 +1955,68 @@ return;
         return $datarecord;
     }
 
+
     /**
-     * Ensures a link exists from $ancestor_datarecord to $descendant_datarecord, undeleting an old link if possible.
+     * Copies the given DataTree entry into a new DataTree entry for the purposes of soft-deletion.
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'multiple_allowed', 'is_link'
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user                       The User requesting the modification
+     * @param DataTree $datatree               The DataTree entry of the entity being modified
+     * @param array $properties
+     *
+     * @return DataTreeMeta
+     */
+    protected function ODR_copyDatatreeMeta($em, $user, $datatree, $properties)
+    {
+        // Load the old meta entry
+        $old_meta_entry = $em->getRepository('ODRAdminBundle:DataTreeMeta')->findOneBy( array('DataTree' => $datatree->getId()) );
+
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'multiple_allowed' => $old_meta_entry->getMultipleAllowed(),
+            'is_link' => $old_meta_entry->getIsLink(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value)
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $old_meta_entry;
+
+
+        // Create a new meta entry and copy the old entry's data over
+        $new_datatree_meta = new DataTreeMeta();
+        $new_datatree_meta->setDataTree( $datatree );
+
+        $new_datatree_meta->setMultipleAllowed( $old_meta_entry->getMultipleAllowed() );
+        $new_datatree_meta->setIsLink( $old_meta_entry->getIsLink() );
+
+        $new_datatree_meta->setCreatedBy($user);
+        $new_datatree_meta->setCreated( new \DateTime() );
+
+        // Set any new properties
+        if ( isset($properties['multiple_allowed']) )
+            $new_datatree_meta->setMultipleAllowed( $properties['multiple_allowed'] );
+        if ( isset($properties['is_link']) )
+            $new_datatree_meta->setIsLink( $properties['is_link'] );
+
+        // Save the new datatree entry and delete the old one
+        $em->remove($old_meta_entry);
+        $em->persist($new_datatree_meta);
+        $em->flush();
+
+        // Return the new entry
+        return $new_datatree_meta;
+    }
+
+
+    /**
+     * Create a datarecord link from $ancestor_datarecord to $descendant_datarecord.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                        The user requesting the creation of this link
@@ -1961,25 +2027,19 @@ return;
      */
     protected function ODR_linkDataRecords($em, $user, $ancestor_datarecord, $descendant_datarecord)
     {
-        // Want to reuse old link entries if possible...temporarily disable the softdeleable filter to allow doctrine queries to return deleted entities
-        $em->getFilters()->disable('softdeleteable');
+        // Check to see if the two datarecords are already linked
         $query = $em->createQuery(
            'SELECT ldt
             FROM ODRAdminBundle:LinkedDataTree AS ldt
             WHERE ldt.ancestor = :ancestor AND ldt.descendant = :descendant'
         )->setParameters( array('ancestor' => $ancestor_datarecord, 'descendant' => $descendant_datarecord) );
         $results = $query->getResult();
-        $em->getFilters()->enable('softdeleteable');
-
-        // TODO - check for an already active link?
 
         $linked_datatree = null;
         if ( count($results) > 0 ) {
-            // If an earlier deleted linked_datatree entry was found, undelete it to indicate the link is working again
+            // If an earlier deleted linked_datatree entry was found, don't do anything
             foreach ($results as $num => $ldt)
-                $linked_datatree = $ldt;
-
-            $linked_datatree->setDeletedAt(null);
+                return $ldt;
         }
         else {
             // ...otherwise, create a new linked_datatree entry
@@ -1988,11 +2048,10 @@ return;
 
             $linked_datatree->setAncestor($ancestor_datarecord);
             $linked_datatree->setDescendant($descendant_datarecord);
-        }
 
-        $linked_datatree->setUpdatedBy($user);
-        $em->persist($linked_datatree);
-        $em->flush();
+            $em->persist($linked_datatree);
+            $em->flush();
+        }
 
         // Refresh the cache entries for the datarecords
         $options = array();
@@ -4057,9 +4116,11 @@ if ($debug) {
                     $childtype = $theme_element_field->getDataType();
 
                     $query = $em->createQuery(
-                       'SELECT dt.is_link AS is_link, dt.multiple_allowed AS multiple_allowed
-                        FROM ODRAdminBundle:DataTree dt
-                        WHERE dt.ancestor = :ancestor AND dt.descendant = :descendant AND dt.deletedAt IS NULL'
+                       'SELECT dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
+                        FROM ODRAdminBundle:DataTree AS dt
+                        JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
+                        WHERE dt.ancestor = :ancestor AND dt.descendant = :descendant
+                        AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
                     )->setParameters( array('ancestor' => $datatype, 'descendant' => $childtype) );
                     $result = $query->getResult();
 

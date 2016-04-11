@@ -53,7 +53,7 @@
                         <select id="column_{{ column_id }}" class="datafield_mapping" name="datafield_mapping[{{ column_id }}]" rel="{{ column_id }}" disabled>
                             <option value="new">Create new datafield...</option>
                             {% for datafield in datafields %}
-                                {% if datafield.fieldtype.id in allowed_fieldtypes %}
+                                {% if datafield.fieldtype.id in allowed_fieldtypes|keys %}
                                 <option value="{{ datafield.id }}" rel="{{ datafield.fieldtype.id }}">{{ datafield.fieldname }}</option>
                                 {% endif %}
                             {% endfor %}
@@ -110,6 +110,7 @@
 <script>
     var block_changes = false;
 
+    var allowed_fieldtypes = {};
     var unique_datafields = [];
     var unique_fieldtypes = [];
 
@@ -117,6 +118,9 @@
 
 {% if not linked_importing %}
 
+{% for ft_id,ft_typename in allowed_fieldtypes %}
+        allowed_fieldtypes[{{ ft_id }}] = "{{ ft_typename }}";
+{% endfor %}
 {% for df in datafields %}{% if df.getisunique == 1 %}
         unique_datafields.push("{{ df.id }}");
 {% endif %}{% endfor %}
@@ -186,7 +190,8 @@
                 $("#column_" + column_id + "_fieldtype").attr('disabled', 'disabled');
 
             // Need to select a delimiter for multiple radio/select fields, and for file/image fields
-            if ( fieldtype_id == '13' || fieldtype_id == '15' || fieldtype_id == '2' || fieldtype_id == '3' )   // TODO - referencing fieldtypes by number
+            var typename = allowed_fieldtypes[fieldtype_id];
+            if ( typename == 'File' || typename == 'Image' || typename == 'Multiple Radio' || typename == 'Multiple Select' )
                 $("#column_" + column_id + "_delimiter").removeAttr('disabled');
             else
                 $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
@@ -194,7 +199,7 @@
             // Warn about unique datafields
             setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
             updateHeaderWarnings();
-            updateDatafieldMeta(column_id);
+            updateDatafieldMeta(column_id, allowed_fieldtypes);
 
             if (block_changes)
                 preventImport();
@@ -204,15 +209,18 @@
         $(".fieldtype_mapping").change(function() {
             var column_id = $(this).attr('rel');
 
+            var fieldtype_id = $(this).val();
+
             // Need to select a delimiter for multiple radio/select fields, and for file/image fields
-            if ( $(this).val() == '13' || $(this).val() == '15' || $(this).val() == '2' || $(this).val() == '3' )   // TODO - referencing fieldtypes by number
+            var typename = allowed_fieldtypes[fieldtype_id];
+            if ( typename == 'File' || typename == 'Image' || typename == 'Multiple Radio' || typename == 'Multiple Select' )
                 $("#column_" + column_id + "_delimiter").removeAttr('disabled');
             else
                 $("#column_" + column_id + "_delimiter").attr('disabled', 'disabled');
 
             // Display some metadata about the selected fieldtype if needed
             setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
-            updateDatafieldMeta(column_id);
+            updateDatafieldMeta(column_id, allowed_fieldtypes);
 
             if (block_changes)
                 preventImport();
@@ -273,15 +281,15 @@
     }
 
 {% if not linked_importing %}
-    function updateDatafieldMeta(column_id) {
+    function updateDatafieldMeta(column_id, allowed_fieldtypes) {
 
         var datafield_id = $("#column_" + column_id).val();
         var fieldtype_id = $("#column_" + column_id + "_fieldtype").val();
         var meta_column = "#column_" + column_id + "_meta";
 
         // Display some metadata about the selected fieldtype if needed
-        // TODO - naming fieldtypes by number
-        if ( (fieldtype_id == '2' || fieldtype_id == '3') && datafield_id != 'new') {
+        var typename = allowed_fieldtypes[fieldtype_id];
+        if ( (typename == 'File' || typename == 'Image') && datafield_id != 'new') {
             $(meta_column).html('<span id="unlisted_' + column_id + '_note" class="Pointer"><input id="unlisted_' + column_id + '_checkbox" class="synch_checkbox" type="checkbox" name="synch_columns[' + column_id + ']" value="1" />&nbsp;Delete files/images not listed in CSV File</span>');
             $('#unlisted_' + column_id + '_note').attr('title', "The import process will always attempt to upload all files/images listed in the CSV file to this datafield, replacing the contents of any file/image that has already been uploaded.\nIf this option is checked, the import process will also delete any files/images in this datafield that are not listed in the CSV file.");
 
@@ -292,13 +300,13 @@
                 });
             }
         }
-        else if (fieldtype_id == '5')
+        else if (typename == 'Paragraph Text')
             $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;No character limit');
-        else if (fieldtype_id == '6')
+        else if (typename == 'Long Text')
             $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;255 character limit');
-        else if (fieldtype_id == '7')
+        else if (typename == 'Medium Text')
             $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;64 character limit');
-        else if (fieldtype_id == '9')
+        else if (typename == 'Short Text')
             $(meta_column).html('<i class="fa fa-info-circle fa-lg Cursor"></i>&nbsp;32 character limit');
         else
             $("#column_" + column_id + "_meta").html('');

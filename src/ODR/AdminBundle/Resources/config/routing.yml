@@ -1155,6 +1155,11 @@ odr_image_metadata:
     defaults: { _controller: ODRAdminBundle:Worker:buildimagemetadata }
     requirements: { _method: POST }
 
+odr_datatree_metadata:
+    pattern: /beanstalk/datatree_metadata
+    defaults: { _controller: ODRAdminBundle:Worker:builddatatreemetadata }
+    requirements: { _method: POST }
+
 odr_datafield_metadata:
     pattern: /beanstalk/datafield_metadata
     defaults: { _controller: ODRAdminBundle:Worker:builddatafieldmetadata }

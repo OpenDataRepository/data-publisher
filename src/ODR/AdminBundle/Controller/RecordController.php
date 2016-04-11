@@ -1911,10 +1911,11 @@ if ($debug) {
             // Determine whether the link allows multiples or not
             $allow_multiple_links = true;
             $query = $em->createQuery(
-               'SELECT dt.multiple_allowed AS multiple_allowed
+               'SELECT dtm.multiple_allowed AS multiple_allowed
                 FROM ODRAdminBundle:DataTree AS dt
+                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
                 WHERE dt.ancestor = :ancestor AND dt.descendant = :descendant
-                AND dt.deletedAt IS NULL'
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
             )->setParameters( array('ancestor' => $ancestor_datatype->getId(), 'descendant' => $descendant_datatype->getId()) );
             $result = $query->getArrayResult();
 
@@ -2460,10 +2461,11 @@ if ($debug)
         if ($template_name == 'default') {
             $query = $em->createQuery(
                'SELECT ancestor.id AS ancestor_id, ancestor.shortName AS ancestor_name
-                FROM ODRAdminBundle:DataTree dt
+                FROM ODRAdminBundle:DataTree AS dt
+                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
                 JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
-                WHERE dt.is_link = 1 AND dt.descendant = :datatype
-                AND dt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
+                WHERE dtm.is_link = 1 AND dt.descendant = :datatype
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
             )->setParameters( array('datatype' => $datatype->getId()) );
             $results = $query->getArrayResult();
             foreach ($results as $num => $result) {
@@ -2478,10 +2480,11 @@ if ($debug)
         if ($template_name == 'default') {
             $query = $em->createQuery(
                'SELECT descendant.id AS descendant_id, descendant.shortName AS descendant_name
-                FROM ODRAdminBundle:DataTree dt
+                FROM ODRAdminBundle:DataTree AS dt
+                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
                 JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-                WHERE dt.is_link = 1 AND dt.ancestor = :datatype
-                AND dt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                WHERE dtm.is_link = 1 AND dt.ancestor = :datatype
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL'
             )->setParameters( array('datatype' => $datatype->getId()) );
             $results = $query->getArrayResult();
             foreach ($results as $num => $result) {

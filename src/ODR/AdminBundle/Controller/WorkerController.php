@@ -15,6 +15,7 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\AdminBundle\Entity\DataTreeMeta;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -1885,6 +1886,48 @@ print '</pre>';
             }
 
             // ----------------------------------------
+            // DataTree
+            // ----------------------------------------
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_datatree_metadata');
+
+            // Grab a list of all radio options in the database
+            $em->getFilters()->disable('softdeleteable');
+            $query = $em->createQuery(
+               'SELECT dt.id AS id
+                FROM ODRAdminBundle:DataTree AS dt'
+            );
+            $results = $query->getArrayResult();
+            $em->getFilters()->enable('softdeleteable');
+
+//print_r($results);
+//return;
+
+            if (count($results) > 0) {
+                $object_type = 'datatree';
+                foreach ($results as $num => $result) {
+                    $object_id = $result['id'];
+
+                    // Insert the new job into the queue
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+//                            "tracked_job_id" => $tracked_job_id,
+                            "object_type" => $object_type,
+                            "object_id" => $object_id,
+                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
+
+                    $delay = 1;
+                    $pheanstalk->useTube('build_metadata')->put($payload, $priority, $delay);
+                }
+            }
+
+            // ----------------------------------------
             // TODO - Datafields
             // ----------------------------------------
 
@@ -2159,6 +2202,90 @@ print '</pre>';
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x273786222 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Builds metadata entry for a specified datatree if needed
+     *
+     * @param Request $request
+     */
+    public function builddatatreemetadataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $object_type = $post['object_type'];
+            $object_id = $post['object_id'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->get('pheanstalk');
+            $logger = $this->get('logger');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+
+            $em = $this->getDoctrine()->getManager();
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+            // ----------------------------------------
+            // Want to create a metadata entry for deleted images too
+            $em->getFilters()->disable('softdeleteable');
+
+            // Ensure the file entity exists...
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($object_id);
+            if ($datatree == null)
+                throw new \Exception('DataTree does not exist');
+
+            // Attempt to locate a metadata entry for the provided entity
+            $datatree_meta = $em->getRepository('ODRAdminBundle:DataTreeMeta')->findOneBy( array('DataTree' => $object_id) );
+
+            // No longer need softdeleteable filter disabled
+            $em->getFilters()->enable('softdeleteable');
+
+            if ($datatree_meta !== null) {
+                $return['d'] = 'Metadata entry already exists for DataTree '.$object_id.', skipping';
+            }
+            else {
+                // Create a new meta entry and populate from original entity
+                $datatree_meta = new DataTreeMeta();
+                $datatree_meta->setDataTree( $datatree );
+
+                $datatree_meta->setIsLink( $datatree->getIsLinkOriginal() );
+                $datatree_meta->setMultipleAllowed( $datatree->getMultipleAllowedOriginal() );
+
+                $datatree_meta->setCreatedBy( $datatree->getCreatedBy() );
+                $datatree_meta->setCreated( $datatree->getCreated() );
+
+                $datatree_meta->setDeletedAt( $datatree->getDeletedAt() );
+
+                $em->persist($datatree_meta);
+                $em->flush();
+
+                $return['d'] = 'Created new metadata entry for DataTree '.$object_id;
+            }
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x3728566222 ' . $e->getMessage();
         }
 
         $response = new Response(json_encode($return));

@@ -1171,6 +1171,11 @@ function InitDatafieldPropertiesForm() {
         }
     });
 
+    var fieldtype_array = {};
+{% for ft_id,ft_typename in fieldtype_array %}
+    fieldtype_array[{{ ft_id }}] = "{{ ft_typename }}";
+{% endfor %}
+    console.log( fieldtype_array );
 
     // Override the handler for the fieldtype selector
     $("#ElementData .ODRDatafieldPropertiesForm").find("#DatafieldsForm_field_type").each(function() {
@@ -1184,71 +1189,56 @@ function InitDatafieldPropertiesForm() {
 
             // If datatype has datarecords, changing a fieldtype might cause loss of data
             var str = "WARNING: Changing the type of this Datafield will cause the loss of ALL data currently in this Datafield.";
-            var previous_fieldtype = $("#previous_fieldtype").val();
-            var current_fieldtype = $("#DatafieldsForm_field_type").val();
+            var previous_fieldtype_id = $("#previous_fieldtype").val();
+            var current_fieldtype_id = $("#DatafieldsForm_field_type").val();
 
-            // TODO - fieldtype numbers
-            /*
-                1: boolean
-                2: file
-                3: image
-                4: integer
-                5: paragraph text
-                6: long text
-                7: medium text
-                8: single radio
-                9: short text
-                11: datetime
-                13: multiple radio
-                14: single select
-                15: multiple select
-                16: decimal
-                17: markdown
-            */
+            var previous_fieldtype = fieldtype_array[previous_fieldtype_id];
+            var current_fieldtype = fieldtype_array[current_fieldtype_id];
+
 
             // Changes that require no extra consideration or work
             var no_warn = {
                 // single radio and single select fields can be changed to any other radio fieldtype
-                8: ['13','14','15'],    
-                14: ['8','13','15'],
+                'Single Radio': ['Multiple Radio','Single Select','Multiple Select'],
+                'Single Select': ['Single Radio','Multiple Radio','Multiple Select'],
                 // markdown fields have no data to lose
-                17: ['1','2','3','4','5','6','7','8','9','11','13','14','15','16'],
+                'Markdown': ['Boolean','File','Image','Integer','Paragraph Text','Long Text','Medium Text','Single Radio','Short Text','DateTime','Multiple Radio','Single Select','Multiple Select','Decimal']
             };
 
             // Changes that require the server to migrate data between storage entities
             // TODO - changing other fieldtypes to radio/select fields
             var time_warn = {
-                4: ['5','6','7','9','16'],  // integer to text/decimal
-                6: ['5'],                   // long text to paragraph
-                7: ['5','6'],               // medium text to paragraph/long text
-                9: ['5','6','7'],           // short text to paragraph/long/medium text
-                16: ['5','6','7','9'],      // decimal to text
+                'Integer': ['Paragraph Text','Long Text','Medium Text','Short Text','Decimal'],
+                'Long Text': ['Paragraph Text'],
+                'Medium Text': ['Paragraph Text','Long Text'],
+                'Short Text': ['Paragraph Text','Long Text','Medium Text'],
+                'Decimal': ['Paragraph Text','Long Text','Medium Text','Short Text']
             };
 
             // Changes from 'longer' fieldtypes to 'shorter' fieldtypes
             var length_warn = {
-                5: ['6','7','9'],   // paragraph text to other text
-                6: ['7','9'],       // long text to medium/short text
-                7: ['9'],           // medium text to short text
+                'Paragraph Text': ['Long Text','Medium Text','Short Text'],
+                'Long Text': ['Medium Text','Short Text'],
+                'Medium Text': ['Short Text']
             };
 
             // Changes from text fields to integer/decimal...it can easily result in lost data
             var number_warn = {
-                5: ['4','16'],
-                6: ['4','16'],
-                7: ['4','16'],
-                9: ['4','16'],
+                'Paragraph Text': ['Integer','Decimal'],
+                'Long Text': ['Integer','Decimal'],
+                'Medium Text': ['Integer','Decimal'],
+                'Short Text': ['Integer','Decimal']
             };
 
             // Changing from multiple radio/select to single radio/select...have to ensure at most one radio option is selected...
             var radio_warn = {
-                13: ['8','14'],
-                15: ['8','14'],
+                'Multiple Radio': ['Single Radio','Single Select'],
+                'Multiple Select': ['Single Radio','Single Select']
             };
 
             // Converting from decimal to integer...going to lose fractional parts of data
             var precision_warn = {
-                16: ['4']
+                'Decimal': ['Integer']
             };
 
             // TODO - conversions to boolean?
@@ -1282,24 +1272,24 @@ function InitDatafieldPropertiesForm() {
                 save_datafield_xhr = true;
 
                 str = '';
-                if (current_fieldtype == '5')
+                if (current_fieldtype == 'Paragraph Text')
                     str = 'No Character Limit';
-                else if (current_fieldtype == '6')
+                else if (current_fieldtype == 'Long Text')
                     str = '255 Character Limit';
-                else if (current_fieldtype == '7')
+                else if (current_fieldtype == 'Medium Text')
                     str = '64 Character Limit';
-                else if (current_fieldtype == '9')
+                else if (current_fieldtype == 'Short Text')
                     str = '32 Character Limit';
 
                 if (str !== '')
                     $("#field_type_meta").attr('title', str);
 
-                $("#previous_fieldtype").val(current_fieldtype);
+                $("#previous_fieldtype").val(current_fieldtype_id);
             }
             else {
                 // Revert back to old field type
-                previous_fieldtype = $("#previous_fieldtype").val();
-                $(this).val( previous_fieldtype );
+                previous_fieldtype_id = $("#previous_fieldtype").val();
+                $(this).val( previous_fieldtype_id );
             }
 
         });

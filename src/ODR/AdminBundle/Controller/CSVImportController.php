@@ -322,25 +322,18 @@ class CSVImportController extends ODRCustomController
 //exit();
 
             // Grab the FieldTypes that the csv importer can read data into
-            // TODO - naming fieldtypes by number
-            $fieldtype_array = array(
-                1, // boolean
-                2, // file
-                3, // image
-                4, // integer
-                5, // paragraph text
-                6, // long varchar
-                7, // medium varchar
-                8, // single radio
-                9, // short varchar
-                11, // datetime
-                13, // multiple radio
-                14, // single select
-                15, // multiple select
-                16, // decimal
-//                17, // markdown
-            );
-            $fieldtypes = $repo_fieldtype->findBy( array('id' => $fieldtype_array) );
+            $fieldtypes = $repo_fieldtype->findAll();
+            $allowed_fieldtypes = array();
+
+            foreach ($fieldtypes as $num => $fieldtype) {
+                // Every field can be imported into except for the Markdown field
+                if ($fieldtype->getTypeName() !== 'Markdown') {
+                    $allowed_fieldtypes[ $fieldtype->getId() ] = $fieldtype->getTypeName();
+                }
+                else {
+                    unset( $fieldtypes[$num] );
+                }
+            }
 
 
             // ----------------------------------------
@@ -429,7 +422,7 @@ class CSVImportController extends ODRCustomController
                             'columns' => $file_headers,
                             'datafields' => $datafields,
                             'fieldtypes' => $fieldtypes,
-                            'allowed_fieldtypes' => $fieldtype_array,
+                            'allowed_fieldtypes' => $allowed_fieldtypes,
 
                             'presets' => null,
                         )
@@ -846,6 +839,12 @@ class CSVImportController extends ODRCustomController
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
 
+            // Need to store fieldtype ids and fieldtype typenames
+            $fieldtypes = $repo_fieldtype->findAll();
+            $allowed_fieldtypes = array();
+            foreach ($fieldtypes as $fieldtype)
+                $allowed_fieldtypes[ $fieldtype->getId() ] = $fieldtype->getTypeName();
+
 
             // ----------------------------------------
             // Load required datatype entities
@@ -906,14 +905,17 @@ class CSVImportController extends ODRCustomController
                         throw new \Exception('Invalid Form...$fieldtype_mapping['.$col_num.'] not set');
 
                     // If new datafield is multiple select/radio, or new datafield is file/image, ensure secondary delimiters exist
-                    if ($fieldtype_mapping[$col_num] == 13 || $fieldtype_mapping[$col_num] == 15 || $fieldtype_mapping[$col_num] == 2 || $fieldtype_mapping[$col_num] == 3) {   // TODO - naming fieldtypes by number
+                    $fieldtype_id = $fieldtype_mapping[$col_num];
+                    $typename = $allowed_fieldtypes[$fieldtype_id];
+
+                    if ($typename == 'Multiple Radio' || $typename == 'Multiple Select' || $typename == 'File' || $typename == 'Image') {
                         if ( $column_delimiters == null )
                             throw new \Exception('Invalid Form a...no column_delimiters');
                         if ( !isset($column_delimiters[$col_num]) )
                             throw new \Exception('Invalid Form a...$column_delimiters['.$col_num.'] not set');
 
                         // Keep track of file/image columns...
-                        if ($fieldtype_mapping[$col_num] == 2 || $fieldtype_mapping[$col_num] == 3)
+                        if ($typename == 'File' || $typename == 'Image')
                             $file_columns[] = $col_num;
                     }
                 }
@@ -1106,10 +1108,11 @@ class CSVImportController extends ODRCustomController
             // If a column is mapped to the parent datatype's external id field, and the link between the parent datatype and the child datatype is set to single-only...ensure that importing this csv file won't violate that
             if ($parent_external_id_column !== '') {
                 $query = $em->createQuery(
-                   'SELECT dt.multiple_allowed AS multiple_allowed
+                   'SELECT dtm.multiple_allowed AS multiple_allowed
                     FROM ODRAdminBundle:DataTree AS dt
+                    JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
                     WHERE dt.descendant = :child_datatype
-                    AND dt.deletedAt IS NULL'
+                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
                 )->setParameters( array('child_datatype' => $datatype_id) );
                 $results = $query->getArrayResult();
 //print_r($results);
@@ -2039,25 +2042,18 @@ class CSVImportController extends ODRCustomController
 //exit();
 
             // Grab the FieldTypes that the csv importer can read data into
-            // TODO - naming fieldtypes by number
-            $fieldtype_array = array(
-                1, // boolean
-                2, // file
-                3, // image
-                4, // integer
-                5, // paragraph text
-                6, // long varchar
-                7, // medium varchar
-                8, // single radio
-                9, // short varchar
-                11, // datetime
-                13, // multiple radio
-                14, // single select
-                15, // multiple select
-                16, // decimal
-//                17, // markdown
-            );
-            $fieldtypes = $repo_fieldtype->findBy( array('id' => $fieldtype_array) );
+            $fieldtypes = $repo_fieldtype->findAll();
+            $allowed_fieldtypes = array();
+
+            foreach ($fieldtypes as $num => $fieldtype) {
+                // Every field can be imported into except for the Markdown field
+                if ($fieldtype->getTypeName() !== 'Markdown') {
+                    $allowed_fieldtypes[ $fieldtype->getId() ] = $fieldtype->getTypeName();
+                }
+                else {
+                    unset( $fieldtypes[$num] );
+                }
+            }
 
 
             // ----------------------------------------
@@ -2141,7 +2137,7 @@ class CSVImportController extends ODRCustomController
                         'columns' => $file_headers,
                         'datafields' => $datafields,
                         'fieldtypes' => $fieldtypes,
-                        'allowed_fieldtypes' => $fieldtype_array,
+                        'allowed_fieldtypes' => $allowed_fieldtypes,
 
                         'tracked_job_id' => $tracked_job_id,
                         'allow_import' => $allow_import,

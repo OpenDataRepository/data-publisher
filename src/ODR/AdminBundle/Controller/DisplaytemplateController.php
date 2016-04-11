@@ -22,6 +22,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataTree;
+use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\RenderPluginFields;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
@@ -435,19 +436,29 @@ class DisplaytemplateController extends ODRCustomController
 */
 
             // Second, remove the child/parent links from the datatree
-            $childtree = $repo_datatree->findByAncestor($datatype);
-            foreach($childtree as $branch) {
-                if ($branch->getIsLink() == '0')
+            $child_datatrees = $repo_datatree->findByAncestor($datatype);
+            foreach($child_datatrees as $child_datatree) {
+                if ($child_datatree->getIsLink() == '0') {
                     // Delete the childtype...the childtype will take care of the datatree entry
-                    self::deletedatatypeAction( $branch->getDescendant()->getId(), $request );
-                else
+                    self::deletedatatypeAction($child_datatree->getDescendant()->getId(), $request);
+                }
+                else {
                     // Is a link...delete the datatree entry, but not the "child" type
-                    $em->remove($branch);
+                    $child_datatree_meta = $child_datatree->getDataTreeMeta();
+
+                    $em->remove($child_datatree_meta);
+                    $em->remove($child_datatree);
+                }
             }
 
-            $parenttree = $repo_datatree->findByDescendant($datatype);
-            foreach($parenttree as $branch)
-                $em->remove($branch);
+            // Remove any datatree links to a parent
+            $parent_datatrees = $repo_datatree->findByDescendant($datatype);
+            foreach($parent_datatrees as $parent_datatree) {
+                $parent_datatree_meta = $parent_datatree->getDataTreeMeta();
+
+                $em->remove($parent_datatree_meta);
+                $em->remove($parent_datatree);
+            }
 
             // Third, remove the theme datatype entity so it won't show up in Results/Records anymore
             $repo_theme_data_type = $em->getRepository('ODRAdminBundle:ThemeDataType');
@@ -1085,20 +1096,24 @@ print '</pre>';
 
 
             // Populate new Datatree form
-            $datatree_form = $this->createForm(new UpdateDataTreeForm($datatree), $datatree);
+            $submitted_data = new DataTreeMeta();
+            $datatree_form = $this->createForm(new UpdateDataTreeForm($datatree), $submitted_data);
+
             if ($request->getMethod() == 'POST') {
-                $datatree_form->bind($request, $datatree);
+                $datatree_form->bind($request, $submitted_data);
 
                 // Ensure that "multiple allowed" is true if required
                 if ($force_multiple) 
-                    $datatree->setMultipleAllowed(true);
+                    $submitted_data->setMultipleAllowed(true);
 
 
                 if ( $datatree_form->isValid() ) {
-                    // Save the changes made to the datatype
-                    $datatree->setUpdatedBy($user);
-                    $em->persist($datatree);
-                    $em->flush();
+                    // If a value in the form changed, create a new DataTree entity to store the change
+                    $properties = array(
+                        'multiple_allowed' => $submitted_data->getMultipleAllowed(),
+                        'is_link' => $submitted_data->getIsLink(),
+                    );
+                    parent::ODR_copyDatatreeMeta($em, $user, $datatree, $properties);
 
                     // Schedule the cache for an update
                     $options = array();
@@ -1779,15 +1794,29 @@ print '</pre>';
             $datatype->setUpdatedBy($user);
             $em->persist($datatype);
 
+
             // Create a new DataTree entry to link the original datatype and this new child datatype
             $datatree = new DataTree();
             $datatree->setAncestor($parent_datatype);
             $datatree->setDescendant($datatype);
-            $datatree->setCreatedBy($user); 
-            $datatree->setUpdatedBy($user);
+            $datatree->setCreatedBy($user);
+
+            // TODO - delete these two properties
             $datatree->setIsLink(false);
             $datatree->setMultipleAllowed(true);
+
             $em->persist($datatree);
+            $em->flush($datatree);
+            $em->refresh($datatree);
+
+
+            // Create a new DataTreeMeta entity to store properties of the DataTree
+            $datatree_meta = new DataTreeMeta();
+            $datatree_meta->setDataTree($datatree);
+            $datatree_meta->setIsLink(false);
+            $datatree_meta->setMultipleAllowed(true);
+            $datatree_meta->setCreatedBy($user);
+            $em->persist($datatree_meta);
 
 
             // ----------------------------------------
@@ -1912,22 +1941,22 @@ print '</pre>';
 
 
             // Locate the previously linked datatype if it exists
-            $previous_remote_datatype = NULL;
+            $previous_remote_datatype = null;
             foreach ($theme_element_fields as $tef) {
-                if ($tef->getDataType() !== NULL)
+                if ($tef->getDataType() !== null)
                     $previous_remote_datatype = $tef->getDataType();
             }
 
             // Locate the parent of this datatype if it exists
             $datatree = $repo_datatree->findOneBy(array('descendant' => $datatype_id));
-            $parent_datatype_id = NULL;
-            if ($datatree !== NULL)
+            $parent_datatype_id = null;
+            if ($datatree !== null)
                 $parent_datatype_id = $datatree->getAncestor()->getId();
 
             // Grab all datatypes and all datatree entries...need to locate the datatypes which can be linked to
             $linkable_datatypes = array();
-            $datatype_entries = $repo_datatype->findBy( array("deletedAt" => NULL) );
-            $datatree_entries = $repo_datatree->findBy( array("deletedAt" => NULL) );
+            $datatype_entries = $repo_datatype->findBy( array("deletedAt" => null) );
+            $datatree_entries = $repo_datatree->findBy( array("deletedAt" => null) );
 
             // Iterate through all the datatypes...
             foreach ($datatype_entries as $datatype_entry) {
@@ -2059,10 +2088,24 @@ print '</pre>';
                 $datatree->setAncestor($local_datatype);
                 $datatree->setDescendant($remote_datatype);
                 $datatree->setCreatedBy($user);
-                $datatree->setUpdatedBy($user);
+
+                // TODO - delete these two properties
                 $datatree->setIsLink(true);
                 $datatree->setMultipleAllowed(true);
+
                 $em->persist($datatree);
+                $em->flush($datatree);
+                $em->refresh($datatree);
+
+                // Create a new meta entry for this DataTree
+                $datatree_meta = new DataTreeMeta();
+                $datatree_meta->setDataTree( $datatree );
+                $datatree_meta->setIsLink(true);
+                $datatree_meta->setMultipleAllowed(true);
+
+                $datatree_meta->setCreatedBy($user);
+                $em->persist($datatree_meta);
+
 
                 // Tie Field to ThemeElement
                 $theme_element_field = parent::ODR_addThemeElementFieldEntry($em, $user, $remote_datatype, null, $theme_element);
@@ -2071,15 +2114,28 @@ print '</pre>';
                 if ($previous_remote_datatype_id !== '') {
                     // Remove the datatree entry
                     $datatree = $repo_datatree->findOneBy( array("ancestor" => $local_datatype_id, "descendant" => $previous_remote_datatype_id) );
-                    if ($datatree !== null)
+                    if ($datatree !== null) {
+                        $datatree_meta = $datatree->getDataTreeMeta();
+
+                        $em->remove($datatree_meta);
                         $em->remove($datatree);
+                    }
+
 
                     // Remove the linked datatree entries between these two datatypes as well
-                    $linked_datatree = $repo_linked_datatree->findAll();
-                    foreach ($linked_datatree as $ldt) {
-                        if ($ldt->getAncestor()->getDataType()->getId() == $local_datatype_id && $ldt->getDescendant()->getDataType()->getId() == $previous_remote_datatype_id)
-                            $em->remove($ldt);
-                    }
+                    $query = $em->createQuery(
+                       'SELECT ldt
+                        FROM ODRAdminBundle:LinkedDataTree AS ldt
+                        JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                        JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                        WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
+                        AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                    )->setParameters( array('ancestor_datatype' => $local_datatype_id, 'descendant_datatype' => $previous_remote_datatype_id) );
+                    $results = $query->getResult();
+
+                    foreach ($results as $ldt)
+                        $em->remove($ldt);
+
 
                     // Remove the theme_element_field entry
                     $theme_element_field = $repo_theme_element_field->findOneBy( array("themeElement" => $theme_element_id, "dataType" => $previous_remote_datatype_id) );
@@ -2092,8 +2148,13 @@ print '</pre>';
 
                 // Remove the datatree entry
                 $datatree = $repo_datatree->findOneBy( array("ancestor" => $local_datatype_id, "descendant" => $previous_remote_datatype_id) );
-                if ($datatree !== null)
+                if ($datatree !== null) {
+                    $datatree_meta = $datatree->getDataTreeMeta();
+
+                    $em->remove($datatree_meta);
                     $em->remove($datatree);
+                }
+
 
                 // Remove the linked datatree entries between these two datatypes as well
                 $query = $em->createQuery(
@@ -2108,6 +2169,7 @@ print '</pre>';
 
                 foreach ($results as $ldt) 
                     $em->remove($ldt);
+
 
                 // Remove the theme_element_field entry
                 $theme_element_field = $repo_theme_element_field->findOneBy( array("themeElement" => $theme_element_id, "dataType" => $previous_remote_datatype_id) );
@@ -3083,6 +3145,12 @@ if ($debug)
 if ($debug)
     print '</pre>';
 
+            // Going to need an array of fieldtype ids and fieldtype typenames for notifications about changing fieldtypes
+            $fieldtype_array = array();
+            $fieldtypes = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
+            foreach ($fieldtypes as $fieldtype)
+                $fieldtype_array[ $fieldtype->getId() ] = $fieldtype->getTypeName();
+
             // Potentially need to warn user when changing fieldtype would cause loss of data
             $datarecords = $em->getRepository('ODRAdminBundle:DataRecord')->findOneByDataType($datatype);
             $has_datarecords = false;
@@ -3098,6 +3166,7 @@ if ($debug)
             $html = $templating->render(
                 $template,
                 array(
+                    'fieldtype_array' => $fieldtype_array,
                     'datatype_tree' => $tree,
                     'has_datarecords' => $has_datarecords,
                     'theme' => $theme,
@@ -3169,17 +3238,21 @@ if ($debug)
 
             // If $parent_datatype_id is set, locate the datatree linking $datatype_id and $parent_datatype_id
             $datatree = null;
+            $datatree_meta = null;
             if ($parent_datatype_id !== '') {
                 $query = $em->createQuery(
-                   'SELECT dt
+                   'SELECT dtm
                     FROM ODRAdminBundle:DataTree AS dt
+                    JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
                     WHERE dt.ancestor = :ancestor AND dt.descendant = :descendant
-                    AND dt.deletedAt IS NULL'
+                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
                 )->setParameters( array('ancestor' => $parent_datatype_id, 'descendant' => $datatype_id) );
                 $results = $query->getResult();
 
-                if ( isset($results[0]) )
-                    $datatree = $results[0];
+                if ( isset($results[0]) ) {
+                    $datatree_meta = $results[0];
+                    $datatree = $datatree_meta->getDataTree();
+                }
             }
 
             // Create required forms
@@ -3187,12 +3260,12 @@ if ($debug)
 
             $force_multiple = false;
             $datatree_form = null;
-            if ($datatree !== null) {
-                $datatree_form = $this->createForm(new UpdateDataTreeForm($datatree), $datatree);
+            if ($datatree_meta !== null) {
+                $datatree_form = $this->createForm(new UpdateDataTreeForm($datatree_meta), $datatree_meta);
                 $datatree_form = $datatree_form->createView();
 
                 $results = array();
-                if ($datatree->getIsLink() == 0) {
+                if ($datatree_meta->getIsLink() == 0) {
                     // Determine whether a datarecord of this datatype has multiple child datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
                     $query = $em->createQuery(
                        'SELECT parent.id AS ancestor_id, child.id AS descendant_id
