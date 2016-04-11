@@ -14,49 +14,25 @@ ODR\AdminBundle\Entity\LinkedDataTree:
             generator:
                 strategy: IDENTITY
 
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
         deletedAt:
             type: datetime
             nullable: true
 #            gedmo:
 #                - versioned
 
-        created:
+        # TODO - delete this property
+        updated:
             type: datetime
             gedmo:
                 timestampable:
-                    on: create
-#        updated:
-#            type: datetime
-#            gedmo:
-#                timestampable:
-#                    on: update
+                    on: update
+
     manyToOne:
-        createdBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                createdBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
-#        updatedBy:
-#            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-#            cascade: {  }
-#            mappedBy: null
-#            inversedBy: null
-#            joinColumns:
-#                updatedBy:
-#                    referencedColumnName: id
-#            orphanRemoval: false
-#            gedmo:
-#                - versioned
-#            gedmo:
-#                blameable:
-#                    on: update
         ancestor:
             targetEntity: DataRecord
             cascade: {  }
@@ -79,4 +55,46 @@ ODR\AdminBundle\Entity\LinkedDataTree:
             orphanRemoval: false
 #            gedmo:
 #                - versioned
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+        deletedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                deletedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+
+        # TODO - delete this property
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+#            gedmo:
+#                blameable:
+#                    on: update
+
     lifecycleCallbacks: {  }

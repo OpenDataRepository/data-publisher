@@ -29,17 +29,17 @@ class LinkedDataTree
     /**
      * @var \DateTime
      */
+    private $created;
+
+    /**
+     * @var \DateTime
+     */
     private $deletedAt;
 
     /**
      * @var \DateTime
      */
-    private $created;
-
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $createdBy;
+    private $updated;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataRecord
@@ -51,6 +51,21 @@ class LinkedDataTree
      */
     private $descendant;
 
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $createdBy;
+
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $deletedBy;
+
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $updatedBy;
+
 
     /**
      * Get id
@@ -60,29 +75,6 @@ class LinkedDataTree
     public function getId()
     {
         return $this->id;
-    }
-
-    /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return LinkedDataTree
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
     }
 
     /**
@@ -109,26 +101,49 @@ class LinkedDataTree
     }
 
     /**
-     * Set createdBy
+     * Set deletedAt
      *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
+     * @param \DateTime $deletedAt
      * @return LinkedDataTree
      */
-    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
+    public function setDeletedAt($deletedAt)
     {
-        $this->createdBy = $createdBy;
+        $this->deletedAt = $deletedAt;
 
         return $this;
     }
 
     /**
-     * Get createdBy
+     * Get deletedAt
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \DateTime 
      */
-    public function getCreatedBy()
+    public function getDeletedAt()
     {
-        return $this->createdBy;
+        return $this->deletedAt;
+    }
+
+    /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return LinkedDataTree
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime 
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
     }
 
     /**
@@ -175,5 +190,74 @@ class LinkedDataTree
     public function getDescendant()
     {
         return $this->descendant;
+    }
+
+    /**
+     * Set createdBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
+     * @return LinkedDataTree
+     */
+    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
+    {
+        $this->createdBy = $createdBy;
+
+        return $this;
+    }
+
+    /**
+     * Get createdBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getCreatedBy()
+    {
+        return $this->createdBy;
+    }
+
+    /**
+     * Set deletedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $deletedBy
+     * @return LinkedDataTree
+     */
+    public function setDeletedBy(\ODR\OpenRepository\UserBundle\Entity\User $deletedBy = null)
+    {
+        $this->deletedBy = $deletedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getDeletedBy()
+    {
+        return $this->deletedBy;
+    }
+
+    /**
+     * Set updatedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return LinkedDataTree
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
     }
 }

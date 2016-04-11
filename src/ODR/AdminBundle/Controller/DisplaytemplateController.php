@@ -227,6 +227,12 @@ class DisplaytemplateController extends ODRCustomController
                 return parent::permissionDeniedError("change layout of");
             // --------------------
 
+
+            // Save who deleted this radio option
+            $radio_option->setDeletedBy($user);
+            $em->persist($radio_option);
+            $em->flush($radio_option);
+
             // Delete the radio option and its current associated metadata entry
             $radio_option_meta = $radio_option->getRadioOptionsMeta();
             $em->remove($radio_option);
@@ -409,6 +415,8 @@ class DisplaytemplateController extends ODRCustomController
             }
             // --------------------
 
+            $entities_to_remove = array();
+
             // TODO - warn about deleting datatype when jobs are in progress
 
             // Don't delete this datatype if it's set as the default search
@@ -446,8 +454,11 @@ class DisplaytemplateController extends ODRCustomController
                     // Is a link...delete the datatree entry, but not the "child" type
                     $child_datatree_meta = $child_datatree->getDataTreeMeta();
 
-                    $em->remove($child_datatree_meta);
-                    $em->remove($child_datatree);
+                    $child_datatree->setDeletedBy($user);
+                    $em->persist($child_datatree);
+
+                    $entities_to_remove[] = $child_datatree_meta;
+                    $entities_to_remove[] = $child_datatree;
                 }
             }
 
@@ -456,26 +467,35 @@ class DisplaytemplateController extends ODRCustomController
             foreach($parent_datatrees as $parent_datatree) {
                 $parent_datatree_meta = $parent_datatree->getDataTreeMeta();
 
-                $em->remove($parent_datatree_meta);
-                $em->remove($parent_datatree);
+                $parent_datatree->setDeletedBy($user);
+                $em->persist($parent_datatree);
+
+                $entities_to_remove[] = $parent_datatree_meta;
+                $entities_to_remove[] = $parent_datatree;
             }
+
 
             // Third, remove the theme datatype entity so it won't show up in Results/Records anymore
             $repo_theme_data_type = $em->getRepository('ODRAdminBundle:ThemeDataType');
             $theme_data_type = $repo_theme_data_type->findOneBy( array("dataType" => $datatype->getId(), "theme" => 1) );
             if ($theme_data_type != null)
-                $em->remove($theme_data_type);
+                $entities_to_remove[] = $theme_data_type;
 
             // Fourth, also remove the theme element field, so the templating doesn't attempt to access the deleted datatype
             $repo_theme_element_field = $em->getRepository('ODRAdminBundle:ThemeElementField');
             $theme_element_fields = $repo_theme_element_field->findBy( array("dataType" => $datatype->getId()) );   // want all theme_element_field entries across all themes
             foreach ($theme_element_fields as $theme_element_field)
-                $em->remove($theme_element_field);
+                $entities_to_remove[] = $theme_element_field;
 
             // Finally, delete the actual datatype itself
-            $em->remove($datatype);
+            $entities_to_remove[] = $datatype;
+
 
             // Commit Deletes
+            $em->flush();
+            foreach ($entities_to_remove as $entity)
+                $em->remove($entity);
+
             $em->flush(); 
 
             // No point updating caches, datatype doesn't 'exist' anymore
@@ -2030,6 +2050,7 @@ print '</pre>';
         try {
             // Grab the data from the POST request 
             $post = $_POST;
+
             $local_datatype_id = $post['local_datatype_id'];
             $remote_datatype_id = $post['selected_datatype'];
             $previous_remote_datatype_id = $post['previous_remote_datatype'];
@@ -2072,6 +2093,8 @@ print '</pre>';
                 return parent::permissionDeniedError('edit');
             // --------------------
 
+
+            $entities_to_remove = array();
 
             // Going to need id of theme element regardless
             $theme_element = $repo_theme_element->find($theme_element_id);
@@ -2117,8 +2140,11 @@ print '</pre>';
                     if ($datatree !== null) {
                         $datatree_meta = $datatree->getDataTreeMeta();
 
-                        $em->remove($datatree_meta);
-                        $em->remove($datatree);
+                        $datatree->setDeletedBy($user);
+                        $em->persist($datatree);
+
+                        $entities_to_remove[] = $datatree_meta;
+                        $entities_to_remove[] = $datatree;
                     }
 
 
@@ -2134,13 +2160,13 @@ print '</pre>';
                     $results = $query->getResult();
 
                     foreach ($results as $ldt)
-                        $em->remove($ldt);
+                        $entities_to_remove[] = $ldt;
 
 
                     // Remove the theme_element_field entry
                     $theme_element_field = $repo_theme_element_field->findOneBy( array("themeElement" => $theme_element_id, "dataType" => $previous_remote_datatype_id) );
                     if ($theme_element_field !== null)
-                        $em->remove($theme_element_field);
+                        $entities_to_remove[] = $theme_element_field;
                 }
             }
             else {
@@ -2151,8 +2177,11 @@ print '</pre>';
                 if ($datatree !== null) {
                     $datatree_meta = $datatree->getDataTreeMeta();
 
-                    $em->remove($datatree_meta);
-                    $em->remove($datatree);
+                    $datatree->setDeletedBy($user);
+                    $em->persist($datatree);
+
+                    $entities_to_remove[] = $datatree_meta;
+                    $entities_to_remove[] = $datatree;
                 }
 
 
@@ -2168,16 +2197,21 @@ print '</pre>';
                 $results = $query->getResult();
 
                 foreach ($results as $ldt) 
-                    $em->remove($ldt);
+                    $entities_to_remove[] = $ldt;
 
 
                 // Remove the theme_element_field entry
                 $theme_element_field = $repo_theme_element_field->findOneBy( array("themeElement" => $theme_element_id, "dataType" => $previous_remote_datatype_id) );
                 if ($theme_element_field !== null)
-                    $em->remove($theme_element_field);
+                    $entities_to_remove[] = $theme_element_field;
             }
 
+            // Make all deletions
             $em->flush();
+            foreach ($entities_to_remove as $entity)
+                $em->remove($entity);
+            $em->flush();
+
 
             $using_linked_type = 1; // assume there will be a linked datatype
             if ($deleting)

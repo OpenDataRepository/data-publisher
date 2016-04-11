@@ -161,7 +161,7 @@ class DefaultController extends Controller
         $query = $em->createQuery(
            'SELECT ancestor.id AS ancestor_id, ancestor.shortName AS ancestor_name, descendant.id AS descendant_id, descendant.shortName AS descendant_name, descendant.publicDate AS public_date, dtm.is_link AS is_link
             FROM ODRAdminBundle:DataTree AS dt
-            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
             JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
             WHERE dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL');

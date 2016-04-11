@@ -2777,6 +2777,11 @@ print_r($new_mapping);
                                     else
                                         parent::ODR_copyImageMeta($em, $user, $new_obj, $properties);
 
+                                    // Save who replaced the file/image
+                                    $old_obj->setDeletedBy($user);
+                                    $em->persist($old_obj);
+                                    $em->flush($old_obj);
+
                                     // Delete the old object and its metadata entry
                                     $em->remove($old_obj);
                                     $em->remove($old_obj_meta);
@@ -2861,6 +2866,11 @@ print_r($new_mapping);
                                         if ( file_exists($absolute_path) )
                                             unlink($absolute_path);
 
+                                        // Save who deleted the file
+                                        $file->setDeletedBy($user);
+                                        $em->persist($file);
+                                        $em->flush($file);
+
                                         // Delete the file entity and its associated metadata entry
                                         $file_meta = $file->getFileMeta();
                                         $em->remove($file);
@@ -2880,6 +2890,11 @@ print_r($new_mapping);
                                         $local_filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$file->getId().'.'.$file->getExt();
                                         if ( file_exists($local_filepath) )
                                             unlink($local_filepath);
+
+                                        // Save who deleted the image
+                                        $file->setDeletedBy($user);
+                                        $em->persist($file);
+                                        $em->flush($file);
 
                                         // Delete the image (thumbnails are deleted by this as well)
                                         $em->remove($file);

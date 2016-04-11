@@ -32,6 +32,16 @@ class RadioOptions
     private $optionName;
 
     /**
+     * @var \DateTime
+     */
+    private $created;
+
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
+
+    /**
      * @var string
      */
     private $xml_optionName;
@@ -45,16 +55,6 @@ class RadioOptions
      * @var boolean
      */
     private $isDefault;
-
-    /**
-     * @var \DateTime
-     */
-    private $deletedAt;
-
-    /**
-     * @var \DateTime
-     */
-    private $created;
 
     /**
      * @var \DateTime
@@ -75,6 +75,11 @@ class RadioOptions
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
+
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $deletedBy;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -101,6 +106,7 @@ class RadioOptions
 
     /**
      * Set optionName
+     * NOTE - this needs to remain in synch with the option name in the associated metadata entity...if it doesn't, CSV/XML importing can't check concurrently that a RadioOption exists
      *
      * @param string $optionName
      * @return RadioOptions
@@ -120,6 +126,52 @@ class RadioOptions
     public function getOptionName()
     {
         return $this->getRadioOptionsMeta()->getOptionName();
+    }
+
+    /**
+     * Set created
+     *
+     * @param \DateTime $created
+     * @return RadioOptions
+     */
+    public function setCreated($created)
+    {
+        $this->created = $created;
+
+        return $this;
+    }
+
+    /**
+     * Get created
+     *
+     * @return \DateTime 
+     */
+    public function getCreated()
+    {
+        return $this->created;
+    }
+
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return RadioOptions
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
     }
 
     /**
@@ -189,52 +241,6 @@ class RadioOptions
     public function getIsDefault()
     {
         return $this->getRadioOptionsMeta()->getIsDefault();
-    }
-
-    /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return RadioOptions
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
-    }
-
-    /**
-     * Set created
-     *
-     * @param \DateTime $created
-     * @return RadioOptions
-     */
-    public function setCreated($created)
-    {
-        $this->created = $created;
-
-        return $this;
-    }
-
-    /**
-     * Get created
-     *
-     * @return \DateTime 
-     */
-    public function getCreated()
-    {
-        return $this->created;
     }
 
     /**
@@ -340,6 +346,29 @@ class RadioOptions
     }
 
     /**
+     * Set deletedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $deletedBy
+     * @return RadioOptions
+     */
+    public function setDeletedBy(\ODR\OpenRepository\UserBundle\Entity\User $deletedBy = null)
+    {
+        $this->deletedBy = $deletedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getDeletedBy()
+    {
+        return $this->deletedBy;
+    }
+
+    /**
      * Set updatedBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
@@ -361,7 +390,6 @@ class RadioOptions
     {
         return $this->updatedBy;
     }
-
 
     // ----------------------------------------
     // TODO - delete these four functions

@@ -24,6 +24,18 @@ ODR\AdminBundle\Entity\RadioOptions:
 #            gedmo:
 #                - versioned
 
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
+
+        # TODO - delete these four properties
         xml_optionName:
             type: string
             length: 64
@@ -46,17 +58,6 @@ ODR\AdminBundle\Entity\RadioOptions:
             column: is_default
 #            gedmo:
 #                - versioned
-
-        deletedAt:
-            type: datetime
-            nullable: true
-#            gedmo:
-#                - versioned
-        created:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: create
         updated:
             type: datetime
             gedmo:
@@ -86,6 +87,7 @@ ODR\AdminBundle\Entity\RadioOptions:
             orphanRemoval: false
 #            gedmo:
 #                - versioned
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -98,6 +100,20 @@ ODR\AdminBundle\Entity\RadioOptions:
 #            gedmo:
 #                blameable:
 #                    on: create
+        deletedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                deletedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+
+        # TODO - delete this property
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }

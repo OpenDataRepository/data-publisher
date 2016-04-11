@@ -13,27 +13,13 @@ ODR\AdminBundle\Entity\File:
             nullable: false
             generator:
                 strategy: IDENTITY
-        caption:
-            type: string
-            length: 96
-            fixed: false
-            nullable: true
-#            gedmo:
-#                - versioned
+
         ext:
             type: string
             length: 8
             fixed: false
             nullable: true
             column: ext
-#            gedmo:
-#                - versioned
-        originalFileName:
-            type: string
-            length: 128
-            fixed: false
-            nullable: true
-            column: original_file_name
 #            gedmo:
 #                - versioned
         localFileName:
@@ -45,43 +31,12 @@ ODR\AdminBundle\Entity\File:
 #            gedmo:
 #                - versioned
 
-        deletedAt:
-            type: datetime
-            nullable: true
-#            gedmo:
-#                - versioned
-        created:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: create
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
-        publicDate:
-            type: datetime
-            nullable: false
-            column: public_date
-#            gedmo:
-#                - versioned
-
         encrypt_key:
             type: string
             nullable: true
             length: 32
             fixed: false
             column: encrypt_key
-
-        external_id:
-            type: string
-            length: 64
-            fixed: false
-            nullable: false
-            column: external_id
-#            gedmo:
-#                - versioned
         original_checksum:
             type: string
             nullable: true
@@ -96,6 +51,53 @@ ODR\AdminBundle\Entity\File:
             nullable: false
 #            gedmo:
 #                - versioned
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
+
+        # TODO - Delete the following five properties
+        caption:
+            type: string
+            length: 96
+            fixed: false
+            nullable: true
+#            gedmo:
+#                - versioned
+        originalFileName:
+            type: string
+            length: 128
+            fixed: false
+            nullable: true
+            column: original_file_name
+#            gedmo:
+#                - versioned
+        external_id:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: external_id
+#            gedmo:
+#                - versioned
+        publicDate:
+            type: datetime
+            nullable: false
+            column: public_date
+#            gedmo:
+#                - versioned
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
 
     oneToMany:
         FileChecksum:
@@ -122,17 +124,6 @@ ODR\AdminBundle\Entity\File:
 #                - versioned
 
     manyToOne:
-        dataField:
-            targetEntity: DataFields
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                data_field_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
         fieldType:
             targetEntity: FieldType
             cascade: {  }
@@ -140,6 +131,18 @@ ODR\AdminBundle\Entity\File:
             inversedBy: null
             joinColumns:
                 field_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
+        dataField:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
 #            gedmo:
@@ -155,6 +158,17 @@ ODR\AdminBundle\Entity\File:
             orphanRemoval: false
 #            gedmo:
 #                - versioned
+        dataRecordFields:
+            targetEntity: DataRecordFields
+            cascade: {  }
+            inversedBy: file
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -164,6 +178,19 @@ ODR\AdminBundle\Entity\File:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
+        deletedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                deletedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
+        # TODO - delete the following property
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -171,16 +198,6 @@ ODR\AdminBundle\Entity\File:
             inversedBy: null
             joinColumns:
                 updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
-        dataRecordFields:
-            targetEntity: DataRecordFields
-            cascade: {  }
-            inversedBy: file
-            joinColumns:
-                data_record_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
 #            gedmo:

@@ -2019,6 +2019,12 @@ print '</pre>';
 
                 $radio_option_meta->setDeletedAt( $radio_option->getDeletedAt() );
 
+                // If radio option is deleted, transfer who deleted it from the updatedBy column to the deletedBy column
+                if ( $radio_option->getDeletedAt() !== null ) {
+                    $radio_option->setDeletedBy($radio_option->getUpdatedBy());
+                    $em->persist($radio_option);
+                }
+
                 $em->persist($radio_option_meta);
                 $em->flush();
 
@@ -2104,6 +2110,12 @@ print '</pre>';
                 $file_meta->setCreated( $file->getUpdated() );
 
                 $file_meta->setDeletedAt( $file->getDeletedAt() );
+
+                // If file is deleted, transfer who deleted it from the updatedBy column to the deletedBy column
+                if ( $file->getDeletedAt() !== null ) {
+                    $file->setDeletedBy( $file->getUpdatedBy() );
+                    $em->persist($file);
+                }
 
                 $em->persist($file_meta);
                 $em->flush();
@@ -2192,6 +2204,12 @@ print '</pre>';
 
                 $image_meta->setDeletedAt( $image->getDeletedAt() );
 
+                // If image is deleted, transfer who deleted it from the updatedBy column to the deletedBy column
+                if ( $image->getDeletedAt() !== null ) {
+                    $image->setDeletedBy( $image->getUpdatedBy() );
+                    $em->persist($image);
+                }
+
                 $em->persist($image_meta);
                 $em->flush();
 
@@ -2275,6 +2293,12 @@ print '</pre>';
                 $datatree_meta->setCreated( $datatree->getCreated() );
 
                 $datatree_meta->setDeletedAt( $datatree->getDeletedAt() );
+
+                // If datatree is deleted, transfer who deleted it from the updatedBy column to the deletedBy column
+                if ( $datatree->getDeletedAt() !== null ) {
+                    $datatree->setDeletedBy( $datatree->getUpdatedBy() );
+                    $em->persist($datatree);
+                }
 
                 $em->persist($datatree_meta);
                 $em->flush();

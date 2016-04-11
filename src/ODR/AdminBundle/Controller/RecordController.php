@@ -279,6 +279,8 @@ class RecordController extends ODRCustomController
 
             // -----------------------------------
             // Delete DataRecordField entries for this datarecord
+            $entities_to_remove = array();
+
             // TODO - do this with a DQL update query?
 
 //            $datarecordfields = $repo_datarecordfields->findBy( array('dataRecord' => $datarecord->getId()) );
@@ -293,7 +295,8 @@ class RecordController extends ODRCustomController
             foreach ($results as $num => $data) {
                 $drf_id = $data['drf_id'];
                 $drf = $repo_datarecordfields->find($drf_id);
-                $em->remove($drf);
+                //$em->remove($drf);
+                $entities_to_remove[] = $drf;
             }
 
             // Build a list of all datarecords that need recaching as a result of this deletion
@@ -307,7 +310,10 @@ class RecordController extends ODRCustomController
                 if ( !in_array($ancestor_id, $recache_list) )
                     $recache_list[] = $ancestor_id;
 
-                $em->remove($ldt);
+                $ldt->setDeletedBy($user);
+                $em->persist($ldt);
+
+                $entities_to_remove[] = $ldt;
             }
             $linked_data_trees = $repo_linked_data_tree->findBy( array('ancestor' => $datarecord->getId()) );
             foreach ($linked_data_trees as $ldt) {
@@ -315,17 +321,26 @@ class RecordController extends ODRCustomController
                 $descendant_id = $ldt->getDescendant()->getGrandparent()->getId();
                 if ( !in_array($descendant_id, $recache_list) )
                     $recache_list[] = $descendant_id;
- 
-                $em->remove($ldt);
+
+                $ldt->setDeletedBy($user);
+                $em->persist($ldt);
+
+                $entities_to_remove[] = $ldt;
             }
 
             // Delete the datarecord entity like the user wanted, in addition to all children of this datarecord so external_id doesn't grab them
             $datarecords = $repo_datarecord->findBy( array('grandparent' => $datarecord->getId()) );
             foreach ($datarecords as $dr) {
-                $em->remove($dr);
+                $entities_to_remove[] = $dr;
 
                 // TODO - links to/from child datarecord?
             }
+
+            // Save who is doing the deletions for all the entities, then remove all of them
+            $em->flush();
+            foreach ($entities_to_remove as $entity)
+                $em->remove($entity);
+
             $em->flush();
 
             // Delete the list of DataRecords for this DataType that ShortResults uses to build its list
@@ -532,9 +547,13 @@ class RecordController extends ODRCustomController
             if ( file_exists($absolute_path) )
                 unlink($absolute_path);
 
+            // Save who deleted the file
+            $file->setDeletedBy($user);
+            $em->persist($file);
+            $em->flush($file);
+
             // Delete the file and its current metadata entry
             $file_meta = $file->getFileMeta();
-
             $em->remove($file);
             $em->remove($file_meta);
             $em->flush();
@@ -861,9 +880,13 @@ class RecordController extends ODRCustomController
             if ( file_exists($local_filepath) )
                 unlink($local_filepath);
 
+            // Save who deleted the image
+            $image->setDeletedBy($user);
+            $em->persist($image);
+            $em->flush($image);
+
             // Delete the original image and its associated meta entry as well
             $image_meta = $image->getImageMeta();
-
             $em->remove($image);
             $em->remove($image_meta);
             $em->flush();
@@ -2155,6 +2178,10 @@ if ($debug)
     print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
                     // Remove the linked_data_tree entry
+                    $ldt->setDeletedBy($user);
+                    $em->persist($ldt);
+                    $em->flush($ldt);
+
                     $em->remove($ldt);
                 }
                 else {

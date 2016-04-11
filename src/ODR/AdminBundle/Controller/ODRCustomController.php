@@ -788,6 +788,7 @@ print "\n\n";
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
         );
         $results = $query->getArrayResult();
+//print_r($results);
 
         $parent_of = array();
         foreach ($results as $num => $result)
@@ -821,7 +822,7 @@ print "\n\n";
             JOIN ODRAdminBundle:DataTree AS dt WITH ancestor = dt.ancestor
             JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL');
+            WHERE ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL');
         $results = $query->getArrayResult();
 
         $datatree_array = array(
@@ -894,6 +895,7 @@ print "\n\n";
                     FROM ODRAdminBundle:DataType AS dt
                     WHERE dt.deletedAt IS NULL');
                 $all_datatypes = $query->getArrayResult();
+
                 if ( count($all_datatypes) !== count($user_permissions) ) {
                     // There are fewer permissions objects than datatypes...create missing permissions objects
                     $top_level_datatypes = self::getTopLevelDatatypes();
