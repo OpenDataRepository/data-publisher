@@ -19,7 +19,12 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\File;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Cookie;
@@ -55,13 +60,12 @@ class ResultsController extends ODRCustomController
             $session = $request->getSession();
 
             // Set up repositories
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
 
             // Ensure the datarecord isn't deleted
-            $datarecord = $repo_datarecord->find($datarecord_id);
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
             $datatype = $datarecord->getDataType();
@@ -74,6 +78,7 @@ class ResultsController extends ODRCustomController
 
             // ----------------------------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = array();
             $logged_in = true;
@@ -294,15 +299,15 @@ class ResultsController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
 
-            $datarecord = $repo_datarecord->find($datarecord_id);
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 return parent::deletedEntityError('Datarecord');
-            $datafield = $repo_datafields->find($datafield_id);
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
                 return parent::deletedEntityError('DataField');
             $datatype = $datafield->getDataType();
@@ -311,14 +316,12 @@ class ResultsController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = array();
-            $logged_in = true;
             $has_view_permission = false;
 
             if ( $user === 'anon.' ) {
-                $logged_in = false;
-
                 if ( !$datatype->isPublic() ) {
                     // non-public datatype and anonymous user, can't view
                     return parent::permissionDeniedError('view');
@@ -357,7 +360,8 @@ class ResultsController extends ODRCustomController
                 }
             }
 
-            $datarecordfield = $repo_datarecordfields->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );
+            /** @var DataRecordFields $datarecordfield */
+            $datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );
             $form = parent::buildForm($em, $user, $datarecord, $datafield, $datarecordfield, false, 0);
 
             $templating = $this->get('templating');
@@ -409,6 +413,7 @@ class ResultsController extends ODRCustomController
         try {
             // ----------------------------------------
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             $memcached = $this->get('memcached');
@@ -416,6 +421,7 @@ class ResultsController extends ODRCustomController
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Locate the file in the database
+            /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
                 return parent::deletedEntityError('File');
@@ -474,6 +480,7 @@ class ResultsController extends ODRCustomController
 
             // ----------------------------------------
             // Non-Public files are more work because they always need decryption...but first, ensure user is permitted to download
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             if ($user === 'anon.') {
                 // Non-logged in users not allowed to download non-public files
@@ -733,6 +740,7 @@ fclose($log_file);
         $response->headers->set('Content-Length', filesize($absolute_filepath));
         $response->headers->set('Content-Disposition', 'attachment; filename="'.$display_filename.'";');
 
+        // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
         $response->headers->setCookie(
             new Cookie(
                 'fileDownload', // name
@@ -779,6 +787,7 @@ fclose($log_file);
         try {
             // ----------------------------------------
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             $memcached = $this->get('memcached');
@@ -786,6 +795,7 @@ fclose($log_file);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Locate the file in the database
+            /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
                 return parent::deletedEntityError('File');
@@ -802,6 +812,7 @@ fclose($log_file);
 
             // ----------------------------------------
             // Ensure user has permissions to be doing this
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -858,9 +869,11 @@ fclose($log_file);
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             // Locate the image object in the database
+            /** @var Image $image */
             $image = $em->getRepository('ODRAdminBundle:Image')->find($image_id);
             if ($image == null)
                 return parent::deletedEntityError('Image');
@@ -879,6 +892,7 @@ fclose($log_file);
             // Check to see if the user is permitted to download this image
             if ( !$image->isPublic() ) {
                 // Determine user privileges
+                /** @var User $user */
                 $user = $this->container->get('security.context')->getToken()->getUser();
                 if ($user === 'anon.') {
                     // Non-logged in users not allowed to download non-public images
@@ -900,7 +914,7 @@ fclose($log_file);
 
 
             // Ensure the image exists in decrypted format
-            $image_path = realpath( dirname(__FILE__).'/../../../../web/'.$image->getLocalFilename() );     // realpath() returns false if file does not exist
+            $image_path = realpath( dirname(__FILE__).'/../../../../web/'.$image->getLocalFileName() );     // realpath() returns false if file does not exist
             if ( !$image->isPublic() || !$image_path )
                 $image_path = parent::decryptObject($image->getId(), 'image');
 
@@ -995,6 +1009,7 @@ fclose($log_file);
             $em = $this->getDoctrine()->getManager();
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $templating = $this->get('templating');
+
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');

@@ -1,6 +1,6 @@
-ODR\AdminBundle\Entity\DataFields:
+ODR\AdminBundle\Entity\DataFieldsMeta:
     type: entity
-    table: odr_data_fields
+    table: odr_data_fields_meta
     gedmo:
 #        loggable: true
         soft_deleteable:
@@ -14,18 +14,6 @@ ODR\AdminBundle\Entity\DataFields:
             generator:
                 strategy: IDENTITY
 
-        created:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: create
-        deletedAt:
-            type: datetime
-            nullable: true
-#            gedmo:
-#                - versioned
-
-        # TODO - delete the following 17 properties
         fieldName:
             type: string
             length: 64
@@ -140,87 +128,30 @@ ODR\AdminBundle\Entity\DataFields:
 #            gedmo:
 #                - versioned
 
-        updated:
+        created:
             type: datetime
             gedmo:
                 timestampable:
-                    on: update
+                    on: create
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
 
-    oneToMany:
-        dataRecordFields:
-            targetEntity: DataRecordFields
+    manyToOne:
+        dataField:
+            targetEntity: DataFields
             cascade: {  }
-            mappedBy: dataField
-            fetch: EXTRA_LAZY
+            mappedBy: null
+            inversedBy: dataFieldsMeta
             joinColumns:
                 data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
-
-        themeDataField:
-            targetEntity: ThemeDataField
-            cascade: {  }
-            mappedBy: dataFields
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
-        radioOptions:
-            targetEntity: RadioOptions
-            cascade: {  }
-            mappedBy: dataField
-            orphanRemoval: false
-#            inversedBy: radioOptions
-#            orderBy:
-#                displayOrder: ASC
-#                id: ASC
 #            gedmo:
 #                - versioned
 
-        dataFieldsMeta:
-            targetEntity: DataFieldsMeta
-            cascade: { }
-            mappedBy: dataField
-            inversedBy: null
-            joinColumns:
-                data_field_meta_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
-    manyToOne:
-        dataType:
-            targetEntity: DataType
-            cascade: {  }
-            mappedBy: null
-            inversedBy: dataFields
-            joinColumns:
-                data_type_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
-
-        createdBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                createdBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-        deletedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                deletedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-
-
-        # TODO - delete the following three properties
         fieldType:
             targetEntity: FieldType
             cascade: {  }
@@ -243,14 +174,14 @@ ODR\AdminBundle\Entity\DataFields:
 #            gedmo:
 #                - versioned
 
-        updatedBy:
+        createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
             mappedBy: null
             inversedBy: null
             joinColumns:
-                updatedBy:
+                createdBy:
                     referencedColumnName: id
-            orphanRemoval: false
-
+#            orphanRemoval: false
+#                - versioned
     lifecycleCallbacks: {  }

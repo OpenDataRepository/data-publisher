@@ -54,7 +54,7 @@ class DataTree
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
-    private $DataTreeMeta;
+    private $dataTreeMeta;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataType
@@ -86,7 +86,7 @@ class DataTree
      */
     public function __construct()
     {
-        $this->DataTreeMeta = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->dataTreeMeta = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -147,6 +147,7 @@ class DataTree
 
     /**
      * Set is_link
+     * @deprecated
      *
      * @param boolean $isLink
      * @return DataTree
@@ -170,6 +171,7 @@ class DataTree
 
     /**
      * Set multiple_allowed
+     * @deprecated
      *
      * @param boolean $multipleAllowed
      * @return DataTree
@@ -193,6 +195,7 @@ class DataTree
 
     /**
      * Set updated
+     * @deprecated
      *
      * @param \DateTime $updated
      * @return DataTree
@@ -206,6 +209,7 @@ class DataTree
 
     /**
      * Get updated
+     * @deprecated
      *
      * @return \DateTime 
      */
@@ -215,36 +219,36 @@ class DataTree
     }
 
     /**
-     * Add DataTreeMeta
+     * Add dataTreeMeta
      *
      * @param \ODR\AdminBundle\Entity\DataTreeMeta $dataTreeMeta
      * @return DataTree
      */
     public function addDataTreeMetum(\ODR\AdminBundle\Entity\DataTreeMeta $dataTreeMeta)
     {
-        $this->DataTreeMeta[] = $dataTreeMeta;
+        $this->dataTreeMeta[] = $dataTreeMeta;
 
         return $this;
     }
 
     /**
-     * Remove DataTreeMeta
+     * Remove dataTreeMeta
      *
      * @param \ODR\AdminBundle\Entity\DataTreeMeta $dataTreeMeta
      */
     public function removeDataTreeMetum(\ODR\AdminBundle\Entity\DataTreeMeta $dataTreeMeta)
     {
-        $this->DataTreeMeta->removeElement($dataTreeMeta);
+        $this->dataTreeMeta->removeElement($dataTreeMeta);
     }
 
     /**
-     * Get DataTreeMeta
+     * Get dataTreeMeta
      *
      * @return \ODR\AdminBundle\Entity\DataTreeMeta
      */
     public function getDataTreeMeta()
     {
-        return $this->DataTreeMeta->first();
+        return $this->dataTreeMeta->first();
     }
 
     /**
@@ -341,6 +345,7 @@ class DataTree
 
     /**
      * Set updatedBy
+     * @deprecated
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
      * @return DataTree
@@ -354,6 +359,7 @@ class DataTree
 
     /**
      * Get updatedBy
+     * @deprecated 
      *
      * @return \ODR\OpenRepository\UserBundle\Entity\User 
      */

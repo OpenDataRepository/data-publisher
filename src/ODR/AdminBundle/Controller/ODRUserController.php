@@ -22,7 +22,11 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\UserFieldPermissions;
+use ODR\AdminBundle\Entity\UserPermissions;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Forms
 use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
@@ -52,6 +56,7 @@ class ODRUserController extends ODRCustomController
         try {
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
             $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
@@ -110,6 +115,7 @@ class ODRUserController extends ODRCustomController
         try {
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
             $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
@@ -130,6 +136,7 @@ class ODRUserController extends ODRCustomController
 
             $email = $post['email'];
             $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var ODRUser $user */
             $user = $user_manager->findUserByEmail($email);
 
             // If found, return their user id
@@ -166,8 +173,8 @@ class ODRUserController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $user_manager = $this->container->get('fos_user.user_manager');
             $router = $this->get('router');
 
@@ -179,6 +186,7 @@ class ODRUserController extends ODRCustomController
 
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
             $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
@@ -195,6 +203,7 @@ class ODRUserController extends ODRCustomController
 
             // Ensure a user with the specified email doesn't already exist...
             $email = $post['email'];
+            /** @var ODRUser $user */
             $user = $user_manager->findUserByEmail($email);
             if ($user !== null) {
                 // If user already exists, just return the url to their permissions page
@@ -276,6 +285,7 @@ class ODRUserController extends ODRCustomController
 
         try {
             // Grab the specified user
+            /** @var ODRUser $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
 
             // Create a new form to edit the user
@@ -325,13 +335,17 @@ class ODRUserController extends ODRCustomController
 
         try {
             // Grab the specified user
-            $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
-            $user = $repo_user->find($user_id);
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ($user == null)
                 return parent::deletedEntityError('User');
 
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin */
             $admin = $this->container->get('security.context')->getToken()->getUser();
 
             // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
@@ -363,7 +377,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
 
             $self_edit = 'false';
-            if ($admin->getid() == $user_id)
+            if ($admin->getId() == $user_id)
                 $self_edit = 'true';
 
             // Create a new form to edit the user
@@ -412,6 +426,7 @@ class ODRUserController extends ODRCustomController
 
         try {
             // Grab the current user
+            /** @var ODRUser $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
 
             // Only allow this if the user is modifying their own profile
@@ -456,14 +471,17 @@ class ODRUserController extends ODRCustomController
                 throw new \Exception('Invalid Form');
             $user_id = intval( $post['ODRUserProfileForm']['user_id'] );
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
-            $user = $repo_user->find($user_id);
+
+            /** @var ODRUser $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ($user == null)
                 return parent::deletedEntityError('User');
 
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin */
             $admin = $this->container->get('security.context')->getToken()->getUser();
 
             // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
@@ -524,6 +542,7 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         // Get required objects
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $user_manager = $this->container->get('fos_user.user_manager');
         $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
@@ -540,6 +559,7 @@ class ODRUserController extends ODRCustomController
 
         $post = $post['ODRUserProfileForm'];
         $target_user_id = intval( $post['user_id'] );
+        /** @var ODRUser $target_user */
         $target_user = $repo_user->find($target_user_id);
         if ($target_user == null)
             return parent::deletedEntityError('User');
@@ -590,13 +610,17 @@ class ODRUserController extends ODRCustomController
 
         try {
             // Grab the specified user
-            $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
-            $target_user = $repo_user->find($user_id);
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ODRUser $target_user */
+            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ($target_user == null)
                 return parent::deletedEntityError('User');
 
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin */
             $admin = $this->container->get('security.context')->getToken()->getUser();
 
             // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
@@ -672,11 +696,10 @@ class ODRUserController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
             $user_manager = $this->container->get('fos_user.user_manager');
-            $router = $this->get('router');
+//            $router = $this->get('router');
 
             $post = $request->request->all();
             if ( !isset($post['ODRAdminChangePasswordForm']) )
@@ -685,12 +708,14 @@ class ODRUserController extends ODRCustomController
             // Locate the target user
             $post = $post['ODRAdminChangePasswordForm'];
             $target_user_id = intval( $post['user_id'] );
-            $target_user = $repo_user->find($target_user_id);
+            /** @var ODRUser $target_user */
+            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($target_user_id);
             if ($target_user == null)
                 return parent::deletedEntityError('User');
 
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin */
             $admin = $this->container->get('security.context')->getToken()->getUser();
 
             // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
@@ -777,10 +802,8 @@ class ODRUserController extends ODRCustomController
         try {
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
-
-            $em = $this->getDoctrine()->getManager();
-            $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
 
             // User needs at least one "is_admin" permission to access this
             $user_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
@@ -797,6 +820,7 @@ class ODRUserController extends ODRCustomController
 
             // Grab all the users
             $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var ODRUser[] $user_list */
             $user_list = $user_manager->findUsers();
 
             // Reduce user list to those that possess a view permission to datatypes this user has admin permissions for, excluding super admins
@@ -861,6 +885,7 @@ class ODRUserController extends ODRCustomController
         try {
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin */
             $admin = $this->container->get('security.context')->getToken()->getUser();
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
@@ -895,7 +920,6 @@ class ODRUserController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
     /**
@@ -917,17 +941,21 @@ class ODRUserController extends ODRCustomController
         try {
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin */
             $admin = $this->container->get('security.context')->getToken()->getUser();
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
             // --------------------
 
             // Grab all the users
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var ODRUser[] $users */
             $users = $user_manager->findUsers();
 
             // Prevent the admin from modifying his own role (potentially removing his own admin role)
+            /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
 
             // Locate the user being changed
@@ -937,7 +965,10 @@ class ODRUserController extends ODRCustomController
                     // Grab all permissions for this user
                     $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
                     $repo_user_field_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');
+
+                    /** @var UserPermissions[] $user_permissions */
                     $user_permissions = $repo_user_permissions->findBy( array('user_id' => $user) );
+                    /** @var UserFieldPermissions[] $user_field_permissions */
                     $user_field_permissions = $repo_user_field_permissions->findBy( array('user_id' => $user) );
 
                     if ($role == 'user') {
@@ -1004,13 +1035,13 @@ class ODRUserController extends ODRCustomController
     /**
      * Debug function to ensure all super-admin users have all permissions
      * TODO - obsolete?
+     *
+     * @param Request $request
      */
     public function permissioncheckAction(Request $request)
     {
-        $em = $this->getDoctrine()->getManager();
-        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-
         $user_manager = $this->container->get('fos_user.user_manager');
+        /** @var ODRUser[] $users */
         $users = $user_manager->findUsers();
 
         $admin_users = array();
@@ -1018,6 +1049,7 @@ class ODRUserController extends ODRCustomController
             if ($user->hasRole('ROLE_SUPER_ADMIN'))
                 $admin_users[] = $user;
         }
+        /** @var ODRUser[] $admin_users */
 
         $top_level_datatypes = parent::getTopLevelDatatypes();
         foreach ($top_level_datatypes as $num => $datatype_id) {
@@ -1046,6 +1078,7 @@ class ODRUserController extends ODRCustomController
         try {
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
             $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
@@ -1062,9 +1095,10 @@ class ODRUserController extends ODRCustomController
 
             // ----------------------------------------
             // Grab the user who will be having his permissions modified
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
-            $user = $repo_user->find($user_id);
+            /** @var ODRUser $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
 
             // Don't allow modifying permissions of users with ROLE_SUPER_ADMIN
             if ($user->hasRole('ROLE_SUPER_ADMIN'))
@@ -1094,6 +1128,7 @@ class ODRUserController extends ODRCustomController
                'SELECT dt
                 FROM ODRAdminBundle:DataType AS dt
                 WHERE dt.deletedAt IS NULL');
+            /** @var DataType[] $all_datatypes */
             $all_datatypes = $query->getArrayResult();
 
             $datatypes = array();
@@ -1166,6 +1201,7 @@ class ODRUserController extends ODRCustomController
         try {
             // ----------------------------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin */
             $admin = $this->container->get('security.context')->getToken()->getUser();
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
@@ -1173,6 +1209,7 @@ class ODRUserController extends ODRCustomController
 
             // ----------------------------------------
             // Get the list of top-level datatype ids
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $top_level_datatypes = parent::getTopLevelDatatypes();
             $datatree_array = parent::getDatatreeArray($em);
@@ -1182,6 +1219,7 @@ class ODRUserController extends ODRCustomController
                'SELECT dt
                 FROM ODRAdminBundle:DataType AS dt
                 WHERE dt.deletedAt IS NULL');
+            /** @var DataType[] $all_datatypes */
             $all_datatypes = $query->getArrayResult();
 
             $datatypes = array();
@@ -1234,20 +1272,18 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Updates a UserPermission object in the database.
-     * 
-     * @param ODRUser $user      The User that is getting their permissions modified.
-     * @param DataType $datatype The DataType that the User's permissions are being modified for.
-     * @param string $permission Which type of permission is being set.
-     * @param integer $value     0 if the permission is being revoked, 1 if the permission is being granted
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param ODRUser $user                    The User that is getting their permissions modified.
+     * @param DataType $datatype               The DataType that the User's permissions are being modified for.
+     * @param string $permission               Which type of permission is being set.
+     * @param integer $value                   0 if the permission is being revoked, 1 if the permission is being granted
      *
      */
-    private function savePermission($user, $datatype, $permission, $value)
+    private function savePermission($em, $user, $datatype, $permission, $value)
     {
         // If the user is a super-admin, they always have all permissions...don't change anything
         if (!$user->hasRole('ROLE_SUPER_ADMIN')) {
-            // Going to need the entity manager...
-            $em = $this->getDoctrine()->getManager();
-
             // Don't allow admin permissions to be set on a non-top-level datatype...
             $top_level_datatypes = parent::getTopLevelDatatypes();
             if ( $permission == 'admin' && !in_array($datatype->getId(), $top_level_datatypes) )
@@ -1255,6 +1291,7 @@ class ODRUserController extends ODRCustomController
 
             // Grab the user's permissions for this datatype
             $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
+            /** @var UserPermissions $user_permission */
             $user_permission = $repo_user_permissions->findOneBy( array('user_id' => $user, 'dataType' => $datatype) );
             if ( $user_permission == null )
                 parent::permissionsExistence($user->getId(), $user->getId(), $datatype->getId(), null);      // need to ensure a permission object exists before saving to it, obviously...
@@ -1330,6 +1367,7 @@ class ODRUserController extends ODRCustomController
             // If necessary to reset datafield edit permissions for this datatype...
             if ($reset_can_edit_datafield) {
                 $repo_user_field_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');
+                /** @var UserFieldPermissions[] $datafield_permissions */
                 $datafield_permissions = $repo_user_field_permissions->findBy( array('user_id' => $user->getId(), 'dataType' => $datatype->getId()) );
 
                 foreach ($datafield_permissions as $permission) {
@@ -1383,6 +1421,7 @@ class ODRUserController extends ODRCustomController
         try {
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
             $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
@@ -1398,7 +1437,9 @@ class ODRUserController extends ODRCustomController
 
 
             // Grab the user from their id
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ($user == null)
                 return parent::deletedEntityError('User');
@@ -1413,12 +1454,13 @@ class ODRUserController extends ODRCustomController
 
 
             // Grab the datatype that's being modified
+            /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 return parent::deletedEntityError('Datatype');
 
             // Modify the user's permission for that datatype and any children it has
-            self::savePermission($user, $datatype, $permission, $value);
+            self::savePermission($em, $user, $datatype, $permission, $value);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1450,8 +1492,12 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin */
             $admin = $this->container->get('security.context')->getToken()->getUser();
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
@@ -1459,16 +1505,18 @@ class ODRUserController extends ODRCustomController
 
             // Grab all the users
             $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var ODRUser[] $users */
             $users = $user_manager->findUsers();
 
             // Grab the datatype that's being modified
-            $datatype = $this->getDoctrine()->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 return parent::deletedEntityError('Datatype');
 
             // Modify that permission for all the users
             foreach ($users as $user)
-                self::savePermission($user, $datatype, $permission, $value);
+                self::savePermission($em, $user, $datatype, $permission, $value);
 
         }
         catch (\Exception $e) {
@@ -1501,6 +1549,7 @@ class ODRUserController extends ODRCustomController
         try {
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin */
             $admin = $this->container->get('security.context')->getToken()->getUser();
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
@@ -1508,14 +1557,16 @@ class ODRUserController extends ODRCustomController
 
             // Grab all the users
             $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var ODRUser[] $users */
             $users = $user_manager->findUsers();
 
             // Prevent the admin from deleting himself
+            /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
 
             // Locate the user being changed
             foreach ($users as $user) {
-                if (($user->getId() == $user_id) && ($user !== $admin_user)) {
+                if (($user->getId() == $user_id) && ($user->getId() !== $admin_user->getId())) {
                     // This may not be the right way to do it...
                     $user->setEnabled(0);
                     $user_manager->updateUser($user);
@@ -1566,6 +1617,7 @@ class ODRUserController extends ODRCustomController
         try {
             // --------------------
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin */
             $admin = $this->container->get('security.context')->getToken()->getUser();
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
@@ -1573,9 +1625,11 @@ class ODRUserController extends ODRCustomController
 
             // Grab all the users
             $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var ODRUser[] $users */
             $users = $user_manager->findUsers();
 
             // Needed for the twig file
+            /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
 
             // Locate the user being changed
@@ -1683,11 +1737,14 @@ class ODRUserController extends ODRCustomController
         try {
             // --------------------
             // Grab the user from their id
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
-            $user = $repo_user->find($user_id);
+
+            /** @var ODRUser $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
 
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
 
             // Require admin user to have at least admin role to do this...
@@ -1722,14 +1779,15 @@ class ODRUserController extends ODRCustomController
             // --------------------
 
             // Grab the datatype that's being modified
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $datatype = $repo_datatype->find($datatype_id);
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ( $datatype == null )
                 return parent::deletedEntityError('Datatype');
 
-
             // Build the tree used for rendering the datatype
+            /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
+
             $theme_element = null;  // only used for reloading theme_element
             $is_link = 0;
             $top_level = 1;
@@ -1796,14 +1854,15 @@ if ($debug)
         try {
             // --------------------
             // Grab the user from their id
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
-            $user = $repo_user->find($user_id);
+
+            /** @var ODRUser $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
 
             // Grab the datafield that's being modified
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $datafield = $repo_datafield->find($datafield_id);
-
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
                 return parent::deletedEntityError('DataField');
 
@@ -1813,6 +1872,7 @@ if ($debug)
             $datatype_id = $datatype->getId();
 
             // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.context')->getToken()->getUser();
 
             // Require user to have at least admin role to do this...
@@ -1843,8 +1903,8 @@ if ($debug)
             // --------------------
 
             // Grab the UserFieldPermission object that's being modified
-            $repo_user_field_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');
-            $user_field_permission = $repo_user_field_permissions->findOneBy( array('user_id' => $user->getId(), 'dataFields' => $datafield->getId()) );
+            /** @var UserFieldPermissions $user_field_permission */
+            $user_field_permission = $em->getRepository('ODRAdminBundle:UserFieldPermissions')->findOneBy( array('user_id' => $user->getId(), 'dataFields' => $datafield->getId()) );
 
             if ($permission == 2) {
                 $user_field_permission->setCanViewField(1);

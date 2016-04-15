@@ -217,9 +217,9 @@ ODR\AdminBundle\Entity\DataType:
             mappedBy: dataType
             inversedBy: null
             fetch: EXTRA_LAZY
-            orderBy:
-                displayOrder: ASC
-                id: ASC
+#            orderBy:
+#                displayOrder: ASC
+#                id: ASC
             joinColumns:
                 data_fields_id:
                     referencedColumnName: id

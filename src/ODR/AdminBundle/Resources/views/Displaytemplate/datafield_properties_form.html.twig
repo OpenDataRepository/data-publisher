@@ -26,7 +26,7 @@
             </label>
             {{ form_errors(datafield_form.field_name) }}
             {{ form_widget(datafield_form.field_name, { 'attr': {'class': 'required ODRDatafieldName', 'data-error-type': 'inline' } }) }}
-            {{ form_widget(datafield_form.data_type, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+            {#{{ form_widget(datafield_form.data_type, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}#}
         </div>
     {% endif %}
 

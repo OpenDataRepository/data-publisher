@@ -18,6 +18,17 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DatetimeValue;
+use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\Image;
+use ODR\AdminBundle\Entity\RadioOptions;
+use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -47,15 +58,18 @@ class MassEditController extends ODRCustomController
 
         try {
             // ----------------------------------------
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
+            /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
                 return parent::deletedEntityError('Datatype');
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $logged_in = true;
@@ -122,7 +136,6 @@ class MassEditController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -138,19 +151,24 @@ class MassEditController extends ODRCustomController
     private function massEditRender($datatype_id, $odr_tab_id, Request $request)
     {
         // Required objects
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
         $templating = $this->get('templating');
+
+        /** @var DataType $datatype */
+        $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+
+        /** @var Theme $theme */
+        $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
 
         // --------------------
         // Determine user privileges
+        /** @var User $user */
         $user = $this->container->get('security.context')->getToken()->getUser();
-        $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
+//        $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
         $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
         // --------------------
 
-        $datatype = $repo_datatype->find($datatype_id);
         $theme_element = null;
 
         $indent = 0;
@@ -218,10 +236,11 @@ if ($debug)
                 $public_status = $post['public_status'];
 
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+//            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
+//            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
 
 //            $memcached = $this->get('memcached');
 //            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
@@ -235,9 +254,10 @@ if ($debug)
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $logged_in = true;
+//            $logged_in = true;
 
             // Ensure user has permissions to be doing this
             if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'edit' ])) )
@@ -276,6 +296,7 @@ if ($debug)
             // ----------------------------------------
             // Ensure no unique datafields managed to get marked for this mass update
             foreach ($datafields as $df_id => $value) {
+                /** @var DataFields $df */
                 $df = $repo_datafield->find($df_id);
                 if ( $df->getIsUnique() == 1 )
                     unset($datafields[$df_id]);
@@ -406,6 +427,7 @@ return;
             }
 
             // TODO - better way of dealing with this?
+            /** @var TrackedJob $tracked_job */
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
             $tracked_job->setTotal($job_count);
             $em->persist($tracked_job);
@@ -420,7 +442,6 @@ return;
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -453,13 +474,14 @@ return;
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+//            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $pheanstalk = $this->get('pheanstalk');
-            $logger = $this->get('logger');
+//            $pheanstalk = $this->get('pheanstalk');
+//            $logger = $this->get('logger');
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
             $repo_datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields');
@@ -471,8 +493,10 @@ return;
 
 
             // ----------------------------------------
+            /** @var User $user */
             $user = $repo_user->find($user_id);
 
+            /** @var DataRecordFields $datarecordfield */
             $datarecordfield = $repo_datarecordfield->find($datarecordfield_id);
             if ($datarecordfield == null)
                 throw new \Exception('MassEditCommand.php: DataRecordField '.$datarecordfield_id.' is deleted, skipping');
@@ -515,14 +539,17 @@ return;
                 if ($field_typeclass == 'Radio') {
                     // Grab all selection objects attached to this radio object
                     $radio_selections = array();
+                    /** @var RadioSelection[] $tmp */
                     $tmp = $repo_radio_selection->findBy( array('dataRecordFields' => $datarecordfield->getId()) );
                     foreach ($tmp as $radio_selection)
                         $radio_selections[ $radio_selection->getRadioOption()->getId() ] = $radio_selection;
+                    /** @var RadioSelection[] $radio_selections */
 
                     // $value is in format array('radio_option_id' => desired_state)
                     // Set radio_selection objects to the desired state
                     foreach ($value as $radio_option_id => $selected) {
 
+                        /** @var RadioOptions $radio_option */
                         $radio_option = $repo_radio_option->find($radio_option_id);
 
                         if ( !isset($radio_selections[$radio_option_id]) ) {
@@ -564,6 +591,8 @@ return;
                                 $em->remove($radio_selection);
 
                                 // Create a new RadioSelection entity with the desired state
+                                /** @var RadioOptions $radio_option */
+                                $radio_option = $repo_radio_option->find($radio_option_id);
                                 $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, 0);
                                 $em->persist($new_radio_selection);
 
@@ -585,6 +614,7 @@ return;
 
                         if ( count($results) > 0 ) {
                             foreach ($results as $num => $file) {
+                                /** @var File $file */
                                 if ( $file->isPublic() && $value == -1 ) {
                                     // File is public, but needs to be non-public
                                     $properties = array('public_date' => new \DateTime('2200-01-01 00:00:00'));
@@ -629,6 +659,7 @@ return;
 
                         if ( count($results) > 0 ) {
                             foreach ($results as $num => $image) {
+                                /** @var Image $image */
                                 if ( $image->isPublic() && $value == -1 ) {
                                     // Image is public, but needs to be non-public
                                     $properties = array('public_date' => new \DateTime('2200-01-01 00:00:00'));
@@ -662,6 +693,7 @@ return;
                 }
                 else if ($field_typeclass == 'DatetimeValue') {
                     // For the DateTime fieldtype...
+                    /** @var DatetimeValue $entity */
                     $entity = $datarecordfield->getAssociatedEntity();
 
                     if ($entity === null) {
@@ -767,5 +799,4 @@ $ret .=  "---------------\n";
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
-
 }

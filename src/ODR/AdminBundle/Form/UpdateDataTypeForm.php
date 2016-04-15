@@ -92,7 +92,8 @@ class UpdateDataTypeForm extends AbstractType
 */
                 'query_builder' => function(EntityRepository $er) use ($datatype) {
                     return $er->createQueryBuilder('df')
-                                ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'df.fieldType = ft')
+                                ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                                ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
                                 ->where('ft.canBeSortField = 1 AND df.dataType = ?1')
                                 ->setParameter(1, $datatype);
                 },
@@ -113,7 +114,8 @@ class UpdateDataTypeForm extends AbstractType
                 'class' => 'ODR\AdminBundle\Entity\DataFields',
                 'query_builder' => function(EntityRepository $er) use ($datatype) {
                     return $er->createQueryBuilder('df')
-                                ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'df.fieldType = ft')
+                                ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                                ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
                                 ->where('ft.canBeSortField = 1 AND df.dataType = ?1')
                                 ->setParameter(1, $datatype);
                 },

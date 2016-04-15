@@ -1,17 +1,16 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* FileChecksum Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The FileChecksum Entity is automatically generated from 
-* ./Resources/config/doctrine/FileChecksum.orm.yml
-*
-*/
-
+ * Open Data Repository Data Publisher
+ * FileChecksum Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The FileChecksum Entity is automatically generated from
+ * ./Resources/config/doctrine/FileChecksum.orm.yml
+ *
+ */
 
 namespace ODR\AdminBundle\Entity;
 
@@ -40,7 +39,7 @@ class FileChecksum
     /**
      * @var \ODR\AdminBundle\Entity\File
      */
-    private $File;
+    private $file;
 
 
     /**
@@ -100,25 +99,25 @@ class FileChecksum
     }
 
     /**
-     * Set File
+     * Set file
      *
      * @param \ODR\AdminBundle\Entity\File $file
      * @return FileChecksum
      */
     public function setFile(\ODR\AdminBundle\Entity\File $file = null)
     {
-        $this->File = $file;
+        $this->file = $file;
 
         return $this;
     }
 
     /**
-     * Get File
+     * Get file
      *
      * @return \ODR\AdminBundle\Entity\File 
      */
     public function getFile()
     {
-        return $this->File;
+        return $this->file;
     }
 }

@@ -95,7 +95,7 @@ class DefaultupdatedController extends Controller
     /**
      * Returns a list of all datatypes which are either children or linked to an optional target datatype, minus the ones a user doesn't have permissions to see
      * 
-     * @param EntityManager $em
+     * @param \Doctrine\ORM\EntityManager $em
      * @param integer $target_datatype_id If set, which top-level datatype to save child/linked datatypes for
      * @param array $user_permissions     If set, the current user's permissions array
      *
@@ -105,11 +105,12 @@ class DefaultupdatedController extends Controller
     {
         // Grab all entities out of the 
         $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, descendant.publicDate AS public_date, dt.is_link AS is_link
+           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, descendant.publicDate AS public_date, dtm.is_link AS is_link
             FROM ODRAdminBundle:DataTree AS dt
+            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
             JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE dt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL');
+            WHERE dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL');
         $results = $query->getArrayResult();
 
         $descendant_of = array();
@@ -243,12 +244,14 @@ exit();
         $query = $qb->select('odt.id as dt_id, odf as datafield, odft, odfro, odt')
             ->from('ODR\AdminBundle\Entity\DataFields', 'odf')
             ->Join('odf.dataType', 'odt')
-            ->leftJoin('odf.fieldType', 'odft')
+            ->Join('odf.dataFieldsMeta', 'odfm')
+            ->leftJoin('odfm.fieldType', 'odft')
             ->leftJoin('odf.radioOptions', 'odfro')
             ->where('odf.deletedAt IS NULL')
             ->andWhere('odt.deletedAt IS NULL')
+            ->andWhere('odfm.deletedAt IS NULL')
             ->andWhere('odf.dataType IN (:datatypes)')
-            ->andWhere('odf.searchable > 0')
+            ->andWhere('odfm.searchable > 0')
             ->setParameter('datatypes', $datatypes)
             ->getQuery();
 
@@ -1153,11 +1156,12 @@ if ($debug)
             // TODO - partial duplicate of self::getSearchableDatafields()...
             // Grab typeclasses for each of the searchable datafields in this DataType
             $query_str =
-               'SELECT ft.typeClass AS type_class, dt.id AS dt_id, dt.publicDate AS dt_public_date, df.id AS df_id, df.user_only_search AS user_only_search
+               'SELECT ft.typeClass AS type_class, dt.id AS dt_id, dt.publicDate AS dt_public_date, df.id AS df_id, dfm.user_only_search AS user_only_search
                 FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
                 JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-                WHERE df.dataType IN (:datatypes) AND df.searchable > 0';
+                WHERE df.dataType IN (:datatypes) AND dfm.searchable > 0';
 
             $query = $em->createQuery($query_str)->setParameters( array('datatypes' => $datatype_list) );
             $results = $query->getArrayResult();

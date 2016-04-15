@@ -19,6 +19,8 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataType;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -33,12 +35,14 @@ class DefaultController extends ODRCustomController
     * 
     * @param Request $request
     * 
-    * @return a Symfony HTML response TODO
+    * @return Response TODO
     */
     public function indexAction(Request $request)
     {
         // Grab the current user
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
+        /** @var User $user */
         $user = $this->container->get('security.context')->getToken()->getUser();
 
         $user_permissions = array();
@@ -67,7 +71,6 @@ class DefaultController extends ODRCustomController
 
             $top_level_datatypes = parent::getTopLevelDatatypes();
 
-            $em = $this->getDoctrine()->getManager();
             $query = $em->createQuery(
                'SELECT dt, up.can_view_type AS can_view_type
                 FROM ODRAdminBundle:DataType AS dt
@@ -77,8 +80,8 @@ class DefaultController extends ODRCustomController
             $results = $query->getResult();
 
             foreach ($results as $num => $result) {
+                /** @var DataType $datatype */
                 $datatype = $result[0];
-                $datatype_id = $datatype->getId();
                 $can_view_type = $result['can_view_type'];
 
                 // Locate first top-level datatype that either is public or viewable by the user logging in
@@ -89,7 +92,6 @@ class DefaultController extends ODRCustomController
             }
         }
 
-
         $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
@@ -99,7 +101,7 @@ class DefaultController extends ODRCustomController
     * 
     * @param Request $request
     * 
-    * @return TODO
+    * @return Response TODO
     */
     public function dashboardAction(Request $request)
     {
@@ -110,7 +112,10 @@ class DefaultController extends ODRCustomController
 
         try {
             // Ensure user has correct set of permissions, since this is immediately called after login...
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -140,7 +145,7 @@ class DefaultController extends ODRCustomController
                     $data = null;
 
                 if ($data == null)
-                    $data = self::getDashboardHTML($datatype_id);
+                    $data = self::getDashboardHTML($em, $datatype_id);
 
                 $total = $data['total'];
                 $header = $data['header'];
@@ -192,17 +197,16 @@ class DefaultController extends ODRCustomController
 
 
     /**
-    * Recalculates the dashboard blurb for a specified datatype.
-    * 
-    * @param integer $datatype_id Which datatype is having its dashboard blurb rebuilt.
-    * 
-    * @return array TODO
-    */
-    private function getDashboardHTML($datatype_id)
+     * Recalculates the dashboard blurb for a specified datatype.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $datatype_id             Which datatype is having its dashboard blurb rebuilt.
+     *
+     * @return array TODO
+     */
+    private function getDashboardHTML($em, $datatype_id)
     {
-        // Grab necessary objects...
-        $em = $this->getDoctrine()->getManager();
-
+        // TODO - datatype metadata
         $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted rows
         $query = $em->createQuery(
            'SELECT dt.shortName AS datatype_name, dr.id AS datarecord_id, dr.created AS created, dr.deletedAt AS deleted, dr.updated AS updated
@@ -216,7 +220,7 @@ class DefaultController extends ODRCustomController
 //print_r($results);
 
         // Build the array of date objects so datarecords created/deleted in the past 6 weeks can be counted
-        $current_date = new \DateTime();
+//        $current_date = new \DateTime();
         $cutoff_dates = array();
         for ($i = 1; $i < 7; $i++) {
             $tmp_date = new \DateTime();
@@ -244,7 +248,7 @@ class DefaultController extends ODRCustomController
         foreach ($results as $num => $result) {
             $datatype_name = $result['datatype_name'];
 
-            $datarecord_id = $result['datarecord_id'];
+//            $datarecord_id = $result['datarecord_id'];
             $create_date = $result['created'];
             $delete_date = $result['deleted'];
             if ($delete_date == '')
@@ -315,6 +319,7 @@ class DefaultController extends ODRCustomController
 
         // Ensure a dataype with no datarecords still has a name
         if ( count($results) == 0 ) {
+            /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             $datatype_name = $datatype->getShortName();
         }
@@ -363,7 +368,7 @@ class DefaultController extends ODRCustomController
     * 
     * @param Request $request
     * 
-    * @return TODO
+    * @return Response TODO
     */
     public function buildsitemapAction(Request $request)
     {

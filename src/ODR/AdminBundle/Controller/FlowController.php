@@ -20,6 +20,7 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -115,6 +116,7 @@ class FlowController extends ODRCustomController
         try {
             // ----------------------------------------
             // Grab required objects...
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $datafield_id = $typeclass = null;
 
@@ -137,9 +139,10 @@ class FlowController extends ODRCustomController
                    'SELECT drf.id AS drf_id, df.id AS df_id, ft.typeClass AS typeclass
                     FROM ODRAdminBundle:DataRecordFields AS drf
                     JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
-                    JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
+                    JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                    JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
                     WHERE drf.id = :drf_id AND df.dataType = :datatype
-                    AND drf.deletedAt IS NULL AND df.deletedAt IS NULL AND ft.deletedAt IS NULL'
+                    AND drf.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL'
                 )->setParameters( array('datatype' => $datatype_id, 'drf_id' => $datarecordfield_id) );
                 $result = $query->getArrayResult();
 
@@ -150,12 +153,13 @@ class FlowController extends ODRCustomController
 
                 // Store the datafield id for use...
                 $datafield_id = $result[0]['df_id'];
-                $typeclass = $result[0]['typeclass'];
+//                $typeclass = $result[0]['typeclass'];
             }
 
 
             // ----------------------------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_id = $user->getId();
             $datatype_permissions = parent::getPermissionsArray($user_id, $request);

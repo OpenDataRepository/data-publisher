@@ -60,18 +60,19 @@ class UpdateDataFieldsForm extends AbstractType
             )
         );
 */
+/*
         $builder->add(
             'data_type', 
             'entity', 
             array(
-                'class' => 'ODR\AdminBundle\Entity\DataType', 
+                'class' => 'ODR\AdminBundle\Entity\DataType',
                 'property' => 'id', 
                 'label' => 'Data Type',
                 'attr'=> array('style'=>'display:none'),
                 'required' => true,
             )
         );
-
+*/
         $builder->add(
             'field_name', 
             'text', 
@@ -217,7 +218,8 @@ class UpdateDataFieldsForm extends AbstractType
      */
     public function setDefaultOptions(OptionsResolverInterface $resolver)
     {
-        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataFields'));
+//        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataFields'));
+        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataFieldsMeta'));
     }
 
 

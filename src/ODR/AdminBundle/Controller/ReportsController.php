@@ -20,8 +20,10 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\File;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -48,11 +50,11 @@ class ReportsController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
-            $datafield = $repo_datafield->find($datafield_id);
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
 
@@ -69,6 +71,7 @@ class ReportsController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -96,7 +99,8 @@ class ReportsController extends ODRCustomController
                 while ( isset($datatree_array['descendant_of'][$top_level_datatype_id]) && $datatree_array['descendant_of'][$top_level_datatype_id] !== '')
                     $top_level_datatype_id = $datatree_array['descendant_of'][$top_level_datatype_id];
 
-                $top_level_datatype = $repo_datatype->find($top_level_datatype_id);
+                /** @var DataType $top_level_datatype */
+                $top_level_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($top_level_datatype_id);
 
                 // Build the report
                 $return['d'] = array(
@@ -286,11 +290,12 @@ print_r($grandparent_list);
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $templating = $this->get('templating');
 
-            $datafield = $repo_datafield->find($datafield_id);
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
 
@@ -305,6 +310,7 @@ print_r($grandparent_list);
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -405,10 +411,12 @@ print_r($grandparent_list);
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($datatree_id);
             $templating = $this->get('templating');
 
+            /** @var DataTree $datatree */
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($datatree_id);
             if ($datatree == null)
                 return parent::deletedEntityError('Datatree');
 
@@ -417,6 +425,7 @@ print_r($grandparent_list);
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -506,11 +515,12 @@ print_r($grandparent_list);
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $templating = $this->get('templating');
 
-            $datafield = $repo_datafield->find($datafield_id);
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
 
@@ -521,6 +531,7 @@ print_r($grandparent_list);
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -633,11 +644,12 @@ print_r($grandparent_list);
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $templating = $this->get('templating');
 
-            $datafield = $repo_datafield->find($datafield_id);
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
 
@@ -649,6 +661,7 @@ print_r($grandparent_list);
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -736,10 +749,11 @@ print_r($grandparent_list);
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_file = $em->getRepository('ODRAdminBundle:File');
 
-            $file = $repo_file->find($file_id);
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
                 return parent::deletedEntityError('File');
             $datarecord = $file->getDataRecord();
@@ -755,6 +769,7 @@ print_r($grandparent_list);
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             if ( $file->isPublic() ) {
                 // public file, anybody can view
@@ -845,10 +860,11 @@ print_r($grandparent_list);
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_file = $em->getRepository('ODRAdminBundle:File');
 
-            $file = $repo_file->find($file_id);
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
                 return parent::deletedEntityError('File');
             $datarecord = $file->getDataRecord();
@@ -863,6 +879,7 @@ print_r($grandparent_list);
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             if ( $file->isPublic() ) {
                 // public file, anybody can view

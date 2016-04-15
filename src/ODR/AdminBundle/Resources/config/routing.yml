@@ -318,7 +318,7 @@ odr_design_save_theme_datafield:
 
 odr_design_delete_datafield:
     pattern:  /design/displaytemplate/deletefield/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:deletefield }
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:deletedatafield }
     requirements:
         datafield_id:  \d+
 

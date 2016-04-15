@@ -18,25 +18,11 @@ namespace ODR\OpenRepository\SearchBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
-use ODR\AdminBundle\Controller\ODRCustomController;
-
 // Entites
 use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\LinkedDataTree;
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataRecordFields;
-use ODR\AdminBundle\Entity\Boolean;
-use ODR\AdminBundle\Entity\ShortVarchar;
-use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\ImageSizes;
-use ODR\AdminBundle\Entity\ImageStorage;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -67,6 +53,7 @@ class DefaultController extends Controller
         try
         {
             // Grab user and their permissions if possible
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
             // Store if logged in or not
@@ -161,7 +148,7 @@ class DefaultController extends Controller
         $query = $em->createQuery(
            'SELECT ancestor.id AS ancestor_id, ancestor.shortName AS ancestor_name, descendant.id AS descendant_id, descendant.shortName AS descendant_name, descendant.publicDate AS public_date, dtm.is_link AS is_link
             FROM ODRAdminBundle:DataTree AS dt
-            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
+            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
             JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
             WHERE dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL');
@@ -308,6 +295,7 @@ exit();
         $searchable_datafields = array();
         foreach ($results as $num => $result) {
             $datatype_id = $result['dt_id'];
+            /** @var DataFields $datafield */
             $datafield = $result['datafield'];
             $user_only_search = $datafield->getUserOnlySearch();
 
@@ -341,10 +329,8 @@ exit();
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
 
             $odrcc = $this->get('odr_custom_controller', $request);
             $odrcc->setContainer($this->container);
@@ -363,14 +349,16 @@ exit();
                 }
             }
             else {
-                $target_datatype = $repo_datatype->findOneBy( array('searchSlug' => $search_slug) );
+                $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy( array('searchSlug' => $search_slug) );
                 if ($target_datatype == null)
                     return self::searchPageError("Page not found", $request);
             }
+            /** @var DataType $target_datatype */
 
 
             // ------------------------------
             // Grab user and their permissions if possible
+            /** @var User $admin_user */
             $admin_user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = array();
 
@@ -454,6 +442,7 @@ if ($debug) {
             // ----------------------------------------
             // Grab users to populate the created/modified by boxes with
             $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var User[] $user_list */
             $user_list = $user_manager->findUsers();
 
             // Determine if the user has the permissions required to see anybody in the created/modified by search fields
@@ -479,18 +468,18 @@ if ($debug) {
 
                 // Get all other users which can view that list of datatypes
                 $query = $em->createQuery(
-                   'SELECT u AS user
+                   'SELECT u
                     FROM ODROpenRepositoryUserBundle:User AS u
                     JOIN ODRAdminBundle:UserPermissions AS up WITH up.user_id = u
                     WHERE up.dataType IN (:datatypes) AND up.can_view_type = 1
                     GROUP BY u.id'
-                )->setParameters( array('datatypes' => $datatype_list) );
+                )->setParameters( array('datatypes' => $datatype_list) );   // purposefully getting ALL users, including the ones that are deleted
                 $results = $query->getResult();
 
                 // Convert them into a list of users that the admin user is allowed to search by
                 $user_list = array();
-                foreach ($results as $num => $result)
-                    $user_list[] = $result['user'];
+                foreach ($results as $user)
+                    $user_list[] = $user;
             }
 
             // Generate a random key to identify this tab
@@ -533,7 +522,6 @@ if ($debug) {
             // Clear the previously viewed datarecord since the user is probably pulling up a new list if he looks at this
             $session = $request->getSession();
             $session->set('scroll_target', '');
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -566,21 +554,21 @@ if ($debug) {
 
         try {
             // Need to only return top-level datatypes
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-//            $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
 
             $odrcc = $this->get('odr_custom_controller', $request);
             $odrcc->setContainer($this->container);
 
             // Need to grab all searchable datafields for the target_datatype and its descendants
-            $target_datatype = $repo_datatype->find($target_datatype_id);
+            /** @var DataType $target_datatype */
+            $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($target_datatype_id);
             if ($target_datatype == null)
                 return $odrcc->deletedEntityError('Datatype');
 
             // ------------------------------
             // Grab user and their permissions if possible
+            /** @var User $admin_user */
             $admin_user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $odrcc->getPermissionsArray($admin_user->getId(), $request);
             $logged_in = true;
@@ -594,6 +582,7 @@ if ($debug) {
 
             // Grab all the users
             $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var User[] $user_list */
             $user_list = $user_manager->findUsers();
 
             // Determine if the user has the permissions required to see anybody in the created/modified by search fields
@@ -620,18 +609,18 @@ if ($debug) {
 
                 // Get all other users which can view that list of datatypes
                 $query = $em->createQuery(
-                   'SELECT u AS user
+                   'SELECT u
                     FROM ODROpenRepositoryUserBundle:User AS u
                     JOIN ODRAdminBundle:UserPermissions AS up WITH up.user_id = u
                     WHERE up.dataType IN (:datatypes) AND up.can_view_type = 1
                     GROUP BY u.id'
-                )->setParameters( array('datatypes' => $datatype_list) );
+                )->setParameters( array('datatypes' => $datatype_list) );   // purposefully getting ALL users, including the ones that are deleted
                 $results = $query->getResult();
 
                 // Convert them into a list of users that the admin user is allowed to search by
                 $user_list = array();
-                foreach ($results as $num => $result)
-                    $user_list[] = $result['user'];
+                foreach ($results as $user)
+                    $user_list[] = $user;
             }
 
 
@@ -701,17 +690,18 @@ if ($debug) {
 
         try {
             // Grab default objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-            $theme = $repo_theme->find(2);  // TODO - theme
 
-            $templating = $this->get('templating');
+
+//            $templating = $this->get('templating');
+/*
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $session = $request->getSession();
+*/
 
             // Get ODRCustomController from the AdminBundle...going to need functions from it
             $odrcc = $this->get('odr_custom_controller', $request);
@@ -719,6 +709,7 @@ if ($debug) {
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = array();
             $logged_in = false;
@@ -754,7 +745,8 @@ if ($debug) {
             }
 
             // Now that the search is guaranteed to exist and be correct...get all pieces of info about the search
-            $datatype = $repo_datatype->find( $search_params['datatype_id'] );
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find( $search_params['datatype_id'] );
             $datarecord_list = $search_params['datarecord_list'];
             $encoded_search_key = $search_params['encoded_search_key'];
 
@@ -784,10 +776,12 @@ if ($debug) {
 
             // -----------------------------------
             // TODO - THIS IS A TEMP FIX
+            $theme = null;
             if ($source == 'linking' || $datatype->getUseShortResults() == 0)
                 $theme = $repo_theme->find(4);  // textresults
             else
                 $theme = $repo_theme->find(2);  // shortresults
+            /** @var Theme $theme */
 
 
             // -----------------------------------
@@ -858,9 +852,10 @@ if ($debug) {
     public function performSearch($search_key, Request $request)
     {
         // Grab default objects
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-        $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+//        $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
         $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
         $session = $request->getSession();
 
@@ -935,6 +930,7 @@ if ($debug) {
                 // Determine whether this field is a radio fieldtype
                 $is_radio = false;
                 if ( is_numeric($key) ) {
+                    /** @var DataFields $datafield */
                     $datafield = $repo_datafield->find($key);
                     if ($datafield !== null) {
                         if ( $datafield->getFieldType()->getTypeClass() == "Radio" ) {
@@ -1016,6 +1012,7 @@ if ($debug) {
 }
 
             $target_datatype_id = $post['dt_id'];
+            /** @var DataType $datatype */
             $datatype = $repo_datatype->find($target_datatype_id);
             if ($datatype == null)
                 return array('message' => "This datatype is deleted", 'encoded_search_key' => $encoded_search_key);
@@ -1038,6 +1035,7 @@ if ($debug) {
 
             // --------------------------------------------------
             // Determine level of user's permissions...
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = array();
             $logged_in = false;
@@ -1082,11 +1080,13 @@ if ($debug)
             // TODO - partial duplicate of self::getSearchableDatafields()...
             // Grab typeclasses for each of the searchable datafields in all datatypes related to the target datatype
             $query_str =
-               'SELECT ft.typeClass AS type_class, dt.id AS dt_id, dt.publicDate AS dt_public_date, df.id AS df_id, df.user_only_search AS user_only_search
+               'SELECT ft.typeClass AS type_class, dt.id AS dt_id, dt.publicDate AS dt_public_date, df.id AS df_id, dfm.user_only_search AS user_only_search
                 FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
                 JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-                WHERE df.dataType IN (:datatypes) AND df.searchable > 0';
+                WHERE df.dataType IN (:datatypes) AND dfm.searchable > 0
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND dt.deletedAt IS NULL';
 
             $query = $em->createQuery($query_str)->setParameters( array('datatypes' => $datatype_list) );
             $results = $query->getArrayResult();
@@ -1224,6 +1224,7 @@ if ($debug)
             // For each datafield the user is searching on...
             foreach ($datafields as $df_id => $value) {
                 if ( !isset($datafield_array['datatype_of'][$df_id]) ) {
+                    /** @var DataFields $tmp_datafield */
                     $tmp_datafield = $repo_datafield->find($df_id);
 
                     if ( $tmp_datafield == null || $tmp_datafield->getSearchable() == 0 || $tmp_datafield->getDataType()->getId() !== $datatype->getId() )
@@ -1273,7 +1274,7 @@ if ($timing)
                 $sub_query = null;
                 if ( in_array($dt_id, $related_datatypes['linked_datatypes']) ) {
                     $sub_query = $em->createQuery(
-                       'SELECT grandparent.id
+                       'SELECT grandparent.id AS id
                         FROM ODRAdminBundle:DataRecord AS ldr
                         JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldr = ldt.descendant
                         JOIN ODRAdminBundle:DataRecord AS dr WITH dr = ldt.ancestor
@@ -1284,7 +1285,7 @@ if ($timing)
                 }
                 else {
                     $sub_query = $em->createQuery(
-                       'SELECT grandparent.id
+                       'SELECT grandparent.id AS id
                         FROM ODRAdminBundle:DataRecord AS dr
                         JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
                         WHERE dr.dataType = :dt_id AND grandparent.dataType = :target_datatype_id
@@ -1311,7 +1312,7 @@ if ($timing)
             $parameters = array();
             $query_str =
                'SELECT dr.id AS dr_id, parent.id AS parent_id, dt.id AS datatype_id
-                FROM ODRAdminBundle:DataRecord as dr
+                FROM ODRAdminBundle:DataRecord AS dr
                 JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
                 JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
                 JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
@@ -1334,7 +1335,7 @@ if ($timing)
             $parameters = array();
             $query_str =
                'SELECT ldr.id AS dr_id, parent.id AS parent_id, ldr_dt.id AS datatype_id
-                FROM ODRAdminBundle:DataRecord as ldr
+                FROM ODRAdminBundle:DataRecord AS ldr
                 JOIN ODRAdminBundle:DataType AS ldr_dt WITH ldr.dataType = ldr_dt
                 JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.descendant = ldr
                 JOIN ODRAdminBundle:DataRecord AS parent WITH ldt.ancestor = parent
@@ -1632,17 +1633,18 @@ if ($more_debug)
                         $linked_join = '';
                         $where = '';
                         if ($datatype_id == $related_datatypes['target_datatype']) {
-                            $search_metadata = self::buildMetadataQueryStr($metadata[$datatype_id], 'grandparent');
+                            $metadata_target = 'grandparent';
+                            $search_metadata = self::buildMetadataQueryStr($metadata[$datatype_id], $metadata_target);
                             $where = 'WHERE dr.data_type_id = '.$datatype_id.' ';
                         }
                         else if ( isset($related_datatypes['child_datatypes'][ $datatype_id ]) ) {
                             $metadata_target = 'dr';
-                            $search_metadata = self::buildMetadataQueryStr($metadata[$datatype_id], 'dr');
+                            $search_metadata = self::buildMetadataQueryStr($metadata[$datatype_id], $metadata_target);
                             $where = 'WHERE dr.data_type_id = '.$datatype_id.' ';
                         }
                         else if ( in_array($datatype_id, $related_datatypes['linked_datatypes']) ) {
                             $metadata_target = 'ldr';
-                            $search_metadata = self::buildMetadataQueryStr($metadata[$datatype_id], 'ldr');
+                            $search_metadata = self::buildMetadataQueryStr($metadata[$datatype_id], $metadata_target);
                             $linked_join = 'INNER JOIN odr_linked_data_tree AS ldt ON dr.id = ldt.ancestor_id
                                 INNER JOIN odr_data_record AS ldr ON ldt.descendant_id = ldr.id';
                             $where = 'WHERE ldr.deletedAt IS NULL AND ldr.data_type_id = '.$datatype_id.' AND dr.data_type_id = '.$related_datatypes['target_datatype'].' ';    // TODO - links to childtypes?
@@ -1988,11 +1990,11 @@ if ($more_debug) {
      * Given a set of search parameters, runs a search on the given datafields, and returns the grandparent id of all datarecords that match the query
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param array $datafield_list    An array of datafield ids...must all be of the same typeclass
-     * @param integer $datatype_id     The datatype that the datafields in $datafield_list belong to
-     * @param string $typeclass        The typeclass of every datafield in $datafield_list
+     * @param array $datafield_list            An array of datafield ids...must all be of the same typeclass
+     * @param integer $datatype_id             The datatype that the datafields in $datafield_list belong to
+     * @param string $typeclass                The typeclass of every datafield in $datafield_list
      * @param array $search_params     
-     * @param array $related_datatypes @see self::getRelatedDatatypes()
+     * @param array $related_datatypes         @see self::getRelatedDatatypes()
      * @param array $metadata
      * @param boolean $debug
      *

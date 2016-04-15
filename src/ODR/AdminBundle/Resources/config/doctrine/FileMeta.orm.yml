@@ -64,11 +64,11 @@ ODR\AdminBundle\Entity\FileMeta:
 #                    on: update
 
     manyToOne:
-        File:
+        file:
             targetEntity: File
             cascade: {  }
             mappedBy: null
-            inversedBy: FileMeta
+            inversedBy: fileMeta
             joinColumns:
                 file_id:
                     referencedColumnName: id

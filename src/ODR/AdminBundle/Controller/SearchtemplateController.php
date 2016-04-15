@@ -19,6 +19,13 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\ThemeDataField;
+use ODR\AdminBundle\Entity\ThemeElement;
+use ODR\AdminBundle\Entity\ThemeElementField;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 use ODR\AdminBundle\Form\UpdateDataFieldsForm;
 use ODR\AdminBundle\Form\UpdateThemeElementForm;
@@ -35,7 +42,8 @@ class SearchtemplateController extends ODRCustomController
      * Loads and returns the SearchTemplate HTML for this DataType/Theme pair.
      * 
      * @param integer $datatype_id The database of the DataType to be modified.
-     * @param integer $theme       The database id of the Theme to be modified.
+     * @param integer $theme_id    The database id of the Theme to be modified.
+     * @param Request $request
      * 
      * @return Response TODO
      */
@@ -48,17 +56,22 @@ class SearchtemplateController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
             if ( $theme == null )
                 return parent::deletedEntityError('Theme');
 
+            /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ( $datatype == null )
                 return parent::deletedEntityError('Datatype');
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -68,8 +81,8 @@ class SearchtemplateController extends ODRCustomController
             // --------------------
 
             // Ensure this datatype has a theme element
-            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
-            $theme_element = $repo_theme_element->findOneBy( array('theme' => $theme->getId(), 'dataType' => $datatype->getId()) );
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->findOneBy( array('theme' => $theme->getId(), 'dataType' => $datatype->getId()) );
             if ($theme_element === null) {
                 $datatype->setHasShortresults(true);
                 $em->persist($datatype);
@@ -93,7 +106,6 @@ class SearchtemplateController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -115,19 +127,22 @@ class SearchtemplateController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $datatype = $repo_datatype->find($datatype_id);
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ( $datatype == null )
                 return parent::deletedEntityError('Datatype');
 
+            /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
             if ( $theme == null )
                 return parent::deletedEntityError('Theme');
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -154,7 +169,6 @@ class SearchtemplateController extends ODRCustomController
 //            $options['force_shortresults_recache'] = true;    // no harm in leaving an empty theme element?
 
             parent::updateDatatypeCache($datatype->getId(), $options);
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -186,13 +200,12 @@ class SearchtemplateController extends ODRCustomController
 
         try {
             // Get Current User
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
-            $repo_theme_element_field = $em->getRepository('ODRAdminBundle:ThemeElementField');
-            $repo_theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField');
 
             // Grab the theme element from the repository
-            $theme_element = $repo_theme_element->find($theme_element_id);
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
             $em->refresh($theme_element);
             if ( $theme_element == null )
                 return parent::deletedEntityError('ThemeElement');
@@ -207,6 +220,7 @@ class SearchtemplateController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -217,7 +231,8 @@ class SearchtemplateController extends ODRCustomController
 
 
             // Determine if the theme element holds anything
-            $theme_element_fields = $repo_theme_element_field->findBy( array('themeElement' => $theme_element_id) );
+            /** @var ThemeElementField[] $theme_element_fields */
+            $theme_element_fields = $em->getRepository('ODRAdminBundle:ThemeElementField')->findBy( array('themeElement' => $theme_element_id) );
 
             $has_fields = false;
             $has_child = false;
@@ -228,7 +243,8 @@ class SearchtemplateController extends ODRCustomController
                 }
                 else if ($tef->getDataFields() !== null) {
                     $datafield = $tef->getDataFields();
-                    $theme_datafield = $repo_theme_datafield->findOneBy( array('dataFields' => $datafield->getId(), 'theme' => $theme->getId()) );
+                    /** @var ThemeDataField $theme_datafield */
+                    $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield->getId(), 'theme' => $theme->getId()) );
                     if ($theme_datafield->getActive() == true) {
                         $has_fields = true;
                         break;
@@ -294,19 +310,19 @@ class SearchtemplateController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
-            $repo_theme_element_field = $em->getRepository('ODRAdminBundle:ThemeElementField');
-            $repo_theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField');
 
-            $datafield = $repo_datafield->find($datafield_id);
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
             $datatype = $datafield->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('Datatype');
 
+            /** @var ThemeElement $theme_element */
             $theme_element = $repo_theme_element->find($theme_element_id);
             if ( $theme_element == null )
                 return parent::deletedEntityError('ThemeElement');
@@ -319,6 +335,7 @@ class SearchtemplateController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -330,10 +347,12 @@ class SearchtemplateController extends ODRCustomController
 //print 'wanting to add a datafield to theme_element '.$theme_element_id."\n";
             // Determine whether a theme element attached to this theme used to contain this datafield
             $found = false;
+            /** @var ThemeElement[] $theme_elements */
             $theme_elements = $repo_theme_element->findBy( array('dataType' => $datatype->getId(), 'theme' => $theme->getId()) );
             foreach ($theme_elements as $te) {
 //print 'theme_element: '.$te->getId()."\n";
-                $theme_element_fields = $repo_theme_element_field->findBy( array('themeElement' => $te->getId()) );
+                /** @var ThemeElementField[] $theme_element_fields */
+                $theme_element_fields = $em->getRepository('ODRAdminBundle:ThemeElementField')->findBy( array('themeElement' => $te->getId()) );
                 foreach ($theme_element_fields as $tef) {
 //print '-- theme_element_field: '.$tef->getId()."\n";
                     if ($tef->getDataFields() !== NULL && $tef->getDataFields()->getId() == $datafield_id) {
@@ -363,7 +382,8 @@ class SearchtemplateController extends ODRCustomController
             }
 
             // Ensure this datafield has a theme_datafield entry for this theme
-            $theme_datafield = $repo_theme_datafield->findOneBy( array('dataFields' => $datafield->getId(), 'theme' => $theme->getId()) );
+            /** @var ThemeDataField $theme_datafield */
+            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield->getId(), 'theme' => $theme->getId()) );
             if ($theme_datafield == null) {
 //print 'need to create a theme_datafield entry'."\n";
                 $theme_datafield = parent::ODR_addThemeDataFieldEntry($em, $user, $datafield, $theme);
@@ -394,7 +414,6 @@ class SearchtemplateController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -416,13 +435,11 @@ class SearchtemplateController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
-            $repo_theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField');
 
-
-            $datafield = $repo_datafield->find($datafield_id);
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
 
@@ -431,7 +448,8 @@ class SearchtemplateController extends ODRCustomController
                 return parent::deletedEntityError('DataType');
 
             // Grab the theme this theme_element belongs to
-            $theme_element = $repo_theme_element->find($theme_element_id);
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
             if ( $theme_element == null )
                 return parent::deletedEntityError('ThemeElement');
 
@@ -441,6 +459,7 @@ class SearchtemplateController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -451,7 +470,8 @@ class SearchtemplateController extends ODRCustomController
 
 
             // Grab the theme_datafield entry for this datafield and theme
-            $theme_datafield = $repo_theme_datafield->findOneBy( array('dataFields' => $datafield->getId(), 'theme' => $theme->getId()) );
+            /** @var ThemeDataField $theme_datafield */
+            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield->getId(), 'theme' => $theme->getId()) );
 
             // Deactivate this theme_datafield entry
             $theme_datafield->setActive(0);
@@ -476,7 +496,6 @@ class SearchtemplateController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -501,26 +520,29 @@ class SearchtemplateController extends ODRCustomController
             // Grab necessary objects
             $post = $_POST;
 //print_r($post);
+
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_theme_element_field = $em->getRepository('ODRAdminBundle:ThemeElementField');
-            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
 
             // Grab the first datafield just to check permissions
             $datafield = null;
             foreach ($post as $index => $datafield_id) {
-                $datafield = $repo_datafield->find($datafield_id);
+                $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
                 break;
             }
+            /** @var DataFields $datafield */
             $datatype = $datafield->getDataType();
 
             $datatype->setHasShortresults(true);
             $em->persist($datatype);
 
-            $ending_theme_element = $repo_theme_element->find($ending_theme_element_id);
+            /** @var ThemeElement $ending_theme_element */
+            $ending_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($ending_theme_element_id);
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -532,6 +554,7 @@ class SearchtemplateController extends ODRCustomController
             // If user has permissions, go through all of the datafields setting the order
             foreach ($post as $index => $datafield_id) {
                 // Grab the ThemeElementField entry that corresponds to this datafield
+                /** @var ThemeElementField $theme_element_field */
                 $theme_element_field = $repo_theme_element_field->findOneBy( array('dataFields' => $datafield_id, 'themeElement' => $ending_theme_element_id) );    // theme_element implies theme
                 if ($theme_element_field == null) {
                     // If it doesn't exist, then the datafield got moved to the ending theme_element...locate the 
@@ -554,7 +577,6 @@ class SearchtemplateController extends ODRCustomController
             $options['force_shortresults_recache'] = true;
 
             parent::updateDatatypeCache($datatype->getId(), $options);
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -586,12 +608,16 @@ class SearchtemplateController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var ThemeDataField $theme_datafield */
             $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->find($theme_datafield_id);
             $datatype = $theme_datafield->getDataFields()->getDataType();
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -769,15 +795,20 @@ class SearchtemplateController extends ODRCustomController
     private function GetDisplayData(Request $request, $datatype_id, $theme_id, $template_name = 'default', $other_id = null)
     {
         // Required objects
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
         $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
         $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-        $normal_theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
-        $search_theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
         $templating = $this->get('templating');
 
+        /** @var User $user */
         $user = $this->container->get('security.context')->getToken()->getUser();
+
+        /** @var Theme $normal_theme */
+        $normal_theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
+        /** @var Theme $search_theme */
+        $search_theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
 
         $datatype = null;
         $theme_element = null;
@@ -793,6 +824,9 @@ class SearchtemplateController extends ODRCustomController
             $datafield = $repo_datafield->find($other_id);
             $datatype = $datafield->getDataType();
         }
+        /** @var DataType $datatype */
+        /** @var ThemeElement|null $theme_element */
+        /** @var DataFields|null $datafield */
 
         $indent = 0;
         $is_link = 0;
@@ -862,6 +896,7 @@ if ($debug)
         else {
             // Rendering a datafield doesn't require the entire tree...
             $em->refresh($datafield);
+            /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
             parent::ODR_checkThemeDataField($user, $datafield, $theme);
 
@@ -871,6 +906,7 @@ if ($debug)
                 WHERE tdf.dataFields = :datafield AND tdf.theme = :theme AND tdf.deletedAt IS NULL'
             )->setParameters( array('datafield' => $datafield->getId(), 'theme' => $theme->getId()) );
             $result = $query->getResult();
+            /** @var ThemeDataField $theme_datafield */
             $theme_datafield = $result[0];
             $em->refresh($theme_datafield);
 
@@ -905,12 +941,15 @@ if ($debug)
 
         try {
             // Grag necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
-
             $em->refresh($datafield);
+
             $datatype = $datafield->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
@@ -918,6 +957,7 @@ if ($debug)
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -928,6 +968,7 @@ if ($debug)
 
 
             // Get desired theme
+            /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('id' => $theme_id) );
 
             // Get relevant theme_datafield entry
@@ -938,6 +979,7 @@ if ($debug)
                 AND tdf.deletedAt IS NULL'
             )->setParameters( array('theme' => $theme->getId(), 'datafield' => $datafield->getId()) );
             $result = $query->getResult();
+            /** @var ThemeDataField $theme_datafield */
             $theme_datafield = $result[0];
 
 /*
@@ -1028,7 +1070,10 @@ if ($debug)
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var ThemeElement $theme_element */
             $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
             if ( $theme_element == null )
                 return parent::deletedEntityError('Datatype');
@@ -1039,6 +1084,7 @@ if ($debug)
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -1114,6 +1160,7 @@ if ($debug)
             $post = $_POST;
 //print_r($post);
 //return;
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
 
@@ -1123,6 +1170,8 @@ if ($debug)
                 $theme_element = $repo_theme_element->find($theme_element_id);
                 break;
             }
+            /** @var ThemeElement $theme_element */
+
             $datatype = $theme_element->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('Datatype');
@@ -1130,6 +1179,7 @@ if ($debug)
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -1140,6 +1190,7 @@ if ($debug)
 
             // If user has permissions, go through all of the theme elements setting the order
             foreach ($post as $index => $theme_element_id) {
+                /** @var ThemeElement $theme_element */
                 $theme_element = $repo_theme_element->find($theme_element_id);
                 $em->refresh($theme_element);
 

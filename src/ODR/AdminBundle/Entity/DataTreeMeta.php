@@ -10,7 +10,7 @@
  * The DataTreeMeta Entity is responsible for storing the properties
  * of the DataTree Entity that are subject to change, and is
  * automatically generated from ./Resources/config/doctrine/DataTreeMeta.orm.yml
- * 
+ *
  */
 
 namespace ODR\AdminBundle\Entity;
@@ -50,7 +50,7 @@ class DataTreeMeta
     /**
      * @var \ODR\AdminBundle\Entity\DataTree
      */
-    private $DataTree;
+    private $dataTree;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -161,26 +161,26 @@ class DataTreeMeta
     }
 
     /**
-     * Set DataTree
+     * Set dataTree
      *
      * @param \ODR\AdminBundle\Entity\DataTree $dataTree
      * @return DataTreeMeta
      */
     public function setDataTree(\ODR\AdminBundle\Entity\DataTree $dataTree = null)
     {
-        $this->DataTree = $dataTree;
+        $this->dataTree = $dataTree;
 
         return $this;
     }
 
     /**
-     * Get DataTree
+     * Get dataTree
      *
      * @return \ODR\AdminBundle\Entity\DataTree 
      */
     public function getDataTree()
     {
-        return $this->DataTree;
+        return $this->dataTree;
     }
 
     /**

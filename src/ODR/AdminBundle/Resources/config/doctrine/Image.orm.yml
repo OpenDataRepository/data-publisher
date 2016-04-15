@@ -125,10 +125,10 @@ ODR\AdminBundle\Entity\Image:
             targetEntity: Image
             mappedBy: parent
 
-        ImageChecksum:
+        imageChecksum:
             targetEntity: ImageChecksum
             cascade: { }
-            mappedBy: Image
+            mappedBy: image
             inversedBy: null
             joinColumns:
                 image_checksum_id:
@@ -136,10 +136,10 @@ ODR\AdminBundle\Entity\Image:
             orphanRemoval: false
 #            gedmo:
 #                - versioned
-        ImageMeta:
+        imageMeta:
             targetEntity: ImageMeta
             cascade: { }
-            mappedBy: Image
+            mappedBy: image
             inversedBy: null
             joinColumns:
                 image_meta_id:

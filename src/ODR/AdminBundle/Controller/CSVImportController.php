@@ -17,7 +17,28 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\Boolean as ODRBoolean;
+use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataFieldsMeta;
+use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DatetimeValue;
+use ODR\AdminBundle\Entity\DecimalValue;
+use ODR\AdminBundle\Entity\FieldType;
+use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\Image;
+use ODR\AdminBundle\Entity\IntegerValue;
+use ODR\AdminBundle\Entity\LongText;
+use ODR\AdminBundle\Entity\LongVarchar;
+use ODR\AdminBundle\Entity\MediumVarchar;
+use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Entity\RenderPlugin;
+use ODR\AdminBundle\Entity\ShortVarchar;
+use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedError;
+use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -50,15 +71,18 @@ class CSVImportController extends ODRCustomController
 
         try {
             // Get necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $datatype = $repo_datatype->find($datatype_id);
 
+            /** @var DataType $datatype */
+            $datatype = $repo_datatype->find($datatype_id);
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -231,26 +255,30 @@ class CSVImportController extends ODRCustomController
 
         try {
             // Get necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $session = $request->getSession();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
 
-            $datatype = $repo_datatype->find($source_datatype_id);
-            if ( $datatype == null )
+            /** @var DataType $source_datatype */
+            $source_datatype = $repo_datatype->find($source_datatype_id);
+            if ( $source_datatype == null )
                 return parent::deletedEntityError('DataType');
-            $datatype = $repo_datatype->find($target_datatype_id);
-            if ( $datatype == null )
+            /** @var DataType $target_datatype */
+            $target_datatype = $repo_datatype->find($target_datatype_id);
+            if ( $target_datatype == null )
                 return parent::deletedEntityError('DataType');
 
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+            if ( !(isset($user_permissions[ $target_datatype->getId() ]) && isset($user_permissions[ $target_datatype->getId() ][ 'edit' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -285,7 +313,7 @@ class CSVImportController extends ODRCustomController
                     throw new \Exception('Invalid Target Datatype');
 
                 // User should not have had the option to link to a datatype that lacks an external ID field...
-                if ($datatype->getExternalIdField() == null)
+                if ($target_datatype->getExternalIdField() == null)
                     throw new \Exception('Invalid Target Datatype');
             }
             else if ( !isset($datatree_array['descendant_of'][$target_datatype_id]) || $datatree_array['descendant_of'][$target_datatype_id] == '' ) {
@@ -314,14 +342,17 @@ class CSVImportController extends ODRCustomController
             $query = $em->createQuery(
                'SELECT df
                 FROM ODRAdminBundle:DataFields AS df
-                WHERE df.dataType = :datatype AND df.deletedAt IS NULL
-                ORDER BY df.fieldName'
-            )->setParameters( array('datatype' => $datatype->getId()) );
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                WHERE df.dataType = :datatype AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
+                ORDER BY dfm.fieldName'
+            )->setParameters( array('datatype' => $target_datatype->getId()) );
+            /** @var DataFields[] $datafields */
             $datafields = $query->getResult();
 //print_r($results);
 //exit();
 
             // Grab the FieldTypes that the csv importer can read data into
+            /** @var FieldType[] $fieldtypes */
             $fieldtypes = $repo_fieldtype->findAll();
             $allowed_fieldtypes = array();
 
@@ -416,7 +447,7 @@ class CSVImportController extends ODRCustomController
                         'ODRAdminBundle:CSVImport:layout.html.twig',
                         array(
                             'parent_datatype' => $parent_datatype,  // as expected if importing into a child datatype, or null if importing into top-level datatype, or equivalent to the local datatype if importing links
-                            'datatype' => $datatype,                // as expected if importing into a top-level or child datatype, or equivalent to the remote datatype if importing links
+                            'datatype' => $target_datatype,         // as expected if importing into a top-level or child datatype, or equivalent to the remote datatype if importing links
                             'linked_importing' => $linked_importing,
 
                             'columns' => $file_headers,
@@ -643,6 +674,7 @@ class CSVImportController extends ODRCustomController
 
         try {
             // TODO - permissions?
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
 
             // Get all files in the given user's 'upload' directory
@@ -691,6 +723,7 @@ class CSVImportController extends ODRCustomController
 
         try {
             // TODO - permissions?
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
 
             // Get all files in the given user's 'upload' directory
@@ -734,6 +767,7 @@ class CSVImportController extends ODRCustomController
 
         try {
             // Attempt to locate the csv file stored in the user's session
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $session = $request->getSession();
             if ( $session->has('csv_file') ) {
@@ -834,12 +868,14 @@ class CSVImportController extends ODRCustomController
             $url = $this->container->getParameter('site_baseurl');
             $url .= $router->generate('odr_csv_import_validate');
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
 
             // Need to store fieldtype ids and fieldtype typenames
+            /** @var FieldType[] $fieldtypes */
             $fieldtypes = $repo_fieldtype->findAll();
             $allowed_fieldtypes = array();
             foreach ($fieldtypes as $fieldtype)
@@ -848,10 +884,12 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Load required datatype entities
+            /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
                 throw new \Exception('Invalid Form');
 
+            /** @var DataType|null $parent_datatype */
             $parent_datatype = null;
             if ($parent_datatype_id !== '') {
                 $parent_datatype = $repo_datatype->find($parent_datatype_id);
@@ -867,6 +905,7 @@ class CSVImportController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -921,6 +960,7 @@ class CSVImportController extends ODRCustomController
                 }
                 else {
                     // Ensure datafield exists
+                    /** @var DataFields $datafield */
                     $datafield = $repo_datafield->find($datafield_id);
                     if ($datafield == null)
                         throw new \Exception('Invalid Form...deleted DataField');
@@ -982,12 +1022,14 @@ class CSVImportController extends ODRCustomController
                     if ($df_id == 'new') {
                         // Ensure the fieldtype for the new datafield can be unique
                         $ft_id = $fieldtype_mapping[$column_id];
+                        /** @var FieldType $fieldtype */
                         $fieldtype = $repo_fieldtype->find($ft_id);
                         if ($fieldtype->getCanBeUnique() != '1')
                             unset( $unique_columns[$column_id] );
                     }
                     else {
                         // Ensure this datafield can be unique
+                        /** @var DataFields $datafield */
                         $datafield = $repo_datafield->find($df_id);
                         if ($datafield->getFieldType()->getCanBeUnique() != '1')
                             unset( $unique_columns[$column_id] );
@@ -1110,7 +1152,7 @@ class CSVImportController extends ODRCustomController
                 $query = $em->createQuery(
                    'SELECT dtm.multiple_allowed AS multiple_allowed
                     FROM ODRAdminBundle:DataTree AS dt
-                    JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
+                    JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
                     WHERE dt.descendant = :child_datatype
                     AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
                 )->setParameters( array('child_datatype' => $datatype_id) );
@@ -1422,9 +1464,12 @@ class CSVImportController extends ODRCustomController
             $column_delimiters = array();
             if ( isset($post['column_delimiters']) )
                 $column_delimiters = $post['column_delimiters'];
+/*
+            // TODO - these aren't used in validations?
             $synch_columns = array();
             if ( isset($post['synch_columns']) )
                 $synch_columns = $post['synch_columns'];
+*/
 
             // If the import is for a child or linked datatype, then one of the columns from the csv file has to be mapped to the parent (or local if linked import) datatype's external id datafield
             $parent_datatype_id = '';
@@ -1444,6 +1489,7 @@ class CSVImportController extends ODRCustomController
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
@@ -1454,7 +1500,9 @@ class CSVImportController extends ODRCustomController
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid job data');
 
+            /** @var User $user */
             $user = $repo_user->find($user_id);
+            /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
                 throw new \Exception('Datatype is deleted!');
@@ -1469,6 +1517,7 @@ class CSVImportController extends ODRCustomController
             $parent_datatype = null;
             if ($parent_datatype_id !== '' && $parent_external_id_column !== '') {
                 // Load the parent datatype
+                /** @var DataType $parent_datatype */
                 $parent_datatype = $repo_datatype->find($parent_datatype_id);
                 if ($parent_datatype == null || $parent_datatype->getExternalIdField() == null)
                     throw new \Exception('Invalid Form');
@@ -1555,6 +1604,7 @@ class CSVImportController extends ODRCustomController
 
                 // Get typeclass of what this data will be imported into
                 $allow_multiple_uploads = true;
+                /** @var FieldType $fieldtype */
                 $fieldtype = null;
                 if ($datafield_id == 'new') {
                     // Datafield hasn't been created yet, grab which fieldtype it's supposed to be from the mapping
@@ -1861,6 +1911,7 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Update the job tracker if necessary
             if ($tracked_job_id !== -1) {
+                /** @var TrackedJob $tracked_job */
                 $tracked_job = $repo_tracked_job->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();
@@ -1920,6 +1971,7 @@ class CSVImportController extends ODRCustomController
         try {
             // ----------------------------------------
             // Get necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
@@ -1928,6 +1980,7 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
+            /** @var TrackedJob $tracked_job */
             $tracked_job = $repo_tracked_job->find($tracked_job_id);
             if ($tracked_job == null)
                 return parent::deletedEntityError('TrackedJob');
@@ -1939,12 +1992,14 @@ class CSVImportController extends ODRCustomController
             $tmp = explode('_', $target_entity);
             $datatype_id = $tmp[1];
 
+            /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
                 return parent::deletedEntityError('DataType');
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -1978,6 +2033,7 @@ class CSVImportController extends ODRCustomController
             if ( isset($presets['parent_datatype_id']) && $presets['parent_datatype_id'] !== '' ) {
                 $parent_datatype_id = $presets['parent_datatype_id'];
 
+                /** @var DataType $parent_datatype */
                 $parent_datatype = $repo_datatype->find($parent_datatype_id);
                 if ($parent_datatype == null)
                     throw new \Exception('Invalid Form');
@@ -1990,6 +2046,7 @@ class CSVImportController extends ODRCustomController
 
             // Also locate any child or linked datatypes for this datatype
             $datatree_array = parent::getDatatreeArray($em);
+            /** @var DataType[]|null $childtypes */
             $childtypes = null;
             if ($parent_datatype_id !== '') {
                 foreach ($datatree_array['descendant_of'] as $dt_id => $parent_dt_id) {
@@ -2007,6 +2064,7 @@ class CSVImportController extends ODRCustomController
                     $childtypes = null;
             }
 
+            /** @var DataType[]|null $linked_types */
             $linked_types = null;
             if ($parent_datatype_id !== '') {
                 foreach ($datatree_array['linked_from'] as $remote_dt_id => $local_dt_id) {
@@ -2034,14 +2092,17 @@ class CSVImportController extends ODRCustomController
             $query = $em->createQuery(
                'SELECT df
                 FROM ODRAdminBundle:DataFields AS df
-                WHERE df.dataType = :datatype AND df.deletedAt IS NULL
-                ORDER BY df.fieldName'
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                WHERE df.dataType = :datatype AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
+                ORDER BY dfm.fieldName'
             )->setParameters( array('datatype' => $datatype->getId()) );
+            /** @var DataFields[] $datafields */
             $datafields = $query->getResult();
 //print_r($results);
 //exit();
 
             // Grab the FieldTypes that the csv importer can read data into
+            /** @var FieldType[] $fieldtypes */
             $fieldtypes = $repo_fieldtype->findAll();
             $allowed_fieldtypes = array();
 
@@ -2175,6 +2236,7 @@ class CSVImportController extends ODRCustomController
         try {
             // ----------------------------------------
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
@@ -2183,6 +2245,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Load the data from the finished validation job
+            /** @var TrackedJob $tracked_job */
             $tracked_job = $repo_tracked_job->find($job_id);
             if ($tracked_job->getCompleted() == null)
                 throw new \Exception('Invalid job');
@@ -2192,12 +2255,14 @@ class CSVImportController extends ODRCustomController
             $tmp = explode('_', $target_entity);
             $datatype_id = $tmp[1];
 
+            /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
                 return parent::deletedEntityError('DataType');
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -2300,12 +2365,14 @@ class CSVImportController extends ODRCustomController
             $new_datafields = array();
             $new_mapping = array();
             $created = false;
+            /** @var RenderPlugin $render_plugin */
             $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
             foreach ($datafield_mapping as $column_id => $datafield_id) {
                 $datafield = null;
 
                 if ( is_numeric($datafield_id) ) {
                     // Load datafield from repository
+                    /** @var DataFields $datafield */
                     $datafield = $repo_datafield->find($datafield_id);
                     if ($datafield == null)
                         throw new \Exception('Invalid Form');
@@ -2318,22 +2385,25 @@ class CSVImportController extends ODRCustomController
                     if ( $fieldtype_mapping == null )
                         throw new \Exception('Invalid Form');
 
+                    /** @var FieldType $fieldtype */
                     $fieldtype = $repo_fieldtype->find( $fieldtype_mapping[$column_id] );
                     if ($fieldtype == null)
                         throw new \Exception('Invalid Form');
 
                     // Create new datafield
-                    $datafield = parent::ODR_addDataFieldsEntry($em, $user, $datatype, $fieldtype, $render_plugin);
                     $created = true;
+                    $objects = parent::ODR_addDataFieldsEntry($em, $user, $datatype, $fieldtype, $render_plugin);
+
+                    /** @var DataFields $datafield */
+                    $datafield = $objects['datafield'];
+                    /** @var DataFieldsMeta $datafield_meta */
+                    $datafield_meta = $objects['datafield_meta'];
 
                     // Set the datafield's name, then persist/reload it
-                    $datafield->setFieldName( $column_names[$column_id] );
+                    $datafield_meta->setFieldName( $column_names[$column_id] );
                     if ( isset($unique_columns[$column_id]) )
-                        $datafield->setIsUnique(1);
-
-                    $em->persist($datafield);
-                    $em->flush($datafield);     // required, or can't get id of new datafield
-                    $em->refresh($datafield);
+                        $datafield_meta->setIsUnique(true);
+                    $em->persist($datafield_meta);
 
                     $new_datafields[] = $datafield;
 
@@ -2347,6 +2417,7 @@ class CSVImportController extends ODRCustomController
 
             if ($created) {
                 // Since datafields were created for this import, create a new theme element and attach the new datafields to it
+                /** @var Theme $theme */
                 $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
                 $theme_element = parent::ODR_addThemeElementEntry($em, $user, $datatype, $theme);
                 $em->flush($theme_element);
@@ -2354,7 +2425,7 @@ class CSVImportController extends ODRCustomController
 
                 foreach ($new_datafields as $new_datafield) {
                     // Tie each new datafield to the new theme element
-                    $theme_element_field = parent::ODR_addThemeElementFieldEntry($em, $user, null, $new_datafield, $theme_element);
+                    parent::ODR_addThemeElementFieldEntry($em, $user, null, $new_datafield, $theme_element);
                 }
 
                 // Save all theme element changes
@@ -2492,6 +2563,7 @@ print_r($new_mapping);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 //            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
@@ -2501,7 +2573,9 @@ print_r($new_mapping);
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid job data');
 
+            /** @var User $user */
             $user = $repo_user->find($user_id);
+            /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
                 throw new \Exception('Datatype is deleted!');
@@ -2527,6 +2601,7 @@ print_r($new_mapping);
                 // Find the datarecord pointed to by the value in $parent_external_id_column
                 $parent_external_id_value = trim( $line[$parent_external_id_column] );
 
+                /** @var DataType $parent_datatype */
                 $parent_datatype = $repo_datatype->find($parent_datatype_id);
                 $parent_external_id_field = $parent_datatype->getExternalIdField();
 
@@ -2539,6 +2614,7 @@ print_r($new_mapping);
 
             // ----------------------------------------
             // Attempt to locate the datarecord that this row of data will be imported into
+            /** @var DataRecord|null $datarecord */
             $datarecord = null;
             $external_id_field = $datatype->getExternalIdField();
             $external_id_value = '';
@@ -2627,6 +2703,7 @@ print_r($new_mapping);
                 if ( isset($mapping[$column_num]) ) {
                     // ...grab which datafield is getting mapped to
                     $datafield_id = $mapping[$column_num];
+                    /** @var DataFields $datafield */
                     $datafield = $repo_datafield->find($datafield_id);
 
                     $typename = $datafield->getFieldType()->getTypeName();
@@ -2638,6 +2715,7 @@ print_r($new_mapping);
                     if ($typeclass == 'Boolean') {
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
+                        /** @var ODRBoolean $entity */
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
 
                         // Any character in the field counts as checked
@@ -2689,6 +2767,7 @@ print_r($new_mapping);
                                 $em->refresh($drf);
                                 $status .= '    -- >> created new drf'."\n";
                             }
+                            /** @var DataRecordFields $drf */
 
                             // Store the path to the user's upload area...
                             $path_prefix = dirname(__FILE__).'/../../../../web/';
@@ -2703,13 +2782,13 @@ print_r($new_mapping);
                             if ($typeclass == 'Image')
                                 $query_str .= 'AND e.original = 1 ';
                             $query_str .= 'AND e.deletedAt IS NULL';
-
                             $query = $em->createQuery($query_str)->setParameters( array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()) );
-                            $results = $query->getResult();
 
-                            foreach ($results as $tmp => $file)
+                            /** @var File[]|Image[] $objects */
+                            $objects = $query->getResult();
+                            foreach ($objects as $tmp => $file)
                                 $existing_files[ $file->getOriginalFileName() ] = $file;    // TODO - duplicate original filenames in datafield?
-
+                            /** @var File[]|Image[] $existing_files */
 
                             // ----------------------------------------
                             // For each file/image listed in the csv file...
@@ -2738,6 +2817,7 @@ print_r($new_mapping);
                                     $old_obj_meta = null;
                                     $properties = array();
                                     if ($typeclass == 'File') {
+                                        /** @var File $obj_obj */
                                         $old_obj_meta = $old_obj->getFileMeta();
                                         $properties = array(
                                             'description' => $old_obj_meta->getDescription(),
@@ -2752,6 +2832,7 @@ print_r($new_mapping);
                                             unlink($filepath);
                                     }
                                     else {
+                                        /** @var Image $old_obj */
                                         $old_obj_meta = $old_obj->getImageMeta();
                                         $properties = array(
                                             'caption' => $old_obj_meta->getCaption(),
@@ -2762,6 +2843,7 @@ print_r($new_mapping);
                                         );
 
                                         // Ensure no decrypted version of the original image or its thumbnails remain on the server
+                                        /** @var Image[] $old_images */
                                         $old_images = $em->getRepository('ODRAdminBundle:Image')->findBy( array('parent' => $old_obj->getId()) );
                                         foreach ($old_images as $img) {
                                             $filepath = dirname(__FILE__).'/../../../../web/uploads/images/Image_'.$img->getId().'.'.$img->getExt();
@@ -2852,10 +2934,12 @@ print_r($new_mapping);
                             $results = $query->getResult();
 
                             foreach ($results as $tmp => $file) {
+                                /** @var File|Image $file */
                                 $original_filename = $file->getOriginalFileName();
 
                                 if ( !in_array($original_filename, $csv_filenames) ) {
                                     if ($typeclass == 'File') {
+                                        /** @var File $file */
                                         $status .= '      ...'.$typeclass.' ("'.$original_filename.'") not listed in csv file, deleting...'."\n";
 
                                         // Delete the decrypted version of this file from the server, if it exists
@@ -2878,6 +2962,7 @@ print_r($new_mapping);
                                         $need_flush = true;
                                     }
                                     else if ($typeclass == 'Image') {
+                                        /** @var Image $file */
                                         if ($file->getOriginal() == 1) {
                                             $status .= '      ...'.$typeclass.' ("'.$original_filename.'") not listed in csv file, deleting...'."\n";
 
@@ -2910,6 +2995,7 @@ print_r($new_mapping);
                     else if ($typeclass == 'IntegerValue') {
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
+                        /** @var IntegerValue $entity */
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
 
                         // Turn the data into an integer...csvvalidateAction() already would've warned if column data isn't actually an integer
@@ -2945,6 +3031,7 @@ print_r($new_mapping);
                     else if ($typeclass == 'DecimalValue') {
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
+                        /** @var DecimalValue $entity */
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
 
                         // NOTE - intentionally not using floatval here, whereas IntegerValue still uses intval()...DecimalValue::setValue() will deal with any string received
@@ -2980,6 +3067,7 @@ print_r($new_mapping);
                     else if ($typeclass == 'LongText' || $typeclass == 'LongVarchar' || $typeclass == 'MediumVarchar' || $typeclass == 'ShortVarchar') {
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
+                        /** @var LongText|LongVarchar|MediumVarchar|ShortVarchar $entity */
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
 
                         if ($entity === null) {
@@ -2988,7 +3076,7 @@ print_r($new_mapping);
                             $new_entity->setValue($column_data);
                             $em->persist($new_entity);
 
-                            $status .= '    -- >> created new '.$typeclass.', set to "'.$value."\n";
+                            $status .= '    -- >> created new '.$typeclass.', set to "'.$column_data."\n";
                         }
                         else {
                             // If old storage entity doesn't match desired state...
@@ -3010,6 +3098,7 @@ print_r($new_mapping);
                     else if ($typeclass == 'DatetimeValue') {
                         // Grab repository for entity
                         $repo_entity = $em->getRepository($classname);
+                        /** @var DatetimeValue $entity */
                         $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
 
                         // Turn the data into a DateTime object...csvvalidateAction() already would've warned if column data isn't actually a date
@@ -3023,7 +3112,11 @@ print_r($new_mapping);
                             $new_entity->setValue($value);
                             $em->persist($new_entity);
 
-                            $status .= '    -- >> created new '.$typeclass.', set to "'.$value."\n";
+                            $status .= '    -- >> created new '.$typeclass;
+                            if ($value !== null)
+                                $status .= ', set to "'.$value->format('Y-m-d')."\n";
+                            else
+                                $status .= ', set to "..."'."\n";
                         }
                         else {
                             // If old storage entity doesn't match desired state...
@@ -3061,7 +3154,7 @@ print_r($new_mapping);
                                 continue;
 /*
                             // See if a radio_option entity with this name already exists
-                            $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('optionName' => $option_name, 'dataFields' => $datafield->getId()) );
+                            $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('optionName' => $option_name, 'dataField' => $datafield->getId()) );
                             if ($radio_option == null) {
                                 // TODO - CURRENTLY WORKS, BUT MIGHT WANT TO LOOK INTO AN OFFICIAL MUTEX...
 
@@ -3082,7 +3175,7 @@ print_r($new_mapping);
                                 }
 
                                 // Now that it exists, fill out the properties of a RadioOption entity that were skipped during the manual creation...
-                                $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('optionName' => $option_name, 'dataFields' => $datafield->getId()) );
+                                $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('optionName' => $option_name, 'dataField' => $datafield->getId()) );
                                 $radio_option->setCreatedBy($user);
                                 $radio_option->setCreated( new \DateTime() );
                                 $radio_option->setUpdatedBy($user);
@@ -3097,7 +3190,9 @@ print_r($new_mapping);
                             $radio_option = parent::ODR_addRadioOption($em, $user, $datafield, $force_create, $option_name);
 
                             // Now that the radio option is guaranteed to exist...grab the relevant RadioSelection entity...
+                            /** @var DataRecordFields $drf */
                             $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
+                            /** @var RadioSelection $radio_selection */
                             $radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy( array('dataRecordFields' => $drf->getId(), 'radioOption' => $radio_option->getId()) );
 
                             if ($radio_selection == null) {
@@ -3126,6 +3221,7 @@ print_r($new_mapping);
             // ----------------------------------------
             // Update the job tracker if necessary
             if ($tracked_job_id !== -1) {
+                /** @var TrackedJob $tracked_job */
                 $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();
@@ -3261,7 +3357,7 @@ print_r($new_mapping);
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 */
-
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 //            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
@@ -3270,10 +3366,13 @@ print_r($new_mapping);
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid job data');
 
+            /** @var User $user */
             $user = $repo_user->find($user_id);
+            /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
                 throw new \Exception('Datatype is deleted!');
+            /** @var DataType $parent_datatype */
             $parent_datatype = $repo_datatype->find($parent_datatype_id);
             if ($parent_datatype == null)
                 throw new \Exception('Datatype is deleted!');
@@ -3297,6 +3396,7 @@ print_r($new_mapping);
             // ----------------------------------------
             // Update the job tracker if necessary
             if ($tracked_job_id !== -1) {
+                /** @var TrackedJob $tracked_job */
                 $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();

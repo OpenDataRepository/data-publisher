@@ -879,7 +879,7 @@ function SaveDatafieldProperty(datafield_id, reload_datafield) {
             else {
                 // An error has occurred.
                 // Show Error message dialog
-                alert(data.error);
+                alert(data.d);
 
                 // Forcibly reload slideout
                 $("#ElementData").html("").html(data.d.html).fadeIn('fast');

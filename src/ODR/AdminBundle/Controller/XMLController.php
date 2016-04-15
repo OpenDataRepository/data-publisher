@@ -19,9 +19,14 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\DataTree;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
-use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+use ODR\AdminBundle\Entity\RadioOptions;
+use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -101,20 +106,22 @@ class XMLController extends ODRCustomController
 
         try {
             // Grab required objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->get('router');
 
-            $datatype = $repo_datatype->find($datatype_id);
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 return parent::deletedEntityError('Datatype');
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -190,13 +197,10 @@ class XMLController extends ODRCustomController
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid job data');
-
-            if ($datatype_id == '')
                 throw new \Exception('Invalid job data');
 
             $schema_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
@@ -206,7 +210,11 @@ class XMLController extends ODRCustomController
 
             // ----------------------------------------
             // Determine the schema filename
-            $datatype = $repo_datatype->find($datatype_id);
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new \Exception('Invalid job data');
+
             $schema_filename = $datatype->getXmlShortName().'.xsd';
 
             // Ensure schema file exists
@@ -304,13 +312,10 @@ class XMLController extends ODRCustomController
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid job data');
-
-            if ($datatype_id == '')
                 throw new \Exception('Invalid job data');
 
             // Enable user error handling
@@ -323,7 +328,11 @@ class XMLController extends ODRCustomController
 
             // ----------------------------------------
             // Determine the schema filename
-            $datatype = $repo_datatype->find($datatype_id);
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new \Exception('Invalid job data');
+
             $schema_filename = $datatype->getXmlShortName().'.xsd';
 
             // Ensure schema file exists
@@ -445,15 +454,13 @@ class XMLController extends ODRCustomController
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
-            $user = $repo_user->find($user_id);
+
+            /** @var User $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
 
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid job data');
-
-            if ($datatype_id == '')
                 throw new \Exception('Invalid job data');
 
 
@@ -468,7 +475,11 @@ class XMLController extends ODRCustomController
             if ($xml_file->load($xml_path.'unprocessed/'.$xml_filename, LIBXML_NOBLANKS) === false)
                 throw new \Exception('Could not load "'.$xml_filename.'" for import >> '.self::libxml_display_errors());
 
-            $parent_datatype = $repo_datatype->find($datatype_id);
+
+            /** @var DataType $parent_datatype */
+            $parent_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($parent_datatype)
+                throw new \Exception('Invalid job data');
 
             // $xml_file is currently document root
             $xml_datarecords = $xml_file->childNodes->item(0);
@@ -619,7 +630,7 @@ if ($write) {
      * Does the actual work of importing everything for a datarecord, and links to datarecords if necessary
      * 
      * @param \Doctrine\ORM\EntityManager $em
-     * @param ODRUser $user
+     * @param User $user
      * @param \DOMNode $xml_datarecord           The XML structure describing the data that is being imported into this datarecord
      * @param DataRecord $datarecord             The datarecord that is getting data imported into it
      * @param DataRecord $grandparent_datarecord The top-level datarecord, if this function is currently working on importing a child datarecord
@@ -692,6 +703,7 @@ if ($write) {
                 // TEMP
                 $datafield = null;
                 foreach ($datatype->getDataFields() as $df) {
+                    /** @var DataFields $df */
                     if ($df->getXmlFieldName() == $xml_datafield->nodeName) {
                         $datafield = $df;
                         break;
@@ -738,6 +750,7 @@ if ($write) {
             )->setParameters( array('datatype' => $datatype) );
             $results = $query->getResult();
             foreach ($results as $num => $datatree) {
+                /** @var DataTree $datatree */
                 $ancestor = $datatree->getAncestor();
                 $descendant = $datatree->getDescendant();
 
@@ -755,6 +768,8 @@ if ($write) {
                 }
             }
         }
+        /** @var DataType[] $child_datatypes */
+        /** @var DataType[] $linked_datatypes */
 
 
         // ----------------------------------------
@@ -961,8 +976,8 @@ if ($write) {
      * Creates a new Entity to hold the XML data from $element.
      * 
      * @param \Doctrine\ORM\EntityManager $entity_manager
-     * @param ODRUser $user
-     * @param \DOMNode $xml_element          The xml describing this element
+     * @param User $user
+     * @param \DOMNode $xml_element      The xml describing this element
      * @param DataRecord $datarecord     The datarecord getting this piece of data
      * @param DataFields $datafield      The datafield this data is being stored in
      * @param boolean $update_datarecord Whether to attempt to update the existing data in the datarecord, or just create new storage entities for everything
@@ -1099,6 +1114,7 @@ if ($write) {
                     $status .= self::indent($indent).'>> deleting all unlisted files...';
 
                     // Grab all uploaded files in this datafield
+                    /** @var File[] $files */
                     $files = $repo_file->findBy( array("dataRecordFields" => $drf->getId()) );
                     foreach ($files as $file) {
                         // If the file wasn't listed in the xml file...
@@ -1233,6 +1249,7 @@ if ($write) {
                     $status .= self::indent($indent).'>> deleting all unlisted images...';
 
                     // Grab all uploaded files in this datafield
+                    /** @var Image[] $images */
                     $images = $repo_image->findBy( array("dataRecordFields" => $drf->getId()) );
                     foreach ($images as $image) {
                         // If the file wasn't listed in the xml file...
@@ -1274,7 +1291,9 @@ if ($write) {
                 $repo_radio_selection = $entity_manager->getRepository('ODRAdminBundle:RadioSelection');
                 $repo_radio_option = $entity_manager->getRepository('ODRAdminBundle:RadioOptions');
 
+                /** @var DataRecordFields $drf */
                 $drf = $repo_datarecordfields->findOneBy( array("dataField" => $datafield->getId(), "dataRecord" => $datarecord->getId()) );
+                /** @var RadioOptions[] $radio_options */
                 $radio_options = $repo_radio_option->findBy( array("dataFields" => $datafield->getId()) );  // TEMP
 
                 // Keep track of which radio options were changed
@@ -1309,6 +1328,7 @@ if ($write) {
                     }
 
                     // Attempt to locate a radio_selction object for this
+                    /** @var RadioSelection $radio_selection */
                     $radio_selection = $repo_radio_selection->findOneBy( array("radioOption" => $radio_option->getId(), "dataRecordFields" => $drf->getId()) );
 
 if ($write) {
@@ -1346,6 +1366,7 @@ if ($write) {
                     $status .= self::indent($indent).'>> deselecting all unlisted radio options...';
 
                     // Grab all radio selection objects for this datafield
+                    /** @var RadioSelection[] $radio_selections */
                     $radio_selections = $repo_radio_selection->findBy( array("dataRecordFields" => $drf->getId()) );
                     foreach ($radio_selections as $rs) {
                         // If the radio option wasn't listed in the xml file...
@@ -1489,9 +1510,9 @@ if ($write) {
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
-            $repo_datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields');
+
             $repo_file = $em->getRepository('ODRAdminBundle:File');
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
@@ -1503,8 +1524,10 @@ $write = false;
 
             // ----------------------------------------
             // Grab necessary objects
-            $user = $repo_user->find($user_id);
-            $drf = $repo_datarecordfield->find($drf_id);
+            /** @var User $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            /** @var DataRecordFields $drf */
+            $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->find($drf_id);
             $path_prefix = dirname(__FILE__).'/../../../../web/';
             $storage_path = 'uploads/xml/user_'.$user_id.'/storage/';
 
@@ -1519,6 +1542,7 @@ $write = false;
                 $my_obj = $repo_image->findOneBy( array('originalFileName' => $original_name, 'dataRecordFields' => $drf_id, 'original' => true) );
             else
                 throw new \Exception('Invalid Form');
+            /** @var File|Image $my_obj */
 
 
             // ----------------------------------------
@@ -1701,9 +1725,14 @@ if ($write) {
         $return['d'] = '';
 
         try {
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $datarecord = $repo_datarecord->find($datarecord_id);
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            if ($datarecord == null)
+                return parent::deletedEntityError('Datarecord');
+
             $templating = $this->get('templating');
 
             $xml_export_path = dirname(__FILE__).'/../../../../web/uploads/xml_export/';
@@ -1825,10 +1854,10 @@ if ($write) {
         $return['d'] = '';
 
         try {
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-
-            $datarecord = $repo_datarecord->find($datarecord_id);
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
 
             // Ensure all Entities exist before rendering the XML
             parent::verifyExistence($datarecord);

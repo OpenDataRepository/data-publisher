@@ -16,18 +16,21 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\OpenRepository\UserBundle\ODROpenRepositoryUserBundle;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\UserPermissions;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 use ODR\AdminBundle\Form\CreateDatatypeForm;
 // Symfony
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+
 
 class DatatypeController extends ODRCustomController
 {
@@ -49,11 +52,13 @@ class DatatypeController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $templating = $this->get('templating');
 
             // --------------------
             // Grab user privileges to determine what they can do
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             // --------------------
@@ -65,7 +70,7 @@ class DatatypeController extends ODRCustomController
 
             // Grab each top-level datatype from the repository
             $query = $em->createQuery(
-               'SELECT dt AS datatype
+               'SELECT dt
                 FROM ODRAdminBundle:DataType dt
                 WHERE dt IN (:datatypes)'
             )->setParameters( array('datatypes' => $top_level_datatypes) );
@@ -73,14 +78,15 @@ class DatatypeController extends ODRCustomController
 
             $datatypes = array();
             $metadata = array();
-            foreach ($results as $result) {
-                $datatype = $result['datatype'];
-                $datatype_id = $datatype->getId();
+            foreach ($results as $dt) {
+                /** @var DataType $dt */
+                $datatypes[] = $dt;
 
-                $datatypes[] = $datatype;
-                $metadata[$datatype_id] = array();
-                $metadata[$datatype_id]['count'] = 0;
+                $dt_id = $dt->getId();
+                $metadata[$dt_id] = array();
+                $metadata[$dt_id]['count'] = 0;
             }
+            /** @var DataType[] $datatypes */
 
             // Do a second query to grab which datatypes have datarecords, and how many
             $query = $em->createQuery(
@@ -101,7 +107,7 @@ class DatatypeController extends ODRCustomController
             }
 //print_r($metadata);
 
-            // Create new DataType form
+            // Build a form for creating a new datatype, if needed
             $datatype = new DataType();
             $form = $this->createForm(new CreateDatatypeForm($datatype), $datatype);
 
@@ -130,12 +136,11 @@ class DatatypeController extends ODRCustomController
             $return['d'] = 'Error 0x884775820 ' . $e->getMessage();
         }
 
-
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
+
 
     /**
      * TODO - sitemap function
@@ -253,11 +258,13 @@ class DatatypeController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 //            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $templating = $this->get('templating');
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
+            /** @var User $admin */
             $admin = $this->container->get('security.context')->getToken()->getUser();
 
             // Create new DataType form
@@ -284,6 +291,7 @@ class DatatypeController extends ODRCustomController
                     $datatype->setCreatedBy($admin);
                     $datatype->setUpdatedBy($admin);
 
+                    /** @var RenderPlugin $render_plugin */
                     $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
                     $datatype->setRenderPlugin($render_plugin);
 
@@ -327,6 +335,7 @@ class DatatypeController extends ODRCustomController
                     $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
                     $user_manager = $this->container->get('fos_user.user_manager');
+                    /** @var User[] $users */
                     $users = $user_manager->findUsers();
                     foreach ($users as $user)
                         $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datatype_permissions');
@@ -360,7 +369,8 @@ class DatatypeController extends ODRCustomController
 
 
     /**
-     * Recursively builds a tree version of the Datatree table...TODO
+     * Recursively builds a tree version of the Datatree table...
+     * TODO - delete this function and refactor self::editAction() to use parent::getDatatreeArray() instead?
      *
      * @param \Doctrine\ORM\Entitymanager $em
      * @param array $datatree_array
@@ -401,19 +411,20 @@ class DatatypeController extends ODRCustomController
 
         try {
             // Get Entity Manager and setup objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-//            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
             $site_baseurl = $this->container->getParameter('site_baseurl');
 
             // Grab necessary objects
-            $datatype = $repo_datatype->find($datatype_id);
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -470,6 +481,7 @@ class DatatypeController extends ODRCustomController
                     $user_id = $data[1];
 
                     if (!isset($all_permissions[$user_id])) {
+                        /** @var User $site_user */
                         $site_user = $repo_user->find($user_id);
                         if ($site_user->isEnabled() == 1 && !$site_user->hasRole('ROLE_SUPER_ADMIN'))   // only display this user's permissions for this datatype if they're not deleted and aren't super admin
                             $all_permissions[$user_id] = array('user' => $site_user, 'permissions' => parent::getPermissionsArray($user_id, $request, false));
@@ -481,11 +493,12 @@ class DatatypeController extends ODRCustomController
             // ----------------------------------------
             // Grab datafields that this page needs
             $query = $em->createQuery(
-               'SELECT df AS datafield, df.is_unique AS is_unique, ft.typeName AS typename, ft.canBeSortField AS can_be_sortfield
+               'SELECT df AS datafield, dfm.is_unique AS is_unique, ft.typeName AS typename, ft.canBeSortField AS can_be_sortfield
                 FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
                 WHERE df.dataType = :datatype
-                AND df.deletedAt IS NULL AND ft.deletedAt IS NULL'
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
             )->setParameters( array('datatype' => $datatype_id) );
             $results = $query->getResult();
 //$results = $query->getArrayResult();
@@ -497,6 +510,7 @@ class DatatypeController extends ODRCustomController
             $image_datafields = array();
             $textresults_datafields = array();
             foreach ($results as $num => $result) {
+                /** @var DataFields $datafield */
                 $datafield = $result['datafield'];
                 $typename = $result['typename'];
                 $is_unique = $result['is_unique'];
@@ -527,7 +541,6 @@ class DatatypeController extends ODRCustomController
 
                     case 'File':
                         if ($datafield->getAllowMultipleUploads() == "0")
-//                        if ($datafield['allow_multiple_uploads'] == "0")
                             $textresults_datafields[] = $datafield;
                         break;
 
@@ -589,10 +602,11 @@ class DatatypeController extends ODRCustomController
 
         try {
             // Get Entity Manager and setup objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
+//            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
 
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $memcached = $this->get('memcached');
@@ -611,12 +625,14 @@ class DatatypeController extends ODRCustomController
             $sort_datafield_id = $post['sort_datafield'];
             $image_datafield_id = $post['image_datafield'];
 
+            /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ($datatype == null)
                 return parent::deletedEntityError('Datatype');
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -776,14 +792,16 @@ class DatatypeController extends ODRCustomController
 
         try {
             // Permissions check
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError("rebuild the cache for");  // TODO - really should say everything
 
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
+//            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->container->get('router');
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -802,6 +820,7 @@ class DatatypeController extends ODRCustomController
             $current_time = new \DateTime();
             foreach ($top_level_datatypes as $num => $datatype_id) {
                 // ----------------------------------------
+                /** @var DataType $datatype */
                 $datatype = $repo_datatype->find($datatype_id);
 
                 // Increment the datatype revision number so the worker processes will recache the datarecords

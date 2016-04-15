@@ -15,7 +15,7 @@
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\HttpFoundation\File\UploadedFile as UploadedFile;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 /**
  * Image
@@ -110,12 +110,12 @@ class Image
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
-    private $ImageChecksum;
+    private $imageChecksum;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
-    private $ImageMeta;
+    private $imageMeta;
 
     /**
      * @var \ODR\AdminBundle\Entity\Image
@@ -168,8 +168,8 @@ class Image
     public function __construct()
     {
         $this->children = new \Doctrine\Common\Collections\ArrayCollection();
-        $this->ImageChecksum = new \Doctrine\Common\Collections\ArrayCollection();
-        $this->ImageMeta = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->imageChecksum = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->imageMeta = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -391,6 +391,7 @@ class Image
 
     /**
      * Set displayorder
+     * @deprecated
      *
      * @param integer $displayorder
      * @return Image
@@ -417,6 +418,7 @@ class Image
 
     /**
      * Set caption
+     * @deprecated
      *
      * @param string $caption
      * @return Image
@@ -443,6 +445,7 @@ class Image
 
     /**
      * Set originalFileName
+     * @deprecated
      *
      * @param string $originalFileName
      * @return Image
@@ -469,6 +472,7 @@ class Image
 
     /**
      * Set external_id
+     * @deprecated
      *
      * @param string $externalId
      * @return Image
@@ -495,6 +499,7 @@ class Image
 
     /**
      * Set publicDate
+     * @deprecated
      *
      * @param \DateTime $publicDate
      * @return Image
@@ -521,6 +526,7 @@ class Image
 
     /**
      * Set updated
+     * @deprecated
      *
      * @param \DateTime $updated
      * @return Image
@@ -534,6 +540,7 @@ class Image
 
     /**
      * Get updated
+     * @deprecated
      *
      * @return \DateTime 
      */
@@ -576,69 +583,69 @@ class Image
     }
 
     /**
-     * Add ImageChecksum
+     * Add imageChecksum
      *
      * @param \ODR\AdminBundle\Entity\ImageChecksum $imageChecksum
      * @return Image
      */
     public function addImageChecksum(\ODR\AdminBundle\Entity\ImageChecksum $imageChecksum)
     {
-        $this->ImageChecksum[] = $imageChecksum;
+        $this->imageChecksum[] = $imageChecksum;
 
         return $this;
     }
 
     /**
-     * Remove ImageChecksum
+     * Remove imageChecksum
      *
      * @param \ODR\AdminBundle\Entity\ImageChecksum $imageChecksum
      */
     public function removeImageChecksum(\ODR\AdminBundle\Entity\ImageChecksum $imageChecksum)
     {
-        $this->ImageChecksum->removeElement($imageChecksum);
+        $this->imageChecksum->removeElement($imageChecksum);
     }
 
     /**
-     * Get ImageChecksum
+     * Get imageChecksum
      *
      * @return \Doctrine\Common\Collections\Collection 
      */
     public function getImageChecksum()
     {
-        return $this->ImageChecksum;
+        return $this->imageChecksum;
     }
 
     /**
-     * Add ImageMeta
+     * Add imageMeta
      *
      * @param \ODR\AdminBundle\Entity\ImageMeta $imageMeta
      * @return Image
      */
     public function addImageMetum(\ODR\AdminBundle\Entity\ImageMeta $imageMeta)
     {
-        $this->ImageMeta[] = $imageMeta;
+        $this->imageMeta[] = $imageMeta;
 
         return $this;
     }
 
     /**
-     * Remove ImageMeta
+     * Remove imageMeta
      *
      * @param \ODR\AdminBundle\Entity\ImageMeta $imageMeta
      */
     public function removeImageMetum(\ODR\AdminBundle\Entity\ImageMeta $imageMeta)
     {
-        $this->ImageMeta->removeElement($imageMeta);
+        $this->imageMeta->removeElement($imageMeta);
     }
 
     /**
-     * Get ImageMeta
+     * Get imageMeta
      *
      * @return \ODR\AdminBundle\Entity\ImageMeta
      */
     public function getImageMeta()
     {
-        return $this->ImageMeta->first();
+        return $this->imageMeta->first();
     }
 
     /**
@@ -827,6 +834,7 @@ class Image
 
     /**
      * Set updatedBy
+     * @deprecated 
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
      * @return Image
@@ -840,6 +848,7 @@ class Image
 
     /**
      * Get updatedBy
+     * @deprecated
      *
      * @return \ODR\OpenRepository\UserBundle\Entity\User 
      */

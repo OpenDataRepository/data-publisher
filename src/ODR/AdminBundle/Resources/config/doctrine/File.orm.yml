@@ -100,10 +100,10 @@ ODR\AdminBundle\Entity\File:
                     on: update
 
     oneToMany:
-        FileChecksum:
+        fileChecksum:
             targetEntity: FileChecksum
             cascade: { }
-            mappedBy: File
+            mappedBy: file
             inversedBy: null
             joinColumns:
                 file_checksum_id:
@@ -111,10 +111,10 @@ ODR\AdminBundle\Entity\File:
             orphanRemoval: false
 #            gedmo:
 #                - versioned
-        FileMeta:
+        fileMeta:
             targetEntity: FileMeta
             cascade: { }
-            mappedBy: File
+            mappedBy: file
             inversedBy: null
             joinColumns:
                 file_meta_id:

@@ -67,11 +67,11 @@ ODR\AdminBundle\Entity\ImageMeta:
                     on: create
 
     manyToOne:
-        Image:
+        image:
             targetEntity: Image
             cascade: {  }
             mappedBy: null
-            inversedBy: ImageMeta
+            inversedBy: imageMeta
             joinColumns:
                 image_id:
                     referencedColumnName: id

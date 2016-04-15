@@ -41,11 +41,11 @@ ODR\AdminBundle\Entity\DataTreeMeta:
                     on: create
 
     manyToOne:
-        DataTree:
+        dataTree:
             targetEntity: DataTree
             cascade: {  }
             mappedBy: null
-            inversedBy: DataTreeMeta
+            inversedBy: dataTreeMeta
             joinColumns:
                 data_tree_id:
                     referencedColumnName: id

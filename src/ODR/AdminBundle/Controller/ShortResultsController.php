@@ -20,6 +20,7 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataRecord;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -48,12 +49,15 @@ class ShortResultsController extends ODRCustomController
 
         try {
             // Get Current User
-            $user = $this->container->get('security.context')->getToken()->getUser();
+//            $user = $this->container->get('security.context')->getToken()->getUser();
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 return parent::deletedEntityError('DataRecord');

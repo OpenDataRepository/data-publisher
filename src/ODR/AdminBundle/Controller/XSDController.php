@@ -20,6 +20,9 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\Theme;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -47,12 +50,13 @@ class XSDController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo = $em->getRepository('ODRAdminBundle:DataType');
-            $datatype = $repo->find($datatype_id);
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 return parent::deletedEntityError('DataType');
-
 
             $xsd_export_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
 
@@ -113,7 +117,11 @@ class XSDController extends ODRCustomController
         $response = new StreamedResponse();
 
         try {
-            $datatype = $this->getDoctrine()->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 return parent::deletedEntityError('DataType');
 
@@ -173,18 +181,22 @@ class XSDController extends ODRCustomController
     private function datatype_GetDisplayData(Request $request, $datatype_id, $template_name = 'default')
     {
         // Required objects
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+
+        /** @var Theme $theme */
         $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
         $templating = $this->get('templating');
 
+        /** @var User $user */
         $user = $this->container->get('security.context')->getToken()->getUser();
 
         $datatype = null;
         $theme_element = null;
         if ($datatype_id !== null) {
-            $datatype = $repo_datatype->find($datatype_id);
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
         }
+        /** @var DataType $datatype */
 
         $indent = 0;
         $is_link = 0;

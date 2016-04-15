@@ -30,11 +30,11 @@ ODR\AdminBundle\Entity\ImageChecksum:
 #                - versioned
 
     manyToOne:
-        Image:
+        image:
             targetEntity: Image
             cascade: {  }
             mappedBy: null
-            inversedBy: ImageChecksum
+            inversedBy: imageChecksum
             joinColumns:
                 image_id:
                     referencedColumnName: id

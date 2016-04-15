@@ -18,6 +18,12 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -53,21 +59,23 @@ class CSVExportController extends ODRCustomController
 
         try {
             // ----------------------------------------
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
-            $datatype = $repo_datatype->find($datatype_id);
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 return parent::deletedEntityError('Datatype');
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $logged_in = true;
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'edit' ])) )
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -128,8 +136,8 @@ class CSVExportController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
+
 
     /**
      * Renders and returns the html used for performing csv exporting
@@ -143,19 +151,26 @@ class CSVExportController extends ODRCustomController
     private function csvExportRender($datatype_id, $odr_tab_id, Request $request)
     {
         // Required objects
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+
+        /** @var DataType $datatype */
+        $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+        if ($datatype == null)
+            return parent::deletedEntityError('Datatype');
+
+        /** @var Theme $theme */
         $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
-        $templating = $this->get('templating');
+
 
         // --------------------
         // Determine user privileges
+        /** @var User $user */
         $user = $this->container->get('security.context')->getToken()->getUser();
-        $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
-        $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+//        $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
+//        $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
         // --------------------
 
-        $datatype = $repo_datatype->find($datatype_id);
         $theme_element = null;
 
         $indent = 0;
@@ -174,6 +189,7 @@ if ($debug)
     print '</pre>';
 
 
+        $templating = $this->get('templating');
         $html = $templating->render(
             'ODRAdminBundle:CSVExport:csvexport_ajax.html.twig',
             array(
@@ -222,9 +238,15 @@ if ($debug)
             // TODO - ensure datafields belong to datatype?
 
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
+            $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
 
 //            $memcached = $this->get('memcached');
 //            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
@@ -238,20 +260,25 @@ if ($debug)
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $logged_in = true;
+//            $logged_in = true;
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'edit' ])) )
+            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
 
-            // Ensure datafield ids are numeric? 
+            // Ensure datafield ids are valid
             foreach ($datafields as $num => $datafield_id) {
-                if ( !is_numeric($datafield_id) )
-                    throw new \Exception('bad post request');
+                /** @var DataFields $datafield */
+                $datafield = $repo_datafields->find($datafield_id);
+                if ($datafield == null)
+                    throw new \Exception('Datafield does not exist');
+                if ($datafield->getDataType()->getId() != $datatype->getId() )
+                    throw new \Exception('Invalid Datafield');
             }
 
             // Translate delimiter from string to character
@@ -400,7 +427,6 @@ return;
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -443,13 +469,9 @@ return;
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
-            $logger = $this->get('logger');
+//            $logger = $this->get('logger');
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-
-            $em = $this->getDoctrine()->getManager();
-            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
-
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
@@ -458,15 +480,20 @@ return;
             $url .= $this->container->get('router')->generate('odr_csv_export_worker');
 
 
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
             $datarecord_data = array();
 
             // ----------------------------------
             // Load FieldTypes of the datafields
             $query = $em->createQuery(
-               'SELECT df.id AS df_id, df.fieldName AS fieldname, ft.typeClass AS typeclass, ft.typeName AS typename
+               'SELECT df.id AS df_id, dfm.fieldName AS fieldname, ft.typeClass AS typeclass, ft.typeName AS typename
                 FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
-                WHERE df IN (:datafields)'
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
+                WHERE df IN (:datafields)
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
             )->setParameters( array('datafields' => $datafields) );
             $results = $query->getArrayResult();
 //print_r($results);
@@ -509,6 +536,7 @@ return;
 //print_r($result);
             $external_id = $result[0]['external_id'];
 */
+            /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             $external_id = $datarecord->getExternalId();
 
@@ -524,7 +552,7 @@ return;
                         JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
                         JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
                         WHERE rs.selected = 1 AND drf.dataRecord = :datarecord AND df.id IN (:datafields)
-                        AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND df.deletedAt IS NULL'
+                        AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL'
                     )->setParameters( array('datarecord' => $datarecord_id, 'datafields' => $df_list) );
                     $results = $query->getArrayResult();
 //print_r($results);
@@ -543,9 +571,10 @@ return;
                         JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
                         JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
                         JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
-                        JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
+                        JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                        JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
                         WHERE dr.id = :datarecord AND df.id IN (:datafields) AND ft.typeClass = :typeclass
-                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL'
+                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
                     )->setParameters( array('datarecord' => $datarecord_id, 'datafields' => $df_list, 'typeclass' => $typeclass) );
                     $results = $query->getArrayResult();
 
@@ -631,7 +660,6 @@ print_r($line);
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -670,16 +698,15 @@ print_r($line);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
-            $logger = $this->get('logger');
+//            $logger = $this->get('logger');
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
 
-            $em = $this->getDoctrine()->getManager();
-            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
-
-
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
 
             // ----------------------------------------
             // Ensure the random key is stored in the database for later retrieval by the finalization process
@@ -733,6 +760,7 @@ print_r($line);
             // Update the job tracker if necessary
             $completed = false;
             if ($tracked_job_id !== -1) {
+                /** @var TrackedJob $tracked_job */
                 $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();
@@ -803,9 +831,11 @@ print_r($line);
                 // Determine the contents of the header line
                 $header_line = array(0 => '_external_id');
                 $query = $em->createQuery(
-                   'SELECT df.id AS id, df.fieldName AS fieldName
+                   'SELECT df.id AS id, dfm.fieldName AS fieldName
                     FROM ODRAdminBundle:DataFields AS df
-                    WHERE df.id IN (:datafields) AND df.deletedAt IS NULL'
+                    JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                    WHERE df.id IN (:datafields)
+                    AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
                 )->setParameters( array('datafields' => $datafields) );
                 $results = $query->getArrayResult();
                 foreach ($results as $num => $result) {
@@ -875,7 +905,6 @@ print_r($line);
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -912,17 +941,15 @@ print_r($line);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
-            $logger = $this->get('logger');
+//            $logger = $this->get('logger');
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-
-            $em = $this->getDoctrine()->getManager();
-            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
-
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
 
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
 
 
             // -----------------------------------------
@@ -1004,7 +1031,6 @@ print_r($line);
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -1028,23 +1054,28 @@ print_r($line);
         
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var TrackedJob $tracked_job */
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
             if ($tracked_job == null)
                 return parent::deletedEntityError("Job");
-
             $job_type = $tracked_job->getJobType();
             if ($job_type !== 'csv_export')
                 return parent::deletedEntityError("Job");
 
             $target_entity = $tracked_job->getTargetEntity();
             $tmp = explode('_', $target_entity);
+
+            /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find( $tmp[1] );
             if ($datatype == null)
                 return parent::deletedEntityError("DataType");
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -1098,7 +1129,6 @@ print_r($line);
             // Return the previously created response
             return $response;
         }
-
     }
 
 }

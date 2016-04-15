@@ -59,7 +59,7 @@ class FileMeta
     /**
      * @var \ODR\AdminBundle\Entity\File
      */
-    private $File;
+    private $file;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -216,26 +216,26 @@ class FileMeta
     }
 
     /**
-     * Set File
+     * Set file
      *
      * @param \ODR\AdminBundle\Entity\File $file
      * @return FileMeta
      */
     public function setFile(\ODR\AdminBundle\Entity\File $file = null)
     {
-        $this->File = $file;
+        $this->file = $file;
 
         return $this;
     }
 
     /**
-     * Get File
+     * Get file
      *
      * @return \ODR\AdminBundle\Entity\File 
      */
     public function getFile()
     {
-        return $this->File;
+        return $this->file;
     }
 
     /**

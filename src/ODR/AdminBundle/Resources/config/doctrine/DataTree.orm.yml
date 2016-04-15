@@ -47,10 +47,10 @@ ODR\AdminBundle\Entity\DataTree:
                     on: update
 
     oneToMany:
-        DataTreeMeta:
+        dataTreeMeta:
             targetEntity: DataTreeMeta
             cascade: { }
-            mappedBy: DataTree
+            mappedBy: dataTree
             inversedBy: null
             joinColumns:
                 data_tree_meta_id:

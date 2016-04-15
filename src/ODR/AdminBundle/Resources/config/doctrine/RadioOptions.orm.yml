@@ -77,7 +77,7 @@ ODR\AdminBundle\Entity\RadioOptions:
 #                - versioned
 
     manyToOne:
-        dataFields:
+        dataField:
             targetEntity: DataFields
             cascade: {  }
             inversedBy: radioOptions

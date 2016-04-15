@@ -69,7 +69,7 @@ class RadioOptions
     /**
      * @var \ODR\AdminBundle\Entity\DataFields
      */
-    private $dataFields;
+    private $dataField;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -176,6 +176,7 @@ class RadioOptions
 
     /**
      * Set xml_optionName
+     * @deprecated
      *
      * @param string $xmlOptionName
      * @return RadioOptions
@@ -199,6 +200,7 @@ class RadioOptions
 
     /**
      * Set displayOrder
+     * @deprecated
      *
      * @param integer $displayOrder
      * @return RadioOptions
@@ -222,6 +224,7 @@ class RadioOptions
 
     /**
      * Set isDefault
+     * @deprecated
      *
      * @param boolean $isDefault
      * @return RadioOptions
@@ -245,6 +248,7 @@ class RadioOptions
 
     /**
      * Set updated
+     * @deprecated
      *
      * @param \DateTime $updated
      * @return RadioOptions
@@ -258,6 +262,7 @@ class RadioOptions
 
     /**
      * Get updated
+     * @deprecated
      *
      * @return \DateTime 
      */
@@ -300,26 +305,26 @@ class RadioOptions
     }
 
     /**
-     * Set dataFields
+     * Set dataField
      *
-     * @param \ODR\AdminBundle\Entity\DataFields $dataFields
+     * @param \ODR\AdminBundle\Entity\DataFields $dataField
      * @return RadioOptions
      */
-    public function setDataFields(\ODR\AdminBundle\Entity\DataFields $dataFields = null)
+    public function setDataField(\ODR\AdminBundle\Entity\DataFields $dataField = null)
     {
-        $this->dataFields = $dataFields;
+        $this->dataField = $dataField;
 
         return $this;
     }
 
     /**
-     * Get dataFields
+     * Get dataField
      *
-     * @return \ODR\AdminBundle\Entity\DataFields 
+     * @return \ODR\AdminBundle\Entity\DataFields
      */
-    public function getDataFields()
+    public function getDataField()
     {
-        return $this->dataFields;
+        return $this->dataField;
     }
 
     /**
@@ -370,6 +375,7 @@ class RadioOptions
 
     /**
      * Set updatedBy
+     * @deprecated
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
      * @return RadioOptions
@@ -383,6 +389,7 @@ class RadioOptions
 
     /**
      * Get updatedBy
+     * @deprecated 
      *
      * @return \ODR\OpenRepository\UserBundle\Entity\User 
      */

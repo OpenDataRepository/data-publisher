@@ -15,7 +15,7 @@
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\HttpFoundation\File\UploadedFile as UploadedFile;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 /**
  * File
@@ -90,12 +90,12 @@ class File
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
-    private $FileChecksum;
+    private $fileChecksum;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
-    private $FileMeta;
+    private $fileMeta;
 
     /**
      * @var \ODR\AdminBundle\Entity\FieldType
@@ -137,8 +137,8 @@ class File
      */
     public function __construct()
     {
-        $this->FileChecksum = new \Doctrine\Common\Collections\ArrayCollection();
-        $this->FileMeta = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->fileChecksum = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->fileMeta = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -314,6 +314,7 @@ class File
 
     /**
      * Set caption
+     * @deprecated
      *
      * @param string $caption
      * @return File
@@ -337,6 +338,7 @@ class File
 
     /**
      * Set originalFileName
+     * @deprecated
      *
      * @param string $originalFileName
      * @return File
@@ -360,6 +362,7 @@ class File
 
     /**
      * Set external_id
+     * @deprecated
      *
      * @param string $externalId
      * @return File
@@ -383,6 +386,7 @@ class File
 
     /**
      * Set publicDate
+     * @deprecated
      *
      * @param \DateTime $publicDate
      * @return File
@@ -406,6 +410,7 @@ class File
 
     /**
      * Set updated
+     * @deprecated
      *
      * @param \DateTime $updated
      * @return File
@@ -419,6 +424,7 @@ class File
 
     /**
      * Get updated
+     * @deprecated
      *
      * @return \DateTime 
      */
@@ -428,69 +434,69 @@ class File
     }
 
     /**
-     * Add FileChecksum
+     * Add fileChecksum
      *
      * @param \ODR\AdminBundle\Entity\FileChecksum $fileChecksum
      * @return File
      */
     public function addFileChecksum(\ODR\AdminBundle\Entity\FileChecksum $fileChecksum)
     {
-        $this->FileChecksum[] = $fileChecksum;
+        $this->fileChecksum[] = $fileChecksum;
 
         return $this;
     }
 
     /**
-     * Remove FileChecksum
+     * Remove fileChecksum
      *
      * @param \ODR\AdminBundle\Entity\FileChecksum $fileChecksum
      */
     public function removeFileChecksum(\ODR\AdminBundle\Entity\FileChecksum $fileChecksum)
     {
-        $this->FileChecksum->removeElement($fileChecksum);
+        $this->fileChecksum->removeElement($fileChecksum);
     }
 
     /**
-     * Get FileChecksum
+     * Get fileChecksum
      *
      * @return \Doctrine\Common\Collections\Collection 
      */
     public function getFileChecksum()
     {
-        return $this->FileChecksum;
+        return $this->fileChecksum;
     }
 
     /**
-     * Add FileMeta
+     * Add fileMeta
      *
      * @param \ODR\AdminBundle\Entity\FileMeta $fileMeta
      * @return File
      */
     public function addFileMetum(\ODR\AdminBundle\Entity\FileMeta $fileMeta)
     {
-        $this->FileMeta[] = $fileMeta;
+        $this->fileMeta[] = $fileMeta;
 
         return $this;
     }
 
     /**
-     * Remove FileMeta
+     * Remove fileMeta
      *
      * @param \ODR\AdminBundle\Entity\FileMeta $fileMeta
      */
     public function removeFileMetum(\ODR\AdminBundle\Entity\FileMeta $fileMeta)
     {
-        $this->FileMeta->removeElement($fileMeta);
+        $this->fileMeta->removeElement($fileMeta);
     }
 
     /**
-     * Get FileMeta
+     * Get fileMeta
      *
      * @return \ODR\AdminBundle\Entity\FileMeta
      */
     public function getFileMeta()
     {
-        return $this->FileMeta->first();
+        return $this->fileMeta->first();
     }
 
     /**
@@ -633,6 +639,7 @@ class File
 
     /**
      * Set updatedBy
+     * @deprecated
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
      * @return File
@@ -646,6 +653,7 @@ class File
 
     /**
      * Get updatedBy
+     * @deprecated
      *
      * @return \ODR\OpenRepository\UserBundle\Entity\User 
      */

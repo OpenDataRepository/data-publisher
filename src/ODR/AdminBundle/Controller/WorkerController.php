@@ -15,14 +15,26 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\AdminBundle\Entity\DataTreeMeta;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataFieldsMeta;
+use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\DataTree;
+use ODR\AdminBundle\Entity\DataTreeMeta;
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\FieldType;
+use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileMeta;
+use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioOptionsMeta;
+use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -60,17 +72,15 @@ class WorkerController extends ODRCustomController
             $delay = new \DateInterval( 'PT1S' );    // one second delay
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
 
             if ($api_key !== $beanstalk_api_key)
@@ -81,7 +91,8 @@ class WorkerController extends ODRCustomController
             // ----------------------------------------
             // Grab necessary objects
             $block = false;
-            $datarecord = $repo_datarecord->find($datarecord_id);
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             $datatype_id = null;
 
             $ret = '';
@@ -94,6 +105,7 @@ class WorkerController extends ODRCustomController
                 $block = true;
             }
 
+            $datatype = null;
             if (!$block) {
                 $em->refresh($datarecord);  // TODO - apparently $datarecord is sometimes NULL at this point?!
                 $datatype = $datarecord->getDataType();
@@ -132,6 +144,7 @@ class WorkerController extends ODRCustomController
                         $tracked_job_target = $tracked_job->getRestrictions();
                 }
             }
+            /** @var TrackedJob $tracked_job */
 
 
             // ----------------------------------------
@@ -352,13 +365,15 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $pheanstalk = $this->get('pheanstalk');
+//            $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
+/*
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+*/
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
             $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
@@ -373,12 +388,18 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
             $ret = '';
 
             // Grab necessary objects
+            /** @var User $user */
             $user = $repo_user->find( $user_id );
+            /** @var DataRecord $datarecord */
             $datarecord = $repo_datarecord->find( $datarecord_id );
+            /** @var DataFields $datafield */
             $datafield = $repo_datafield->find( $datafield_id );
             $em->refresh($datafield);
+
+            /** @var FieldType $old_fieldtype */
             $old_fieldtype = $repo_fieldtype->find( $old_fieldtype_id );
             $old_typeclass = $old_fieldtype->getTypeClass();
+            /** @var FieldType $new_fieldtype */
             $new_fieldtype = $repo_fieldtype->find( $new_fieldtype_id );
             $new_typeclass = $new_fieldtype->getTypeClass();
 
@@ -391,6 +412,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 
             // Create a new datarecord field entity if it doesn't exist
             $em->refresh($datafield);
+            /** @var DataRecordFields $drf */
             $drf = $repo_datarecordfields->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
             if ($drf == null) {
                 $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
@@ -402,6 +424,8 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
             $old_typename = $old_fieldtype->getTypeName();
             $new_typename = $new_fieldtype->getTypeName();
             if ( ($old_typename == 'Multiple Radio' || $old_typename == 'Multiple Select') && ($new_typename == 'Single Radio' || $new_typename == 'Single Select') ) {
+                // If more than one radio option selected, then deselect all but the first one
+
                 // Grab all selected radio options
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id, rs.id AS rs_id, rs.selected AS selected, ro.id AS ro_id, rom.optionName AS option_name
@@ -415,13 +439,22 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                 )->setParameters( array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()) );
                 $results = $query->getArrayResult();
 
-                // If more than one radio option selected
+                // If more than one radio option selected...
                 if ( count($results) > 1 ) {
-                    // Deselect all but the first one in the list
+                    // ...deselect all but the first one in the list
                     for ($i = 1; $i < count($results); $i++) {
                         $rs_id = $results[$i]['rs_id'];
+                        /** @var RadioSelection $radio_selection */
                         $radio_selection = $repo_radio_selection->find($rs_id);
-                        $radio_selection->setSelected(0);
+                        if ($radio_selection->getSelected() != false) {
+                            // Delete the existing radio selection
+                            $radio_option_tmp = $radio_selection->getRadioOption();
+                            $em->remove($radio_selection);
+
+                            // Create a new radio selection and set it to unselected
+                            $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option_tmp, $drf, 0);
+                            $em->persist($new_radio_selection);
+                        }
 
                         $ro_id = $results[$i]['ro_id'];
                         $option_name = $results[$i]['option_name'];
@@ -431,29 +464,16 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                 }
             }
             else if ( $new_typeclass !== 'Radio' ) {
-                // Grab both the source entity repository and the destination entity repository
+                // Grab the source entity repository
                 $src_repository = $em->getRepository('ODRAdminBundle:'.$old_typeclass);
-                $dest_repository = $em->getRepository('ODRAdminBundle:'.$new_typeclass);
 
                 // Grab the entity that needs to be migrated
-//$ret .= '>> Looking for "'.$old_fieldtype->getTypeClass().'" for datafield '.$datafield->getId().' and datarecordfield '.$drf->getId()."\n";
                 $src_entity = $src_repository->findOneBy(array('dataField' => $datafield->getId(), 'dataRecordFields' => $drf->getId()));
 
                 // No point migrating anything if the src entity doesn't exist in the first place...would be no data in it
                 if ($src_entity !== null) {
                     $logger->info('WorkerController::migrateAction() >> Attempting to migrate data from "'.$old_typeclass.'" '.$src_entity->getId().' to "'.$new_typeclass.'"');
                     $ret .= '>> Attempting to migrate data from "'.$old_typeclass.'" '.$src_entity->getId().' to "'.$new_typeclass.'"'."\n";
-
-                    // See if the destination repository already has an entry matching this combination of datafield and datarecordfield...
-                    $dest_entity = $dest_repository->findOneBy(array('dataField' => $datafield->getId(), 'dataRecordFields' => $drf->getId()));
-                    if ($dest_entity == null) {
-                        // Create a new storage entity for the destination if none exists
-                        $dest_entity = parent::ODR_addStorageEntity($em, $user, $drf->getDataRecord(), $datafield);
-                        $ret .= '>> >> [new '.$new_typeclass.']  ';
-                    }
-                    else {
-                        $ret .= '>> >> ['.$new_typeclass.' id '.$dest_entity->getId().']  ';
-                    }
 
                     $value = null;
                     if ( ($old_typeclass == 'ShortVarchar' || $old_typeclass == 'MediumVarchar' || $old_typeclass == 'LongVarchar' || $old_typeclass == 'LongText') && ($new_typeclass == 'ShortVarchar' || $new_typeclass == 'MediumVarchar' || $new_typeclass == 'LongVarchar' || $new_typeclass == 'LongText') ) {
@@ -491,11 +511,15 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 
                     // Save changes
                     $ret .= 'set dest_entity to "'.$value.'"'."\n";
-                    $dest_entity->setValue($value);
-                    $dest_entity->setUpdatedBy($user);
+                    $em->remove($src_entity);
 
-                    $em->persist($dest_entity);
+                    $new_obj = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+                    $new_obj->setValue($value);
+
+                    $em->persist($new_obj);
                     $em->flush();
+
+                    // TODO - code to directly update the cached version of the datarecord
                 }
                 else {
                     $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";
@@ -560,19 +584,23 @@ $ret .= '  Set current to '.$count."\n";
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->container->get('router');
             $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
+            /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 return parent::deletedEntityError('DataType');
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             // TODO - check for permissions?  restrict rebuild of thumbnails to certain datatypes?
@@ -685,15 +713,16 @@ $ret .= '  Set current to '.$count."\n";
             // Ensure the full-size image exists
             parent::decryptObject($object_id, $object_type);
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_image = $em->getRepository('ODRAdminBundle:Image');
-            $img = $repo_image->find($object_id);
 
+            /** @var Image $img */
+            $img = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
             if ($img == null)
                 throw new \Exception('Image '.$object_id.' has been deleted');
 
-            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
-            $user = $repo_user->find(2);    // TODO
+            /** @var User $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find(2);    // TODO - need an actual system user...
 
             // Recreate the thumbnail from the full-sized image
             parent::resizeImages($img, $user);
@@ -773,6 +802,7 @@ $ret .= '  Set current to '.$count."\n";
             $api_key = $post['api_key'];
 
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $crypto = $this->get("dterranova_crypto.crypto_adapter");
             $crypto_dir = dirname(__FILE__).'/../../../../app/crypto_dir/';     // TODO - load from config file somehow?
@@ -797,6 +827,7 @@ $ret .= '  Set current to '.$count."\n";
                     $crypto_dir .= 'File_'.$object_id;
                     $base_obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
                 }
+                /** @var File $base_obj */
 /*
                 else if ($object_type == 'image') {
                     $crypto_dir .= 'Image_'.$object_id;
@@ -983,11 +1014,13 @@ print '</pre>';
         $em->getFilters()->disable('softdeleteable');
         $query = $em->createQuery(
            'SELECT df.id AS df_id, ft.typeName AS type_name
-            FROM ODRAdminBundle:DataFields df
+            FROM ODRAdminBundle:DataFields AS df
             JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-            JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
-            WHERE df.deletedAt IS NOT NULL
-            ORDER BY df.id');
+            JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+            JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
+            WHERE df.deletedAt IS NOT NULL AND dt.deletedAt IS NULL AND dfm.deletedAt IS NULL
+            ORDER BY df.id'
+        );
         $datafields = $query->getResult();
         $em->getFilters()->enable('softdeleteable');
 
@@ -1040,15 +1073,18 @@ print '</pre>';
         $delete_entities = false;
 
         $deleted_entities = array();
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
 
         $query = $em->createQuery(
            'SELECT df.id AS df_id, ft.typeName AS type_name
-            FROM ODRAdminBundle:DataFields df
+            FROM ODRAdminBundle:DataFields AS df
             JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-            JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
-            WHERE dt.id = :datatype AND df.deletedAt IS NULL AND dt.deletedAt IS NULL
+            JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+            JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
+            WHERE dt.id = :datatype
+            AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND df.deletedAt IS NULL AND dt.deletedAt IS NULL
             ORDER BY df.id'
         )->setParameters( array('datatype' => $datatype_id) );
         $datafields = $query->getArrayResult();
@@ -1077,7 +1113,9 @@ print '<pre>';
                 if ( isset($entries[$datarecord_id]) ) {
                     print '-- DataRecord '.$datarecord_id.': duplicate datarecordfield entry '.$datarecordfield_id.' (had '.$entries[$datarecord_id].')'."\n";
 
+                    /** @var DataRecordFields $old_drf */
                     $old_drf = $repo_datarecordfields->find($entries[$datarecord_id]);
+                    /** @var DataRecordFields $new_drf */
                     $new_drf = $repo_datarecordfields->find($datarecordfield_id);
                     $fieldtype = $old_drf->getDataField()->getFieldType()->getTypeClass();
                     $skip = false;
@@ -1090,7 +1128,7 @@ print '<pre>';
                                  JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOptions = ro
                                  JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
                                  JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
-                                 WHERE ro.dataFields = :datafield AND (drf.id = :old_drf OR drf.id = :new_drf) AND rs.selected = 1
+                                 WHERE ro.dataField = :datafield AND (drf.id = :old_drf OR drf.id = :new_drf) AND rs.selected = 1
                                  AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL'
                             )->setParameters( array('datafield' => $datafield_id, 'old_drf' => $old_drf->getId(), 'new_drf' => $new_drf->getId()) );
                             $sub_results = $query->getResult();
@@ -1601,17 +1639,18 @@ return;
         $em = $this->getDoctrine()->getManager();
 
         $query = $em->createQuery(
-           'SELECT dt.id AS dt_id, dt.shortName, dr.id AS dr_id, df.id AS df_id, df.fieldName, ro.id AS ro_id, rom.optionName, rs.id AS rs_id, rs.selected
+           'SELECT dt.id AS dt_id, dt.shortName, dr.id AS dr_id, df.id AS df_id, dfm.fieldName, ro.id AS ro_id, rom.optionName, rs.id AS rs_id, rs.selected
             FROM ODRAdminBundle:DataType AS dt
             JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-            JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
-            JOIN ODRAdminBundle:RadioOptions AS ro WITH ro.dataFields = df
+            JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+            JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
+            JOIN ODRAdminBundle:RadioOptions AS ro WITH ro.dataField = df
             JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOptions = ro
             JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
             JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
             JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
             WHERE dt.id = :datatype AND ft.typeClass = :typeclass
-            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
+            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
             ORDER BY dt.id, dr.id, df.id, ro.id'
         )->setParameters( array('datatype' => $datatype_id, 'typeclass' => 'Radio') );
         $results = $query->getArrayResult();
@@ -1739,19 +1778,23 @@ print '</pre>';
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->container->get('router');
+
             $memcached = $this->get('memcached');
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            // TODO - check for permissions?  restrict rebuild of thumbnails to certain datatypes?
+//            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
@@ -1928,15 +1971,53 @@ print '</pre>';
             }
 
             // ----------------------------------------
-            // TODO - Datafields
+            // Datafields
+            // ----------------------------------------
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_datafield_metadata');
+
+            // Grab a list of all radio options in the database
+            $em->getFilters()->disable('softdeleteable');
+            $query = $em->createQuery(
+               'SELECT df.id AS id
+                FROM ODRAdminBundle:DataFields AS df'
+            );
+            $results = $query->getArrayResult();
+            $em->getFilters()->enable('softdeleteable');
+
+//print_r($results);
+//return;
+
+            if (count($results) > 0) {
+                $object_type = 'datafield';
+                foreach ($results as $num => $result) {
+                    $object_id = $result['id'];
+
+                    // Insert the new job into the queue
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+//                            "tracked_job_id" => $tracked_job_id,
+                            "object_type" => $object_type,
+                            "object_id" => $object_id,
+                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
+
+                    $delay = 1;
+                    $pheanstalk->useTube('build_metadata')->put($payload, $priority, $delay);
+                }
+            }
+
+            // ----------------------------------------
+            // TODO - Datatypes
             // ----------------------------------------
 
             // ----------------------------------------
             // TODO - Datarecords
-            // ----------------------------------------
-
-            // ----------------------------------------
-            // TODO - Datatypes
             // ----------------------------------------
         }
         catch (\Exception $e) {
@@ -1974,13 +2055,16 @@ print '</pre>';
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+/*
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+*/
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             if ($api_key !== $beanstalk_api_key)
@@ -1991,11 +2075,13 @@ print '</pre>';
             $em->getFilters()->disable('softdeleteable');
 
             // Ensure the radio option entity exists...
+            /** @var RadioOptions $radio_option */
             $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find($object_id);
             if ($radio_option == null)
                 throw new \Exception('Radio Option does not exist');
 
             // Attempt to locate a metadata entry for the provided entity
+            /** @var RadioOptionsMeta $radio_option_meta */
             $radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOptions' => $object_id) );
 
             // No longer need softdeleteable filter disabled
@@ -2066,13 +2152,15 @@ print '</pre>';
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+/*
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+*/
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             if ($api_key !== $beanstalk_api_key)
@@ -2083,12 +2171,14 @@ print '</pre>';
             $em->getFilters()->disable('softdeleteable');
 
             // Ensure the file entity exists...
+            /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($object_id);
             if ($file == null)
                 throw new \Exception('File does not exist');
 
             // Attempt to locate a metadata entry for the provided entity
-            $file_meta = $em->getRepository('ODRAdminBundle:FileMeta')->findOneBy( array('File' => $object_id) );
+            /** @var FileMeta $file_meta */
+            $file_meta = $em->getRepository('ODRAdminBundle:FileMeta')->findOneBy( array('file' => $object_id) );
 
             // No longer need softdeleteable filter disabled
             $em->getFilters()->enable('softdeleteable');
@@ -2158,13 +2248,15 @@ print '</pre>';
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+/*
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+*/
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             if ($api_key !== $beanstalk_api_key)
@@ -2175,12 +2267,14 @@ print '</pre>';
             $em->getFilters()->disable('softdeleteable');
 
             // Ensure the file entity exists...
+            /** @var Image $image */
             $image = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
             if ($image == null)
                 throw new \Exception('Image does not exist');
 
             // Attempt to locate a metadata entry for the provided entity
-            $image_meta = $em->getRepository('ODRAdminBundle:ImageMeta')->findOneBy( array('Image' => $object_id) );
+            /** @var ImageMeta $image_meta */
+            $image_meta = $em->getRepository('ODRAdminBundle:ImageMeta')->findOneBy( array('image' => $object_id) );
 
             // No longer need softdeleteable filter disabled
             $em->getFilters()->enable('softdeleteable');
@@ -2251,13 +2345,16 @@ print '</pre>';
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+/*
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+*/
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             if ($api_key !== $beanstalk_api_key)
@@ -2268,12 +2365,14 @@ print '</pre>';
             $em->getFilters()->disable('softdeleteable');
 
             // Ensure the file entity exists...
+            /** @var DataTree $datatree */
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($object_id);
             if ($datatree == null)
                 throw new \Exception('DataTree does not exist');
 
             // Attempt to locate a metadata entry for the provided entity
-            $datatree_meta = $em->getRepository('ODRAdminBundle:DataTreeMeta')->findOneBy( array('DataTree' => $object_id) );
+            /** @var DataTreeMeta $datatree_meta */
+            $datatree_meta = $em->getRepository('ODRAdminBundle:DataTreeMeta')->findOneBy( array('dataTree' => $object_id) );
 
             // No longer need softdeleteable filter disabled
             $em->getFilters()->enable('softdeleteable');
@@ -2341,73 +2440,90 @@ print '</pre>';
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+/*
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+*/
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
 
-            // TODO - stuff here
+            // ----------------------------------------
+            // Want to create a metadata entry for deleted images too
+            $em->getFilters()->disable('softdeleteable');
+
+            // Ensure the file entity exists...
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($object_id);
+            if ($datafield == null)
+                throw new \Exception('Datafield does not exist');
+
+            // Attempt to locate a metadata entry for the provided entity
+            /** @var DataFieldsMeta $datafield_meta */
+            $datafield_meta = $em->getRepository('ODRAdminBundle:DataFieldsMeta')->findOneBy( array('dataField' => $object_id) );
+
+            // No longer need softdeleteable filter disabled
+            $em->getFilters()->enable('softdeleteable');
+
+            if ($datafield_meta !== null) {
+                $return['d'] = 'Metadata entry already exists for Datafield '.$object_id.', skipping';
+            }
+            else {
+                // Create a new meta entry and populate from original entity
+                $datafield_meta = new DataFieldsMeta();
+
+                $datafield_meta->setDataField( $datafield );
+                $datafield_meta->setFieldType( $datafield->getFieldTypeOriginal() );
+                $datafield_meta->setRenderPlugin( $datafield->getRenderPluginOriginal() );
+
+                $datafield_meta->setFieldName( $datafield->getFieldNameOriginal() );
+                $datafield_meta->setDescription( $datafield->getDescriptionOriginal() );
+                $datafield_meta->setXmlFieldName( $datafield->getXmlFieldNameOriginal() );
+                $datafield_meta->setPhpValidator( $datafield->getPhpValidatorOriginal() );
+                $datafield_meta->setRegexValidator( $datafield->getRegexValidatorOriginal() );
+
+                $datafield_meta->setMarkdownText( $datafield->getMarkdownTextOriginal() );
+                $datafield_meta->setIsUnique( $datafield->getIsUniqueOriginal() );
+                $datafield_meta->setRequired( $datafield->getRequiredOriginal() );
+                $datafield_meta->setSearchable( $datafield->getSearchableOriginal() );
+                $datafield_meta->setUserOnlySearch( $datafield->getUserOnlySearchOriginal() );
+
+                $datafield_meta->setDisplayOrder( $datafield->getDisplayOrderOriginal() );
+                $datafield_meta->setChildrenPerRow( $datafield->getChildrenPerRowOriginal() );
+                $datafield_meta->setRadioOptionNameSort( $datafield->getRadioOptionNameSortOriginal() );
+                $datafield_meta->setRadioOptionDisplayUnselected( $datafield->getRadioOptionDisplayUnselectedOriginal() );
+                $datafield_meta->setAllowMultipleUploads( $datafield->getAllowMultipleUploadsOriginal() );
+
+                $datafield_meta->setShortenFilename( $datafield->getShortenFilenameOriginal() );
+
+                $datafield_meta->setCreated( $datafield->getCreated() );
+                $datafield_meta->setCreatedBy( $datafield->getCreatedBy() );
+
+                $datafield_meta->setDeletedAt( $datafield->getDeletedAt() );
+
+                // If datafield is deleted, transfer who deleted it from the updatedBy column to the deletedBy column
+                if ( $datafield->getDeletedAt() !== null ) {
+                    $datafield->setDeletedBy( $datafield->getUpdatedBy() );
+                    $em->persist($datafield);
+                }
+
+                $em->persist($datafield_meta);
+                $em->flush();
+
+                $return['d'] = 'Created new metadata entry for Datafield '.$object_id;
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x2738672902 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Builds metadata entry for a specified datarecord if needed
-     *
-     * @param Request $request
-     */
-    public function builddatarecordmetadataAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            $post = $_POST;
-            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
-                throw new \Exception('Invalid Form');
-
-            // Pull data from the post
-            $object_type = $post['object_type'];
-            $object_id = $post['object_id'];
-            $api_key = $post['api_key'];
-
-            // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $pheanstalk = $this->get('pheanstalk');
-            $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-
-            $em = $this->getDoctrine()->getManager();
-
-            if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
-
-            // TODO - stuff here
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x239864522 ' . $e->getMessage();
         }
 
         $response = new Response(json_encode($return));
@@ -2439,13 +2555,16 @@ print '</pre>';
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+/*
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+*/
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             if ($api_key !== $beanstalk_api_key)
@@ -2463,4 +2582,57 @@ print '</pre>';
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
+
+
+    /**
+     * Builds metadata entry for a specified datarecord if needed
+     *
+     * @param Request $request
+     */
+    public function builddatarecordmetadataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $object_type = $post['object_type'];
+            $object_id = $post['object_id'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+/*
+            $pheanstalk = $this->get('pheanstalk');
+            $logger = $this->get('logger');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+*/
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+            // TODO - stuff here
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x239864522 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
 }

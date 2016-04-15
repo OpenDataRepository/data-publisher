@@ -14,12 +14,20 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\AdminBundle\Entity\ImageMeta;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\Image;
+use ODR\AdminBundle\Entity\LinkedDataTree;
+use ODR\AdminBundle\Entity\RadioOptions;
+use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Entity\Theme;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -45,18 +53,20 @@ class RecordController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Get Entity Manager and setup repo 
+            // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
-            $datatype = $repo_datatype->find($datatype_id);
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ( $datatype == null )
                 return parent::deletedEntityError('Datatype');
 
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -64,7 +74,7 @@ class RecordController extends ODRCustomController
             if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'add' ])) )
                 return parent::permissionDeniedError("create new DataRecords for");
             // --------------------
-
+/*
             // TODO - ???
             // Get default form theme (theme_type = "form"
             $query = $em->createQuery(
@@ -76,8 +86,7 @@ class RecordController extends ODRCustomController
                 throw new \Exception("An invalid form theme was found.  Error: 0X82383992.");
             }
             $theme = $themes[0];
-
-
+*/
             // Create new Data Record
             $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
 
@@ -85,8 +94,11 @@ class RecordController extends ODRCustomController
             $em->refresh($datarecord);
 
             // Top Level Record - must have grandparent and parent set to itself
+            /** @var DataRecord $parent */
             $parent = $repo_datarecord->find($datarecord->getId());
+            /** @var DataRecord $grandparent */
             $grandparent = $repo_datarecord->find($datarecord->getId());
+
             $datarecord->setGrandparent($grandparent);
             $datarecord->setParent($parent);
 
@@ -158,20 +170,23 @@ class RecordController extends ODRCustomController
         $return['d'] = "";
 
         try {
-            // Get Entity Manager and setup repo 
+            // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
             // Grab needed Entities from the repository
-            $datatype = $repo_datatype->find($datatype_id);
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ( $datatype == null )
                 return parent::deletedEntityError('Datatype');
 
+            /** @var DataRecord $parent */
             $parent = $repo_datarecord->find($parent_id);
             if ( $parent == null )
                 return parent::deletedEntityError('DataRecord');
 
+            /** @var DataRecord $grandparent */
             $grandparent = $repo_datarecord->find($grandparent_id);
             if ( $grandparent == null )
                 return parent::deletedEntityError('DataRecord');
@@ -179,6 +194,7 @@ class RecordController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -214,7 +230,6 @@ class RecordController extends ODRCustomController
             $options = array();
             $options['mark_as_updated'] = true;
             parent::updateDatarecordCache($grandparent->getId(), $options);
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -250,12 +265,14 @@ class RecordController extends ODRCustomController
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
             $repo_linked_data_tree = $em->getRepository('ODRAdminBundle:LinkedDataTree');
 
             // Grab the necessary entities
+            /** @var DataRecord $datarecord */
             $datarecord = $repo_datarecord->find($datarecord_id);
             if ($datarecord == null)
                 return parent::deletedEntityError('Datarecord');
@@ -268,6 +285,7 @@ class RecordController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -294,6 +312,7 @@ class RecordController extends ODRCustomController
             $results = $query->getResult();
             foreach ($results as $num => $data) {
                 $drf_id = $data['drf_id'];
+                /** @var DataRecordFields $drf */
                 $drf = $repo_datarecordfields->find($drf_id);
                 //$em->remove($drf);
                 $entities_to_remove[] = $drf;
@@ -303,6 +322,7 @@ class RecordController extends ODRCustomController
             $recache_list = array();
 
             // Locate and delete any LinkedDataTree entities so rendering doesn't crash
+            /** @var LinkedDataTree[] $linked_data_trees */
             $linked_data_trees = $repo_linked_data_tree->findBy( array('descendant' => $datarecord->getId()) );
             foreach ($linked_data_trees as $ldt) {
                 // Need to recache the datarecord on the other side of the link
@@ -315,6 +335,7 @@ class RecordController extends ODRCustomController
 
                 $entities_to_remove[] = $ldt;
             }
+            /** @var LinkedDataTree[] $linked_data_trees */
             $linked_data_trees = $repo_linked_data_tree->findBy( array('ancestor' => $datarecord->getId()) );
             foreach ($linked_data_trees as $ldt) {
                 // Need to recache the datarecord on the other side of the link
@@ -329,6 +350,7 @@ class RecordController extends ODRCustomController
             }
 
             // Delete the datarecord entity like the user wanted, in addition to all children of this datarecord so external_id doesn't grab them
+            /** @var DataRecord[] $datarecords */
             $datarecords = $repo_datarecord->findBy( array('grandparent' => $datarecord->getId()) );
             foreach ($datarecords as $dr) {
                 $entities_to_remove[] = $dr;
@@ -431,21 +453,19 @@ class RecordController extends ODRCustomController
 
         try {
             // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
             // Grab the necessary entities
-            $datarecord = $repo_datarecord->find($datarecord_id);
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
-
-            $datatype = $repo_datatype->find($datatype_id);
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
+            $datatype = $datarecord->getDataType();
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -471,7 +491,7 @@ class RecordController extends ODRCustomController
 
             // Get record_ajax.html.twig to rRe-render the datarecord
             $return['d'] = array(
-                'datatype_id' => $datatype_id,
+                'datatype_id' => $datatype->getId(),
                 'parent_id' => $parent->getId(),
             );
         }
@@ -505,9 +525,11 @@ class RecordController extends ODRCustomController
 
         try {
             // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             // Grab the necessary entities
+            /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ( $file == null )
                 return parent::deletedEntityError('File');
@@ -527,6 +549,7 @@ class RecordController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
@@ -604,9 +627,11 @@ class RecordController extends ODRCustomController
 
         try {
             // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             // Grab the necessary entities
+            /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ( $file == null )
                 return parent::deletedEntityError('File');
@@ -626,6 +651,7 @@ class RecordController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
@@ -717,10 +743,12 @@ class RecordController extends ODRCustomController
 
         try {
             // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
             // Grab the necessary entities
+            /** @var Image $image */
             $image = $repo_image->find($image_id);
             if ( $image == null )
                 return parent::deletedEntityError('Image');
@@ -740,6 +768,7 @@ class RecordController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
@@ -752,6 +781,7 @@ class RecordController extends ODRCustomController
             // --------------------
 
             // Grab all children of the original image (resizes, i believe)
+            /** @var Image[] $all_images */
             $all_images = $repo_image->findBy( array('parent' => $image->getId()) );
             $all_images[] = $image;
 
@@ -829,10 +859,12 @@ class RecordController extends ODRCustomController
 
         try {
             // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
             // Grab the necessary entities
+            /** @var Image $image */
             $image = $repo_image->find($image_id);
             if ( $image == null )
                 return parent::deletedEntityError('Image');
@@ -852,6 +884,7 @@ class RecordController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
@@ -864,6 +897,7 @@ class RecordController extends ODRCustomController
             // --------------------
 
             // Grab all alternate sizes of the original image (thumbnail is only current one) and remove them
+            /** @var Image[] $images */
             $images = $repo_image->findBy( array('parent' => $image->getId()) );
             foreach ($images as $img) {
                 // Ensure no decrypted version of any of the thumbnails exist on the server
@@ -936,10 +970,12 @@ class RecordController extends ODRCustomController
 
         try {
             // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
             // Grab the necessary entities
+            /** @var Image $image */
             $image = $repo_image->find($image_id);
             if ( $image == null )
                 return parent::deletedEntityError('Image');
@@ -959,6 +995,7 @@ class RecordController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
@@ -991,6 +1028,7 @@ class RecordController extends ODRCustomController
                 $em->persist($image);
             }
 
+            /** @var Image[] $images */
             $images = $repo_image->findBy( array('parent' => $image->getId()) );
             foreach ($images as $img) {
                 // Ensure no decrypted version of any of the thumbnails exist on the server
@@ -1086,7 +1124,7 @@ class RecordController extends ODRCustomController
                 $filepath = 'uploads/files/chunks/user_'.$user->getId().'/completed';
                 $original_filename = $image->getOriginalFileName();
 
-                $new_image = parent::finishUpload($em, $filepath, $original_filename, $user->getId(), $image->getDataRecordFields());
+                $new_image = parent::finishUpload($em, $filepath, $original_filename, $user->getId(), $image->getDataRecordFields()->getId());
 
                 // Copy any metadata from the old image over to the new image
                 $old_image_meta = $image->getImageMeta();
@@ -1157,15 +1195,16 @@ class RecordController extends ODRCustomController
             $post = $_POST;
 //print_r($post);
 //return;
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_image = $em->getRepository('ODRAdminBundle:Image');
 
             // Grab the first image just to check permissions
             $image = null;
             foreach ($post as $index => $image_id) {
-                $image = $repo_image->find($image_id);
+                $image = $em->getRepository('ODRAdminBundle:Image')->find($image_id);
                 break;
             }
+            /** @var Image $image */
 
             $datafield = $image->getDataField();
             if ( $datafield == null )
@@ -1180,6 +1219,7 @@ class RecordController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
@@ -1203,6 +1243,7 @@ class RecordController extends ODRCustomController
             $all_images = array();
             foreach ($results as $image)
                 $all_images[ $image->getId() ] = $image;
+            /** @var Image[] $all_images */
 
             // Throw exceptions if the post request doesn't match the expected image list
             if ( count($post) !== count($all_images) ) {
@@ -1267,9 +1308,11 @@ class RecordController extends ODRCustomController
 
         try {
             // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $datarecord = $repo_datarecord->find($datarecord_id);
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
 
@@ -1280,6 +1323,7 @@ class RecordController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -1351,9 +1395,11 @@ class RecordController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
+            /** @var DataRecordFields $datarecordfield */
             $datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields')->find($data_record_field_id);
             if ( $datarecordfield == null )
                 return parent::deletedEntityError('DataRecordField');
@@ -1366,6 +1412,7 @@ class RecordController extends ODRCustomController
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            /** @var RadioOptions $radio_option */
             if ($radio_option_id != 0) {
                 $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find($radio_option_id);
                 if ($radio_option == null)
@@ -1374,6 +1421,7 @@ class RecordController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
@@ -1393,6 +1441,7 @@ class RecordController extends ODRCustomController
             // A RadioOption id of 0 has no effect on a Multiple Radio/Select datafield
             if ( $radio_option_id != 0 && ($typename == 'Multiple Radio' || $typename == 'Multiple Select') ) {
                 // Don't care about selected status of other RadioSelection entities...
+                /** @var RadioSelection $old_radio_selection */
                 $old_radio_selection = $repo_radio_selection->findOneBy( array('radioOption' => $radio_option_id, 'dataRecordFields' => $data_record_field_id) );
 
                 // Default to a value of 'selected' if an older RadioSelection entity does not exist
@@ -1413,6 +1462,7 @@ class RecordController extends ODRCustomController
             }
             else if ($typename == 'Single Radio' || $typename == 'Single Select') {
                 // Probably need to change selected status of at least one other RadioSelection entity...
+                /** @var RadioSelection[] $radio_selections */
                 $radio_selections = $repo_radio_selection->findBy( array('dataRecordFields' => $data_record_field_id) );
 
                 $found = false;
@@ -1471,7 +1521,6 @@ class RecordController extends ODRCustomController
             // Refresh the cache entries for this datarecord
             $datarecord = $datarecordfield->getDataRecord();
             parent::updateDatarecordCache($datarecord->getId(), $options);
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1482,7 +1531,6 @@ class RecordController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -1507,15 +1555,15 @@ class RecordController extends ODRCustomController
 
         try {
             // Get the Entity Manager
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
 
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
-            $datarecord = $repo_datarecord->find($datarecord_id);
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
 
@@ -1523,19 +1571,22 @@ class RecordController extends ODRCustomController
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            $datafield_id = $_POST[$record_type.'Form']['data_field'];
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ( $datafield == null )
+                return parent::deletedEntityError('DataField');
+
+
             $datatype_id = $datatype->getId();
             $external_id_datafield = $datatype->getExternalIdField();
             $sort_datafield = $datatype->getSortField();
             $name_datafield = $datatype->getNameField();
 
-            $datafield_id = $_POST[$record_type.'Form']['data_field'];
-            $datafield = $repo_datafield->find($datafield_id);
-            if ( $datafield == null )
-                return parent::deletedEntityError('DataField');
-
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
@@ -1597,6 +1648,7 @@ class RecordController extends ODRCustomController
                 $new_value = $_POST[$record_type.'Form']['value'];
 
             // Save the old value incase we have to revert
+            /** @var DataRecordFields $drf */
             $drf = $my_obj->getDataRecordFields();
             $tmp_obj = $drf->getAssociatedEntity();
             $old_value = $tmp_obj->getValue();
@@ -1823,22 +1875,26 @@ class RecordController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Get Entity Manager and setup repo 
+            // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_linked_datatree = $em->getRepository('ODRAdminBundle:LinkedDataTree');
+//            $repo_linked_datatree = $em->getRepository('ODRAdminBundle:LinkedDataTree');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
+//            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
 
             // Grab the datatypes from the database
+            /** @var DataRecord $local_datarecord */
             $local_datarecord = $repo_datarecord->find($local_datarecord_id);
             if ( $local_datarecord == null )
                 return parent::deletedEntityError('DataRecord');
 
+            /** @var DataType $ancestor_datatype */
             $ancestor_datatype = $repo_datatype->find($ancestor_datatype_id);
             if ( $ancestor_datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            /** @var DataType $descendant_datatype */
             $descendant_datatype = $repo_datatype->find($descendant_datatype_id);
             if ( $descendant_datatype == null )
                 return parent::deletedEntityError('DataType');
@@ -1846,6 +1902,7 @@ class RecordController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -1875,6 +1932,7 @@ if ($debug) {
                 $remote_datatype = $repo_datatype->find($ancestor_datatype_id);     // Getting a remote datarecord to link to this datarecord
                 $local_datarecord_is_ancestor = false;
             }
+            /** @var DataType $remote_datatype */
 
 if ($debug)
     print "\nremote datatype: ".$remote_datatype->getId()."\n";
@@ -1887,7 +1945,7 @@ if ($debug)
                 // local_datarecord is on the ancestor side of the link
                 $query = $em->createQuery(
                    'SELECT descendant.id AS descendant_id
-                    FROM ODRAdminBundle:DataRecord ancestor
+                    FROM ODRAdminBundle:DataRecord AS ancestor
                     JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
                     JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
                     WHERE ancestor = :local_datarecord AND descendant.dataType = :remote_datatype AND descendant.provisioned = false
@@ -1906,7 +1964,7 @@ if ($debug)
                 // local_datarecord is on the descendant side of the link
                 $query = $em->createQuery(
                    'SELECT ancestor.id AS ancestor_id
-                    FROM ODRAdminBundle:DataRecord descendant
+                    FROM ODRAdminBundle:DataRecord AS descendant
                     JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.descendant = descendant
                     JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
                     WHERE descendant = :local_datarecord AND ancestor.dataType = :remote_datatype AND ancestor.provisioned = false
@@ -1936,7 +1994,7 @@ if ($debug) {
             $query = $em->createQuery(
                'SELECT dtm.multiple_allowed AS multiple_allowed
                 FROM ODRAdminBundle:DataTree AS dt
-                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
+                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
                 WHERE dt.ancestor = :ancestor AND dt.descendant = :descendant
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
             )->setParameters( array('ancestor' => $ancestor_datatype->getId(), 'descendant' => $descendant_datatype->getId()) );
@@ -1985,13 +2043,15 @@ if ($debug) {
 }
 
             // ----------------------------------------
+/*
             // Need memcached for this...
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-            $templating = $this->get('templating');
-//            $theme = $em->getRepository('ODRAdminBundle:Theme')->find(2);
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find(4);   // TODO - need an offcial theme to indicate "textresults"
+*/
+
+            /** @var Theme $theme */
+//            $theme = $em->getRepository('ODRAdminBundle:Theme')->find(4);   // TODO - need an offcial theme to indicate "textresults"
 
             // Convert the list of linked datarecords into a slightly different format so renderTextResultsList() can build it
             $datarecord_list = array();
@@ -2009,6 +2069,7 @@ if ($debug) {
 
 
             // Render the dialog box for this request
+            $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
                     'ODRAdminBundle:Record:link_datarecord_form.html.twig',
@@ -2068,19 +2129,21 @@ if ($debug) {
             $local_datarecord_id = $post['local_datarecord_id'];
             $ancestor_datatype_id = $post['ancestor_datatype_id'];
             $descendant_datatype_id = $post['descendant_datatype_id'];
-            $allow_multiple_links = $post['allow_multiple_links'];
+            $allow_multiple_links = $post['allow_multiple_links'];      // TODO - not used when it should be?
             $datarecords = array();
             if ( isset($post['datarecords']) )
                 $datarecords = $post['datarecords'];
 
 
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $repo_linked_datatree = $em->getRepository('ODRAdminBundle:LinkedDataTree');
+//            $repo_linked_datatree = $em->getRepository('ODRAdminBundle:LinkedDataTree');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+            /** @var DataRecord $local_datarecord */
             $local_datarecord = $repo_datarecord->find($local_datarecord_id);
             if ( $local_datarecord == null )
                 return parent::deletedEntityError('DataRecord');
@@ -2092,6 +2155,7 @@ if ($debug) {
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
@@ -2102,10 +2166,12 @@ if ($debug) {
 
 
             // Grab the datatypes from the database
+            /** @var DataType $ancestor_datatype */
             $ancestor_datatype = $repo_datatype->find($ancestor_datatype_id);
             if ( $ancestor_datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            /** @var DataType $descendant_datatype */
             $descendant_datatype = $repo_datatype->find($descendant_datatype_id);
             if ( $descendant_datatype == null )
                 return parent::deletedEntityError('DataType');
@@ -2133,6 +2199,7 @@ if ($debug) {
             $linked_datatree = array();
             foreach ($results as $num => $ldt)
                 $linked_datatree[] = $ldt;
+            /** @var LinkedDataTree[] $linked_datatree */
 
 $debug = true;
 $debug = false;
@@ -2269,7 +2336,6 @@ if ($debug)
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -2291,15 +2357,15 @@ if ($debug)
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
 
-            $datarecord = $repo_datarecord->find($datarecord_id);
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 return parent::deletedEntityError('Datarecord');
-            $datafield = $repo_datafields->find($datafield_id);
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
                 return parent::deletedEntityError('DataField');
             $datatype = $datafield->getDataType();
@@ -2309,9 +2375,10 @@ if ($debug)
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $logged_in = true;
+//            $logged_in = true;
 
             // Ensure user has permissions to be doing this
             if ( !( isset($user_permissions[$datatype->getId()]) && ( isset($user_permissions[$datatype->getId()]['edit']) || isset($user_permissions[$datatype->getId()]['child_edit']) ) ) )
@@ -2326,7 +2393,8 @@ if ($debug)
                 }
             }
 
-            $datarecordfield = $repo_datarecordfields->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );
+            /** @var DataRecordFields $datarecordfield */
+            $datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord_id, 'dataField' => $datafield_id) );
             $form = parent::buildForm($em, $user, $datarecord, $datafield, $datarecordfield, false, 0);
 
             $templating = $this->get('templating');
@@ -2373,17 +2441,21 @@ if ($debug)
     private function GetDisplayData(Request $request, $datarecord_id, $search_key, $template_name = 'default', $child_datatype_id = null)
     {
         // Required objects
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
         $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
 
         // --------------------
         // Determine user privileges
+        /** @var User $user */
         $user = $this->container->get('security.context')->getToken()->getUser();
         $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
         $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
         // --------------------
+
+        /** @var Theme $theme */
+        $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
 
         $parent_datarecord = null;
         $datarecord = null;
@@ -2400,6 +2472,9 @@ if ($debug)
             $parent_datarecord = $datarecord;
             $datatype = $datarecord->getDataType();
         }
+        /** @var DataRecord $parent_datarecord */
+        /** @var DataRecord $datarecord */
+        /** @var DataType $datatype */
 
         $datarecords = array($datarecord);
 
@@ -2449,7 +2524,6 @@ if ($debug)
             $results = $query->getResult();
             foreach ($results as $num => $linked_datarecord)
                 $datarecords[] = $linked_datarecord;
-
         }
 
 $debug = true;
@@ -2489,7 +2563,7 @@ if ($debug)
             $query = $em->createQuery(
                'SELECT ancestor.id AS ancestor_id, ancestor.shortName AS ancestor_name
                 FROM ODRAdminBundle:DataTree AS dt
-                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
+                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
                 JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
                 WHERE dtm.is_link = 1 AND dt.descendant = :datatype
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
@@ -2508,7 +2582,7 @@ if ($debug)
             $query = $em->createQuery(
                'SELECT descendant.id AS descendant_id, descendant.shortName AS descendant_name
                 FROM ODRAdminBundle:DataTree AS dt
-                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.DataTree = dt
+                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
                 JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
                 WHERE dtm.is_link = 1 AND dt.ancestor = :datatype
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL'
@@ -2564,22 +2638,25 @@ if ($debug)
 
         try {
             // Get necessary objects
+/*
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+*/
             $session = $request->getSession();
 
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
-            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
+//            $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
+//            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
 
             // Get Default Theme
-            $theme = $repo_theme->find(1);  // TODO - default theme
+            /** @var Theme $theme */
+//            $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
 
             // Get Record In Question
-            $datarecord = $repo_datarecord->find($datarecord_id);
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ( $datarecord == null )
                 return parent::deletedEntityError('Datarecord');
 
@@ -2594,6 +2671,7 @@ if ($debug)
 
             // --------------------
             // Determine user privileges
+            /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $logged_in = true;

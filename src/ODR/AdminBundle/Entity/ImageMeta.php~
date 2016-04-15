@@ -64,7 +64,7 @@ class ImageMeta
     /**
      * @var \ODR\AdminBundle\Entity\Image
      */
-    private $Image;
+    private $image;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -244,26 +244,26 @@ class ImageMeta
     }
 
     /**
-     * Set Image
+     * Set image
      *
      * @param \ODR\AdminBundle\Entity\Image $image
      * @return ImageMeta
      */
     public function setImage(\ODR\AdminBundle\Entity\Image $image = null)
     {
-        $this->Image = $image;
+        $this->image = $image;
 
         return $this;
     }
 
     /**
-     * Get Image
+     * Get image
      *
      * @return \ODR\AdminBundle\Entity\Image 
      */
     public function getImage()
     {
-        return $this->Image;
+        return $this->image;
     }
 
     /**
