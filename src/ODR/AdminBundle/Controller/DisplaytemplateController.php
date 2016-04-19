@@ -27,6 +27,7 @@ use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\LinkedDataTree;
 use ODR\AdminBundle\Entity\RadioOptions;
@@ -131,28 +132,41 @@ class DisplaytemplateController extends ODRCustomController
 
             // Delete all datarecordfield entries associated with the datafield
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecordFields drf
+               'UPDATE ODRAdminBundle:DataRecordFields AS drf
                 SET drf.deletedAt = :date
                 WHERE drf.dataField = :datafield'
             )->setParameters( array('date' => new \DateTime(), 'datafield' => $datafield->getId()) );
             $rows = $query->execute();
 
 
+            $properties = array();
             // Ensure that the datatype doesn't continue to think this datafield is its external id field
             if ($datatype->getExternalIdField() !== null && $datatype->getExternalIdField()->getId() === $datafield->getId())
-                $datatype->setExternalIdField(null);
+                $properties['externalIdField'] = null;
 
             // Ensure that the datatype doesn't continue to think this datafield is its name field
             if ($datatype->getNameField() !== null && $datatype->getNameField()->getId() === $datafield->getId())
-                $datatype->setNameField(null);
+                $properties['nameField'] = null;
 
             // Ensure that the datatype doesn't continue to think this datafield is its sort field
             if ($datatype->getSortField() !== null && $datatype->getSortField()->getId() === $datafield->getId()) {
-                $datatype->setSortField(null);
+                $properties['sortField'] = null;
 
                 // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
                 $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
             }
+
+            // Ensure that the datatype doesn't continue to think this datafield is its background image field
+            if ($datatype->getBackgroundImageField() !== null && $datatype->getBackgroundImageField()->getId() === $datafield->getId())
+                $properties['backgroundImageField'] = null;
+
+            if ( count($properties) > 0 ) {
+                parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+
+                $datatype->setUpdatedBy($user);
+                $em->persist($datatype);
+            }
+
 
             // De-activate theme_datafield entries attached to this datafield
             /** @var ThemeDataField[] $theme_datafields */
@@ -419,13 +433,10 @@ class DisplaytemplateController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-//            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-//            $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
 
             /** @var DataType $datatype */
-            $datatype = $repo_datatype->find($datatype_id);
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
@@ -524,8 +535,14 @@ class DisplaytemplateController extends ODRCustomController
             foreach ($theme_element_fields as $theme_element_field)
                 $entities_to_remove[] = $theme_element_field;
 
-            // Finally, delete the actual datatype itself
+
+            // Finally, save who deleted the actual datatype itself
+            $datatype->setUpdatedBy($user);
+            $datatype->setDeletedBy($user);
+            $em->persist($datatype);
+
             $entities_to_remove[] = $datatype;
+            $entities_to_remove[] = $datatype->getDataTypeMeta();
 
 
             // Commit Deletes
@@ -576,12 +593,14 @@ class DisplaytemplateController extends ODRCustomController
 
         $em->getFilters()->disable('softdeleteable');
         $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, ancestor.shortName AS ancestor_name, dt.id AS datatree_id, descendant.id AS descendant_id, descendant.shortName AS descendant_name
+           'SELECT ancestor.id AS ancestor_id, ancestor_meta.shortName AS ancestor_name, dt.id AS datatree_id, descendant.id AS descendant_id, descendant_meta.shortName AS descendant_name
             FROM ODRAdminBundle:DataType AS ancestor
+            JOIN ODRAdminBundle:DataTypeMeta AS ancestor_meta WITH ancestor_meta.dataType = ancestor
             JOIN ODRAdminBundle:DataTree AS dt WITH dt.ancestor = ancestor
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
+            JOIN ODRAdminBundle:DataTypeMeta AS descendant_meta WITH descendant_meta.dataType = descendant
             WHERE dt.is_link = 0
-            AND ancestor.deletedAt IS NOT NULL AND descendant.deletedAt IS NULL');
+            AND ancestor.deletedAt IS NOT NULL AND ancestor_meta.deletedAt IS NULL AND descendant.deletedAt IS NULL AND descendant_meta.deletedAt IS NULL');
         $results = $query->getResult();
         $em->getFilters()->enable('softdeleteable');
 //print_r($results);
@@ -596,6 +615,7 @@ print '<pre>';
             $descendant_name = $result['descendant_name'];
 
             print 'DataType '.$ancestor_id.' ('.$ancestor_name.') deleted, but childtype '.$descendant_id.' ('.$descendant_name.') still exists'."\n";
+/*
             print '-- undeleting ancestor...'."\n";
 
             // temporarily undelete the ancestor datatype that didn't get properly deleted
@@ -613,6 +633,7 @@ print '<pre>';
             // Get displaytemplate controller to properly delete it this time
             self::deletedatatypeAction($ancestor_id, $request);
             print '---- ancestor deleted again'."\n";
+*/
         }
 print '</pre>';
     }
@@ -1897,28 +1918,60 @@ print '</pre>';
             // ----------------------------------------
             // Defaults
             /** @var RenderPlugin $render_plugin */
-            $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);
+            $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);
 
             // TODO - mostly duplicated with DataType controller...move this somewhere else?
             // Create the new child Datatype
             $datatype = new DataType();
+            $datatype->setRevision(0);
+            $datatype->setHasShortresults(false);
+            $datatype->setHasTextresults(false);
+
+            $datatype->setCreatedBy($user);
+            $datatype->setUpdatedBy($user);
+            $em->persist($datatype);
+
+            // TODO - delete these 10 properties
             $datatype->setShortName("New Child");
             $datatype->setLongName("New Child");
             $datatype->setDescription("New Child Type");
             $datatype->setXmlShortName('');
-            $datatype->setRenderPlugin($render_plugin);
+            $datatype->setRenderPlugin($default_render_plugin);
+
             $datatype->setUseShortResults('1');
             $datatype->setExternalIdField(null);
             $datatype->setNameField(null);
             $datatype->setSortField(null);
             $datatype->setDisplayType(0);
-            $datatype->setRevision(0);
-            $datatype->setHasShortresults(false);
-            $datatype->setHasTextresults(false);
             $datatype->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
-            $datatype->setCreatedBy($user);
-            $datatype->setUpdatedBy($user);
+
+            // Save all changes made
             $em->persist($datatype);
+            $em->flush();
+            $em->refresh($datatype);
+
+            // Create the associated metadata entry for this datatype
+            $datatype_meta = new DataTypeMeta();
+            $datatype_meta->setDataType($datatype);
+            $datatype_meta->setRenderPlugin($default_render_plugin);
+
+            $datatype_meta->setSearchSlug(null);
+            $datatype_meta->setShortName("New Child");
+            $datatype_meta->setLongName("New Child");
+            $datatype_meta->setDescription("New Child Type");
+            $datatype_meta->setXmlShortName('');
+
+            $datatype_meta->setDisplayType(0);
+            $datatype_meta->setUseShortResults(true);
+            $datatype_meta->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+
+            $datatype_meta->setExternalIdField(null);
+            $datatype_meta->setNameField(null);
+            $datatype_meta->setSortField(null);
+            $datatype_meta->setBackgroundImageField(null);
+
+            $datatype_meta->setCreatedBy($user);
+            $em->persist($datatype_meta);
 
 
             // Create a new DataTree entry to link the original datatype and this new child datatype
@@ -2173,7 +2226,6 @@ print '</pre>';
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-//            $repo_linked_datatree = $em->getRepository('ODRAdminBundle:LinkedDataTree');
             $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
             $repo_theme_element_field = $em->getRepository('ODRAdminBundle:ThemeElementField');
 
@@ -2518,7 +2570,6 @@ print '</pre>';
             $repo_render_plugin_fields = $em->getRepository('ODRAdminBundle:RenderPluginFields');
             $repo_render_plugin_options = $em->getRepository('ODRAdminBundle:RenderPluginOptions');
             $repo_render_plugin_map = $em->getRepository('ODRAdminBundle:RenderPluginMap');
-//            $repo_render_plugin_instance = $em->getRepository('ODRAdminBundle:RenderPluginInstance');
 
             // --------------------
             // Determine user privileges
@@ -3009,7 +3060,11 @@ print '</pre>';
             // Mark the Datafield/Datatype as using the selected RenderPlugin
             // 1: datatype only  2: both datatype and datafield  3: datafield only
             if ($render_plugin->getPluginType() <= 2 && $datatype != null) {
-                $datatype->setRenderPlugin($render_plugin);
+                $properties = array(
+                    'renderPlugin' => $render_plugin->getId()
+                );
+                parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+
                 $datatype->setUpdatedBy($user);
                 $em->persist($datatype);
             }
@@ -3438,6 +3493,7 @@ if ($debug)
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            $site_baseurl = $this->container->getParameter('site_baseurl');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -3456,7 +3512,7 @@ if ($debug)
             // --------------------
 
 
-            // If $parent_datatype_id is set, locate the datatree linking $datatype_id and $parent_datatype_id
+            // If $parent_datatype_id is set, locate the datatree entity linking $datatype_id and $parent_datatype_id
             $datatree = null;
             $datatree_meta = null;
             if ($parent_datatype_id !== '') {
@@ -3479,7 +3535,13 @@ if ($debug)
             /** @var DataTreeMeta|null $datatree_meta */
 
             // Create required forms
-            $datatype_form = $this->createForm(new UpdateDataTypeForm($datatype), $datatype);
+            $submitted_data = new DataTypeMeta();
+            $for_slideout = true;
+            $is_top_level = true;
+            if ( $parent_datatype_id !== '' && $parent_datatype_id !== $datatype_id )
+                $is_top_level = false;
+
+            $datatype_form = $this->createForm(new UpdateDataTypeForm($datatype, $for_slideout, $is_top_level), $submitted_data);
 
             $force_multiple = false;
             $datatree_form = null;
@@ -3546,8 +3608,36 @@ if ($debug)
                     $old_sortfield = strval($old_sortfield->getId());
 */
                 // Bind the changes to the datatype
-                $datatype_form->bind($request, $datatype);
+                $datatype_form->bind($request, $submitted_data);
                 $return['t'] = "html";
+
+                if ($submitted_data->getShortName() == '' && $submitted_data->getLongName() == '' && $submitted_data->getDescription() == '') {
+                    // This is a save request from the datatype properties page...
+
+                    if ( $submitted_data->getSearchSlug() !== $datatype->getSearchSlug() ) {
+                        // ...check that a change to the search slug doesn't collide with an existing search slug
+                        $query = $em->createQuery(
+                           'SELECT dtym.id
+                            FROM ODRAdminBundle:DataTypeMeta AS dtym
+                            WHERE dtym.searchSlug = :search_slug
+                            AND dtym.deletedAt IS NULL'
+                        )->setParameters(array('search_slug' => $submitted_data->getSearchSlug()));
+                        $results = $query->getArrayResult();
+
+                        if (count($results) > 0)
+                            $datatype_form->addError(new FormError('A different Datatype is already using this abbreviation'));
+                    }
+                }
+                else {
+                    // This is a save request from the slideout in Displaytemplate
+
+                    if ($submitted_data->getShortName() == '')
+                        $datatype_form->addError( new FormError('Short Name can not be empty') );
+                    if ($submitted_data->getLongName() == '')
+                        $datatype_form->addError( new FormError('Long Name can not be empty') );
+                }
+//$datatype_form->addError( new FormError('do not save') );
+
                 if ($datatype_form->isValid()) {
 /*
                     // If any of the external/name/sort datafields got changed, clear the relevant cache fields for datarecords of this datatype
@@ -3566,31 +3656,93 @@ if ($debug)
                         $num_updated = $query->execute();
                     }
 */
-                    // Save the changes made to the datatype
-                    $datatype->setUpdatedBy($user);
-                    $em->persist($datatype);
-                    $em->flush();
 
+                    $properties = array(
+                        'renderPlugin' => $datatype->getRenderPlugin()->getId(),
+
+                        // These should technically be null, but isset() won't pick them up if they are...
+                        'externalIdField' => -1,
+                        'nameField' => -1,
+                        'sortField' => -1,
+                        'backgroundImageField' => -1,
+
+                        'searchSlug' => $submitted_data->getSearchSlug(),
+                        'shortName' => $submitted_data->getShortName(),
+                        'longName' => $submitted_data->getLongName(),
+                        'description' => $submitted_data->getDescription(),
+                        'xml_shortName' => $submitted_data->getXmlShortName(),
+
+                        'useShortResults' => $submitted_data->getUseShortResults(),
+                        'display_type' => $submitted_data->getDisplayType(),
+                        'publicDate' => $submitted_data->getPublicDate(),
+                    );
+
+                    // These properties can be null...
+                    if ( $submitted_data->getExternalIdField() !== null )
+                        $properties['externalIdField'] = $submitted_data->getExternalIdField()->getId();
+                    if ( $submitted_data->getNameField() !== null )
+                        $properties['nameField'] = $submitted_data->getNameField()->getId();
+                    if ( $submitted_data->getSortField() !== null )
+                        $properties['sortField'] = $submitted_data->getSortField()->getId();
+                    if ( $submitted_data->getBackgroundImageField() !== null )
+                        $properties['backgroundImageField'] = $submitted_data->getBackgroundImageField()->getId();
+
+                    parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+
+                    // TODO - modify cached version of datatype directly
                     // Schedule the cache for an update
                     $options = array();
                     $options['mark_as_updated'] = true;
 
                     parent::updateDatatypeCache($datatype->getId(), $options);
                 }
-            }
-                    
-            $templating = $this->get('templating');
-            $return['d'] = $templating->render(
-                'ODRAdminBundle:Displaytemplate:datatype_properties_form.html.twig', 
-                array(
-                    'datatype' => $datatype,
-                    'datatype_form' => $datatype_form->createView(),
+                else {
+                    // Form validation failed
+                    // TODO - fix parent::ODR_getErrorMessages() to be consistent enough to use
+                    $return['r'] = 1;
+                    $errors = $datatype_form->getErrors();
 
-                    'datatree' => $datatree,
-                    'datatree_form' => $datatree_form,
-                    'force_multiple' => $force_multiple,
-                )
-            );
+                    $error_str = '';
+                    foreach ($errors as $num => $error)
+                        $error_str .= 'ERROR: '.$error->getMessage()."\n";
+
+                    throw new \Exception($error_str);
+                }
+            }
+
+            if ( $request->getMethod() == 'GET' ) {
+                // Create the form objects
+                $datatype_meta = $datatype->getDataTypeMeta();
+                $for_slideout = true;
+                $is_top_level = true;
+                if ( $parent_datatype_id !== '' && $parent_datatype_id !== $datatype_id )
+                    $is_top_level = false;
+
+                $datatype_form = $this->createForm(new UpdateDataTypeForm($datatype, $for_slideout, $is_top_level), $datatype_meta);
+
+                $datatree_form = null;
+                if ( $datatype_meta !== null ) {
+                    $datatree_form = $this->createForm(new UpdateDataTreeForm($datatree_meta), $datatree_meta);
+                    $datatree_form = $datatree_form->createView();
+                }
+
+                // Return the slideout html
+                $templating = $this->get('templating');
+                $return['d'] = $templating->render(
+                    'ODRAdminBundle:Displaytemplate:datatype_properties_form.html.twig',
+                    array(
+                        'datatype' => $datatype,
+                        'datatype_form' => $datatype_form->createView(),
+                        'site_baseurl' => $site_baseurl,
+                        'for_slideout' => true,
+                        'is_top_level' => $is_top_level,
+
+                        'datatree' => $datatree,
+                        'datatree_form' => $datatree_form,
+                        'force_multiple' => $force_multiple,
+                    )
+                );
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -4740,12 +4892,19 @@ if ($debug)
 //                    throw new \Exception("This Datatype can't be set as non-public because it's marked as the default search datatype...");
 
                 // Make the datatype non-public
-                $datatype->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
+                $properties = array(
+                    'publicDate' => new \DateTime('2200-01-01 00:00:00')
+                );
+                parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
             }
             else {
                 // Make the datatype public
-                $datatype->setPublicDate(new \DateTime());
+                $properties = array(
+                    'publicDate' => new \DateTime()
+                );
+                parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
             }
+
             $datatype->setUpdatedBy($user);
             $em->persist($datatype);
             $em->flush();

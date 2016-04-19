@@ -1,15 +1,16 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* DataType Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The DataType Entity is automatically generated from
-* ./Resources/config/doctrine/DataType.orm.yml
-*/
+ * Open Data Repository Data Publisher
+ * DataType Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The DataType Entity is automatically generated from
+ * ./Resources/config/doctrine/DataType.orm.yml
+ * 
+ */
 
 namespace ODR\AdminBundle\Entity;
 
@@ -24,6 +25,36 @@ class DataType
      * @var integer
      */
     private $id;
+
+    /**
+     * @var integer
+     */
+    private $revision;
+
+    /**
+     * @var boolean
+     */
+    private $has_shortresults;
+
+    /**
+     * @var boolean
+     */
+    private $has_textresults;
+
+    /**
+     * @var \DateTime
+     */
+    private $created;
+
+    /**
+     * @var \DateTime
+     */
+    private $updated;
+
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
 
     /**
      * @var string
@@ -61,39 +92,9 @@ class DataType
     private $display_type;
 
     /**
-     * @var integer
-     */
-    private $revision;
-
-    /**
-     * @var boolean
-     */
-    private $has_shortresults;
-
-    /**
-     * @var boolean
-     */
-    private $has_textresults;
-
-    /**
      * @var \DateTime
      */
     private $publicDate;
-
-    /**
-     * @var \DateTime
-     */
-    private $deletedAt;
-
-    /**
-     * @var \DateTime
-     */
-    private $created;
-
-    /**
-     * @var \DateTime
-     */
-    private $updated;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataFields
@@ -114,6 +115,11 @@ class DataType
      * @var \ODR\AdminBundle\Entity\DataFields
      */
     private $backgroundImageField;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $dataTypeMeta;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
@@ -141,6 +147,11 @@ class DataType
     private $updatedBy;
 
     /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $deletedBy;
+
+    /**
      * @var \ODR\AdminBundle\Entity\RenderPlugin
      */
     private $renderPlugin;
@@ -150,6 +161,7 @@ class DataType
      */
     public function __construct()
     {
+        $this->dataTypeMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeDataType = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeElement = new \Doctrine\Common\Collections\ArrayCollection();
@@ -163,177 +175,6 @@ class DataType
     public function getId()
     {
         return $this->id;
-    }
-
-    /**
-     * Set searchSlug
-     *
-     * @param string $searchSlug
-     * @return DataType
-     */
-    public function setSearchSlug($searchSlug)
-    {
-        $this->searchSlug = $searchSlug;
-
-        return $this;
-    }
-
-    /**
-     * Get searchSlug
-     *
-     * @return string 
-     */
-    public function getSearchSlug()
-    {
-        return $this->searchSlug;
-    }
-
-    /**
-     * Set shortName
-     *
-     * @param string $shortName
-     * @return DataType
-     */
-    public function setShortName($shortName)
-    {
-        $this->shortName = $shortName;
-
-        return $this;
-    }
-
-    /**
-     * Get shortName
-     *
-     * @return string 
-     */
-    public function getShortName()
-    {
-        return $this->shortName;
-    }
-
-    /**
-     * Set longName
-     *
-     * @param string $longName
-     * @return DataType
-     */
-    public function setLongName($longName)
-    {
-        $this->longName = $longName;
-
-        return $this;
-    }
-
-    /**
-     * Get longName
-     *
-     * @return string 
-     */
-    public function getLongName()
-    {
-        return $this->longName;
-    }
-
-    /**
-     * Set description
-     *
-     * @param string $description
-     * @return DataType
-     */
-    public function setDescription($description)
-    {
-        $this->description = $description;
-
-        return $this;
-    }
-
-    /**
-     * Get description
-     *
-     * @return string 
-     */
-    public function getDescription()
-    {
-        return $this->description;
-    }
-
-    /**
-     * Set xml_shortName
-     *
-     * @param string $xmlShortName
-     * @return DataType
-     */
-    public function setXmlShortName($xmlShortName)
-    {
-        $this->xml_shortName = $xmlShortName;
-
-        return $this;
-    }
-
-    /**
-     * Get xml_shortName
-     *
-     * @return string
-     */
-    public function getXmlShortName()
-    {
-        if ($this->xml_shortName !== '') {
-            // Use whatever is specified for this datatype's XML name if it exists...
-            return $this->xml_shortName;
-        }
-        else {
-            // ...otherwise, perform character substitutions on the datatype's shortname that should work in most cases
-            $searches = array(" ", "!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "/", ":", ";", "<", "=", ">", "?", "@", "[", "\\", "]", "^", "`", "{", "|", "}", "~");
-            $replacements = array("_", "");
-
-            return str_replace($searches, $replacements, $this->shortName);
-        }
-    }
-
-    /**
-     * Set useShortResults
-     *
-     * @param boolean $useShortResults
-     * @return DataType
-     */
-    public function setUseShortResults($useShortResults)
-    {
-        $this->useShortResults = $useShortResults;
-
-        return $this;
-    }
-
-    /**
-     * Get useShortResults
-     *
-     * @return boolean 
-     */
-    public function getUseShortResults()
-    {
-        return $this->useShortResults;
-    }
-
-    /**
-     * Set display_type
-     *
-     * @param integer $displayType
-     * @return DataType
-     */
-    public function setDisplayType($displayType)
-    {
-        $this->display_type = $displayType;
-
-        return $this;
-    }
-
-    /**
-     * Get display_type
-     *
-     * @return integer 
-     */
-    public function getDisplayType()
-    {
-        return $this->display_type;
     }
 
     /**
@@ -406,52 +247,6 @@ class DataType
     }
 
     /**
-     * Set publicDate
-     *
-     * @param \DateTime $publicDate
-     * @return DataType
-     */
-    public function setPublicDate($publicDate)
-    {
-        $this->publicDate = $publicDate;
-
-        return $this;
-    }
-
-    /**
-     * Get publicDate
-     *
-     * @return \DateTime 
-     */
-    public function getPublicDate()
-    {
-        return $this->publicDate;
-    }
-
-    /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return DataType
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
-    }
-
-    /**
      * Set created
      *
      * @param \DateTime $created
@@ -498,7 +293,223 @@ class DataType
     }
 
     /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return DataType
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+
+    /**
+     * Set searchSlug
+     * @deprecated
+     *
+     * @param string $searchSlug
+     * @return DataType
+     */
+    public function setSearchSlug($searchSlug)
+    {
+        $this->searchSlug = $searchSlug;
+
+        return $this;
+    }
+
+    /**
+     * Get searchSlug
+     *
+     * @return string 
+     */
+    public function getSearchSlug()
+    {
+        return $this->getDataTypeMeta()->getSearchSlug();
+    }
+
+    /**
+     * Set shortName
+     * @deprecated
+     *
+     * @param string $shortName
+     * @return DataType
+     */
+    public function setShortName($shortName)
+    {
+        $this->shortName = $shortName;
+
+        return $this;
+    }
+
+    /**
+     * Get shortName
+     *
+     * @return string 
+     */
+    public function getShortName()
+    {
+        return $this->getDataTypeMeta()->getShortName();
+    }
+
+    /**
+     * Set longName
+     * @deprecated
+     *
+     * @param string $longName
+     * @return DataType
+     */
+    public function setLongName($longName)
+    {
+        $this->longName = $longName;
+
+        return $this;
+    }
+
+    /**
+     * Get longName
+     *
+     * @return string 
+     */
+    public function getLongName()
+    {
+        return $this->getDataTypeMeta()->getLongName();
+    }
+
+    /**
+     * Set description
+     * @deprecated
+     *
+     * @param string $description
+     * @return DataType
+     */
+    public function setDescription($description)
+    {
+        $this->description = $description;
+
+        return $this;
+    }
+
+    /**
+     * Get description
+     *
+     * @return string 
+     */
+    public function getDescription()
+    {
+        return $this->getDataTypeMeta()->getDescription();
+    }
+
+    /**
+     * Set xml_shortName
+     * @deprecated
+     *
+     * @param string $xmlShortName
+     * @return DataType
+     */
+    public function setXmlShortName($xmlShortName)
+    {
+        $this->xml_shortName = $xmlShortName;
+
+        return $this;
+    }
+
+    /**
+     * Get xml_shortName
+     *
+     * @return string 
+     */
+    public function getXmlShortName()
+    {
+        return $this->getDataTypeMeta()->getXmlShortName();
+    }
+
+    /**
+     * Set useShortResults
+     * @deprecated
+     *
+     * @param boolean $useShortResults
+     * @return DataType
+     */
+    public function setUseShortResults($useShortResults)
+    {
+        $this->useShortResults = $useShortResults;
+
+        return $this;
+    }
+
+    /**
+     * Get useShortResults
+     *
+     * @return boolean 
+     */
+    public function getUseShortResults()
+    {
+        return $this->getDataTypeMeta()->getUseShortResults();
+    }
+
+    /**
+     * Set display_type
+     * @deprecated
+     *
+     * @param integer $displayType
+     * @return DataType
+     */
+    public function setDisplayType($displayType)
+    {
+        $this->display_type = $displayType;
+
+        return $this;
+    }
+
+    /**
+     * Get display_type
+     *
+     * @return integer 
+     */
+    public function getDisplayType()
+    {
+        return $this->getDataTypeMeta()->getDisplayType();
+    }
+
+    /**
+     * Set publicDate
+     * @deprecated
+     *
+     * @param \DateTime $publicDate
+     * @return DataType
+     */
+    public function setPublicDate($publicDate)
+    {
+        $this->publicDate = $publicDate;
+
+        return $this;
+    }
+
+    /**
+     * Get publicDate
+     *
+     * @return \DateTime 
+     */
+    public function getPublicDate()
+    {
+        return $this->getDataTypeMeta()->getPublicDate();
+    }
+
+    /**
      * Set externalIdField
+     * @deprecated
      *
      * @param \ODR\AdminBundle\Entity\DataFields $externalIdField
      * @return DataType
@@ -517,11 +528,12 @@ class DataType
      */
     public function getExternalIdField()
     {
-        return $this->externalIdField;
+        return $this->getDataTypeMeta()->getExternalIdField();
     }
 
     /**
      * Set nameField
+     * @deprecated
      *
      * @param \ODR\AdminBundle\Entity\DataFields $nameField
      * @return DataType
@@ -540,11 +552,12 @@ class DataType
      */
     public function getNameField()
     {
-        return $this->nameField;
+        return $this->getDataTypeMeta()->getNameField();
     }
 
     /**
      * Set sortField
+     * @deprecated
      *
      * @param \ODR\AdminBundle\Entity\DataFields $sortField
      * @return DataType
@@ -563,11 +576,12 @@ class DataType
      */
     public function getSortField()
     {
-        return $this->sortField;
+        return $this->getDataTypeMeta()->getSortField();
     }
 
     /**
      * Set backgroundImageField
+     * @deprecated
      *
      * @param \ODR\AdminBundle\Entity\DataFields $backgroundImageField
      * @return DataType
@@ -586,7 +600,40 @@ class DataType
      */
     public function getBackgroundImageField()
     {
-        return $this->backgroundImageField;
+        return $this->getDataTypeMeta()->getBackgroundImageField();
+    }
+
+    /**
+     * Add dataTypeMeta
+     *
+     * @param \ODR\AdminBundle\Entity\DataTypeMeta $dataTypeMeta
+     * @return DataType
+     */
+    public function addDataTypeMetum(\ODR\AdminBundle\Entity\DataTypeMeta $dataTypeMeta)
+    {
+        $this->dataTypeMeta[] = $dataTypeMeta;
+
+        return $this;
+    }
+
+    /**
+     * Remove dataTypeMeta
+     *
+     * @param \ODR\AdminBundle\Entity\DataTypeMeta $dataTypeMeta
+     */
+    public function removeDataTypeMetum(\ODR\AdminBundle\Entity\DataTypeMeta $dataTypeMeta)
+    {
+        $this->dataTypeMeta->removeElement($dataTypeMeta);
+    }
+
+    /**
+     * Get dataTypeMeta
+     *
+     * @return \ODR\AdminBundle\Entity\DataTypeMeta
+     */
+    public function getDataTypeMeta()
+    {
+        return $this->dataTypeMeta->first();
     }
 
     /**
@@ -735,7 +782,31 @@ class DataType
     }
 
     /**
+     * Set deletedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $deletedBy
+     * @return DataType
+     */
+    public function setDeletedBy(\ODR\OpenRepository\UserBundle\Entity\User $deletedBy = null)
+    {
+        $this->deletedBy = $deletedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getDeletedBy()
+    {
+        return $this->deletedBy;
+    }
+
+    /**
      * Set renderPlugin
+     * @deprecated
      *
      * @param \ODR\AdminBundle\Entity\RenderPlugin $renderPlugin
      * @return DataType
@@ -754,7 +825,7 @@ class DataType
      */
     public function getRenderPlugin()
     {
-        return $this->renderPlugin;
+        return $this->getDataTypeMeta()->getRenderPlugin();
     }
 
     /**
@@ -764,9 +835,142 @@ class DataType
      */
     public function isPublic()
     {
-        if ($this->publicDate->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+        if ($this->getPublicDate()->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
             return false;
         else
             return true;
+    }
+
+    // ----------------------------------------
+    // TODO - delete these following functions
+
+    /**
+     * Get searchSlug
+     *
+     * @return string
+     */
+    public function getSearchSlugOriginal()
+    {
+        return $this->searchSlug;
+    }
+
+    /**
+     * Get shortName
+     *
+     * @return string
+     */
+    public function getShortNameOriginal()
+    {
+        return $this->shortName;
+    }
+
+    /**
+     * Get longName
+     *
+     * @return string
+     */
+    public function getLongNameOriginal()
+    {
+        return $this->longName;
+    }
+
+    /**
+     * Get description
+     *
+     * @return string
+     */
+    public function getDescriptionOriginal()
+    {
+        return $this->description;
+    }
+
+    /**
+     * Get xml_shortName
+     *
+     * @return string
+     */
+    public function getXmlShortNameOriginal()
+    {
+        return $this->xml_shortName;
+    }
+
+    /**
+     * Get useShortResults
+     *
+     * @return boolean
+     */
+    public function getUseShortResultsOriginal()
+    {
+        return $this->useShortResults;
+    }
+
+    /**
+     * Get display_type
+     *
+     * @return integer
+     */
+    public function getDisplayTypeOriginal()
+    {
+        return $this->display_type;
+    }
+
+    /**
+     * Get publicDate
+     *
+     * @return \DateTime
+     */
+    public function getPublicDateOriginal()
+    {
+        return $this->publicDate;
+    }
+
+    /**
+     * Get externalIdField
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields
+     */
+    public function getExternalIdFieldOriginal()
+    {
+        return $this->externalIdField;
+    }
+
+    /**
+     * Get nameField
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields
+     */
+    public function getNameFieldOriginal()
+    {
+        return $this->nameField;
+    }
+
+    /**
+     * Get sortField
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields
+     */
+    public function getSortFieldOriginal()
+    {
+        return $this->sortField;
+    }
+
+    /**
+     * Get backgroundImageField
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields
+     */
+    public function getBackgroundImageFieldOriginal()
+    {
+        return $this->backgroundImageField;
+    }
+
+    /**
+     * Get renderPlugin
+     *
+     * @return \ODR\AdminBundle\Entity\RenderPlugin
+     */
+    public function getRenderPluginOriginal()
+    {
+        return $this->renderPlugin;
     }
 }

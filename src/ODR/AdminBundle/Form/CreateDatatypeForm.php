@@ -18,6 +18,10 @@ use Symfony\Component\OptionsResolver\OptionsResolverInterface;
 
 class CreateDatatypeForm extends AbstractType
 {
+
+    /**
+     * {@inheritdoc}
+     */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
         $builder->add(
@@ -48,32 +52,26 @@ class CreateDatatypeForm extends AbstractType
             )
         );
 */
-/*
-        $builder->add(
-            'public_date',
-            'checkbox',
-            array(
-                'required' => false,
-                'label'  => 'Public?',
-            )
-        );
-*/
     }
-    
+
+
+    /**
+     * Returns the name of this type.
+     *
+     * @return string The name of this type
+     */
     public function getName() {
         return 'CreateDatatypeForm';
     }
 
+
     /**
-     * TODO: short description.
-     * 
-     * @param OptionsResolverInterface $resolver 
-     * 
-     * @return TODO
+     * {@inheritdoc}
      */
     public function setDefaultOptions(OptionsResolverInterface $resolver)
     {
-        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataType'));
+//        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataType'));
+        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataTypeMeta'));
     }
 
 

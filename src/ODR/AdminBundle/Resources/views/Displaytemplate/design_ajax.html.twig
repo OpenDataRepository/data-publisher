@@ -882,8 +882,8 @@ function SaveDatafieldProperty(datafield_id, reload_datafield) {
                 alert(data.d);
 
                 // Forcibly reload slideout
-                $("#ElementData").html("").html(data.d.html).fadeIn('fast');
-                InitDatafieldPropertiesForm();
+                $("#ElementData").html("");
+                $("#Field_" + datafield_id).trigger('click');
             }
         },
         complete: function(jqXHR, textStatus) {
@@ -1385,6 +1385,11 @@ function SaveDatatypeProperties(datatype_id, short_name) {
                 // An error has occurred.
                 // Show Error message dialog
                 alert(data.d);
+
+
+                // Forcibly reload slideout
+                $("#ElementData").html("");
+                $("#DataTypeTools_" + datatype_id + " > .ODRDatatypeProperties").trigger('click');
             }
         },
         complete: function(jqXHR, textStatus) {

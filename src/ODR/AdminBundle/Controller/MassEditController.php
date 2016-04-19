@@ -60,10 +60,9 @@ class MassEditController extends ODRCustomController
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
             /** @var DataType $datatype */
-            $datatype = $repo_datatype->find($datatype_id);
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 return parent::deletedEntityError('Datatype');
 

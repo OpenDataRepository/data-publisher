@@ -146,12 +146,14 @@ class DefaultController extends Controller
     {
         // Grab all entities out of the 
         $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, ancestor.shortName AS ancestor_name, descendant.id AS descendant_id, descendant.shortName AS descendant_name, descendant.publicDate AS public_date, dtm.is_link AS is_link
+           'SELECT ancestor.id AS ancestor_id, ancestor_meta.shortName AS ancestor_name, descendant.id AS descendant_id, descendant_meta.shortName AS descendant_name, descendant_meta.publicDate AS public_date, dtm.is_link AS is_link
             FROM ODRAdminBundle:DataTree AS dt
             JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
             JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
+            JOIN ODRAdminBundle:DataTypeMeta AS ancestor_meta WITH ancestor_meta.dataType = ancestor
             JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            WHERE dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL');
+            JOIN ODRAdminBundle:DataTypeMeta AS descendant_meta WITH descendant_meta.dataType = descendant
+            WHERE dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND ancestor_meta.deletedAt IS NULL AND descendant.deletedAt IS NULL AND descendant_meta.deletedAt IS NULL');
         $results = $query->getArrayResult();
 
         $datatype_names = array();
@@ -855,7 +857,6 @@ if ($debug) {
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-//        $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
         $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
         $session = $request->getSession();
 
@@ -1080,13 +1081,14 @@ if ($debug)
             // TODO - partial duplicate of self::getSearchableDatafields()...
             // Grab typeclasses for each of the searchable datafields in all datatypes related to the target datatype
             $query_str =
-               'SELECT ft.typeClass AS type_class, dt.id AS dt_id, dt.publicDate AS dt_public_date, df.id AS df_id, dfm.user_only_search AS user_only_search
+               'SELECT ft.typeClass AS type_class, dt.id AS dt_id, dtym.publicDate AS dt_public_date, df.id AS df_id, dfm.user_only_search AS user_only_search
                 FROM ODRAdminBundle:DataFields AS df
                 JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
                 JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
                 JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                JOIN ODRAdminBundle:DataTypeMeta AS dtym WITH dtym.dataType = dt
                 WHERE df.dataType IN (:datatypes) AND dfm.searchable > 0
-                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND dt.deletedAt IS NULL';
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtym.deletedAt IS NULL';
 
             $query = $em->createQuery($query_str)->setParameters( array('datatypes' => $datatype_list) );
             $results = $query->getArrayResult();

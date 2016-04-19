@@ -25,6 +25,7 @@ use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileMeta;
@@ -349,6 +350,8 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
         $return['t'] = '';
         $return['d'] = '';
 
+        $ret = '';
+
         try {
             $post = $_POST;
 //print_r($post);
@@ -602,7 +605,7 @@ $ret .= '  Set current to '.$count."\n";
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+//            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             // TODO - check for permissions?  restrict rebuild of thumbnails to certain datatypes?
 
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
@@ -952,6 +955,7 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function drcheckAction(Request $request)
     {
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
         $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
@@ -985,17 +989,18 @@ print '<pre>';
                 $drf_id = $data['drf_id'];
                 print '-- deleting drf '.$drf_id."\n";
 
+                /** @var DataRecordFields $drf */
                 $drf = $repo_datarecordfields->find($drf_id);
                 $em->remove($drf);
             }
 
+            /** @var DataRecord $datarecord */
             $datarecord = $repo_datarecord->find($datarecord_id);
             $em->remove($datarecord);
         }
 print '</pre>';
 
         $em->flush();
-
     }
 
 
@@ -1008,6 +1013,7 @@ print '</pre>';
      */
     public function dfcheckAction(Request $request)
     {
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
 
@@ -1046,6 +1052,7 @@ print '<pre>';
 
                 print '-- drf '.$datarecordfield_id.' (dr '.$datarecord_id.', df '.$datafield_id.') was not deleted'."\n";
 
+                /** @var DataRecordFields $drf */
                 $drf = $repo_datarecordfields->find($datarecordfield_id);
                 $em->remove($drf);
             }
@@ -1277,6 +1284,7 @@ print '</pre>';
      */
     public function entitycheckAction(Request $request)
     {
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
 print '<pre>';
@@ -1457,6 +1465,7 @@ print '</pre>';
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->container->get('router');
@@ -1595,8 +1604,8 @@ print '</pre>';
      */
     public function deletedradiocheckAction(Request $request)
     {
-return;
-
+//return;
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
         $em->getFilters()->disable('softdeleteable');
@@ -1616,7 +1625,7 @@ return;
                 SET rs.deletedAt = :now
                 WHERE rs.radioOption = :radio_option_id AND rs.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'radio_option_id' => $radio_option_id) );
-            $updated = $query->execute();
+//            $updated = $query->execute();
         }
     }
 
@@ -1633,14 +1642,13 @@ return;
      */
     public function duplicateradiocheckAction($datatype_id, Request $request)
     {
-
-return;
-
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
         $query = $em->createQuery(
-           'SELECT dt.id AS dt_id, dt.shortName, dr.id AS dr_id, df.id AS df_id, dfm.fieldName, ro.id AS ro_id, rom.optionName, rs.id AS rs_id, rs.selected
+           'SELECT dt.id AS dt_id, dtym.shortName, dr.id AS dr_id, df.id AS df_id, dfm.fieldName, ro.id AS ro_id, rom.optionName, rs.id AS rs_id, rs.selected
             FROM ODRAdminBundle:DataType AS dt
+            JOIN ODRAdminBundle:DataTypeMeta AS dtym WITH dtym.dataType = dt
             JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
             JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
             JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
@@ -1650,7 +1658,7 @@ return;
             JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
             JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
             WHERE dt.id = :datatype AND ft.typeClass = :typeclass
-            AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
+            AND dt.deletedAt IS NULL AND dtym.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
             ORDER BY dt.id, dr.id, df.id, ro.id'
         )->setParameters( array('datatype' => $datatype_id, 'typeclass' => 'Radio') );
         $results = $query->getArrayResult();
@@ -1757,7 +1765,6 @@ if ($selected == 1) {
 print '</pre>';
 
 //$em->flush();
-
     }
 
 
@@ -2013,8 +2020,46 @@ print '</pre>';
             }
 
             // ----------------------------------------
-            // TODO - Datatypes
+            // Datatypes
             // ----------------------------------------
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_datatype_metadata');
+
+            // Grab a list of all radio options in the database
+            $em->getFilters()->disable('softdeleteable');
+            $query = $em->createQuery(
+                'SELECT dt.id AS id
+                FROM ODRAdminBundle:DataType AS dt'
+            );
+            $results = $query->getArrayResult();
+            $em->getFilters()->enable('softdeleteable');
+
+//print_r($results);
+//return;
+
+            if (count($results) > 0) {
+                $object_type = 'datatype';
+                foreach ($results as $num => $result) {
+                    $object_id = $result['id'];
+
+                    // Insert the new job into the queue
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+//                            "tracked_job_id" => $tracked_job_id,
+                            "object_type" => $object_type,
+                            "object_id" => $object_id,
+                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
+
+                    $delay = 1;
+                    $pheanstalk->useTube('build_metadata')->put($payload, $priority, $delay);
+                }
+            }
 
             // ----------------------------------------
             // TODO - Datarecords
@@ -2570,7 +2615,66 @@ print '</pre>';
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
 
-            // TODO - stuff here
+            // ----------------------------------------
+            // Want to create a metadata entry for deleted images too
+            $em->getFilters()->disable('softdeleteable');
+
+            // Ensure the file entity exists...
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($object_id);
+            if ($datatype == null)
+                throw new \Exception('Datatype does not exist');
+
+            // Attempt to locate a metadata entry for the provided entity
+            /** @var DataTypeMeta $datatype_meta */
+            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('dataType' => $object_id) );
+
+            // No longer need softdeleteable filter disabled
+            $em->getFilters()->enable('softdeleteable');
+
+            if ($datatype_meta !== null) {
+                $return['d'] = 'Metadata entry already exists for Datatype '.$object_id.', skipping';
+            }
+            else {
+                // Create a new meta entry and populate from original entity
+                $datatype_meta = new DataTypeMeta();
+
+                $datatype_meta->setDataType( $datatype );
+
+                $datatype_meta->setDataType($datatype);
+                $datatype_meta->setRenderPlugin( $datatype->getRenderPluginOriginal() );
+
+                $datatype_meta->setSearchSlug( $datatype->getSearchSlugOriginal() );
+                $datatype_meta->setShortName( $datatype->getShortNameOriginal() );
+                $datatype_meta->setLongName( $datatype->getLongNameOriginal() );
+                $datatype_meta->setDescription( $datatype->getDescriptionOriginal() );
+                $datatype_meta->setXmlShortName( $datatype->getXmlShortNameOriginal() );
+
+                $datatype_meta->setDisplayType( $datatype->getDisplayTypeOriginal() );
+                $datatype_meta->setUseShortResults( $datatype->getUseShortResultsOriginal() );
+                $datatype_meta->setPublicDate( $datatype->getPublicDateOriginal() );
+
+                $datatype_meta->setExternalIdField( $datatype->getExternalIdFieldOriginal() );
+                $datatype_meta->setNameField( $datatype->getNameFieldOriginal() );
+                $datatype_meta->setSortField( $datatype->getSortFieldOriginal() );
+                $datatype_meta->setBackgroundImageField( $datatype->getBackgroundImageFieldOriginal() );
+
+                $datatype_meta->setCreated( $datatype->getCreated() );
+                $datatype_meta->setCreatedBy( $datatype->getCreatedBy() );
+
+                $datatype_meta->setDeletedAt( $datatype->getDeletedAt() );
+
+                // If datafield is deleted, transfer who deleted it from the updatedBy column to the deletedBy column
+                if ( $datatype->getDeletedAt() !== null ) {
+                    $datatype->setDeletedBy( $datatype->getUpdatedBy() );
+                    $em->persist($datatype);
+                }
+
+                $em->persist($datatype_meta);
+                $em->flush();
+
+                $return['d'] = 'Created new metadata entry for Datatype '.$object_id;
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;

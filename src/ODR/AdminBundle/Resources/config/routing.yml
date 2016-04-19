@@ -210,11 +210,6 @@ odr_edit_type:
     requirements:
         datatype_id:  \d+
 
-odr_save_type:
-    pattern:  /admin/type/save
-    defaults: { _controller: ODRAdminBundle:Datatype:save }
-    requirements: { _method: POST }
-
 odr_recache_all:
     pattern: /admin/type/recache_all
     defaults: { _controller: ODRAdminBundle:Datatype:recacheall }

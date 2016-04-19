@@ -18,11 +18,24 @@ use Doctrine\ORM\EntityRepository;
 
 class UpdateDataFieldsForm extends AbstractType
 {
+
+    /** @var int[] */
     protected $allowed_fieldtypes;
+
+
+    /**
+     * UpdateDataFieldsForm constructor.
+     *
+     * @param int[] $allowed_fieldtypes  The permissible of Fieldtype ids that this Datafield is currently allowed to be
+     */
     public function __construct (array $allowed_fieldtypes) {
         $this->allowed_fieldtypes = $allowed_fieldtypes;
     }
 
+
+    /**
+     * {@inheritdoc}
+     */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
         $allowed_fieldtypes = $this->allowed_fieldtypes;
@@ -60,19 +73,7 @@ class UpdateDataFieldsForm extends AbstractType
             )
         );
 */
-/*
-        $builder->add(
-            'data_type', 
-            'entity', 
-            array(
-                'class' => 'ODR\AdminBundle\Entity\DataType',
-                'property' => 'id', 
-                'label' => 'Data Type',
-                'attr'=> array('style'=>'display:none'),
-                'required' => true,
-            )
-        );
-*/
+
         $builder->add(
             'field_name', 
             'text', 
@@ -204,17 +205,20 @@ class UpdateDataFieldsForm extends AbstractType
         );
 
     }
-    
+
+
+    /**
+     * Returns the name of this type.
+     *
+     * @return string The name of this type
+     */
     public function getName() {
         return 'DatafieldsForm';
     }
 
+
     /**
-     * TODO: short description.
-     * 
-     * @param OptionsResolverInterface $resolver 
-     * 
-     * @return TODO
+     * {@inheritdoc}
      */
     public function setDefaultOptions(OptionsResolverInterface $resolver)
     {

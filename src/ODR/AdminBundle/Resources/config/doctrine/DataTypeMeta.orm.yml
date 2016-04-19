@@ -1,6 +1,6 @@
-ODR\AdminBundle\Entity\DataType:
+ODR\AdminBundle\Entity\DataTypeMeta:
     type: entity
-    table: odr_data_type
+    table: odr_data_type_meta
     gedmo:
 #        loggable: true
         soft_deleteable:
@@ -14,41 +14,6 @@ ODR\AdminBundle\Entity\DataType:
             generator:
                 strategy: IDENTITY
 
-        revision:
-            type: integer
-            unsigned: true
-            nullable: false
-            default: 0
-            column: revision
-
-        has_shortresults:
-            type: boolean
-            nullable: false
-            default: false
-            column: has_shortresults
-        has_textresults:
-            type: boolean
-            nullable: false
-            default: false
-            column: has_textresults
-
-        created:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: create
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
-        deletedAt:
-            type: datetime
-            nullable: true
-#            gedmo:
-#                - versioned
-
-        # TODO - delete the following 8 properties
         searchSlug:
             type: string
             length: 32
@@ -86,8 +51,8 @@ ODR\AdminBundle\Entity\DataType:
             fixed: false
             nullable: false
             column: xml_short_name
- #           gedmo:
- #               - versioned
+#            gedmo:
+#                - versioned
 
         useShortResults:
             type: boolean
@@ -105,15 +70,25 @@ ODR\AdminBundle\Entity\DataType:
 #            gedmo:
 #                - versioned
 
-        publicDate:
+        publicDate: 
             type: datetime
             nullable: false
             column: public_date
 #            gedmo:
 #                - versioned
 
-    oneToOne:
-        # TODO - delete the following four properties
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+
+    manyToOne:
         externalIdField:
             targetEntity: DataFields
             cascade: {  }
@@ -125,7 +100,7 @@ ODR\AdminBundle\Entity\DataType:
                     nullable: true
                     referencedColumnName: id
             orphanRemoval: false
-            fetch: EXTRA_LAZY
+#            fetch: EXTRA_LAZY
 #            gedmo:
 #                - versioned
         nameField:
@@ -138,7 +113,7 @@ ODR\AdminBundle\Entity\DataType:
                     nullable: true
                     referencedColumnName: id
             orphanRemoval: false
-            fetch: EXTRA_LAZY
+#            fetch: EXTRA_LAZY
 #            gedmo:
 #                - versioned
         sortField:
@@ -151,7 +126,7 @@ ODR\AdminBundle\Entity\DataType:
                     nullable: true
                     referencedColumnName: id
             orphanRemoval: false
-            fetch: EXTRA_LAZY
+#            fetch: EXTRA_LAZY
 #            gedmo:
 #                - versioned
         backgroundImageField:
@@ -164,10 +139,22 @@ ODR\AdminBundle\Entity\DataType:
                     nullable: true
                     referencedColumnName: id
             orphanRemoval: false
-            fetch: EXTRA_LAZY
+#            fetch: EXTRA_LAZY
 #            gedmo:
 #                - versioned
-    manyToOne:
+
+        dataType:
+            targetEntity: DataType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: dataTypeMeta
+            joinColumns:
+                data_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -181,31 +168,7 @@ ODR\AdminBundle\Entity\DataType:
 #            gedmo:
 #                blameable:
 #                    on: create
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            fetch: EXTRA_LAZY
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: update
-        deletedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            fetch: EXTRA_LAZY
-            joinColumns:
-                deletedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
 
-        # TODO - delete the following property
         renderPlugin:
             targetEntity: RenderPlugin
             cascade: {  }
@@ -218,56 +181,4 @@ ODR\AdminBundle\Entity\DataType:
 #            gedmo:
 #                - versioned
 
-    oneToMany:
-        dataTypeMeta:
-            targetEntity: DataTypeMeta
-            cascade: { }
-            mappedBy: dataType
-            inversedBy: null
-            joinColumns:
-                data_type_meta_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
-
-        themeDataType:
-            targetEntity: ThemeDataType
-            cascade: {  }
-            mappedBy: dataType
-            inversedBy: null
-            fetch: EXTRA_LAZY
-            joinColumns:
-                theme_data_type_id:
-                    referencedColumnName: id
-#            gedmo:
-#                - versioned
-        dataFields:
-            targetEntity: DataFields
-            cascade: {  }
-            mappedBy: dataType
-            inversedBy: null
-            fetch: EXTRA_LAZY
-#            orderBy:
-#                displayOrder: ASC
-#                id: ASC
-            joinColumns:
-                data_fields_id:
-                    referencedColumnName: id
-#            gedmo:
-#                - versioned
-        themeElement:
-            targetEntity: ThemeElement
-            cascade: {  }
-            mappedBy: dataType
-            inversedBy: null
-            fetch: EXTRA_LAZY
-            orderBy: 
-                displayOrder: ASC
-                id: ASC
-            joinColumns:
-                theme_data_type_id:
-                    referencedColumnName: id
-#            gedmo:
-#                - versioned
     lifecycleCallbacks: {  }

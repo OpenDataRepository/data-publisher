@@ -148,6 +148,7 @@ class ShortResultsController extends ODRCustomController
      */
     public function recordlistAction($datatype_id, Request $request)
     {
+/*
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'json';
@@ -210,6 +211,7 @@ class ShortResultsController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+*/
     }
 
 
@@ -225,6 +227,7 @@ class ShortResultsController extends ODRCustomController
      */
     public function mapAction($datatype_id, $datatype_name, Request $request)
     {
+/*
         $return = '';
 
         try {
@@ -245,7 +248,7 @@ class ShortResultsController extends ODRCustomController
             $user = 'anon.';
             $cache_html = '';
             foreach ($datarecords as $datarecord) {
-                if (/*$user !== 'anon.' || */$datarecord->isPublic()) {                 // <-- 'anon.' indicates no user logged in, though i believe this action is only accessed when somebody is logged in
+                if ($datarecord->isPublic()) {                 // <-- 'anon.' indicates no user logged in, though i believe this action is only accessed when somebody is logged in
 
                     // Attempt to load the datarecord from the cache...
                     $html = $memcached->get($memcached_prefix.'.data_record_short_form_'.$datarecord->getId());
@@ -286,16 +289,15 @@ class ShortResultsController extends ODRCustomController
             $return = $header.$cache_html;
         }
         catch (\Exception $e) {
-/*
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x802484450 ' . $e->getMessage();
-*/
+//            $return['r'] = 1;
+//            $return['t'] = 'ex';
+//            $return['d'] = 'Error 0x802484450 ' . $e->getMessage();
         }
 
         $response = new Response($return);
         $response->headers->set('Content-Type', 'text/html');
         return $response;
+*/
     }
 
 }

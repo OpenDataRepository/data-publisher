@@ -2565,7 +2565,6 @@ print_r($new_mapping);
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-//            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
@@ -3359,7 +3358,6 @@ print_r($new_mapping);
 */
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-//            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
 

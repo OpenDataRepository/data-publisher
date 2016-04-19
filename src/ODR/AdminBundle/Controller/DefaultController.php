@@ -75,7 +75,8 @@ class DefaultController extends ODRCustomController
                'SELECT dt, up.can_view_type AS can_view_type
                 FROM ODRAdminBundle:DataType AS dt
                 JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
-                WHERE up.user_id = :user AND dt IN (:datatypes)'
+                WHERE up.user_id = :user AND dt IN (:datatypes)
+                AND dt.deletedAt IS NULL'
             )->setParameters( array('user' => $user->getId(), 'datatypes' => $top_level_datatypes) );
             $results = $query->getResult();
 
@@ -209,9 +210,10 @@ class DefaultController extends ODRCustomController
         // TODO - datatype metadata
         $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted rows
         $query = $em->createQuery(
-           'SELECT dt.shortName AS datatype_name, dr.id AS datarecord_id, dr.created AS created, dr.deletedAt AS deleted, dr.updated AS updated
+           'SELECT dtym.shortName AS datatype_name, dr.id AS datarecord_id, dr.created AS created, dr.deletedAt AS deleted, dr.updated AS updated
             FROM ODRAdminBundle:DataRecord AS dr
             JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
+            JOIN ODRAdminBundle:DataTypeMeta AS dtym WITH dtym.dataType = dt
             WHERE dr.dataType = :datatype AND dr.provisioned = false'
         )->setParameters( array('datatype' => $datatype_id) );
         $results = $query->getArrayResult();
@@ -372,6 +374,7 @@ class DefaultController extends ODRCustomController
     */
     public function buildsitemapAction(Request $request)
     {
+/*
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -520,7 +523,7 @@ class DefaultController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
+*/
     }
 
 }

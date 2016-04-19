@@ -25,6 +25,7 @@ use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileChecksum;
@@ -901,7 +902,8 @@ print "\n\n";
                    'SELECT dt.id AS dt_id, up.can_view_type, up.can_edit_record, up.can_add_record, up.can_delete_record, up.can_design_type, up.is_type_admin
                     FROM ODRAdminBundle:DataType AS dt
                     JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
-                    WHERE up.user_id = :user'
+                    WHERE up.user_id = :user
+                    AND dt.deletedAt IS NULL'
                 )->setParameters( array('user' => $user_id) );
                 $user_permissions = $query->getArrayResult();
 
@@ -925,7 +927,8 @@ print "\n\n";
                        'SELECT dt.id AS dt_id, up.can_view_type, up.can_edit_record, up.can_add_record, up.can_delete_record, up.can_design_type, up.is_type_admin
                         FROM ODRAdminBundle:DataType AS dt
                         JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
-                        WHERE up.user_id = :user'
+                        WHERE up.user_id = :user
+                        AND dt.deletedAt IS NULL'
                     )->setParameters( array('user' => $user_id) );
                     $user_permissions = $query->getArrayResult();
                 }
@@ -1314,7 +1317,6 @@ $save_permissions = false;
     {
 
 //print "call to update datatype cache\n";
-return;
 
         // ----------------------------------------
         // Grab necessary objects
@@ -1368,8 +1370,6 @@ return;
         $current_time = new \DateTime();
         /** @var DataType $datatype */
         $datatype = $repo_datatype->find($datatype_id);
-        if ($datatype == null)
-            return self::deletedEntityError('DataType');
 
         $em->refresh($datatype);
 //print 'refreshed datatype '.$datatype->getId().' ('.$datatype->getShortName().')'."\n";
@@ -1473,8 +1473,8 @@ return;
             $delay = 5;
             $pheanstalk->useTube('recache_record')->put($payload, $priority, $delay);
         }
-
     }
+
 
     /**
      * Notifies beanstalk to eventually schedule a rebuild of all cache entries of a specific DataRecord.
@@ -2759,6 +2759,161 @@ return;
         $em->persist($radio_selection);
 
         return $radio_selection;
+    }
+
+
+    /**
+     * Modifies a meta entry for a given Datatype entity by copying the old meta entry to a new meta entry,
+     *  updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     *
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user                       The user requesting the modification of this meta entry.
+     * @param DataType $datatype               The DataField entity of the meta entry being modified
+     * @param array $properties
+     *
+     * @return DataTypeMeta
+     */
+    protected function ODR_copyDatatypeMeta($em, $user, $datatype, $properties)
+    {
+        // Load the old meta entry
+        /** @var DataTypeMeta $old_meta_entry */
+        $old_meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('dataType' => $datatype->getId()) );
+
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'renderPlugin' => $old_meta_entry->getRenderPlugin()->getId(),
+/*
+            'externalIdField' => $old_meta_entry->getExternalIdField()->getId(),
+            'nameField' => $old_meta_entry->getNameField()->getId(),
+            'sortField' => $old_meta_entry->getSortField()->getId(),
+            'backgroundImageField' => $old_meta_entry->getBackgroundImageField()->getId(),
+*/
+            'searchSlug' => $old_meta_entry->getSearchSlug(),
+            'shortName' => $old_meta_entry->getShortName(),
+            'longName' => $old_meta_entry->getLongName(),
+            'description' => $old_meta_entry->getDescription(),
+            'xml_shortName' => $old_meta_entry->getXmlShortName(),
+
+            'useShortResults' => $old_meta_entry->getUseShortResults(),
+            'display_type' => $old_meta_entry->getDisplayType(),
+            'publicDate' => $old_meta_entry->getPublicDate(),
+        );
+
+        // These Datafields entries can be null
+        if ( $old_meta_entry->getExternalIdField() !== null )
+            $existing_values['externalIdField'] = $old_meta_entry->getExternalIdField()->getId();
+        if ( $old_meta_entry->getNameField() !== null )
+            $existing_values['nameField'] = $old_meta_entry->getNameField()->getId();
+        if ( $old_meta_entry->getSortField() !== null )
+            $existing_values['sortField'] = $old_meta_entry->getSortField()->getId();
+        if ( $old_meta_entry->getBackgroundImageField() !== null )
+            $existing_values['backgroundImageField'] = $old_meta_entry->getBackgroundImageField()->getId();
+
+
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value)
+                $changes_made = true;
+        }
+
+        // Need to do additional checking in case the mentioned datafields were null beforehand
+        if ( isset($properties['externalIdField']) && !($properties['externalIdField'] == null || $properties['externalIdField'] == -1) && $datatype->getExternalIdField() == null )
+//            print 'external id field changed from null'."\n";
+            $changes_made = true;
+        if ( isset($properties['nameField']) && !($properties['nameField'] == null || $properties['nameField'] == -1) && $datatype->getNameField() == null )
+//            print 'name field changed from null'."\n";
+            $changes_made = true;
+        if ( isset($properties['sortField']) && !($properties['sortField'] == null || $properties['sortField'] == -1) && $datatype->getSortField() == null )
+//            print 'sort field changed from null'."\n";
+            $changes_made = true;
+        if ( isset($properties['backgroundImageField']) && !($properties['backgroundImageField'] == null || $properties['backgroundImageField'] == -1) && $datatype->getBackgroundImageField() == null )
+//            print 'background image field changed from null'."\n";
+            $changes_made = true;
+
+        if (!$changes_made)
+            return $old_meta_entry;
+
+
+        // Create a new meta entry and copy the old entry's data over
+        $datatype_meta = new DataTypeMeta();
+        $datatype_meta->setDataType($datatype);
+
+        $datatype_meta->setRenderPlugin( $old_meta_entry->getRenderPlugin() );
+        $datatype_meta->setExternalIdField( $old_meta_entry->getExternalIdField() );
+        $datatype_meta->setNameField( $old_meta_entry->getNameField() );
+        $datatype_meta->setSortField( $old_meta_entry->getSortField() );
+        $datatype_meta->setBackgroundImageField( $old_meta_entry->getBackgroundImageField() );
+
+        $datatype_meta->setSearchSlug( $old_meta_entry->getSearchSlug() );
+        $datatype_meta->setShortName( $old_meta_entry->getShortName() );
+        $datatype_meta->setLongName( $old_meta_entry->getLongName() );
+        $datatype_meta->setDescription( $old_meta_entry->getDescription() );
+        $datatype_meta->setXmlShortName( $old_meta_entry->getXmlShortName() );
+
+        $datatype_meta->setUseShortResults( $old_meta_entry->getUseShortResults() );
+        $datatype_meta->setDisplayType( $old_meta_entry->getDisplayType() );
+        $datatype_meta->setPublicDate( $old_meta_entry->getPublicDate() );
+
+        $datatype_meta->setCreatedBy($user);
+        $datatype_meta->setCreated( new \DateTime() );
+
+        // Set any new properties
+        if ( isset($properties['renderPlugin']) )
+            $datatype_meta->setRenderPlugin( $em->getRepository('ODRAdminBundle:RenderPlugin')->find( $properties['renderPlugin'] ) );
+
+        if ( isset($properties['externalIdField']) ) {
+            if ($properties['externalIdField'] == null || $properties['externalIdField'] == -1)
+                $datatype_meta->setExternalIdField(null);
+            else
+                $datatype_meta->setExternalIdField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['externalIdField']) );
+        }
+        if ( isset($properties['nameField']) ) {
+            if ($properties['nameField'] == null || $properties['nameField'] == -1)
+                $datatype_meta->setNameField(null);
+            else
+                $datatype_meta->setNameField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['nameField']) );
+        }
+        if ( isset($properties['sortField']) ) {
+            if ($properties['sortField'] == null || $properties['sortField'] == -1)
+                $datatype_meta->setSortField(null);
+            else
+                $datatype_meta->setSortField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['sortField']) );
+        }
+        if ( isset($properties['backgroundImageField']) ) {
+            if ($properties['backgroundImageField'] == null || $properties['backgroundImageField'] == -1)
+                $datatype_meta->setBackgroundImageField(null);
+            else
+                $datatype_meta->setBackgroundImageField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['backgroundImageField']) );
+        }
+
+        if ( isset($properties['searchSlug']) )
+            $datatype_meta->setSearchSlug( $properties['searchSlug'] );
+        if ( isset($properties['shortName']) )
+            $datatype_meta->setShortName( $properties['shortName'] );
+        if ( isset($properties['longName']) )
+            $datatype_meta->setLongName( $properties['longName'] );
+        if ( isset($properties['description']) )
+            $datatype_meta->setDescription( $properties['description'] );
+        if ( isset($properties['xml_shortName']) )
+            $datatype_meta->setXmlShortName( $properties['xml_shortName'] );
+
+        if ( isset($properties['useShortResults']) )
+            $datatype_meta->setUseShortResults( $properties['useShortResults'] );
+        if ( isset($properties['display_type']) )
+            $datatype_meta->setDisplayType( $properties['display_type'] );
+        if ( isset($properties['publicDate']) )
+            $datatype_meta->setPublicDate( $properties['publicDate'] );
+
+        // Save the new meta entry and delete the old one
+        $em->remove($old_meta_entry);
+        $em->persist($datatype_meta);
+        $em->flush();
+
+        // Return the new entry
+        return $datatype_meta;
     }
 
 

@@ -1878,10 +1878,8 @@ class RecordController extends ODRCustomController
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-//            $repo_linked_datatree = $em->getRepository('ODRAdminBundle:LinkedDataTree');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-//            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
 
             // Grab the datatypes from the database
             /** @var DataRecord $local_datarecord */
@@ -2138,8 +2136,6 @@ if ($debug) {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-
-//            $repo_linked_datatree = $em->getRepository('ODRAdminBundle:LinkedDataTree');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
@@ -2561,12 +2557,13 @@ if ($debug)
         $ancestor_linked_datatypes = array();
         if ($template_name == 'default') {
             $query = $em->createQuery(
-               'SELECT ancestor.id AS ancestor_id, ancestor.shortName AS ancestor_name
+               'SELECT ancestor.id AS ancestor_id, ancestor_meta.shortName AS ancestor_name
                 FROM ODRAdminBundle:DataTree AS dt
                 JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
                 JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataTypeMeta AS ancestor_meta WITH ancestor_meta.dataType = ancestor
                 WHERE dtm.is_link = 1 AND dt.descendant = :datatype
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND ancestor_meta.deletedAt IS NULL'
             )->setParameters( array('datatype' => $datatype->getId()) );
             $results = $query->getArrayResult();
             foreach ($results as $num => $result) {
@@ -2580,12 +2577,13 @@ if ($debug)
         $descendant_linked_datatypes = array();
         if ($template_name == 'default') {
             $query = $em->createQuery(
-               'SELECT descendant.id AS descendant_id, descendant.shortName AS descendant_name
+               'SELECT descendant.id AS descendant_id, descendant_meta.shortName AS descendant_name
                 FROM ODRAdminBundle:DataTree AS dt
                 JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
                 JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
+                JOIN ODRAdminBundle:DataTypeMeta AS descendant_meta WITH descendant_meta.dataType = descendant
                 WHERE dtm.is_link = 1 AND dt.ancestor = :datatype
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL AND descendant_meta.deletedAt IS NULL'
             )->setParameters( array('datatype' => $datatype->getId()) );
             $results = $query->getArrayResult();
             foreach ($results as $num => $result) {
