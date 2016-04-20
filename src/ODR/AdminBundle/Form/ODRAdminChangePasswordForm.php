@@ -13,6 +13,7 @@
 
 namespace ODR\AdminBundle\Form;
 
+use ODR\OpenRepository\UserBundle\Entity\User;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 
@@ -21,13 +22,24 @@ use Doctrine\ORM\EntityRepository;
 class ODRAdminChangePasswordForm extends AbstractType
 {
 
+    /** @var User $target_user */
     private $target_user;
 
+
+    /**
+     * ODRAdminChangePasswordForm constructor.
+     *
+     * @param User $user
+     */
     public function __construct(\ODR\OpenRepository\UserBundle\Entity\User $user)
     {
         $this->target_user = $user;
     }
 
+
+    /**
+     * {@inheritdoc}
+     */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
 
@@ -65,23 +77,15 @@ class ODRAdminChangePasswordForm extends AbstractType
 
     }
 
+
+    /**
+     * Returns the name of this type.
+     *
+     * @return string The name of this type
+     */
     public function getName()
     {
         return 'ODRAdminChangePasswordForm';
     }
 
-        /**
-     * TODO: short description.
-     * 
-     * @param OptionsResolverInterface $resolver 
-     * 
-     * @return TODO
-     */
-//    public function setDefaultOptions(OptionsResolverInterface $resolver)
-//    {
-//        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataFields'));
-//    }
-
 }
-
-?>

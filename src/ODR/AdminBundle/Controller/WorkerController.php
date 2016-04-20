@@ -423,9 +423,13 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                 $em->refresh($drf);
             }
 
-            // Need to handle radio options separately...
+            // Radio options need typename to distinguish...
             $old_typename = $old_fieldtype->getTypeName();
             $new_typename = $new_fieldtype->getTypeName();
+            if ($old_typename == $new_typename)
+                throw new \Exception('Not allowed to migrate between the same Fieldtype');
+
+            // Need to handle radio options separately...
             if ( ($old_typename == 'Multiple Radio' || $old_typename == 'Multiple Select') && ($new_typename == 'Single Radio' || $new_typename == 'Single Select') ) {
                 // If more than one radio option selected, then deselect all but the first one
 
@@ -511,9 +515,20 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 
                         $value = floatval($new_value);
                     }
+                    else if ( $old_typeclass == 'DatetimeValue' ) {
+                        // date -> anything
+                        $value = null;
+                    }
+                    else if ( $new_typeclass == 'DatetimeValue' ) {
+                        // anything -> date
+                        $value = new \DateTime('0000-00-00 00:00:00');
+                    }
 
                     // Save changes
-                    $ret .= 'set dest_entity to "'.$value.'"'."\n";
+                    if ( $new_typeclass == 'DatetimeValue' )
+                        $ret .= 'set dest_entity to "'.$value->format('Y-m-d H:i:s').'"'."\n";
+                    else
+                        $ret .= 'set dest_entity to "'.$value.'"'."\n";
                     $em->remove($src_entity);
 
                     $new_obj = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);

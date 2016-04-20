@@ -625,11 +625,10 @@ odr_link_records:
     requirements: { _method: POST }
 
 odr_record_get_field_history:
-    pattern:  /edit/record/history/{datarecordfield_id}/{entity_id}
+    pattern:  /edit/record/history/{datarecordfield_id}
     defaults: { _controller: ODRAdminBundle:Record:getfieldhistory }
     requirements:
         datarecordfield_id:  \d+
-        entity_id:  \d+
 #-----------------------------------------
 
 #-----------------------------------------

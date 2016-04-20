@@ -123,13 +123,12 @@ function initPage() {
     $(".ODRDataField").find('.ODRDatafieldHistory').click(function() {
 
         // Grab relevant entity ids
-        var entity_id = $(this).parent().parent().attr('rel');
         var id_data = $(this).parent().parent().attr('id').split(/_/);
         var datarecordfield_id = id_data[1];
 
-        var url = '{{ path('odr_record_get_field_history', { 'datarecordfield_id': 0, 'entity_id': 0 } ) }}';
-        url = url.substring(0, (url.length - 3));
-        url += datarecordfield_id + '/' + entity_id;
+        var url = '{{ path('odr_record_get_field_history', { 'datarecordfield_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += datarecordfield_id;
 
 // TODO - Radio fieldtype
 

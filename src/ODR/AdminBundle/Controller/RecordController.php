@@ -1669,6 +1669,8 @@ class RecordController extends ODRCustomController
                         $form->addError( new FormError('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield...reverting back to old value.') );
                 }
 
+//$form->addError( new FormError('do not save') );
+
                 // Ensure the form has no errors
                 if ($form->isValid()) {
 /*
@@ -1695,8 +1697,17 @@ class RecordController extends ODRCustomController
 //                    $em->flush();
 
                     // ----------------------------------------
+                    // If saving from a datetime field, convert the submitted string into a datetime object
+                    if ( $record_type == 'DatetimeValue' ) {
+                        if ($new_value == '')
+                            $new_value = new \DateTime('0000-00-00 00:00:00');
+                        else
+                            $new_value = new \DateTime($new_value);
+                    }
+
+
                     // Save the change in the database
-                    switch($record_type) {
+                    switch ($record_type) {
                         case 'Boolean':
                         case 'DatetimeValue':
                         case 'DecimalValue':
@@ -1761,11 +1772,16 @@ class RecordController extends ODRCustomController
                     $return['old_value'] = $old_value;
 
                     $errors = $form->getErrors();
-                    $error_str = '';
-                    foreach ($errors as $num => $error)
-                        $error_str .= 'ERROR: '.$error->getMessage()."\n";
+                    if ( count($errors) > 0 ) {
+                        $error_str = '';
+                        foreach ($errors as $num => $error)
+                            $error_str .= 'ERROR: '.$error->getMessage()."\n";
 
-                    $return['error'] = $error_str;
+                        $return['error'] = $error_str;
+                    }
+                    else {
+                        $return['error'] = $form->getErrorsAsString();
+                    }
                 }
             }
         }
@@ -2793,130 +2809,140 @@ if ($debug)
     /**
     * Builds an array of all prior values of the given datafield, to serve as a both display of field history and a reversion dialog.
     * 
-    * @param DataRecordFields $datarecordfield_id The database id of the DataRecord/DataField pair to look-up in the transaction log
-    * @param mixed $entity_id                     The database id of the storage entity to look-up in the transaction log
-    * @param Request $request 
+    * @param integer $datarecordfield_id The database id of the DataRecord/DataField pair to look-up in the transaction log
+    * @param Request $request
     * 
     * @return Response TODO
     */
-    public function getfieldhistoryAction($datarecordfield_id, $entity_id, Request $request)
+    public function getfieldhistoryAction($datarecordfield_id, Request $request)
     {
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
 
         try {
+            // ----------------------------------------
+            // Get Entity Manager and setup repositories
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
 
-            throw new \Exception('DISABLED UNTIL SOFT-DELETION OF DATAFIELDS IS WORKING PROPERLY');
+            /** @var DataRecordFields $drf */
+            $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->find($datarecordfield_id);
+            if ($drf == null)
+                return parent::deletedEntityError('Datarecordfield');
+
+            $datatype = $drf->getDataRecord()->getDataType();
+
+            // ----------------------------------------
+            // Ensure user has permissions to be doing this
+            /** @var User $user */
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                return parent::permissionDeniedError('You need to be a super-admin to view datafield history, for now');
 
             // Ensure user has permissions to be doing this
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            if (!$user->hasRole('ROLE_SUPER_ADMIN')) {
-                $return['r'] = 2;
-            }
-            else {
-                // Get Entity Manager and setup repositories
-                $em = $this->getDoctrine()->getManager();
-                $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
-                $drf = $repo_datarecordfields->find($datarecordfield_id);
-
-                $type_class = $drf->getDataField()->getFieldType()->getTypeClass();
-//print $type_class."\n";
-                $repo_entity = $em->getRepository("ODR\\AdminBundle\\Entity\\".$type_class);
-                $entity = $repo_entity->find($entity_id);
-
-                // Get all log entries in array format for this entity from gedmo
-                $all_log_entries = array();
-                $repo_logging = $em->getRepository('Gedmo\Loggable\Entity\LogEntry');
-                $all_log_entries = $repo_logging->getLogEntriesQuery($entity)->getArrayResult();
-//print_r($all_log_entries);
-//return;
-
-                $user_manager = $this->container->get('fos_user.user_manager');
-                $all_users = $user_manager->findUsers();
-                $users = array();
-                foreach ($all_users as $user) {
-                    $users[ $user->getUsername() ] = $user;
-                }
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+                return parent::permissionDeniedError("edit");
+            // ----------------------------------------
 
 
-                $log_entries = array();
-                foreach ($all_log_entries as $entry) {
-                    $data = $entry['data'];
-//print_r($data);
-//return;
+            // ----------------------------------------
+            // Don't check field history of certain fieldtypes
+            $typeclass = $drf->getDataField()->getFieldType()->getTypeClass();
+            if ($typeclass == 'File' || $typeclass == 'Image' || $typeclass == 'Markdown' || $typeclass == 'Radio')
+                throw new \Exception('Unable to view history of a '.$typeclass.' datafield, for now');
 
-                    // Due to log entries not being identical, need to create a new array so the templating doesn't get confused
-                    $tmp = array();
-                    $tmp['id'] = $entry['id'];
-                    $tmp['version'] = $entry['version'];
-                    $tmp['loggedat'] = $entry['loggedAt'];
 
-                    $username = $entry['username'];
-                    if ( isset($users[$username]) )
-                        $tmp['user'] = $users[$username];
-                    else
-                        $tmp['user'] = '';
+            // Grab all fieldtypes that the datafield has been
+            $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted rows
+            $query = $em->createQuery(
+               'SELECT ft.id AS id, ft.typeClass AS type_class, ft.typeName AS type_name
+                FROM ODRAdminBundle:DataRecordFields AS drf
+                JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
+                WHERE drf = :drf_id'
+            )->setParameters( array('drf_id' => $datarecordfield_id) );
+            $results = $query->getArrayResult();
 
-                    if ( $type_class == 'DatetimeValue' ) {
-                        // Null values in the log entries screw up the datetime to string formatter
-                        if ( $data['value'] != null )
-                            $tmp['value'] = $data['value']->format('Y-m-d');
-                        else
-                            $tmp['value'] = '';
-                    }
-                    else if ( isset($data['value']) ) {
-                        // Otherwise, just store the value
-                        $tmp['value'] = $data['value'];
-                    }
-                    else {
-                        // Don't bother if there's no value listed...
-                        continue;
-                    }
+            $all_typeclasses = array();
+            $all_typenames = array();
+            foreach ($results as $result) {
+                $fieldtype_id = $result['id'];
+                $typeclass = $result['type_class'];
+                $typename = $result['type_name'];
 
-                    $log_entries[] = $tmp;
-                }
-//print "--------------------\n";
-//print_r($log_entries);
-//return;
-
-                $form_classname = "\\ODR\\AdminBundle\\Form\\".$type_class."Form";
-//                $datarecordfield = $repo_datarecordfields->find($datarecordfield_id);
-
-                // Get related object using switch
-                $ignore_request = false;
-                $form = null;
-                switch($type_class) {
-                    case 'File':
-                    case 'Image':
-                    case 'Radio':
-                        $ignore_request = true;
-                        break;
-                    default:
-//                        $my_obj = parent::loadFromDataRecordField($datarecordfield, $field_type);
-                        $my_obj = $drf->getAssociatedEntity();
-                        $form = $this->createForm(new $form_classname($em), $my_obj);
-                    break;
-                }
-
-                // Render the dialog box for this request
-                if (!$ignore_request) {
-                    $templating = $this->get('templating');
-                    $return['d'] = array(
-                        'html' => $templating->render(
-                            'ODRAdminBundle:Record:field_history_dialog_form.html.twig',
-                            array(
-                                'log_entries' => $log_entries,
-                                'record_type' => $type_class,
-                                'data_record_field_id' => $drf->getId(),
-                                'datarecord_id' => $drf->getDataRecord()->getId(),
-                                'entity_id' => $entity_id,
-                                'form' => $form->createView()
-                            )
-                        )
-                    );
+                if ( $typeclass !== 'File' && $typeclass !== 'Image' && $typeclass !== 'Markdown' && $typeclass !== 'Radio' ) {
+                    $all_typeclasses[$fieldtype_id] = $typeclass;
+                    $all_typenames[$fieldtype_id] = $typename;
                 }
             }
+
+            // Grab all values that the datafield has had across all fieldtypes
+            $historical_values = array();
+            foreach ($all_typeclasses as $ft_id => $typeclass) {
+                $query = $em->createQuery(
+                   'SELECT e.value AS value, e.created AS create_date, creator.firstName, creator.lastName, creator.username
+                    FROM ODRAdminBundle:'.$typeclass.' AS e
+                    JOIN ODROpenRepositoryUserBundle:User AS creator WITH e.createdBy = creator
+                    WHERE e.dataRecordFields = :drf_id'
+                )->setParameters( array('drf_id' => $datarecordfield_id) );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    $value = $result['value'];
+                    $create_date = $result['create_date'];
+
+                    $user_string = $result['username'];
+                    if ( $result['firstName'] !== '' && $result['lastName'] !== '' )
+                        $user_string = $result['firstName'].' '.$result['lastName'];
+
+                    $historical_values[] = array('value' => $value, 'user' => $user_string, 'create_date' => $create_date, 'typeclass' => $typeclass, 'typename' => $all_typenames[$ft_id]);
+                }
+            }
+
+            $em->getFilters()->enable('softdeleteable');    // Re-enable the softdeleteable filter
+
+
+            // ----------------------------------------
+            // Sort array from earliest date to latest date
+            usort($historical_values, function ($a, $b) {
+                // Sort by display order first if possible
+                $interval = date_diff($a['create_date'], $b['create_date']);
+                if ( $interval->invert == 0 )
+                    return -1;
+                else
+                    return 1;
+            });
+
+
+            // ----------------------------------------
+            // Use the resulting keys of the array after the sort as version numbers
+            foreach ($historical_values as $num => $data)
+                $historical_values[$num]['version'] = ($num+1);
+
+            // Create a form for the object to use if value gets reverted
+            $current_typeclass = $drf->getDataField()->getFieldType()->getTypeClass();
+            $form_classname = "\\ODR\\AdminBundle\\Form\\".$current_typeclass."Form";
+
+            $my_obj = $drf->getAssociatedEntity();
+            $form = $this->createForm(new $form_classname($em), $my_obj);
+
+            // Render the dialog box for this request
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Record:field_history_dialog_form.html.twig',
+                    array(
+                        'historical_values' => $historical_values,
+                        'current_typeclass' => $current_typeclass,
+                        'drf' => $drf,
+
+                        'form' => $form->createView()
+                    )
+                )
+            );
         }
         catch (\Exception $e) {
             $return['r'] = 1;

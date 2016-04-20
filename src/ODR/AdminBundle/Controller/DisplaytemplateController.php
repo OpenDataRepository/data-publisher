@@ -3989,6 +3989,7 @@ if ($debug)
                             case 'MediumVarchar':
                             case 'ShortVarchar':
                             case 'DecimalValue':
+                            case 'DatetimeValue':
                                 break;
 
                             default:
@@ -4003,6 +4004,7 @@ if ($debug)
                             case 'MediumVarchar':
                             case 'ShortVarchar':
                             case 'DecimalValue':
+                            case 'DatetimeValue':
                                 break;
 
                             default:

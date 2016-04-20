@@ -96,13 +96,13 @@ class DatetimeValueForm extends AbstractType
             $builder->create('createdBy', 'hidden')
                 ->addModelTransformer($u_transformer)
         ); 
-
+/*
         $u_transformer = new UserToNumberTransformer($this->em);
         $builder->add(
             $builder->create('updatedBy', 'hidden')
                 ->addModelTransformer($u_transformer)
         ); 
-
+*/
 //        $date_transformer = new DateTimeToStringTransformer(null, null, 'Y-m-d');
         $date_transformer = new ODRDateTimeToStringTransformer(null, null, 'Y-m-d');
         $builder->add(

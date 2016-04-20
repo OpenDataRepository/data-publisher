@@ -1,8 +1,11 @@
 {% spaceless %}
+    {% set datarecord_id = drf.getdatarecord.id %}
+    {% set entity_id = drf.getassociatedentity.id %}
+
     <!-- Field History Dialog Form -->
-    <form class="ODRDatafieldHistoryForm pure-form pure-form-aligned" action="{{ path('odr_record_save', {'record_type': record_type, 'datarecord_id': datarecord_id }) }}" method="post" id="DatafieldHistoryForm">
+    <form class="ODRDatafieldHistoryForm pure-form pure-form-aligned" action="{{ path('odr_record_save', {'record_type': current_typeclass, 'datarecord_id': datarecord_id }) }}" method="post" id="DatafieldHistoryForm">
         <input type="hidden" name="id" value="{{ entity_id }}" />
-        <input type="hidden" name="ObjType" value="{{ record_type }}" />
+        <input type="hidden" name="ObjType" value="{{ current_typeclass }}" />
 
         {{ form_errors(form.createdBy) }}
         {{ form_widget(form.createdBy) }}
@@ -22,14 +25,14 @@
         {{ form_errors(form.data_record_fields) }}
         {{ form_widget(form.data_record_fields) }}
 
-        <input type="hidden" value="" data-error-type="inline" class="required" required="required" name="{{ record_type }}Form[value]" id="{{ record_type }}Form_value" />
+        <input type="hidden" value="" data-error-type="inline" class="required" required="required" name="{{ current_typeclass }}Form[value]" id="{{ current_typeclass }}Form_value" />
 
         <fieldset>
             <div class="pure-control-group" id="field_history_table_container" style="overflow: auto; max-height: 500px;">
                 <table class="pure-table pure-table-bordered pure-table-striped">
                     <thead><tr>
-                        <th>ID</th>
                         <th>Version</th>
+                        <th>Fieldtype</th>
                         <th>Updated At</th>
                         <th>Updated By</th>
                         <th>Value</th>
@@ -37,23 +40,24 @@
                     </tr></thead>
                     <tbody>
                     {% set latest_version = 0 %}
-                    {% for log_entry in log_entries %}
-                        {% if log_entry.version > latest_version %}
-                            {% set latest_version = log_entry.version %}
+                    {% for historical_value in historical_values %}
+                        {% if historical_value.version > latest_version %}
+                            {% set latest_version = historical_value.version %}
                         {% endif %}
                     {% endfor %}
-                    {% for log_entry in log_entries %}
-                        <tr>
-                            <td class="center">{{ log_entry.id }}</td>
-                            <td class="center">{{ log_entry.version }}</td>
-                            <td class="center">{{ log_entry.loggedat|date("Y-m-d H:i:s") }}</td>
-                            <td class="center">{% if log_entry.user != null %}{{ log_entry.user.getuserstring }}{% endif %}</td>
-                        {% if record_type == "DatetimeValue" %}
-                            <td id="version_{{ log_entry.version }}" class="center">{% if log_entry.value == null %}{% else %}{{ log_entry.value }}{% endif %}</td>
+
+                    {% for historical_value in historical_values|reverse %}
+                        <tr class="row">
+                            <td class="center">{{ historical_value.version }}</td>
+                            <td class="center">{{ historical_value.typename }}</td>
+                            <td class="center">{{ historical_value.create_date|date("Y-m-d H:i:s") }}</td>
+                            <td class="center">{{ historical_value.user }}</td>
+                        {% if historical_value.typeclass == "DatetimeValue" %}
+                            <td id="version_{{ historical_value.version }}" class="center">{% if historical_value.value|date('Y-m-d') == '-0001-11-30' %}{% else %}{{ historical_value.value|date('Y-m-d') }}{% endif %}</td>
                         {% else %}
-                            <td id="version_{{ log_entry.version }}" class="center">{{ log_entry.value }}</td>
+                            <td id="version_{{ historical_value.version }}" class="center">{{ historical_value.value }}</td>
                         {% endif %}
-                            <td id="version_{{ log_entry.version }}_button" class="center"><button class="pure-button pure-button-primary" type="button" onclick="revertTo('version_{{ log_entry.version}}');">Revert</button></td>
+                            <td id="version_{{ historical_value.version }}_button" rel="{{ historical_value.typeclass }}" class="center"><button class="pure-button pure-button-primary" type="button" onclick="revertTo('version_{{ historical_value.version }}','{{ historical_value.typeclass }}');">Revert</button></td>
                         </tr>
                     {% endfor %}
                     </tbody>
@@ -87,7 +91,7 @@
             }).find('.ODRCancelButton').click(function(){
                 var $el = $(this).parents('.ui-dialog-content');
                 $el.find('form')[0].reset();
-                $el.dialog('close');;
+                $el.dialog('close');
             });
 
             // Init Form
@@ -102,24 +106,93 @@
         });
 */
         $(function() {
+{% if current_typeclass == 'DatetimeValue' %}
+            // The field is currently a datetime value...don't permit reversions to non-datetime values
+            $(".row").each(function() {
+                var parent = $(this).find(".pure-button").parent();
+                var target_typeclass = $(parent).attr('rel');
+
+                if ( target_typeclass !== 'DatetimeValue' )
+                    $(parent).children('button').first().attr('title', 'Unable to revert back to this value').attr('disabled', 'disabled');
+            });
+{% else %}
+            // The field is currently not a datetime value...don't permit reversions to datetime values
+            $(".row").each(function() {
+                var parent = $(this).find(".pure-button").parent();
+                var target_typeclass = $(parent).attr('rel');
+
+                if ( target_typeclass == 'DatetimeValue' )
+                    $(parent).children('button').first().attr('title', 'Unable to revert back to this value').attr('disabled', 'disabled');
+            });
+{% endif %}
+
             // Doesn't make sense to revert to the current version...remove that option
             var element = "version_{{ latest_version }}_button";
             $("#" + element).remove();
         });
 
-        function revertTo(id) {
-            if ( confirm("Are you certain you want to revert back to this value?") ) {
+        function revertTo(id, target_typeclass) {
+            var current_typeclass = "{{ current_typeclass }}";
+
+            // Changes that require no extra consideration or work
+            var no_warn = {
+                'IntegerValue': ['LongText','LongVarchar','MediumVarchar','ShortVarchar','DecimalValue'],
+                'LongVarchar': ['LongText'],
+                'MediumVarchar': ['LongText','LongVarchar'],
+                'ShortVarchar': ['LongText','LongVarchar','MediumVarchar'],
+                'DecimalValue': ['LongText','LongVarchar','MediumVarchar','ShortVarchar']
+            };
+
+            // Changes from 'longer' fieldtypes to 'shorter' fieldtypes
+            var length_warn = {
+                'LongText': ['LongVarchar','MediumVarchar','ShortVarchar'],
+                'LongVarchar': ['MediumVarchar','ShortVarchar'],
+                'MediumVarchar': ['ShortVarchar']
+            };
+
+            // Changes from text fields to IntegerValue/DecimalValue...it can easily result in lost data
+            var number_warn = {
+                'LongText': ['IntegerValue','DecimalValue'],
+                'LongVarchar': ['IntegerValue','DecimalValue'],
+                'MediumVarchar': ['IntegerValue','DecimalValue'],
+                'ShortVarchar': ['IntegerValue','DecimalValue']
+            };
+
+            // Converting from DecimalValue to IntegerValue...going to lose fractional parts of data
+            var precision_warn = {
+                'DecimalValue': ['IntegerValue']
+            };
+
+
+            // Warn the user about potential issues when reverting to values from different fieldtypes
+            var confirm_str = '';
+            if ( no_warn[target_typeclass] != undefined && $.inArray(current_typeclass, no_warn[target_typeclass]) == 0 ) {
+                confirm_str = '';
+            }
+            else if ( length_warn[target_typeclass] != undefined && $.inArray(current_typeclass, length_warn[target_typeclass]) == 0 ) {
+                confirm_str = 'WARNING: The value may be truncated...';
+            }
+            else if ( number_warn[target_typeclass] != undefined && $.inArray(current_typeclass, number_warn[target_typeclass]) == 0 ) {
+                confirm_str = 'WARNING: The value will be converted to a number, which may result in nonsensical values...';
+            }
+            else if ( precision_warn[target_typeclass] != undefined && $.inArray(current_typeclass, precision_warn[target_typeclass])  == 0 ) {
+                confirm_str = 'WARNING: Any fractional part of the decimal will be dropped...';
+            }
+            confirm_str += 'Are you certain you want to revert back to this value?';
+
+
+            if ( confirm(confirm_str) ) {
                 var previous_value = $("#" + id).html();
 
-                var element = "{{ record_type }}Form_value";
+                var element = "{{ current_typeclass }}Form_value";
                 $("#DatafieldHistoryForm > #" + element).val(previous_value);
 
-                if ( "{{ record_type }}" == "DatetimeValue" ) {
-                    $("#EditDataRecordFieldsForm_{{ data_record_field_id }} .ODRDatePicker").datepicker( "setDate", previous_value );
+                if ( "{{ current_typeclass }}" == "DatetimeValue" ) {
+                    $("#EditDataRecordFieldsForm_{{ drf.id }} .ODRDatePicker").datepicker( "setDate", previous_value );
                 }
                 else {
-                    $("#EditDataRecordFieldsForm_{{ data_record_field_id }} #" + element).val(previous_value);
-                    $("#Form_{{ data_record_field_id }}").val(previous_value);
+                    $("#EditDataRecordFieldsForm_{{ drf.id }} #" + element).val(previous_value);
+                    $("#Form_{{ drf.id }}").val(previous_value);
                 }
 
                 var $el = $('#dialog_field_history');
