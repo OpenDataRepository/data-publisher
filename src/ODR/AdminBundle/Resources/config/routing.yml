@@ -953,9 +953,14 @@ odr_mass_update_start:
     defaults: { _controller: ODRAdminBundle:MassEdit:massUpdate }
     requirements: { _method: POST }
 
-odr_mass_update_worker:
-    pattern: /beanstalk/massedit
-    defaults: { _controller: ODRAdminBundle:MassEdit:massUpdateWorker }
+odr_mass_update_worker_status:
+    pattern: /beanstalk/massedit_status
+    defaults: { _controller: ODRAdminBundle:MassEdit:massUpdateWorkerStatus }
+    requirements: { _method: POST }
+
+odr_mass_update_worker_values:
+    pattern: /beanstalk/massedit_values
+    defaults: { _controller: ODRAdminBundle:MassEdit:massUpdateWorkerValues }
     requirements: { _method: POST }
 #-----------------------------------------
 

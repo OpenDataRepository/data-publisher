@@ -22,6 +22,7 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataFieldsMeta;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\DataRecordMeta;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
@@ -902,9 +903,9 @@ print "\n\n";
                    'SELECT dt.id AS dt_id, up.can_view_type, up.can_edit_record, up.can_add_record, up.can_delete_record, up.can_design_type, up.is_type_admin
                     FROM ODRAdminBundle:DataType AS dt
                     JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
-                    WHERE up.user_id = :user
+                    WHERE up.user = :user_id
                     AND dt.deletedAt IS NULL'
-                )->setParameters( array('user' => $user_id) );
+                )->setParameters( array('user_id' => $user_id) );
                 $user_permissions = $query->getArrayResult();
 
 
@@ -927,9 +928,9 @@ print "\n\n";
                        'SELECT dt.id AS dt_id, up.can_view_type, up.can_edit_record, up.can_add_record, up.can_delete_record, up.can_design_type, up.is_type_admin
                         FROM ODRAdminBundle:DataType AS dt
                         JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
-                        WHERE up.user_id = :user
+                        WHERE up.user = :user_id
                         AND dt.deletedAt IS NULL'
-                    )->setParameters( array('user' => $user_id) );
+                    )->setParameters( array('user_id' => $user_id) );
                     $user_permissions = $query->getArrayResult();
                 }
 
@@ -1024,7 +1025,7 @@ print '</pre>';
         $query = $em->createQuery(
            'SELECT up
             FROM ODRAdminBundle:UserPermissions AS up
-            WHERE up.user_id = :user_id AND up.dataType = :datatype'
+            WHERE up.user = :user_id AND up.dataType = :datatype'
         )->setParameters( array('user_id' => $user_id, 'datatype' => $datatype_id) );
         $results = $query->getArrayResult();
 
@@ -1035,41 +1036,43 @@ print '</pre>';
 
         // Verify that a permissions object exists for this user/datatype
         if ($user_permission === null) {
-            $user_permission = self::ODR_addUserPermission($em, $user_id, $admin_id, $datatype_id);
-
             /** @var User $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             $default = 0;
             if ($user->hasRole('ROLE_SUPER_ADMIN'))
                 $default = 1;   // SuperAdmins can edit/add/delete/design everything, no exceptions
 
+            $initial_permissions = array();
             if ($parent_permission === null) {
                 // If this is a top-level datatype, use the defaults
-                $user_permission->setCanEditRecord($default);
-                $user_permission->setCanAddRecord($default);
-                $user_permission->setCanDeleteRecord($default);
-                $user_permission->setCanViewType($default);
-                $user_permission->setCanDesignType($default);
-                $user_permission->setIsTypeAdmin($default);
+                $initial_permissions = array(
+                    'can_view_type' => $default,
+                    'can_add_record' => $default,
+                    'can_edit_record' => $default,
+                    'can_delete_record' => $default,
+                    'can_design_type' => $default,
+                    'is_type_admin' => $default
+                );
             }
             else {
                 // If this is a childtype, use the parent's permissions as defaults
-                $user_permission->setCanEditRecord( $parent_permission['can_edit_record'] );
-                $user_permission->setCanAddRecord( $parent_permission['can_add_record'] );
-                $user_permission->setCanDeleteRecord( $parent_permission['can_delete_record'] );
-                $user_permission->setCanViewType( $parent_permission['can_view_type'] );
-                $user_permission->setCanDesignType( $parent_permission['can_design_type'] );
-                $user_permission->setIsTypeAdmin( 0 );      // DON'T set admin permissions on childtype
+                $initial_permissions = array(
+                    'can_view_type' => $parent_permission['can_view_type'],
+                    'can_add_record' => $parent_permission['can_add_record'],
+                    'can_edit_record' => $parent_permission['can_edit_record'],
+                    'can_delete_record' => $parent_permission['can_delete_record'],
+                    'can_design_type' => $parent_permission['can_design_type'],
+                    'is_type_admin' => 0    // DO NOT set admin permissions on childtypes
+                );
             }
+            self::ODR_addUserPermission($em, $user_id, $admin_id, $datatype_id, $initial_permissions);
 
-            $em->persist($user_permission);
-            $em->flush();
 
             // Reload permission in array format for recursion purposes
             $query = $em->createQuery(
                'SELECT up
                 FROM ODRAdminBundle:UserPermissions AS up
-                WHERE up.user_id = :user_id AND up.dataType = :datatype'
+                WHERE up.user = :user_id AND up.dataType = :datatype'
             )->setParameters( array('user_id' => $user_id, 'datatype' => $datatype_id) );
             $results = $query->getArrayResult();
             $user_permission = $results[0];
@@ -1101,18 +1104,19 @@ print '</pre>';
      * Creates and persists a UserPermissions entity for the specified user/datatype pair
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param integer $user_id      The user receiving this permission entity
-     * @param integer $admin_id     The admin user creating the permission entity
-     * @param integer $datatype_id  The Datatype this permission entity is for
+     * @param integer $user_id            The user receiving this permission entity
+     * @param integer $admin_id           The admin user creating the permission entity
+     * @param integer $datatype_id        The Datatype this permission entity is for
+     * @param array $initial_permissions
      *
      * @return UserPermissions
      */
-    private function ODR_addUserPermission($em, $user_id, $admin_id, $datatype_id)
+    protected function ODR_addUserPermission($em, $user_id, $admin_id, $datatype_id, $initial_permissions)
     {
         // Ensure a permissions object doesn't already exist...
         $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
         /** @var UserPermissions $up */
-        $up = $repo_user_permissions->findOneBy( array('user_id' => $user_id, 'dataType' => $datatype_id) );
+        $up = $repo_user_permissions->findOneBy( array('user' => $user_id, 'dataType' => $datatype_id) );
 
         // If the permissions object does not exist...
         if ($up == null) {
@@ -1122,17 +1126,30 @@ print '</pre>';
             // Ensure a permissions object doesn't already exist before creating one
             $query =
                'INSERT INTO odr_user_permissions (user_id, data_type_id)
-                SELECT * FROM (SELECT :user AS user_id, :datatype_id AS dt_id) AS tmp
+                SELECT * FROM (SELECT :user_id AS user_id, :datatype_id AS dt_id) AS tmp
                 WHERE NOT EXISTS (
-                    SELECT id FROM odr_user_permissions WHERE user_id = :user AND data_type_id = :datatype_id
+                    SELECT id FROM odr_user_permissions WHERE user_id = :user_id AND data_type_id = :datatype_id
                 ) LIMIT 1;';
-            $params = array('user' => $user_id, 'datatype_id' => $datatype_id);
+            $params = array('user_id' => $user_id, 'datatype_id' => $datatype_id);
             $conn = $em->getConnection();
             $rowsAffected = $conn->executeUpdate($query, $params);
 
-            $up = $repo_user_permissions->findOneBy( array('user_id' => $user_id, 'dataType' => $datatype_id) );
+            $up = $repo_user_permissions->findOneBy( array('user' => $user_id, 'dataType' => $datatype_id) );
             $up->setCreated( new \DateTime() );
             $up->setCreatedBy($admin_user);
+
+            if ( isset($initial_permissions['can_view_type']) )
+                $up->setCanViewType($initial_permissions['can_view_type']);
+            if ( isset($initial_permissions['can_edit_record']) )
+                $up->setCanEditRecord($initial_permissions['can_edit_record']);
+            if ( isset($initial_permissions['can_add_record']) )
+                $up->setCanAddRecord($initial_permissions['can_add_record']);
+            if ( isset($initial_permissions['can_delete_record']) )
+                $up->setCanDeleteRecord($initial_permissions['can_delete_record']);
+            if ( isset($initial_permissions['can_design_type']) )
+                $up->setCanDesignType($initial_permissions['can_design_type']);
+            if ( isset($initial_permissions['is_type_admin']) )
+                $up->setIsTypeAdmin($initial_permissions['is_type_admin']);
 
             $em->persist($up);
             $em->flush($up);
@@ -1140,6 +1157,80 @@ print '</pre>';
         }
 
         return $up;
+    }
+
+
+    /**
+     * Although it doesn't make sense to use previous UserPermissions entries, changes made are handled the same as
+     * other soft-deleteable entities...delete the current one, and make a new one with the changes.
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'can_view_type', 'can_add_record', 'can_edit_record', 'can_delete_record', 'can_design_type', 'is_type_admin'
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user                       The user changing this UserPermissions entry
+     * @param UserPermissions $permission      The UserPermissions entity being 'modified'
+     * @param array $properties
+     *
+     * @return UserPermissions
+     */
+    protected function ODR_copyUserPermission($em, $user, $permission, $properties)
+    {
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'can_view_type' => $permission->getCanViewType(),
+            'can_add_record' => $permission->getCanAddRecord(),
+            'can_edit_record' => $permission->getCanEditRecord(),
+            'can_delete_record' => $permission->getCanDeleteRecord(),
+            'can_design_type' => $permission->getCanDesignType(),
+            'is_type_admin' => $permission->getIsTypeAdmin(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value)
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $permission;
+
+
+        // Create a new UserPermissions entry and copy the old entry's data over
+        $new_permission = new UserPermissions();
+        $new_permission->setUser( $permission->getUser() );
+        $new_permission->setDataType( $permission->getDataType() );
+
+        $new_permission->setCanViewType( $permission->getCanViewType() );
+        $new_permission->setCanAddRecord( $permission->getCanAddRecord() );
+        $new_permission->setCanEditRecord( $permission->getCanEditRecord() );
+        $new_permission->setCanDeleteRecord( $permission->getCanDeleteRecord() );
+        $new_permission->setCanDesignType( $permission->getCanDesignType() );
+        $new_permission->setIsTypeAdmin( $permission->getIsTypeAdmin() );
+
+        $new_permission->setCreatedBy($user);
+        $new_permission->setCreated( new \DateTime() );
+
+        // Set any new properties
+        if ( isset( $properties['can_view_type']) )
+            $new_permission->setCanViewType( $properties['can_view_type'] );
+        if ( isset( $properties['can_edit_record']) )
+            $new_permission->setCanEditRecord( $properties['can_edit_record'] );
+        if ( isset( $properties['can_add_record']) )
+            $new_permission->setCanAddRecord( $properties['can_add_record'] );
+        if ( isset( $properties['can_delete_record']) )
+            $new_permission->setCanDeleteRecord( $properties['can_delete_record'] );
+        if ( isset( $properties['can_design_type']) )
+            $new_permission->setCanDesignType( $properties['can_design_type'] );
+        if ( isset( $properties['is_type_admin']) )
+            $new_permission->setIsTypeAdmin( $properties['is_type_admin'] );
+
+        // Save the new meta entry and delete the old one
+        $em->remove($permission);
+        $em->persist($new_permission);
+        $em->flush();
+
+        // Return the new entry
+        return $new_permission;
     }
 
 
@@ -1178,16 +1269,17 @@ $save_permissions = false;
                 $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
                 $repo_user_field_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');
 
+                /** @var User $user */
                 $user = $repo_user->find($user_id);
                 /** @var UserFieldPermissions[] $user_field_permissions */
-                $user_field_permissions = $repo_user_field_permissions->findBy( array('user_id' => $user_id) );
+                $user_field_permissions = $repo_user_field_permissions->findBy( array('user' => $user_id) );
 
                 $all_permissions = array();
 
                 // Grab and store all datafield permissions for this user
                 $all_datafields = array();
                 foreach ($user_field_permissions as $permission) {
-                    $datafield_id = $permission->getDataFields()->getId();
+                    $datafield_id = $permission->getDataField()->getId();
                     $all_datafields[$datafield_id] = 1;
                     if ($permission->getCanViewField() == 1)
                         $all_permissions[$datafield_id]['view'] = 1;
@@ -1206,9 +1298,9 @@ $save_permissions = false;
                         $created_permission = true;
                         $datatype = $df->getDataType();
                         $user_field_permission = new UserFieldPermissions();
-                        $user_field_permission->setUserId($user);
+                        $user_field_permission->setUser($user);
                         $user_field_permission->setDataType($datatype);
-                        $user_field_permission->setDataFields($df);
+                        $user_field_permission->setDataField($df);
                         $user_field_permission->setCreatedBy($user);
 
                         $user_field_permission->setCanViewField('1');   // always able to view by default
@@ -1323,6 +1415,8 @@ $save_permissions = false;
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+        $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
+        
         $pheanstalk = $this->get('pheanstalk');
         $router = $this->container->get('router');
         $memcached = $this->get('memcached');
@@ -1337,12 +1431,18 @@ $save_permissions = false;
         $url .= $router->generate('odr_recache_record');
 
         // Attempt to get the user
-        $user = 'anon.';
-        $token = $this->container->get('security.context')->getToken(); // token will be NULL when this function is called from the command line
-        if ($token != NULL)
-            $user = $token->getUser();
-        if ($user === 'anon.')
-            $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find(3);   // TODO - need an actual system user
+        $user = null;
+        if ( isset($options['user_id']) ) {
+            $user = $repo_user->find( $options['user_id'] );
+        }
+        else {
+            $user = 'anon.';
+            $token = $this->container->get('security.context')->getToken(); // token will be NULL when this function is called from the command line
+            if ($token != NULL)
+                $user = $token->getUser();
+            if ($user === 'anon.')
+                $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find(3);
+        }
         /** @var User $user */
 
         // ----------------------------------------
@@ -1388,7 +1488,7 @@ $save_permissions = false;
         // Locate all datarecords of this datatype
         $query = $em->createQuery(
            'SELECT dr.id AS dr_id
-            FROM ODRAdminBundle:DataRecord dr
+            FROM ODRAdminBundle:DataRecord AS dr
             WHERE dr.dataType = :dataType AND dr.provisioned = false
             AND dr.deletedAt IS NULL'
         )->setParameters( array('dataType' => $datatype->getId()) );
@@ -1487,7 +1587,6 @@ $save_permissions = false;
     public function updateDatarecordCache($id, $options = array())
     {
 //print 'call to updateDatarecordCache()';
-return;
 
         // Grab necessary objects
         /** @var \Doctrine\ORM\EntityManager $em */
@@ -1954,20 +2053,24 @@ return;
         // Initial create
         $datarecord = new DataRecord();
 
-        $datarecord->setExternalId('');
-        $datarecord->setNamefieldValue('');
-        $datarecord->setSortfieldValue('');
-
         $datarecord->setDataType($datatype);
         $datarecord->setCreatedBy($user);
         $datarecord->setUpdatedBy($user);
-        $datarecord->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
 
         $datarecord->setProvisioned(true);  // Prevent most areas of the site from doing anything with this datarecord...whatever created this datarecord needs to eventually set this to false
+
+        // TODO - delete this property
+        $datarecord->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
 
         $em->persist($datarecord);
         $em->flush();
         $em->refresh($datarecord);
+
+        $datarecord_meta = new DataRecordMeta();
+        $datarecord_meta->setDataRecord($datarecord);
+        $datarecord_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
+
+        $em->persist($datarecord_meta);
 
         // Create initial objects
         foreach($datatype->getDataFields() as $datafield) {
@@ -1996,6 +2099,62 @@ return;
         $em->flush();
 
         return $datarecord;
+    }
+
+
+    /**
+     * Copies the given DatarecordMeta entry into a new DatarecordMeta entry for the purposes of soft-deletion.
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'publicDate'
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user                       The User requesting the modification
+     * @param DataRecord $datarecord           The DataRecord entry of the entity being modified
+     * @param array $properties
+     *
+     * @return DataRecordMeta
+     */
+    protected function ODR_copyDatarecordMeta($em, $user, $datarecord, $properties)
+    {
+        // Load the old meta entry
+        /** @var DataRecordMeta $old_meta_entry */
+        $old_meta_entry = $em->getRepository('ODRAdminBundle:DataRecordMeta')->findOneBy( array('dataRecord' => $datarecord->getId()) );
+
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'publicDate' => $old_meta_entry->getPublicDate(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value)
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $old_meta_entry;
+
+
+        // Create a new meta entry and copy the old entry's data over
+        $new_datarecord_meta = new DataRecordMeta();
+        $new_datarecord_meta->setDataRecord( $datarecord );
+
+        $new_datarecord_meta->setPublicDate( $old_meta_entry->getPublicDate() );
+
+        $new_datarecord_meta->setCreatedBy($user);
+        $new_datarecord_meta->setCreated( new \DateTime() );
+
+        // Set any new properties
+        if ( isset($properties['publicDate']) )
+            $new_datarecord_meta->setPublicDate( $properties['publicDate'] );
+
+        // Save the new datatree entry and delete the old one
+        $em->remove($old_meta_entry);
+        $em->persist($new_datarecord_meta);
+        $em->flush();
+
+        // Return the new entry
+        return $new_datarecord_meta;
     }
 
 
@@ -2099,9 +2258,13 @@ return;
         }
 
         // Refresh the cache entries for the datarecords
-        $options = array();
+        $options = array(
+            'user_id' => $user->getId(),    // This action may be called via the command-line...specify user id so datarecord is guaranteed to be updated correctly
+            'mark_as_updated' => true
+        );
         self::updateDatarecordCache($ancestor_datarecord->getId(), $options);
-        self::updateDatarecordCache($descendant_datarecord->getId(), $options);
+
+        self::updateDatarecordCache($descendant_datarecord->getId(), array());  // nothing changed in the descendant
 
         return $linked_datatree;
     }
@@ -2423,7 +2586,7 @@ return;
             'description' => $old_meta_entry->getDescription(),
             'original_filename' => $old_meta_entry->getOriginalFileName(),
             'external_id' => $old_meta_entry->getExternalId(),
-            'public_date' => $old_meta_entry->getPublicDate(),
+            'publicDate' => $old_meta_entry->getPublicDate(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value)
@@ -2453,8 +2616,8 @@ return;
             $file_meta->setOriginalFileName( $properties['original_filename'] );
         if ( isset($properties['external_id']) )
             $file_meta->setExternalId( $properties['external_id'] );
-        if ( isset($properties['public_date']) )
-            $file_meta->setPublicDate( $properties['public_date'] );
+        if ( isset($properties['publicDate']) )
+            $file_meta->setPublicDate( $properties['publicDate'] );
 
         // Save the new meta entry and delete the old one
         $em->remove($old_meta_entry);
@@ -2492,7 +2655,7 @@ return;
             'caption' => $old_meta_entry->getCaption(),
             'original_filename' => $old_meta_entry->getOriginalFileName(),
             'external_id' => $old_meta_entry->getExternalId(),
-            'public_date' => $old_meta_entry->getPublicDate(),
+            'publicDate' => $old_meta_entry->getPublicDate(),
             'display_order' => $old_meta_entry->getPublicDate()
         );
         foreach ($existing_values as $key => $value) {
@@ -2524,8 +2687,8 @@ return;
             $image_meta->setOriginalFileName( $properties['original_filename'] );
         if ( isset($properties['external_id']) )
             $image_meta->setExternalId( $properties['external_id'] );
-        if ( isset($properties['public_date']) )
-            $image_meta->setPublicDate( $properties['public_date'] );
+        if ( isset($properties['publicDate']) )
+            $image_meta->setPublicDate( $properties['publicDate'] );
         if ( isset($properties['display_order']) )
             $image_meta->setDisplayorder( $properties['display_order'] );
 
@@ -4030,7 +4193,6 @@ if ($debug)
      */
     public function verifyExistence($datarecord)
     {
-
         // Don't do anything to a provisioned datarecord
         if ($datarecord->getProvisioned() == true)
             return false;
@@ -4067,7 +4229,7 @@ if ($debug)
         // Verify the existence of all fields in all the child datarecords
         $query = $em->createQuery(
             'SELECT dr
-            FROM ODRAdminBundle:DataRecord dr
+            FROM ODRAdminBundle:DataRecord AS dr
             JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
             WHERE dr.grandparent = :grandparent AND dr.id != :datarecord AND dr.provisioned = false
             AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL'
@@ -4675,7 +4837,7 @@ if ($debug) {
             // Grab all child datarecords of this datarecord
             $query = $em->createQuery(
                'SELECT dr
-                FROM ODRAdminBundle:DataRecord dr
+                FROM ODRAdminBundle:DataRecord AS dr
                 JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
                 WHERE dr.parent = :datarecord AND dr.id != :datarecord_id AND dr.provisioned = false
                 AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL'
@@ -4698,7 +4860,7 @@ if ($debug) {
             // Grab all datarecords that are linked to from this datarecord
             $query = $em->createQuery(
                'SELECT descendant
-                FROM ODRAdminBundle:LinkedDataTree ldt
+                FROM ODRAdminBundle:LinkedDataTree AS ldt
                 JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
                 JOIN ODRAdminBundle:DataType AS dt WITH descendant.dataType = dt
                 WHERE ldt.ancestor = :datarecord AND descendant.provisioned = false

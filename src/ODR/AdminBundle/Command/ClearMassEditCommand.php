@@ -56,16 +56,21 @@ class ClearMassEditCommand extends ContainerAwareCommand
                 $job = $pheanstalk->watch('mass_edit')->ignore('default')->reserve(); 
 
             $data = json_decode($job->getData());
-            $datarecordfield_id = $data->datarecordfield_id;
             $job_source = $data->memcached_prefix;
+
+            $str = '';
+            if ($data->job_type == 'public_status_change')
+                $str = 'deleted public status change job for datarecord '.$job->datarecord_id;
+            else if ($data->job_type == 'value_change')
+                $str = 'deleted value change for datarecordfield '.$job->datarecordfield_id;
 
             // Dealt with the job
             $pheanstalk->delete($job);
 
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted job for datarecordfield '.$datarecordfield_id.' from '.$memcached_prefix.'_mass_edit');
+    $output->writeln( date('H:i:s').'  '.$str.' from '.$memcached_prefix.'_mass_edit');
 else
-    $output->writeln( date('H:i:s').'  deleted job for datarecordfield '.$datarecordfield_id.' ('.$job_source.') from mass_edit');
+    $output->writeln( date('H:i:s').'  '.$str.' ('.$job_source.') from mass_edit');
 
             // Sleep for a bit
             usleep(100000); // sleep for 0.1 seconds

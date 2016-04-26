@@ -130,6 +130,7 @@ class DisplaytemplateController extends ODRCustomController
             if ($datafield->getDisplayOrder() != -1)
                 $options['force_textresults_recache'] = true;
 
+
             // Delete all datarecordfield entries associated with the datafield
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:DataRecordFields AS drf
@@ -2015,25 +2016,20 @@ print '</pre>';
             $query = $em->createQuery(
                'SELECT up
                 FROM ODRAdminBundle:UserPermissions AS up
-                WHERE up.user_id = :user_id AND up.dataType = :datatype'
+                WHERE up.user = :user_id AND up.dataType = :datatype'
             )->setParameters( array('user_id' => $user->getId(), 'datatype' => $parent_datatype->getId()) );
             $results = $query->getArrayResult();
             $parent_permission = $results[0];
 
-            $user_permission = new UserPermissions();
-            $user_permission->setDataType($datatype);
-            $user_permission->setUserId($user);
-            $user_permission->setCreatedBy($user);
-
-            $user_permission->setCanEditRecord( $parent_permission['can_edit_record'] );
-            $user_permission->setCanAddRecord( $parent_permission['can_add_record'] );
-            $user_permission->setCanDeleteRecord( $parent_permission['can_delete_record'] );
-            $user_permission->setCanViewType( $parent_permission['can_view_type'] );
-            $user_permission->setCanDesignType( $parent_permission['can_design_type'] );
-            $user_permission->setIsTypeAdmin(0);    // Child datatypes do not have is_type_admin permissions...
-
-            $em->persist($user_permission);
-            $em->flush();
+            $initial_permissions = array(
+                'can_view_type' => $parent_permission['can_view_type'],
+                'can_add_record' => $parent_permission['can_add_record'],
+                'can_edit_record' => $parent_permission['can_edit_record'],
+                'can_delete_record' => $parent_permission['can_delete_record'],
+                'can_design_type' => $parent_permission['can_design_type'],
+                'is_type_admin' => 0    // DO NOT set admin permissions on childtypes
+            );
+            parent::ODR_addUserPermission($em, $user->getId(), $user->getId(), $datatype->getId(), $initial_permissions);
 
 
             // ----------------------------------------
@@ -4215,7 +4211,7 @@ print_r($errors);
                         // Locate all datarecords of this datatype for purposes of this fieldtype migration
                         $query = $em->createQuery(
                            'SELECT dr.id
-                            FROM ODRAdminBundle:DataRecord dr
+                            FROM ODRAdminBundle:DataRecord AS dr
                             WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
                         )->setParameters( array('dataType' => $datatype) );
                         $results = $query->getResult();
@@ -4688,8 +4684,8 @@ if ($debug)
             // Step 2: undelete the datarecordfield entries associated with this datafield to recover the data
             $query = $em->createQuery(
                'SELECT drf
-                FROM ODRAdminBundle:DataRecordFields drf
-                JOIN ODRAdminBundle:DataRecord dr WITH drf.dataRecord = dr
+                FROM ODRAdminBundle:DataRecordFields AS drf
+                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
                 WHERE drf.dataField = :datafield AND dr.deletedAt IS NULL'
             )->setParameters( array('datafield' => $datafield) );
             $results = $query->getResult();
@@ -4911,14 +4907,6 @@ if ($debug)
             $em->persist($datatype);
             $em->flush();
 
-/*
-            // Determine whether ShortResults needs a recache
-            $options = array();
-            $options['mark_as_updated'] = true;
-
-            // Refresh the cache entries for this datarecord
-            parent::updateDatarecordCache($datarecord->getId(), $options);
-*/
         }
         catch (\Exception $e) {
             $return['r'] = 1;

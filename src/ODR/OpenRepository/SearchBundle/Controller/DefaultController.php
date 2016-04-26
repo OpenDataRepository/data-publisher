@@ -472,7 +472,7 @@ if ($debug) {
                 $query = $em->createQuery(
                    'SELECT u
                     FROM ODROpenRepositoryUserBundle:User AS u
-                    JOIN ODRAdminBundle:UserPermissions AS up WITH up.user_id = u
+                    JOIN ODRAdminBundle:UserPermissions AS up WITH up.user = u
                     WHERE up.dataType IN (:datatypes) AND up.can_view_type = 1
                     GROUP BY u.id'
                 )->setParameters( array('datatypes' => $datatype_list) );   // purposefully getting ALL users, including the ones that are deleted
@@ -613,7 +613,7 @@ if ($debug) {
                 $query = $em->createQuery(
                    'SELECT u
                     FROM ODROpenRepositoryUserBundle:User AS u
-                    JOIN ODRAdminBundle:UserPermissions AS up WITH up.user_id = u
+                    JOIN ODRAdminBundle:UserPermissions AS up WITH up.user = u
                     WHERE up.dataType IN (:datatypes) AND up.can_view_type = 1
                     GROUP BY u.id'
                 )->setParameters( array('datatypes' => $datatype_list) );   // purposefully getting ALL users, including the ones that are deleted
@@ -1648,8 +1648,9 @@ if ($more_debug)
                             $metadata_target = 'ldr';
                             $search_metadata = self::buildMetadataQueryStr($metadata[$datatype_id], $metadata_target);
                             $linked_join = 'INNER JOIN odr_linked_data_tree AS ldt ON dr.id = ldt.ancestor_id
-                                INNER JOIN odr_data_record AS ldr ON ldt.descendant_id = ldr.id';
-                            $where = 'WHERE ldr.deletedAt IS NULL AND ldr.data_type_id = '.$datatype_id.' AND dr.data_type_id = '.$related_datatypes['target_datatype'].' ';    // TODO - links to childtypes?
+                                INNER JOIN odr_data_record AS ldr ON ldt.descendant_id = ldr.id
+                                LEFT JOIN odr_data_record_meta AS ldr_meta ON ldr_meta.data_record_id = ldr.id';
+                            $where = 'WHERE ldr.deletedAt IS NULL AND ldr_meta.deletedAt IS NULL AND ldr.data_type_id = '.$datatype_id.' AND dr.data_type_id = '.$related_datatypes['target_datatype'].' ';    // TODO - links to childtypes?
                         }
 
                         //
@@ -1659,9 +1660,11 @@ if ($more_debug)
                         $query =
                            'SELECT dr.id AS dr_id, grandparent.id AS grandparent_id
                             FROM odr_data_record AS grandparent
+                            LEFT JOIN odr_data_record_meta AS grandparent_meta ON grandparent_meta.data_record_id = grandparent.id
                             INNER JOIN odr_data_record AS dr ON grandparent.id = dr.grandparent_id
+                            LEFT JOIN odr_data_record_meta AS dr_meta ON dr_meta.data_record_id = dr.id
                             '.$linked_join.'
-                            '.$where.' AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL '.$metadata_str;
+                            '.$where.' AND dr.deletedAt IS NULL AND dr_meta.deletedAt IS NULL AND grandparent.deletedAt IS NULL AND grandparent_meta.deletedAt IS NULL '.$metadata_str;
 
 if ($more_debug) {
     print $query."\n";
@@ -2198,12 +2201,12 @@ if ($debug) {
         if ( isset($metadata['public']) ) {
             if ( $metadata['public'] == 1 ) {
                 // Search for public datarecords only
-                $metadata_str .= 'AND '.$target.'.public_date != :public_date ';
+                $metadata_str .= 'AND '.$target.'_meta.public_date != :public_date ';
                 $metadata_params['public_date'] = '2200-01-01 00:00:00';
             }
             else if ( $metadata['public'] == 0 ) {
                 // Search for non-public datarecords only
-                $metadata_str .= 'AND '.$target.'.public_date = :public_date ';
+                $metadata_str .= 'AND '.$target.'_meta.public_date = :public_date ';
                 $metadata_params['public_date'] = '2200-01-01 00:00:00';
             }
         }

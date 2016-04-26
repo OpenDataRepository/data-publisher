@@ -967,9 +967,9 @@ class ODRUserController extends ODRCustomController
                     $repo_user_field_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');
 
                     /** @var UserPermissions[] $user_permissions */
-                    $user_permissions = $repo_user_permissions->findBy( array('user_id' => $user) );
+                    $user_permissions = $repo_user_permissions->findBy( array('user' => $user) );
                     /** @var UserFieldPermissions[] $user_field_permissions */
-                    $user_field_permissions = $repo_user_field_permissions->findBy( array('user_id' => $user) );
+                    $user_field_permissions = $repo_user_field_permissions->findBy( array('user' => $user) );
 
                     if ($role == 'user') {
                         $user->addRole('ROLE_USER');
@@ -994,16 +994,28 @@ class ODRUserController extends ODRCustomController
                         $user->addRole('ROLE_ADMIN');
                         $user->addRole('ROLE_SUPER_ADMIN');
 
+                        $top_level_datatypes = parent::getTopLevelDatatypes();
+
                         // Enable all datatype permissions for this (now admin) user
+                        $new_permissions = array(
+                            'can_view_type' => 1,
+                            'can_add_record' => 1,
+                            'can_edit_record' => 1,
+                            'can_delete_record' => 1,
+                            'can_design_type' => 1,
+                        );
+
                         foreach ($user_permissions as $user_permission) {
-                            $user_permission->setCanEditRecord(1);
-                            $user_permission->setCanAddRecord(1);
-                            $user_permission->setCanDeleteRecord(1);
-                            $user_permission->setCanViewType(1);
-                            $user_permission->setCanDesignType(1);
-                            $user_permission->setIsTypeAdmin(1);
-                            $em->persist($user_permission);
+                            // Determine whether this permission is for a top-level or child datatype
+                            if ( in_array($user_permission->getDataType()->getId(), $top_level_datatypes) )
+                                $new_permissions['is_type_admin'] = 1;
+                            else
+                                $new_permissions['is_type_admin'] = 0;
+
+                            // Update this permission for this user
+                            parent::ODR_copyUserPermission($em, $admin_user, $user_permission, $new_permissions);
                         }
+
                         // Enable all datafield permissions for this (now admin) user
                         foreach ($user_field_permissions as $user_field_permission) {
                             $user_field_permission->setCanViewField(1);
@@ -1275,12 +1287,13 @@ class ODRUserController extends ODRCustomController
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param ODRUser $user                    The User that is getting their permissions modified.
+     * @param ODRUser $admin_user              The User doing the modification to $user's permissions
      * @param DataType $datatype               The DataType that the User's permissions are being modified for.
      * @param string $permission               Which type of permission is being set.
      * @param integer $value                   0 if the permission is being revoked, 1 if the permission is being granted
      *
      */
-    private function savePermission($em, $user, $datatype, $permission, $value)
+    private function savePermission($em, $user, $admin_user, $datatype, $permission, $value)
     {
         // If the user is a super-admin, they always have all permissions...don't change anything
         if (!$user->hasRole('ROLE_SUPER_ADMIN')) {
@@ -1292,13 +1305,13 @@ class ODRUserController extends ODRCustomController
             // Grab the user's permissions for this datatype
             $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
             /** @var UserPermissions $user_permission */
-            $user_permission = $repo_user_permissions->findOneBy( array('user_id' => $user, 'dataType' => $datatype) );
+            $user_permission = $repo_user_permissions->findOneBy( array('user' => $user, 'dataType' => $datatype) );
             if ( $user_permission == null )
                 parent::permissionsExistence($user->getId(), $user->getId(), $datatype->getId(), null);      // need to ensure a permission object exists before saving to it, obviously...
 
             // Ensure childtypes do not have the admin permission...shouldn't happen, but make doubly sure
             if ( !in_array($datatype->getId(), $top_level_datatypes) ) {
-                $user_permission->setIsTypeAdmin('0');
+                $user_permission->setIsTypeAdmin('0');  // Intentionally using this instead of soft-deleting because it's an error if this childtype has this permission
                 $em->persist($user_permission);
                 $em->flush($user_permission);
                 $em->refresh($user_permission);
@@ -1309,66 +1322,67 @@ class ODRUserController extends ODRCustomController
                 return;
 
             // Modify their permissions based on the path
+            $new_permissions = array();
             switch($permission) {
                 case 'edit':
-                    $user_permission->setCanEditRecord($value);
+                    $new_permissions['can_edit_record'] = $value;
                     break;
                 case 'add':
-                    $user_permission->setCanAddRecord($value);
+                    $new_permissions['can_add_record'] = $value;
                     break;
                 case 'delete':
-                    $user_permission->setCanDeleteRecord($value);
+                    $new_permissions['can_delete_record'] = $value;
                     break;
                 case 'view':
-                    $user_permission->setCanViewType($value);
+                    $new_permissions['can_view_type'] = $value;
                     break;
                 case 'design':
-                    $user_permission->setCanDesignType($value);
+                    $new_permissions['can_design_type'] = $value;
                     break;
                 case 'admin':
-                    $user_permission->setIsTypeAdmin($value);
+                    $new_permissions['is_type_admin'] = $value;
                     break;
             }
 
             $reset_can_edit_datafield = false;
 
             if ($permission == 'edit') {
-                // If the user had their edit permissions changedfor this datatype, reset the edit permission on all datafields of this datatype
+                // If the user had their edit permissions changed for this datatype, reset the edit permission on all datafields of this datatype
                 $reset_can_edit_datafield = true;
             }
             else if ($permission == 'view' && $value == '0') {
                 // If user no longer has view permissions for this datatype, disable all other permissions as well
-                $user_permission->setCanEditRecord('0');
-                $user_permission->setCanAddRecord('0');
-                $user_permission->setCanDeleteRecord('0');
-                $user_permission->setCanDesignType('0');
-                $user_permission->setIsTypeAdmin('0');
+                $new_permissions['can_edit_record'] = 0;
+                $new_permissions['can_add_record'] = 0;
+                $new_permissions['can_delete_record'] = 0;
+                $new_permissions['can_design_type'] = 0;
+                $new_permissions['is_type_admin'] = 0;
 
                 $reset_can_edit_datafield = true;
             }
             else if ($permission == 'admin' && $value == '1') {
                 // If user got admin permissions for this datatype, enable all other permissions as well
-                $user_permission->setCanViewType('1');
-                $user_permission->setCanEditRecord('1');
-                $user_permission->setCanAddRecord('1');
-                $user_permission->setCanDeleteRecord('1');
-                $user_permission->setCanDesignType('1');
+                $new_permissions['can_view_type'] = 1;
+                $new_permissions['can_edit_record'] = 1;
+                $new_permissions['can_add_record'] = 1;
+                $new_permissions['can_delete_record'] = 1;
+                $new_permissions['can_design_type'] = 1;
             }
             else {
                 if ($value == '1') {
                     // If user gets some permission for the datatype, ensure they have have view permissions as well
                     if ($user_permission->getCanViewType() == '0')
-                        $user_permission->setCanViewType('1');
+                        $new_permissions['can_view_type'] = 1;      // TODO - test that this works again
                 }
             }
             // Save changes to the datatype permission
-            $em->persist($user_permission);
+            parent::ODR_copyUserPermission($em, $admin_user, $user_permission, $new_permissions);
 
             // If necessary to reset datafield edit permissions for this datatype...
             if ($reset_can_edit_datafield) {
                 $repo_user_field_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');
                 /** @var UserFieldPermissions[] $datafield_permissions */
-                $datafield_permissions = $repo_user_field_permissions->findBy( array('user_id' => $user->getId(), 'dataType' => $datatype->getId()) );
+                $datafield_permissions = $repo_user_field_permissions->findBy( array('user' => $user->getId(), 'dataType' => $datatype->getId()) );
 
                 foreach ($datafield_permissions as $permission) {
                     if ($value == '1') {
@@ -1460,7 +1474,7 @@ class ODRUserController extends ODRCustomController
                 return parent::deletedEntityError('Datatype');
 
             // Modify the user's permission for that datatype and any children it has
-            self::savePermission($em, $user, $datatype, $permission, $value);
+            self::savePermission($em, $user, $admin_user, $datatype, $permission, $value);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1497,9 +1511,9 @@ class ODRUserController extends ODRCustomController
 
             // --------------------
             // Ensure user has permissions to be doing this
-            /** @var ODRUser $admin */
-            $admin = $this->container->get('security.context')->getToken()->getUser();
-            if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
             // --------------------
 
@@ -1516,8 +1530,7 @@ class ODRUserController extends ODRCustomController
 
             // Modify that permission for all the users
             foreach ($users as $user)
-                self::savePermission($em, $user, $datatype, $permission, $value);
-
+                self::savePermission($em, $user, $admin_user, $datatype, $permission, $value);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1904,7 +1917,7 @@ if ($debug)
 
             // Grab the UserFieldPermission object that's being modified
             /** @var UserFieldPermissions $user_field_permission */
-            $user_field_permission = $em->getRepository('ODRAdminBundle:UserFieldPermissions')->findOneBy( array('user_id' => $user->getId(), 'dataFields' => $datafield->getId()) );
+            $user_field_permission = $em->getRepository('ODRAdminBundle:UserFieldPermissions')->findOneBy( array('user' => $user->getId(), 'dataField' => $datafield->getId()) );
 
             if ($permission == 2) {
                 $user_field_permission->setCanViewField(1);

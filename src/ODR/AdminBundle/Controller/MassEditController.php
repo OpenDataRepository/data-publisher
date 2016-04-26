@@ -19,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DatetimeValue;
@@ -248,8 +249,6 @@ if ($debug)
             $api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
 
-            $url = $this->container->getParameter('site_baseurl');
-            $url .= $this->container->get('router')->generate('odr_mass_update_worker');
 
             // --------------------
             // Determine user privileges
@@ -310,7 +309,7 @@ return;
             // If content of datafields was modified, get/create an entity to track the progress of this mass edit
             // Don't create a TrackedJob if this mass_edit just changes public status
             $tracked_job_id = -1;
-            if ( count($datafields) > 0 && count($datarecords) > 0 ) {
+            if ( count($public_status) > 0 || (count($datafields) > 0 && count($datarecords) > 0) ) {
                 $job_type = 'mass_edit';
                 $target_entity = 'datatype_'.$datatype_id;
                 $additional_data = array('description' => 'Mass Edit of DataType '.$datatype_id);
@@ -324,6 +323,8 @@ return;
 
 
             // ----------------------------------------
+            $job_count = 0;
+
             // Deal with datarecord public status first, if needed
             $updated = false;
             foreach ($public_status as $dt_id => $status) {
@@ -332,7 +333,8 @@ return;
                 $query = $em->createQuery(
                    'SELECT dr.id AS id
                     FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.dataType = :datatype_id AND dr.deletedAt IS NULL'
+                    WHERE dr.dataType = :datatype_id AND dr.provisioned = false
+                    AND dr.deletedAt IS NULL'
                 )->setParameters( array('datatype_id' => $dt_id) );
                 $results = $query->getArrayResult();
 
@@ -342,44 +344,37 @@ return;
 
                 $affected_datarecord_ids = array_intersect($all_datarecord_ids, $complete_datarecord_list);
 
-                // Build a query to set all affected datarecords of this datatype to the correct public status
-                $query_str = 'UPDATE ODRAdminBundle:DataRecord AS dr SET dr.publicDate = :public_date, dr.updated = :updated, dr.updatedBy = :updated_by WHERE dr.id IN (:datarecords) AND dr.dataType = :datatype';    // TODO - doesn't update log
-                $parameters = array('datarecords' => $affected_datarecord_ids, 'datatype' => $dt_id, 'other_date' => new \DateTime('2200-01-01 00:00:00'), 'updated' => new \DateTime(), 'updated_by' => $user->getId());
+                // Set the url for mass updating public status
+                $url = $this->container->getParameter('site_baseurl');
+                $url .= $this->container->get('router')->generate('odr_mass_update_worker_status');
 
-                $updated = true;
-                if ($status == '-1') {
-                    $query_str .= ' AND dr.publicDate != :other_date';
-                    $parameters['public_date'] = new \DateTime('2200-01-01 00:00:00');
-                }
-                else if ($status == '1') {
-                    $query_str .= ' AND dr.publicDate = :other_date';
-                    $parameters['public_date'] = new \DateTIme();
-                }
-                else {
-                    $updated = false;
-                }
+                foreach ($affected_datarecord_ids as $num => $dr_id) {
+                    // ...create a new beanstalk job
+                    $job_count++;
 
-                if ($updated) {
-                    $query = $em->createQuery($query_str)->setParameters( $parameters );
-                    $num_updated = $query->execute();
-//print 'datatype_id: '.$dt_id.'  $num_updated: '.$num_updated."\n";
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+                            "job_type" => 'public_status_change',
+                            "tracked_job_id" => $tracked_job_id,
+                            "user_id" => $user->getId(),
+
+                            "datarecord_id" => $dr_id,
+                            "public_status" => $status,
+
+                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
+
+                    $delay = 15;    // TODO - delay set rather high because unable to determine how many jobs need to be created beforehand...better way of dealing with this?
+                    $pheanstalk->useTube('mass_edit')->put($payload, $priority, $delay);
                 }
-            }
-
-            // Finish dealing with datarecord public status if necessary
-            if ($updated) {
-                $em->flush();
-//                $options = array();
-//                $options['mark_as_updated'] = true;
-
-                // Refresh the cache entries for these datarecords
-//                foreach ($datarecords as $num => $datarecord_id)
-//                    parent::updateDatarecordCache($datarecord_id, $options);
             }
 
 
             // ----------------------------------------
-            $job_count = 0;
             foreach ($datafields as $df_id => $value) {
                 // TODO - is this necessary?
                 $query = $em->createQuery(
@@ -400,6 +395,10 @@ return;
                     $affected_drfs[ $dr_id ] = $drf_id;
                 }
 
+                // Set the url for mass updating datarecord values
+                $url = $this->container->getParameter('site_baseurl');
+                $url .= $this->container->get('router')->generate('odr_mass_update_worker_values');
+
                 foreach ($affected_drfs as $dr_id => $drf_id) {
                     // If this datarecord matched the search...
                     if ( in_array($dr_id, $complete_datarecord_list) ) {
@@ -409,10 +408,13 @@ return;
                         $priority = 1024;   // should be roughly default priority
                         $payload = json_encode(
                             array(
+                                "job_type" => 'value_change',
                                 "tracked_job_id" => $tracked_job_id,
                                 "user_id" => $user->getId(),
+
                                 "datarecordfield_id" => $drf_id,
                                 "value" => $value,
+
                                 "memcached_prefix" => $memcached_prefix,    // debug purposes only
                                 "url" => $url,
                                 "api_key" => $api_key,
@@ -445,13 +447,159 @@ return;
 
 
     /**
+     * Called by the mass update worker processes to update a datarecord-datafield pair to a new value.
+     *
+     * @param Request $request
+     *
+     * @return Response TODO
+     */
+    public function massUpdateWorkerStatusAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $ret = '';
+            $post = $_POST;
+//$ret = print_r($post, true);
+            if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecord_id']) || !isset($post['public_status']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $tracked_job_id = $post['tracked_job_id'];
+            $user_id = $post['user_id'];
+            $datarecord_id = $post['datarecord_id'];
+            $public_status = $post['public_status'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+//            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+//            $pheanstalk = $this->get('pheanstalk');
+//            $logger = $this->get('logger');
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+
+            // ----------------------------------------
+            /** @var User $user */
+            $user = $repo_user->find($user_id);
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            if ($datarecord == null)
+                throw new \Exception('MassEditCommand.php: DataRecord '.$datarecord_id.' is deleted, skipping');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype == null)
+                throw new \Exception('MassEditCommand.php: DataRecord '.$datarecord_id.' belongs to deleted DataType, skipping');
+
+            $datatype_id = $datatype->getId();
+
+
+            // ----------------------------------------
+            // See if there are migrations jobs in progress for this datatype
+            $block = false;
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null) {
+                $target_entity = $tracked_job->getTargetEntity();
+                $tmp = explode('_', $target_entity);
+                $datafield_id = $tmp[1];
+
+                $ret = 'MassEditCommand.php: Datafield '.$datafield_id.' is currently being migrated to a different fieldtype...'."\n";
+                $return['r'] = 2;
+                $block = true;
+            }
+
+
+            // ----------------------------------------
+            if (!$block) {
+                $updated = false;
+
+                if ( $public_status == -1 && $datarecord->isPublic() ) {
+                    // Make the datarecord non-public
+                    $public_date = new \DateTime('2200-01-01 00:00:00');
+
+                    $properties = array('publicDate' => $public_date);
+                    parent::ODR_copyDatarecordMeta($em, $user, $datarecord, $properties);
+
+                    $updated = true;
+                    $ret .= 'set datarecord '.$datarecord_id.' to non-public'."\n";
+                }
+                else if ( $public_status == 1 && !$datarecord->isPublic() ) {
+                    // Make the datarecord non-public
+                    $public_date = new \DateTime();
+
+                    $properties = array('publicDate' => $public_date);
+                    parent::ODR_copyDatarecordMeta($em, $user, $datarecord, $properties);
+
+                    $updated = true;
+                    $ret .= 'set datarecord '.$datarecord_id.' to public'."\n";
+                }
+
+                if ($updated) {
+                    $options = array(
+                        'user_id' => $user->getId(),    // since this action is called via command-line, need to specify which user is doing the mass updating
+                        'mark_as_updated' => true
+                    );
+
+                    // Refresh the cache entries for this datarecord
+                    parent::updateDatarecordCache($datarecord->getId(), $options);
+                }
+            }
+
+
+            // ----------------------------------------
+            // Update the job tracker if necessary
+            if ($tracked_job_id != -1) {
+                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+
+                $total = $tracked_job->getTotal();
+                $count = $tracked_job->incrementCurrent($em);
+
+                if ($count >= $total && $total != -1)
+                    $tracked_job->setCompleted( new \DateTime() );
+
+                $em->persist($tracked_job);
+//                    $em->flush();
+                $ret .= '  Set current to '.$count."\n";
+            }
+
+            // Save all the changes that were made
+            $em->flush();
+
+
+            $return['d'] = $ret;
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x392577639 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Called by the mass update worker processes to update a datarecord-datafield pair to a new value. 
      * 
      * @param Request $request
      * 
      * @return Response TODO
      */
-    public function massUpdateWorkerAction(Request $request)
+    public function massUpdateWorkerValuesAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -616,7 +764,7 @@ return;
                                 /** @var File $file */
                                 if ( $file->isPublic() && $value == -1 ) {
                                     // File is public, but needs to be non-public
-                                    $properties = array('public_date' => new \DateTime('2200-01-01 00:00:00'));
+                                    $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
                                     parent::ODR_copyFileMeta($em, $user, $file, $properties);
 
                                     // Delete the decrypted version of the file, if it exists
@@ -631,7 +779,7 @@ return;
                                 }
                                 else if ( !$file->isPublic() && $value == 1 ) {
                                     // File is non-public, but needs to be public
-                                    $properties = array('public_date' => new \DateTime());
+                                    $properties = array('publicDate' => new \DateTime());
                                     parent::ODR_copyFileMeta($em, $user, $file, $properties);
 
                                     // Immediately decrypt the file
@@ -661,7 +809,7 @@ return;
                                 /** @var Image $image */
                                 if ( $image->isPublic() && $value == -1 ) {
                                     // Image is public, but needs to be non-public
-                                    $properties = array('public_date' => new \DateTime('2200-01-01 00:00:00'));
+                                    $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
                                     parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
                                     // Delete the decrypted version of the file, if it exists
@@ -676,7 +824,7 @@ return;
                                 }
                                 else if ( !$image->isPublic() && $value == 1 ) {
                                     // Image is non-public, but needs to be public
-                                    $properties = array('public_date' => new \DateTime());
+                                    $properties = array('publicDate' => new \DateTime());
                                     parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
                                     // Immediately decrypt the image
@@ -774,9 +922,11 @@ $ret .= '  Set current to '.$count."\n";
                 // ----------------------------------------
                 // TODO - replace this block with code to directly update the cached version of the datarecord
                 // Determine whether short/textresults needs to be updated
-                $options = array();
-                $options['user_id'] = $user->getId();
-                $options['mark_as_updated'] = true;
+                $options = array(
+                    'user_id' => $user->getId(),    // since this action is called via command-line, need to specify which user is doing the mass updating
+                    'mark_as_updated' => true
+                );
+
                 if ( parent::inShortResults($datafield) )
                     $options['force_shortresults_recache'] = true;
                 if ( $datafield->getDisplayOrder() != -1 )

@@ -1,8 +1,10 @@
-ODR\AdminBundle\Entity\UserFieldPermissions:
+ODR\AdminBundle\Entity\DataRecordMeta:
     type: entity
-    table: odr_user_field_permissions
+    table: odr_data_record_meta
     gedmo:
 #        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
     fields:
         id:
             id: true
@@ -12,17 +14,12 @@ ODR\AdminBundle\Entity\UserFieldPermissions:
             generator:
                 strategy: IDENTITY
 
-        can_view_field:
-            type: integer
-            unsigned: false
+        publicDate:
+            type: datetime
             nullable: false
-            default: 0
-
-        can_edit_field:
-            type: integer
-            unsigned: false
-            nullable: false
-            default: 0
+            column: public_date
+#            gedmo:
+#                - versioned
 
         created:
             type: datetime
@@ -34,42 +31,27 @@ ODR\AdminBundle\Entity\UserFieldPermissions:
             nullable: true
 #            gedmo:
 #                - versioned
-
     manyToOne:
-        user:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+        dataRecord:
+            targetEntity: DataRecord
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: dataRecordMeta
             joinColumns:
-                user_id:
+                data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
-        dataField:
-            targetEntity: DataFields
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                data_field_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-        dataType:
-            targetEntity: DataType
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                data_type_id:
-                    referencedColumnName: id
-            orphanRemoval: false
+#            gedmo:
+#                - versioned
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
             mappedBy: null
             inversedBy: null
+            fetch: EXTRA_LAZY
             joinColumns:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
+
     lifecycleCallbacks: {  }

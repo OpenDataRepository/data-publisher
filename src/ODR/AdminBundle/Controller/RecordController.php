@@ -227,8 +227,7 @@ class RecordController extends ODRCustomController
             );
 
             // Refresh the cache entries for this datarecord
-            $options = array();
-            $options['mark_as_updated'] = true;
+            $options = array('mark_as_updated' => true);
             parent::updateDatarecordCache($grandparent->getId(), $options);
         }
         catch (\Exception $e) {
@@ -299,22 +298,17 @@ class RecordController extends ODRCustomController
             // Delete DataRecordField entries for this datarecord
             $entities_to_remove = array();
 
-            // TODO - do this with a DQL update query?
-
-//            $datarecordfields = $repo_datarecordfields->findBy( array('dataRecord' => $datarecord->getId()) );
-//            foreach ($datarecordfields as $drf)
-//                $em->remove($drf);
             $query = $em->createQuery(
                'SELECT drf.id AS drf_id
-                FROM ODRAdminBundle:DataRecordFields drf
+                FROM ODRAdminBundle:DataRecordFields AS drf
                 WHERE drf.dataRecord = :datarecord'
             )->setParameters( array('datarecord' => $datarecord->getId()) );
             $results = $query->getResult();
+
             foreach ($results as $num => $data) {
                 $drf_id = $data['drf_id'];
                 /** @var DataRecordFields $drf */
                 $drf = $repo_datarecordfields->find($drf_id);
-                //$em->remove($drf);
                 $entities_to_remove[] = $drf;
             }
 
@@ -335,6 +329,7 @@ class RecordController extends ODRCustomController
 
                 $entities_to_remove[] = $ldt;
             }
+
             /** @var LinkedDataTree[] $linked_data_trees */
             $linked_data_trees = $repo_linked_data_tree->findBy( array('ancestor' => $datarecord->getId()) );
             foreach ($linked_data_trees as $ldt) {
@@ -353,8 +348,13 @@ class RecordController extends ODRCustomController
             /** @var DataRecord[] $datarecords */
             $datarecords = $repo_datarecord->findBy( array('grandparent' => $datarecord->getId()) );
             foreach ($datarecords as $dr) {
+                $dr_meta = $dr->getDataRecordMeta();
+
+                $entities_to_remove[] = $dr_meta;
                 $entities_to_remove[] = $dr;
 
+                $dr->setDeletedBy($user);
+                $em->persist($dr);
                 // TODO - links to/from child datarecord?
             }
 
@@ -370,9 +370,9 @@ class RecordController extends ODRCustomController
 
 
             // Schedule all datarecords that were connected to the now deleted datarecord for a recache
-            foreach ($recache_list as $num => $dr_id) {
-                parent::updateDatarecordCache($dr_id);
-            }
+            $options = array();
+            foreach ($recache_list as $num => $dr_id)
+                parent::updateDatarecordCache($dr_id, $options);
 
             // ----------------------------------------
             // See if any cached search results need to be deleted...
@@ -401,7 +401,7 @@ class RecordController extends ODRCustomController
             // Determine how many datarecords of this datatype remain
             $query = $em->createQuery(
                'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord dr
+                FROM ODRAdminBundle:DataRecord AS dr
                 WHERE dr.deletedAt IS NULL AND dr.dataType = :datatype'
             )->setParameters( array('datatype' => $datatype->getId()) );
             $remaining = $query->getArrayResult();
@@ -479,17 +479,23 @@ class RecordController extends ODRCustomController
             $grandparent = $datarecord->getGrandparent();
 
             // Delete the datarecord entity like the user wanted
+            $datarecord->setDeletedBy($user);
+            $em->persist($datarecord);
+            $em->flush();
+            $em->refresh($datarecord);
+
+            $datarecord_meta = $datarecord->getDataRecordMeta();
+            $em->remove($datarecord_meta);
             $em->remove($datarecord);
             $em->flush();
 
             // Refresh the cache entries for the grandparent
-            $options = array();
-            $options['mark_as_updated'] = true;
+            $options = array('mark_as_updated' => true);
             parent::updateDatarecordCache($grandparent->getId(), $options);
 
             // TODO - schedule recaches for other datarecords?
 
-            // Get record_ajax.html.twig to rRe-render the datarecord
+            // Get record_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
                 'parent_id' => $parent->getId(),
@@ -590,7 +596,6 @@ class RecordController extends ODRCustomController
             if ( parent::inShortResults($datafield) )
                 $options['force_shortresults_recache'] = true;
 
-
             // Refresh the cache entries for this datarecord
             parent::updateDatarecordCache($datarecord->getId(), $options);
 
@@ -670,7 +675,7 @@ class RecordController extends ODRCustomController
                 // Make the file non-public
                 $public_date = new \DateTime('2200-01-01 00:00:00');
 
-                $properties = array('public_date' => $public_date);
+                $properties = array('publicDate' => $public_date);
                 parent::ODR_copyFileMeta($em, $user, $file, $properties);
 
                 // Delete the decrypted version of the file, if it exists
@@ -685,7 +690,7 @@ class RecordController extends ODRCustomController
                 // Make the file public
                 $public_date = new \DateTime();
 
-                $properties = array('public_date' => $public_date);
+                $properties = array('publicDate' => $public_date);
                 parent::ODR_copyFileMeta($em, $user, $file, $properties);
 
                 // Immediately decrypt the file
@@ -788,7 +793,7 @@ class RecordController extends ODRCustomController
             // Toggle public status of specified image...
             if ( $image->isPublic() ) {
                 // Make the original image non-public
-                $properties = array('public_date' => new \DateTime('2200-01-01 00:00:00'));
+                $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
                 parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
                 // Delete the decrypted version of the image and all of its children, if any of them exist
@@ -803,7 +808,7 @@ class RecordController extends ODRCustomController
             }
             else {
                 // Make the original image public
-                $properties = array('public_date' => new \DateTime());
+                $properties = array('publicDate' => new \DateTime());
                 parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
                 // Immediately decrypt the image and all of its children
@@ -1132,7 +1137,7 @@ class RecordController extends ODRCustomController
                     'caption' => $old_image_meta->getCaption(),
                     'original_filename' => $old_image_meta->getOriginalFileName(),
                     'external_id' => $old_image_meta->getExternalId(),
-                    'public_date' => $old_image_meta->getPublicDate(),
+                    'publicDate' => $old_image_meta->getPublicDate(),
                     'display_order' => $old_image_meta->getDisplayorder()
                 );
                 parent::ODR_copyImageMeta($em, $user, $new_image, $properties);
@@ -1336,25 +1341,24 @@ class RecordController extends ODRCustomController
             // Toggle the public status of the datarecord
             $public = 0;
             if ( $datarecord->isPublic() ) {
-                // Make the record non-public
-                $datarecord->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
-                $public = 0;
+                // Make the datarecord non-public
+                $public_date = new \DateTime('2200-01-01 00:00:00');
+
+                $properties = array('publicDate' => $public_date);
+                parent::ODR_copyDatarecordMeta($em, $user, $datarecord, $properties);
             }
             else {
-                // Make the record public
-                $datarecord->setPublicDate(new \DateTime());
+                // Make the datarecord non-public
+                $public_date = new \DateTime();
+
+                $properties = array('publicDate' => $public_date);
+                parent::ODR_copyDatarecordMeta($em, $user, $datarecord, $properties);
+
                 $public = 1;
             }
 
-            // Save the change to this child datarecord
-            $em->persist($datarecord);
-            $em->flush();
-
-            // Determine whether ShortResults needs a recache
-            $options = array();
-            $options['mark_as_updated'] = true;
-
             // Refresh the cache entries for this datarecord
+            $options = array('mark_as_updated' => true);
             parent::updateDatarecordCache($datarecord->getId(), $options);
 
             // re-render?  wat
@@ -1515,6 +1519,7 @@ class RecordController extends ODRCustomController
             // Determine whether ShortResults needs a recache
             $options = array();
             $options['mark_as_updated'] = true;
+
             if ( parent::inShortResults($datafield) )
                 $options['force_shortresults_recache'] = true;
 
@@ -2515,7 +2520,7 @@ if ($debug)
             $datarecords = array();
             $query = $em->createQuery(
                'SELECT dr
-                FROM ODRAdminBundle:DataRecord dr
+                FROM ODRAdminBundle:DataRecord AS dr
                 JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
                 WHERE dr.parent = :datarecord AND dr.id != :datarecord_id AND dr.dataType = :datatype AND dr.provisioned = false
                 AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL'
@@ -2527,7 +2532,7 @@ if ($debug)
             // ...do the same for any datarecords that this datarecord links to
             $query = $em->createQuery(
                'SELECT descendant
-                FROM ODRAdminBundle:LinkedDataTree ldt
+                FROM ODRAdminBundle:LinkedDataTree AS ldt
                 JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
                 JOIN ODRAdminBundle:DataType AS dt WITH descendant.dataType = dt
                 WHERE ldt.ancestor = :datarecord AND descendant.dataType = :datatype AND descendant.provisioned = false

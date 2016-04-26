@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\UserPermissions:
     type: entity
     table: odr_user_permissions
     gedmo:
-        loggable: true
+#        loggable: true
     fields:
         id:
             id: true
@@ -11,11 +11,6 @@ ODR\AdminBundle\Entity\UserPermissions:
             nullable: false
             generator:
                 strategy: IDENTITY
-        created:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: create
 
         can_view_type:
             type: integer
@@ -50,9 +45,19 @@ ODR\AdminBundle\Entity\UserPermissions:
             nullable: false
             default: 0
 
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
 
     manyToOne:
-        user_id:
+        user:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
             mappedBy: null

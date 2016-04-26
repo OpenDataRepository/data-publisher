@@ -343,20 +343,15 @@ class DatatypeController extends ODRCustomController
 
                     // ----------------------------------------
                     // Ensure the user that created this datatype has permissions to do everything to it
-                    $user_permission = new UserPermissions();
-                    $user_permission->setDataType($datatype);
-                    $user_permission->setUserId($admin);
-                    $user_permission->setCreatedBy($admin);
-
-                    $user_permission->setCanEditRecord(1);
-                    $user_permission->setCanAddRecord(1);
-                    $user_permission->setCanDeleteRecord(1);
-                    $user_permission->setCanViewType(1);
-                    $user_permission->setCanDesignType(1);
-                    $user_permission->setIsTypeAdmin(1);
-
-                    $em->persist($user_permission);
-                    $em->flush();
+                    $initial_permissions = array(
+                        'can_view_type' => 1,
+                        'can_add_record' => 1,
+                        'can_edit_record' => 1,
+                        'can_delete_record' => 1,
+                        'can_design_type' => 1,
+                        'is_type_admin' => 1
+                    );
+                    parent::ODR_addUserPermission($em, $admin->getId(), $admin->getId(), $datatype->getId(), $initial_permissions);
 
 
                     // ----------------------------------------
@@ -509,8 +504,9 @@ class DatatypeController extends ODRCustomController
 
                 // Locate all users that can access this datatype
                 $query = $em->createQuery(
-                   'SELECT DISTINCT(up.user_id)
+                   'SELECT DISTINCT(u.id)
                     FROM ODRAdminBundle:UserPermissions AS up
+                    JOIN ODROpenRepositoryUserBundle:User AS u WITH up.user = u
                     WHERE up.dataType IN (:datatypes)
                     AND (up.can_view_type = 1 OR up.can_edit_record = 1 OR up.can_add_record = 1 OR up.can_delete_record = 1 OR up.can_design_type = 1 OR up.is_type_admin = 1)'
                 )->setParameters(array('datatypes' => $all_datatype_ids));
@@ -683,7 +679,7 @@ class DatatypeController extends ODRCustomController
                 // Grab all non-deleted datarecords of each datatype
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord dr
+                    FROM ODRAdminBundle:DataRecord AS dr
                     WHERE dr.dataType = :dataType AND dr.provisioned = false
                     AND dr.deletedAt IS NULL'
                 )->setParameters( array('dataType' => $datatype_id) );

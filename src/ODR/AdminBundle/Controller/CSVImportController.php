@@ -2822,7 +2822,7 @@ print_r($new_mapping);
                                             'description' => $old_obj_meta->getDescription(),
                                             'original_filename' => $old_obj_meta->getOriginalFileName(),
                                             'external_id' => $old_obj_meta->getExternalId(),
-                                            'public_date' => $old_obj_meta->getPublicDate(),
+                                            'publicDate' => $old_obj_meta->getPublicDate(),
                                         );
 
                                         // Ensure no decrypted version of the original file remains on the server
@@ -2837,7 +2837,7 @@ print_r($new_mapping);
                                             'caption' => $old_obj_meta->getCaption(),
                                             'original_filename' => $old_obj_meta->getOriginalFileName(),
                                             'external_id' => $old_obj_meta->getExternalId(),
-                                            'public_date' => $old_obj_meta->getPublicDate(),
+                                            'publicDate' => $old_obj_meta->getPublicDate(),
                                             'display_order' => $old_obj_meta->getDisplayorder()
                                         );
 
@@ -3191,6 +3191,30 @@ print_r($new_mapping);
                             // Now that the radio option is guaranteed to exist...grab the relevant RadioSelection entity...
                             /** @var DataRecordFields $drf */
                             $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
+                            if ($drf == null)
+                                $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
+
+
+                            // If this field only allows a single selection...
+                            if ($typename == 'Single Radio' || $typename == 'Single Select') {
+                                /** @var RadioSelection[] $radio_selections */
+                                $radio_selections = $em->getRepository('ODRAdminBundle:RadioSelection')->findBy( array('dataRecordFields' => $drf->getId()) );
+
+                                // ...for every radio selection entity in this datafield...
+                                foreach ($radio_selections as $rs) {
+                                    if ( $rs->getRadioOption()->getId() !== $radio_option->getId() && $rs->getSelected() == 1 ) {
+                                        // ...if it's not the one that's supposed to be selected, deselect it
+                                        $em->remove($rs);
+
+                                        $new_rs = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, 0);
+                                        $em->persist($new_rs);
+                                    }
+                                }
+                            }
+
+                            // TODO - add Radio equivalent of "delete all unlisted files/images" for Multiple Radio/Select
+
+                            // Now that there won't be extraneous radio options selected afterwards... ensure the desired radio option is selected
                             /** @var RadioSelection $radio_selection */
                             $radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy( array('dataRecordFields' => $drf->getId(), 'radioOption' => $radio_option->getId()) );
 
@@ -3210,6 +3234,9 @@ print_r($new_mapping);
                                 $em->persist($new_radio_selection);
 
                                 $status .= '    ...radio_selection for radio_option ("'.$radio_option->getOptionName().'") now selected'."\n";
+                            }
+                            else {
+                                /* Desired radio option is already selected, do nothing */
                             }
                         }
                         $status .= "\n";
@@ -3245,7 +3272,12 @@ print_r($new_mapping);
             // Rebuild the list of sorted datarecords, since the datarecord order may have changed
             $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
             // Schedule the datarecord for an update
-            $options = array('force_shortresults_recache' => true, 'force_textresults_recache' => true);
+            $options = array(
+                'mark_as_updated' => true,
+                'user_id' => $user->getId(),    // since this action is called via command-line, need to specify which user is doing the importing
+                'force_shortresults_recache' => true,
+                'force_textresults_recache' => true
+            );
             parent::updateDatarecordCache($datarecord->getId(), $options);
 
             // Delete all cached search results for this datatype
@@ -3413,7 +3445,11 @@ print_r($new_mapping);
             // Datarecord order can't change as a result of linking/unlinking
 
             // Schedule the local datarecord for an update
-            $options = array();
+            $options = array(
+                'user_id' => $user->getId(),    // since this action is called via command-line, need to specify which user is doing the importing
+                'mark_as_updated' => true
+            );
+
             parent::updateDatarecordCache($local_datarecord->getId(), $options);
 
             $return['d'] = $status;

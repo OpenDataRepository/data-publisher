@@ -57,23 +57,49 @@ class MassEditCommand extends ContainerAwareCommand
                 // Get Job Data
                 $data = json_decode($job->getData()); 
 
-                // 
-                $logger->info('MassEditCommand.php: Request for DataRecordField '.$data->datarecordfield_id.' from '.$data->memcached_prefix.'...');
-                $current_time = new \DateTime();
-                $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
-                $output->writeln('MassEdit request for DataRecordField '.$data->datarecordfield_id.' from '.$data->memcached_prefix.'...');
+                $parameters = array();
+                if ($data->job_type == 'public_status_change') {
+                    //
+                    $logger->info('MassEditCommand.php: public_status_change request for DataRecord '.$data->datarecord_id.' from '.$data->memcached_prefix.'...');
+                    $current_time = new \DateTime();
+                    $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
+                    $output->writeln('public_status_change request for DataRecord '.$data->datarecord_id.' from '.$data->memcached_prefix.'...');
+
+                    // Create the required parameters to send
+                    $parameters = array(
+                        'tracked_job_id' => $data->tracked_job_id,
+                        'user_id' => $data->user_id,
+
+                        'datarecord_id' => $data->datarecord_id,
+                        'public_status' => $data->public_status,
+
+                        'api_key' => $data->api_key
+                    );
+                }
+                else if ($data->job_type == 'value_change') {
+                    //
+                    $logger->info('MassEditCommand.php: value_change request for DataRecordField '.$data->datarecordfield_id.' from '.$data->memcached_prefix.'...');
+                    $current_time = new \DateTime();
+                    $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
+                    $output->writeln('value_change request for DataRecordField '.$data->datarecordfield_id.' from '.$data->memcached_prefix.'...');
+
+                    // Create the required parameters to send
+                    $parameters = array(
+                        'tracked_job_id' => $data->tracked_job_id,
+                        'user_id' => $data->user_id,
+
+                        'datarecordfield_id' => $data->datarecordfield_id,
+                        'value' => $data->value,
+
+                        'api_key' => $data->api_key
+                    );
+                }
+                else {
+                    throw new \Exception('Invalid job');
+                }
 
                 // Need to use cURL to send a POST request...thanks symfony
                 $ch = curl_init();
-
-                // Create the required parameters to send
-                $parameters = array(
-                    'tracked_job_id' => $data->tracked_job_id,
-                    'datarecordfield_id' => $data->datarecordfield_id,
-                    'user_id' => $data->user_id,
-                    'value' => $data->value,
-                    'api_key' => $data->api_key
-                );
 
                 // Set the options for the POST request
                 curl_setopt_array($ch, array(

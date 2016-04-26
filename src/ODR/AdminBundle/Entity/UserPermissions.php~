@@ -9,6 +9,7 @@
  *
  * The UserPermissions Entity is automatically generated from
  * ./Resources/config/doctrine/UserPermissions.orm.yml
+ * 
  */
 
 namespace ODR\AdminBundle\Entity;
@@ -24,11 +25,6 @@ class UserPermissions
      * @var integer
      */
     private $id;
-
-    /**
-     * @var \DateTime
-     */
-    private $created;
 
     /**
      * @var integer
@@ -61,9 +57,19 @@ class UserPermissions
     private $is_type_admin;
 
     /**
+     * @var \DateTime
+     */
+    private $created;
+
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
-    private $user_id;
+    private $user;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataType
@@ -84,29 +90,6 @@ class UserPermissions
     public function getId()
     {
         return $this->id;
-    }
-
-    /**
-     * Set created
-     *
-     * @param \DateTime $created
-     * @return UserPermissions
-     */
-    public function setCreated($created)
-    {
-        $this->created = $created;
-
-        return $this;
-    }
-
-    /**
-     * Get created
-     *
-     * @return \DateTime 
-     */
-    public function getCreated()
-    {
-        return $this->created;
     }
 
     /**
@@ -248,26 +231,72 @@ class UserPermissions
     }
 
     /**
-     * Set user_id
+     * Set created
      *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $userId
+     * @param \DateTime $created
      * @return UserPermissions
      */
-    public function setUserId(\ODR\OpenRepository\UserBundle\Entity\User $userId = null)
+    public function setCreated($created)
     {
-        $this->user_id = $userId;
+        $this->created = $created;
 
         return $this;
     }
 
     /**
-     * Get user_id
+     * Get created
+     *
+     * @return \DateTime 
+     */
+    public function getCreated()
+    {
+        return $this->created;
+    }
+
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return UserPermissions
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+
+    /**
+     * Set user
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $user
+     * @return UserPermissions
+     */
+    public function setUser(\ODR\OpenRepository\UserBundle\Entity\User $user = null)
+    {
+        $this->user = $user;
+
+        return $this;
+    }
+
+    /**
+     * Get user
      *
      * @return \ODR\OpenRepository\UserBundle\Entity\User 
      */
-    public function getUserId()
+    public function getUser()
     {
-        return $this->user_id;
+        return $this->user;
     }
 
     /**

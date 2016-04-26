@@ -75,9 +75,9 @@ class DefaultController extends ODRCustomController
                'SELECT dt, up.can_view_type AS can_view_type
                 FROM ODRAdminBundle:DataType AS dt
                 JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
-                WHERE up.user_id = :user AND dt IN (:datatypes)
+                WHERE up.user = :user_id AND dt IN (:datatypes)
                 AND dt.deletedAt IS NULL'
-            )->setParameters( array('user' => $user->getId(), 'datatypes' => $top_level_datatypes) );
+            )->setParameters( array('user_id' => $user->getId(), 'datatypes' => $top_level_datatypes) );
             $results = $query->getResult();
 
             foreach ($results as $num => $result) {

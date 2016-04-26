@@ -22,6 +22,7 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataFieldsMeta;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
+use ODR\AdminBundle\Entity\DataRecordMeta;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
@@ -996,7 +997,7 @@ print '<pre>';
             // TODO - do this with a DQL update query?
             $query = $em->createQuery(
                'SELECT drf.id AS drf_id
-                FROM ODRAdminBundle:DataRecordFields drf
+                FROM ODRAdminBundle:DataRecordFields AS drf
                 WHERE drf.dataRecord = :datarecord'
             )->setParameters( array('datarecord' => $datarecord_id) );
             $results = $query->getResult();
@@ -1118,7 +1119,7 @@ print '<pre>';
 
             $query = $em->createQuery(
                'SELECT drf.id AS drf_id, dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecordFields drf
+                FROM ODRAdminBundle:DataRecordFields AS drf
                 JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
                 WHERE drf.dataField = :datafield
                 AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
@@ -1310,7 +1311,7 @@ print '<pre>';
                'SELECT e.id AS e_id, dr.id AS dr_id, df.id AS df_id, e.value AS value, drf.id AS drf_id, drf.deletedAt AS drf_deletedAt
                 FROM ODRAdminBundle:'.$entity.' e
                 JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
-                JOIN ODRAdminBundle:DataRecord AS df WITH e.dataField = df
+                JOIN ODRAdminBundle:DataFields AS df WITH e.dataField = df
                 JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
                 WHERE e.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL AND drf.deletedAt IS NOT NULL
                 ORDER BY dr.id, df_id, e.id');
@@ -1647,8 +1648,6 @@ print '</pre>';
 
     /**
      * displays/deletes duplicate radio selection options
-     * TODO - figure out why the page appears to auto-reload when deletion is enabled
-     * TODO - convert to native SQL because doctrine can't handle the number of results when run on UAMM
      *
      * @param integer $datatype_id
      * @param Request $request
@@ -1657,129 +1656,92 @@ print '</pre>';
      */
     public function duplicateradiocheckAction($datatype_id, Request $request)
     {
+        $delete = true;
+        $delete = false;
+
+        // Get necessary objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
+        $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
-        $query = $em->createQuery(
-           'SELECT dt.id AS dt_id, dtym.shortName, dr.id AS dr_id, df.id AS df_id, dfm.fieldName, ro.id AS ro_id, rom.optionName, rs.id AS rs_id, rs.selected
-            FROM ODRAdminBundle:DataType AS dt
-            JOIN ODRAdminBundle:DataTypeMeta AS dtym WITH dtym.dataType = dt
-            JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-            JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-            JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
-            JOIN ODRAdminBundle:RadioOptions AS ro WITH ro.dataField = df
-            JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOptions = ro
-            JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-            WHERE dt.id = :datatype AND ft.typeClass = :typeclass
-            AND dt.deletedAt IS NULL AND dtym.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
-            ORDER BY dt.id, dr.id, df.id, ro.id'
-        )->setParameters( array('datatype' => $datatype_id, 'typeclass' => 'Radio') );
-        $results = $query->getArrayResult();
-/*
-print '<pre>';
-print_r($results);
-print '</pre>';
-*/
+        // Figure out how many radio selection entities exist for this datatype
+        $query =
+            'SELECT COUNT(rs.id) AS num
+            FROM odr_radio_selection AS rs
+            LEFT JOIN odr_data_record_fields AS drf ON rs.data_record_fields_id = drf.id
+            LEFT JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
+            WHERE dr.data_type_id = :datatype_id
+            AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
+            ORDER BY drf.id, rs.radio_option_id';
+        $parameters = array('datatype_id' => $datatype_id);
 
-        // Convert result into array format
-        $datatype_names = array();
-        $datafield_names = array();
-        $radio_option_names = array();
-        $data = array();
-        foreach ($results as $num => $result) {
-            $dt_id = $result['dt_id'];
-            $datatype_name = $result['shortName'];
-            $dr_id = $result['dr_id'];
-            $df_id = $result['df_id'];
-            $datafield_name = $result['fieldName'];
-            $ro_id = $result['ro_id'];
-            $radio_option_name = $result['optionName'];
-            $rs_id = $result['rs_id'];
-            $selected = $result['selected'];
-//$selected = $selected->format('Y-m-d h:m:s');
+        // Execute and return the native SQL query
+        $conn = $em->getConnection();
+        $results = $conn->fetchAll($query, $parameters);
 
-            // Deal with names first
-            if ( !isset($datatype_names[$dt_id]) )
-                $datatype_names[$dt_id] = $datatype_name;
-            if ( !isset($datafield_names[$df_id]) )
-                $datafield_names[$df_id] = $datafield_name;
-            if ( !isset($radio_option_names[$ro_id]) )
-                $radio_option_names[$ro_id] = $radio_option_name;
+        $total = $results[0]['num'];
+        $step = 50000;  // probably a bit low, but only took ~2 minutes to find duplicates in a little more than 1 mil entries
 
-            // Now deal with content
-            if ( !isset($data[$dt_id]) )
-                $data[$dt_id] = array();
-
-            if ( !isset($data[$dt_id][$dr_id]) )
-                $data[$dt_id][$dr_id] = array();
-
-            if ( !isset($data[$dt_id][$dr_id][$df_id]) )
-                $data[$dt_id][$dr_id][$df_id] = array();
-
-            if ( !isset($data[$dt_id][$dr_id][$df_id][$ro_id]) )
-                $data[$dt_id][$dr_id][$df_id][$ro_id] = array();
-
-            $data[$dt_id][$dr_id][$df_id][$ro_id][$rs_id] = $selected;
-        }
-/*
-print '<pre>';
-print_r($data);
-print '</pre>';
-*/
-        // Copy duplicates into another array
         $duplicates = array();
-        foreach ($data as $dt_id => $datatype_data) {
-            foreach ($datatype_data as $dr_id => $datarecord_data) {
-                foreach ($datarecord_data as $df_id => $datafield_data) {
-                    foreach ($datafield_data as $ro_id => $radio_option_data) {
-                        if ( count($radio_option_data) > 1 )
-                            $duplicates[$dt_id][$dr_id][$df_id][$ro_id] = $radio_option_data;
-                    }
+
+        $previous_drf_id = 0;
+        $previous_ro_id = 0;
+        $previous_rs_id = 0;
+
+        for ( $i = 0; $i <= $total; $i += $step ) {
+
+            $query =
+               'SELECT drf.id AS drf_id, rs.radio_option_id AS ro_id, rs.id AS rs_id, rs.selected
+                FROM odr_radio_selection AS rs
+                LEFT JOIN odr_data_record_fields AS drf ON rs.data_record_fields_id = drf.id
+                LEFT JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
+                WHERE dr.data_type_id = :datatype_id
+                AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
+                ORDER BY drf.id, rs.radio_option_id';
+            $query .= ' LIMIT '.$i.', '.$step;
+
+            $parameters = array('datatype_id' => $datatype_id);
+
+            // Execute and return the native SQL query
+            $conn = $em->getConnection();
+            $results = $conn->fetchAll($query, $parameters);
+
+            foreach ($results as $result) {
+                $drf_id = $result['drf_id'];
+                $ro_id = $result['ro_id'];
+                $rs_id = $result['rs_id'];
+
+                // datarecordfield id and radio option id should be unique...
+                if ($drf_id == $previous_drf_id && $ro_id == $previous_ro_id) {
+                    $duplicates[] = $previous_rs_id;
+
+                    $previous_rs_id = $rs_id;
+                }
+                else {
+                    $previous_drf_id = $drf_id;
+                    $previous_ro_id = $ro_id;
+                    $previous_rs_id = $rs_id;
                 }
             }
         }
-/*
-print '<pre>';
-print_r($duplicates);
-print '</pre>';
-*/
 
-        // Print duplicates
-$count = 0;
-print '<pre>';
-        foreach ($duplicates as $dt_id => $datatype_data) {
-            print 'Datatype '.$dt_id.' ('.$datatype_names[$dt_id].'): '."\n";
+        if (!$delete)
+            print_r($duplicates);
 
-            foreach ($datatype_data as $dr_id => $datarecord_data) {
-                print '-- Datarecord '.$dr_id.':'."\n";
+        if ($delete) {
+            $deleted_count = 0;
+            foreach ($duplicates as $num => $rs_id) {
+                /** @var RadioSelection $rs */
+                $rs = $repo_radio_selection->find($rs_id);
+                $em->remove($rs);
 
-                foreach ($datarecord_data as $df_id => $datafield_data) {
-                    print '-- -- Datafield '.$df_id.' ('.$datafield_names[$df_id].'): '."\n";
-
-                    foreach ($datafield_data as $ro_id => $radio_option_data) {
-                        print '-- -- -- Radio Option '.$ro_id.' ('.$radio_option_names[$ro_id].'): '."\n";
-
-                        foreach ($radio_option_data as $rs_id => $selected) {
-                            print '-- -- -- -- Radio Selection '.$rs_id.': '.$selected."\n";
-/*
-if ($selected == 1) {
-    $rs = $em->getRepository('ODRAdminBundle:RadioSelection')->find($rs_id);
-    $em->remove($rs);
-    $count++;
-    if ( ($count % 10) == 0 )
-        $em->flush();
-}
-*/
-                        }
-                    }
-                }
+                $deleted_count++;
+                if ( ($deleted_count % 50) == 0 )   // no idea what a good number is
+                    $em->flush();
             }
-        }
-print '</pre>';
 
-//$em->flush();
+            $em->flush();
+        }
     }
 
 
@@ -2077,8 +2039,47 @@ print '</pre>';
             }
 
             // ----------------------------------------
-            // TODO - Datarecords
+            // Datarecords
             // ----------------------------------------
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_datarecord_metadata');
+
+            // Grab a list of all radio options in the database
+            $em->getFilters()->disable('softdeleteable');
+            $query = $em->createQuery(
+               'SELECT dr.id AS id
+                FROM ODRAdminBundle:DataRecord AS dr'
+            );
+            $results = $query->getArrayResult();
+            $em->getFilters()->enable('softdeleteable');
+
+//print_r($results);
+//return;
+
+            if (count($results) > 0) {
+                $object_type = 'datarecord';
+                foreach ($results as $num => $result) {
+                    $object_id = $result['id'];
+
+                    // Insert the new job into the queue
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+//                            "tracked_job_id" => $tracked_job_id,
+                            "object_type" => $object_type,
+                            "object_id" => $object_id,
+                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
+
+                    $delay = 1;
+                    $pheanstalk->useTube('build_metadata')->put($payload, $priority, $delay);
+                }
+            }
+
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -2741,7 +2742,49 @@ print '</pre>';
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
 
-            // TODO - stuff here
+            // ----------------------------------------
+            // Want to create a metadata entry for deleted datarecords too
+            $em->getFilters()->disable('softdeleteable');
+
+            // Ensure the datarecord entity exists...
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($object_id);
+            if ($datarecord == null)
+                throw new \Exception('Datarecord does not exist');
+
+            // Attempt to locate a metadata entry for the provided entity
+            /** @var DataRecordMeta $datatree_meta */
+            $datarecord_meta = $em->getRepository('ODRAdminBundle:DataRecordMeta')->findOneBy( array('dataRecord' => $object_id) );
+
+            // No longer need softdeleteable filter disabled
+            $em->getFilters()->enable('softdeleteable');
+
+            if ($datarecord_meta !== null) {
+                $return['d'] = 'Metadata entry already exists for Datarecord '.$object_id.', skipping';
+            }
+            else {
+                // Create a new meta entry and populate from original entity
+                $datarecord_meta = new DataRecordMeta();
+                $datarecord_meta->setDataRecord($datarecord);
+
+                $datarecord_meta->setPublicDate($datarecord->getPublicDateOriginal());
+
+                $datarecord_meta->setCreatedBy($datarecord->getCreatedBy());
+                $datarecord_meta->setCreated($datarecord->getCreated());
+
+                $datarecord_meta->setDeletedAt($datarecord->getDeletedAt());
+
+                // If datatree is deleted, transfer who deleted it from the updatedBy column to the deletedBy column
+                if ($datarecord->getDeletedAt() !== null) {
+                    $datarecord->setDeletedBy($datarecord->getUpdatedBy());
+                    $em->persist($datarecord);
+                }
+
+                $em->persist($datarecord_meta);
+                $em->flush();
+
+                $return['d'] = 'Created new metadata entry for Datarecord '.$object_id;
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
