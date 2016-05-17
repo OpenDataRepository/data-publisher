@@ -263,6 +263,7 @@ class DataTypeMeta
 
     /**
      * Set display_type
+     * @deprecated
      *
      * @param integer $displayType
      * @return DataTypeMeta
@@ -276,6 +277,7 @@ class DataTypeMeta
 
     /**
      * Get display_type
+     * @deprecated
      *
      * @return integer 
      */

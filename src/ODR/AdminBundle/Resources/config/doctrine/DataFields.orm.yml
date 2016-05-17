@@ -157,10 +157,10 @@ ODR\AdminBundle\Entity\DataFields:
                     referencedColumnName: id
             orphanRemoval: false
 
-        themeDataField:
+        themeDataFields:
             targetEntity: ThemeDataField
             cascade: {  }
-            mappedBy: dataFields
+            mappedBy: dataField
             orphanRemoval: false
 #            gedmo:
 #                - versioned
@@ -176,7 +176,7 @@ ODR\AdminBundle\Entity\DataFields:
 #            gedmo:
 #                - versioned
 
-        dataFieldsMeta:
+        dataFieldMeta:
             targetEntity: DataFieldsMeta
             cascade: { }
             mappedBy: dataField

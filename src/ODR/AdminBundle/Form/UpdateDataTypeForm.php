@@ -1,24 +1,24 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* UpdateDataType Form
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* Builds the Form used for modifying Datatype properties via
-* the right slideout in DisplayTemplate.
-*/
+ * Open Data Repository Data Publisher
+ * UpdateDataType Form
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * Builds the Form used for modifying Datatype properties via
+ * the right slideout in DisplayTemplate.
+ */
 
 namespace ODR\AdminBundle\Form;
 
+use Doctrine\ORM\EntityRepository;
 use ODR\AdminBundle\Entity\DataType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolverInterface;
 
-use Doctrine\ORM\EntityRepository;
 
 class UpdateDataTypeForm extends AbstractType
 {
@@ -208,6 +208,7 @@ class UpdateDataTypeForm extends AbstractType
             );
         }
 
+        // TODO - delete this property
         if ( $for_slideout == true && $is_top_level == false ) {
             // Only display this property if the form is for a childtype
             $builder->add(
@@ -251,6 +252,4 @@ class UpdateDataTypeForm extends AbstractType
 //        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataType'));
         $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataTypeMeta'));
     }
-
-
 }

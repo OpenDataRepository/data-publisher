@@ -40,7 +40,7 @@ ODR\AdminBundle\Entity\RadioSelection:
             targetEntity: RadioOptions
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: radioSelections
             joinColumns:
                 radio_option_id:
                     referencedColumnName: id

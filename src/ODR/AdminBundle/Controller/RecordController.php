@@ -45,7 +45,7 @@ class RecordController extends ODRCustomController
      * 
      * @return Response TODO
      */
-    public function addAction($datatype_id, Request $request)
+    public function adddatarecordAction($datatype_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -250,7 +250,7 @@ class RecordController extends ODRCustomController
      * 
      * @return Response TODO
      */
-    public function deleteAction($datarecord_id, $search_key, Request $request)
+    public function deletedatarecordAction($datarecord_id, $search_key, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -258,6 +258,8 @@ class RecordController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            throw new \Exception('DISABLED PENDING SECOND HALF OF THEME REWORK');
+
             // Grab memcached stuff
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
@@ -292,6 +294,9 @@ class RecordController extends ODRCustomController
             if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'delete' ])) )
                 return parent::permissionDeniedError("delete DataRecords from");
             // --------------------
+
+
+            // TODO - move most of this to beanstalk...leave deleting actual datarecord, its children, and wiping cache entries here
 
 
             // -----------------------------------
@@ -515,8 +520,7 @@ class RecordController extends ODRCustomController
 
     /**
      * Deletes a user-uploaded file from the database.
-     * TODO - delete from server as well?
-     * 
+     *
      * @param integer $file_id The database id of the File to delete.
      * @param Request $request
      * 
@@ -2463,6 +2467,10 @@ if ($debug)
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
         $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+        $memcached = $this->get('memcached');
+        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
         // --------------------
         // Determine user privileges
         /** @var User $user */
@@ -2471,8 +2479,10 @@ if ($debug)
         $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
         // --------------------
 
-        /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
+        //$bypass_cache = false;
+        //if ($this->container->getParameter('kernel.environment') === 'dev')
+            $bypass_cache = true;
+
 
         $parent_datarecord = null;
         $datarecord = null;
@@ -2493,6 +2503,12 @@ if ($debug)
         /** @var DataRecord $datarecord */
         /** @var DataType $datatype */
 
+        // TODO - move this?
+        /** @var Theme $theme */
+        $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+        if ($theme == null)
+            return parent::deletedEntityError('Theme');
+/*
         $datarecords = array($datarecord);
 
         $indent = 0;
@@ -2568,12 +2584,80 @@ if ($debug)
 
 if ($debug)
     print '</pre>';
+*/
 
+        // ----------------------------------------
+        // Grab all datarecords "associated" with the desired datarecord...TODO
+        $associated_datarecords = $memcached->get($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id);
+        if ($bypass_cache || $associated_datarecords == null) {
+            $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord_id));
+/*
+            print '<pre>';
+            print_r($associated_datarecords);
+            print '</pre>';
+*/
+//            $memcached->set($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id, $associated_datarecords, 0);
+        }
+
+
+        // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
+        $datarecord_array = array();
+        foreach ($associated_datarecords as $num => $dr_id) {
+            $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$dr_id);
+            if ($bypass_cache || $datarecord_data == null)
+                $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
+
+            foreach ($datarecord_data as $dr_id => $data)
+                $datarecord_array[$dr_id] = $data;
+        }
+/*
+print '<pre>';
+print_r($datarecord_array);
+print '</pre>';
+exit();
+*/
+
+        // ----------------------------------------
+        //
+        $datatree_array = parent::getDatatreeArray($em);
+
+        // Grab all datatypes associated with the desired datarecord
+        $associated_datatypes = array();
+        foreach ($datarecord_array as $dr_id => $dr) {
+            $dt_id = $dr['dataType']['id'];
+
+            if ( !in_array($dt_id, $associated_datatypes) )
+                $associated_datatypes[] = $dt_id;
+        }
+
+        // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+        $datatype_array = array();
+        foreach ($associated_datatypes as $num => $dt_id) {
+            $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
+            if ($bypass_cache || $datatype_data == null)
+                $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, true);
+
+            foreach ($datatype_data as $dt_id => $data)
+                $datatype_array[$dt_id] = $data;
+        }
+
+/*
+print '<pre>';
+print_r($datatype_array);
+print '</pre>';
+exit();
+*/
+/*
+print '<pre>';
+print_r( parent::getDatatreeArray($em) );
+print '</pre>';
+exit();
+*/
         // Determine which template to use for rendering
         $template = 'ODRAdminBundle:Record:record_ajax.html.twig';
         if ($template_name == 'child')
             $template = 'ODRAdminBundle:Record:record_area_child_load.html.twig';
-
+/*
         // Determine what datatypes link to this datatype
         $ancestor_linked_datatypes = array();
         if ($template_name == 'default') {
@@ -2613,13 +2697,14 @@ if ($debug)
                 $descendant_linked_datatypes[$id] = $name;
             }
         }
-
+*/
 
         // Render the DataRecord
         $templating = $this->get('templating');
         $html = $templating->render(
             $template,
             array(
+/*
                 'search_key' => $search_key,
 
                 'parent_datarecord' => $parent_datarecord,
@@ -2627,10 +2712,21 @@ if ($debug)
                 'datatype_tree' => $datatype_tree,
                 'datarecord_tree' => $datarecord_tree,
                 'theme' => $theme,
-                'datatype_permissions' => $datatype_permissions,
-                'datafield_permissions' => $datafield_permissions,
+
                 'ancestor_linked_datatypes' => $ancestor_linked_datatypes,
                 'descendant_linked_datatypes' => $descendant_linked_datatypes,
+*/
+                'datatype_array' => $datatype_array,
+                'datarecord_array' => $datarecord_array,
+                'theme_id' => $theme->getId(),
+
+                'initial_datatype_id' => $datatype->getId(),
+                'initial_datarecord_id' => $datarecord->getId(),
+
+                'datatype_permissions' => $datatype_permissions,
+                'datafield_permissions' => $datafield_permissions,
+
+                'search_key' => $search_key,
             )
         );
 
@@ -2666,12 +2762,6 @@ if ($debug)
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-//            $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
-//            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-
-            // Get Default Theme
-            /** @var Theme $theme */
-//            $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
 
             // Get Record In Question
             /** @var DataRecord $datarecord */
@@ -2679,14 +2769,23 @@ if ($debug)
             if ( $datarecord == null )
                 return parent::deletedEntityError('Datarecord');
 
+            // TODO - not accurate, technically...
+            if ($datarecord->getProvisioned() == true)
+                return parent::permissionDeniedError();
+
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
             $datatype_id = $datatype->getId();
 
-            // TODO - not accurate, technically...
-            if ($datarecord->getProvisioned() == true)
-                return parent::permissionDeniedError();
+
+            // Grab the theme to use to display this
+            // TODO - alternate themes?
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
 
             // --------------------
             // Determine user privileges
@@ -2701,7 +2800,7 @@ if ($debug)
             // --------------------
 
             // Ensure all objects exist before rendering
-            parent::verifyExistence($datarecord);
+//            parent::verifyExistence($datarecord);
 
 
             // ----------------------------------------

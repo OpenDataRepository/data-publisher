@@ -380,6 +380,7 @@ class DataFieldsMeta
 
     /**
      * Set displayOrder
+     * @deprecated
      *
      * @param integer $displayOrder
      * @return DataFieldsMeta
@@ -393,6 +394,7 @@ class DataFieldsMeta
 
     /**
      * Get displayOrder
+     * @deprecated
      *
      * @return integer 
      */

@@ -1,12 +1,16 @@
 {% spaceless %}
 <div class="ODRFormHeader clearfix">
 
-{% set datatype = datatype_tree.datatype %}
+{#{% set datatype = datatype_tree.datatype %}#}
+{% set datatype = datatype_array[initial_datatype_id] %}
+{#
 {% set datarecord = null %}
 {% for dr_entry in datarecord_tree %}
     {% set datarecord = dr_entry.datarecord %}
 {% endfor %}
-
+#}
+{% set datarecord = datarecord_array[initial_datarecord_id] %}
+{#
 {% for ancestor_id, ancestor_name in ancestor_linked_datatypes %}
     {% if datatype_permissions[ ancestor_id ] is defined and datatype_permissions[ ancestor_id ][ 'edit' ] is defined %}
         <button type="button" class="pure-button" onclick="LinkRecord({{ ancestor_id }},{{ datatype.id }},{{ datarecord.id }});">Link to {{ ancestor_name }}.</button>
@@ -18,13 +22,25 @@
         <button type="button" class="pure-button" onclick="LinkRecord({{ datatype.id }},{{ descendant_id }},{{ datarecord.id }});">Link to {{ descendant_name }}.</button>
     {% endif %}
 {% endfor %}
+#}
 </div>
 
 <h1 class="no-margin-top-phone">
-    <span>Edit Record &raquo; {{ datatype.shortname }}</span>
+    <span>Edit Record &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
 </h1>
 
-{% include 'ODRAdminBundle:Record:record_area.html.twig' with {'datatype_tree': datatype_tree, 'datarecord_tree': datarecord_tree, 'theme': theme, 'datatype_permissions': datatype_permissions, 'datafield_permissions': datafield_permissions} %}
+{#{% include 'ODRAdminBundle:Record:record_area.html.twig' with {'datatype_tree': datatype_tree, 'datarecord_tree': datarecord_tree, 'theme': theme, 'datatype_permissions': datatype_permissions, 'datafield_permissions': datafield_permissions} %}#}
+{% include 'ODRAdminBundle:Record:record_area.html.twig' with {
+    'datatype_array': datatype_array,
+    'datarecord_array': datarecord_array,
+    'theme_id': theme_id,
+
+    'initial_datatype_id': initial_datatype_id,
+    'initial_datarecord_id': initial_datarecord_id,
+
+    'datatype_permissions': datatype_permissions,
+    'datafield_permissions': datafield_permissions
+} %}
 
 <div id="field_history_dialog_wrapper">
 {% include 'ODRAdminBundle:Record:field_history_dialog.html.twig' %}
@@ -54,7 +70,7 @@ $(function() {
 
     // Hide divs for accordion purposes
     setupAccordions();
-
+/*
     // Hide empty theme element divs
     $(".ODRThemeElement").each(function() {
         var has_children = false;
@@ -68,7 +84,7 @@ $(function() {
         if (!has_children)
             $(this).css( "display", "none" );
     });
-
+*/
 
     // --------------------
     initPage();

@@ -766,7 +766,7 @@ if ($debug) {
                 // Can't use $this->redirect, because it won't update the hash...
                 $return['r'] = 2;
 //                if ($target == 'results')
-                    $return['d'] = array( 'url' => $this->generateURL('odr_results_view', array('datarecord_id' => $datarecord_id)) );
+                    $return['d'] = array( 'url' => $this->generateURL('odr_display_view', array('datarecord_id' => $datarecord_id)) );
 //                else if ($target == 'record')
 //                    $return['d'] = array( 'url' => $this->generateURL('odr_record_edit', array('datarecord_id' => $datarecord_id)) );
 

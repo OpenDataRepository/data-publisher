@@ -130,7 +130,7 @@ class DataFields
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
-    private $themeDataField;
+    private $themeDataFields;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
@@ -140,7 +140,7 @@ class DataFields
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
-    private $dataFieldsMeta;
+    private $dataFieldMeta;
 
     /**
      * @var \ODR\AdminBundle\Entity\FieldType
@@ -178,15 +178,15 @@ class DataFields
     public function __construct()
     {
         $this->dataRecordFields = new \Doctrine\Common\Collections\ArrayCollection();
-        $this->themeDataField = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->themeDataFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->radioOptions = new \Doctrine\Common\Collections\ArrayCollection();
-        $this->dataFieldsMeta = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->dataFieldMeta = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
      * Get id
      *
-     * @return integer 
+     * @return integer
      */
     public function getId()
     {
@@ -209,7 +209,7 @@ class DataFields
     /**
      * Get created
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getCreated()
     {
@@ -232,7 +232,7 @@ class DataFields
     /**
      * Get deletedAt
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getDeletedAt()
     {
@@ -241,7 +241,7 @@ class DataFields
 
     /**
      * Set fieldName
-     * @deprecated 
+     * @deprecated
      *
      * @param string $fieldName
      * @return DataFields
@@ -256,11 +256,11 @@ class DataFields
     /**
      * Get fieldName
      *
-     * @return string 
+     * @return string
      */
     public function getFieldName()
     {
-        return $this->getDataFieldsMeta()->getFieldName();
+        return $this->getDataFieldMeta()->getFieldName();
     }
 
     /**
@@ -280,11 +280,11 @@ class DataFields
     /**
      * Get description
      *
-     * @return string 
+     * @return string
      */
     public function getDescription()
     {
-        return $this->getDataFieldsMeta()->getDescription();
+        return $this->getDataFieldMeta()->getDescription();
     }
 
     /**
@@ -304,11 +304,11 @@ class DataFields
     /**
      * Get xml_fieldName
      *
-     * @return string 
+     * @return string
      */
     public function getXmlFieldName()
     {
-        return $this->getDataFieldsMeta()->getXmlFieldName();
+        return $this->getDataFieldMeta()->getXmlFieldName();
     }
 
     /**
@@ -328,11 +328,11 @@ class DataFields
     /**
      * Get markdownText
      *
-     * @return string 
+     * @return string
      */
     public function getMarkdownText()
     {
-        return $this->getDataFieldsMeta()->getMarkdownText();
+        return $this->getDataFieldMeta()->getMarkdownText();
     }
 
     /**
@@ -352,11 +352,11 @@ class DataFields
     /**
      * Get regexValidator
      *
-     * @return string 
+     * @return string
      */
     public function getRegexValidator()
     {
-        return $this->getDataFieldsMeta()->getRegexValidator();
+        return $this->getDataFieldMeta()->getRegexValidator();
     }
 
     /**
@@ -376,11 +376,11 @@ class DataFields
     /**
      * Get phpValidator
      *
-     * @return string 
+     * @return string
      */
     public function getPhpValidator()
     {
-        return $this->getDataFieldsMeta()->getPhpValidator();
+        return $this->getDataFieldMeta()->getPhpValidator();
     }
 
     /**
@@ -400,11 +400,11 @@ class DataFields
     /**
      * Get required
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getRequired()
     {
-        return $this->getDataFieldsMeta()->getRequired();
+        return $this->getDataFieldMeta()->getRequired();
     }
 
     /**
@@ -424,11 +424,11 @@ class DataFields
     /**
      * Get is_unique
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getIsUnique()
     {
-        return $this->getDataFieldsMeta()->getIsUnique();
+        return $this->getDataFieldMeta()->getIsUnique();
     }
 
     /**
@@ -448,11 +448,11 @@ class DataFields
     /**
      * Get allow_multiple_uploads
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getAllowMultipleUploads()
     {
-        return $this->getDataFieldsMeta()->getAllowMultipleUploads();
+        return $this->getDataFieldMeta()->getAllowMultipleUploads();
     }
 
     /**
@@ -472,16 +472,16 @@ class DataFields
     /**
      * Get shorten_filename
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getShortenFilename()
     {
-        return $this->getDataFieldsMeta()->getShortenFilename();
+        return $this->getDataFieldMeta()->getShortenFilename();
     }
 
     /**
      * Set displayOrder
-     * @deprecated 
+     * @deprecated
      *
      * @param integer $displayOrder
      * @return DataFields
@@ -495,12 +495,13 @@ class DataFields
 
     /**
      * Get displayOrder
+     * @deprecated 
      *
-     * @return integer 
+     * @return integer
      */
     public function getDisplayOrder()
     {
-        return $this->getDataFieldsMeta()->getDisplayOrder();
+        return $this->getDataFieldMeta()->getDisplayOrder();
     }
 
     /**
@@ -520,11 +521,11 @@ class DataFields
     /**
      * Get children_per_row
      *
-     * @return integer 
+     * @return integer
      */
     public function getChildrenPerRow()
     {
-        return $this->getDataFieldsMeta()->getChildrenPerRow();
+        return $this->getDataFieldMeta()->getChildrenPerRow();
     }
 
     /**
@@ -544,11 +545,11 @@ class DataFields
     /**
      * Get radio_option_name_sort
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getRadioOptionNameSort()
     {
-        return $this->getDataFieldsMeta()->getRadioOptionNameSort();
+        return $this->getDataFieldMeta()->getRadioOptionNameSort();
     }
 
     /**
@@ -568,11 +569,11 @@ class DataFields
     /**
      * Get radio_option_display_unselected
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getRadioOptionDisplayUnselected()
     {
-        return $this->getDataFieldsMeta()->getRadioOptionDisplayUnselected();
+        return $this->getDataFieldMeta()->getRadioOptionDisplayUnselected();
     }
 
     /**
@@ -592,16 +593,16 @@ class DataFields
     /**
      * Get searchable
      *
-     * @return integer 
+     * @return integer
      */
     public function getSearchable()
     {
-        return $this->getDataFieldsMeta()->getSearchable();
+        return $this->getDataFieldMeta()->getSearchable();
     }
 
     /**
      * Set user_only_search
-     * @deprecated 
+     * @deprecated
      *
      * @param boolean $userOnlySearch
      * @return DataFields
@@ -616,11 +617,11 @@ class DataFields
     /**
      * Get user_only_search
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getUserOnlySearch()
     {
-        return $this->getDataFieldsMeta()->getUserOnlySearch();
+        return $this->getDataFieldMeta()->getUserOnlySearch();
     }
 
     /**
@@ -641,7 +642,7 @@ class DataFields
      * Get updated
      * @deprecated
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getUpdated()
     {
@@ -674,7 +675,7 @@ class DataFields
     /**
      * Get dataRecordFields
      *
-     * @return \Doctrine\Common\Collections\Collection 
+     * @return \Doctrine\Common\Collections\Collection
      */
     public function getDataRecordFields()
     {
@@ -682,36 +683,36 @@ class DataFields
     }
 
     /**
-     * Add themeDataField
+     * Add themeDataFields
      *
-     * @param \ODR\AdminBundle\Entity\ThemeDataField $themeDataField
+     * @param \ODR\AdminBundle\Entity\ThemeDataField $themeDataFields
      * @return DataFields
      */
-    public function addThemeDataField(\ODR\AdminBundle\Entity\ThemeDataField $themeDataField)
+    public function addThemeDataField(\ODR\AdminBundle\Entity\ThemeDataField $themeDataFields)
     {
-        $this->themeDataField[] = $themeDataField;
+        $this->themeDataFields[] = $themeDataFields;
 
         return $this;
     }
 
     /**
-     * Remove themeDataField
+     * Remove themeDataFields
      *
-     * @param \ODR\AdminBundle\Entity\ThemeDataField $themeDataField
+     * @param \ODR\AdminBundle\Entity\ThemeDataField $themeDataFields
      */
-    public function removeThemeDataField(\ODR\AdminBundle\Entity\ThemeDataField $themeDataField)
+    public function removeThemeDataField(\ODR\AdminBundle\Entity\ThemeDataField $themeDataFields)
     {
-        $this->themeDataField->removeElement($themeDataField);
+        $this->themeDataFields->removeElement($themeDataFields);
     }
 
     /**
-     * Get themeDataField
+     * Get themeDataFields
      *
-     * @return \Doctrine\Common\Collections\Collection 
+     * @return \Doctrine\Common\Collections\Collection
      */
-    public function getThemeDataField()
+    public function getThemeDataFields()
     {
-        return $this->themeDataField;
+        return $this->themeDataFields;
     }
 
     /**
@@ -740,7 +741,7 @@ class DataFields
     /**
      * Get radioOptions
      *
-     * @return \Doctrine\Common\Collections\Collection 
+     * @return \Doctrine\Common\Collections\Collection
      */
     public function getRadioOptions()
     {
@@ -764,36 +765,36 @@ class DataFields
     }
 
     /**
-     * Add DataFieldsMeta
+     * Add dataFieldMeta
      *
-     * @param \ODR\AdminBundle\Entity\DataFieldsMeta $dataFieldsMeta
+     * @param \ODR\AdminBundle\Entity\DataFieldsMeta $dataFieldMeta
      * @return DataFields
      */
-    public function addDataFieldsMetum(\ODR\AdminBundle\Entity\DataFieldsMeta $dataFieldsMeta)
+    public function addDataFieldMetum(\ODR\AdminBundle\Entity\DataFieldsMeta $dataFieldMeta)
     {
-        $this->dataFieldsMeta[] = $dataFieldsMeta;
+        $this->dataFieldMeta[] = $dataFieldMeta;
 
         return $this;
     }
 
     /**
-     * Remove DataFieldsMeta
+     * Remove dataFieldMeta
      *
-     * @param \ODR\AdminBundle\Entity\DataFieldsMeta $dataFieldsMeta
+     * @param \ODR\AdminBundle\Entity\DataFieldsMeta $dataFieldMeta
      */
-    public function removeDataFieldsMetum(\ODR\AdminBundle\Entity\DataFieldsMeta $dataFieldsMeta)
+    public function removeDataFieldMetum(\ODR\AdminBundle\Entity\DataFieldsMeta $dataFieldMeta)
     {
-        $this->dataFieldsMeta->removeElement($dataFieldsMeta);
+        $this->dataFieldMeta->removeElement($dataFieldMeta);
     }
 
     /**
-     * Get DataFieldsMeta
+     * Get dataFieldMeta
      *
      * @return \ODR\AdminBundle\Entity\DataFieldsMeta
      */
-    public function getDataFieldsMeta()
+    public function getDataFieldMeta()
     {
-        return $this->dataFieldsMeta->first();
+        return $this->dataFieldMeta->first();
     }
 
     /**
@@ -813,11 +814,11 @@ class DataFields
     /**
      * Get fieldType
      *
-     * @return \ODR\AdminBundle\Entity\FieldType 
+     * @return \ODR\AdminBundle\Entity\FieldType
      */
     public function getFieldType()
     {
-        return $this->getDataFieldsMeta()->getFieldType();
+        return $this->getDataFieldMeta()->getFieldType();
     }
 
     /**
@@ -836,7 +837,7 @@ class DataFields
     /**
      * Get dataType
      *
-     * @return \ODR\AdminBundle\Entity\DataType 
+     * @return \ODR\AdminBundle\Entity\DataType
      */
     public function getDataType()
     {
@@ -860,11 +861,11 @@ class DataFields
     /**
      * Get renderPlugin
      *
-     * @return \ODR\AdminBundle\Entity\RenderPlugin 
+     * @return \ODR\AdminBundle\Entity\RenderPlugin
      */
     public function getRenderPlugin()
     {
-        return $this->getDataFieldsMeta()->getRenderPlugin();
+        return $this->getDataFieldMeta()->getRenderPlugin();
     }
 
     /**
@@ -883,7 +884,7 @@ class DataFields
     /**
      * Get createdBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getCreatedBy()
     {
@@ -906,7 +907,7 @@ class DataFields
     /**
      * Get deletedBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getDeletedBy()
     {
@@ -929,9 +930,9 @@ class DataFields
 
     /**
      * Get updatedBy
-     * @deprecated 
+     * @deprecated
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getUpdatedBy()
     {

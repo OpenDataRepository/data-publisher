@@ -42,10 +42,12 @@ use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeElementField;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
+use ODR\AdminBundle\Entity\ThemeElement;
+use ODR\AdminBundle\Entity\ThemeElementField;
+use ODR\AdminBundle\Entity\ThemeElementMeta;
+use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\TrackedError;
 use ODR\AdminBundle\Entity\UserPermissions;
 use ODR\AdminBundle\Entity\UserFieldPermissions;
@@ -165,7 +167,7 @@ class ODRCustomController extends Controller
 
             // -----------------------------------
             // Build the html required for this...
-            $pagination_html = self::buildPaginationHeader( $total_datarecords, $offset, $path_str, $request);
+            $pagination_html = self::buildPaginationHeader($total_datarecords, $offset, $path_str, $request);
             $shortresults_html = self::renderShortResultsList($datarecord_list, $datatype, $theme, $request);
             $html = $pagination_html.$shortresults_html.$pagination_html;
 
@@ -359,7 +361,7 @@ print "\n\n";
                 $fields = self::Text_GetDisplayData($request, $datarecord_id, $can_view_datatype);
 
                 if ( $data == null || intval($data['revision']) !== $datatype_revision )
-                    $data = array('revision' => $datatype_revision, 'html' => array('no_view' => '', 'has_view' => '') );
+                    $data = array( 'revision' => $datatype_revision, 'html' => array('no_view' => '', 'has_view' => '') );
 
                 $data['html'][$cached_html_version] = $fields;
                 $memcached->set($memcached_prefix.'.data_record_short_text_form_'.$datarecord_id, $data, 0);
@@ -571,7 +573,7 @@ print "\n\n";
                     $search_result_current = $num+1;
                     $search_result_count = count($search_results);
 
-                    if ($num == count($search_results)-1 )
+                    if ( $num == count($search_results)-1 )
                         $next_datarecord = $search_results[0];
                     else
                         $next_datarecord = $search_results[$num+1];
@@ -584,8 +586,13 @@ print "\n\n";
             }
         }
 
-        $search_header = array( 'page_length' => $page_length, 'next_datarecord' => $next_datarecord, 'prev_datarecord' => $prev_datarecord, 'search_result_current' => $search_result_current, 'search_result_count' => $search_result_count );
-        return $search_header;
+        return array(
+            'page_length' => $page_length,
+            'next_datarecord' => $next_datarecord,
+            'prev_datarecord' => $prev_datarecord,
+            'search_result_current' => $search_result_current,
+            'search_result_count' => $search_result_count
+        );
     }
 
 
@@ -765,7 +772,7 @@ print "\n\n";
             // Grab the hex string representation that the file was encrypted with
             $key = $base_obj->getEncryptKey();
             // Convert the hex string representation to binary...php had a function to go bin->hex, but didn't have a function for hex->bin for at least 7 years?!?
-            $key = pack("H*" , $key);   // don't have hex2bin() in current version of php...this appears to work based on the "if it decrypts to something intelligible, you did it right" theory
+            $key = pack("H*", $key);   // don't have hex2bin() in current version of php...this appears to work based on the "if it decrypts to something intelligible, you did it right" theory
 
             // Decrypt the file (do NOT delete the encrypted version)
             $crypto->decryptFile($absolute_path, $key, false);
@@ -778,7 +785,7 @@ print "\n\n";
     /**
      * Determines and returns an array of top-level datatype ids
      * 
-     * @return array
+     * @return int[]
      */
     public function getTopLevelDatatypes()
     {
@@ -794,7 +801,6 @@ print "\n\n";
         $all_datatypes = array();
         foreach ($results as $num => $result)
             $all_datatypes[] = $result['datatype_id'];
-//print_r($all_datatypes);
 
         $query = $em->createQuery(
            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
@@ -806,19 +812,16 @@ print "\n\n";
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
         );
         $results = $query->getArrayResult();
-//print_r($results);
 
         $parent_of = array();
         foreach ($results as $num => $result)
             $parent_of[ $result['descendant_id'] ] = $result['ancestor_id'];
-//print_r($parent_of);
 
         $top_level_datatypes = array();
         foreach ($all_datatypes as $datatype_id) {
             if ( !isset($parent_of[$datatype_id]) )
                 $top_level_datatypes[] = $datatype_id;
         }
-//print_r($top_level_datatypes);
 
         return $top_level_datatypes;
     }
@@ -845,7 +848,7 @@ print "\n\n";
 
         $datatree_array = array(
 //            'ancestor_of' => array(),
-          'descendant_of' => array(),
+            'descendant_of' => array(),
         );
         foreach ($results as $num => $result) {
             $ancestor_id = $result['ancestor_id'];
@@ -948,7 +951,7 @@ print "\n\n";
 
                     if ( $is_admin || $result['can_view_type'] == 1 ) {
                         $all_permissions[$datatype_id]['view'] = 1;
-                        $save = true; 
+                        $save = true;
                     }
                     if ( $is_admin || $result['can_edit_record'] == 1 ) {
                         $all_permissions[$datatype_id]['edit'] = 1;
@@ -964,19 +967,19 @@ print "\n\n";
                     }
                     if ( $is_admin || $result['can_add_record'] == 1 ) {
                         $all_permissions[$datatype_id]['add'] = 1;
-                        $save = true; 
+                        $save = true;
                     }
                     if ( $is_admin || $result['can_delete_record'] == 1 ) {
                         $all_permissions[$datatype_id]['delete'] = 1;
-                        $save = true; 
+                        $save = true;
                     }
                     if ( $is_admin || $result['can_design_type'] == 1 ) {
                         $all_permissions[$datatype_id]['design'] = 1;
-                        $save = true; 
+                        $save = true;
                     }
                     if ( $is_admin || $result['is_type_admin'] == 1 ) {
                         $all_permissions[$datatype_id]['admin'] = 1;
-                        $save = true; 
+                        $save = true;
                     }
 
                     if (!$save)
@@ -1187,7 +1190,7 @@ print '</pre>';
             'is_type_admin' => $permission->getIsTypeAdmin(),
         );
         foreach ($existing_values as $key => $value) {
-            if ( isset($properties[$key]) && $properties[$key] != $value)
+            if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
         }
 
@@ -1336,6 +1339,63 @@ $save_permissions = false;
         }
         catch (\Exception $e) {
             throw new \Exception($e->getMessage());
+        }
+    }
+
+
+    /**
+     * Given a user's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.
+     *
+     * @param $datatype_id
+     * @param $datatype_array
+     * @param $datarecord_array
+     * @param $datatype_permissions
+     * @param $datafield_permissions
+     */
+    protected function filterByUserPermissions($datatype_id, &$datatype_array, &$datarecord_array, $datatype_permissions, $datafield_permissions)
+    {
+        // Determine relevant permissions...
+        $has_view_permission = false;
+        if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'view' ]) )
+            $has_view_permission = true;
+
+        // If user is lacking the 'can_view_type' permission...
+        if ( !$has_view_permission ) {
+            // ...remove non-public datarecords
+            foreach ($datarecord_array as $dr_id => $dr) {
+                $public_date = $dr['dataRecordMeta']['publicDate'];
+                if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+                    unset($datarecord_array[$dr_id]);
+            }
+
+            // ...remove non-public files and images
+            foreach ($datarecord_array as $dr_id => $dr) {
+                foreach ($dr['dataRecordFields'] as $df_id => $drf) {
+                    foreach ($drf['files'] as $file_num => $file) {
+                        $public_date = $file['fileMeta']['publicDate'];
+                        if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+                            unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id][$file_num] );
+                    }
+
+                    foreach ($drf['images'] as $image_num => $image) {
+                        $public_date = $image['parent']['imageMeta']['publicDate'];
+                        if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+                            unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id][$image_num] );
+                    }
+                }
+            }
+
+            // TODO - remove non-public theme_elements
+        }
+
+        // For each datafield permission the user has...
+        foreach ($datafield_permissions as $df_id => $permission) {
+            // ...if they lack the 'can_view_field' permission for that datafield...
+            if ( isset($permission['view']) && $permission['view'] == 0 ) {
+                // ...remove that datafield the layout...
+
+                // ...also remove that datafield from the datarecord array
+            }
         }
     }
 
@@ -1955,13 +2015,15 @@ $save_permissions = false;
 
     /**
      * Ensures a ThemeDataType entity exists for a given combination of a datatype and a theme.
+     * @deprecated
      * 
      * @param User $user         The user to use if a new ThemeDataType is to be created
      * @param Datatype $datatype 
      * @param Theme $theme       
      *
      */
-    protected function ODR_checkThemeDataType($user, $datatype, $theme) {
+    protected function ODR_checkThemeDataType($user, $datatype, $theme)
+    {
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         /** @var ThemeDataType $theme_datatype */
@@ -1977,6 +2039,7 @@ $save_permissions = false;
 
     /**
      * Ensures a ThemeDataField entity exists for a given combination of a datafield and a theme.
+     * @deprecated
      * 
      * @param User $user            The user to use if a new ThemeDataField is to be created
      * @param DataFields $datafield 
@@ -2073,7 +2136,7 @@ $save_permissions = false;
         $em->persist($datarecord_meta);
 
         // Create initial objects
-        foreach($datatype->getDataFields() as $datafield) {
+        foreach ($datatype->getDataFields() as $datafield) {
             // Create a datarecordfield entry for every datafield of the datatype
             $datarecordfield = self::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
             // Need to flush/refresh so ODR_addStorageEntity() doesn't create a new drf entry
@@ -2127,7 +2190,7 @@ $save_permissions = false;
             'publicDate' => $old_meta_entry->getPublicDate(),
         );
         foreach ($existing_values as $key => $value) {
-            if ( isset($properties[$key]) && $properties[$key] != $value)
+            if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
         }
 
@@ -2184,7 +2247,7 @@ $save_permissions = false;
             'is_link' => $old_meta_entry->getIsLink(),
         );
         foreach ($existing_values as $key => $value) {
-            if ( isset($properties[$key]) && $properties[$key] != $value)
+            if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
         }
 
@@ -2506,7 +2569,7 @@ $save_permissions = false;
      * @return mixed
      */
     protected function ODR_addStorageEntity($em, $user, $datarecord, $datafield)
-    {       
+    {
         $storage_entity = null;
 
         $fieldtype = $datafield->getFieldType();
@@ -2589,7 +2652,7 @@ $save_permissions = false;
             'publicDate' => $old_meta_entry->getPublicDate(),
         );
         foreach ($existing_values as $key => $value) {
-            if ( isset($properties[$key]) && $properties[$key] != $value)
+            if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
         }
 
@@ -2852,7 +2915,7 @@ $save_permissions = false;
             'is_default' => $old_meta_entry->getIsDefault(),
         );
         foreach ($existing_values as $key => $value) {
-            if ( isset($properties[$key]) && $properties[$key] != $value)
+            if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
         }
 
@@ -2978,7 +3041,7 @@ $save_permissions = false;
 
 
         foreach ($existing_values as $key => $value) {
-            if ( isset($properties[$key]) && $properties[$key] != $value)
+            if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
         }
 
@@ -3089,8 +3152,6 @@ $save_permissions = false;
      * @param FieldType $fieldtype       
      * @param RenderPlugin $renderplugin The RenderPlugin for this new DataField to use...(almost?) always going to be the default RenderPlugin
      *
-//     * @return DataFields
-//     * @return DataFieldsMeta
      * @return array
      */
     protected function ODR_addDataFieldsEntry($em, $user, $datatype, $fieldtype, $renderplugin)
@@ -3299,43 +3360,183 @@ $save_permissions = false;
 
 
     /**
+     * Copies the contents of the given ThemeMeta entity into a new ThemeMeta entity if something was changed
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'templateName', 'templateDescription', 'isDefault'
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user                       The user requesting the modification of this meta entry.
+     * @param Theme $theme                     The Theme entity being modified
+     * @param array $properties
+     *
+     * @return ThemeMeta
+     */
+    protected function ODR_copyThemeMeta($em, $user, $theme, $properties)
+    {
+        // Load the old meta entry
+        /** @var ThemeMeta $old_meta_entry */
+        $old_meta_entry = $em->getRepository('ODRAdminBundle:ThemeMeta')->findOneBy( array('theme' => $theme->getId()) );
+
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'templateName' => $old_meta_entry->getTemplateName(),
+            'templateDescription' => $old_meta_entry->getTemplateDescription(),
+            'isDefault' => $old_meta_entry->getIsDefault(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $old_meta_entry;
+
+        // Create a new meta entry and copy the old entry's data over
+        $theme_meta = new ThemeMeta();
+        $theme_meta->setTheme($theme);
+
+        $theme_meta->setTemplateName( $old_meta_entry->getTemplateName() );
+        $theme_meta->setTemplateDescription( $old_meta_entry->getTemplateDescription() );
+        $theme_meta->setIsDefault( $old_meta_entry->getIsDefault() );
+
+        $theme_meta->setCreatedBy($user);
+        $theme_meta->setCreated( new \DateTime() );
+
+        // Set any new properties
+        if ( isset($properties['templateName']) )
+            $theme_meta->setTemplateName( $properties['templateName'] );
+        if ( isset($properties['templateDescription']) )
+            $theme_meta->setTemplateDescription( $properties['templateDescription'] );
+        if ( isset($properties['isDefault']) )
+            $theme_meta->setIsDefault( $properties['isDefault'] );
+
+        // Save the new meta entry and delete the old one
+        $em->remove($old_meta_entry);
+        $em->persist($theme_meta);
+        $em->flush();
+
+        // Return the new entry
+        return $theme_meta;
+    }
+
+    /**
      * Creates and persists a new ThemeElement entity.
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user         The user requesting the creation of this entity
-     * @param DataType $datatype 
-     * @param Theme $theme       
+     * @param User $user The user requesting the creation of this entity
+     * @param DataType $datatype
+     * @param Theme $theme
      *
-     * @return ThemeElement
+     * @return array
      */
     protected function ODR_addThemeElementEntry($em, $user, $datatype, $theme)
     {
         $theme_element = new ThemeElement();
-        $theme_element->setDataType($datatype);
+        $theme_element->setTheme($theme);
+
         $theme_element->setCreatedBy($user);
+
+        // TODO - delete these six properties
+        $theme_element->setDataType($datatype);
         $theme_element->setUpdatedBy($user);
-        $theme_element->setTemplateType('form');
-        $theme_element->setElementType('div');
-//        $theme_element->setXpos(0);
-//        $theme_element->setYpos(0);
-//        $theme_element->setZpos(0);
-//        $theme_element->setWidth(800);
-//        $theme_element->setHeight(300);
-//        $theme_element->setFieldWidth(0);
-//        $theme_element->setFieldHeight(0);
         $theme_element->setDisplayOrder(-1);
         $theme_element->setDisplayInResults(1);
         $theme_element->setCssWidthXL('1-1');
         $theme_element->setCssWidthMed('1-1');
-        $theme_element->setTheme($theme);
 
         $em->persist($theme_element);
-        return $theme_element;
+        $em->flush();
+        $em->refresh($theme_element);
+
+        $theme_element_meta = new ThemeElementMeta();
+        $theme_element_meta->setThemeElement($theme_element);
+
+        $theme_element_meta->setDisplayOrder(-1);
+        $theme_element_meta->setCssWidthMed('1-1');
+        $theme_element_meta->setCssWidthXL('1-1');
+        $theme_element_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
+
+        $theme_element_meta->setCreatedBy($user);
+
+        $em->persist($theme_element_meta);
+
+        return array('theme_element' => $theme_element, 'theme_element_meta' => $theme_element_meta);
+    }
+
+
+    /**
+     * Modifies a meta entry for a given ThemeElement entity by copying the old meta entry to a new meta entry,
+     *  updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'displayOrder', 'cssWidthMed', 'cssWidthXL', 'publicDate'
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user                      The user requesting the modification of this meta entry.
+     * @param ThemeElement $theme_element     The ThemeElement entity of the meta entry being modified
+     * @param array $properties
+     *
+     * @return ThemeElementMeta
+     */
+    protected function ODR_copyThemeElementMeta($em, $user, $theme_element, $properties)
+    {
+        // Load the old meta entry
+        /** @var ThemeElementMeta $old_meta_entry */
+        $old_meta_entry = $em->getRepository('ODRAdminBundle:ThemeElementMeta')->findOneBy( array('themeElement' => $theme_element->getId()) );
+
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'displayOrder' => $old_meta_entry->getDisplayOrder(),
+            'cssWidthMed' => $old_meta_entry->getCssWidthMed(),
+            'cssWidthXL' => $old_meta_entry->getCssWidthXL(),
+            'publicDate' => $old_meta_entry->getPublicDate(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $old_meta_entry;
+
+        // Create a new meta entry and copy the old entry's data over
+        $theme_element_meta = new ThemeElementMeta();
+        $theme_element_meta->setThemeElement($theme_element);
+
+        $theme_element_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
+        $theme_element_meta->setCssWidthMed( $old_meta_entry->getCssWidthMed() );
+        $theme_element_meta->setCssWidthXL( $old_meta_entry->getCssWidthXL() );
+        $theme_element_meta->setPublicDate( $old_meta_entry->getPublicDate() );
+
+        $theme_element_meta->setCreatedBy($user);
+        $theme_element_meta->setCreated( new \DateTime() );
+
+        // Set any new properties
+        if ( isset($properties['displayOrder']) )
+            $theme_element_meta->setDisplayOrder( $properties['displayOrder'] );
+        if ( isset($properties['cssWidthMed']) )
+            $theme_element_meta->setCssWidthMed( $properties['cssWidthMed'] );
+        if ( isset($properties['cssWidthXL']) )
+            $theme_element_meta->setCssWidthXL( $properties['cssWidthXL'] );
+        if ( isset($properties['publicDate']) )
+            $theme_element_meta->setPublicDate( $properties['publicDate'] );
+
+        // Save the new meta entry and delete the old one
+        $em->remove($old_meta_entry);
+        $em->persist($theme_element_meta);
+        $em->flush();
+
+        // Return the new entry
+        return $theme_element_meta;
     }
 
 
     /**
      * Creates and persists a new ThemeElementField entity.
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                  The user requesting the creation of this entity.
@@ -3367,75 +3568,188 @@ $save_permissions = false;
      * Creates and persists a new ThemeDataField entity.
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user            The user requesting the creation of this entity.
-     * @param DataFields $datafield 
-     * @param Theme $theme          
+     * @param User $user                  The user requesting the creation of this entity.
+     * @param DataFields $datafield       The datafield this entry is for
+     * @param ThemeElement $theme_element The theme_element this entry is attached to
      *
      * @return ThemeDataField
      */
-    protected function ODR_addThemeDataFieldEntry($em, $user, $datafield, $theme)
+    protected function ODR_addThemeDataFieldEntry($em, $user, $datafield, $theme_element)
     {
         // Create theme entry
-        $theme_data_field = new ThemeDataField();
-        $theme_data_field->setDataFields($datafield);
-        $theme_data_field->setTheme($theme);
-        $theme_data_field->setTemplateType('form');
-//        $theme_data_field->setXpos('0');
-//        $theme_data_field->setYpos('0');
-//        $theme_data_field->setZpos('0');
-//        $theme_data_field->setWidth('200');
-        if ($theme->getId() != 1) {
-            $theme_data_field->setActive(false);
-//            $theme_data_field->setHeight('0');
-        }
-        else {
-            $theme_data_field->setActive(true);
-//            $theme_data_field->setHeight('50');
-        }
-//        $theme_data_field->setLabelWidth('70');
-//        $theme_data_field->setFieldWidth('100');
-//        $theme_data_field->setFieldHeight('32');
-        $theme_data_field->setCss('');
-        $theme_data_field->setCssWidthXL('1-3');
-        $theme_data_field->setCssWidthMed('1-3');
+        $theme_datafield = new ThemeDataField();
+        $theme_datafield->setDataField($datafield);
+        $theme_datafield->setThemeElement($theme_element);
 
-        $theme_data_field->setCreatedBy($user);
-        $theme_data_field->setUpdatedBy($user);
+        $theme_datafield->setDisplayOrder(999);
+        $theme_datafield->setCssWidthMed('1-3');
+        $theme_datafield->setCssWidthXL('1-3');
 
-        $em->persist($theme_data_field);
-        return $theme_data_field;
+        $theme_datafield->setCreatedBy($user);
+
+        // TODO - remove these three properties
+        $theme_datafield->setTheme($theme_element->getTheme());
+        $theme_datafield->setActive(true);
+        $theme_datafield->setUpdatedBy($user);
+
+        $em->persist($theme_datafield);
+        return $theme_datafield;
+    }
+
+
+    /**
+     * Copies the contents of the given ThemeDatafield entity into a new ThemeDatafield entity if something was changed
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'themeElement', 'displayOrder', 'cssWidthMed', 'cssWidthXL'
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user                      The user requesting the modification of this meta entry.
+     * @param ThemeDatafield $theme_datafield The ThemeDatafield entity being modified
+     * @param array $properties
+     *
+     * @return ThemeDataField
+     */
+    protected function ODR_copyThemeDatafield($em, $user, $theme_datafield, $properties)
+    {
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'themeElement' => $theme_datafield->getThemeElement()->getId(),
+
+            'displayOrder' => $theme_datafield->getDisplayOrder(),
+            'cssWidthMed' => $theme_datafield->getCssWidthMed(),
+            'cssWidthXL' => $theme_datafield->getCssWidthXL(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $theme_datafield;
+
+        // Create a new meta entry and copy the old entry's data over
+        $new_theme_datafield = new ThemeDataField();
+        $new_theme_datafield->setDataField( $theme_datafield->getDataField() );
+        $new_theme_datafield->setThemeElement( $theme_datafield->getThemeElement() );
+
+        $new_theme_datafield->setDisplayOrder( $theme_datafield->getDisplayOrder() );
+        $new_theme_datafield->setCssWidthMed( $theme_datafield->getCssWidthMed() );
+        $new_theme_datafield->setCssWidthXL( $theme_datafield->getCssWidthXL() );
+
+        // TODO - remove these three properties
+        $new_theme_datafield->setTheme( $theme_datafield->getTheme() );
+        $new_theme_datafield->setActive(true);
+        $new_theme_datafield->setUpdatedBy($user);
+
+        $new_theme_datafield->setCreatedBy($user);
+        $new_theme_datafield->setCreated(new \DateTime());
+
+        // Set any new properties
+        if (isset($properties['themeElement']))
+            $new_theme_datafield->setThemeElement( $em->getRepository('ODRAdminBundle:ThemeElement')->find($properties['themeElement']) );
+
+        if (isset($properties['displayOrder']))
+            $new_theme_datafield->setDisplayOrder( $properties['displayOrder'] );
+        if (isset($properties['cssWidthMed']))
+            $new_theme_datafield->setCssWidthMed( $properties['cssWidthMed'] );
+        if (isset($properties['cssWidthXL']))
+            $new_theme_datafield->setCssWidthXL( $properties['cssWidthXL'] );
+
+        // Save the new meta entry and delete the old one
+        $em->remove($theme_datafield);
+        $em->persist($new_theme_datafield);
+        $em->flush();
+
+        // Return the new entry
+        return $new_theme_datafield;
     }
 
 
     /**
      * Creates and persists a new ThemeDataType entity.
-     * 
+     *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user         The user requesting the creation of this entity
-     * @param DataType $datatype 
-     * @param Theme $theme       
+     * @param User $user                  The user requesting the creation of this entity
+     * @param DataType $datatype          The datatype this entry is for
+     * @param ThemeElement $theme_element The theme_element this entry is attached to
      *
      * @return ThemeDataType
      */
-    protected function ODR_addThemeDatatypeEntry($em, $user, $datatype, $theme)
+    protected function ODR_addThemeDatatypeEntry($em, $user, $datatype, $theme_element)
     {
         // Create theme entry
-        $theme_data_type = new ThemeDataType();
-        $theme_data_type->setDataType($datatype);
-        $theme_data_type->setTheme($theme);
-        $theme_data_type->setTemplateType('form');
-//        $theme_data_type->setXpos('0');
-//        $theme_data_type->setYpos('0');
-//        $theme_data_type->setZpos('0');
-//        $theme_data_type->setWidth('600');
-//        $theme_data_type->setHeight('300');
-        $theme_data_type->setCss('');
+        $theme_datatype = new ThemeDataType();
+        $theme_datatype->setDataType($datatype);
+        $theme_datatype->setThemeElement($theme_element);
 
-        $theme_data_type->setCreatedBy($user);
-        $theme_data_type->setUpdatedBy($user);
+        $theme_datatype->setDisplayType(0);     // 0 is accordion, 1 is tabbed, 2 is dropdown, 3 is list
 
-        $em->persist($theme_data_type);
-        return $theme_data_type;
+        $theme_datatype->setCreatedBy($user);
+
+        // TODO - remove these two properties
+        $theme_datatype->setTheme( $theme_element->getTheme() );
+        $theme_datatype->setUpdatedBy($user);
+
+        $em->persist($theme_datatype);
+        return $theme_datatype;
+    }
+
+
+    /**
+     * Copies the contents of the given ThemeDatatype entity into a new ThemeDatatype entity if something was changed
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'display_type'
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user                      The user requesting the modification of this meta entry.
+     * @param ThemeDataType $theme_datatype   The ThemeDatafield entity being modified
+     * @param array $properties
+     *
+     * @return ThemeDataType
+     */
+    protected function ODR_copyThemeDatatype($em, $user, $theme_datatype, $properties)
+    {
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'display_type' => $theme_datatype->getDisplayType(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $theme_datatype;
+
+        // Create a new meta entry and copy the old entry's data over
+        $new_theme_datatype = new ThemeDataType();
+        $new_theme_datatype->setDataType( $theme_datatype->getDataType() );
+        $new_theme_datatype->setThemeElement( $theme_datatype->getThemeElement() );
+
+        $new_theme_datatype->setDisplayType( $theme_datatype->getDisplayType() );
+
+        // TODO - remove these two properties
+        $new_theme_datatype->setTheme($theme_datatype->getTheme());
+        $new_theme_datatype->setUpdatedBy($user);
+
+        $new_theme_datatype->setCreatedBy($user);
+        $new_theme_datatype->setCreated( new \DateTime() );
+
+        // Set any new properties
+        if (isset($properties['display_type']))
+            $new_theme_datatype->setDisplayType( $properties['display_type'] );
+
+        // Save the new meta entry and delete the old one
+        $em->remove($theme_datatype);
+        $em->persist($new_theme_datatype);
+        $em->flush();
+
+        // Return the new entry
+        return $new_theme_datatype;
     }
 
 
@@ -3672,7 +3986,7 @@ $save_permissions = false;
 
         foreach ($results as $num => $data) {
             $fieldname = $data['field_name'];
-            $fieldname = str_replace('"', "\\\"", $fieldname);
+            $fieldname = str_replace('"', "\\\"", $fieldname);  // escape double-quotes in datafield name
             $column_names .= '{"title":"'.$fieldname.'"},';
             $num_columns++;
         }
@@ -4185,6 +4499,8 @@ if ($debug)
 
 
     /**
+     * TODO - rework to use the datatype/datarecord arrays instead of querying everything?
+     *
      * Ensures the given datarecord and all its child datarecords have datarecordfield entries for all datafields they contain.
      * 
      * @param DataRecord $datarecord
@@ -4478,61 +4794,6 @@ if ($debug)
 
 
     /**
-     * Assigns a data entity (Boolean, File, etc) to a DataRecordFields entity.
-     * TODO - does this actually do anything?  ...unlikely it ever did something, but leaving it in for right now
-     * 
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param DataRecordFields $datarecordfields
-     * @param string $type_class
-     * @param mixed $my_obj
-     * 
-     * @return TODO
-     */
-/*
-    protected function saveToDataRecordField($em, $datarecordfields, $type_class, $my_obj) {
-        switch ($type_class) {
-            case 'Boolean':
-                $datarecordfields->setBoolean($my_obj);
-            break;
-            case 'File':
-                $datarecordfields->setFile($my_obj);
-            break;
-            case 'Image':
-                $datarecordfields->setImage($my_obj);
-            break;
-            case 'DecimalValue':
-                $datarecordfields->setDecimalValue($my_obj);
-            break;
-            case 'IntegerValue':
-                $datarecordfields->setIntegerValue($my_obj);
-            break;
-            case 'LongText':
-                $datarecordfields->setLongText($my_obj);
-            break;
-            case 'LongVarchar':
-                $datarecordfields->setLongVarchar($my_obj);
-            break;
-            case 'MediumVarchar':
-                $datarecordfields->setMediumVarchar($my_obj);
-            break;
-            case 'Radio':
-//                $datarecordfields->setRadio($my_obj);
-            break;
-            case 'ShortVarchar':
-                $datarecordfields->setShortVarchar($my_obj);
-            break;
-            case 'DatetimeValue':
-                $datarecordfields->setDatetimeValue($my_obj);
-            break;
-        }
-
-        $em->persist($datarecordfields);
-        $em->persist($my_obj);
-        $em->flush();
-    }
-*/
-
-    /**
      * Returns errors encounted while processing a Symfony Form object as a string.
      * 
      * @param \Symfony\Component\Form\Form $form
@@ -4563,6 +4824,7 @@ if ($debug)
 
     /**
      * Gathers and returns an array of all layout information needed to render a DataType.
+     * @deprecated
      *
      * @param User $user
      * @param Theme $theme
@@ -4747,6 +5009,7 @@ if ($debug) {
 
     /**
      * Gathers and returns an array of all DataRecordField/DataFields/Form objects needed to render the data in a DataRecord.
+     * @deprecated
      *
      * @param DataRecord $datarecord      The datarecord to build the tree from.
      * @param \Doctrine\ORM\EntityManager $em                 
@@ -4938,6 +5201,7 @@ if ($debug) {
 
     /**
      * Generates the required Form objects for renders of Record (and results? might be able to speed up results rendering if not...)
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em                      
      * @param User $user                       The user to use when rendering this form object
@@ -5012,4 +5276,491 @@ if ($debug) {
         return $form->createView();
     }
 
+
+    /**
+     * Gets all layout information required for the given datatype in array format
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param array $datatree_array
+     * @param integer $datatype_id
+     * @param boolean $force_rebuild
+     *
+     * @return array
+     */
+    protected function getDatatypeData($em, $datatree_array, $datatype_id, $force_rebuild = false)
+    {
+/*
+$debug = true;
+$debug = false;
+$timing = true;
+$timing = false;
+
+$t0 = $t1 = null;
+if ($timing)
+    $t0 = microtime(true);
+*/
+        // If datatype data exists in memcached and user isn't demanding a fresh version, return that
+        $memcached = $this->get('memcached');
+        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+        $cached_datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype_id);
+        if ($cached_datatype_data !== null && !$force_rebuild)
+            return $cached_datatype_data;
+
+
+        // Otherwise...get all non-layout data for a given grandparent datarecord
+        $query = $em->createQuery(
+           'SELECT
+                t, tm,
+                dt, dtm, dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
+                te, tem,
+                tdf, df, ro, rom,
+                dfm, ft, df_rp, df_rpi, df_rpo, df_rpm,
+                tdt, c_dt
+
+            FROM ODRAdminBundle:dataType AS dt
+            LEFT JOIN dt.dataTypeMeta AS dtm
+
+            LEFT JOIN dt.themes AS t
+            LEFT JOIN t.themeMeta AS tm
+
+            LEFT JOIN dtm.renderPlugin AS dt_rp
+            LEFT JOIN dt_rp.renderPluginInstance AS dt_rpi
+            LEFT JOIN dt_rpi.renderPluginOptions AS dt_rpo
+            LEFT JOIN dt_rpi.renderPluginMap AS dt_rpm
+            LEFT JOIN dt_rpm.renderPluginFields AS dt_rpf
+            LEFT JOIN dt_rpm.dataField AS dt_rpm_df
+
+            LEFT JOIN t.themeElements AS te
+            LEFT JOIN te.themeElementMeta AS tem
+
+            LEFT JOIN te.themeDataFields AS tdf
+            LEFT JOIN tdf.dataField AS df
+            LEFT JOIN df.radioOptions AS ro
+            LEFT JOIN ro.radioOptionsMeta AS rom
+
+            LEFT JOIN df.dataFieldMeta AS dfm
+            LEFT JOIN dfm.fieldType AS ft
+
+            LEFT JOIN dfm.renderPlugin AS df_rp
+            LEFT JOIN df_rp.renderPluginInstance AS df_rpi
+            LEFT JOIN df_rpi.renderPluginOptions AS df_rpo
+            LEFT JOIN df_rpi.renderPluginMap AS df_rpm
+
+            LEFT JOIN te.themeDataType AS tdt
+            LEFT JOIN tdt.dataType AS c_dt
+
+            WHERE
+                dt.id = :datatype_id AND (dt_rpi IS NULL OR dt_rpi.dataType = :datatype_id)
+                AND t.deletedAt IS NULL AND dt.deletedAt IS NULL AND te.deletedAt IS NULL
+            ORDER BY dt.id, t.id, tem.displayOrder, te.id, tdf.displayOrder, df.id, rom.displayOrder, ro.id'
+        )->setParameters( array('datatype_id' => $datatype_id) );
+
+        //LEFT JOIN df_rp.renderPluginFields AS df_rpf
+//print $query->getSQL();
+
+        $datatype_data = $query->getArrayResult();
+/*
+if ($timing) {
+    $t1 = microtime(true);
+    $diff = $t1 - $t0;
+    print 'getLayoutData('.$datatype_id.')'."\n".'query execution in: '.$diff."\n";
+}
+*/
+        // TODO - compress render plugin instance for both datatype and datafields?
+
+        // The entity -> entity_metadata relationships have to be one -> many from a database perspective, even though there's only supposed to be a single non-deleted entity_metadata object for each entity
+        // Therefore, the preceeding query generates an array that needs to be slightly flattened in a few places
+        foreach ($datatype_data as $dt_num => $dt) {
+            // Flatten datatype meta
+            $dtm = $dt['dataTypeMeta'][0];
+            $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
+
+            // Flatten theme_meta of each theme, and organize by theme id instead of a random number
+            $new_theme_array = array();
+            foreach ($dt['themes'] as $t_num => $theme) {
+
+                $theme_id = $theme['id'];
+
+                $tm = $theme['themeMeta'][0];
+                $theme['themeMeta'] = $tm;
+
+                // Flatten theme_element_meta of each theme_element
+                foreach ($theme['themeElements'] as $te_num => $te) {
+                    $tem = $te['themeElementMeta'][0];
+                    $theme['themeElements'][$te_num]['themeElementMeta'] = $tem;
+
+                    // Flatten datafield_meta of each datafield
+                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                        $dfm = $tdf['dataField']['dataFieldMeta'][0];
+                        $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['dataFieldMeta'] = $dfm;
+
+                        // Flatten radio options if it exists
+                        foreach ($tdf['dataField']['radioOptions'] as $ro_num => $ro) {
+                            $rom = $ro['radioOptionsMeta'][0];
+                            $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['radioOptions'][$ro_num]['radioOptionsMeta'] = $rom;
+                        }
+                        if ( count($tdf['dataField']['radioOptions']) == 0 )
+                            unset( $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['radioOptions'] );
+                    }
+
+                    // Attach the is_link property to each of the theme_datatype entries
+                    foreach ($te['themeDataType'] as $tdt_num => $tdt) {
+                        $child_datatype_id = $tdt['dataType']['id'];
+                        if ( isset($datatree_array['linked_from'][$child_datatype_id]) && $datatree_array['linked_from'][$child_datatype_id] == $datatype_id )
+                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 1;
+                        else
+                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 0;
+                    }
+
+                    // Easier on twig if these arrays simply don't exist if nothing is in them...
+                    if ( count($te['themeDataFields']) == 0 )
+                        unset( $theme['themeElements'][$te_num]['themeDataFields'] );
+                    if ( count($te['themeDataType']) == 0 )
+                        unset( $theme['themeElements'][$te_num]['themeDataType'] );
+                }
+
+                $new_theme_array[$theme_id] = $theme;
+            }
+
+            unset( $datatype_data[$dt_num]['themes'] );
+            $datatype_data[$dt_num]['themes'] = $new_theme_array;
+        }
+
+        // Organize by datatype id
+        $formatted_datatype_data = array();
+        foreach ($datatype_data as $num => $dt_data) {
+            $dt_id = $dt_data['id'];
+
+            $formatted_datatype_data[$dt_id] = $dt_data;
+        }
+
+        $memcached->set($memcached_prefix.'.cached_datatype_'.$datatype_id, $formatted_datatype_data, 0);
+        return $formatted_datatype_data;
+    }
+
+
+    /**
+     * Runs a single database query to get all non-layout data for a given grandparent datarecord.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $grandparent_datarecord_id
+     * @param boolean $force_rebuild
+     *
+     * @return array
+     */
+    protected function getDatarecordData($em, $grandparent_datarecord_id, $force_rebuild = false)
+    {
+/*
+$debug = true;
+$debug = false;
+$timing = true;
+$timing = false;
+
+$t0 = $t1 = null;
+if ($timing)
+    $t0 = microtime(true);
+*/
+        // If datarecord data exists in memcached and user isn't demanding a fresh version, return that
+        $memcached = $this->get('memcached');
+        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+        $cached_datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
+        if ($cached_datarecord_data !== null && !$force_rebuild)
+            return $cached_datarecord_data;
+
+
+        // Otherwise...get all non-layout data for a given grandparent datarecord
+        $query = $em->createQuery(
+           'SELECT
+               dr, drm, p_dr, gp_dr,
+               dt,
+               drf, e_f, e_fm, e_f_cb,
+               e_i, e_im, e_ip, e_ipm, e_is, e_ip_cb,
+               e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv, rs, ro,
+               e_b_cb, e_iv_cb, e_dv_cb, e_lt_cb, e_lvc_cb, e_mvc_cb, e_svc_cb, e_dtv_cb, rs_cb,
+               df
+
+            FROM ODRAdminBundle:DataRecord AS dr
+            LEFT JOIN dr.dataRecordMeta AS drm
+            LEFT JOIN dr.parent AS p_dr
+            LEFT JOIN dr.grandparent AS gp_dr
+
+            LEFT JOIN dr.dataType AS dt
+
+            LEFT JOIN dr.dataRecordFields AS drf
+            LEFT JOIN drf.file AS e_f
+            LEFT JOIN e_f.fileMeta AS e_fm
+            LEFT JOIN e_f.createdBy AS e_f_cb
+
+            LEFT JOIN drf.image AS e_i
+            LEFT JOIN e_i.imageMeta AS e_im
+            LEFT JOIN e_i.parent AS e_ip
+            LEFT JOIN e_ip.imageMeta AS e_ipm
+            LEFT JOIN e_i.imageSize AS e_is
+            LEFT JOIN e_ip.createdBy AS e_ip_cb
+
+            LEFT JOIN drf.boolean AS e_b
+            LEFT JOIN e_b.createdBy AS e_b_cb
+            LEFT JOIN drf.integerValue AS e_iv
+            LEFT JOIN e_iv.createdBy AS e_iv_cb
+            LEFT JOIN drf.decimalValue AS e_dv
+            LEFT JOIN e_dv.createdBy AS e_dv_cb
+            LEFT JOIN drf.longText AS e_lt
+            LEFT JOIN e_lt.createdBy AS e_lt_cb
+            LEFT JOIN drf.longVarchar AS e_lvc
+            LEFT JOIN e_lvc.createdBy AS e_lvc_cb
+            LEFT JOIN drf.mediumVarchar AS e_mvc
+            LEFT JOIN e_mvc.createdBy AS e_mvc_cb
+            LEFT JOIN drf.shortVarchar AS e_svc
+            LEFT JOIN e_svc.createdBy AS e_svc_cb
+            LEFT JOIN drf.datetimeValue AS e_dtv
+            LEFT JOIN e_dtv.createdBy AS e_dtv_cb
+            LEFT JOIN drf.radioSelection AS rs
+            LEFT JOIN rs.createdBy AS rs_cb
+            LEFT JOIN rs.radioOption AS ro
+
+            LEFT JOIN drf.dataField AS df
+
+            WHERE
+                dr.grandparent = :grandparent_id
+                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
+                AND (e_i IS NULL OR e_i.original = 0)'
+        )->setParameters(array('grandparent_id' => $grandparent_datarecord_id));
+
+//print $query->getSQL();
+
+        $datarecord_data = $query->getArrayResult();
+/*
+if ($debug) {
+    print '<pre>';
+    print_r($datarecord_data);
+    print '</pre>';
+    exit();
+}
+if ($timing) {
+    $t1 = microtime(true);
+    $diff = $t1 - $t0;
+    print 'getDatarecordData('.$grandparent_datarecord_id.')'."\n".'query execution in: '.$diff."\n";
+}
+*/
+        // The entity -> entity_metadata relationships have to be one -> many from a database perspective, even though there's only supposed to be a single non-deleted entity_metadata object for each entity
+        // Therefore, the preceeding query generates an array that needs to be slightly flattened in a few places
+        foreach ($datarecord_data as $dr_num => $dr) {
+            // Flatten datarecord_meta
+            $drm = $dr['dataRecordMeta'][0];
+            $datarecord_data[$dr_num]['dataRecordMeta'] = $drm;
+
+            // Flatten datafield_meta of each datarecordfield, and organize by datafield id instead of some random number
+            $new_drf_array = array();
+            foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
+
+                $df_id = $drf['dataField']['id'];
+                unset( $drf['dataField'] );
+
+                // Flatten file metadata and get rid of encrypt_key
+                foreach ($drf['file'] as $file_num => $file) {
+                    unset( $drf['file'][$file_num]['encrypt_key'] ); // TODO - should encrypt_key actually remain in the array?
+
+                    $fm = $file['fileMeta'][0];
+                    $drf['file'][$file_num]['fileMeta'] = $fm;
+
+                    // Get rid of all private/non-essential information in the createdBy association
+                    $drf['file'][$file_num]['createdBy'] = self::cleanUserData( $drf['file'][$file_num]['createdBy'] );
+                }
+
+                // Flatten image metadata and get rid of both the thumbnail's and the parent's encrypt keys
+                foreach ($drf['image'] as $image_num => $image) {
+                    unset( $drf['image'][$image_num]['encrypt_key'] );
+                    unset( $drf['image'][$image_num]['parent']['encrypt_key'] );
+
+                    unset( $drf['image'][$image_num]['imageMeta'] );
+                    $im = $image['parent']['imageMeta'][0];
+                    $drf['image'][$image_num]['parent']['imageMeta'] = $im;
+
+                    // Get rid of all private/non-essential information in the createdBy association
+                    $drf['image'][$image_num]['parent']['createdBy'] = self::cleanUserData( $drf['image'][$image_num]['parent']['createdBy'] );
+                }
+
+                // Scrub all user information from the rest of the array
+                $keys = array('boolean', 'integerValue', 'decimalValue', 'longText', 'longVarchar', 'mediumVarchar', 'shortVarchar', 'datetimeValue', 'radioSelection');
+                foreach ($keys as $typeclass) {
+                    if ( count($drf[$typeclass]) > 0 )
+                        $drf[$typeclass][0]['createdBy'] = self::cleanUserData( $drf[$typeclass][0]['createdBy'] );
+                }
+
+                // Organize radio selections by radio option id
+                $new_rs_array = array();
+                foreach ($drf['radioSelection'] as $rs_num => $rs) {
+                    $ro_id = $rs['radioOption']['id'];
+                    $new_rs_array[$ro_id] = $rs;
+                }
+
+                $drf['radioSelection'] = $new_rs_array;
+                $new_drf_array[$df_id] = $drf;
+            }
+
+            unset( $datarecord_data[$dr_num]['dataRecordFields'] );
+            $datarecord_data[$dr_num]['dataRecordFields'] = $new_drf_array;
+        }
+
+        // Organize by datarecord id...DO NOT even attenpt to make this array recursive
+        $formatted_datarecord_data = array();
+        foreach ($datarecord_data as $num => $dr_data) {
+            $dr_id = $dr_data['id'];
+
+            $formatted_datarecord_data[$dr_id] = $dr_data;
+        }
+
+        $memcached->set($memcached_prefix.'.cached_datarecord_'.$grandparent_datarecord_id, $formatted_datarecord_data, 0);
+        return $formatted_datarecord_data;
+    }
+
+
+    /**
+     * Removes all private/non-essential user info from an array generated by self::getDatarecordData() or self::getDatatypeData()
+     *
+     * @param array $user_data
+     *
+     * @return array
+     */
+    private function cleanUserData($user_data)
+    {
+        foreach ($user_data as $key => $value) {
+            if ($key !== 'username' && $key !== 'email' && $key !== 'firstName' && $key !== 'lastName'/* && $key !== 'institution' && $key !== 'position'*/)
+                unset( $user_data[$key] );
+        }
+
+        return $user_data;
+    }
+
+
+    /**
+     * Builds and returns a list of all child and linked datatype ids related to the given datatype id.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param int[] $datatype_ids
+     * @param boolean $include_links
+     *
+     * @return int[]
+     */
+    protected function getAssociatedDatatypes($em, $datatype_ids, $include_links = true)
+    {
+        // Locate all datatypes that are either children of or linked to the datatypes in $datatype_ids
+        $results = array();
+        if ($include_links) {
+            $query = $em->createQuery(
+               'SELECT descendant.id AS descendant_id
+                FROM ODRAdminBundle:DataTree AS dt
+                LEFT JOIN dt.dataTreeMeta AS dtm
+                LEFT JOIN dt.ancestor AS ancestor
+                LEFT JOIN dt.descendant AS descendant
+                WHERE ancestor.id IN (:ancestor_ids)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+            )->setParameters( array('ancestor_ids' => $datatype_ids) );
+            $results = $query->getArrayResult();
+        }
+        else {
+            $query = $em->createQuery(
+               'SELECT descendant.id AS descendant_id
+                FROM ODRAdminBundle:DataTree AS dt
+                LEFT JOIN dt.dataTreeMeta AS dtm
+                LEFT JOIN dt.ancestor AS ancestor
+                LEFT JOIN dt.descendant AS descendant
+                WHERE dtm.is_link = :is_link AND ancestor.id IN (:ancestor_ids)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+            )->setParameters( array('is_link' => 0, 'ancestor_ids' => $datatype_ids) );
+            $results = $query->getArrayResult();
+        }
+
+        // Flatten the resulting array...
+        $child_datatype_ids = array();
+        foreach ($results as $num => $result)
+            $child_datatype_ids[] = $result['descendant_id'];
+
+        // If child datatypes were found, also see if those child datatypes have children of their own
+        if ( count($child_datatype_ids) > 0 )
+            $child_datatype_ids = array_merge( $child_datatype_ids, self::getAssociatedDatatypes($em, $child_datatype_ids, $include_links) );
+
+        // Return an array of the requested datatype ids and their children
+        $associated_datatypes = array_unique( array_merge($child_datatype_ids, $datatype_ids) );
+        return $associated_datatypes;
+    }
+
+
+    /**
+     * Builds and returns a list of all child and linked datarecords of the given datarecord id.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param int[] $grandparent_ids
+     *
+     * @return int[]
+     */
+    protected function getAssociatedDatarecords($em, $grandparent_ids)
+    {
+        // TODO - get from cache?
+
+        // Locate all datarecords that are children of the datarecords listed in $grandparent_ids
+        $query = $em->createQuery(
+           'SELECT dr.id AS id
+            FROM ODRAdminBundle:DataRecord AS dr
+            LEFT JOIN dr.grandparent AS grandparent
+            WHERE grandparent.id IN (:grandparent_ids)
+            AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
+        )->setParameters( array('grandparent_ids' => $grandparent_ids) );
+        $results = $query->getArrayResult();
+
+        // Flatten the results array
+        $datarecord_ids = array();
+        foreach ($results as $result)
+            $datarecord_ids[] = $result['id'];
+
+        // Get all children and datarecords linked to all the datarecords in $datarecord_ids
+        $linked_datarecord_ids = self::getLinkedDatarecords($em, $datarecord_ids);
+
+        // Don't want any duplicate datarecord ids...
+        $associated_datarecord_ids = array_unique( array_merge($grandparent_ids, $linked_datarecord_ids) );
+
+        return $associated_datarecord_ids;
+    }
+
+
+    /**
+     * Builds and returns a list of all datarecords linked to from the provided datarecord ids.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer[] $ancestor_ids
+     *
+     * @return integer[]
+     */
+    private function getLinkedDatarecords($em, $ancestor_ids)
+    {
+        // Locate all datarecords that are linked to from any datarecord listed in $datarecord_ids
+        $query = $em->createQuery(
+           'SELECT descendant.id AS descendant_id
+            FROM ODRAdminBundle:LinkedDataTree AS ldt
+            JOIN ldt.ancestor AS ancestor
+            JOIN ldt.descendant AS descendant
+            WHERE ancestor.id IN (:ancestor_ids)
+            AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+        )->setParameters( array('ancestor_ids' => $ancestor_ids) );
+        $results = $query->getArrayResult();
+
+        // Flatten the results array
+        $linked_datarecord_ids = array();
+        foreach ($results as $result)
+            $linked_datarecord_ids[] = $result['descendant_id'];
+
+        // If there were datarecords found, get all of their associated child/linked datarecords
+        $associated_datarecord_ids = array();
+        if ( count($linked_datarecord_ids) > 0 )
+            $associated_datarecord_ids = self::getAssociatedDatarecords($em, $linked_datarecord_ids);
+
+        // Don't want any duplicate datarecord ids...
+        $linked_datarecord_ids = array_unique( array_merge($linked_datarecord_ids, $associated_datarecord_ids) );
+
+        return $linked_datarecord_ids;
+    }
 }

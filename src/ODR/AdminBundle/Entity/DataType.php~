@@ -9,7 +9,7 @@
  *
  * The DataType Entity is automatically generated from
  * ./Resources/config/doctrine/DataType.orm.yml
- * 
+ *
  */
 
 namespace ODR\AdminBundle\Entity;
@@ -134,6 +134,11 @@ class DataType
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
+    private $themes;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
     private $themeElement;
 
     /**
@@ -164,6 +169,7 @@ class DataType
         $this->dataTypeMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeDataType = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataFields = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->themes = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeElement = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
@@ -475,6 +481,7 @@ class DataType
 
     /**
      * Get display_type
+     * @deprecated
      *
      * @return integer 
      */
@@ -703,7 +710,41 @@ class DataType
     }
 
     /**
+     * Add themes
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $themes
+     * @return DataType
+     */
+    public function addTheme(\ODR\AdminBundle\Entity\Theme $themes)
+    {
+        $this->themes[] = $themes;
+
+        return $this;
+    }
+
+    /**
+     * Remove themes
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $themes
+     */
+    public function removeTheme(\ODR\AdminBundle\Entity\Theme $themes)
+    {
+        $this->themes->removeElement($themes);
+    }
+
+    /**
+     * Get themes
+     *
+     * @return \Doctrine\Common\Collections\Collection 
+     */
+    public function getThemes()
+    {
+        return $this->themes;
+    }
+
+    /**
      * Add themeElement
+     * @deprecated
      *
      * @param \ODR\AdminBundle\Entity\ThemeElement $themeElement
      * @return DataType
@@ -717,6 +758,7 @@ class DataType
 
     /**
      * Remove themeElement
+     * @deprecated
      *
      * @param \ODR\AdminBundle\Entity\ThemeElement $themeElement
      */
@@ -727,6 +769,7 @@ class DataType
 
     /**
      * Get themeElement
+     * @deprecated 
      *
      * @return \Doctrine\Common\Collections\Collection 
      */

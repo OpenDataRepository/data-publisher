@@ -1,18 +1,18 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* DataType Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The DataType controller handles creation and editing (most)
-* properties of datatypes.  Deletion is handled in DisplayTemplate.
-* It also handles rendering the pages that allow the user to design
-* datatypes, or modify datarecords of each datatype.
-*
-*/
+ * Open Data Repository Data Publisher
+ * DataType Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The DataType controller handles creation and editing (most)
+ * properties of datatypes.  Deletion is handled in DisplayTemplate.
+ * It also handles rendering the pages that allow the user to design
+ * datatypes, or modify datarecords of each datatype.
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 
@@ -23,7 +23,8 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\RenderPlugin;
-use ODR\AdminBundle\Entity\UserPermissions;
+use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 use ODR\AdminBundle\Form\CreateDatatypeForm;
@@ -352,6 +353,28 @@ class DatatypeController extends ODRCustomController
                         'is_type_admin' => 1
                     );
                     parent::ODR_addUserPermission($em, $admin->getId(), $admin->getId(), $datatype->getId(), $initial_permissions);
+
+
+                    // Create a new master theme for this new datatype
+                    $theme = new Theme();
+                    $theme->setDataType($datatype);
+                    $theme->setThemeType('master');
+                    $theme->setCreatedBy($admin);
+
+                    $em->persist($theme);
+                    $em->flush();
+                    $em->refresh($theme);
+
+                    // ...and its associated meta entry
+                    $theme_meta = new ThemeMeta();
+                    $theme_meta->setTheme($theme);
+                    $theme_meta->setTemplateName('');
+                    $theme_meta->setTemplateDescription('');
+                    $theme_meta->setIsDefault(true);
+                    $theme_meta->setCreatedBy($admin);
+
+                    $em->persist($theme_meta);
+                    $em->flush();
 
 
                     // ----------------------------------------

@@ -1,0 +1,79 @@
+ODR\AdminBundle\Entity\ThemeElementMeta:
+    type: entity
+    table: odr_theme_element_meta
+    gedmo:
+#        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        displayOrder:
+            type: integer
+            nullable: false
+            column: display_order
+#            gedmo:
+#                - versioned
+
+        cssWidthMed:
+            type: string
+            length: 32
+#            gedmo:
+#                - versioned
+        cssWidthXL:
+            type: string
+            length: 32
+#            gedmo:
+#                - versioned
+
+        publicDate:
+            type: datetime
+            nullable: false
+            column: public_date
+#            gedmo:
+#                - versioned
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
+
+    manyToOne:
+        themeElement:
+            targetEntity: ThemeElement
+            cascade: {  }
+            mappedBy: null
+            inversedBy: themeElementMeta
+            joinColumns:
+                theme_element_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+
+    lifecycleCallbacks: {  }

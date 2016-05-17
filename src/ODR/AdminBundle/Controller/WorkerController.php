@@ -1,17 +1,17 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* Worker Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The worker controller holds all of the functions that are called
-* by the worker processes, excluding those in the XML, CSV, and 
-* MassEdit controllers.
-*
-*/
+ * Open Data Repository Data Publisher
+ * Worker Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The worker controller holds all of the functions that are called
+ * by the worker processes, excluding those in the XML, CSV, and
+ * MassEdit controllers.
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 
@@ -35,6 +35,13 @@ use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioOptionsMeta;
 use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\ThemeDataField;
+use ODR\AdminBundle\Entity\ThemeDataType;
+use ODR\AdminBundle\Entity\ThemeElement;
+use ODR\AdminBundle\Entity\ThemeElementField;
+use ODR\AdminBundle\Entity\ThemeElementMeta;
+use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
@@ -2797,4 +2804,822 @@ print '</pre>';
         return $response;
     }
 
+
+    /**
+     * Looks for themes without metadata entries in the database, and schedules them for beanstalk to rebuild
+     *
+     * @param integer $datatype_id Which datatype should have all its image thumbnails rebuilt
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function startbuildthemeentriesAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $pheanstalk = $this->get('pheanstalk');
+            $router = $this->container->get('router');
+
+            $memcached = $this->get('memcached');
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+
+            $api_key = $this->container->getParameter('beanstalk_api_key');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.context')->getToken()->getUser();
+//            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                return parent::permissionDeniedError();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Themes
+            // ----------------------------------------
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_theme_metadata');
+
+
+            // Determine all top-level datatypes, including deleted ones
+            $em->getFilters()->disable('softdeleteable');
+            $query = $em->createQuery(
+               'SELECT dt.id AS datatype_id
+                FROM ODRAdminBundle:DataType AS dt'
+            );
+            $results = $query->getArrayResult();
+
+            $all_datatypes = array();
+            foreach ($results as $num => $result)
+                $all_datatypes[] = $result['datatype_id'];
+
+            $query = $em->createQuery(
+               'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+                FROM ODRAdminBundle:DataTree AS dt
+                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+                JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
+                WHERE dtm.is_link = 0'
+            );
+            $results = $query->getArrayResult();
+            $em->getFilters()->enable('softdeleteable');
+
+            $parent_of = array();
+            foreach ($results as $num => $result)
+                $parent_of[ $result['descendant_id'] ] = $result['ancestor_id'];
+
+            $top_level_datatypes = array();
+            foreach ($all_datatypes as $datatype_id) {
+                if ( !isset($parent_of[$datatype_id]) )
+                    $top_level_datatypes[] = $datatype_id;
+            }
+            sort($top_level_datatypes);
+//print_r($top_level_datatypes);
+//exit();
+
+            foreach ($top_level_datatypes as $num => $datatype_id) {
+                // Figure out if this datatype has any official themes yet
+                $query = $em->createQuery(
+                   'SELECT t.id AS id
+                    FROM ODRAdminBundle:Theme AS t
+                    WHERE t.dataType = :datatype_id
+                    AND t.deletedAt IS NULL'
+                )->setParameters( array('datatype_id' => $datatype_id) );
+                $results = $query->getArrayResult();
+
+//                if ( count($results) == 0 ) {
+                    // ...if not, then schedule this datatype to get the basic themes it needs
+                    $object_type = 'themes of datatype';
+
+                    // Insert the new job into the queue
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+//                        "tracked_job_id" => $tracked_job_id,
+                            "object_type" => $object_type,
+                            "object_id" => $datatype_id,
+                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
+                    $delay = 1;
+                    $pheanstalk->useTube('build_metadata')->put($payload, $priority, $delay);
+//                }
+            }
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x2127128652 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Builds the basic theme entries and their metadata for a given top-level datatype
+     *
+     * @param Request $request
+     */
+    public function buildthememetadataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+            if (!isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']))
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $object_type = $post['object_type'];
+            $object_id = $post['object_id'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+            // ----------------------------------------
+            // Ensure the datatype entity exists...
+            /** @var DataType $datatype */
+            $em->getFilters()->disable('softdeleteable');
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($object_id);
+            if ($datatype == null)
+                throw new \Exception('Datatype does not exist');
+
+
+            // ----------------------------------------
+            // Determine all top-level datatypes, including deleted ones
+            $query = $em->createQuery(
+                'SELECT dt.id AS datatype_id
+                FROM ODRAdminBundle:DataType AS dt'
+            );
+            $results = $query->getArrayResult();
+
+            $all_datatypes = array();
+            foreach ($results as $num => $result)
+                $all_datatypes[] = $result['datatype_id'];
+
+            $query = $em->createQuery(
+                'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+                FROM ODRAdminBundle:DataTree AS dt
+                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+                JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
+                WHERE dtm.is_link = 0'
+            );
+            $results = $query->getArrayResult();
+            $em->getFilters()->enable('softdeleteable');
+
+            $parent_of = array();
+            foreach ($results as $num => $result)
+                $parent_of[ $result['descendant_id'] ] = $result['ancestor_id'];
+
+            $top_level_datatypes = array();
+            foreach ($all_datatypes as $datatype_id) {
+                if ( !isset($parent_of[$datatype_id]) )
+                    $top_level_datatypes[] = $datatype_id;
+            }
+            sort($top_level_datatypes);
+
+
+            // ----------------------------------------
+            $indent = 0;
+            $write = true;
+//            $write = false;
+
+            $em->getFilters()->disable('softdeleteable');
+            $ret = self::copyThemeData($em, $datatype, $top_level_datatypes, $indent, $write);
+            $em->getFilters()->enable('softdeleteable');
+
+            $return['d'] = $ret."\n";
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x2756328622 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * @param integer $num
+     *
+     * @return string
+     */
+    private function indent($num)
+    {
+        $str = '';
+        for ($i = 0; $i < $num; $i++)
+            $str .= '    ';
+        return $str;
+    }
+
+
+    /**
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param DataType $datatype
+     * @param array $top_level_datatypes
+     * @param integer $indent
+     * @param boolean $write
+     *
+     * @return string
+     */
+    private function copyThemeData($em, $datatype, $top_level_datatypes, $indent, $write)
+    {
+        $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
+        $repo_theme_element_field = $em->getRepository('ODRAdminBundle:ThemeElementField');
+        $repo_theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField');
+        $repo_theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDataType');
+
+        $str = 'Datatype';
+        if ($datatype->getDeletedAt() !== null)
+            $str = 'deleted Datatype';
+
+        $ret = self::indent($indent).'Creating new themes for '.$str.' '.$datatype->getId().'...'."\n";
+
+        // Create a master theme for this datatype
+        $master_theme = new Theme();
+        $master_theme->setDataType($datatype);
+        $master_theme->setThemeType('master');
+        $master_theme->setCreatedBy( $datatype->getCreatedBy() );
+        $master_theme->setCreated( $datatype->getCreated() );
+
+        if ($datatype->getDeletedAt() !== null) {
+            $master_theme->setDeletedAt( $datatype->getDeletedAt() );
+            $master_theme->setDeletedBy( $datatype->getDeletedBy() );
+        }
+
+        if ($write)
+            $em->persist($master_theme);
+
+        $ret .= self::indent($indent+1).'-- master '."\n";
+
+        // If display_in_results is false for at least one of the theme elements for this datatype, then create a view theme for this datatype as well
+        $view_theme = null;
+/*
+        $query = $em->createQuery(
+           'SELECT te.id, te.displayInResults
+            FROM ODRAdminBundle:ThemeElement AS te
+            WHERE te.dataType = :datatype_id AND te.theme = :theme_id
+            AND te.deletedAt IS NULL'
+        )->setParameters( array('datatype_id' => $datatype->getId(), 'theme_id' => 1) );
+        $results = $query->getArrayResult();
+
+        $needs_view_theme = false;
+        foreach ($results as $num => $result) {
+            $display_in_results = $result['displayInResults'];
+            if ($display_in_results == 0) {
+                $needs_view_theme = true;
+                break;
+            }
+        }
+
+        if ($needs_view_theme) {
+            $view_theme = new Theme();
+            $view_theme->setDataType($datatype);
+            $view_theme->setThemeType('view');
+            $view_theme->setCreatedBy( $datatype->getCreatedBy() );
+            $view_theme->setCreated( $datatype->getCreated() );
+            if ($write)
+                $em->persist($view_theme);
+
+            $ret .= self::indent($indent+1).'-- view '."\n";
+        }
+*/
+
+        // If the datatype has some shortresults stuff, then create a search results theme
+        $search_results_theme = null;
+        if ( in_array($datatype->getId(), $top_level_datatypes) ) {
+            $query = $em->createQuery(
+               'SELECT te.id
+                FROM ODRAdminBundle:ThemeElement AS te
+                WHERE te.dataType = :datatype_id AND te.theme = :theme_id
+                AND te.deletedAt IS NULL'
+            )->setParameters(array('datatype_id' => $datatype->getId(), 'theme_id' => 2));
+            $results = $query->getArrayResult();
+
+            $needs_search_results_theme = false;
+            foreach ($results as $num => $result)
+                $needs_search_results_theme = true;
+
+            if ($needs_search_results_theme) {
+                $search_results_theme = new Theme();
+                $search_results_theme->setDataType($datatype);
+                $search_results_theme->setThemeType('search_results');
+                $search_results_theme->setCreatedBy($datatype->getCreatedBy());
+                $search_results_theme->setCreated($datatype->getCreated());
+
+                if ($datatype->getDeletedAt() !== null) {
+                    $search_results_theme->setDeletedAt( $datatype->getDeletedAt() );
+                    $search_results_theme->setDeletedBy( $datatype->getDeletedBy() );
+                }
+
+                if ($write)
+                    $em->persist($search_results_theme);
+
+                $ret .= self::indent($indent+1).'-- search_results '."\n";
+            }
+        }
+
+
+        // If the datatype has a textresults layout, then create a table theme
+        $table_theme = null;
+        if ( in_array($datatype->getId(), $top_level_datatypes) ) {
+            $query = $em->createQuery(
+               'SELECT df.id, dfm.displayOrder
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                WHERE df.dataType = :datatype_id
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
+            )->setParameters(array('datatype_id' => $datatype->getId()));
+            $results = $query->getArrayResult();
+
+            $needs_table_theme = false;
+            foreach ($results as $num => $result) {
+                $display_order = $result['displayOrder'];
+
+                if ($display_order !== -1) {
+                    $needs_table_theme = true;
+                    break;
+                }
+            }
+
+            if ($needs_table_theme) {
+                $table_theme = new Theme();
+                $table_theme->setDataType($datatype);
+                $table_theme->setThemeType('table');
+                $table_theme->setCreatedBy($datatype->getCreatedBy());
+                $table_theme->setCreated($datatype->getCreated());
+
+                if ($datatype->getDeletedAt() !== null) {
+                    $table_theme->setDeletedAt( $datatype->getDeletedAt() );
+                    $table_theme->setDeletedBy( $datatype->getDeletedBy() );
+                }
+
+                if ($write)
+                    $em->persist($table_theme);
+
+                $ret .= self::indent($indent+1).'-- table '."\n";
+            }
+        }
+
+        // Save and refresh all these themes
+        if ($write) {
+            $em->flush();
+            $em->refresh($master_theme);
+            if ($view_theme !== null)
+                $em->refresh($view_theme);
+            if ($search_results_theme !== null)
+                $em->refresh($search_results_theme);
+            if ($table_theme !== null)
+                $em->refresh($table_theme);
+        }
+
+
+        // ----------------------------------------
+        // Create a new ThemeMeta entry for each of the created themes
+        $master_theme_meta = new ThemeMeta();
+        $master_theme_meta->setTheme($master_theme);
+        $master_theme_meta->setTemplateName('');
+        $master_theme_meta->setTemplateDescription('');
+        $master_theme_meta->setIsDefault(true);
+        $master_theme_meta->setCreatedBy( $datatype->getCreatedBy() );
+        $master_theme_meta->setCreated( $datatype->getCreated() );
+
+        if ($master_theme->getDeletedAt() !== null)
+            $master_theme_meta->setDeletedAt( $master_theme->getDeletedAt() );
+
+        if ($write)
+            $em->persist($master_theme_meta);
+/*
+        // If a view theme was created, make a new ThemeMeta entry for that
+        if ($view_theme !== null) {
+            $view_theme_meta = new ThemeMeta();
+            $view_theme_meta->setTheme($view_theme);
+            $view_theme_meta->setTemplateName('');
+            $view_theme_meta->setTemplateDescription('');
+            $view_theme_meta->setIsDefault(true);
+            $view_theme_meta->setCreatedBy( $datatype->getCreatedBy() );
+            $view_theme_meta->setCreated( $datatype->getCreated() );
+
+            if ($view_theme->getDeletedAt() !== null)
+                $view_theme_meta->setDeletedAt( $view_theme->getDeletedAt() );
+
+            if ($write)
+                $em->persist($view_theme_meta);
+        }
+*/
+
+        // If a search results theme was created, make a new ThemeMeta entry for that
+        if ($search_results_theme !== null) {
+            $search_results_theme_meta = new ThemeMeta();
+            $search_results_theme_meta->setTheme($search_results_theme);
+            $search_results_theme_meta->setTemplateName('');
+            $search_results_theme_meta->setTemplateDescription('');
+            $search_results_theme_meta->setIsDefault(true);
+            $search_results_theme_meta->setCreatedBy( $datatype->getCreatedBy() );
+            $search_results_theme_meta->setCreated( $datatype->getCreated() );
+
+            if ($search_results_theme->getDeletedAt() !== null)
+                $search_results_theme_meta->setDeletedAt( $search_results_theme->getDeletedAt() );
+
+            if ($write)
+                $em->persist($search_results_theme_meta);
+        }
+
+        // If a table theme was created, create a new ThemeMeta entry for that
+        if ($table_theme !== null) {
+            $table_theme_meta = new ThemeMeta();
+            $table_theme_meta->setTheme($table_theme);
+            $table_theme_meta->setTemplateName('');
+            $table_theme_meta->setTemplateDescription('');
+            $table_theme_meta->setIsDefault(true);
+            $table_theme_meta->setCreatedBy( $datatype->getCreatedBy() );
+            $table_theme_meta->setCreated( $datatype->getCreated() );
+
+            if ($table_theme->getDeletedAt() !== null)
+                $table_theme_meta->setDeletedAt( $table_theme->getDeletedAt() );
+
+            if ($write)
+                $em->persist($table_theme_meta);
+        }
+
+        if ($write)
+            $em->flush();
+
+        $ret .= "\n";
+
+        // ----------------------------------------
+        // Locate all theme elements that comprise this datatype's "master" theme
+        $query = $em->createQuery(
+           'SELECT te
+            FROM ODRAdminBundle:ThemeElement AS te
+            WHERE te.dataType = :datatype_id AND te.theme = :theme_id'
+        )->setParameters( array('datatype_id' => $datatype->getId(), 'theme_id' => 1) );
+
+        $results = $query->getResult();
+        foreach ($results as $theme_element) {
+            /** @var ThemeElement $theme_element */
+            // Change this theme element's theme from the old default of "1" to whatever the new datatype's "master" theme is
+            $theme_element->setTheme($master_theme);
+            if ($write)
+                $em->persist($theme_element);
+
+            // Create a new theme element meta entry for this theme element
+            $theme_element_meta = self::createThemeElementMetaEntry($theme_element);
+
+            $str = 'moved theme_element';
+            if ($theme_element->getDeletedAt() !== null) {
+                $str = 'moved deleted theme_element';
+                $theme_element->setDeletedBy( $theme_element->getUpdatedBy() );
+
+                if ($write)
+                    $em->persist($theme_element);
+            }
+
+            if ($write) {
+                $em->persist($theme_element_meta);
+                $em->flush();
+            }
+
+            if ($write)
+                $ret .= self::indent($indent+1).'-- '.$str.' '.$theme_element->getId().' to datatype '.$datatype->getId().' master theme '.$master_theme->getId()."\n";
+            else
+                $ret .= self::indent($indent+1).'-- '.$str.' '.$theme_element->getId().' to datatype '.$datatype->getId().' master theme '."\n";
+
+
+            // Easier to transfer theme_datafield and theme_datatype entities to the theme_element here...
+            /** @var ThemeElementField[] $theme_element_fields */
+            $theme_element_fields = $repo_theme_element_field->findBy( array('themeElement' => $theme_element->getId()) );
+            foreach ($theme_element_fields as $tef) {
+                if ($tef->getDataType() !== null) {
+                    // ...is for a datatype, load the relevant theme_datatype entry
+                    /** @var ThemeDataType $theme_datatype */
+                    $theme_datatype = $repo_theme_datatype->findOneBy( array('dataType' => $tef->getDataType()->getId(), 'theme' => 1) );
+
+                    if ($theme_datatype !== null) {
+                        $theme_datatype->setThemeElement($theme_element);
+                        $theme_datatype->setDisplayType( $tef->getDataType()->getDisplayType() );
+
+                        if ($write)
+                            $em->persist($theme_datatype);
+
+                        $ret .= self::indent($indent+2).'-- attached theme_datatype '.$theme_datatype->getId().' (datatype '.$tef->getDataType()->getId().')'."\n";
+
+                        // Also create the theme data for the childtype at this time
+                        /** @var DataTree $datatree */
+                        $datatree = $repo_datatree->findOneBy( array('descendant' => $tef->getDataType()->getId()) );
+                        if ($datatree->getIsLink() == false) {
+                            $ret .= self::indent($indent+2).'{'."\n";
+                            $ret .= self::copyThemeData($em, $tef->getDataType(), $top_level_datatypes, $indent+3, $write);
+                            $ret .= self::indent($indent+2).'}'."\n";
+                        }
+                    }
+                }
+                else {
+                    // ...is for a datafield, load the relevant theme_datafield entry
+                    /** @var ThemeDataField $theme_datafield */
+                    $theme_datafield = $repo_theme_datafield->findOneBy( array('dataField' => $tef->getDataFields()->getId(), 'theme' => 1) );
+
+                    if ($theme_datafield !== null) {
+                        $theme_datafield->setThemeElement($theme_element);
+                        $theme_datafield->setDisplayOrder( $tef->getDisplayOrder() );
+
+                        $str = 'attached theme_datafield';
+                        if ($theme_datafield->getActive() == false) {
+                            $theme_datafield->setDeletedAt( new \DateTime() );
+                            $str = 'attached deleted theme_datafield';
+                        }
+
+                        if ($write)
+                            $em->persist($theme_datafield);
+
+                        $ret .= self::indent($indent+2).'-- '.$str.' '.$theme_datafield->getId().' (datafield '.$tef->getDataFields()->getId().') at display_order '.$tef->getDisplayOrder()."\n";
+                    }
+                }
+            }
+
+            if ($write)
+                $em->flush();
+        }
+
+        $ret .= "\n";
+
+        // Locate all theme elements that comprise this datatype's "search results" theme, if it exists
+        if ( $search_results_theme !== null ) {
+            $query = $em->createQuery(
+               'SELECT te
+                FROM ODRAdminBundle:ThemeElement AS te
+                WHERE te.dataType = :datatype_id AND te.theme = :theme_id'
+            )->setParameters(array('datatype_id' => $datatype->getId(), 'theme_id' => 2));
+
+            $results = $query->getResult();
+            foreach ($results as $theme_element) {
+                /** @var ThemeElement $theme_element */
+                // Change this theme element's theme from the old default of "1" to whatever the new datatype's "master" theme is
+                $theme_element->setTheme($search_results_theme);
+                if ($write)
+                    $em->persist($theme_element);
+
+                // Create a new theme element meta entry for this theme element
+                $theme_element_meta = self::createThemeElementMetaEntry($theme_element);
+
+                $str = 'moved theme_element';
+                if ($theme_element->getDeletedAt() !== null) {
+                    $str = 'moved deleted theme_element';
+                    $theme_element->setDeletedBy( $theme_element->getUpdatedBy() );
+                    if ($write)
+                        $em->persist($theme_element);
+                }
+
+                if ($write) {
+                    $em->persist($theme_element_meta);
+                    $em->flush();
+                }
+
+                if ($write)
+                    $ret .= self::indent($indent+1).'-- '.$str.' '.$theme_element->getId().' to datatype '.$datatype->getId().' search_results theme '.$search_results_theme->getId()."\n";
+                else
+                    $ret .= self::indent($indent+1).'-- '.$str.' '.$theme_element->getId().' to datatype '.$datatype->getId().' search_results theme '."\n";
+
+
+                // Easier to transfer theme_datafield and theme_datatype entities to the theme_element here...
+                /** @var ThemeElementField[] $theme_element_fields */
+                $theme_element_fields = $repo_theme_element_field->findBy( array('themeElement' => $theme_element->getId()) );
+                foreach ($theme_element_fields as $tef) {
+                    if ($tef->getDataType() !== null) {
+                        // ...is for a datatype, load the relevant theme_datatype entry
+                        /** @var ThemeDataType $theme_datatype */
+                        $theme_datatype = $repo_theme_datatype->findOneBy( array('dataType' => $tef->getDataType()->getId(), 'theme' => 2) );
+
+                        if ($theme_datatype !== null) {
+                            $theme_datatype->setThemeElement($theme_element);
+                            $theme_datatype->setDisplayType( $tef->getDataType()->getDisplayType() );
+
+                            if ($write)
+                                $em->persist($theme_datatype);
+
+                            $ret .= self::indent($indent+2).'-- attached theme_datatype '.$theme_datatype->getId().' (datatype '.$tef->getDataType()->getId().')'."\n";
+
+                            // Don't need to pursue child datatypes here
+                        }
+                    }
+                    else {
+                        // ...is for a datafield, load the relevant theme_datafield entry
+                        /** @var ThemeDataField $theme_datafield */
+                        $theme_datafield = $repo_theme_datafield->findOneBy( array('dataField' => $tef->getDataFields()->getId(), 'theme' => 2) );
+
+                        if ($theme_datafield !== null) {
+                            $theme_datafield->setThemeElement($theme_element);
+                            $theme_datafield->setDisplayOrder( $tef->getDisplayOrder() );
+
+                            $str = 'attached theme_datafield';
+                            if ($theme_datafield->getActive() == false) {
+                                $theme_datafield->setDeletedAt( new \DateTime() );
+                                $str = 'attached deleted theme_datafield';
+                            }
+
+                            if ($write)
+                                $em->persist($theme_datafield);
+
+                            $ret .= self::indent($indent+2).'-- '.$str.' '.$theme_datafield->getId().' (datafield '.$tef->getDataFields()->getId().') at display_order '.$tef->getDisplayOrder()."\n";
+                        }
+                    }
+                }
+
+                if ($write)
+                    $em->flush();
+            }
+
+            $ret .= "\n";
+        }
+
+
+        // Locate all theme elements that comprise this datatype's "table" theme
+        if ( $table_theme !== null ) {
+            // Since it doesn't exist, create a single theme element for the table theme
+            $theme_element = new ThemeElement();
+            $theme_element->setDataType($datatype);
+            $theme_element->setTheme($table_theme);
+
+            $theme_element->setDisplayOrder( 999 );
+            $theme_element->setCssWidthMed( '1-1' );
+            $theme_element->setCssWidthXL( '1-1' );
+            $theme_element->setDisplayInResults( true );
+
+            $theme_element->setCreatedBy( $datatype->getCreatedBy() );
+            $theme_element->setCreated( $datatype->getCreated() );
+
+            if ($write) {
+                $em->persist($theme_element);
+                $em->flush();
+                $em->refresh($theme_element);
+            }
+
+            $theme_element_meta = new ThemeElementMeta();
+            $theme_element_meta->setThemeElement($theme_element);
+
+            $theme_element_meta->setDisplayOrder( 999 );
+            $theme_element_meta->setCssWidthMed( '1-1' );
+            $theme_element_meta->setCssWidthXL( '1-1' );
+
+            $theme_element_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
+
+            $theme_element_meta->setCreatedBy( $theme_element->getCreatedBy() );
+            $theme_element_meta->setCreated( $theme_element->getCreated() );
+
+            if ($write)
+                $em->persist($theme_element_meta);
+
+
+            if ($write)
+                $ret .= self::indent($indent+1).'-- created theme_element '.$theme_element->getId().' for datatype '.$datatype->getId().' table theme '.$table_theme->getId()."\n";
+            else
+                $ret .= self::indent($indent+1).'-- created theme_element for datatype '.$datatype->getId().' table theme '."\n";
+
+            // Locate the datafields being used in textresults
+            $query = $em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                WHERE df.dataType = :datatype_id AND dfm.displayOrder > -1'
+            )->setParameters( array('datatype_id' => $datatype->getId()) );
+            $results = $query->getResult();
+
+            // Create new theme_datafield entries for each of them, and attach to the new theme element
+            foreach ($results as $df) {
+                /** @var DataFields $df */
+                $tdf = new ThemeDataField();
+                $tdf->setTheme($table_theme);
+                $tdf->setThemeElement($theme_element);
+                $tdf->setDataField($df);
+
+                $tdf->setActive(true);
+                $tdf->setDisplayOrder( $df->getDisplayOrder() );
+                $tdf->setCssWidthMed('1-1');
+                $tdf->setCssWidthXL('1-1');
+
+                $tdf->setCreatedBy( $datatype->getCreatedBy() );
+                $tdf->setCreated( $datatype->getCreated() );
+
+                $tdf->setDeletedAt( $df->getDeletedAt() );
+
+                if ($write)
+                    $em->persist($tdf);
+
+                if ($write)
+                    $ret .= self::indent($indent+2).'-- created theme_datafield '.$tdf->getId().' for datafield '.$df->getId().' at display_order '.$df->getDisplayOrder()."\n";
+                else
+                    $ret .= self::indent($indent+2).'-- created theme_datafield for datafield '.$df->getId().' at display_order '.$df->getDisplayOrder()."\n";
+            }
+
+            if ($write)
+                $em->flush();
+        }
+
+        // ThemeDatafields linking datafields of child datatypes to a search theme still exist...delete them
+        $query = $em->createQuery(
+           'SELECT tdf.id
+            FROM ODRAdminBundle:DataFields AS df
+            JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.dataField = df
+            WHERE df.dataType = :datatype_id AND tdf.themeElement IS NULL AND tdf.deletedAt IS NULL'
+        )->setParameters( array('datatype_id' => $datatype->getId()) );
+        $results = $query->getArrayResult();
+
+        $ret .= "\n";
+        $ret .= self::indent($indent+1).'-- deleting unused theme_datafield entries...'."\n";
+        foreach ($results as $result) {
+            $tdf = $repo_theme_datafield->find($result['id']);
+            $tdf->setDeletedAt( new \DateTime() );
+
+            if ($write)
+                $em->persist($tdf);
+
+            $ret .= self::indent($indent+2).'-- '.$result['id']."\n";
+        }
+
+
+        // ...also, because the ThemeDatatype table's purpose was completely changed, there are left-over entries that are no longer useful...delete those too
+        $query = $em->createQuery(
+            'SELECT tdt.id
+            FROM ODRAdminBundle:DataType AS dt
+            JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.dataType = dt
+            WHERE dt.id = :datatype_id AND tdt.themeElement IS NULL AND tdt.deletedAt IS NULL'
+        )->setParameters( array('datatype_id' => $datatype->getId()) );
+        $results = $query->getArrayResult();
+
+        $ret .= "\n";
+        $ret .= self::indent($indent+1).'-- deleting unused theme_datatype entries...'."\n";
+        foreach ($results as $result) {
+            $tdt = $repo_theme_datatype->find($result['id']);
+            $tdt->setDeletedAt( new \DateTime() );
+
+            if ($write)
+                $em->persist($tdt);
+
+            $ret .= self::indent($indent+2).'-- '.$result['id']."\n";
+        }
+
+        if ($write)
+            $em->flush();
+
+        return $ret;
+    }
+
+
+    /**
+     * Helper function to reduce clutter involved in transferring theme/theme_element data over to the new system
+     *
+     * @param ThemeElement $theme_element
+     *
+     * @return ThemeElementMeta
+     */
+    private function createThemeElementMetaEntry($theme_element)
+    {
+        $theme_element_meta = new ThemeElementMeta();
+        $theme_element_meta->setThemeElement($theme_element);
+
+        $theme_element_meta->setDisplayOrder( $theme_element->getDisplayOrderOriginal() );
+        $theme_element_meta->setCssWidthMed( $theme_element->getCssWidthMedOriginal() );
+        $theme_element_meta->setCssWidthXL( $theme_element->getCssWidthXLOriginal() );
+
+        // ...displayInResults was effectively used for multiple purposes before, so it can't really be used to determine the new "publicDate" property of this theme element...
+        $theme_element_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
+
+        $theme_element_meta->setCreatedBy( $theme_element->getCreatedBy() );
+        $theme_element_meta->setCreated( $theme_element->getCreated() );
+
+        $theme_element_meta->setDeletedAt( $theme_element->getDeletedAt() );
+
+        return $theme_element_meta;
+    }
 }

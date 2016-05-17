@@ -67,6 +67,11 @@ class RadioOptions
     private $radioOptionsMeta;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $radioSelections;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataFields
      */
     private $dataField;
@@ -92,6 +97,7 @@ class RadioOptions
     public function __construct()
     {
         $this->radioOptionsMeta = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->radioSelections = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -304,6 +310,39 @@ class RadioOptions
         return $this->radioOptionsMeta->first();
     }
 
+    /**
+     * Add radioSelections
+     *
+     * @param \ODR\AdminBundle\Entity\RadioSelection $radioSelections
+     * @return RadioOptions
+     */
+    public function addRadioSelection(\ODR\AdminBundle\Entity\RadioSelection $radioSelections)
+    {
+        $this->radioSelections[] = $radioSelections;
+
+        return $this;
+    }
+
+    /**
+     * Remove radioSelections
+     *
+     * @param \ODR\AdminBundle\Entity\RadioSelection $radioSelections
+     */
+    public function removeRadioSelection(\ODR\AdminBundle\Entity\RadioSelection $radioSelections)
+    {
+        $this->radioSelections->removeElement($radioSelections);
+    }
+
+    /**
+     * Get radioSelections
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRadioSelections()
+    {
+        return $this->radioSelections;
+    }
+    
     /**
      * Set dataField
      *

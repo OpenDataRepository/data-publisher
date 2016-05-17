@@ -216,6 +216,86 @@ odr_recache_all:
 #-----------------------------------------
 
 #-----------------------------------------
+# Theme Controller
+odr_design_add_theme:
+    pattern:  /design/displaytemplate/addtheme/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Theme:addtheme }
+    requirements:
+        datatype_id:  \d+
+
+odr_design_delete_theme:
+    pattern:  /design/displaytemplate/deletetheme/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:deletetheme }
+    requirements:
+        theme_id:  \d+
+
+odr_design_get_theme_properties:
+    pattern:  /design/displaytemplate/themeproperties/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themeproperties }
+    requirements:
+        theme_id:  \d+
+
+odr_design_add_theme_element:
+    pattern:  /design/displaytemplate/addthemeelement/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:addthemeelement }
+    requirements:
+        theme_id:  \d+
+
+odr_design_delete_theme_element:
+    pattern:  /design/displaytemplate/deletethemeelement/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:deletethemeelement }
+    requirements:
+        theme_element_id:  \d+
+
+odr_design_get_theme_element_properties:
+    pattern:  /design/displaytemplate/themeelementproperties/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themeelementproperties }
+    requirements:
+        theme_element_id:  \d+
+
+odr_design_save_theme_element_order:
+    pattern:  /design/displaytemplate/themeelementorder
+    defaults: { _controller: ODRAdminBundle:Theme:themeelementorder }
+    requirements: { _method: POST }
+
+odr_design_attach_datafield:
+    pattern:  /design/displaytemplate/attachdatafield/{datafield_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:attachdatafield }
+    requirements:
+        datafield_id: \d+
+        theme_element_id: \d+
+
+odr_design_detach_datafield:
+    pattern:  /design/displaytemplate/detachdatafield/{datafield_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:detachdatafield }
+    requirements:
+        datafield_id: \d+
+        theme_element_id: \d+
+
+odr_design_save_datafield_order:
+    pattern:  /design/displaytemplate/datafieldorder/{initial_theme_element_id}/{ending_theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:datafieldorder }
+    methods: [POST]
+    requirements:
+        initial_theme_element_id: \d+
+        ending_theme_element_id: \d+
+
+odr_design_save_theme_datafield:
+    pattern:  /design/displaytemplate/themedatafieldproperties/{theme_datafield_id}
+    defaults: { _controller: ODRAdminBundle:Theme:savethemedatafield }
+    methods: [POST]
+    requirements:
+        theme_datafield_id: \d+
+
+odr_design_save_theme_datatype:
+    pattern:  /design/displaytemplate/themedatatypeproperties/{theme_datatype_id}
+    defaults: { _controller: ODRAdminBundle:Theme:savethemedatatype }
+    methods: [POST]
+    requirements:
+        theme_datatype_id: \d+
+#-----------------------------------------
+
+#-----------------------------------------
 # Displaytemplate Controller
 odr_design_display_template:
     pattern:  /design/displaytemplate/{datatype_id}
@@ -274,42 +354,42 @@ odr_design_link_datatype:
     requirements: { _method: POST }
 
 odr_design_get_datafield_properties:
-    pattern:  /design/displaytemplate/getdatafieldproperties/{datafield_id}
+    pattern:  /design/displaytemplate/datafieldproperties/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldproperties }
     requirements:
         datafield_id:  \d+
 
-odr_design_get_theme_element_properties:
-    pattern:  /design/displaytemplate/themeelementproperties/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:themeelementproperties }
-    requirements:
-        theme_element_id:  \d+
+#odr_design_get_theme_element_properties:
+#    pattern:  /design/displaytemplate/themeelementproperties/{theme_element_id}
+#    defaults: { _controller: ODRAdminBundle:Displaytemplate:themeelementproperties }
+#    requirements:
+#        theme_element_id:  \d+
 
-odr_design_save_theme_element_order:
-    pattern:  /design/displaytemplate/themeelementorder
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:themeelementorder }
-    requirements: { _method: POST }
+#odr_design_save_theme_element_order:
+#    pattern:  /design/displaytemplate/themeelementorder
+#    defaults: { _controller: ODRAdminBundle:Displaytemplate:themeelementorder }
+#    requirements: { _method: POST }
 
-odr_design_save_datafield_order:
-    pattern:  /design/displaytemplate/datafieldorder/{initial_theme_element_id}/{ending_theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldorder }
-    methods: [POST]
-    requirements:
-        initial_theme_element_id: \d+
-        ending_theme_element_id: \d+
+#odr_design_save_datafield_order:
+#    pattern:  /design/displaytemplate/datafieldorder/{initial_theme_element_id}/{ending_theme_element_id}
+#    defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldorder }
+#    methods: [POST]
+#    requirements:
+#        initial_theme_element_id: \d+
+#        ending_theme_element_id: \d+
 
-odr_design_delete_theme_element:
-    pattern:  /design/displaytemplate/deletethemeelement/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:deletethemeelement }
-    requirements:
-        theme_element_id:  \d+
+#odr_design_delete_theme_element:
+#    pattern:  /design/displaytemplate/deletethemeelement/{theme_element_id}
+#    defaults: { _controller: ODRAdminBundle:Displaytemplate:deletethemeelement }
+#    requirements:
+#        theme_element_id:  \d+
 
-odr_design_save_theme_datafield:
-    pattern:  /design/displaytemplate/savethemedatafield/{theme_datafield_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:savethemedatafield }
-    methods: [POST]
-    requirements:
-        theme_datafield_id: \d+
+#odr_design_save_theme_datafield:
+#    pattern:  /design/displaytemplate/savethemedatafield/{theme_datafield_id}
+#    defaults: { _controller: ODRAdminBundle:Displaytemplate:savethemedatafield }
+#    methods: [POST]
+#    requirements:
+#        theme_datafield_id: \d+
 
 odr_design_delete_datafield:
     pattern:  /design/displaytemplate/deletefield/{datafield_id}
@@ -345,17 +425,16 @@ odr_design_add_childtype:
         datatype_id:  \d+
         theme_element_id:  \d+
 
-odr_design_add_theme_element:
-    pattern:  /design/displaytemplate/addthemeelement/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:addthemeelement }
-    requirements:
-        datatype_id:  \d+
+#odr_design_add_theme_element:
+#    pattern:  /design/displaytemplate/addthemeelement/{datatype_id}
+#    defaults: { _controller: ODRAdminBundle:Displaytemplate:addthemeelement }
+#    requirements:
+#        datatype_id:  \d+
 
 odr_design_add_datafield:
-    pattern:  /design/displaytemplate/adddatafield/{datatype_id}/{theme_element_id}
+    pattern:  /design/displaytemplate/adddatafield/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:adddatafield }
     requirements:
-        datatype_id:  \d+
         theme_element_id:  \d+
 
 odr_design_copy_datafield:
@@ -407,98 +486,98 @@ odr_design_public_datatype:
     requirements:
         datatype_id:  \d+
 
-odr_design_visible_theme_element:
-    pattern:  /design/displaytemplate/themeelementvisible/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:themeelementvisible }
-    requirements:
-        datatype_id:  \d+
+#odr_design_visible_theme_element:
+#    pattern:  /design/displaytemplate/themeelementvisible/{theme_element_id}
+#    defaults: { _controller: ODRAdminBundle:Displaytemplate:themeelementvisible }
+#    requirements:
+#        datatype_id:  \d+
 
 #-----------------------------------------
 
 #-----------------------------------------
 # Searchtemplate Controller
-odr_search_template_reload_child:
-    pattern: /design/searchtemplate/childreload/{datatype_id}/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloadchild }
-    requirements:
-        datatype_id: \d+
-        theme_id: \d+
-odr_search_template_reload_theme_element:
-    pattern: /design/searchtemplate/themeelementreload/{theme_element_id}/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloadthemeelement }
-    requirements:
-        theme_element_id: \d+
-        theme_id: \d+
-odr_search_template_reload_datafield:
-    pattern: /design/searchtemplate/datafieldreload/{datafield_id}/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloaddatafield }
-    requirements:
-        datafield_id: \d+
-        theme_id: \d+
+#odr_search_template_reload_child:
+#    pattern: /design/searchtemplate/childreload/{datatype_id}/{theme_id}
+#    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloadchild }
+#    requirements:
+#        datatype_id: \d+
+#        theme_id: \d+
+#odr_search_template_reload_theme_element:
+#    pattern: /design/searchtemplate/themeelementreload/{theme_element_id}/{theme_id}
+#    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloadthemeelement }
+#    requirements:
+#        theme_element_id: \d+
+#        theme_id: \d+
+#odr_search_template_reload_datafield:
+#    pattern: /design/searchtemplate/datafieldreload/{datafield_id}/{theme_id}
+#    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloaddatafield }
+#    requirements:
+#        datafield_id: \d+
+#        theme_id: \d+
+#
+#odr_search_template_edit:
+#    pattern:  /design/searchtemplate/{datatype_id}/{theme_id}
+#    defaults: { _controller: ODRAdminBundle:Searchtemplate:design }
+#    requirements:
+#        datatype_id:  \d+
+#        theme_id: \d+
+#
+#odr_search_template_get_datafield_properties:
+#    pattern:  /design/searchtemplate/datafieldproperty/{datafield_id}/{theme_id}
+#    defaults: { _controller: ODRAdminBundle:Searchtemplate:datafieldproperties }
+#    requirements:
+#        datafield_id:  \d+
+#        theme_id: \d+
+#
+#odr_search_template_save_theme_datafield:
+#    pattern:  /design/searchtemplate/savethemedatafield/{theme_datafield_id}
+#    defaults: { _controller: ODRAdminBundle:Searchtemplate:savethemedatafield }
+#    methods: [POST]
+#    requirements:
+#        theme_datafield_id:  \d+
+#
+#odr_search_template_save_datafield_order:
+#    pattern:  /design/searchtemplate/datafieldorder/{initial_theme_element_id}/{ending_theme_element_id}
+#    defaults: { _controller: ODRAdminBundle:Searchtemplate:datafieldorder }
+#    methods: [POST]
+#    requirements:
+#        initial_theme_element_id: \d+
+#        ending_theme_element_id: \d+
 
-odr_search_template_edit:
-    pattern:  /design/searchtemplate/{datatype_id}/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:design }
-    requirements:
-        datatype_id:  \d+
-        theme_id: \d+
+#odr_search_template_add_datafield:
+#    pattern:  /design/searchtemplate/addfield/{datafield_id}/{theme_element_id}
+#    defaults: { _controller: ODRAdminBundle:Searchtemplate:addfield }
+#    requirements:
+#        datafield_id: \d+
+#        theme_element_id: \d+
+#odr_search_template_remove_datafield:
+#    pattern:  /design/searchtemplate/removefield/{datafield_id}/{theme_element_id}
+#    defaults: { _controller: ODRAdminBundle:Searchtemplate:removefield }
+#    requirements:
+#        datafield_id: \d+
+#        theme_element_id: \d+
 
-odr_search_template_get_datafield_properties:
-    pattern:  /design/searchtemplate/datafieldproperty/{datafield_id}/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:datafieldproperties }
-    requirements:
-        datafield_id:  \d+
-        theme_id: \d+
-
-odr_search_template_save_theme_datafield:
-    pattern:  /design/searchtemplate/savethemedatafield/{theme_datafield_id}
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:savethemedatafield }
-    methods: [POST]
-    requirements:
-        theme_datafield_id:  \d+
-
-odr_search_template_save_datafield_order:
-    pattern:  /design/searchtemplate/datafieldorder/{initial_theme_element_id}/{ending_theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:datafieldorder }
-    methods: [POST]
-    requirements:
-        initial_theme_element_id: \d+
-        ending_theme_element_id: \d+
-
-odr_search_template_add_datafield:
-    pattern:  /design/searchtemplate/addfield/{datafield_id}/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:addfield }
-    requirements:
-        datafield_id: \d+
-        theme_element_id: \d+
-odr_search_template_remove_datafield:
-    pattern:  /design/searchtemplate/removefield/{datafield_id}/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:removefield }
-    requirements:
-        datafield_id: \d+
-        theme_element_id: \d+
-
-odr_search_template_get_theme_element_properties:
-    pattern:  /design/searchtemplate/themeelementproperties/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:themeelementproperties }
-    requirements:
-        theme_element_id:  \d+
-odr_search_template_save_theme_element_order:
-    pattern:  /design/searchtemplate/themeelementorder
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:themeelementorder }
-    requirements: { _method: POST }
-
-odr_search_template_add_theme_element:
-    pattern:  /design/searchtemplate/addthemeelement/{datatype_id}/{theme_id}
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:addthemeelement }
-    requirements:
-        datatype_id:  \d+
-        theme_id:  \d+
-odr_search_template_delete_theme_element:
-    pattern:  /design/searchtemplate/deletethemeelement/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Searchtemplate:deletethemeelement }
-    requirements:
-        theme_element_id:  \d+
+#odr_search_template_get_theme_element_properties:
+#    pattern:  /design/searchtemplate/themeelementproperties/{theme_element_id}
+#    defaults: { _controller: ODRAdminBundle:Searchtemplate:themeelementproperties }
+#    requirements:
+#        theme_element_id:  \d+
+#odr_search_template_save_theme_element_order:
+#    pattern:  /design/searchtemplate/themeelementorder
+#    defaults: { _controller: ODRAdminBundle:Searchtemplate:themeelementorder }
+#    requirements: { _method: POST }
+#
+#odr_search_template_add_theme_element:
+#    pattern:  /design/searchtemplate/addthemeelement/{datatype_id}/{theme_id}
+#    defaults: { _controller: ODRAdminBundle:Searchtemplate:addthemeelement }
+#    requirements:
+#        datatype_id:  \d+
+#        theme_id:  \d+
+#odr_search_template_delete_theme_element:
+#    pattern:  /design/searchtemplate/deletethemeelement/{theme_element_id}
+#    defaults: { _controller: ODRAdminBundle:Searchtemplate:deletethemeelement }
+#    requirements:
+#        theme_element_id:  \d+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -540,13 +619,13 @@ odr_record_public:
 
 odr_record_add:
     pattern:  /edit/record/add/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Record:add }
+    defaults: { _controller: ODRAdminBundle:Record:adddatarecord }
     requirements:
         datatype_id:  \d+
 
 odr_record_delete:
     pattern:  /edit/record/delete/{datarecord_id}/{search_key}
-    defaults: { _controller: ODRAdminBundle:Record:delete }
+    defaults: { _controller: ODRAdminBundle:Record:deletedatarecord}
     requirements:
         datarecord_id:  \d+
         search_key: '[^\/]*'
@@ -634,44 +713,36 @@ odr_record_get_field_history:
 #-----------------------------------------
 # Display Controller
 odr_display_view:
-    pattern:  /display/view/{datarecord_id}/{search_key}/{offset}
+    pattern:  /results/view/{datarecord_id}/{search_key}/{offset}
     defaults: { _controller: ODRAdminBundle:Display:view, search_key: '', offset: '' }
     requirements:
         datarecord_id:  \d+
         search_key: '[^\/]*'
         offset: \d+
 
-# Results Controller
-odr_results_view:
-    pattern:  /results/view/{datarecord_id}/{search_key}/{offset}
-    defaults: { _controller: ODRAdminBundle:Results:view, search_key: '', offset: '' }
-    requirements:
-        datarecord_id:  \d+
-        search_key: '[^\/]*'
-        offset: \d+
-
 odr_results_reload_datafield:
-    pattern: /results/view/datafieldreload/{datarecord_id}/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Results:reloaddatafield }
+    pattern: /results/view/datafieldreload/{datarecord_id}/{datafield_id}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Display:reloaddatafield }
     requirements:
         datarecord_id: \d+
         datafield_id: \d+
+        theme_id: \d+
 
 odr_file_download:
     pattern:  /results/download/file/{file_id}
-    defaults: { _controller: ODRAdminBundle:Results:filedownload }
+    defaults: { _controller: ODRAdminBundle:Display:filedownload }
     requirements:
         file_id:  \d+
 
 odr_cancel_file_decrypt:
     pattern:  /results/download_cancel/file/{file_id}
-    defaults: { _controller: ODRAdminBundle:Results:cancelfiledecrypt }
+    defaults: { _controller: ODRAdminBundle:Display:cancelfiledecrypt }
     requirements:
         file_id:  \d+
 
 odr_image_download:
     pattern:  /results/download/image/{image_id}
-    defaults: { _controller: ODRAdminBundle:Results:imagedownload }
+    defaults: { _controller: ODRAdminBundle:Display:imagedownload }
     requirements:
         image_id:  \d+
 
@@ -968,12 +1039,13 @@ odr_mass_update_worker_values:
 #-----------------------------------------
 # CSVExport Controller
 odr_csv_export_render:
-    pattern: /admin/csvexport/{datatype_id}/{search_key}/{offset}
+#    pattern: /admin/csvexport/{datatype_id}/{search_key}/{offset}
+    pattern: /admin/csvexport/{datatype_id}
     defaults: { _controller: ODRAdminBundle:CSVExport:csvExport, offset: '' }
     requirements:
         datatype_id: \d+
-        search_key: '[^\/]*'
-        offset: \d+
+#        search_key: '[^\/]*'
+#        offset: \d+
 
 
 odr_csv_export_start:
@@ -1172,4 +1244,14 @@ odr_datarecord_metadata:
 odr_datatype_metadata:
     pattern: /beanstalk/datatype_metadata
     defaults: { _controller: ODRAdminBundle:Worker:builddatatypemetadata }
+    requirements: { _method: POST }
+
+# Theme Metadata creation
+odr_start_build_theme_entries:
+    pattern:  /admin/build_theme_entries
+    defaults: { _controller:ODRAdminBundle:Worker:startbuildthemeentries }
+
+odr_theme_metadata:
+    pattern: /beanstalk/theme_metadata
+    defaults: { _controller: ODRAdminBundle:Worker:buildthememetadata }
     requirements: { _method: POST }

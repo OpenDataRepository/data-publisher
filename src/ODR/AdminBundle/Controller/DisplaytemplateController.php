@@ -1,19 +1,19 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* DisplayTemplate Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The displaytemplate controller handles everything required to
-* design the long-form view and edit layout of a database record.
-* This includes but is not limited to addition, deletion, and setting
-* of position and other related properties of DataFields, ThemeElement
-* containers, and child DataTypes.
-*
-*/
+ * Open Data Repository Data Publisher
+ * DisplayTemplate Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The displaytemplate controller handles everything required to
+ * design the long-form view and edit layout of a database record.
+ * This includes but is not limited to addition, deletion, and setting
+ * of position and other related properties of DataFields, ThemeElement
+ * containers, and child DataTypes.
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 
@@ -42,6 +42,7 @@ use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\ThemeElementField;
+use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\UserFieldPermissions;
 use ODR\AdminBundle\Entity\UserPermissions;
@@ -79,6 +80,9 @@ class DisplaytemplateController extends ODRCustomController
         $return['d'] = '';
 
         try {
+
+            throw new \Exception('DISABLED PENDING SECOND HALF OF THEME REWORK');
+
             // Grab necessary objects
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
@@ -88,7 +92,6 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-//            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
             $repo_theme_datafields = $em->getRepository('ODRAdminBundle:ThemeDataField');
             $repo_theme_element_fields = $em->getRepository('ODRAdminBundle:ThemeElementField');
 
@@ -112,13 +115,16 @@ class DisplaytemplateController extends ODRCustomController
                 return parent::permissionDeniedError("edit");
             // --------------------
 
+
             // --------------------
-            // TODO - better way of handling this
+            // TODO - better way of handling this?
             // Prevent deletion of datafields if a csv import is in progress, as this could screw the importing over
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'csv_import', 'target_entity' => 'datatype_'.$datatype_id, 'completed' => null) );
             if ($tracked_job !== null)
                 throw new \Exception('Preventing deletion of any DataField for this DataType, because a CSV Import for this DataType is in progress...');
 
+
+            // TODO - probably just delete datafield, wipe caches, and clear user field permissions here...move theme and datarecordfield deletion to beanstalk
 
             // Determine if shortresults needs to be recached as a result of this deletion
             $options = array();
@@ -190,7 +196,7 @@ class DisplaytemplateController extends ODRCustomController
             $em->flush();
 
             // Done cleaning up after the datafield, delete it and its metadata
-            $datafield_meta = $datafield->getDataFieldsMeta();
+            $datafield_meta = $datafield->getDataFieldMeta();
             $em->remove($datafield_meta);
             $em->remove($datafield);
 
@@ -431,6 +437,8 @@ class DisplaytemplateController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            throw new \Exception('DISABLED PENDING SECOND HALF OF THEME REWORK');
+
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -481,16 +489,53 @@ class DisplaytemplateController extends ODRCustomController
 */
 
 
+            // TODO - move to beanstalk?  extremely likely...datarecords, datafields, and datarecordfield entries all need to be deleted...most likely, just wipe caches and delete datatype and permissions here
+
             // TODO - should all of these need to be done with DQL update?
 
-/*
-            // First, remove user permission entries
-            $user_permissions = $repo_user_permissions->findBy( array('dataType' => $datatype->getId()) );
-            foreach ($user_permissions as $permission) 
-                $em->remove($permission);
-*/
+            // ----------------------------------------
+            // First, remove user permission entries for this datatype
+            /** @var UserPermissions[] $user_permissions */
+            $user_ids = array();
+            $user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions')->findBy( array('dataType' => $datatype->getId()) );
+            foreach ($user_permissions as $permission) {
+                $user_ids[] = $permission->getUser()->getId();
 
-            // Second, remove the child/parent links from the datatree
+                $entities_to_remove[] = $permission;
+            }
+
+
+            // ----------------------------------------
+            // Second, remove all datafields belonging to this datatype
+            /** @var DataFields[] $datafields */
+            $datafield_ids = array();
+            $datafields = $em->getRepository('ODRAdminBundle:DataFields')->findBy( array('dataType' => $datatype->getId()) );
+            foreach ($datafields as $datafield) {
+                $datafield_ids[] = $datafield->getId();
+
+                $datafield->setDeletedBy($user);
+                $em->persist($datafield);
+
+                $entities_to_remove[] = $datafield;
+            }
+
+            // Also remove all user field permissions for these datafields
+            $query = $em->createQuery(
+               'SELECT ufp
+                FROM ODRAdminBundle:UserFieldPermissions AS ufp
+                WHERE ufp.dataField IN (:datafield_ids)
+                AND ufp.deletedAt IS NULL'
+            )->setParameters( array('datafield_ids' => $datafield_ids) );
+            $results = $query->getResult();
+
+            foreach ($results as $ufp) {
+                /** @var UserFieldPermissions $ufp */
+                $entities_to_remove[] = $ufp;
+            }
+
+
+            // ----------------------------------------
+            // Third, remove the child/parent links from the datatree
             /** @var DataTree[] $child_datatrees */
             $child_datatrees = $repo_datatree->findByAncestor($datatype);
             foreach($child_datatrees as $child_datatree) {
@@ -510,7 +555,7 @@ class DisplaytemplateController extends ODRCustomController
                 }
             }
 
-            // Remove any datatree links to a parent
+            // Also remove any datatree links to a parent
             /** @var DataTree[] $parent_datatrees */
             $parent_datatrees = $repo_datatree->findByDescendant($datatype);
             foreach($parent_datatrees as $parent_datatree) {
@@ -524,19 +569,59 @@ class DisplaytemplateController extends ODRCustomController
             }
 
 
-            // Third, remove the theme datatype entity so it won't show up in Results/Records anymore
-            /** @var ThemeDataType $theme_data_type */
-            $theme_data_type = $em->getRepository('ODRAdminBundle:ThemeDataType')->findOneBy( array("dataType" => $datatype->getId(), "theme" => 1) );
-            if ($theme_data_type != null)
-                $entities_to_remove[] = $theme_data_type;
+            // ----------------------------------------
+            // TODO - use ThemeController:deletethemeAction() instead?
+            // Fourth, find and remove all the theme data for this datatype
+            /** @var Theme[] $themes */
+            $themes = $em->getRepository('ODRAdminBundle:Theme')->findBy( array('dataType' => $datatype->getId()) );
+            foreach ($themes as $theme) {
+                // Delete all the theme elements belonging to this theme
+                $theme_elements = $theme->getThemeElements();
+                foreach ($theme_elements as $theme_element) {
+                    /** @var ThemeElement $theme_element */
 
-            // Fourth, also remove the theme element field, so the templating doesn't attempt to access the deleted datatype
-            /** @var ThemeElementField[] $theme_element_fields */
-            $theme_element_fields = $em->getRepository('ODRAdminBundle:ThemeElementField')->findBy( array("dataType" => $datatype->getId()) );   // want all theme_element_field entries across all themes
-            foreach ($theme_element_fields as $theme_element_field)
-                $entities_to_remove[] = $theme_element_field;
+                    // Need to delete any theme_datatype entries in this theme_element
+                    $theme_datatypes = $theme_element->getThemeDataType();
+                    foreach ($theme_datatypes as $theme_datatype) {
+                        /** @var ThemeDataType $theme_datatype */
+                        $theme_datatype->setDeletedBy($user);
+                        $em->persist($theme_datatype);
+
+                        $entities_to_remove[] = $theme_datatype;
+                    }
+
+                    // Need to delete any theme_datafield entries in this theme_element
+                    $theme_datafields = $theme_element->getThemeDataFields();
+                    foreach ($theme_datafields as $theme_datafield) {
+                        /** @var ThemeDataField $theme_datafield */
+                        $theme_datafield->setDeletedBy($user);
+                        $em->persist($theme_datafield);
+
+                        $entities_to_remove[] = $theme_datafield;
+                    }
+
+                    // Save who is deleting this theme_element
+                    $theme_element->setDeletedBy($user);
+                    $em->persist($theme_element);
+
+                    // Also delete the meta entry
+                    $theme_element_meta = $theme_element->getThemeElementMeta();
+
+                    $entities_to_remove[] = $theme_element_meta;
+                    $entities_to_remove[] = $theme_element;
+                }
+
+                // Finally, delete the theme and its associated meta entry
+                $theme->setDeletedBy($user);
+                $em->persist($theme);
+
+                $theme_meta = $theme->getThemeMeta();
+                $entities_to_remove[] = $theme_meta;
+                $entities_to_remove[] = $theme;
+            }
 
 
+            // ----------------------------------------
             // Finally, save who deleted the actual datatype itself
             $datatype->setUpdatedBy($user);
             $datatype->setDeletedBy($user);
@@ -546,22 +631,25 @@ class DisplaytemplateController extends ODRCustomController
             $entities_to_remove[] = $datatype->getDataTypeMeta();
 
 
+            // ----------------------------------------
             // Commit Deletes
             $em->flush();
             foreach ($entities_to_remove as $entity)
                 $em->remove($entity);
-
             $em->flush(); 
 
-            // No point updating caches, datatype doesn't 'exist' anymore
-            // TODO - updating cache for parent/linked datatypes if applicable
 
             // ----------------------------------------
-            // Delete any cached searches for this datatype
+            // Delete stuff out of the cache...
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
+            // ...user permissions
+            foreach ($user_ids as $user_id)
+                $memcached->delete($memcached_prefix.'.user_'.$user_id.'_datatype_permissions');
+
+            // ...cached searches
             $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
             if ( isset($cached_searches[$datatype_id]) ) {
                 unset( $cached_searches[$datatype_id] );
@@ -569,6 +657,8 @@ class DisplaytemplateController extends ODRCustomController
                 // Save the collection of cached searches back to memcached
                 $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
             }
+
+            // ...layout data TODO
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -695,6 +785,7 @@ print '</pre>';
 
     /**
      * Saves changes made to the order of a Datatype's ThemeElements.
+     * @deprecated
      * 
      * @param Request $request
      * 
@@ -772,6 +863,7 @@ print '</pre>';
 
     /**
      * Updates the display order of DataFields inside a ThemeElement, and/or moves the DataField to a new ThemeElement.
+     * @deprecated
      * 
      * @param integer $initial_theme_element_id The database id of the ThemeElement the DataField was in before being moved.
      * @param integer $ending_theme_element_id  The database id of the ThemeElement the DataField is in after being moved.
@@ -862,6 +954,7 @@ print '</pre>';
     /**
      * Toggles whether a ThemeElement container is visible only visible to users with the view permission for this
      * datatype, or is visible to everybody viewing the record.
+     * @deprecated
      * 
      * @param integer $theme_element_id The database id of the ThemeElement to modify.
      * @param Request $request
@@ -959,6 +1052,7 @@ print '</pre>';
 
     /**
      * Deletes a ThemeElement from a DataType, after ensuring it's empty.
+     * @deprecated
      * 
      * @param integer $theme_element_id The database id of the ThemeElement to delete.
      * @param Request $request
@@ -1037,6 +1131,7 @@ print '</pre>';
 
     /**
      * Saves width changes made to a DataField in it's associated ThemeDataField entity.
+     * @deprecated
      * 
      * @param integer $theme_datafield_id The database id of the ThemeDataField entity to change.
      * @param Request $request
@@ -1284,6 +1379,7 @@ print '</pre>';
 
     /**
      * Adds a new ThemeElement to the given DataType.
+     * @deprecated
      * 
      * @param integer $datatype_id The database id of the DataType to attach a new ThemeElement to.
      * @param Request $request
@@ -1352,15 +1448,13 @@ print '</pre>';
 
     /**
      * Adds a new DataField to the given DataType and ThemeElement.
-     * TODO - get $datatype_id from ThemeElement instead of parameters?
-     * 
-     * @param integer $datatype_id      The database id of the Datatype that this new Datafield belongs to
+     *
      * @param integer $theme_element_id The database id of the ThemeElement to attach this new Datafield to
      * @param Request $request
      * 
      * @return Response TODO
      */
-    public function adddatafieldAction($datatype_id, $theme_element_id, Request $request)
+    public function adddatafieldAction($theme_element_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1371,19 +1465,20 @@ print '</pre>';
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
-            $repo_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin');
-            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
 
-            /** @var DataType $datatype */
-            $datatype = $repo_datatype->find($datatype_id);
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
             /** @var ThemeElement $theme_element */
-            $theme_element = $repo_theme_element->find($theme_element_id);
-            if ( $theme_element == null )
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ($theme_element == null)
                 return parent::deletedEntityError('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('DataType');
+
 
             // --------------------
             // Determine user privileges
@@ -1399,9 +1494,9 @@ print '</pre>';
 
             // Grab objects required to create a datafield entity
             /** @var FieldType $fieldtype */
-            $fieldtype = $repo_fieldtype->findOneBy( array('typeName' => 'Short Text') );
+            $fieldtype = $em->getRepository('ODRAdminBundle:FieldType')->findOneBy( array('typeName' => 'Short Text') );
             /** @var RenderPlugin $render_plugin */
-            $render_plugin = $repo_render_plugin->find('1');
+            $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find('1');
 
             // Create the datafield
             $objects = parent::ODR_addDataFieldsEntry($em, $user, $datatype, $fieldtype, $render_plugin);
@@ -1409,7 +1504,8 @@ print '</pre>';
             $datafield = $objects['datafield'];
 
             // Tie the datafield to the theme element
-            parent::ODR_addThemeElementFieldEntry($em, $user, null, $datafield, $theme_element);
+            $theme_datafield = parent::ODR_addThemeDataFieldEntry($em, $user, $datafield, $theme_element);
+            $em->persist($theme_datafield);
 
             // Save changes
             $em->flush();
@@ -1435,16 +1531,14 @@ print '</pre>';
 
     /**
      * Copies the layout of an existing DataField into a new DataField Entity.
-     * TODO - get $datatype_id from ThemeElement instead of parameters?
      *
-     * @param integer $datatype_id      The database id of the DataType that...
-     * @param integer $theme_element_id The database id of the ThemeElement that...
+     * @param integer $theme_element_id The database id of the ThemeElement to insert the new datafield into.
      * @param integer $datafield_id     The database id of the DataField to copy data from.
      * @param Request $request
      *
      * @return Response TODO
      */
-    public function copydatafieldAction($datatype_id, $theme_element_id, $datafield_id, Request $request)
+    public function copydatafieldAction($theme_element_id, $datafield_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1455,21 +1549,23 @@ print '</pre>';
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
 
-            /** @var DataType $datatype */
-            $datatype = $repo_datatype->find($datatype_id);
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
             /** @var ThemeElement $theme_element */
-            $theme_element = $repo_theme_element->find($theme_element_id);
-            if ( $theme_element == null )
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ($theme_element == null)
                 return parent::deletedEntityError('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('DataType');
+
             /** @var DataFields $old_datafield */
-            $old_datafield = $repo_datafield->find($datafield_id);
-            if ( $old_datafield == null )
+            $old_datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($old_datafield == null)
                 return parent::deletedEntityError('DataField');
 
             // --------------------
@@ -1484,17 +1580,10 @@ print '</pre>';
             // --------------------
 
 
-            // Grab necessary entities
-            $repo_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin');
-            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-            $repo_theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField');
-
             /** @var RenderPlugin $render_plugin */
-            $render_plugin = $repo_render_plugin->find('1');
-            /** @var Theme $theme */
-            $theme = $repo_theme->find('1');
+            $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find('1');
             /** @var ThemeDataField $old_theme_datafield */
-            $old_theme_datafield = $repo_theme_datafield->findOneBy( array('dataFields' => $old_datafield->getId(), 'theme' => 1) );
+            $old_theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $old_datafield->getId(), 'theme' => 1) );
 
 
             // Create the new datafield using the same fieldtype as the old datafield
@@ -1880,6 +1969,7 @@ print '</pre>';
 
     /**
      * Adds a new child DataType to this DataType.
+     * TODO - get rid of $datatype_id?
      * 
      * @param integer $datatype_id      The database id of the DataType that will be the new DataType's parent.
      * @param integer $theme_element_id The database id of the ThemeElement that the new DataType will be rendered in.
@@ -1898,6 +1988,15 @@ print '</pre>';
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ($theme_element == null)
+                return parent::deletedEntityError('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
 
             /** @var DataType $parent_datatype */
             $parent_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -1923,37 +2022,37 @@ print '</pre>';
 
             // TODO - mostly duplicated with DataType controller...move this somewhere else?
             // Create the new child Datatype
-            $datatype = new DataType();
-            $datatype->setRevision(0);
-            $datatype->setHasShortresults(false);
-            $datatype->setHasTextresults(false);
+            $child_datatype = new DataType();
+            $child_datatype->setRevision(0);
+            $child_datatype->setHasShortresults(false);
+            $child_datatype->setHasTextresults(false);
 
-            $datatype->setCreatedBy($user);
-            $datatype->setUpdatedBy($user);
-            $em->persist($datatype);
+            $child_datatype->setCreatedBy($user);
+            $child_datatype->setUpdatedBy($user);
+            $em->persist($child_datatype);
 
             // TODO - delete these 10 properties
-            $datatype->setShortName("New Child");
-            $datatype->setLongName("New Child");
-            $datatype->setDescription("New Child Type");
-            $datatype->setXmlShortName('');
-            $datatype->setRenderPlugin($default_render_plugin);
+            $child_datatype->setShortName("New Child");
+            $child_datatype->setLongName("New Child");
+            $child_datatype->setDescription("New Child Type");
+            $child_datatype->setXmlShortName('');
+            $child_datatype->setRenderPlugin($default_render_plugin);
 
-            $datatype->setUseShortResults('1');
-            $datatype->setExternalIdField(null);
-            $datatype->setNameField(null);
-            $datatype->setSortField(null);
-            $datatype->setDisplayType(0);
-            $datatype->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
+            $child_datatype->setUseShortResults('1');
+            $child_datatype->setExternalIdField(null);
+            $child_datatype->setNameField(null);
+            $child_datatype->setSortField(null);
+            $child_datatype->setDisplayType(0);
+            $child_datatype->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
 
             // Save all changes made
-            $em->persist($datatype);
+            $em->persist($child_datatype);
             $em->flush();
-            $em->refresh($datatype);
+            $em->refresh($child_datatype);
 
-            // Create the associated metadata entry for this datatype
+            // Create the associated metadata entry for this new child datatype
             $datatype_meta = new DataTypeMeta();
-            $datatype_meta->setDataType($datatype);
+            $datatype_meta->setDataType($child_datatype);
             $datatype_meta->setRenderPlugin($default_render_plugin);
 
             $datatype_meta->setSearchSlug(null);
@@ -1978,16 +2077,26 @@ print '</pre>';
             // Create a new DataTree entry to link the original datatype and this new child datatype
             $datatree = new DataTree();
             $datatree->setAncestor($parent_datatype);
-            $datatree->setDescendant($datatype);
+            $datatree->setDescendant($child_datatype);
             $datatree->setCreatedBy($user);
 
             // TODO - delete these two properties
             $datatree->setIsLink(false);
             $datatree->setMultipleAllowed(true);
-
             $em->persist($datatree);
-            $em->flush($datatree);
+
+
+            // Create a new master theme for this new child datatype
+            $theme = new Theme();
+            $theme->setDataType($child_datatype);
+            $theme->setThemeType('master');
+            $theme->setCreatedBy($user);
+            $em->persist($theme);
+
+
+            $em->flush();
             $em->refresh($datatree);
+            $em->refresh($theme);
 
 
             // Create a new DataTreeMeta entity to store properties of the DataTree
@@ -1998,17 +2107,20 @@ print '</pre>';
             $datatree_meta->setCreatedBy($user);
             $em->persist($datatree_meta);
 
+            // Create a new ThemeMeta entity to store properties of the childtype's Theme
+            $theme_meta = new ThemeMeta();
+            $theme_meta->setTheme($theme);
+            $theme_meta->setTemplateName('');
+            $theme_meta->setTemplateDescription('');
+            $theme_meta->setIsDefault(true);
+            $theme_meta->setCreatedBy($user);
+            $em->persist($theme_meta);
+
 
             // ----------------------------------------
-            // Create a new ThemeElementField entry to let the renderer know it has to render a child datatype in this ThemeElement
-            /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->findOneBy(array("id" => $theme_element_id));
-            $em->refresh($theme_element);
-            parent::ODR_addThemeElementFieldEntry($em, $user, $datatype, null, $theme_element);
-
-            $em->flush();
-            $em->refresh($datatype);
-//            $em->refresh($theme_element_field);
+            // Create a new ThemeDatatype entry to let the renderer know it has to render a child datatype in this ThemeElement
+            $theme_datatype = parent::ODR_addThemeDatatypeEntry($em, $user, $child_datatype, $theme_element);
+            $em->flush($theme_datatype);
 
 
             // ----------------------------------------
@@ -2029,7 +2141,7 @@ print '</pre>';
                 'can_design_type' => $parent_permission['can_design_type'],
                 'is_type_admin' => 0    // DO NOT set admin permissions on childtypes
             );
-            parent::ODR_addUserPermission($em, $user->getId(), $user->getId(), $datatype->getId(), $initial_permissions);
+            parent::ODR_addUserPermission($em, $user->getId(), $user->getId(), $child_datatype->getId(), $initial_permissions);
 
 
             // ----------------------------------------
@@ -2053,7 +2165,7 @@ print '</pre>';
             // Schedule the cache for an update
             $options = array();
             $options['mark_as_updated'] = true;
-            parent::updateDatatypeCache($datatype->getId(), $options);
+            parent::updateDatatypeCache($parent_datatype->getId(), $options);
 
         }
         catch (\Exception $e) {
@@ -3441,7 +3553,7 @@ if ($debug)
         else {
             // Rendering a datafield doesn't require the entire tree...
             $em->refresh($datafield);
-            parent::ODR_checkThemeDataField($user, $datafield, $theme);
+            //parent::ODR_checkThemeDataField($user, $datafield, $theme);
 
             $query = $em->createQuery(
                'SELECT tdf
@@ -3753,7 +3865,7 @@ if ($debug)
 
 
     /**
-     * Loads/saves a Symfony DataFields properties Form.
+     * Loads/saves an ODR DataFields properties Form.
      * 
      * @param integer $datafield_id The database id of the DataField being modified.
      * @param Request $request
@@ -3788,6 +3900,10 @@ if ($debug)
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('themeType' => 'master', 'dataType' => $datatype->getId()) );
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
 
             // --------------------
             // Determine user privileges
@@ -3809,19 +3925,21 @@ if ($debug)
             // Determine if shortresults may need to be recached
             $force_shortresults_recache = false;
             /** @var ThemeDataField $search_theme_data_field */
-            $search_theme_data_field = $repo_theme_datafield->findOneBy( array('dataFields' => $datafield, 'theme' => 2) );   // TODO
-            if ($search_theme_data_field !== null && $search_theme_data_field->getActive() == true)
+//            $search_theme_data_field = $repo_theme_datafield->findOneBy( array('dataFields' => $datafield, 'theme' => 2) );   // TODO
+//            if ($search_theme_data_field !== null && $search_theme_data_field->getActive() == true)
+            if ( parent::inShortResults($datafield) )
                 $force_shortresults_recache = true;
 
 
             // --------------------
-            // Get relevant theme_datafield entry
+            // Get relevant theme_datafield entry for this datatype's master theme
             $query = $em->createQuery(
                'SELECT tdf
-                FROM ODRAdminBundle:ThemeDataField AS tdf
-                WHERE tdf.theme = 1 AND tdf.dataFields = :datafield
-                AND tdf.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield->getId()) );
+                FROM ODRAdminBundle:ThemeElement AS te
+                FROM ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
+                WHERE te.theme = :theme_id AND tdf.dataFields = :datafield
+                AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL'
+            )->setParameters( array('theme_id' => $theme->getId(), 'datafield' => $datafield->getId()) );
             $result = $query->getResult();
             /** @var ThemeDataField $theme_datafield */
             $theme_datafield = $result[0];
@@ -3836,7 +3954,7 @@ if ($debug)
                 // Count how many files/images are attached to this datafield across all datarecords
                 $str =
                    'SELECT COUNT(e.dataRecord)
-                    FROM ODRAdminBundle:'.$typeclass.' e
+                    FROM ODRAdminBundle:'.$typeclass.' AS e
                     JOIN ODRAdminBundle:DataFields AS df WITH e.dataField = df
                     JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
                     WHERE e.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.id = :datafield';
@@ -4113,14 +4231,14 @@ print_r($errors);
                             case 'Multiple Select':
                             case 'Markdown':
                                 // Datafields with these fieldtypes can't be in TextResults
-                                $submitted_data->setDisplayOrder(-1);
+//                                $submitted_data->setDisplayOrder(-1);
                                 $update_field_order = true;
                                 break;
 
                             case 'File':
                                 // File datafields can be in TextResults if they're only allowed to have a single upload
                                 if ( $submitted_data->getAllowMultipleUploads() == '1' ) {
-                                    $submitted_data->setDisplayOrder(-1);
+//                                    $submitted_data->setDisplayOrder(-1);
                                     $update_field_order = true;
                                 }
                                 break;
@@ -4143,7 +4261,7 @@ print_r($errors);
 
                     // Ensure a File datafield isn't in TextResults if it is set to allow multiple uploads
                     if ( $old_allowmultipleuploads == '0' && $submitted_data->getAllowMultipleUploads() == '1' ) {
-                        $submitted_data->setDisplayOrder(-1);
+//                        $submitted_data->setDisplayOrder(-1);
                         $update_field_order = true;
                     }
 
@@ -4193,7 +4311,7 @@ print_r($errors);
                     if ($sort_radio_options)
                         self::radiooptionorderAction($datafield->getId(), true, $request);  // TODO - might be race condition issue with design_ajax
 
-                    if ( $update_field_order )
+                    if ($update_field_order)
                         self::updateTextResultsFieldOrder($em, $user, $datatype, $datafield);
 
 
@@ -4305,7 +4423,7 @@ if ($force_slideout_reload)
                 $em->refresh($datafield);
                 $em->refresh($theme_datafield);
 
-                $datafield_meta = $datafield->getDataFieldsMeta();
+                $datafield_meta = $datafield->getDataFieldMeta();
                 $datafield_form = $this->createForm(new UpdateDataFieldsForm($allowed_fieldtypes), $datafield_meta);
 
                 $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm(), $theme_datafield);
@@ -4352,6 +4470,45 @@ if ($force_slideout_reload)
      */
     private function updateTextResultsFieldOrder($em, $user, $datatype, $removed_datafield)
     {
+        // Locate each table theme for this datatype
+        /** @var Theme[] $themes */
+        $themes = $em->getRepository('ODRAdminBundle:Theme')->findBy( array('themeType' => 'table', 'dataType' => $datatype->getId()) );
+        foreach ($themes as $theme) {
+            /** @var ThemeElement $theme_element */
+            $theme_element = $theme->getThemeElements()->first();   // only ever a single ThemeElement in a table theme
+
+            /** @var ThemeDataField[] $theme_datafields */
+            $theme_datafields = $theme_element->getThemeDataFields();
+            $datafield_list = array();
+
+            foreach ($theme_datafields as $tdf) {
+                if ( $tdf->getDataField()->getId() !== $removed_datafield->getId() )
+                    $datafield_list[ $tdf->getDisplayOrder() ] = $tdf;
+            }
+            /** @var ThemeDataField[] $datafield_list */
+            ksort($datafield_list);
+
+            // Reset displayOrder to be sequential
+            $datafield_list = array_values($datafield_list);
+            for ($i = 0; $i < count($datafield_list); $i++) {
+                $tdf = $datafield_list[$i];
+                if ($tdf->getDisplayOrder() !== ($i+1)) {
+
+                    $properties = array(
+                        'displayOrder' => ($i+1)
+                    );
+                    parent::ODR_copyThemeDatafield($em, $user, $tdf, $properties);
+                }
+            }
+
+            // TODO - still using datatype's hasTextResults() property?
+        }
+
+        // Done with the changes
+        $em->flush();
+
+        return;
+
         // Grab all Datafields that are currently being used in TextResults
         $datafield_list = array();
 
@@ -4398,6 +4555,7 @@ if ($force_slideout_reload)
 
     /**
      * Loads/saves a Symfony ThemeElement properties Form.
+     * @deprecated
      * 
      * @param integer $theme_element_id The database id of the ThemeElement being modified.
      * @param Request $request

@@ -1,7 +1,10 @@
 {% spaceless %}
 
-    {% set childtype = datatype_tree.datatype %}
+    {#{% set childtype = datatype_tree.datatype %}#}
+    {% set childtype = datatype_array[target_datatype_id] %}
+    {% set parent_datarecord = datarecord_array[parent_datarecord_id] %}
 
+    {#<div class="ODRChildDatatype" id="ChildTypeWrapper_{{ childtype.id }}_{{ parent_datarecord.id }}">#}
     <div class="ODRChildDatatype" id="ChildTypeWrapper_{{ childtype.id }}_{{ parent_datarecord.id }}">
 {#
     {% if data.datatype.is_link == 1 %}
@@ -9,21 +12,39 @@
         {{ mychildform.input(data.datatype, datarecord_children, theme, false) }}
     {% else %}
 #}
+        {#
         {% import "ODRAdminBundle:Record:record_childtype.html.twig" as mychildform %}
         {{ mychildform.input(datatype_tree, datarecord_children, theme, datatype_permissions, datafield_permissions) }}
+        #}
+        {% include 'ODRAdminBundle:Record:record_childtype.html.twig' with {
+            'datatype_array': datatype_array,
+            'datarecord_array': datarecord_array,
+            'theme_id': theme_id,
+
+            'target_datatype_id': target_datatype_id,
+            'parent_datarecord_id': parent_datarecord_id,
+
+            'datatype_permissions': datatype_permissions,
+            'datafield_permissions': datafield_permissions,
+
+            'is_top_level': 0,
+            'is_link': is_link,
+            'display_type': display_type,
+        } %}
 {#
     {% endif %}
 #}
 
         <div>
-        {% if datatype_tree.is_link == 1 %}
+        {#{% if datatype_tree.is_link == 1 %}#}
+        {% if is_link == 1 %}
             {% if can_edit_record == 1 %}
-            <button class="pure-button pure-button-primary" type="button" onclick="LinkRecord({{ datatype.id }},{{ childtype.id }},{{ parent_datarecord.id }});">Link {{ childtype.shortname }} record.</button>
+            <button class="pure-button pure-button-primary" type="button" onclick="LinkRecord({{ datatype.id }},{{ childtype.id }},{{ parent_datarecord.id }});">Link {{ childtype.dataTypeMeta.shortName }} record.</button>
             {% endif %}
         {% elseif can_add_record == 1 %}
-            {% if datatype_tree.multiple_allowed == 1 or datarecord_children|length < 1 %}
-            <button class="pure-button pure-button-primary" type="button" onclick="AddChildRecord({{ childtype.id }},{{ parent_datarecord.id }},{{ parent_datarecord.grandparent.id }});">Add {{ childtype.shortname }} record.</button>
-            {% endif %}
+            {#{% if datatype_tree.multiple_allowed == 1 or datarecord_children|length < 1 %}#}
+            <button class="pure-button pure-button-primary" type="button" onclick="AddChildRecord({{ childtype.id }},{{ parent_datarecord.id }},{{ parent_datarecord.grandparent.id }});">Add {{ childtype.dataTypeMeta.shortName }} record.</button>
+            {#{% endif %}#}
         {% endif %}
         </div>
     </div><!-- End of #ChildTypeWrapper_{{ childtype.id }}_{{ parent_datarecord.id }} -->

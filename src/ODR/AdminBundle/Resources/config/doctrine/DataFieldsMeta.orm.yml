@@ -85,12 +85,6 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
 #            gedmo:
 #                - versioned
 
-        displayOrder:
-            type: integer
-            nullable: false
-            column: display_order
-#            gedmo:
-#                - versioned
         children_per_row:
             type: integer
             nullable: false
@@ -139,12 +133,20 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
 #            gedmo:
 #                - versioned
 
+        #TODO - delete the following property
+        displayOrder:
+            type: integer
+            nullable: false
+            column: display_order
+#            gedmo:
+#                - versioned
+
     manyToOne:
         dataField:
             targetEntity: DataFields
             cascade: {  }
             mappedBy: null
-            inversedBy: dataFieldsMeta
+            inversedBy: dataFieldMeta
             joinColumns:
                 data_field_id:
                     referencedColumnName: id

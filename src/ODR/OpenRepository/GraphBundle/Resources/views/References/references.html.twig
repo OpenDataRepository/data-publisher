@@ -1,20 +1,20 @@
 {% spaceless %}
+
 <div class="ODRReference">
-{% if ref is defined %}
-    {% set author = ref.authors|plug(ref.authors.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
-    {% set year = ref.year|plug(ref.year.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
-    {% set article_title = ref.article_title|plug(ref.article_title.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
-    {% set journal = ref.journal|plug(ref.journal.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
-    {% set volume = ref.volume|plug(ref.volume.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
-    {% set pages = ref.pages|plug(ref.pages.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
+{% if mapping is defined %}
+    {% set author = mapping.authors.datafield|datafield_plugin(datarecord, mapping.authors.render_plugin, 'text')|raw %}
+    {% set year = mapping.year.datafield|datafield_plugin(datarecord, mapping.year.render_plugin, 'text')|raw %}
+    {% set article_title = mapping.article_title.datafield|datafield_plugin(datarecord, mapping.article_title.render_plugin, 'text')|raw %}
+    {% set journal = mapping.journal.datafield|datafield_plugin(datarecord, mapping.journal.render_plugin, 'text')|raw %}
+    {% set volume = mapping.volume.datafield|datafield_plugin(datarecord, mapping.volume.render_plugin, 'text')|raw %}
+    {% set pages = mapping.pages.datafield|datafield_plugin(datarecord, mapping.pages.render_plugin, 'text')|raw %}
 
+    {{ author|raw }}&nbsp;({{ year|raw }})&nbsp;{{ article_title|raw }},&nbsp;{{ journal|raw }},&nbsp;{{ volume|raw }},&nbsp;{{ pages|raw }}
 
-{{ author|raw }}&nbsp;({{ year|raw }})&nbsp;{{ article_title|raw }},&nbsp;{{ journal|raw }},&nbsp;{{ volume|raw }},&nbsp;{{ pages|raw }}
-
-
-{% for file in ref.file.getassociatedentity %}
-    {% if file.ispublic == true or public_only == false %}&nbsp;<a href="{{ path('odr_file_download', {'file_id': file.id} ) }}">[view file]</a>{% endif %}
-{% endfor %}
+    {% for file in mapping.file.datarecordfield.file %}
+        {% if file.fileMeta.publicDate|is_public %}&nbsp;<a href="{{ path('odr_file_download', {'file_id': file.id} ) }}">[view file]</a>{% endif %}    {# TODO #}
+    {% endfor %}
 {% endif %}
 </div>
+
 {% endspaceless %}

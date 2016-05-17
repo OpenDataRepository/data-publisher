@@ -251,14 +251,12 @@ function initPage() {
         if ( $(this).hasClass('fa-muted') )
             return;
 
-        var datatype_id = $(this).attr('rel');
-
         var theme_element_id_data = $(this).parent().parent().attr("id").split(/_/);
         var theme_element_id = theme_element_id_data[1];
 
-        var url = '{{ path('odr_design_add_datafield', { 'datatype_id': 0, 'theme_element_id': 0 }) }}';
+        var url = '{{ path('odr_design_add_datafield', { 'theme_element_id': 0 }) }}';
         // Load display template menu 
-        url = url.substring(0,(url.length - 3)) + datatype_id + "/" + theme_element_id;
+        url = url.substring(0, (url.length - 1)) + theme_element_id;
 //alert( url );
 //return;
 
@@ -1386,7 +1384,6 @@ function SaveDatatypeProperties(datatype_id, short_name) {
                 // Show Error message dialog
                 alert(data.d);
 
-
                 // Forcibly reload slideout
                 $("#ElementData").html("");
                 $("#DataTypeTools_" + datatype_id + " > .ODRDatatypeProperties").trigger('click');
@@ -1727,13 +1724,9 @@ function CopyDatafield(datafield_id) {
     var theme_element_id_data = $("#Field_" + datafield_id).parent().parent().attr('id').split(/_/);
     var theme_element_id = theme_element_id_data[1];
 
-    // Grab datatype id
-    var tmp = $("#Field_" + datafield_id).parent().parent().parent().parent().attr('id').split(/_/);
-    var datatype_id = tmp[1];
-
-    var url = '{{ path('odr_design_copy_datafield', { 'datatype_id': 0, 'theme_element_id': 0, 'datafield_id': 0 } ) }}';
-    url = url.substring(0, (url.length - 5));
-    url += datatype_id + '/' + theme_element_id + '/' + datafield_id;
+    var url = '{{ path('odr_design_copy_datafield', { 'theme_element_id': 0, 'datafield_id': 0 } ) }}';
+    url = url.substring(0, (url.length - 3));
+    url += theme_element_id + '/' + datafield_id;
 
 //alert( url );
 //return;

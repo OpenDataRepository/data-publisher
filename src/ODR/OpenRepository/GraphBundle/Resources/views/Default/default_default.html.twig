@@ -1,6 +1,8 @@
 {% spaceless %}
-<fieldset>
-    <label id="Label_{{ field.id }}" for="Input_{{ field.id }}" class="ODRFieldLabel">{{ field.fieldname }}</label>
-    <div class="ODRPseudoField" id="Input_{{ field.id }}">{% if str|raw != '' %}{{ str|raw }}{% else %}&nbsp;{% endif %}</div>
-</fieldset>
+    <fieldset>
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
+            <input type="text" value="{{ value }}" readonly="readonly" />
+        </div>
+    </fieldset>
 {% endspaceless %}

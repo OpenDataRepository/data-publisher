@@ -9,6 +9,7 @@
  *
  * The ThemeDataType Entity is automatically generated from
  * ./Resources/config/doctrine/ThemeDataType.orm.yml
+ *
  */
 
 namespace ODR\AdminBundle\Entity;
@@ -26,24 +27,19 @@ class ThemeDataType
     private $id;
 
     /**
-     * @var string
+     * @var integer
      */
-    private $templateType;
-
-    /**
-     * @var string
-     */
-    private $css;
-
-    /**
-     * @var \DateTime
-     */
-    private $deletedAt;
+    private $display_type;
 
     /**
      * @var \DateTime
      */
     private $created;
+
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
 
     /**
      * @var \DateTime
@@ -56,9 +52,9 @@ class ThemeDataType
     private $dataType;
 
     /**
-     * @var \ODR\AdminBundle\Entity\Theme
+     * @var \ODR\AdminBundle\Entity\ThemeElement
      */
-    private $theme;
+    private $themeElement;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -66,10 +62,20 @@ class ThemeDataType
     private $createdBy;
 
     /**
+     * @var \ODR\AdminBundle\Entity\Theme
+     */
+    private $theme;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $updatedBy;
 
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $deletedBy;
+    
 
     /**
      * Get id
@@ -82,72 +88,26 @@ class ThemeDataType
     }
 
     /**
-     * Set templateType
+     * Set display_type
      *
-     * @param string $templateType
+     * @param integer $displayType
      * @return ThemeDataType
      */
-    public function setTemplateType($templateType)
+    public function setDisplayType($displayType)
     {
-        $this->templateType = $templateType;
+        $this->display_type = $displayType;
 
         return $this;
     }
 
     /**
-     * Get templateType
+     * Get display_type
      *
-     * @return string 
+     * @return integer 
      */
-    public function getTemplateType()
+    public function getDisplayType()
     {
-        return $this->templateType;
-    }
-
-    /**
-     * Set css
-     *
-     * @param string $css
-     * @return ThemeDataType
-     */
-    public function setCss($css)
-    {
-        $this->css = $css;
-
-        return $this;
-    }
-
-    /**
-     * Get css
-     *
-     * @return string 
-     */
-    public function getCss()
-    {
-        return $this->css;
-    }
-
-    /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return ThemeDataType
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
+        return $this->display_type;
     }
 
     /**
@@ -174,7 +134,31 @@ class ThemeDataType
     }
 
     /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return ThemeDataType
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+
+    /**
      * Set updated
+     * @deprecated
      *
      * @param \DateTime $updated
      * @return ThemeDataType
@@ -188,6 +172,7 @@ class ThemeDataType
 
     /**
      * Get updated
+     * @deprecated
      *
      * @return \DateTime 
      */
@@ -202,7 +187,7 @@ class ThemeDataType
      * @param \ODR\AdminBundle\Entity\DataType $dataType
      * @return ThemeDataType
      */
-    public function setDataType(\ODR\AdminBundle\Entity\DataType $dataType = null)
+    public function setDataType(\ODR\AdminBundle\Entity\DataType $dataType)
     {
         $this->dataType = $dataType;
 
@@ -220,26 +205,26 @@ class ThemeDataType
     }
 
     /**
-     * Set theme
+     * Set themeElement
      *
-     * @param \ODR\AdminBundle\Entity\Theme $theme
+     * @param \ODR\AdminBundle\Entity\ThemeElement $themeElement
      * @return ThemeDataType
      */
-    public function setTheme(\ODR\AdminBundle\Entity\Theme $theme = null)
+    public function setThemeElement(\ODR\AdminBundle\Entity\ThemeElement $themeElement = null)
     {
-        $this->theme = $theme;
+        $this->themeElement = $themeElement;
 
         return $this;
     }
 
     /**
-     * Get theme
+     * Get themeElement
      *
-     * @return \ODR\AdminBundle\Entity\Theme 
+     * @return \ODR\AdminBundle\Entity\ThemeElement 
      */
-    public function getTheme()
+    public function getThemeElement()
     {
-        return $this->theme;
+        return $this->themeElement;
     }
 
     /**
@@ -266,7 +251,33 @@ class ThemeDataType
     }
 
     /**
+     * Set theme
+     * @deprecated
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $theme
+     * @return ThemeDataType
+     */
+    public function setTheme(\ODR\AdminBundle\Entity\Theme $theme = null)
+    {
+        $this->theme = $theme;
+
+        return $this;
+    }
+
+    /**
+     * Get theme
+     * @deprecated
+     *
+     * @return \ODR\AdminBundle\Entity\Theme 
+     */
+    public function getTheme()
+    {
+        return $this->theme;
+    }
+
+    /**
      * Set updatedBy
+     * @deprecated
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
      * @return ThemeDataType
@@ -280,11 +291,35 @@ class ThemeDataType
 
     /**
      * Get updatedBy
+     * @deprecated
      *
      * @return \ODR\OpenRepository\UserBundle\Entity\User 
      */
     public function getUpdatedBy()
     {
         return $this->updatedBy;
+    }
+
+    /**
+     * Set deletedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $deletedBy
+     * @return ThemeDataType
+     */
+    public function setDeletedBy(\ODR\OpenRepository\UserBundle\Entity\User $deletedBy = null)
+    {
+        $this->deletedBy = $deletedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getDeletedBy()
+    {
+        return $this->deletedBy;
     }
 }

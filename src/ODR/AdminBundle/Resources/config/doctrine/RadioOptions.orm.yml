@@ -76,6 +76,17 @@ ODR\AdminBundle\Entity\RadioOptions:
 #            gedmo:
 #                - versioned
 
+        radioSelections:
+            targetEntity: RadioSelection
+            cascade: {  }
+            mappedBy: radioOption
+            inversedBy: null
+            joinColumns:
+                radio_selection_id:
+                    referencedColumnName: id
+#            gedmo:
+#                - versioned
+
     manyToOne:
         dataField:
             targetEntity: DataFields

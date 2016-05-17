@@ -1,32 +1,29 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* UpdateThemeElement Form
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* Holds pureCSS width options for ThemeElements.
-*/
+ * Open Data Repository Data Publisher
+ * UpdateThemeElement Form
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * Builds the Form used for modifying ThemeDatafield properties via
+ * the right slideout in DisplayTemplate.
+ */
 
-//ODR/AdminBundle/Forms/UpdateDataTypeForm.class.php
 namespace ODR\AdminBundle\Form;
+
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolverInterface;
 
-use Doctrine\ORM\EntityRepository;
 
 class UpdateThemeElementForm extends AbstractType
 {
 
-    protected $theme_element;
-    public function __construct (\ODR\AdminBundle\Entity\ThemeElement $theme_element) {
-        $this->theme_element = $theme_element;
-    }
-
-
+    /**
+     * {@inheritdoc}
+     */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
         $builder->add(
@@ -52,24 +49,25 @@ class UpdateThemeElementForm extends AbstractType
                 'empty_value' => false
             )
         );
-
     }
-    
+
+
+    /**
+     * Returns the name of this type.
+     *
+     * @return string The name of this type
+     */
     public function getName() {
         return 'UpdateThemeElementForm';
     }
 
+
     /**
-     * TODO: short description.
-     * 
-     * @param OptionsResolverInterface $resolver 
-     * 
-     * @return TODO
+     * {@inheritdoc}
      */
     public function setDefaultOptions(OptionsResolverInterface $resolver)
     {
-        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\ThemeElement'));
+//        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\ThemeElement'));
+        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\ThemeElementMeta'));
     }
-
-
 }

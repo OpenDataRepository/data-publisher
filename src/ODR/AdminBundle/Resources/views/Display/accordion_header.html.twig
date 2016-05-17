@@ -1,0 +1,25 @@
+{% spaceless %}
+
+    {% if is_top_level == 0 and (display_type == 0 or display_type == 3) %}     {# accordion or list display_type #}
+        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+            <span class="ui-icon ui-icon-triangle-1-s"></span>
+{#
+        {% set datarecord_name = datarecord.getnamefieldvalue %}
+        {% if datarecord_name != datarecord.id %}
+            <a>{{ datarecord_name }}</a>
+        {% else %}
+#}
+            <a>{{ datatype.dataTypeMeta.shortName }}</a>
+{#
+        {% endif %}
+#}
+
+            {% if datarecord.dataRecordMeta.publicDate|is_public and datarecord.id != datarecord.grandparent.id %}
+                <span style="float: right;">
+                        <i class="tooltip fa fa-lg fa-globe {% if not datarecord.dataRecordMeta.publicDate|is_public %}IconRed{% endif %}" title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}"></i> #}
+                    </span>
+            {% endif %}
+        </h3>
+    {% endif %}
+
+{% endspaceless %}

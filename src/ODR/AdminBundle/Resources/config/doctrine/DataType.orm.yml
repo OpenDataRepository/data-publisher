@@ -256,6 +256,20 @@ ODR\AdminBundle\Entity\DataType:
                     referencedColumnName: id
 #            gedmo:
 #                - versioned
+
+        themes:
+            targetEntity: Theme
+            cascade: { }
+            mappedBy: dataType
+            inversedBy: null
+            joinColumns:
+                theme_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
+        #TODO - delete the following property
         themeElement:
             targetEntity: ThemeElement
             cascade: {  }
