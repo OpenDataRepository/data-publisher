@@ -21,6 +21,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
@@ -33,6 +34,7 @@ class TextResultsController extends ODRCustomController
 
     /**
      * Updates the database with the new TextResults field order specified by the user.
+     * @deprecated
      * 
      * @param string $unused_field_ids The database ids of datafields not added to TextResults
      * @param string $used_field_ids   The database ids of datafields added to TextResults, in order
@@ -48,6 +50,8 @@ class TextResultsController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            throw new \Exception('DEPRECATED');
+
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -184,7 +188,7 @@ class TextResultsController extends ODRCustomController
                 $odr_tab_id = $post['odr_tab_id'];
 
             $datatype_id = intval( $post['datatype_id'] );
-            $draw = intval( $post['draw'] );    // intval because of recommendation by datatables documentation
+            $draw = intval( $post['draw'] );    // intval() because of recommendation by datatables documentation
             $start = intval( $post['start'] );
 
             // Need to deal with requests for a sorted table...
@@ -229,6 +233,11 @@ class TextResultsController extends ODRCustomController
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             // TODO - deleted datatype?
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'table') );
+            // TODO - deleted theme?
+
             // TODO - user permissions?
 
             // Determine whether user is logged in or not
@@ -348,7 +357,6 @@ class TextResultsController extends ODRCustomController
                     )->setParameters( array('datarecords' => $list, 'display_order' => $sort_column) );
                     $results = $query->getArrayResult();
 
-                    // TODO - sort in php instead of SQL?
                     // Redo the list of datarecords based on the sorted order
                     $list = array();
                     foreach ($results as $num => $result) {
@@ -358,23 +366,41 @@ class TextResultsController extends ODRCustomController
                 else {
                     // Get SQL to sort the list of datarecords
                     $query = $em->createQuery(
-                       'SELECT dr.id AS dr_id
+                       'SELECT dr.id AS dr_id, e.value AS value
                         FROM ODRAdminBundle:DataRecord AS dr
                         JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
                         JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
                         JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
                         JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
                         WHERE dr.id IN (:datarecords) AND dfm.displayOrder = :display_order
-                        AND dr.deletedAt IS NULL AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
-                        ORDER BY e.value '.$sort_dir
+                        AND dr.deletedAt IS NULL AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
                     )->setParameters( array('datarecords' => $list, 'display_order' => $sort_column) );
                     $results = $query->getArrayResult();
 
-                    // TODO - sort in php instead of SQL?
+                    // Build an array so php can sort the list of datarecords
+                    $tmp = array();
+                    foreach ($results as $num => $result) {
+                        $dr_id = $result['dr_id'];
+                        $value = $result['value'];
+
+                        if ($typeclass == 'IntegerValue')
+                            $value = intval($value);
+                        else if ($typeclass == 'DecimalValue')
+                            $value = floatval($value);
+
+                        $tmp[$dr_id] = $value;
+                    }
+
+                    //
+                    if ($sort_dir == 'DESC')
+                        arsort($tmp);
+                    else
+                        asort($tmp);
+
                     // Redo the list of datarecords based on the sorted order
                     $list = array();
-                    foreach ($results as $num => $result) {
-                        $list[] = $result['dr_id'];
+                    foreach ($tmp as $dr_id => $value) {
+                        $list[] = $dr_id;
                     }
                 }
             }
@@ -409,7 +435,7 @@ class TextResultsController extends ODRCustomController
             // Get the rows that will fulfill the request
             $data = array();
             if ( $datarecord_count > 0 )
-                $data = parent::renderTextResultsList($datarecord_list, $datatype, $request);
+                $data = parent::renderTextResultsList($em, $datarecord_list, $theme, $request);
 
             // Build the json array to return to the datatables request
             $json = array(

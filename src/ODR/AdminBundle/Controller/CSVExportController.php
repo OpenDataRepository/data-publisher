@@ -38,8 +38,6 @@ use Ddeboer\DataImport\Writer\CsvWriter;
 
 class CSVExportController extends ODRCustomController
 {
-
-
     /**
      * Sets up a csv export request made from a search results page.
      * 
@@ -153,6 +151,9 @@ class CSVExportController extends ODRCustomController
         // Required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
+        $memcached = $this->get('memcached');
+        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -160,42 +161,50 @@ class CSVExportController extends ODRCustomController
             return parent::deletedEntityError('Datatype');
 
         /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
+        $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+        if ($theme == null)
+            return parent::deletedEntityError('Theme');
 
 
         // --------------------
         // Determine user privileges
         /** @var User $user */
         $user = $this->container->get('security.context')->getToken()->getUser();
-//        $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
-//        $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+        $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
+        $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
         // --------------------
 
-        $theme_element = null;
+        $bypass_cache = false;
+        if ($this->container->getParameter('kernel.environment') === 'dev')
+            $bypass_cache = true;
 
-        $indent = 0;
-        $is_link = 0;
-        $top_level = 1;
-        $short_form = true;     // ?
+        // ----------------------------------------
+        // Grab the cached version of the desired datatype
+        $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype->getId());
+        if ($bypass_cache || $datatype_data == null)
+            $datatype_data = parent::getDatatypeData($em, parent::getDatatreeArray($em), $datatype->getId(), true);
 
-$debug = true;
-$debug = false;
-if ($debug)
-    print '<pre>';
+/*
+print '<pre>';
+print_r($datatype_data);
+print '</pre>';
+exit();
+*/
+        // ----------------------------------------
+        // Filter by user permissions
+        $datarecord_data = array();
+        parent::filterByUserPermissions($datatype_id, $datatype_data, $datarecord_data, $datatype_permissions, $datafield_permissions);
 
-        $tree = parent::buildDatatypeTree($user, $theme, $datatype, $theme_element, $em, $is_link, $top_level, $short_form, $debug, $indent);
 
-if ($debug)
-    print '</pre>';
-
-
+        // Render the CSVExport page
         $templating = $this->get('templating');
         $html = $templating->render(
             'ODRAdminBundle:CSVExport:csvexport_ajax.html.twig',
             array(
-//                'datafield_permissions' => $datafield_permissions,
-                'datatype_tree' => $tree,
-                'theme' => $theme,
+                'datatype_array' => $datatype_data,
+                'initial_datatype_id' => $datatype_id,
+                'theme_id' => $theme->getId(),
+
                 'odr_tab_id' => $odr_tab_id,
             )
         );
@@ -235,8 +244,6 @@ if ($debug)
             if ( isset($post['csv_export_secondary_delimiter']) )
                 $secondary_delimiter = $post['csv_export_secondary_delimiter'];
 
-            // TODO - ensure datafields belong to datatype?
-
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -248,9 +255,10 @@ if ($debug)
                 return parent::deletedEntityError('Datatype');
 
 
-//            $memcached = $this->get('memcached');
-//            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
             $session = $request->getSession();
             $api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
@@ -263,7 +271,6 @@ if ($debug)
             /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-//            $logged_in = true;
 
             // Ensure user has permissions to be doing this
             if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )

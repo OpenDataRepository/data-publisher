@@ -1039,13 +1039,12 @@ odr_mass_update_worker_values:
 #-----------------------------------------
 # CSVExport Controller
 odr_csv_export_render:
-#    pattern: /admin/csvexport/{datatype_id}/{search_key}/{offset}
-    pattern: /admin/csvexport/{datatype_id}
+    pattern: /admin/csvexport/{datatype_id}/{search_key}/{offset}
     defaults: { _controller: ODRAdminBundle:CSVExport:csvExport, offset: '' }
     requirements:
         datatype_id: \d+
-#        search_key: '[^\/]*'
-#        offset: \d+
+        search_key: '[^\/]*'
+        offset: \d+
 
 
 odr_csv_export_start:

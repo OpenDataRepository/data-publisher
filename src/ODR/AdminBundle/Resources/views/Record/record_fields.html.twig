@@ -86,10 +86,11 @@
                 {% elseif can_view_datafield == 1 %}
 
                     {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
-                        'datatype': datatype,
                         'datarecord': datarecord,
                         'theme_datafield': theme_datafield,
                         'datafield': datafield,
+
+                        'image_thumbnails_only': false,
                     } %}
 
                 {% else %}

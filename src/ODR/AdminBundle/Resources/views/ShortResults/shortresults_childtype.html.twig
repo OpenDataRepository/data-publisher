@@ -1,29 +1,29 @@
-{% macro input(datatype_tree, datarecord_tree) %}
 {% spaceless %}
 
-{% set datatype = datatype_tree.datatype %}
-{% set theme_datatype = datatype_tree.theme_datatype %}
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = datatype.themes[theme_id] %}
+{% set datarecord = datarecord_array[target_datarecord_id] %}
 
-<!-- Child Types -->
-{% for dr_entry in datarecord_tree %}   {# should only be one in here, theoretically... #}
-    {% set datarecord = dr_entry.datarecord %}
+<div class="DataRecordShort DataRecord_{{ datarecord.id }} Pointer" id="DataType_{{ datatype.id }}" onclick="loadDataRecord({{ datarecord.id }});">
+    <div class="Resizable">
+        <div class="ODREditLink" rel="{{ datarecord.id }}">
+            <u>Edit</u>
+        </div>
 
-    <div class="DataRecordShort DataRecord_{{ datarecord.id }} Pointer" id="DataType_{{ datatype.id }}" rel="{{ theme_datatype.id }}" onclick="loadDataRecord({{ datarecord.id }});">
-        <div class="Resizable">
-            <div class="ODREditLink" rel="{{ datarecord.id }}">
-                <u>Edit</u>
-            </div>
+        <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
+            {% include 'ODRAdminBundle:ShortResults:shortresults_fieldarea.html.twig' with {
+                'datatype_array': datatype_array,
+                'datarecord_array': datarecord_array,
 
-            <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
-                {% include 'ODRAdminBundle:ShortResults:shortresults_fields.html.twig' with {'datatype_tree': datatype_tree, 'dr_entry': dr_entry} %}
-            </div><!-- End of #FieldArea_{{ datarecord.id }} -->
+                'target_datatype_id': target_datatype_id,
+                'target_datarecord_id': datarecord.id,
+                'theme_id': theme_id,
+            } %}
+        </div><!-- End of #FieldArea_{{ datarecord.id }} -->
 
-        </div><!-- End of .Resizable -->
-    </div><!-- End of #DataType_{{ datatype.id }} -->
-
-{% endfor %}
+    </div><!-- End of .Resizable -->
+</div><!-- End of .DataRecord_{{ datarecord.id }} -->
 
 <div class="ShortResults_offset clearfix"></div>
 
 {% endspaceless %}
-{% endmacro %}

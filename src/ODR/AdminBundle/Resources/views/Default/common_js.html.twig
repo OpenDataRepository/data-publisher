@@ -336,7 +336,10 @@
         });
 
         $(".ODRGalleryLeftArrow").unbind('click');
-        $(".ODRGalleryLeftArrow").click(function() {
+        $(".ODRGalleryLeftArrow").click(function(event) {
+            // Stop other click events from firing when this is clicked
+            event.stopImmediatePropagation();
+
             var id_data = $(this).attr('rel');
             var gallery = "#imagegallery_" + id_data + " .ODRImageGalleryImage";
             var storage = "#imagestorage_" + id_data;
@@ -346,7 +349,10 @@
         });
 
         $(".ODRGalleryRightArrow").unbind('click');
-        $(".ODRGalleryRightArrow").click(function() {
+        $(".ODRGalleryRightArrow").click(function(event) {
+            // Stop other click events from firing when this is clicked
+            event.stopImmediatePropagation();
+
             var id_data = $(this).attr('rel');
             var gallery = "#imagegallery_" + id_data + " .ODRImageGalleryImage";
             var storage = "#imagestorage_" + id_data;

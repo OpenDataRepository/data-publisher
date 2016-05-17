@@ -65,6 +65,7 @@ function initPage() {
         var file_id = $(this).attr('rel');
         var href = $(this).attr('href');
 
+        // Prevent the click handler for <tr> elements from firing if a file download href is clicked
         var short_form = false;
         var can_cancel = true;
         handleFileDownload(event, file_id, href, short_form, can_cancel);

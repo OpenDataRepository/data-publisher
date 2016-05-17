@@ -113,7 +113,16 @@
                 "data": {
                     "datatype_id": {{ datatype.id }},
                     "search_key": "{{ search_key }}",
-                    "odr_tab_id": window.sessionStorage.getItem('odr_tab_id'),
+                    "odr_tab_id": window.sessionStorage.getItem('odr_tab_id')
+                },
+                "dataSrc": function (json) {
+                    // If an error was encountered, display it to the user
+                    if ( json.d !== undefined ) {
+                        alert( json.d );
+                    }
+
+                    // Apparently need to return this for datatables to work
+                    return json.data;
                 }
             },
 

@@ -27,6 +27,12 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 
+/**
+ * Class ShortResultsController
+ * @deprecated
+ *
+ * @package ODR\AdminBundle\Controller
+ */
 class ShortResultsController extends ODRCustomController
 {
 

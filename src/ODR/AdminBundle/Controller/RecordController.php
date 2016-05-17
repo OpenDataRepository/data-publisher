@@ -2065,32 +2065,33 @@ if ($debug) {
         print '-- datarecord '.$id."\n";
 }
 
-            // ----------------------------------------
-/*
-            // Need memcached for this...
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-*/
 
+            // ----------------------------------------
+            // Convert the list of already-linked datarecords into table format for displaying and manipulation
             /** @var Theme $theme */
-//            $theme = $em->getRepository('ODRAdminBundle:Theme')->find(4);   // TODO - need an offcial theme to indicate "textresults"
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $remote_datatype->getId(), 'themeType' => 'table') );
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
 
             // Convert the list of linked datarecords into a slightly different format so renderTextResultsList() can build it
             $datarecord_list = array();
             foreach ($linked_datarecords as $dr_id => $value)
                 $datarecord_list[] = $dr_id;
 
-            $table_html = parent::renderTextResultsList($datarecord_list, $remote_datatype, $request);
+            $table_html = parent::renderTextResultsList($em, $datarecord_list, $theme, $request);
             $table_html = json_encode($table_html);
 //print_r($table_html);
 
             // Grab the column names for the datatables plugin
-            $column_data = parent::getDatatablesColumnNames($remote_datatype->getId());
+            $column_data = parent::getDatatablesColumnNames($em, $theme);
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
-
-
+/*
+print '<pre>';
+print_r($column_data);
+print '</pre>';
+exit();
+*/
             // Render the dialog box for this request
             $templating = $this->get('templating');
             $return['d'] = array(

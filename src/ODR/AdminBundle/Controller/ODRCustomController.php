@@ -68,7 +68,7 @@ class ODRCustomController extends Controller
      *
      * @param array $datarecord_list The unfiltered list of datarecord ids that need rendered...this should contain EVERYTHING
      * @param DataType $datatype     Which datatype the datarecords belong to
-     * @param Theme $theme           ...TODO - eventually need to use this to indicate which version to use when rendering
+     * @param Theme $theme           Which theme to use for rendering this datatype
      * @param User $user             Which user is requesting this list
      *
      * @param string $target         "Results" or "Record"...where to redirect when a datarecord from this list is selected
@@ -91,10 +91,12 @@ class ODRCustomController extends Controller
         $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
         $logged_in = false;
-        $user_permissions = array();
+        $datatype_permissions = array();
+        $datafield_permissions = array();
         if ($user !== 'anon.') {
             $logged_in = true;
-            $user_permissions = self::getPermissionsArray($user->getId(), $request);
+            $datatype_permissions = self::getPermissionsArray($user->getId(), $request);
+            $datafield_permissions = self::getDatafieldPermissionsArray($user->getId(), $request);
         }
 
         // Grab the tab's id, if it exists
@@ -148,7 +150,7 @@ class ODRCustomController extends Controller
 
         // -----------------------------------
         $final_html = '';
-        if ( $theme->getId() == 2 ) {   // TODO - THIS HAS TO SUPPORT MORE THAN JUST ONE
+        if ( $theme->getThemeType() == 'search_results' ) {
             // -----------------------------------
             // Ensure offset exists for shortresults list
             if ( (($offset-1) * $page_length) > count($datarecords) )
@@ -166,27 +168,63 @@ class ODRCustomController extends Controller
 
 
             // -----------------------------------
-            // Build the html required for this...
+            // Build the html required for the pagination header
             $pagination_html = self::buildPaginationHeader($total_datarecords, $offset, $path_str, $request);
-            $shortresults_html = self::renderShortResultsList($datarecord_list, $datatype, $theme, $request);
-            $html = $pagination_html.$shortresults_html.$pagination_html;
+
+
+            // ----------------------------------------
+            // Load datatype and datarecord data from the cache
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            // Always bypass cache if in dev mode?
+            $bypass_cache = false;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
+
+
+            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+            $datatype_array = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype->getId());
+            if ($bypass_cache || $datatype_array == null)
+                $datatype_array = self::getDatatypeData($em, self::getDatatreeArray($em), $datatype->getId(), true);
+
+            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
+            $datarecord_array = array();
+            foreach ($datarecord_list as $num => $dr_id) {
+                $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$dr_id);
+                if ($bypass_cache || $datarecord_data == null)
+                    $datarecord_data = self::getDatarecordData($em, $dr_id, true);
+
+                foreach ($datarecord_data as $dr_id => $data)
+                    $datarecord_array[$dr_id] = $data;
+            }
+
+            // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
+            self::filterByUserPermissions($datatype->getId(), $datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
 
 
             // -----------------------------------
-            // Finally, insert the html into the correct template
+            // Finally, render the list
             $template = 'ODRAdminBundle:ShortResults:shortresultslist.html.twig';
             $final_html = $templating->render(
                 $template,
                 array(
-                    'datatype' => $datatype,
+                    'datatype_array' => $datatype_array,
+                    'datarecord_array' => $datarecord_array,
+                    'theme_id' => $theme->getId(),
+
+                    'initial_datatype_id' => $datatype->getId(),
+
                     'count' => $total_datarecords,
-                    'html' => $html,
                     'scroll_target' => $scroll_target,
                     'user' => $user,
-                    'user_permissions' => $user_permissions,
+                    'user_permissions' => $datatype_permissions,
                     'odr_tab_id' => $odr_tab_id,
 
                     'logged_in' => $logged_in,
+
+                    'pagination_html' => $pagination_html,
 
                     // required for load_datarecord_js.html.twig
                     'target' => $target,
@@ -196,15 +234,17 @@ class ODRCustomController extends Controller
             );
 
         }
-        else if ( $theme->getId() == 4 ) {  // TODO - THIS IS NOT AN OFFICIAL OR CORRECT USE OF THIS THEME
+        else if ( $theme->getThemeType() == 'table' ) {
             // -----------------------------------
             // Grab the...
-            $column_data = self::getDatatablesColumnNames($datatype->getId());
+            $column_data = self::getDatatablesColumnNames($em, $theme);
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
 /*
-print_r($column_names);
-print "\n\n";
+print '<pre>';
+print_r($column_data);
+print '</pre>';
+exit();
 */
 
             // Don't render the starting textresults list here, it'll always be loaded via ajax later
@@ -226,7 +266,7 @@ print "\n\n";
                     'page_length' => $page_length,
                     'scroll_target' => $scroll_target,
                     'user' => $user,
-                    'user_permissions' => $user_permissions,
+                    'user_permissions' => $datatype_permissions,
 
                     'logged_in' => $logged_in,
 
@@ -247,6 +287,7 @@ print "\n\n";
 
     /**
      * Attempt to load the ShortResults version of the cached entries for each datarecord in $datarecord_list, returning a blank "click here to recache" entry if the actual cached version does not exist.
+     * @deprecated
      *
      * @param array $datarecord_list The list of datarecord ids that need rendered
      * @param DataType $datatype     Which datatype the datarecords belong to
@@ -307,71 +348,95 @@ print "\n\n";
     /**
      * Attempt to load the textresult version of the cached entries for each datarecord in $datarecord_list.
      *
-     * @param array $datarecord_list The list of datarecord ids that need rendered
-     * @param DataType $datatype     Which datatype the datarecords belong to
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param array $datarecord_list           The list of datarecord ids that need rendered
+     * @param Theme $theme                     The 'table' theme for the relevant datatype
      * @param Request $request
      *
-     * @return boolean TODO
+     * @throws \Exception
+     *
+     * @return array
      */
-    public function renderTextResultsList($datarecord_list, $datatype, Request $request)
+    public function renderTextResultsList($em, $datarecord_list, $theme, Request $request)
     {
-        // --------------------
-        // Store whether the user has view privileges for this datatype
-        $can_view_datatype = false;
-        /** @var User $user */
-        $user = $this->container->get('security.context')->getToken()->getUser();
-        if ($user !== 'anon.') {
-            $user_permissions = self::getPermissionsArray($user->getId(), $request);
+        try {
+            // --------------------
+            // Store whether the user has view privileges for this datatype
+            $datatype = $theme->getDataType();
 
-            // Check if user has permissions to download files
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
-                $can_view_datatype = false;
-            else
-                $can_view_datatype = true;
-        }
+            /** @var User $user */
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $datafield_permissions = array();
 
-        $cached_html_version = 'no_view';
-        if ($can_view_datatype)
-            $cached_html_version = 'has_view';
-        // --------------------
+            $can_view_datatype = false;
+            if ($user !== 'anon.') {
+                $datatype_permissions = self::getPermissionsArray($user->getId(), $request);
+                $datafield_permissions = self::getDatafieldPermissionsArray($user->getId(), $request);
 
-        // Grab necessary objects
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+                // Check if user has permissions to download files
+                if (isset($datatype_permissions[$datatype->getId()]) && isset($datatype_permissions[$datatype->getId()]['view']))
+                    $can_view_datatype = true;
+            }
+            // --------------------
 
-        // Attempt to load from memcached...
-        $datatype_revision = intval( $datatype->getRevision() );
-        $rows = array();
-        foreach ($datarecord_list as $num => $datarecord_id) {
-            // Attempt to grab the textresults html for this datarecord from memcached
-            $data = $memcached->get($memcached_prefix.'.data_record_short_text_form_'.$datarecord_id);
 
-            // No caching in dev environment
+            // Grab necessary objects
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            // Always bypass cache if in dev mode?
+            $bypass_cache = false;
             if ($this->container->getParameter('kernel.environment') === 'dev')
-                $data = null;
+                $bypass_cache = true;
 
-            $fields = null;
-            if ( isset($data['revision']) && intval($data['revision']) == $datatype_revision /*&& isset($data['html'])*/ && isset($data['html'][$cached_html_version]) && $data['html'][$cached_html_version] !== '' ) {
-                // Grab the array of data from the cache entry
-                $fields = $data['html'][$cached_html_version];
+
+            // ----------------------------------------
+            // Attempt to load from memcached...
+//        $datatype_revision = intval( $datatype->getRevision() );      // TODO?
+            $rows = array();
+            foreach ($datarecord_list as $num => $datarecord_id) {
+                // Get the table version for this datarecord from memcached if possible
+                $data = $memcached->get($memcached_prefix.'.datarecord_table_data_'.$datarecord_id);
+                if ($bypass_cache || $data == null)
+                    $data = self::Text_GetDisplayData($em, $datarecord_id, $request);
+
+                $row = array();
+                // Only add this datarecord to the list if the user is allowed to see it...
+                if ($can_view_datatype || $data['publicDate']->format('Y-m-d H:i:s') !== '2200-01-01 00:00:00') {
+                    // Don't save values from datafields the user isn't allowed to see...
+                    $dr_data = array();
+                    foreach ($data[$theme->getId()] as $display_order => $df_data) {
+                        $df_id = $df_data['id'];
+                        $df_value = $df_data['value'];
+
+                        if (isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']))
+                            $dr_data[] = $df_value;
+                    }
+
+                    // If the user isn't prevented from seeing all datafields comprising this layout, store the data in an array
+                    if (count($dr_data) > 0) {
+                        $row[] = strval($datarecord_id);
+                        $row[] = strval($data['default_sort_value']);
+
+                        foreach ($dr_data as $tmp)
+                            $row[] = strval($tmp);
+                    }
+
+                }
+
+                // If something exists in the array, append it to the list
+                if (count($row) > 0)
+                    $rows[] = $row;
             }
-            else {
-                // Rebuild immediately and store the result...it's cheap-ish to do so
-                $fields = self::Text_GetDisplayData($request, $datarecord_id, $can_view_datatype);
 
-                if ( $data == null || intval($data['revision']) !== $datatype_revision )
-                    $data = array( 'revision' => $datatype_revision, 'html' => array('no_view' => '', 'has_view' => '') );
-
-                $data['html'][$cached_html_version] = $fields;
-                $memcached->set($memcached_prefix.'.data_record_short_text_form_'.$datarecord_id, $data, 0);
-            }
-
-            $rows[] = $fields;
+            return $rows;
         }
-
-        return $rows;
+        catch (\Exception $e) {
+            throw new \Exception( $e->getMessage() );
+        }
     }
+
 
     /**
      * Returns true if the datafield is currently in use by ShortResults
@@ -3959,12 +4024,13 @@ $save_permissions = false;
 
     /**
      * Utility function to return the column definition for use by the datatables plugin
-     * 
-     * @param integer $datatype_id The database id of the Datatype to grab the TextResults field names for
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param Theme $theme                     The 'table' theme that stores the order of datafields for its datatype
      * 
      * @return array
      */
-    public function getDatatablesColumnNames($datatype_id)
+    public function getDatatablesColumnNames($em, $theme)
     {
         // First and second columns are always datarecord id and sort value, respectively
         $column_names  = '{"title":"datarecord_id","visible":false,"searchable":false},';
@@ -3972,16 +4038,16 @@ $save_permissions = false;
         $num_columns = 2;
 
         // Do a query to locate the names of all datafields that can be in the table
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
         $query = $em->createQuery(
            'SELECT dfm.fieldName AS field_name
-            FROM ODRAdminBundle:DataFields AS df
+            FROM ODRAdminBundle:ThemeElement AS te
+            JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
+            JOIN ODRAdminBundle:DataFields AS df WITH tdf.dataField = df
             JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-            WHERE df.dataType = :datatype AND dfm.displayOrder > 0
-            AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
-            ORDER BY dfm.displayOrder'
-        )->setParameters( array('datatype' => $datatype_id) );
+            WHERE te.theme = :theme_id
+            AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
+            ORDER BY tdf.displayOrder'
+        )->setParameters( array('theme_id' => $theme->getId()) );
         $results = $query->getArrayResult();
 
         foreach ($results as $num => $data) {
@@ -3996,129 +4062,149 @@ $save_permissions = false;
 
 
     /**
-     * Re-renders and returns the TextResults version of a given Datarecord
-     * 
+     * Rebuilds all cached versions of table themes for the given datarecord.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $datarecord_id
      * @param Request $request
-     * @param integer $datarecord_id      The database id of the DataRecord...
-     * @param boolean $can_view_datatype  Whether the requesting user has view permissinos for this datatype or not
-     * @param string  $template_name      ...unused right now
-     * 
+     *
+     * @throws \Exception
+     *
      * @return array
      */
-    public function Text_GetDisplayData(Request $request, $datarecord_id, $can_view_datatype, $template_name = 'default')
+    public function Text_GetDisplayData($em, $datarecord_id, Request $request)
     {
-        // Required objects
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        // ----------------------------------------
+        // Grab necessary objects
+        $memcached = $this->get('memcached');
+        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $router = $this->container->get('router');
 
         /** @var DataRecord $datarecord */
         $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-        $router = $this->get('router');
 
-$debug = true;
-$debug = false;
-if ($debug)
-    print '<pre>datarecord '.$datarecord_id.'...'."\n";
+        $datatype = $datarecord->getDataType();
+        $datatype_id = $datatype->getId();
 
-        // Store the values in the correct display_order
-        $value_list = array();
-        foreach ($datarecord->getDataRecordFields() as $drf) {
-            /** @var DataRecordFields $drf */
-if ($debug)
-    print '-- drf '.$drf->getId()."\n";
 
-            $datafield = $drf->getDataField();
-            $display_order = intval($datafield->getDisplayOrder());
+        // ----------------------------------------
+        // Grab the cached version of the requested datatype
+        $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype_id);
+        if ($datatype_data == null)
+            $datatype_data = self::getDatatypeData($em, self::getDatatreeArray($em), $datatype_id, true);
 
-            // Only care about this datafield if it's in TextResults
-            if ($display_order > 0) {
-                $value = null;
+        // Grab the cached version of the requested datarecord
+        $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$datarecord_id);
+        if ($datarecord_data == null)
+            $datarecord_data = self::getDatarecordData($em, $datarecord_id, true);
 
-                $render_plugin = $datafield->getRenderPlugin();
-                if ( $render_plugin->getId() == '1' ) {
-                    // Grab the datafield's value directly from the db
-                    $field_typeclass = $datafield->getFieldType()->getTypeClass();
-                    if ($field_typeclass == 'Radio') {
-                        foreach ($drf->getRadioSelection() as $rs) {
-                            if ($rs->getSelected() == 1) {
-                                $value = $rs->getRadioOption()->getOptionName();
-                                break;
-                            }
+
+//print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();
+//print '<pre>'.print_r($datarecord_data, true).'</pre>'; exit();
+
+        // ----------------------------------------
+        // Need to build an array to store the data
+        $data = array(
+            'default_sort_value' => $datarecord->getSortfieldValue(),
+            'publicDate' => $datarecord->getPublicDate(),
+        );
+
+        foreach ($datatype_data[$datatype_id]['themes'] as $theme_id => $theme) {
+            if ($theme['themeType'] == 'table') {
+                $data[$theme_id] = array();
+
+                $theme_element = $theme['themeElements'][0];    // only ever one theme element for a table theme
+                foreach ($theme_element['themeDataFields'] as $display_order => $tdf) {
+
+                    $df = $tdf['dataField'];
+                    $dr = $datarecord_data[$datarecord_id];
+                    $render_plugin = $df['dataFieldMeta']['renderPlugin'];
+
+                    $df_id = $tdf['dataField']['id'];
+                    $df_value = '';
+
+                    if ($render_plugin['id'] !== 1) {
+                        // Run the render plugin for this datafield
+                        try {
+                            $plugin = $this->get($render_plugin['pluginClassName']);
+                            $df_value = $plugin->execute($tdf['dataField'], $datarecord_data[$datarecord_id], $render_plugin, 'table');
                         }
-                    }
-                    else if ($field_typeclass == 'DatetimeValue') {
-//                        $date = $drf->getAssociatedEntity()->getValue();
-//                        $value = $date->format('Y-m-d H:i:s');
-
-                        $value = $drf->getAssociatedEntity()->getStringValue();
-                    }
-                    else if ($field_typeclass == 'Boolean') {
-                        $value = $drf->getAssociatedEntity()->getValue();
-                        if ($value == 1)
-                            $value = 'YES';
-                        else
-                            $value = '';
-                    }
-                    else if ($field_typeclass == 'File') {
-                        $collection = $drf->getAssociatedEntity();
-
-                        $str = '';
-                        if ( isset($collection[0]) ) {
-                            // ...should only be one file in here anyways
-                            /** @var File $file */
-                            $file = $collection[0];
-
-                            // Only show the file if it's been encrypted, and the user is allowed to see it
-                            if ( $file->getOriginalChecksum() !== '' && ($file->isPublic() || $can_view_datatype) ) {
-                                $url = $router->generate('odr_file_download', array('file_id' => $file->getId()));
-                                $str = '<a href='.$url.'>'.$file->getOriginalFileName().'</a>'; // textresultslist.html.twig will add other required attributes because of str_replace later in this function
-                            }
+                        catch (\Exception $e) {
+                            throw new \Exception( 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$df['id'].' Datarecord '.$dr['id'].': '.$e->getMessage() );
                         }
-
-                        $value = $str;
                     }
                     else {
-                        $value = $drf->getAssociatedEntity()->getValue();
+                        // Locate this datafield's value from the datarecord array
+                        $df_typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                        $drf = $dr['dataRecordFields'][$df_id];
+
+                        switch ($df_typeclass) {
+                            case 'Boolean':
+                                $df_value = $drf['boolean'][0]['value'];
+                                if ($df_value == 1)
+                                    $df_value = 'YES';
+                                else
+                                    $df_value = '';
+                                break;
+                            case 'IntegerValue':
+                                $df_value = $drf['integerValue'][0]['value'];
+                                break;
+                            case 'DecimalValue':
+                                $df_value = $drf['decimalValue'][0]['value'];
+                                break;
+                            case 'LongText':
+                                $df_value = $drf['longText'][0]['value'];
+                                break;
+                            case 'LongVarchar':
+                                $df_value = $drf['longVarchar'][0]['value'];
+                                break;
+                            case 'MediumVarchar':
+                                $df_value = $drf['mediumVarchar'][0]['value'];
+                                break;
+                            case 'ShortVarchar':
+                                $df_value = $drf['shortVarchar'][0]['value'];
+                                break;
+                            case 'DatetimeValue':
+                                $df_value = $drf['datetimeValue'][0]->format('Y-m-d');
+                                if ($df_value == '-0001-11-30')
+                                    $df_value = '0000-00-00';
+                                break;
+
+                            case 'File':
+                                if ( isset($drf['file'][0]) ) {
+                                    $file = $drf['file'][0];    // should only ever be one file in here anyways
+
+                                    $url = $router->generate( 'odr_file_download', array('file_id' => $file['id']) );
+                                    $df_value = '<a href='.$url.'>'.$file['originalFileName'].'</a>';
+                                }
+                                break;
+
+                            case 'Radio':
+                                foreach ($drf['radioSelection'] as $ro_id => $rs) {
+                                    if ( $rs['selected'] == 1 ) {
+                                        $df_value = $rs['radioOption']['optionName'];
+                                        break;
+                                    }
+                                }
+                                break;
+                        }
                     }
 
+                    $data[$theme_id][$display_order] = array('id' => $df_id, 'value' => $df_value);
                 }
-                else {
-                    // Get the Render Plugin to return a string value for the table
-                    $plugin = $this->get($render_plugin->getPluginClassName());
-                    $value = $plugin->execute($drf, $render_plugin, '', 'TextResults');
-                }
-
-//                $value = str_replace( array("'", '"', "\r", "\n"), array("\'", '\"', "", " "), $value);   // This doesn't appear to be required anymore...
-
-if ($debug)
-    print '-- -- storing value "'.$value.'" from datafield '.$datafield->getId().', display_order '.$display_order."\n";
-
-//                $value_list[$display_order] = "\"".$value."\"";
-                $value_list[$display_order] = $value;
             }
         }
 
-        ksort($value_list);
-
-        // Don't need to call twig just to do this one line...
-//        $html = "[\"".$datarecord_id."\",\"".$datarecord->getSortfieldValue()."\",".implode(',', $value_list)."],";
-        $html = array();
-        $html[] = strval($datarecord_id);
-        $html[] = strval($datarecord->getSortfieldValue());
-        foreach ($value_list as $num => $val)
-            $html[] = strval($val);
-
-if ($debug) {
-    print_r($html);
-    print "\n</pre>";
-}
-
-        return $html;
+        // Store the resulting array back in memcached before returning it
+        $memcached->set($memcached_prefix.'.datarecord_table_data_'.$datarecord_id, $data, 0);
+        return $data;
     }
 
 
     /**
      * Re-renders and returns a given ShortResults version of a given DataRecord's html.
+     * @deprecated
      * 
      * @param Request $request
      * @param integer $datarecord_id The database id of the DataRecord...
@@ -4196,6 +4282,7 @@ if ($debug)
 
     /**
      * Renders the Results version of the datarecord.
+     * @deprecated
      *
      * @param Request $request
      * @param integer $datarecord_id The database id of the DataRecord to render
@@ -5585,7 +5672,7 @@ if ($timing) {
                 }
 
                 // Scrub all user information from the rest of the array
-                $keys = array('boolean', 'integerValue', 'decimalValue', 'longText', 'longVarchar', 'mediumVarchar', 'shortVarchar', 'datetimeValue', 'radioSelection');
+                $keys = array('boolean', 'integerValue', 'decimalValue', 'longText', 'longVarchar', 'mediumVarchar', 'shortVarchar', 'datetimeValue');
                 foreach ($keys as $typeclass) {
                     if ( count($drf[$typeclass]) > 0 )
                         $drf[$typeclass][0]['createdBy'] = self::cleanUserData( $drf[$typeclass][0]['createdBy'] );
@@ -5594,6 +5681,8 @@ if ($timing) {
                 // Organize radio selections by radio option id
                 $new_rs_array = array();
                 foreach ($drf['radioSelection'] as $rs_num => $rs) {
+                    $rs['createdBy'] = self::cleanUserData( $rs['createdBy'] );
+
                     $ro_id = $rs['radioOption']['id'];
                     $new_rs_array[$ro_id] = $rs;
                 }

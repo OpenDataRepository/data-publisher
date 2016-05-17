@@ -1,5 +1,7 @@
 {% spaceless %}
 
+{% set datatype = datatype_array[initial_datatype_id] %}
+
 {% set can_edit_datarecord = false %}
 {% if user_permissions[ datatype.id ] is defined %}
     {% if user_permissions[ datatype.id ][ 'edit' ] is defined or user_permissions[ datatype.id ][ 'child_edit' ] is defined %}
@@ -11,16 +13,23 @@
     <div class="header">
     {% if datatype != null %}
         {% if target == "results" %}
-            <h2>Display Records - {{ datatype.shortname }}</h2>
+            <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
         {% else %}
-            <h2>Edit Records - {{ datatype.shortname }}</h2>
+            <h2>Edit Records - {{ datatype.dataTypeMeta.shortName }}</h2>
         {% endif %}
     {% endif %}
     </div>
 
 {% if count > 0 %}
     <div class="ODRShortResult">
-    {{ html | raw }}
+        {{ pagination_html | raw }}
+        {% include 'ODRAdminBundle:ShortResults:shortresults_ajax.html.twig' with {
+            'datatype_array': datatype_array,
+            'datarecord_array': datarecord_array,
+            'theme_id': theme_id,
+
+            'initial_datatype_id': initial_datatype_id,
+        } %}
     </div>
 {% elseif logged_in %}
     <center>No Datarecords found</center>
@@ -69,6 +78,19 @@
     });
 
     function ShortResults_initPage(prevent_scroll) {
+        // Resize all elements dependent on window size
+        $(window).unbind('resize');
+        $(window).resize(function() {
+            WindowResizeInterval = window.clearInterval(WindowResizeInterval);
+            WindowResizeInterval = window.setInterval("onWindowResize()", 500);
+        });
+
+        // Resize everything prior to divs being hidden
+        onWindowResize();
+
+        // Set up image galleries
+        setupImageGalleries();
+
 {% if can_edit_datarecord == false %}
         // Remove links to edit mode
         $(".ODREditLink").remove();

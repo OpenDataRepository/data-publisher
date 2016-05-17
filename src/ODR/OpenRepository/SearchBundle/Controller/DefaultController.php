@@ -719,8 +719,6 @@ if ($debug) {
                 $user_permissions = $odrcc->getPermissionsArray($user->getId(), $request);
                 $logged_in = true;
             }
-
-            // TODO - ???
             // --------------------
 
 
@@ -765,10 +763,7 @@ if ($debug) {
 
                 // Can't use $this->redirect, because it won't update the hash...
                 $return['r'] = 2;
-//                if ($target == 'results')
-                    $return['d'] = array( 'url' => $this->generateURL('odr_display_view', array('datarecord_id' => $datarecord_id)) );
-//                else if ($target == 'record')
-//                    $return['d'] = array( 'url' => $this->generateURL('odr_record_edit', array('datarecord_id' => $datarecord_id)) );
+                $return['d'] = array( 'url' => $this->generateURL('odr_display_view', array('datarecord_id' => $datarecord_id)) );
 
                 $response = new Response(json_encode($return));
                 $response->headers->set('Content-Type', 'application/json');
@@ -777,19 +772,24 @@ if ($debug) {
 
 
             // -----------------------------------
-            // TODO - THIS IS A TEMP FIX
-            $theme = null;
+            // TODO - better error handling, likely need more options as well
+            // Grab the desired theme to use for rendering search results
+            $theme_type = null;
             if ($source == 'linking' || $datatype->getUseShortResults() == 0)
-                $theme = $repo_theme->find(4);  // textresults
+                $theme_type = 'table';
             else
-                $theme = $repo_theme->find(2);  // shortresults
+                $theme_type = 'search_results';
+
             /** @var Theme $theme */
+            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
+            if ($theme == null)
+                throw new \Exception('Datatype '.$datatype->getId().' wants to use a "'.$theme_type.'" theme to render search results, but no such theme exists...');
 
 
             // -----------------------------------
             // Render and return the page
             $path_str = $this->generateUrl('odr_search_render', array('search_key' => $encoded_search_key) );   // this will double-encode the search key, mostly
-            $path_str = urldecode($path_str);   // decode it to get single-encoded search key
+            $path_str = urldecode($path_str);   // decode the resulting string so search-key is only single-encoded
 
             $target = 'results';
             if ($source == 'linking')
