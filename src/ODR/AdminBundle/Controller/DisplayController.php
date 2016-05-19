@@ -43,7 +43,7 @@ class DisplayController extends ODRCustomController
      * @param integer $offset        Used for search header, an optional integer indicating which page of the search result list $datarecord_id is on
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function viewAction($datarecord_id, $search_key, $offset, Request $request) 
     {
@@ -205,15 +205,13 @@ class DisplayController extends ODRCustomController
                 $bypass_cache = true;
 
 
-            // Grab all datarecords "associated" with the desired datarecord...TODO
+            // Grab all datarecords "associated" with the desired datarecord...
             $associated_datarecords = $memcached->get($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id);
-            if ($bypass_cache || $associated_datarecords == null) {
+            if ($bypass_cache || $associated_datarecords == false) {
                 $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord_id));
-/*
-print '<pre>';
-print_r($associated_datarecords);
-print '</pre>';
-*/
+
+//print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
+
                 $memcached->set($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id, $associated_datarecords, 0);
             }
 
@@ -222,18 +220,14 @@ print '</pre>';
             $datarecord_array = array();
             foreach ($associated_datarecords as $num => $dr_id) {
                 $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$dr_id);
-                if ($bypass_cache || $datarecord_data == null)
+                if ($bypass_cache || $datarecord_data == false)
                     $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
 
                 foreach ($datarecord_data as $dr_id => $data)
                     $datarecord_array[$dr_id] = $data;
             }
-/*
-print '<pre>';
-print_r($datarecord_array);
-print '</pre>';
-exit();
-*/
+
+//print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 
             // ----------------------------------------
             //
@@ -252,19 +246,14 @@ exit();
             $datatype_array = array();
             foreach ($associated_datatypes as $num => $dt_id) {
                 $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
-                if ($bypass_cache || $datatype_data == null)
-                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, true);
+                if ($bypass_cache || $datatype_data == false)
+                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
 
                 foreach ($datatype_data as $dt_id => $data)
                     $datatype_array[$dt_id] = $data;
             }
 
-/*
-print '<pre>';
-print_r($datatype_array);
-print '</pre>';
-exit();
-*/
+//print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
 
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
@@ -314,7 +303,7 @@ exit();
      * @param integer $theme_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function reloaddatafieldAction($datarecord_id, $datafield_id, $theme_id, Request $request)
     {
@@ -385,8 +374,8 @@ exit();
             // Grab the cached versions of the desired datarecord
             $datarecord_array = array();
             $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$datarecord->getId());
-            if ($bypass_cache || $datarecord_data == null)
-                $datarecord_data = parent::getDatarecordData($em, $datarecord->getId(), true);
+            if ($bypass_cache || $datarecord_data == false)
+                $datarecord_data = parent::getDatarecordData($em, $datarecord->getId(), $bypass_cache);
 
             foreach ($datarecord_data as $dr_id => $data)
                 $datarecord_array[$dr_id] = $data;
@@ -396,8 +385,8 @@ exit();
             $datatree_array = parent::getDatatreeArray($em);
             $datatype_array = array();
             $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype->getId());
-            if ($bypass_cache || $datatype_data == null)
-                $datatype_data = parent::getDatatypeData($em, $datatree_array, $datatype->getId(), true);
+            if ($bypass_cache || $datatype_data == false)
+                $datatype_data = parent::getDatatypeData($em, $datatree_array, $datatype->getId(), $bypass_cache);
 
             foreach ($datatype_data as $dt_id => $data)
                 $datatype_array[$dt_id] = $data;
@@ -451,7 +440,7 @@ exit();
      * @param integer $file_id The database id of the file to download.
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function filedownloadAction($file_id, Request $request)
     {
@@ -556,7 +545,7 @@ exit();
             // Determine whether the user is already decrypting this file
             $request_number = 1;
             $file_decryptions = $memcached->get($memcached_prefix.'_file_decryptions');
-            if ( $file_decryptions === null ) {
+            if ( $file_decryptions == false ) {
                 // User is either not decrypting any file at the moment
                 $memcached->set($memcached_prefix.'_file_decryptions', array($temp_filename => 1), 0);
             }
@@ -621,7 +610,7 @@ fwrite($log_file, print_r($file_decryptions, true) );
 fwrite($log_file, "\n");
 */
 
-                        if ( $file_decryptions === null || !isset($file_decryptions[$temp_filename]) ) {
+                        if ( $file_decryptions == false || !isset($file_decryptions[$temp_filename]) ) {
                             // Memcached claims no ongoing file decryption requests, or a cancellation of this decryption request...stop decrypting this file immediately
 //fwrite($log_file, time().': aborting decryption'."\n");
                             break;
@@ -680,7 +669,7 @@ fwrite($log_file, print_r($file_decryptions, true) );
 fwrite($log_file, "\n");
 */
 
-                    if ( $file_decryptions === null || !isset($file_decryptions[$temp_filename]) ) {
+                    if ( $file_decryptions == false || !isset($file_decryptions[$temp_filename]) ) {
                         // Memcached claims no ongoing file decryption requests, or a cancellation of this decryption request...stop decrypting this file immediately
 //fwrite($log_file, time().': decryption cancelled, aborting wait process...'."\n");
                         break;
@@ -695,7 +684,7 @@ fwrite($log_file, "\n");
             // ----------------------------------------
             // File decryption is done
             $file_decryptions = $memcached->get($memcached_prefix.'_file_decryptions');
-            if ( $file_decryptions !== null && isset($file_decryptions[$temp_filename]) ) {
+            if ( $file_decryptions != false && isset($file_decryptions[$temp_filename]) ) {
 
                 if ( $file_decryptions[$temp_filename] == $request_number ) {
 /*
@@ -825,10 +814,10 @@ fclose($log_file);
     /**
      * Provides users the ability to cancel the decryption of a file.
      *
-     * @param integer $file_id TODO
+     * @param integer $file_id  The database id of the file currently being decrypted
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function cancelfiledecryptAction($file_id, Request $request)
     {
@@ -884,7 +873,7 @@ fclose($log_file);
 
                 // Ensure that the memcached marker for the decryption of this file does not exist
                 $file_decryptions = $memcached->get($memcached_prefix.'_file_decryptions');
-                if ($file_decryptions !== null && isset($file_decryptions[$temp_filename])) {
+                if ($file_decryptions != false && isset($file_decryptions[$temp_filename])) {
                     unset($file_decryptions[$temp_filename]);
                     $memcached->set($memcached_prefix.'_file_decryptions', $file_decryptions, 0);
                 }
@@ -909,7 +898,7 @@ fclose($log_file);
      * @param integer $image_id The database_id of the image to download.
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function imagedownloadAction($image_id, Request $request)
     {
@@ -1040,7 +1029,6 @@ fclose($log_file);
             // Return the previously created response
             return $response;
         }
-
     }
 
 }

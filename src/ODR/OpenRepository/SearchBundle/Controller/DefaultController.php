@@ -19,9 +19,9 @@ namespace ODR\OpenRepository\SearchBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entites
-use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
@@ -29,17 +29,18 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Cookie;
 
+
 class DefaultController extends Controller
 {
 
     /**
-     * TODO
+     * Provides error display capability to various parts of this controller.
      *
      * @param string $error_message
      * @param Request $request
      * @param boolean $inline
      *
-     * @return Response TODO
+     * @return Response
      */
     public function searchPageError($error_message, Request $request, $inline = false)
     {
@@ -140,7 +141,7 @@ class DefaultController extends Controller
      * @param integer $target_datatype_id      If set, which top-level datatype to save child/linked datatypes for
      * @param array $user_permissions          If set, the current user's permissions array
      *
-     * @return array TODO 
+     * @return array
      */
     private function getRelatedDatatypes($em, $target_datatype_id = null, $user_permissions = array())
     {
@@ -322,7 +323,7 @@ exit();
      * @param String $search_string An optional string to immediately enter into the general search field and search with.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function searchpageAction($search_slug, $search_string, Request $request)
     {
@@ -545,7 +546,7 @@ if ($debug) {
      * @param integer $target_datatype_id The database id of the DataType marked for searching...
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function searchboxAction($target_datatype_id, Request $request)
     {
@@ -681,7 +682,7 @@ if ($debug) {
      * @param string $source     "searching" if searching from frontpage, or "linking" if searching for datarecords to link
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function renderAction($search_key, $offset, $source, Request $request)
     {
@@ -819,7 +820,7 @@ if ($debug) {
      * @param string $search_key The terms the user wants to search on
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function searchAction($search_key, Request $request)
     {
@@ -1099,13 +1100,13 @@ if ($debug)
                 $typeclass = $result['type_class'];
                 $dt_id = $result['dt_id'];
                 $dt_public_date = $result['dt_public_date'];
-                $dt_public_date = $dt_public_date->format('Y-m-d');
+                $dt_public_date = $dt_public_date->format('Y-m-d H:i:s');
                 $df_id = $result['df_id'];
                 $user_only_search = $result['user_only_search'];
 
                 // TODO - public datatype
                 $datatype_is_public = true;
-                if ( $dt_public_date == '2200-01-01' )
+                if ($dt_public_date == '2200-01-01 00:00:00')
                     $datatype_is_public = false;
 
                 $has_view_permission = false;
@@ -1547,7 +1548,6 @@ if ($timing)
                         // Build array of search params for this datafield
                         $search_params = array(
                             'str' => implode(' OR ', $conditions),
-//                            'str' => implode(' AND ', $conditions),     // TODO - why is this 'OR' instead of 'AND'?
                             'params' => $parameters,
                         );
                     }
@@ -1857,7 +1857,7 @@ if ($timing) {
 }
 
             // Create pieces of the array if they don't exist
-            if ($cached_searches == null)
+            if ($cached_searches == false)
                 $cached_searches = array();
             if ( !isset($cached_searches[$datatype_id]) )
                 $cached_searches[$datatype_id] = array();
@@ -2003,7 +2003,7 @@ if ($more_debug) {
      * @param array $metadata
      * @param boolean $debug
      *
-     * @return array TODO
+     * @return array
      */
     private function runSearchQuery($em, $datafield_list, $typeclass, $datatype_id, $search_params, $related_datatypes, $metadata, $debug)
     {
@@ -2510,8 +2510,6 @@ if ($debug) {
 
 
     /**
-     * TODO - short description
-     *
      * @param string $str The string to convert
      *
      * @return string

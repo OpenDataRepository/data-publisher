@@ -41,13 +41,12 @@ class ReferencesPlugin
      * @param array $datatype
      * @param array $render_plugin
      * @param array $theme
-     * @param array $datatree_array
      * @param array $rendering_options
      *
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin, $theme, $datatree_array, $rendering_options)
+    public function execute($datarecords, $datatype, $render_plugin, $theme, $rendering_options)
     {
 
         try {

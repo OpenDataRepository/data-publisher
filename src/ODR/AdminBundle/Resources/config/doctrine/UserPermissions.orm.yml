@@ -3,6 +3,8 @@ ODR\AdminBundle\Entity\UserPermissions:
     table: odr_user_permissions
     gedmo:
 #        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
     fields:
         id:
             id: true

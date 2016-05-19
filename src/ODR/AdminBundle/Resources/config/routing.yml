@@ -904,6 +904,11 @@ odr_recache_record:
     defaults: { _controller: ODRAdminBundle:Worker:recacherecord }
     requirements: { _method: POST }
 
+odr_force_recache:
+    pattern: /beanstalk/force_recache
+    defaults: { _controller: ODRAdminBundle:Worker:forcerecache }
+    requirements: { _method: POST }
+
 odr_migrate_field:
     pattern: /beanstalk/migrate
     defaults: { _controller: ODRAdminBundle:Worker:migrate }

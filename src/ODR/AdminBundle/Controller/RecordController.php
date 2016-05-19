@@ -128,7 +128,7 @@ class RecordController extends ODRCustomController
 
             // See if any cached search results need to be deleted...
             $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
-            if ( isset($cached_searches[$datatype_id]) ) {
+            if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                 // Delete all cached search results for this datatype that were NOT run with datafield criteria
                 foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
                     $searched_datafields = $search_data['searched_datafields'];
@@ -382,7 +382,7 @@ class RecordController extends ODRCustomController
             // ----------------------------------------
             // See if any cached search results need to be deleted...
             $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
-            if ( isset($cached_searches[$datatype_id]) ) {
+            if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                 // Delete all cached search results for this datatype that contained this now-deleted datarecord
                 foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
 
@@ -1760,7 +1760,7 @@ class RecordController extends ODRCustomController
                     // ----------------------------------------
                     // See if any cached search results need to be deleted...
                     $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
-                    if ( isset($cached_searches[$datatype_id]) ) {
+                    if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                         // Delete all cached search results for this datatype that were run with criteria for this specific datafield
                         foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
                             $searched_datafields = $search_data['searched_datafields'];
@@ -2590,14 +2590,12 @@ if ($debug)
         // ----------------------------------------
         // Grab all datarecords "associated" with the desired datarecord...TODO
         $associated_datarecords = $memcached->get($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id);
-        if ($bypass_cache || $associated_datarecords == null) {
+        if ($bypass_cache || $associated_datarecords == false) {
             $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord_id));
-/*
-            print '<pre>';
-            print_r($associated_datarecords);
-            print '</pre>';
-*/
-//            $memcached->set($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id, $associated_datarecords, 0);
+
+//print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
+
+            $memcached->set($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id, $associated_datarecords, 0);
         }
 
 
@@ -2605,18 +2603,13 @@ if ($debug)
         $datarecord_array = array();
         foreach ($associated_datarecords as $num => $dr_id) {
             $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$dr_id);
-            if ($bypass_cache || $datarecord_data == null)
-                $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
+            if ($bypass_cache || $datarecord_data == false)
+                $datarecord_data = parent::getDatarecordData($em, $dr_id, $bypass_cache);
 
             foreach ($datarecord_data as $dr_id => $data)
                 $datarecord_array[$dr_id] = $data;
         }
-/*
-print '<pre>';
-print_r($datarecord_array);
-print '</pre>';
-exit();
-*/
+//print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 
         // ----------------------------------------
         //
@@ -2635,25 +2628,16 @@ exit();
         $datatype_array = array();
         foreach ($associated_datatypes as $num => $dt_id) {
             $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
-            if ($bypass_cache || $datatype_data == null)
-                $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, true);
+            if ($bypass_cache || $datatype_data == false)
+                $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
 
             foreach ($datatype_data as $dt_id => $data)
                 $datatype_array[$dt_id] = $data;
         }
 
-/*
-print '<pre>';
-print_r($datatype_array);
-print '</pre>';
-exit();
-*/
-/*
-print '<pre>';
-print_r( parent::getDatatreeArray($em) );
-print '</pre>';
-exit();
-*/
+//print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
+
+
         // Determine which template to use for rendering
         $template = 'ODRAdminBundle:Record:record_ajax.html.twig';
         if ($template_name == 'child')

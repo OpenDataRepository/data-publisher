@@ -44,7 +44,7 @@ class ODRUserController extends ODRCustomController
      *
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function createnewAction(Request $request)
     {
@@ -162,7 +162,7 @@ class ODRUserController extends ODRCustomController
      *
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function savenewAction(Request $request)
     {
@@ -241,7 +241,7 @@ class ODRUserController extends ODRCustomController
                     // The new user is going to need permissions eventually...now is as good a time as any to create them
                     $top_level_datatypes = parent::getTopLevelDatatypes();
                     foreach ($top_level_datatypes as $num => $datatype_id)
-                        parent::permissionsExistence($new_user->getId(), $admin_user->getId(), $datatype_id, null);
+                        parent::permissionsExistence($em, $new_user->getId(), $admin_user->getId(), $datatype_id, null);
 
                 }
                 else {
@@ -274,7 +274,7 @@ class ODRUserController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function selfeditAction(Request $request)
     {
@@ -324,7 +324,7 @@ class ODRUserController extends ODRCustomController
      * @param integer $user_id The database id of the user to edit.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function editAction($user_id, Request $request)
     {
@@ -356,8 +356,8 @@ class ODRUserController extends ODRCustomController
                     return parent::permissionDeniedError();
 
                 // Grab permissions of both target user and admin
-                $admin_permissions = parent::getPermissionsArray($admin->getId(), $request, false);
-                $user_permissions = parent::getPermissionsArray($user_id, $request, false);
+                $admin_permissions = parent::getPermissionsArray($admin->getId(), $request);
+                $user_permissions = parent::getPermissionsArray($user_id, $request);
 
                 $allow = false;
                 foreach ($admin_permissions as $datatype_id => $permission) {
@@ -415,7 +415,7 @@ class ODRUserController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function selfsaveAction(Request $request)
     {
@@ -454,7 +454,7 @@ class ODRUserController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function saveAction(Request $request)
     {
@@ -492,8 +492,8 @@ class ODRUserController extends ODRCustomController
                     return parent::permissionDeniedError();
                 
                 // Grab permissions of both target user and admin
-                $admin_permissions = parent::getPermissionsArray($admin->getId(), $request, false);
-                $user_permissions = parent::getPermissionsArray($user_id, $request, false);
+                $admin_permissions = parent::getPermissionsArray($admin->getId(), $request);
+                $user_permissions = parent::getPermissionsArray($user_id, $request);
 
                 $allow = false;
                 foreach ($admin_permissions as $datatype_id => $permission) {
@@ -532,7 +532,7 @@ class ODRUserController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return array TODO
+     * @return array
      */
     private function saveProfile(Request $request)
     {
@@ -599,7 +599,7 @@ class ODRUserController extends ODRCustomController
      * @param integer $user_id The database id of the user to edit.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function changepasswordAction($user_id, Request $request)
     {
@@ -631,8 +631,8 @@ class ODRUserController extends ODRCustomController
                     return parent::permissionDeniedError();
 
                 // Grab permissions of both target user and admin
-                $admin_permissions = parent::getPermissionsArray($admin->getId(), $request, false);
-                $user_permissions = parent::getPermissionsArray($user_id, $request, false);
+                $admin_permissions = parent::getPermissionsArray($admin->getId(), $request);
+                $user_permissions = parent::getPermissionsArray($user_id, $request);
 
                 $allow = false;
                 foreach ($admin_permissions as $datatype_id => $permission) {
@@ -685,7 +685,7 @@ class ODRUserController extends ODRCustomController
      *
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function savepasswordAction(Request $request)
     {
@@ -726,8 +726,8 @@ class ODRUserController extends ODRCustomController
                     return parent::permissionDeniedError();
 
                 // Grab permissions of both target user and admin
-                $admin_permissions = parent::getPermissionsArray($admin->getId(), $request, false);
-                $user_permissions = parent::getPermissionsArray($target_user_id, $request, false);
+                $admin_permissions = parent::getPermissionsArray($admin->getId(), $request);
+                $user_permissions = parent::getPermissionsArray($target_user_id, $request);
 
                 $allow = false;
                 foreach ($admin_permissions as $datatype_id => $permission) {
@@ -790,7 +790,7 @@ class ODRUserController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function listAction(Request $request)
     {
@@ -829,7 +829,7 @@ class ODRUserController extends ODRCustomController
                 foreach ($user_list as $user) {
                     // Don't add super admins to this list
                     if (!$user->hasRole('ROLE_SUPER_ADMIN')) {
-                        $user_permissions = parent::getPermissionsArray($user->getId(), $request, false);
+                        $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
                         foreach ($user_permissions as $datatype_id => $up) {
                             if ( isset($up['view']) && $up['view'] == '1' && isset($admin_permissions[$datatype_id]) ) {
@@ -873,7 +873,7 @@ class ODRUserController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function managerolesAction(Request $request)
     {
@@ -929,7 +929,7 @@ class ODRUserController extends ODRCustomController
      * @param string $role     Which role to grant the user.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function setroleAction($user_id, $role, Request $request)
     {
@@ -1044,33 +1044,6 @@ class ODRUserController extends ODRCustomController
 
     }
 
-    /**
-     * Debug function to ensure all super-admin users have all permissions
-     * TODO - obsolete?
-     *
-     * @param Request $request
-     */
-    public function permissioncheckAction(Request $request)
-    {
-        $user_manager = $this->container->get('fos_user.user_manager');
-        /** @var ODRUser[] $users */
-        $users = $user_manager->findUsers();
-
-        $admin_users = array();
-        foreach ($users as $user) {
-            if ($user->hasRole('ROLE_SUPER_ADMIN'))
-                $admin_users[] = $user;
-        }
-        /** @var ODRUser[] $admin_users */
-
-        $top_level_datatypes = parent::getTopLevelDatatypes();
-        foreach ($top_level_datatypes as $num => $datatype_id) {
-            foreach ($admin_users as $admin_user)
-                parent::permissionsExistence($admin_user->getId(), $admin_user->getId(), $datatype_id, null);
-        }
-    }
-
-
 
     /**
      * Renders and returns HTML listing all permissions for all datatypes for the selected user.
@@ -1078,7 +1051,7 @@ class ODRUserController extends ODRCustomController
      * @param integer $user_id The database id of the user to modify.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function managepermissionsAction($user_id, Request $request)
     {
@@ -1128,10 +1101,10 @@ class ODRUserController extends ODRCustomController
 
             // Ensure the target user has permission entities for all datatypes in the database
             foreach ($top_level_datatypes as $num => $datatype_id)
-                parent::permissionsExistence($user->getId(), $admin_user->getId(), $datatype_id, null);
+                parent::permissionsExistence($em, $user->getId(), $admin_user->getId(), $datatype_id, null);
 
             // Load the target user's current set of permissions
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request, false);
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
 
             // ----------------------------------------
@@ -1201,7 +1174,7 @@ class ODRUserController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function quickpermissionsAction(Request $request)
     {
@@ -1307,7 +1280,7 @@ class ODRUserController extends ODRCustomController
             /** @var UserPermissions $user_permission */
             $user_permission = $repo_user_permissions->findOneBy( array('user' => $user, 'dataType' => $datatype) );
             if ( $user_permission == null )
-                parent::permissionsExistence($user->getId(), $user->getId(), $datatype->getId(), null);      // need to ensure a permission object exists before saving to it, obviously...
+                parent::permissionsExistence($em, $user->getId(), $user->getId(), $datatype->getId(), null);      // need to ensure a permission object exists before saving to it, obviously...
 
             // Ensure childtypes do not have the admin permission...shouldn't happen, but make doubly sure
             if ( !in_array($datatype->getId(), $top_level_datatypes) ) {
@@ -1423,7 +1396,7 @@ class ODRUserController extends ODRCustomController
      * @param string $permission   The permission being modified.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function togglepermissionAction($user_id, $datatype_id, $value, $permission, Request $request)
     {
@@ -1496,7 +1469,7 @@ class ODRUserController extends ODRCustomController
      * @param string $permission   Which permission is being modified.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function togglequickpermissionAction($datatype_id, $value, $permission, Request $request)
     {
@@ -1550,7 +1523,7 @@ class ODRUserController extends ODRCustomController
      * @param integer $user_id The database id of the user being deleted.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function deleteAction($user_id, Request $request)
     {
@@ -1618,7 +1591,7 @@ class ODRUserController extends ODRCustomController
      * @param integer $user_id The database id of the user being reinstated.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function undeleteAction($user_id, Request $request)
     {
@@ -1686,7 +1659,7 @@ class ODRUserController extends ODRCustomController
      * @param integer $length  How many Datarecords to display on a page.
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function pagelengthAction($length, Request $request)
     {
@@ -1738,7 +1711,7 @@ class ODRUserController extends ODRCustomController
      * @param integer $datatype_id The database id of the DataType being modified
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function datafieldpermissionsAction($user_id, $datatype_id, Request $request)
     {
@@ -1752,6 +1725,9 @@ class ODRUserController extends ODRCustomController
             // Grab the user from their id
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
@@ -1768,8 +1744,9 @@ class ODRUserController extends ODRCustomController
                     return parent::permissionDeniedError();
 
                 // Grab permissions of both target user and admin
-                $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request, false);
-                $user_permissions = parent::getPermissionsArray($user->getId(), $request, false);
+                $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
+/*
+                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
                 $allow = false;
                 foreach ($admin_permissions as $dt_id => $permission) {
@@ -1785,6 +1762,10 @@ class ODRUserController extends ODRCustomController
                 // If not allowed, block access
                 if (!$allow)
                     return parent::permissionDeniedError();
+*/
+                // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
+                if ( !isset($admin_permissions[$datatype_id]) || !isset($admin_permissions[$datatype_id]['admin']) )
+                    return parent::permissionDeniedError();
             }
             else {
                 return parent::permissionDeniedError();
@@ -1794,32 +1775,49 @@ class ODRUserController extends ODRCustomController
             // Grab the datatype that's being modified
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ( $datatype == null )
+            if ($datatype == null)
                 return parent::deletedEntityError('Datatype');
 
-            // Build the tree used for rendering the datatype
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
 
-            $theme_element = null;  // only used for reloading theme_element
-            $is_link = 0;
-            $top_level = 1;
-            $short_form = 0;
-            $indent = 0;
-$debug = true;
-$debug = false;
-if ($debug)
-    print '<pre>';
-
-            $tree = parent::buildDatatypeTree($user, $theme, $datatype, $theme_element, $em, $is_link, $top_level, $short_form, $debug, $indent);
-
-if ($debug)
-    print '<pre>';
 
             // Grab datatype-level permissions for the specified user
-            $datatype_permissions = parent::getPermissionsArray($user_id, $request, false);     // get permissions for $user_id, not the $admin calling the function
-            // Grab the datafield-level permissions for this user
+            $datatype_permissions = parent::getPermissionsArray($user_id, $request);
+            // Grab the datafield-level permissions for the specified user
             $datafield_permissions = parent::getDatafieldPermissionsArray($user_id, $request);
+
+
+            // Always bypass cache if in dev mode?
+            $bypass_cache = false;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
+
+
+            // ----------------------------------------
+            // Determine which datatypes/childtypes to load from the cache
+            $include_links = false;
+            $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype_id), $include_links);
+
+//print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
+
+            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+            $datatype_array = array();
+            foreach ($associated_datatypes as $num => $dt_id) {
+                $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
+                if ($bypass_cache || $datatype_data == false)
+                    $datatype_data = parent::getDatatypeData($em, parent::getDatatreeArray($em), $dt_id, $bypass_cache);
+
+                foreach ($datatype_data as $dt_id => $data)
+                    $datatype_array[$dt_id] = $data;
+            }
+
+
+            // ----------------------------------------
+            // No need to filter by user permissions...the only people who can currently access this functionality already have permissions to view/edit everything
+
 
             // Render the html for assigning datafield permissions
             $templating = $this->get('templating');
@@ -1828,9 +1826,12 @@ if ($debug)
                     'ODRAdminBundle:FieldPermissions:fieldpermissions_ajax.html.twig',
                     array(
                         'user' => $user,
-                        'datatype_tree' => $tree,
                         'datatype_permissions' => $datatype_permissions,
                         'datafield_permissions' => $datafield_permissions,
+
+                        'datatype_array' => $datatype_array,
+                        'initial_datatype_id' => $datatype_id,
+                        'theme_id' => $theme->getId(),
                     )
                 )
             );
@@ -1855,7 +1856,7 @@ if ($debug)
      * @param integer $permission   '2' => can view/can edit, '1' => can view/no edit, '0' => no view/no edit
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function savedatafieldpermissionAction($user_id, $datafield_id, $permission, Request $request)
     {
@@ -1896,8 +1897,8 @@ if ($debug)
                     return parent::permissionDeniedError();
 
                 // Grab permissions of both target user and admin
-                $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request, false);
-                $user_permissions = parent::getPermissionsArray($user->getId(), $request, false);
+                $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
+                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
                 $allow = false;
                 if ( isset($admin_permissions[$datatype_id]) && isset($admin_permissions[$datatype_id]['admin']) && $admin_permissions[$datatype_id]['admin'] == 1 ) {

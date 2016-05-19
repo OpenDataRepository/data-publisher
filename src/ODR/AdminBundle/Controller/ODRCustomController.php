@@ -1,17 +1,17 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* ODRCustom Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* This controller attempts to store a single copy of mostly
-* utility and rendering functions that would otherwise be
-* effectively duplicated across multiple controllers.
-*
-*/
+ * Open Data Repository Data Publisher
+ * ODRCustom Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * This controller attempts to store a single copy of mostly
+ * utility and rendering functions that would otherwise be
+ * effectively duplicated across multiple controllers.
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 
@@ -77,7 +77,7 @@ class ODRCustomController extends Controller
      *
      * @param Request $request
      *
-     * @return string TODO
+     * @return string
      */
     public function renderList($datarecords, $datatype, $theme, $user, $path_str, $target, $search_key, $offset, Request $request)
     {
@@ -186,15 +186,15 @@ class ODRCustomController extends Controller
 
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
             $datatype_array = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype->getId());
-            if ($bypass_cache || $datatype_array == null)
-                $datatype_array = self::getDatatypeData($em, self::getDatatreeArray($em), $datatype->getId(), true);
+            if ($bypass_cache || $datatype_array == false)
+                $datatype_array = self::getDatatypeData($em, self::getDatatreeArray($em), $datatype->getId(), $bypass_cache);
 
             // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
             $datarecord_array = array();
             foreach ($datarecord_list as $num => $dr_id) {
                 $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$dr_id);
-                if ($bypass_cache || $datarecord_data == null)
-                    $datarecord_data = self::getDatarecordData($em, $dr_id, true);
+                if ($bypass_cache || $datarecord_data == false)
+                    $datarecord_data = self::getDatarecordData($em, $dr_id, true, $bypass_cache);
 
                 foreach ($datarecord_data as $dr_id => $data)
                     $datarecord_array[$dr_id] = $data;
@@ -294,10 +294,11 @@ exit();
      * @param Theme $theme           ...TODO - eventually need to use this to indicate which version to use when rendering
      * @param Request $request
      *
-     * @return string TODO
+     * @return string
      */
     public function renderShortResultsList($datarecord_list, $datatype, $theme, Request $request)
     {
+/*
         // Grab necessary objects
         $templating = $this->get('templating');
         $memcached = $this->get('memcached');
@@ -342,6 +343,7 @@ exit();
         }
 
         return $final_html;
+*/
     }
 
 
@@ -398,7 +400,7 @@ exit();
             foreach ($datarecord_list as $num => $datarecord_id) {
                 // Get the table version for this datarecord from memcached if possible
                 $data = $memcached->get($memcached_prefix.'.datarecord_table_data_'.$datarecord_id);
-                if ($bypass_cache || $data == null)
+                if ($bypass_cache || $data == false)
                     $data = self::Text_GetDisplayData($em, $datarecord_id, $request);
 
                 $row = array();
@@ -458,14 +460,14 @@ exit();
 
 
     /**
-     * Determines values for the pagination header TODO 
+     * Determines values for the pagination header
      *
      * @param integer $num_datarecords The total number of datarecords belonging to the datatype/search result 
      * @param integer $offset          Which page of results the user is currently on
-     * @param string $path_str         The base url used before paging gets involved...$path_str + '/2' would redirect to page 2, $path_str + '/3' would redirect to page 3, etc TODO
+     * @param string $path_str         The base url used before paging gets involved...$path_str + '/2' would redirect to page 2, $path_str + '/3' would redirect to page 3, etc
      * @param Request $request
      *
-     * @return array TODO
+     * @return array
      */
     protected function buildPaginationHeader($num_datarecords, $offset, $path_str, Request $request)
     {
@@ -529,7 +531,7 @@ exit();
      * @param boolean $logged_in Whether the user is logged in or not
      * @param Request $request
      *
-     * @return array TODO
+     * @return array
      */
     public function getSavedSearch($datatype_id, $search_key, $logged_in, Request $request)
     {
@@ -550,7 +552,7 @@ exit();
         // Attempt to load the search result for this search_key
         $data = array();
         $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
-        if ( $cached_searches == null
+        if ( $cached_searches == false
             || !isset($cached_searches[$datatype_id])
             || !isset($cached_searches[$datatype_id][$search_checksum])
             || !isset($cached_searches[$datatype_id][$search_checksum][$str]) ) {
@@ -596,7 +598,7 @@ exit();
      * @param integer $datarecord_id  The database id of the datarecord the user is currently at...used to determine where the next/prev datarecord buttons redirect to
      * @param Request $request
      *
-     * @return array TODO
+     * @return array
      */
     protected function getSearchHeaderValues($datarecord_list, $datarecord_id, Request $request)
     {
@@ -897,7 +899,7 @@ exit();
      *
      * @param \Doctrine\ORM\EntityManager $em
      *
-     * @return array TODO
+     * @return array
      */
     public function getDatatreeArray($em)
     {
@@ -938,135 +940,127 @@ exit();
      *
      * @throws \Exception
      *
-     * @param integer $user_id          The database id of the user to grab permissions for
+     * @param integer $user_id        The database id of the user to grab permissions for
      * @param Request $request
-     * @param boolean $save_permissions If true, save the calling user's permissions in memcached...if false, just return an array
+     * @param boolean $force_rebuild  If true, save the calling user's permissions in memcached...if false, just return an array
      * 
      * @return array
      */
-    public function getPermissionsArray($user_id, Request $request, $save_permissions = true)
+    public function getPermissionsArray($user_id, Request $request, $force_rebuild = false)
     {
         try {
-//$save_permissions = false;
-
             // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-//            $session = $request->getSession();
 
-//            if ( !$save_permissions || !$session->has('permissions') ) {
-            if ( !$save_permissions || !$memcached->get($memcached_prefix.'.user_'.$user_id.'_datatype_permissions') ) {
+            $datatype_permissions = $memcached->get($memcached_prefix.'.user_'.$user_id.'_datatype_permissions');
+            if ( !($force_rebuild || $datatype_permissions == false) )
+                return $datatype_permissions;
 
-                // ----------------------------------------
-                // Permissions for a user other than the currently logged-in one requested, or permissions not set...need to build an array
-                /** @var \Doctrine\ORM\EntityManager $em */
-                $em = $this->getDoctrine()->getManager();
-                /** @var User $user */
-                $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
-                $is_admin = $user->hasRole('ROLE_SUPER_ADMIN');
 
-                // Load all permissions for this user from the database
+            // ----------------------------------------
+            // Datatype permissions not set for this user, or a recache is required...
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var User $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $is_admin = $user->hasRole('ROLE_SUPER_ADMIN');
+
+            // Load all permissions for this user from the database
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id, up.can_view_type, up.can_edit_record, up.can_add_record, up.can_delete_record, up.can_design_type, up.is_type_admin
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
+                WHERE up.user = :user_id
+                AND dt.deletedAt IS NULL AND up.deletedAt IS NULL'
+            )->setParameters( array('user_id' => $user_id) );
+            $user_permissions = $query->getArrayResult();
+
+
+            // ----------------------------------------
+            // Count the number of datatypes to determine whether a permissions entity is missing
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id
+                FROM ODRAdminBundle:DataType AS dt
+                WHERE dt.deletedAt IS NULL'
+            );
+            $all_datatypes = $query->getArrayResult();
+
+            if ( count($all_datatypes) !== count($user_permissions) ) {
+                // There are fewer permissions objects than datatypes...create missing permissions objects
+                $top_level_datatypes = self::getTopLevelDatatypes();
+                foreach ($top_level_datatypes as $num => $datatype_id)
+                    self::permissionsExistence($em, $user_id, $user_id, $datatype_id, null);
+
+                // Reload permissions for user
                 $query = $em->createQuery(
                    'SELECT dt.id AS dt_id, up.can_view_type, up.can_edit_record, up.can_add_record, up.can_delete_record, up.can_design_type, up.is_type_admin
                     FROM ODRAdminBundle:DataType AS dt
                     JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
                     WHERE up.user = :user_id
-                    AND dt.deletedAt IS NULL'
+                    AND dt.deletedAt IS NULL AND up.deletedAt IS NULL'
                 )->setParameters( array('user_id' => $user_id) );
                 $user_permissions = $query->getArrayResult();
+            }
 
 
-                // ----------------------------------------
-                // Count the number of datatypes to determine whether a permissions entity is missing
-                $query = $em->createQuery(
-                   'SELECT dt.id AS dt_id
-                    FROM ODRAdminBundle:DataType AS dt
-                    WHERE dt.deletedAt IS NULL');
-                $all_datatypes = $query->getArrayResult();
+            // ----------------------------------------
+            // Grab the contents of ODRAdminBundle:DataTree as an array
+            $datatree_array = self::getDatatreeArray($em);
 
-                if ( count($all_datatypes) !== count($user_permissions) ) {
-                    // There are fewer permissions objects than datatypes...create missing permissions objects
-                    $top_level_datatypes = self::getTopLevelDatatypes();
-                    foreach ($top_level_datatypes as $num => $datatype_id)
-                        self::permissionsExistence($user_id, $user_id, $datatype_id, null);
+            $all_permissions = array();
+            foreach ($user_permissions as $result) {
+                $datatype_id = $result['dt_id'];
 
-                    // Reload permissions for user
-                    $query = $em->createQuery(
-                       'SELECT dt.id AS dt_id, up.can_view_type, up.can_edit_record, up.can_add_record, up.can_delete_record, up.can_design_type, up.is_type_admin
-                        FROM ODRAdminBundle:DataType AS dt
-                        JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
-                        WHERE up.user = :user_id
-                        AND dt.deletedAt IS NULL'
-                    )->setParameters( array('user_id' => $user_id) );
-                    $user_permissions = $query->getArrayResult();
+                $all_permissions[$datatype_id] = array();
+                $save = false;
+
+                if ( $is_admin || $result['can_view_type'] == 1 ) {
+                    $all_permissions[$datatype_id]['view'] = 1;
+                    $save = true;
+                }
+                if ( $is_admin || $result['can_edit_record'] == 1 ) {
+                    $all_permissions[$datatype_id]['edit'] = 1;
+                    $save = true;
+
+                    // If this is a child datatype, then the user needs to be able to access the edit page of its eventual top-level parent datatype
+                    $dt_id = $datatype_id;
+                    while ( isset($datatree_array['descendant_of'][$dt_id]) ) {
+                        $dt_id = $datatree_array['descendant_of'][$dt_id];
+                        if ($dt_id !== '')
+                            $all_permissions[$dt_id]['child_edit'] = 1;
+                    }
+                }
+                if ( $is_admin || $result['can_add_record'] == 1 ) {
+                    $all_permissions[$datatype_id]['add'] = 1;
+                    $save = true;
+                }
+                if ( $is_admin || $result['can_delete_record'] == 1 ) {
+                    $all_permissions[$datatype_id]['delete'] = 1;
+                    $save = true;
+                }
+                if ( $is_admin || $result['can_design_type'] == 1 ) {
+                    $all_permissions[$datatype_id]['design'] = 1;
+                    $save = true;
+                }
+                if ( $is_admin || $result['is_type_admin'] == 1 ) {
+                    $all_permissions[$datatype_id]['admin'] = 1;
+                    $save = true;
                 }
 
-
-                // ----------------------------------------
-                // Grab the contents of ODRAdminBundle:DataTree as an array
-                $datatree_array = self::getDatatreeArray($em);
-
-                $all_permissions = array();
-                foreach ($user_permissions as $result) {
-                    $datatype_id = $result['dt_id'];
-
-                    $all_permissions[$datatype_id] = array();
-                    $save = false;
-
-                    if ( $is_admin || $result['can_view_type'] == 1 ) {
-                        $all_permissions[$datatype_id]['view'] = 1;
-                        $save = true;
-                    }
-                    if ( $is_admin || $result['can_edit_record'] == 1 ) {
-                        $all_permissions[$datatype_id]['edit'] = 1;
-                        $save = true;
-
-                        // If this is a child datatype, then the user needs to be able to access the edit page of its eventual top-level parent datatype
-                        $dt_id = $datatype_id;
-                        while ( isset($datatree_array['descendant_of'][$dt_id]) ) {
-                            $dt_id = $datatree_array['descendant_of'][$dt_id];
-                            if ($dt_id !== '')
-                                $all_permissions[$dt_id]['child_edit'] = 1;
-                        }
-                    }
-                    if ( $is_admin || $result['can_add_record'] == 1 ) {
-                        $all_permissions[$datatype_id]['add'] = 1;
-                        $save = true;
-                    }
-                    if ( $is_admin || $result['can_delete_record'] == 1 ) {
-                        $all_permissions[$datatype_id]['delete'] = 1;
-                        $save = true;
-                    }
-                    if ( $is_admin || $result['can_design_type'] == 1 ) {
-                        $all_permissions[$datatype_id]['design'] = 1;
-                        $save = true;
-                    }
-                    if ( $is_admin || $result['is_type_admin'] == 1 ) {
-                        $all_permissions[$datatype_id]['admin'] = 1;
-                        $save = true;
-                    }
-
-                    if (!$save)
-                        unset( $all_permissions[$datatype_id] );
-                }
-/*
-print '<pre>';
-print_r($all_permissions);
-print '</pre>';
-*/
-                // ----------------------------------------
-                // Save and return the permissions array
-                ksort($all_permissions);
-                if ($save_permissions)
-                    $memcached->set($memcached_prefix.'.user_'.$user_id.'_datatype_permissions', $all_permissions, 0);
-
-                return $all_permissions;
+                if (!$save)
+                    unset( $all_permissions[$datatype_id] );
             }
-            else {
-                // Return the stored permissions array
-                return $memcached->get($memcached_prefix.'.user_'.$user_id.'_datatype_permissions');
-            }
+
+//print '<pre>'.print_r($all_permissions, true).'</pre>';
+
+            // ----------------------------------------
+            // Save and return the permissions array
+            ksort($all_permissions);
+            $memcached->set($memcached_prefix.'.user_'.$user_id.'_datatype_permissions', $all_permissions, 0);
+
+            return $all_permissions;
         }
         catch (\Exception $e) {
             throw new \Exception($e->getMessage());
@@ -1077,18 +1071,15 @@ print '</pre>';
     /**
      * Ensures the user permissions table has rows linking the given user and datatype.
      *
-     * @param integer $user_id          The User receiving the permissions
-     * @param integer $admin_id         The admin User which triggered this function
-     * @param integer $datatype_id      Which DataType these permissions are for
-     * @param mixed $parent_permission  null if $datatype is top-level, otherwise the $user's UserPermissions object for this $datatype's parent
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $user_id                The User receiving the permissions
+     * @param integer $admin_id               The admin User which triggered this function
+     * @param integer $datatype_id            Which DataType these permissions are for
+     * @param mixed $parent_permission        null if $datatype is top-level, otherwise the $user's UserPermissions object for this $datatype's parent
      *
      */
-    protected function permissionsExistence($user_id, $admin_id, $datatype_id, $parent_permission)
+    protected function permissionsExistence($em, $user_id, $admin_id, $datatype_id, $parent_permission)
     {
-        // Grab required objects
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
         // Look up the user's permissions for this datatype
         $query = $em->createQuery(
            'SELECT up
@@ -1162,7 +1153,7 @@ print '</pre>';
         foreach ($results as $result) {
             // Ensure the user has permission objects for all non-linked child datatypes as well
             $childtype_id = $result['id'];
-            self::permissionsExistence($user_id, $admin_id, $childtype_id, $user_permission);
+            self::permissionsExistence($em, $user_id, $admin_id, $childtype_id, $user_permission);
         }
 
     }
@@ -1196,7 +1187,7 @@ print '</pre>';
                'INSERT INTO odr_user_permissions (user_id, data_type_id)
                 SELECT * FROM (SELECT :user_id AS user_id, :datatype_id AS dt_id) AS tmp
                 WHERE NOT EXISTS (
-                    SELECT id FROM odr_user_permissions WHERE user_id = :user_id AND data_type_id = :datatype_id
+                    SELECT id FROM odr_user_permissions WHERE user_id = :user_id AND data_type_id = :datatype_id AND deletedAt IS NULL
                 ) LIMIT 1;';
             $params = array('user_id' => $user_id, 'datatype_id' => $datatype_id);
             $conn = $em->getConnection();
@@ -1225,6 +1216,64 @@ print '</pre>';
         }
 
         return $up;
+    }
+
+
+    /**
+     * Creates and persists a UserFieldPermissions entity for the specified user/datafield pair.
+     *
+     * Calling function MUST FLUSH ENTITYMANAGER...if this function needs to be called, it will be called multiple times
+     * in rapid succession because a user is missing a whole pile of UserFieldPermission entries.  As such, it's more
+     * efficient for the calling function to control when flushes occur.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $user_id                The user receiving this permission entity
+     * @param integer $admin_id               The admin user creating the permission entity
+     * @param DataFields $datafield           The Datafield this permission entity is for
+     * @param array $initial_permissions
+     *
+     * @return UserFieldPermissions
+     */
+    protected function ODR_addUserFieldPermission($em, $user_id, $admin_id, $datafield, $initial_permissions)
+    {
+        // Ensure a permissions object doesn't already exist...
+        $repo_user_field_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');
+
+        /** @var UserFieldPermissions $ufp */
+        $ufp = $repo_user_field_permissions->findOneBy( array('user' => $user_id, 'dataField' => $datafield->getId()) );
+
+        // If the permissions object does not exist...
+        if ($ufp == null) {
+            // Load required objects
+            $admin_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($admin_id);
+
+            // Ensure a permissions object doesn't already exist before creating one
+            $query =
+               'INSERT INTO odr_user_field_permissions (user_id, data_field_id)
+                SELECT * FROM (SELECT :user_id AS user_id, :datafield_id AS df_id) AS tmp
+                WHERE NOT EXISTS (
+                    SELECT id FROM odr_user_field_permissions WHERE user_id = :user_id AND data_field_id = :datafield_id AND deletedAt IS NULL
+                ) LIMIT 1;';
+            $params = array('user_id' => $user_id, 'datafield_id' => $datafield->getId());
+            $conn = $em->getConnection();
+            $rowsAffected = $conn->executeUpdate($query, $params);
+
+            $ufp = $repo_user_field_permissions->findOneBy( array('user' => $user_id, 'dataField' => $datafield->getId()) );
+            $ufp->setDataType( $datafield->getDataType() );
+            $ufp->setCreated( new \DateTime() );
+            $ufp->setCreatedBy($admin_user);
+
+            if ( isset($initial_permissions['can_view_field']) )
+                $ufp->setCanViewField($initial_permissions['can_view_field']);
+            if ( isset($initial_permissions['can_edit_field']) )
+                $ufp->setCanEditField($initial_permissions['can_edit_field']);
+
+            $em->persist($ufp);
+//            $em->flush($up);
+//            $em->refresh($up);
+        }
+
+        return $ufp;
     }
 
 
@@ -1303,104 +1352,167 @@ print '</pre>';
 
 
     /**
+     * Although it doesn't make sense to use previous UserFieldPermissions entries, changes made are handled the same as
+     * other soft-deleteable entities...delete the current one, and make a new one with the changes.
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'can_view_field', 'can_edit_field'
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user                        The user changing this UserFieldPermissions entry
+     * @param UserFieldPermissions $permission  The UserFieldPermissions entity being 'modified'
+     * @param array $properties
+     *
+     * @return UserFieldPermissions
+     */
+    protected function ODR_copyUserFieldPermission($em, $user, $permission, $properties)
+    {
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'can_view_field' => $permission->getCanViewField(),
+            'can_edit_field' => $permission->getCanEditField(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $permission;
+
+
+        // Create a new UserPermissions entry and copy the old entry's data over
+        $new_permission = new UserFieldPermissions();
+        $new_permission->setUser( $permission->getUser() );
+        $new_permission->setDataType( $permission->getDataType() );
+        $new_permission->setDataField( $permission->getDataField() );
+
+        $new_permission->setCanViewField( $permission->getCanViewField() );
+        $new_permission->setCanEditField( $permission->getCanEditField() );
+
+        $new_permission->setCreatedBy($user);
+        $new_permission->setCreated( new \DateTime() );
+
+        // Set any new properties
+        if ( isset( $properties['can_view_field']) )
+            $new_permission->setCanViewField( $properties['can_view_field'] );
+        if ( isset( $properties['can_edit_field']) )
+            $new_permission->setCanEditField( $properties['can_edit_field'] );
+
+        // Save the new meta entry and delete the old one
+        $em->remove($permission);
+        $em->persist($new_permission);
+        $em->flush();
+
+        // Return the new entry
+        return $new_permission;
+    }
+
+
+    /**
      * Builds an array of all datafield permissions possessed by the given user.
-     * TODO - make similar to  self::getPermissionsArray()
-     * 
-     * @param integer $user_id          The database id of the user to grab datafield permissions for.
+     *
+     * @param integer $user_id       The database id of the user to grab datafield permissions for.
      * @param Request $request
-     * @param boolean $save_permissions If true, save the calling user's permissions in memcached...if false, just return an array
+     * @param boolean $force_rebuild If true, save the calling user's permissions in memcached...if false, just return an array
      *
      * @throws \Exception
      *
      * @return array
      */
-    protected function getDatafieldPermissionsArray($user_id, Request $request, $save_permissions = true)
+    protected function getDatafieldPermissionsArray($user_id, Request $request, $force_rebuild = false)
     {
         try {
             // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-//            $session = $request->getSession();
 
-$save_permissions = false;
+            $datafield_permissions = $memcached->get($memcached_prefix.'.user_'.$user_id.'_datafield_permissions');
+            if ( !($force_rebuild || $datafield_permissions == false) )
+                return $datafield_permissions;
 
-//            if ( !$save_permissions || !$session->has('datafield_permissions') ) {
-            if ( !$save_permissions || !$memcached->get($memcached_prefix.'.user_'.$user_id.'_datafield_permissions') ) {
+            // ----------------------------------------
+            // Permissions for a user other than the currently logged-in one requested, or permissions not set...need to build an array
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
 
-                // ----------------------------------------
-                // Permissions not set, need to build the array
-                $datatype_permissions = self::getPermissionsArray($user_id, $request, false);
+            /** @var User $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $is_admin = $user->hasRole('ROLE_SUPER_ADMIN');
 
-                /** @var \Doctrine\ORM\EntityManager $em */
-                $em = $this->getDoctrine()->getManager();
-                $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
-                $repo_user_field_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');
+            // Load all datafield permissions for this user from the database
+            $query = $em->createQuery(
+               'SELECT df.id AS df_id, ufp.can_view_field, ufp.can_edit_field
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:UserFieldPermissions AS ufp WITH ufp.dataField = df
+                WHERE ufp.user = :user_id
+                AND df.deletedAt IS NULL AND ufp.deletedAt IS NULL'
+            )->setParameters( array('user_id' => $user_id) );
+            $datafield_permissions = $query->getArrayResult();
 
-                /** @var User $user */
-                $user = $repo_user->find($user_id);
-                /** @var UserFieldPermissions[] $user_field_permissions */
-                $user_field_permissions = $repo_user_field_permissions->findBy( array('user' => $user_id) );
 
-                $all_permissions = array();
+            // ----------------------------------------
+            // Count the number of datafields to determine whether a datafield permissions entity is missing
+            $query = $em->createQuery(
+               'SELECT df.id AS df_id
+                FROM ODRAdminBundle:DataFields AS df
+                WHERE df.deletedAt IS NULL'
+            );
+            $all_datafields = $query->getArrayResult();
 
-                // Grab and store all datafield permissions for this user
-                $all_datafields = array();
-                foreach ($user_field_permissions as $permission) {
-                    $datafield_id = $permission->getDataField()->getId();
-                    $all_datafields[$datafield_id] = 1;
-                    if ($permission->getCanViewField() == 1)
-                        $all_permissions[$datafield_id]['view'] = 1;
-                    if ($permission->getCanEditField() == 1)
-                        $all_permissions[$datafield_id]['edit'] = 1;
+            if ( count($all_datafields) !== count($datafield_permissions) ) {
+                // Need the user's datatype permissions to determine defaults for missing datafield permissions
+                $datatype_permissions = self::getPermissionsArray($user_id, $request, true);
+
+                // Create missing datafield permission objects
+                self::datafieldPermissionsExistence($em, $user_id, $user_id, $datatype_permissions);
+
+                // There are fewer datafield permissions objects than datafields...create missing permissions objects
+                $top_level_datatypes = self::getTopLevelDatatypes();
+                foreach ($top_level_datatypes as $num => $datatype_id)
+                    self::permissionsExistence($em, $user_id, $user_id, $datatype_id, null);
+
+                // Reload datafield permissions for user
+                $query = $em->createQuery(
+                   'SELECT df.id AS df_id, ufp.can_view_field, ufp.can_edit_field
+                    FROM ODRAdminBundle:DataFields AS df
+                    JOIN ODRAdminBundle:UserFieldPermissions AS ufp WITH ufp.dataField = df
+                    WHERE ufp.user = :user_id
+                    AND df.deletedAt IS NULL AND ufp.deletedAt IS NULL'
+                )->setParameters( array('user_id' => $user_id) );
+                $datafield_permissions = $query->getArrayResult();
+            }
+
+
+            // ----------------------------------------
+            // Build an array of all datafield permissions the user has
+            $all_permissions = array();
+            foreach ($datafield_permissions as $result) {
+                $datafield_id = $result['df_id'];
+
+                $all_permissions[$datafield_id] = array();
+                $save = false;
+
+                if ( $is_admin || $result['can_view_field'] == 1 ) {
+                    $all_permissions[$datafield_id]['view'] = 1;
+                    $save = true;
+                }
+                if ( $is_admin || $result['can_edit_field'] == 1 ) {
+                    $all_permissions[$datafield_id]['edit'] = 1;
+                    $save = true;
                 }
 
-                // check for any missing datafield permissions?
-                $created_permission = false;
-                /** @var DataFields[] $datafields */
-                $datafields = $em->getRepository('ODRAdminBundle:DataFields')->findAll();
-                foreach ($datafields as $df) {
-                    $datafield_id = $df->getId();
-
-                    if ( !isset($all_datafields[$datafield_id]) ) {
-                        $created_permission = true;
-                        $datatype = $df->getDataType();
-                        $user_field_permission = new UserFieldPermissions();
-                        $user_field_permission->setUser($user);
-                        $user_field_permission->setDataType($datatype);
-                        $user_field_permission->setDataField($df);
-                        $user_field_permission->setCreatedBy($user);
-
-                        $user_field_permission->setCanViewField('1');   // always able to view by default
-                        $all_permissions[$datafield_id]['view'] = 1;
-
-                        if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'edit' ]) ) {
-                            $user_field_permission->setCanEditField('1');   // able to edit datafields by default if already have edit permission
-                            $all_permissions[$datafield_id]['edit'] = 1;
-                        }
-                        else {
-                            $user_field_permission->setCanEditField('0');
-                        }
-
-                        $em->persist($user_field_permission);
-                    }
-                }
-
-                if ($created_permission)
-                    $em->flush();
-
-
-                // Save and return the permissions array
-                ksort($all_permissions);
-                if ($save_permissions)
-                    $memcached->set($memcached_prefix.'.user_'.$user_id.'_datafield_permissions', $all_permissions, 0);
-
-                return $all_permissions;
+                if (!$save)
+                    unset( $all_permissions[$datafield_id] );
             }
-            else {
-                // Returned the stored datafield permissions array
-                return $memcached->get($memcached_prefix.'.user_'.$user_id.'_datafield_permissions');
-            }
+
+            // Save and return the permissions array
+            ksort($all_permissions);
+            $memcached->set($memcached_prefix.'.user_'.$user_id.'_datafield_permissions', $all_permissions, 0);
+
+            return $all_permissions;
         }
         catch (\Exception $e) {
             throw new \Exception($e->getMessage());
@@ -1409,13 +1521,92 @@ $save_permissions = false;
 
 
     /**
-     * Given a user's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.
+     * Ensures a user has all required datafield permission objects.
      *
-     * @param $datatype_id
-     * @param $datatype_array
-     * @param $datarecord_array
-     * @param $datatype_permissions
-     * @param $datafield_permissions
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $user_id                The user that is being checked for missing datafield permissions
+     * @param integer $admin_id               The user that triggered this existence check
+     * @param array $datatype_permissions     The user's datatype permissions array, for determining defaults of missing datafield permissions
+     */
+    protected function datafieldPermissionsExistence($em, $user_id, $admin_id, $datatype_permissions)
+    {
+        // Load all datafield ids from the database
+        $query = $em->createQuery(
+           'SELECT df.id AS df_id
+            FROM ODRAdminBundle:DataFields AS df
+            WHERE df.deletedAt IS NULL'
+        );
+        $results = $query->getArrayResult();
+
+        $all_datafield_ids = array();
+        foreach ($results as $result)
+            $all_datafield_ids[] = $result['df_id'];
+
+
+        // Load all datafield permissions for this user from the database
+        $query = $em->createQuery(
+           'SELECT df.id AS df_id
+            FROM ODRAdminBundle:DataFields AS df
+            JOIN ODRAdminBundle:UserFieldPermissions AS ufp WITH ufp.dataField = df
+            WHERE ufp.user = :user_id
+            AND df.deletedAt IS NULL AND ufp.deletedAt IS NULL'
+        )->setParameters( array('user_id' => $user_id) );
+        $results = $query->getArrayResult();
+
+        $datafield_permissions = array();
+        foreach ($results as $result)
+            $datafield_permissions[] = $result['df_id'];
+
+
+        // Determine which datafields this user doesn't have permission entities for
+        $missing_permissions = array_diff($all_datafield_ids, $datafield_permissions);
+        if ( count($missing_permissions) == 0 )
+            return;
+
+//print '<pre>'.print_r($missing_permissions, true).'</pre>'; exit();
+
+        $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+
+        $count = 0;
+        foreach ($missing_permissions as $num => $df_id) {
+            // Load required objects
+            /** @var DataFields $datafield */
+            $datafield = $repo_datafield->find($df_id);
+            $datatype_id = $datafield->getDataType()->getId();
+
+            // User is able to edit by default if they have edit permissions to the datatype
+            $can_edit_field = 0;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['edit']) )
+                $can_edit_field = 1;
+
+
+            // Create/persist the missing datafield permissions entry
+            $initial_permissions = array(
+                'can_view_field' => 1,                  // always able to view by default
+                'can_edit_field' => $can_edit_field
+            );
+            self::ODR_addUserFieldPermission($em, $user_id, $admin_id, $datafield, $initial_permissions);
+
+            // Flush a batch of datafield permission entities
+            $count++;
+            if (($count % 20) == 0)
+                $em->flush();
+        }
+
+        // Flush any leftover datafield permission entities
+        if (($count % 20) !== 0)
+            $em->flush();
+    }
+
+
+    /**
+     * Given a user's permission arrays, filter the provided datarecord/datatype arraysso twig doesn't render anything they're not supposed to see.
+     *
+     * @param integer $datatype_id
+     * @param array &$datatype_array        @see self::getDatatypeArray()
+     * @param array &$datarecord_array      @see self::getDatarecordArray()
+     * @param array $datatype_permissions   @see self::getPermissionsArray()
+     * @param array $datafield_permissions  @see self::getDatafieldPermissionsArray()
      */
     protected function filterByUserPermissions($datatype_id, &$datatype_array, &$datarecord_array, $datatype_permissions, $datafield_permissions)
     {
@@ -1449,17 +1640,43 @@ $save_permissions = false;
                     }
                 }
             }
-
-            // TODO - remove non-public theme_elements
+/*
+            // Remove non-public theme_elements
+            foreach ($datatype_array as $dt_id => $dt) {
+                foreach ($dt['themes'] as $theme_id => $theme) {
+                    foreach ($theme['themeElements'] as $te_num => $te) {
+                        $public_date = $te['themeElementMeta']['publicDate'];
+                        if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+                            unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num] );
+                    }
+                }
+            }
+*/
         }
 
         // For each datafield permission the user has...
         foreach ($datafield_permissions as $df_id => $permission) {
             // ...if they lack the 'can_view_field' permission for that datafield...
             if ( isset($permission['view']) && $permission['view'] == 0 ) {
-                // ...remove that datafield the layout...
+/*
+                // ...remove that datafield from the layout
+                foreach ($datatype_array as $dt_id => $dt) {
+                    foreach ($dt['themes'] as $theme_id => $theme) {
+                        foreach ($theme['themeElements'] as $te_id => $te) {
+                            foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                                if ( $tdf['dataField']['id'] == $df_id )
+                                    unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry
+                            }
+                        }
+                    }
+                }
 
                 // ...also remove that datafield from the datarecord array
+                foreach ($datarecord_array as $dr_id => $dr) {
+                    if ( isset($dr['dataRecordFields'][$df_id]) )
+                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
+                }
+*/
             }
         }
     }
@@ -1470,7 +1687,7 @@ $save_permissions = false;
      * 
      * @param string $type
      * 
-     * @return Response TODO
+     * @return Response
      */
     protected function permissionDeniedError($type = '')
     {
@@ -1499,7 +1716,7 @@ $save_permissions = false;
      * 
      * @param string $entity
      * 
-     * @return Response TODO
+     * @return Response
      */
     protected function deletedEntityError($entity = '')
     {
@@ -1879,12 +2096,13 @@ $save_permissions = false;
         $datarecord_str = $memcached->get($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
 
         // No caching in dev environment
+        $bypass_cache = false;
         if ($this->container->getParameter('kernel.environment') === 'dev')
-            $datarecord_str = null;
+            $bypass_cache = true;
 //print 'loaded record_order: '.$datarecord_str."\n";
 
 
-        if ($datarecord_str !== null && trim($datarecord_str) !== '') {
+        if ( !$bypass_cache && $datarecord_str != false && trim($datarecord_str) !== '' ) {
             // List exists in cache, load datarecords
             $datarecord_str = explode(',', trim($datarecord_str));
 
@@ -1932,7 +2150,6 @@ $save_permissions = false;
 //print_r($results);
 
 
-                // TODO - why is this here?  does mysql not handle ordering properly in this case?
                 // Flatten the array
                 $datarecords = array();
                 foreach ($results as $num => $data) {
@@ -2223,7 +2440,7 @@ $save_permissions = false;
             }
         }
 
-        // TODO - Need to flush because of creating new storage entity/radio selection objects?
+        // Need to flush because of possibility of having creating new storage entity/radio selection objects
         $em->flush();
 
         return $datarecord;
@@ -2624,7 +2841,6 @@ $save_permissions = false;
 
     /**
      * Creates a new storage entity (Short/Medium/Long Varchar, File, Radio, etc)
-     * TODO - shouldn't $datarecordfield imply $datarecord and $datafield already?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                        The user requesting the creation of this entity
@@ -2678,10 +2894,6 @@ $save_permissions = false;
             $storage_entity->setCreatedBy($user);
 //            $storage_entity->setUpdatedBy($user);
             $em->persist($storage_entity);
-
-            // TODO - is this necessary?
-            // Attach the new object to the associated datarecordfield entity
-//            self::saveToDataRecordField($em, $drf, $typeclass, $storage_entity);
         }
 
         return $storage_entity;
@@ -4091,13 +4303,13 @@ $save_permissions = false;
         // ----------------------------------------
         // Grab the cached version of the requested datatype
         $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype_id);
-        if ($datatype_data == null)
-            $datatype_data = self::getDatatypeData($em, self::getDatatreeArray($em), $datatype_id, true);
+        if ($datatype_data == false)
+            $datatype_data = self::getDatatypeData($em, self::getDatatreeArray($em), $datatype_id);
 
         // Grab the cached version of the requested datarecord
         $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$datarecord_id);
-        if ($datarecord_data == null)
-            $datarecord_data = self::getDatarecordData($em, $datarecord_id, true);
+        if ($datarecord_data == false)
+            $datarecord_data = self::getDatarecordData($em, $datarecord_id);
 
 
 //print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();
@@ -4592,7 +4804,7 @@ if ($debug)
      * 
      * @param DataRecord $datarecord
      *
-     * @return boolean TODO
+     * @return boolean
      */
     public function verifyExistence($datarecord)
     {
@@ -4676,7 +4888,7 @@ if ($debug) {
      * @param DataRecord $datarecord
      * @param boolean $debug
      *
-     * @return boolean TODO
+     * @return boolean
      */
     private function verifyExistence_worker($em, $user, $datarecord, $debug)
     {
@@ -5392,7 +5604,7 @@ if ($timing)
         $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
         $cached_datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype_id);
-        if ($cached_datatype_data !== null && !$force_rebuild)
+        if ( !($force_rebuild || $cached_datatype_data == false) )
             return $cached_datatype_data;
 
 
@@ -5455,7 +5667,6 @@ if ($timing) {
     print 'getLayoutData('.$datatype_id.')'."\n".'query execution in: '.$diff."\n";
 }
 */
-        // TODO - compress render plugin instance for both datatype and datafields?
 
         // The entity -> entity_metadata relationships have to be one -> many from a database perspective, even though there's only supposed to be a single non-deleted entity_metadata object for each entity
         // Therefore, the preceeding query generates an array that needs to be slightly flattened in a few places
@@ -5555,7 +5766,7 @@ if ($timing)
         $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
         $cached_datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
-        if ($cached_datarecord_data !== null && !$force_rebuild)
+        if ( !($force_rebuild || $cached_datarecord_data == false) )
             return $cached_datarecord_data;
 
 
@@ -5661,7 +5872,7 @@ if ($timing) {
                 // Flatten image metadata and get rid of both the thumbnail's and the parent's encrypt keys
                 foreach ($drf['image'] as $image_num => $image) {
                     unset( $drf['image'][$image_num]['encrypt_key'] );
-                    unset( $drf['image'][$image_num]['parent']['encrypt_key'] );
+                    unset( $drf['image'][$image_num]['parent']['encrypt_key'] ); // TODO - should encrypt_key actually remain in the array?
 
                     unset( $drf['image'][$image_num]['imageMeta'] );
                     $im = $image['parent']['imageMeta'][0];
@@ -5781,6 +5992,7 @@ if ($timing) {
 
     /**
      * Builds and returns a list of all child and linked datarecords of the given datarecord id.
+     * Due to recursive interaction with self::getLinkedDatarecords(), this function doesn't attempt to store results in the cache.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param int[] $grandparent_ids
@@ -5789,8 +6001,6 @@ if ($timing) {
      */
     protected function getAssociatedDatarecords($em, $grandparent_ids)
     {
-        // TODO - get from cache?
-
         // Locate all datarecords that are children of the datarecords listed in $grandparent_ids
         $query = $em->createQuery(
            'SELECT dr.id AS id

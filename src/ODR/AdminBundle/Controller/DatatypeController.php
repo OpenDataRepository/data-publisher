@@ -44,7 +44,7 @@ class DatatypeController extends ODRCustomController
      * @param string $section  Either "records" or "design", dictating which set of options the user will see for each datatype
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function listAction($section, Request $request)
     {
@@ -250,7 +250,7 @@ class DatatypeController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function addAction(Request $request)
     {
@@ -447,7 +447,7 @@ class DatatypeController extends ODRCustomController
      * @param integer $datatype_id Which datatype is having its properties changed.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function editAction($datatype_id, Request $request)
     {
@@ -544,7 +544,7 @@ class DatatypeController extends ODRCustomController
                         /** @var User $site_user */
                         $site_user = $repo_user->find($user_id);
                         if ($site_user->isEnabled() == 1 && !$site_user->hasRole('ROLE_SUPER_ADMIN'))   // only display this user's permissions for this datatype if they're not deleted and aren't super admin
-                            $all_permissions[$user_id] = array('user' => $site_user, 'permissions' => parent::getPermissionsArray($user_id, $request, false));
+                            $all_permissions[$user_id] = array('user' => $site_user, 'permissions' => parent::getPermissionsArray($user_id, $request));
                     }
                 }
                 ksort($all_permissions);
@@ -648,10 +648,11 @@ class DatatypeController extends ODRCustomController
 
     /**
      * Triggers a recache of all datarecords of all datatypes.
-     * 
+     * TODO - using old recaching system.
+     *
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function recacheallAction(Request $request)
     {

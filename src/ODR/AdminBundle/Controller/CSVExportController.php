@@ -46,7 +46,7 @@ class CSVExportController extends ODRCustomController
      * @param integer $offset
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function csvExportAction($datatype_id, $search_key, $offset, Request $request)
     {
@@ -181,15 +181,12 @@ class CSVExportController extends ODRCustomController
         // ----------------------------------------
         // Grab the cached version of the desired datatype
         $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype->getId());
-        if ($bypass_cache || $datatype_data == null)
-            $datatype_data = parent::getDatatypeData($em, parent::getDatatreeArray($em), $datatype->getId(), true);
+        if ($bypass_cache || $datatype_data == false)
+            $datatype_data = parent::getDatatypeData($em, parent::getDatatreeArray($em), $datatype->getId(), $bypass_cache);
 
-/*
-print '<pre>';
-print_r($datatype_data);
-print '</pre>';
-exit();
-*/
+
+//print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();
+
         // ----------------------------------------
         // Filter by user permissions
         $datarecord_data = array();
@@ -218,7 +215,7 @@ exit();
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function csvExportStartAction(Request $request)
     {
@@ -442,7 +439,7 @@ return;
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function csvExportConstructAction(Request $request)
     {
@@ -589,7 +586,7 @@ return;
                         $df_id = $result['df_id'];
                         $value = $result['value'];
 
-                        // TODO - special handling for boolean
+                        // TODO - special handling for boolean?
 
                         if ($typeclass == 'DatetimeValue') {
                             $date = $value->format('Y-m-d');
@@ -675,7 +672,7 @@ print_r($line);
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function csvExportWorkerAction(Request $request)
     {
@@ -920,7 +917,7 @@ print_r($line);
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function csvExportFinalizeAction(Request $request)
     {
@@ -1048,7 +1045,7 @@ print_r($line);
      * @param integer $tracked_job_id The tracked job that stored the progress of the csv export
      * @param Request $request
      *          
-     * @return Response TODO
+     * @return Response
      */
     public function downloadCSVAction($user_id, $tracked_job_id, Request $request)
     {

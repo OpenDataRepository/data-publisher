@@ -35,7 +35,7 @@ class DefaultController extends ODRCustomController
     * 
     * @param Request $request
     * 
-    * @return Response TODO
+    * @return Response
     */
     public function indexAction(Request $request)
     {
@@ -102,7 +102,7 @@ class DefaultController extends ODRCustomController
     * 
     * @param Request $request
     * 
-    * @return Response TODO
+    * @return Response
     */
     public function dashboardAction(Request $request)
     {
@@ -134,18 +134,18 @@ class DefaultController extends ODRCustomController
             $dashboard_graphs = array();
             foreach ($datatypes as $num => $datatype_id) {
                 // Don't display dashboard stuff that the user doesn't have permission to see
-               if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'view' ])) ) {
+                if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'view' ])) ) {
 //print 'no permissions for datatype '.$datatype_id."\n";
                     continue;
                 }
 
-                $data = $memcached->get($memcached_prefix.'.dashboard_'.$datatype_id);
-
                 // No caching in dev environment
+                $bypass_cache = false;
                 if ($this->container->getParameter('kernel.environment') === 'dev')
-                    $data = null;
+                    $bypass_cache = true;
 
-                if ($data == null)
+                $data = $memcached->get($memcached_prefix.'.dashboard_'.$datatype_id);
+                if ($data == false || $bypass_cache)
                     $data = self::getDashboardHTML($em, $datatype_id);
 
                 $total = $data['total'];
@@ -203,23 +203,25 @@ class DefaultController extends ODRCustomController
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $datatype_id             Which datatype is having its dashboard blurb rebuilt.
      *
-     * @return array TODO
+     * @return array
      */
     private function getDashboardHTML($em, $datatype_id)
     {
-        // TODO - datatype metadata
-        $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted rows
+        /** @var DataType $datatype */
+        $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+        $datatype_name = $datatype->getShortName();
+
+        // Temporarily disable the code that prevents the following query from returning deleted rows
+        $em->getFilters()->disable('softdeleteable');
         $query = $em->createQuery(
-           'SELECT dtym.shortName AS datatype_name, dr.id AS datarecord_id, dr.created AS created, dr.deletedAt AS deleted, dr.updated AS updated
+           'SELECT dr.id AS datarecord_id, dr.created AS created, dr.deletedAt AS deleted, dr.updated AS updated
             FROM ODRAdminBundle:DataRecord AS dr
             JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-            JOIN ODRAdminBundle:DataTypeMeta AS dtym WITH dtym.dataType = dt
             WHERE dr.dataType = :datatype AND dr.provisioned = false'
         )->setParameters( array('datatype' => $datatype_id) );
         $results = $query->getArrayResult();
         $em->getFilters()->enable('softdeleteable');    // Re-enable it
 
-//print_r($results);
 
         // Build the array of date objects so datarecords created/deleted in the past 6 weeks can be counted
 //        $current_date = new \DateTime();
@@ -231,12 +233,8 @@ class DefaultController extends ODRCustomController
             $cutoff_dates[($i-1)] = $tmp_date->sub(new \DateInterval($str));
         }
 
-        $datatype_name = '';
         $total_datarecords = 0;
         $values = array();
-        $created_str = '';
-        $updated_str = '';
-        $value_str = '';
 
         //
         $values['created'] = array();
@@ -248,8 +246,6 @@ class DefaultController extends ODRCustomController
 
         // 
         foreach ($results as $num => $result) {
-            $datatype_name = $result['datatype_name'];
-
 //            $datarecord_id = $result['datarecord_id'];
             $create_date = $result['created'];
             $delete_date = $result['deleted'];
@@ -312,6 +308,7 @@ class DefaultController extends ODRCustomController
             $value_str .= ','.$created[$i].':'.$updated[$i];
         }
 
+        $created_str = '';
         if ( $total_created < 0 )
             $created_str = abs($total_created).' deleted';
         else
@@ -319,12 +316,6 @@ class DefaultController extends ODRCustomController
 
         $updated_str = $total_updated.' modified';
 
-        // Ensure a dataype with no datarecords still has a name
-        if ( count($results) == 0 ) {
-            /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            $datatype_name = $datatype->getShortName();
-        }
 
         // Render the actual html
         $templating = $this->get('templating');

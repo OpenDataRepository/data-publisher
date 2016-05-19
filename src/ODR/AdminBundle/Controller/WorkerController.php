@@ -55,10 +55,11 @@ class WorkerController extends ODRCustomController
 
     /**
      * Called by the recaching background process to rebuild all the different versions of a DataRecord and store them in memcached.
+     * @deprecated
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function recacherecordAction(Request $request)
     {
@@ -242,7 +243,7 @@ class WorkerController extends ODRCustomController
                 foreach ($memcache_keys as $memcache_key) {
                     $data = $memcached->get($memcached_prefix.'.'.$memcache_key.'_'.$datarecord_id);
 
-                    if ($data == null)
+                    if ($data == false)
                         $missing_cache_entries = true;
                     else if ($oldest_revision == null || $data['revision'] < $oldest_revision)
                         $oldest_revision = $data['revision'];                
@@ -345,11 +346,87 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 
 
     /**
+     * Called by the recaching background process to forcibly rebuild the various pieces of cached data that ODR relies on.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function forcerecacheAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $ret = '';
+
+        try {
+            $post = $_POST;
+            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            // Pull data from the post
+            $object_type = $post['object_type'];
+            $object_id = $post['object_id'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $logger = $this->get('logger');
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+            $force_rebuild = true;
+
+            if ($object_type == 'datarecord') {
+                parent::getDatarecordData($em, $object_id, $force_rebuild);
+                $ret .= 'Rebuilt cached datarecord array for datarecord '.$object_id;
+            }
+            else if ($object_type == 'datatype') {
+                parent::getDatatypeData($em, parent::getDatatreeArray($em), $object_id, $force_rebuild);
+                $ret .= 'Rebuilt cached datatype array for datatype '.$object_id;
+            }
+            else if ($object_type == 'datatype_permission') {
+                // Ensure user has all permissions objects
+                $top_level_datatypes = parent::getTopLevelDatatypes();
+                foreach ($top_level_datatypes as $num => $datatype_id)
+                    parent::permissionsExistence($em, $object_id, $object_id, $datatype_id, null);
+
+                parent::getPermissionsArray($object_id, $request, $force_rebuild);
+                $ret .= 'Rebuilt datatype permissions array for user '.$object_id;
+            }
+            else if ($object_type == 'datafield_permission') {
+                // Ensure user has all datafield permission objects
+
+                parent::getDatafieldPermissionsArray($object_id, $request, $force_rebuild);
+                $ret .= 'Rebuilt datafield permissions array for user '.$object_id;
+            }
+
+            $return['d'] = $ret."\n";
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x6642397853 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Called by the migration background process to transfer data from one storage entity to another compatible storage entity.
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function migrateAction(Request $request)
     {
@@ -708,7 +785,7 @@ $ret .= '  Set current to '.$count."\n";
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function rebuildthumbnailsAction(Request $request)
     {
@@ -804,7 +881,7 @@ $ret .= '  Set current to '.$count."\n";
      *
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function cryptorequestAction(Request $request)
     {
@@ -1429,7 +1506,7 @@ print '</pre>';
      *
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function encryptAction(Request $request)
     {
@@ -1563,7 +1640,7 @@ print '</pre>';
      *
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function decryptAction(Request $request)
     {
@@ -1659,7 +1736,7 @@ print '</pre>';
      * @param integer $datatype_id
      * @param Request $request
      *
-     * @return string TODO
+     * @return string
      */
     public function duplicateradiocheckAction($datatype_id, Request $request)
     {

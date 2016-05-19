@@ -1,10 +1,9 @@
 {% spaceless %}
 
-{% set datatype = datatype_tree.datatype %}
+{% set datatype = datatype_array[initial_datatype_id] %}
+
 <h1 class="no-margin-top-phone">
-    <span>Datafield Permissions &raquo; {{ datatype.shortname }}</span>
-    </br>
-    <span>...for {{ user.getuserstring }}</span>
+    <span>Datafield Permissions &raquo; {{ datatype.dataTypeMeta.shortName }}</span>&nbsp;<span>...for {{ user.getuserstring }}</span>
 </h1>
 
 {#
@@ -13,7 +12,15 @@ datafield {{ datafield_id }} -- {% if permission[ 'view' ] is defined %}(view){%
 {% endfor %}
 #}
 
-{% include 'ODRAdminBundle:FieldPermissions:fieldpermissions_area.html.twig' with {'user': user, 'datatype_tree': datatype_tree, 'datatype_permissions': datatype_permissions, 'datafield_permissions': datafield_permissions} %}
+{% include 'ODRAdminBundle:FieldPermissions:fieldpermissions_area.html.twig' with {
+    'user': user,
+    'datatype_permissions': datatype_permissions,
+    'datafield_permissions': datafield_permissions,
+
+    'datatype_array': datatype_array,
+    'initial_datatype_id': initial_datatype_id,
+    'theme_id': theme_id,
+} %}
 
 <style>
     .ODRBlockedDatafield {
@@ -40,9 +47,12 @@ function initPage() {
     // Hide all TEDs without input fields
     $(".ODRThemeElement").each(function() {
         var found = false;
-        $(this).find("input").each(function() {
+        $(this).find(".ODRFieldArea").each(function() {
             found = true;
-            return false;
+        });
+
+        $(this).find(".ODRDataField").each(function() {
+            found = true;
         });
 
         if (!found)
@@ -113,82 +123,12 @@ function initPage() {
 
     });
 
-    $(".ODRThemeElementVisible").unbind('click');
-    $(".ODRThemeElementVisible").click(function() {
-
-        var theme_element_id = $(this).attr('rel');
-        var element = $(this);
-
-        // TODO - Need to warn when changing theme element from not visible to visible...all datafields in theme element set to not visible/editable will get changed to visible??
-
-        var url  = '{{ path('odr_design_visible_theme_element', {'theme_element_id': 0} ) }}';
-        url = url.substring(0,(url.length-1));
-        url += theme_element_id;
-
-//alert(url);
-//return;
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Toggle muted status
-                    var icons = {};
-                    if ( $(element).hasClass('fa-eye') ) {
-                        // Set to not visible
-                        icons = {"ODRThemeElementVisible": 0};
-                        setThemeElementIcons(theme_element_id, icons);
-
-                        // Don't need to change any of the datafields' view permissions state
-                        // However, Do need to remove fa-muted class because the datafield can now be changed to non-viewable/non-editable
-                        $("#ThemeElement_" + theme_element_id).children(".ODRDataField").each(function() {
-                            var datafield_overlay_id = $(this).attr('id') + "_overlay";
-                            $("#" + datafield_overlay_id).removeClass('fa-muted').addClass('Pointer');
-                        });
-                    }
-                    else {
-                        // Set to visible
-                        icons = {"ODRThemeElementVisible": 1};
-                        setThemeElementIcons(theme_element_id, icons);  // need to update this prior to updateDatafieldPermissions()
-
-                        // Need to set all non-viewable/non-editable datafields to viewable/non-editable
-                        $("#ThemeElement_" + theme_element_id).children(".ODRDataField").each(function() {
-                            var datafield_overlay_id = $(this).attr('id') + "_overlay";
-                            if ( $("#" + datafield_overlay_id).hasClass('ODRBlockedDatafield') ) {
-                                updateDatafieldPermissions( datafield_overlay_id, 'ODRVisibleDatafield' );
-                            }
-                        });
-                    }
-
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-
-    });
-
     $(".ODREditPermission").unbind('click');
     $(".ODREditPermission").click(function() {
+
+alert('blocked');
+return;
+
         // Grab ids
         var user_id = $(this).attr('rel');
         var datatype_id = $(this).parent().attr('rel');
@@ -268,6 +208,9 @@ function initPage() {
 
 function updateDatafieldPermissions(datafield_overlay_id, desired_state) {
 
+    alert('blocked');
+    return;
+
     // Grab datafield_id
     var id_data = datafield_overlay_id.split(/_/);
     var datafield_id = id_data[1];
@@ -330,6 +273,10 @@ function updateDatafieldPermissions(datafield_overlay_id, desired_state) {
 }
 
 function updateOverlayProperties(datafield_overlay_id, desired_state) {
+
+    alert('blocked');
+    return;
+
     var datafield_overlay = $("#" + datafield_overlay_id);
 
     // Determine if datatype is editable

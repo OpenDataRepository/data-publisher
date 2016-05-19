@@ -210,7 +210,7 @@ class DisplaytemplateController extends ODRCustomController
             // ----------------------------------------
             // See if any cached search results need to be deleted...
             $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
-            if ( isset($cached_searches[$datatype_id]) ) {
+            if ( $cached_searches != false && isset($cached_searches[$datatype_id]) ) {
                 // Delete all cached search results for this datatype that were run with criteria for this specific datafield
                 foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
                     $searched_datafields = $search_data['searched_datafields'];
@@ -651,7 +651,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // ...cached searches
             $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
-            if ( isset($cached_searches[$datatype_id]) ) {
+            if ( $cached_searches != false && isset($cached_searches[$datatype_id]) ) {
                 unset( $cached_searches[$datatype_id] );
 
                 // Save the collection of cached searches back to memcached

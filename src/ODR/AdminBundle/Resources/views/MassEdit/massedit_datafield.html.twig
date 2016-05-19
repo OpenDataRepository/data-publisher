@@ -1,29 +1,19 @@
 {% spaceless %}
-{% set field_typename = field.getfieldtype.typename %}
-{#<div class="ODRDataField pure-u-1 pure-u-md-{{ fieldtheme.getcsswidthmed }} pure-u-xl-{{ fieldtheme.getcsswidthxl }}" id="Field_{{ field.id }}" >#}
+    
+{% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
 
-{% if field.isunique == 1 %}
-<div id="Field_{{ field.id }}_overlay" class="ODROverlayDiv ODRReloadDiv"></div>
+{% if datafield.dataFieldMeta.is_unique == 1 %}
+    <div id="Field_{{ datafield.id }}_overlay" class="ODROverlayDiv ODRReloadDiv"></div>
 {% endif %}
 
-    <form id="Form_DataField_{{ field.id }}" class="pure-u-1">
-    <input type="hidden" name="theme_field_id" value="{{ fieldtheme.id }}" />
-
+<form id="Form_DataField_{{ datafield.id }}" class="pure-u-1">
 
     {% if field_typename == "Boolean" %}
-{#
-    <fieldset>
-        <label id="Label_{{ field.id }}" for="Input_{{ field.id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;">
-            <input type="checkbox" name="">
-            {{ field.fieldname }}
-        </label>
-    </fieldset>
-#}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ field.id }}" class="ODRFieldLabel" title="{{ field.description }}">{{ field.fieldname }}</label>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
         </span>
-        <select id="SelectGroup_{{ field.id }}" class="ODRBoolean" {% if can_edit_datafield == 0 %}disabled{% endif %}>
+        <select id="SelectGroup_{{ datafield.id }}" class="ODRBoolean" {% if can_edit_datafield == 0 %}disabled{% endif %}>
             <option value="-1">&lt;No change&gt;</option>
             <option value="0">Unchecked</option>
             <option value="1">Checked</option>
@@ -32,9 +22,9 @@
 
     {% elseif field_typename == "File" %}
     <fieldset>
-        <label id="Label_{{ field.id }}" class="ODRFieldLabel pure-u-1" title="{{ field.description }}">{{ field.fieldname }}</label>
+        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
         <div class="pure-u-1">
-            <select id="SelectGroup_{{ field.id }}" class="ODRFile">
+            <select id="SelectGroup_{{ datafield.id }}" class="ODRFile" {% if can_edit_datafield == 0 %}disabled{% endif %}>
                 <option value="-1">Make all Files non-public</option>
                 <option value="0" selected>Don't change public status</option>
                 <option value="1">Make all Files public</option>
@@ -44,9 +34,9 @@
 
     {% elseif field_typename == "Image" %}
     <fieldset>
-        <label id="Label_{{ field.id }}" class="ODRFieldLabel pure-u-1" title="{{ field.description }}">{{ field.fieldname }}</label>
+        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
         <div class="pure-u-1">
-            <select id="SelectGroup_{{ field.id }}" class="ODRFile">
+            <select id="SelectGroup_{{ datafield.id }}" class="ODRFile" {% if can_edit_datafield == 0 %}disabled{% endif %}>
                 <option value="-1">Make all Images non-public</option>
                 <option value="0" selected>Don't change public status</option>
                 <option value="1">Make all Images public</option>
@@ -56,16 +46,16 @@
 
     {% elseif field_typename == "Paragraph Text" %}
     <fieldset>
-        <label id="Label_{{ field.id }}" for="Input_{{ field.id }}" class="ODRFieldLabel">{{ field.fieldname }}</label>
-        <div class="ODRFieldWrapper" id="Input_{{ field.id }}">
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
             <textarea class="ODRParagraphField pure-u-1" {% if can_edit_datafield == 0 %}disabled{% endif %}></textarea>
         </div>
     </fieldset>
 
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
     <fieldset>
-        <label id="Label_{{ field.id }}" for="Input_{{ field.id }}" class="ODRFieldLabel">{{ field.fieldname }}</label>
-        <div class="ODRFieldWrapper" id="Input_{{ field.id }}">
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
             <input type="text" class="ODRField pure-u-1" name="" value="" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
         </div>
     </fieldset>
@@ -74,25 +64,27 @@
     {% elseif field_typename == "Single Radio" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ field.id }}" class="ODRFieldLabel" title="{{ field.description }}">{{ field.fieldname }}</label>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
         </span>
-        <div class="ODRSingleRadio pure-u-1" rel="{{ field.id }}">
+        <div class="ODRSingleRadio pure-u-1" rel="{{ datafield.id }}">
             <label id="Label_0" for="Input_0" class="pure-u-1" style="margin: 0.5em 0;">
-                <input id="Option_{{ field.id }}_0" type="radio" name="RadioGroup_{{ field.id }}" class="ODRRadioOption" checked rel="0" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
+                <input id="Option_{{ datafield.id }}_0" type="radio" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" checked rel="0" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
                 &lt;No change&gt;
             </label>
-        {% for radio_option in field.getRadioOptions %}
-            <label id="Label_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ field.childrenperrow }}" style="margin: 0.5em 0;">
+
+        {% for radio_option in datafield.radioOptions %}
+            <label id="Label_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
 
             {% if field_typename == "Single Radio" %}
-                <input id="Option_{{ field.id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ field.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
+                <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
             {% else %}
-                <input id="Option_{{ field.id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ field.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
+                <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
             {% endif %}
 
-            {{ radio_option.getOptionName }}
+            {{ radio_option.radioOptionsMeta.optionName }}
             </label>
         {% endfor %}
+
         </div>
     </fieldset>
 
@@ -100,41 +92,44 @@
     {% elseif field_typename == "Single Select" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ field.id }}" class="ODRFieldLabel" title="{{ field.description }}">{{ field.fieldname }}</label>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
         </span>
-        <select id="SelectGroup_{{ field.id }}" class="ODRSingleSelect" {% if can_edit_datafield == 0 %}disabled{% endif %}>
+        <select id="SelectGroup_{{ datafield.id }}" class="ODRSingleSelect" {% if can_edit_datafield == 0 %}disabled{% endif %}>
         {% if field_typename == "Single Select" %}
             <option id="Option_0" value="0">&lt;No change&gt;</option>
         {% endif %}
 
-        {% for radio_option in field.getRadioOptions %}
-            <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.getOptionName }}</option>
+        {% for radio_option in datafield.radioOptions %}
+            <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionsMeta.optionName }}</option>
         {% endfor %}
+
         </select>
     </fieldset>
 
     {% elseif field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ field.id }}">
-                <label id="Label_{{ field.id }}" class="ODRFieldLabel" title="{{ field.description }}">{{ field.fieldname }}</label>
+            <label id="Label_{{ datafield.id }}">
+                <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
             </label>
-            {% for radio_option in datafield.getRadioOptions %}
-                <label id="Label_{{ field.id }}_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="ODRRadioLabel pure-u-1">
+
+            {% for radio_option in datafield.radioOptions %}
+                <label id="Label_{{ datafield.id }}_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="ODRRadioLabel pure-u-1">
                     <span class="ODRTristateCheckbox" rel="multiple">
                         <i class="fa"></i>
-                        <input type="hidden" name="{{ field.id }}" rel="{{ radio_option.id }}" value="" />
+                        <input type="hidden" name="{{ datafield.id }}" rel="{{ radio_option.id }}" value="" />
                     </span>
-                    {{ radio_option.getOptionName }}
+                    {{ radio_option.radioOptionsMeta.optionName }}
                 </label>
             {% endfor %}
+
         </span>
     </fieldset>
 
     {% elseif field_typename == "DateTime" %}
     <fieldset>
-        <label id="Label_{{ field.id }}" for="Input_{{ field.id }}" class="ODRFieldLabel">{{ field.fieldname }}</label>
-        <div class="ODRPseudoField" id="Input_{{ field.id }}">
+        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
             <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly {% if can_edit_datafield == 0 %}disabled{% endif %}/>
         </div>
         <div style="float:left; margin:5px;"><label class="ODRDatePicker_clear Pointer"><input type="checkbox" class="ODRDatePicker_clearAll" name="" value="1" />&nbsp;Clear All Dates</label></div>
@@ -142,7 +137,6 @@
     </fieldset>
 
     {% endif %}
-    </form>
+</form>
 
-{#</div><!-- End of #Field_{{ field.id}} -->#}
 {% endspaceless %}

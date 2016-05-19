@@ -1,8 +1,17 @@
+{% spaceless %}
 
 <div class="ODRFormWrap ODRDesign pure-u-1"> 
 
-    {% import "ODRAdminBundle:MassEdit:massedit_childtype.html.twig" as mychildform %}
-    {{ mychildform.input(datatype_tree, datafield_permissions) }}
+    {% include 'ODRAdminBundle:MassEdit:massedit_childtype.html.twig' with {
+        'datatype_array': datatype_array,
+        'target_datatype_id': initial_datatype_id,
+        'theme_id': theme_id,
+
+        'datafield_permissions': datafield_permissions,
+
+        'is_top_level': 1
+    } %}
 
 </div><!-- End of .ODRFormWrap -->
 
+{% endspaceless %}

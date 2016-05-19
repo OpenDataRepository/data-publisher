@@ -48,7 +48,7 @@ class MassEditController extends ODRCustomController
      * @param string $search_key   The search key identifying which datarecords to potentially mass edit
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function massEditAction($datatype_id, $offset, $search_key, Request $request)
     {
@@ -153,48 +153,72 @@ class MassEditController extends ODRCustomController
         // Required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $templating = $this->get('templating');
+        $memcached = $this->get('memcached');
+        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+        if ($datatype == null)
+            return parent::deletedEntityError('Datatype');
 
         /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
+        $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+        if ($theme == null)
+            return parent::deletedEntityError('Theme');
+
 
         // --------------------
         // Determine user privileges
         /** @var User $user */
         $user = $this->container->get('security.context')->getToken()->getUser();
-//        $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
+        $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
         $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
         // --------------------
 
-        $theme_element = null;
-
-        $indent = 0;
-        $is_link = 0;
-        $top_level = 1;
-//        $short_form = true;     // don't load/display child datatype information
-        $short_form = false;
-
-$debug = true;
-$debug = false;
-if ($debug)
-    print '<pre>';
-
-        $tree = parent::buildDatatypeTree($user, $theme, $datatype, $theme_element, $em, $is_link, $top_level, $short_form, $debug, $indent);
-
-if ($debug)
-    print '</pre>';
+        $bypass_cache = false;
+        if ($this->container->getParameter('kernel.environment') === 'dev')
+            $bypass_cache = true;
 
 
+        // ----------------------------------------
+        // Determine which datatypes/childtypes to load from the cache
+        $include_links = false;
+        $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype_id), $include_links);
+
+//print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
+
+        // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+        $datatree_array = parent::getDatatreeArray($em);
+
+        $datatype_array = array();
+        foreach ($associated_datatypes as $num => $dt_id) {
+            $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
+            if ($bypass_cache || $datatype_data == null)
+                $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
+
+            foreach ($datatype_data as $dt_id => $data)
+                $datatype_array[$dt_id] = $data;
+        }
+
+
+        // ----------------------------------------
+        // Filter by user permissions
+        $datarecord_data = array();
+        parent::filterByUserPermissions($datatype_id, $datatype_array, $datarecord_data, $datatype_permissions, $datafield_permissions);
+
+
+        // Render the CSVExport page
+        $templating = $this->get('templating');
         $html = $templating->render(
             'ODRAdminBundle:MassEdit:massedit_ajax.html.twig',
             array(
-                'datafield_permissions' => $datafield_permissions,
-                'datatype_tree' => $tree,
-                'theme' => $theme,
+                'datatype_array' => $datatype_array,
+                'initial_datatype_id' => $datatype_id,
+                'theme_id' => $theme->getId(),
+
                 'odr_tab_id' => $odr_tab_id,
+                'datafield_permissions' => $datafield_permissions,
             )
         );
 
@@ -207,7 +231,7 @@ if ($debug)
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function massUpdateAction(Request $request)
     {
@@ -451,7 +475,7 @@ return;
      *
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function massUpdateWorkerStatusAction(Request $request)
     {
@@ -597,7 +621,7 @@ return;
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function massUpdateWorkerValuesAction(Request $request)
     {
