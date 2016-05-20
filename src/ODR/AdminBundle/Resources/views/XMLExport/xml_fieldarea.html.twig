@@ -1,0 +1,95 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = datatype.themes[theme_id] %}
+{% set datarecord = datarecord_array[target_datarecord_id] %}
+
+{# describe datafields first #}
+<datafields>
+{% for theme_element in theme.themeElements %}
+    {% if theme_element.themeDataFields is defined %}
+
+        {% for theme_datafield in theme_element.themeDataFields %}
+            {% set datafield = theme_datafield.dataField %}
+
+            {% if datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
+                {% include 'ODRAdminBundle:XMLExport:xml_datafield.html.twig' with {
+                    'datarecord': datarecord,
+                    'datafield': datafield,
+
+                    'is_link': is_link,
+                    'using_metadata': using_metadata,
+                    'baseurl': baseurl
+                } %}
+            {% endif %}
+
+        {% endfor %}
+    {% endif %}
+{% endfor %}
+</datafields>
+
+{# describe child datarecords second #}
+<child_datarecords>
+{% for theme_element in theme.themeElements %}
+    {% if theme_element.themeDataType is defined %}
+
+        {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
+            {% set child_datatype = theme_datatype.dataType %}
+
+            {% if datatype_array[ child_datatype.id ] is defined %}
+                {% set child_theme_id = 0 %}
+                {% for theme in datatype_array[ child_datatype.id ].themes %}
+                    {% if theme.themeType == 'master' %}
+                        {% set child_theme_id = theme.id %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if theme_datatype.is_link == 0 %}
+                    {% set is_top_level = 0 %}
+                    {% import "ODRAdminBundle:XMLExport:xml_childtype.html.twig" as mychildform %}
+                    {% set content = mychildform.input(datatype_array, datarecord_array, child_theme_id, child_datatype.id, datarecord.id, is_top_level, theme_datatype.is_link, using_metadata, baseurl) %}
+
+                    {% if "<" in content|trim %}
+                        <{{ child_datatype.dataTypeMeta.xml_shortName }}>{{ content }}</{{ child_datatype.dataTypeMeta.xml_shortName }}>
+                    {% endif %}
+                {% endif %}
+
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endfor %}
+</child_datarecords>
+
+{# describe linked datarecords last #}
+<linked_datarecords>
+    {% for theme_element in theme.themeElements %}
+        {% if theme_element.themeDataType is defined %}
+
+            {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
+                {% set child_datatype = theme_datatype.dataType %}
+
+                {% if datatype_array[ child_datatype.id ] is defined %}
+                    {% set child_theme_id = 0 %}
+                    {% for theme in datatype_array[ child_datatype.id ].themes %}
+                        {% if theme.themeType == 'master' %}
+                            {% set child_theme_id = theme.id %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if theme_datatype.is_link == 1 %}
+                        {% set is_top_level = 0 %}
+                        {% import "ODRAdminBundle:XMLExport:xml_childtype.html.twig" as mychildform %}
+                        {% set content = mychildform.input(datatype_array, datarecord_array, child_theme_id, child_datatype.id, datarecord.id, is_top_level, theme_datatype.is_link, using_metadata, baseurl) %}
+
+                        {% if "<" in content|trim %}
+                            <{{ child_datatype.dataTypeMeta.xml_shortName }}>{{ content }}</{{ child_datatype.dataTypeMeta.xml_shortName }}>
+                        {% endif %}
+                    {% endif %}
+
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    {% endfor %}
+</linked_datarecords>
+
+{% endspaceless %}

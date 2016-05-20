@@ -1,19 +1,19 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* XSD Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The XSD controller builds the XSD schema definitions for
-* the various entites in the database that need a schema to
-* validate XML imports.  It also provides users the ability
-* to download these XSD schemas.
-*
-* TODO - no download action for radio_option xsd
-*/
+ * Open Data Repository Data Publisher
+ * XSD Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The XSD controller builds the XSD schema definitions for
+ * the various entites in the database that need a schema to
+ * validate XML imports.  It also provides users the ability
+ * to download these XSD schemas.
+ *
+ * TODO - no download action for radio_option xsd
+ */
 
 namespace ODR\AdminBundle\Controller;
 
@@ -39,7 +39,7 @@ class XSDController extends ODRCustomController
      * @param integer $datatype_id The datatype that is having its schema built.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function builddatatypeAction($datatype_id, Request $request)
     {
@@ -56,20 +56,26 @@ class XSDController extends ODRCustomController
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
-                return parent::deletedEntityError('DataType');
+                return parent::deletedEntityError('Datatype');
 
-            $xsd_export_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
 
             // Ensure directory exists
+            $xsd_export_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
             if ( !file_exists($xsd_export_path) )
                 mkdir( $xsd_export_path );
 
-            $filename = $datatype->getXmlShortName().'.xsd';
-
+            //$filename = $datatype->getXmlShortName().'.xsd';
+            $filename = $datatype->getShortName().'.xsd';
             $handle = fopen($xsd_export_path.$filename, 'w');
+
             if ($handle !== false) {
                 // Build the schema and write it to the disk
-                $schema = self::datatype_GetDisplayData($request, $datatype_id);
+                $schema = self::XSD_GetDisplayData($em, $datatype_id, $request);
                 fwrite($handle, $schema);
 
                 fclose($handle);
@@ -78,7 +84,6 @@ class XSDController extends ODRCustomController
                 $return['d'] = array(
                     'html' => $templating->render('ODRAdminBundle:XSDCreate:xsd_download.html.twig', array('datatype_id' => $datatype_id))
                 );
-
             }
             else {
                 // Shouldn't be an issue?
@@ -105,7 +110,7 @@ class XSDController extends ODRCustomController
      * @param integer $datatype_id Which DataType to download the schema for.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function downloadXSDAction($datatype_id, Request $request)
     {
@@ -123,7 +128,7 @@ class XSDController extends ODRCustomController
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
-                return parent::deletedEntityError('DataType');
+                return parent::deletedEntityError('Datatype');
 
             $xsd_export_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
             $filename = $datatype->getXmlShortName().'.xsd';
@@ -172,53 +177,65 @@ class XSDController extends ODRCustomController
     /**
      * Renders and returns the XSD schema definition for a DataType.
      *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $datatype_id
      * @param Request $request
-     * @param integer $datatype_id  Which DataType is having its schema written.
-     * @param string $template_name 
      *
      * @return string
      */
-    private function datatype_GetDisplayData(Request $request, $datatype_id, $template_name = 'default')
+    private function XSD_GetDisplayData($em, $datatype_id, Request $request)
     {
-        // Required objects
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
-        /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
-        $templating = $this->get('templating');
-
-        /** @var User $user */
-        $user = $this->container->get('security.context')->getToken()->getUser();
-
-        $datatype = null;
-        $theme_element = null;
-        if ($datatype_id !== null) {
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-        }
+        // All of these should already exist
         /** @var DataType $datatype */
+        $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+        /** @var Theme $theme */
+        $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
 
-        $indent = 0;
-        $is_link = 0;
-        $top_level = 1;
-        $short_form = false;
+        $memcached = $this->get('memcached');
+        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
-$debug = true;
-$debug = false;
-if ($debug)
-    print '<pre>';
+        // ----------------------------------------
 
-            $tree = parent::buildDatatypeTree($user, $theme, $datatype, $theme_element, $em, $is_link, $top_level, $short_form, $debug, $indent);
+        // Always bypass cache if in dev mode?
+        $bypass_cache = false;
+        if ($this->container->getParameter('kernel.environment') === 'dev')
+            $bypass_cache = true;
 
-if ($debug)
-    print '</pre>';
 
-        $template = 'ODRAdminBundle:XSDCreate:xsd_ajax.html.twig';
+        // ----------------------------------------
+        // Determine which datatypes/childtypes to load from the cache
+        $include_links = false;
+        $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype_id), $include_links);
 
+//print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
+
+        // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+        $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+
+//print '<pre>'.print_r($datatree_array, true).'</pre>'; exit();
+
+        $datatype_array = array();
+        foreach ($associated_datatypes as $num => $dt_id) {
+            $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
+            if ($bypass_cache || $datatype_data == null)
+                $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
+
+            foreach ($datatype_data as $dt_id => $data)
+                $datatype_array[$dt_id] = $data;
+        }
+
+//print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();
+
+        // ----------------------------------------
+        // Render the schema layout
+        $templating = $this->get('templating');
         $html = $templating->render(
-            $template,
+            'ODRAdminBundle:XSDCreate:xsd_ajax.html.twig',
             array(
-                'datatype_tree' => $tree,
+                'datatype_array' => $datatype_array,
+                'initial_datatype_id' => $datatype_id,
+                'theme_id' => $theme->getId(),
             )
         );
 

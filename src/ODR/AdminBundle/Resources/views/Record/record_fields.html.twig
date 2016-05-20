@@ -77,7 +77,6 @@
                     {% include 'ODRAdminBundle:Record:record_datafield.html.twig' with {
                         'datatype': datatype,
                         'datarecord': datarecord,
-                        'theme_datafield': theme_datafield,
                         'datafield': datafield,
 
                         'force_image_reload' : false
@@ -87,7 +86,6 @@
 
                     {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
                         'datarecord': datarecord,
-                        'theme_datafield': theme_datafield,
                         'datafield': datafield,
 
                         'image_thumbnails_only': false,

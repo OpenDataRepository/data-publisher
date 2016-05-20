@@ -1,45 +1,77 @@
-{% macro input(datatype_tree, datarecord_tree, using_metadata, baseurl) %}
+{% macro input(datatype_array, datarecord_array, theme_id, target_datatype_id, parent_datarecord_id, is_top_level, is_link, using_metadata, baseurl) %}
 
 {% spaceless %}
 
-{% set datatype = datatype_tree.datatype %}
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = datatype.themes[theme_id] %}
+{% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
 
-{% if datatype_tree.top_level == false %}
+{% if is_top_level == false %}
     <datarecords>
 {% endif %}
 
-{% for dr_entry in datarecord_tree %}
-    {% set datarecord = dr_entry.datarecord %}
+{% for dr_id, datarecord in datarecord_array %}
 
-    {% if datatype_tree.is_link == 0 %}
-        {# display metadata and datafields for top-level and child datarecords #}
-        {% if datatype_tree.top_level == false %}
-        <datarecord>
+{#
+----------</br>
+datarecord: {{ datarecord.id }}...datatype {{ datarecord.dataType.id }}</br>
+parent: {{ datarecord.parent.id }}</br>
+grandparent: {{ datarecord.grandparent.id }}</br>
+</br>
+parent_datarecord_id: {{ parent_datarecord_id }}</br>
+target_datatype_id: {{ target_datatype_id }}</br>
+</br>
+is_top_level: {{ is_top_level }}</br>
+is_link: {{ is_link }}</br>
+----------</br>
+#}
+
+    {% if (is_link == 1 or datarecord.parent.id == parent_datarecord_id) and datarecord.dataType.id == target_datatype_id %}
+
+        {% if is_link == 0 %}
+            {# display metadata and datafields for top-level and child datarecords #}
+            {% if is_top_level == false %}
+            <datarecord>
+            {% endif %}
+
+            {% if using_metadata == true %}
+                <_datarecord_metadata>
+                    <_external_id>{#{{ datarecord.getexternalid }}#}{{ datarecord.id }}</_external_id>
+                    <_create_date>{{ datarecord.dataRecordMeta.created|date('Y-m-d H:i:s') }}</_create_date>
+                    <_create_auth>{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string }}{% endif %}</_create_auth>
+                    <_public_date>{{ datarecord.dataRecordMeta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
+                </_datarecord_metadata>
+            {% endif %}
+
+            {% include 'ODRAdminBundle:XMLExport:xml_fields.html.twig' with {
+                'datatype_array': datatype_array,
+                'datarecord_array': datarecord_array,
+
+                'target_datatype_id': target_datatype_id,
+                'parent_datarecord_id': parent_datarecord_id,
+                'target_datarecord_id': datarecord.id,
+                'theme_id': theme_id,
+
+                'is_top_level': is_top_level,
+                'is_link': is_link,
+
+                'using_metadata': using_metadata,
+                'baseurl': baseurl,
+            } %}
+
+            {% if is_top_level == false %}
+            </datarecord>
+            {% endif %}
+
+        {% else %}
+            {# only display external id for linked datarecords #}
+            <datarecord><_external_id>{#{{ datarecord.getexternalid }}#}{{ datarecord.id }}</_external_id></datarecord>
         {% endif %}
-
-        {% if using_metadata == true %}
-            <_datarecord_metadata>
-                <_external_id>{{ datarecord.getexternalid }}</_external_id>
-                <_create_date>{{ datarecord.created|date('Y-m-d H:i:s') }}</_create_date>
-                <_create_auth>{% if datarecord.getcreatedby != null %}{{ datarecord.getcreatedby.getuserstring }}{% endif %}</_create_auth>
-                <_public_date>{{ datarecord.getpublicdate|date('Y-m-d H:i:s') }}</_public_date>
-            </_datarecord_metadata>
-        {% endif %}
-
-        {% include 'ODRAdminBundle:XMLExport:xml_fields.html.twig' with {'datatype_tree': datatype_tree, 'dr_entry': dr_entry, 'using_metadata': using_metadata, 'baseurl': baseurl} %}
-
-        {% if datatype_tree.top_level == false %}
-        </datarecord>
-        {% endif %}
-
-    {% else %}
-        {# only display external id for linked datarecords #}
-        <datarecord><_external_id>{{ datarecord.getexternalid }}</_external_id></datarecord>
     {% endif %}
 
 {% endfor %}
 
-{% if datatype_tree.top_level == false %}
+{% if is_top_level == false %}
     </datarecords>
 {% endif %}
 

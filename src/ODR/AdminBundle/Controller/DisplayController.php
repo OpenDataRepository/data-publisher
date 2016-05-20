@@ -231,7 +231,7 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             //
-            $datatree_array = parent::getDatatreeArray($em);
+            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
 
             // Grab all datatypes associated with the desired datarecord
             $associated_datatypes = array();
@@ -382,7 +382,7 @@ class DisplayController extends ODRCustomController
 
 
             // Grab the cached version of the datafield's datatype
-            $datatree_array = parent::getDatatreeArray($em);
+            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
             $datatype_array = array();
             $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype->getId());
             if ($bypass_cache || $datatype_data == false)
@@ -393,12 +393,11 @@ class DisplayController extends ODRCustomController
 
 
             // Extract datafield and theme_datafield from datatype_array
-            $datafield = $theme_datafield = null;
+            $datafield = null;
             foreach ($datatype_array[$datatype->getId()]['themes'][$theme_id]['themeElements'] as $te_num => $te) {
                 foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
                     if ($tdf['dataField']['id'] == $datafield_id) {
                         $datafield = $tdf['dataField'];
-                        $theme_datafield = $tdf;
                         break;
                     }
                 }
@@ -415,7 +414,6 @@ class DisplayController extends ODRCustomController
                 array(
                     'datatype' => $datatype_array[ $datatype->getId() ],
                     'datarecord' => $datarecord_array[ $datarecord->getId() ],
-                    'theme_datafield' => $theme_datafield,
                     'datafield' => $datafield,
                 )
             );

@@ -1095,9 +1095,14 @@ class ODRUserController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Always bypass cache in dev mode
+            $bypass_cache = false;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
+
             // Get the list of top-level datatype ids and the 
             $top_level_datatypes = parent::getTopLevelDatatypes();
-            $datatree_array = parent::getDatatreeArray($em);
+            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
 
             // Ensure the target user has permission entities for all datatypes in the database
             foreach ($top_level_datatypes as $num => $datatype_id)
@@ -1191,13 +1196,17 @@ class ODRUserController extends ODRCustomController
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
 
+            // Always bypass cache in dev mode
+            $bypass_cache = false;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
 
             // ----------------------------------------
             // Get the list of top-level datatype ids
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $top_level_datatypes = parent::getTopLevelDatatypes();
-            $datatree_array = parent::getDatatreeArray($em);
+            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
 
             // Need to load all datatypes and categorize into top-level and children
             $query = $em->createQuery(
@@ -1808,7 +1817,7 @@ class ODRUserController extends ODRCustomController
             foreach ($associated_datatypes as $num => $dt_id) {
                 $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
                 if ($bypass_cache || $datatype_data == false)
-                    $datatype_data = parent::getDatatypeData($em, parent::getDatatreeArray($em), $dt_id, $bypass_cache);
+                    $datatype_data = parent::getDatatypeData($em, parent::getDatatreeArray($em, $bypass_cache), $dt_id, $bypass_cache);
 
                 foreach ($datatype_data as $dt_id => $data)
                     $datatype_array[$dt_id] = $data;

@@ -2480,8 +2480,9 @@ if ($debug)
         $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
         // --------------------
 
-        //$bypass_cache = false;
-        //if ($this->container->getParameter('kernel.environment') === 'dev')
+        // Always bypass cache in dev mode
+        $bypass_cache = false;
+        if ($this->container->getParameter('kernel.environment') === 'dev')
             $bypass_cache = true;
 
 
@@ -2612,8 +2613,7 @@ if ($debug)
 //print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 
         // ----------------------------------------
-        //
-        $datatree_array = parent::getDatatreeArray($em);
+        $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
 
         // Grab all datatypes associated with the desired datarecord
         $associated_datatypes = array();

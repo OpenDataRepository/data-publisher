@@ -293,7 +293,7 @@ $logger->info('WorkerController::recacherecordAction()  Attempting to recache Da
                     $filename = 'DataRecord_'.$datarecord_id.'.xml';
                     $handle = fopen($xml_export_path.$filename, 'w');
                     if ($handle !== false) {
-                        $content = parent::XML_GetDisplayData($request, $datarecord->getId());
+                        $content = parent::XML_GetDisplayData($em, $datarecord->getId(), $request);
                         fwrite($handle, $content);
                         fclose($handle);
                     }
@@ -388,7 +388,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                 $ret .= 'Rebuilt cached datarecord array for datarecord '.$object_id;
             }
             else if ($object_type == 'datatype') {
-                parent::getDatatypeData($em, parent::getDatatreeArray($em), $object_id, $force_rebuild);
+                parent::getDatatypeData($em, parent::getDatatreeArray($em, $force_rebuild), $object_id, $force_rebuild);
                 $ret .= 'Rebuilt cached datatype array for datatype '.$object_id;
             }
             else if ($object_type == 'datatype_permission') {

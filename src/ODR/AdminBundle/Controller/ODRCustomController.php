@@ -187,7 +187,7 @@ class ODRCustomController extends Controller
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
             $datatype_array = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype->getId());
             if ($bypass_cache || $datatype_array == false)
-                $datatype_array = self::getDatatypeData($em, self::getDatatreeArray($em), $datatype->getId(), $bypass_cache);
+                $datatype_array = self::getDatatypeData($em, self::getDatatreeArray($em, $bypass_cache), $datatype->getId(), $bypass_cache);
 
             // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
             $datarecord_array = array();
@@ -901,11 +901,20 @@ exit();
      *
      * @return array
      */
-    public function getDatatreeArray($em)
+    public function getDatatreeArray($em, $force_rebuild = false)
     {
+        // Attempt to load from cache first
+        $memcached = $this->get('memcached');
+        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+        $datatree_array = $memcached->get($memcached_prefix.'.cached_datatree_array');
+        if ( !($force_rebuild || $datatree_array == false) )
+            return $datatree_array;
+
         // 
         $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link
+           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
             FROM ODRAdminBundle:DataType AS ancestor
             JOIN ODRAdminBundle:DataTree AS dt WITH ancestor = dt.ancestor
             JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
@@ -914,13 +923,15 @@ exit();
         $results = $query->getArrayResult();
 
         $datatree_array = array(
-//            'ancestor_of' => array(),
             'descendant_of' => array(),
+            'linked_from' => array(),
+            'multiple_allowed' => array(),
         );
         foreach ($results as $num => $result) {
             $ancestor_id = $result['ancestor_id'];
             $descendant_id = $result['descendant_id'];
             $is_link = $result['is_link'];
+            $multiple_allowed = $result['multiple_allowed'];
 
             if ( !isset($datatree_array['descendant_of'][$ancestor_id]) )
                 $datatree_array['descendant_of'][$ancestor_id] = '';
@@ -929,8 +940,14 @@ exit();
                 $datatree_array['descendant_of'][$descendant_id] = $ancestor_id;
             else
                 $datatree_array['linked_from'][$descendant_id] = $ancestor_id;
+
+            if ($multiple_allowed == 1)
+                $datatree_array['multiple_allowed'][$descendant_id] = $ancestor_id;
         }
 
+        // Store in cache and return
+//print '<pre>'.print_r($datatree_array, true).'</pre>';  exit();
+        $memcached->set($memcached_prefix.'.cached_datatree_array', $datatree_array, 0);
         return $datatree_array;
     }
 
@@ -1007,7 +1024,7 @@ exit();
 
             // ----------------------------------------
             // Grab the contents of ODRAdminBundle:DataTree as an array
-            $datatree_array = self::getDatatreeArray($em);
+            $datatree_array = self::getDatatreeArray($em, $force_rebuild);
 
             $all_permissions = array();
             foreach ($user_permissions as $result) {
@@ -4284,7 +4301,7 @@ exit();
      *
      * @return array
      */
-    public function Text_GetDisplayData($em, $datarecord_id, Request $request)
+    protected function Text_GetDisplayData($em, $datarecord_id, Request $request)
     {
         // ----------------------------------------
         // Grab necessary objects
@@ -4301,15 +4318,20 @@ exit();
 
 
         // ----------------------------------------
+        // Always bypass cache in dev mode
+        $bypass_cache = false;
+        if ($this->container->getParameter('kernel.environment') === 'dev')
+            $bypass_cache = true;
+
         // Grab the cached version of the requested datatype
         $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype_id);
-        if ($datatype_data == false)
-            $datatype_data = self::getDatatypeData($em, self::getDatatreeArray($em), $datatype_id);
+        if ($bypass_cache || $datatype_data == false)
+            $datatype_data = self::getDatatypeData($em, self::getDatatreeArray($em, $bypass_cache), $datatype_id, $bypass_cache);
 
         // Grab the cached version of the requested datarecord
         $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$datarecord_id);
-        if ($datarecord_data == false)
-            $datarecord_data = self::getDatarecordData($em, $datarecord_id);
+        if ($bypass_cache || $datarecord_data == false)
+            $datarecord_data = self::getDatarecordData($em, $datarecord_id, $bypass_cache);
 
 
 //print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();
@@ -4603,85 +4625,115 @@ if ($debug) {
     /**
      * Renders the XMLExport version of the datarecord.
      *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $datarecord_id
      * @param Request $request
-     * @param integer $datarecord_id The database id of the DataRecord to render...
-     * @param string $template_name  unused right now...
      *
      * @return string
      */
-    protected function XML_GetDisplayData(Request $request, $datarecord_id, $template_name = 'default')
+    protected function XML_GetDisplayData($em, $datarecord_id, Request $request)
     {
-        // Required objects
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        try {
+            // ----------------------------------------
+            // Grab necessary objects
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        // --------------------
-        // Attempt to get the user
-        $public_only = false;
-        $user = 'anon.';
-        $token = $this->container->get('security.context')->getToken(); // token will be NULL when called from thh command line
-        if ($token != NULL)
-            $user = $token->getUser();
+            // All of these should already exist
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datatype = $datarecord->getDataType();
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy(array('dataType' => $datatype->getId(), 'themeType' => 'master'));
 
-        // If this function is being called without a user, grab the 'system' user
-        if ($user === 'anon.') {
-            $public_only = true;
-            $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find(3);   // TODO - need an actual system user...
+
+            // ----------------------------------------
+            // Always bypass cache if in dev mode?
+            $bypass_cache = false;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
+
+
+            // Grab all datarecords "associated" with the desired datarecord...
+            $associated_datarecords = $memcached->get($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id);
+            if ($bypass_cache || $associated_datarecords == false) {
+                $associated_datarecords = self::getAssociatedDatarecords($em, array($datarecord_id));
+
+//print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
+
+                $memcached->set($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id, $associated_datarecords, 0);
+            }
+
+
+            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
+            $datarecord_array = array();
+            foreach ($associated_datarecords as $num => $dr_id) {
+                $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$dr_id);
+                if ($bypass_cache || $datarecord_data == false)
+                    $datarecord_data = self::getDatarecordData($em, $dr_id, true);
+
+                foreach ($datarecord_data as $dr_id => $data)
+                    $datarecord_array[$dr_id] = $data;
+            }
+
+//print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
+
+            // ----------------------------------------
+            //
+            $datatree_array = self::getDatatreeArray($em, $bypass_cache);
+
+            // Grab all datatypes associated with the desired datarecord
+            $associated_datatypes = array();
+            foreach ($datarecord_array as $dr_id => $dr) {
+                $dt_id = $dr['dataType']['id'];
+
+                if (!in_array($dt_id, $associated_datatypes))
+                    $associated_datatypes[] = $dt_id;
+            }
+
+            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+            $datatype_array = array();
+            foreach ($associated_datatypes as $num => $dt_id) {
+                $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
+                if ($bypass_cache || $datatype_data == false)
+                    $datatype_data = self::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
+
+                foreach ($datatype_data as $dt_id => $data)
+                    $datatype_array[$dt_id] = $data;
+            }
+
+//print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
+
+
+            // ----------------------------------------
+            // Determine which template to use for rendering
+            $baseurl = $this->container->getParameter('site_baseurl');
+            $template = 'ODRAdminBundle:XMLExport:xml_ajax.html.twig';
+
+            // Render the DataRecord
+            $using_metadata = true;
+            $templating = $this->get('templating');
+            $html = $templating->render(
+                $template,
+                array(
+                    'datatype_array' => $datatype_array,
+                    'datarecord_array' => $datarecord_array,
+                    'theme_id' => $theme->getId(),
+
+                    'initial_datatype_id' => $datatype->getId(),
+                    'initial_datarecord_id' => $datarecord->getId(),
+
+                    'using_metadata' => $using_metadata,
+                    'baseurl' => $baseurl,
+                )
+            );
+
+            return $html;
         }
-        // --------------------
-        /** @var User $user */
-
-        $theme_element = null;
-
-        /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
-
-        /** @var DataRecord $datarecord */
-        $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-        $datatype = $datarecord->getDataType();
-        $datarecords = array($datarecord);
-
-        $indent = 0;
-        $is_link = 0;
-        $top_level = 1;
-        $short_form = false;
-        $use_render_plugins = false;
-
-        $using_metadata = true;
-//        $using_metadata = false;
-
-$debug = true;
-$debug = false;
-if ($debug)
-    print '<pre>';
-
-        // Construct the arrays which contain all the required data
-        $datatype_tree = self::buildDatatypeTree($user, $theme, $datatype, $theme_element, $em, $is_link, $top_level, $short_form, $debug, $indent);
-        $datarecord_tree = array();
-        foreach ($datarecords as $datarecord)
-            $datarecord_tree[] = self::buildDatarecordTree($datarecord, $em, $user, $short_form, $use_render_plugins, $public_only, $debug, $indent);
-
-if ($debug)
-    print '</pre>';
-
-        // Determine which template to use for rendering
-        $baseurl = $this->container->getParameter('site_baseurl');
-        $template = 'ODRAdminBundle:XMLExport:xml_ajax.html.twig';
-
-        // Render the DataRecord
-        $templating = $this->get('templating');
-        $html = $templating->render(
-            $template,
-            array(
-                'datatype_tree' => $datatype_tree,
-                'datarecord_tree' => $datarecord_tree,
-                'theme' => $theme,
-                'using_metadata' => $using_metadata,
-                'baseurl' => $baseurl,
-            )
-        );
-
-        return $html;
+        catch (\Exception $e) {
+            throw new \Exception( $e->getMessage() );
+        }
     }
 
 
@@ -5598,6 +5650,7 @@ $t0 = $t1 = null;
 if ($timing)
     $t0 = microtime(true);
 */
+
         // If datatype data exists in memcached and user isn't demanding a fresh version, return that
         $memcached = $this->get('memcached');
         $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
@@ -5710,6 +5763,11 @@ if ($timing) {
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 1;
                         else
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 0;
+
+                        if ( isset($datatree_array['multiple_allowed'][$child_datatype_id]) && $datatree_array['multiple_allowed'][$child_datatype_id] == $datatype_id )
+                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['multiple_allowed'] = 1;
+                        else
+                            $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['multiple_allowed'] = 0;
                     }
 
                     // Easier on twig if these arrays simply don't exist if nothing is in them...

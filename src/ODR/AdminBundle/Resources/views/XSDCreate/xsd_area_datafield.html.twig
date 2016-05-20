@@ -1,33 +1,32 @@
 {% spaceless %}
 
-    {% set field_typename = field.getfieldtype.typename %}
-    {% set name_field = field.getdatatype.getnamefield %}
+    {% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
 
     {% if field_typename == "Boolean" %}
-        <xsd:element name="{{ field.getxmlfieldname }}" type="xsd:boolean" />
+        <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName }}" type="xsd:boolean" />
 
     {% elseif field_typename == "File" %}
-        <xsd:element name="{{ field.getxmlfieldname }}" type="datafield_file_type{% if field.allowmultipleuploads == 0 %}_single{% endif %}" />
+        <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName }}" type="datafield_file_type{% if datafield.dataFieldMeta.allow_multiple_uploads == 0 %}_single{% endif %}" />
 
     {% elseif field_typename == "Image" %}
-        <xsd:element name="{{ field.getxmlfieldname }}" type="datafield_image_type{% if field.allowmultipleuploads == 0 %}_single{% endif %}" />
+        <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName }}" type="datafield_image_type{% if datafield.dataFieldMeta.allow_multiple_uploads == 0 %}_single{% endif %}" />
 
     {% elseif field_typename == "Integer" %}
-        <xsd:element name="{{ field.getxmlfieldname }}" type="xsd:integer" />
+        <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName }}" type="xsd:integer" />
 
     {% elseif field_typename == "Decimal" %}
-        <xsd:element name="{{ field.getxmlfieldname }}" type="xsd:decimal" />
+        <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName }}" type="xsd:decimal" />
 
     {% elseif field_typename == "Short Text" or field_typename == "Medium Text" or field_typename == "Long Text" or field_typename == "Paragraph Text" %}
-        <xsd:element name="{{ field.getxmlfieldname }}" type="xsd:string" />
+        <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName }}" type="xsd:string" />
 
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
 
-        <xsd:element name="{{ field.getxmlfieldname }}">
+        <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName }}">
             <xsd:complexType>
                 <xsd:all>
-                {% for radio_option in field.getRadioOptions %}
-                    <xsd:element name="{{ radio_option.getxmloptionname }}" type="xsd:boolean" minOccurs="0" />
+                {% for radio_option in datafield.radioOptions %}
+                    <xsd:element name="{{ radio_option.radioOptionsMeta.xml_optionName }}" type="xsd:boolean" minOccurs="0" />
                 {% endfor %}
                 </xsd:all>
                 {% if field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
@@ -37,7 +36,7 @@
         </xsd:element>
 
     {% elseif field_typename == "DateTime" %}
-        <xsd:element name="{{ field.getxmlfieldname }}" type="normal_datetime" />
+        <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName }}" type="normal_datetime" />
 
     {% endif %}
 

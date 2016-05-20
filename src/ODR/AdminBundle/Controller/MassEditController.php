@@ -189,7 +189,7 @@ class MassEditController extends ODRCustomController
 //print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
 
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $datatree_array = parent::getDatatreeArray($em);
+        $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
 
         $datatype_array = array();
         foreach ($associated_datatypes as $num => $dt_id) {

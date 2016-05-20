@@ -1203,11 +1203,6 @@ odr_duplicate_radio_check:
 #    requirements:
 #        object_type: 'file|File|image|Image'
 
-#odr_test:
-#    pattern: /admin/test/{str}
-#    defaults: { _controller:ODRAdminBundle:XML:test }
-#    requirements:
-#        str: .+
 
 #-----------------------------------------
 # Metadata creation (one-time use)

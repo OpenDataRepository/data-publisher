@@ -1,16 +1,16 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* XML Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The XML controller handles both importing and exporting XML
-* versions of datarecords.
-*
-*/
+ * Open Data Repository Data Publisher
+ * XML Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The XML controller handles both importing and exporting XML
+ * versions of datarecords.
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 
@@ -26,6 +26,7 @@ use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
@@ -93,7 +94,7 @@ class XMLController extends ODRCustomController
      * @param integer $datatype_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function importAction($datatype_id, Request $request)
     {
@@ -168,7 +169,7 @@ class XMLController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function importstartAction(Request $request)
     {
@@ -281,7 +282,7 @@ class XMLController extends ODRCustomController
      *
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function importvalidateAction(Request $request)
     {
@@ -425,7 +426,7 @@ class XMLController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function importworkerAction(Request $request)
     {
@@ -1474,7 +1475,7 @@ if ($write) {
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function importfileAction(Request $request)
     {
@@ -1715,7 +1716,7 @@ if ($write) {
      * @param integer $datarecord_id The database id of the DataRecord to export
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function exportAction($datarecord_id, Request $request)
     {
@@ -1733,23 +1734,30 @@ if ($write) {
             if ($datarecord == null)
                 return parent::deletedEntityError('Datarecord');
 
-            $templating = $this->get('templating');
+            $datatype = $datarecord->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
 
-            $xml_export_path = dirname(__FILE__).'/../../../../web/uploads/xml_export/';
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
 
             // Ensure directory exists
+            $xml_export_path = dirname(__FILE__).'/../../../../web/uploads/xml_export/';
             if ( !file_exists($xml_export_path) )
                 mkdir( $xml_export_path );
 
             $filename = 'DataRecord_'.$datarecord_id.'.xml';
-
-
             $handle = fopen($xml_export_path.$filename, 'w');
+
             if ($handle !== false) {
-                $content = parent::XML_GetDisplayData($request, $datarecord_id);
+                $content = parent::XML_GetDisplayData($em, $datarecord_id, $request);
                 fwrite($handle, $content);
                 fclose($handle);
 
+                $templating = $this->get('templating');
                 $return['d'] = array(
                     'html' => $templating->render('ODRAdminBundle:XMLExport:xml_download.html.twig', array('datarecord_id' => $datarecord_id))
                 );
@@ -1776,12 +1784,12 @@ if ($write) {
 
 
     /**
-     * Sidesteps symfony to set up an XML file download...TODO
+     * Sidesteps symfony to set up an XML file download.
      * 
      * @param integer $datarecord_id The database id of the DataRecord to download...
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function downloadXMLAction($datarecord_id, Request $request)
     {
@@ -1844,7 +1852,7 @@ if ($write) {
      * @param integer $datarecord_id
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function getXMLAction($datarecord_id, Request $request)
     {
@@ -1856,13 +1864,26 @@ if ($write) {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            if ($datarecord == null)
+                return parent::deletedEntityError('Datarecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
 
             // Ensure all Entities exist before rendering the XML
             parent::verifyExistence($datarecord);
             $return['d'] = array(
-                'xml' => parent::XML_GetDisplayData($request, $datarecord_id)
+                'xml' => parent::XML_GetDisplayData($em, $datarecord_id, $request)
             );
 
         }
@@ -1871,23 +1892,6 @@ if ($write) {
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x841278653 ' . $e->getMessage();
         }
-
-        // If error encountered, do a json return
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    public function testAction($str, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-
-        $result = self::isValidXMLName($str);
-
-        $return['d'] = array('result' => $result);
 
         // If error encountered, do a json return
         $response = new Response(json_encode($return));
@@ -1908,7 +1912,7 @@ if ($write) {
     {
         // Ensure str doesn't start with 'xml'
         if ( strpos( strtolower($str) , 'xml') !== false ) {
-            print 'a';
+//            print 'a';
             return false;
         }
 
@@ -1916,7 +1920,7 @@ if ($write) {
         $pattern = self::xml_invalidnamestartchar();
         print $pattern."\n";
         if ( preg_match($pattern, substr($str, 0, 1)) == 1 ) {
-            print 'b';
+//            print 'b';
             return false;
         }
 
@@ -1924,12 +1928,12 @@ if ($write) {
         $pattern = self::xml_invalidnamechar();
         print $pattern."\n";
         if ( preg_match($pattern, substr($str, 1)) == 1 ) {
-            print 'c';
+//            print 'c';
             return false;
         }
 
         // No error in name
-        print 'd';
+//        print 'd';
         return true;
     }
 

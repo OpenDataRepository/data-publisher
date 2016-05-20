@@ -155,15 +155,11 @@ class CSVExportController extends ODRCustomController
         $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
         $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
+        // All of these should already exist
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-        if ($datatype == null)
-            return parent::deletedEntityError('Datatype');
-
         /** @var Theme $theme */
         $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-        if ($theme == null)
-            return parent::deletedEntityError('Theme');
 
 
         // --------------------
@@ -174,6 +170,7 @@ class CSVExportController extends ODRCustomController
         $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
         // --------------------
 
+        // Always bypass cache in dev mode
         $bypass_cache = false;
         if ($this->container->getParameter('kernel.environment') === 'dev')
             $bypass_cache = true;
@@ -182,7 +179,7 @@ class CSVExportController extends ODRCustomController
         // Grab the cached version of the desired datatype
         $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype->getId());
         if ($bypass_cache || $datatype_data == false)
-            $datatype_data = parent::getDatatypeData($em, parent::getDatatreeArray($em), $datatype->getId(), $bypass_cache);
+            $datatype_data = parent::getDatatypeData($em, parent::getDatatreeArray($em, $bypass_cache), $datatype->getId(), $bypass_cache);
 
 
 //print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();

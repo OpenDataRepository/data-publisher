@@ -70,6 +70,8 @@ class CSVImportController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            throw new \Exception('DISABLED PENDING SECOND HALF OF THEME REWORK');
+
             // Get necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -108,8 +110,13 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Always bypass cache in dev mode
+            $bypass_cache = false;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
+
             // Locate any child or linked datatypes
-            $datatree_array = parent::getDatatreeArray($em);
+            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
             $childtypes = array();
             foreach ($datatree_array['descendant_of'] as $dt_id => $parent_dt_id) {
                 if ($parent_dt_id == $datatype_id) {
@@ -299,11 +306,16 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Always bypass cache in dev mode
+            $bypass_cache = false;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
+
             // $datatype_id is the datatype being imported into...determine whether it's the remote side of a datatype link, or a top-level datatype, or locate its parent datatype if it's a child datatype
             $linked_importing = false;
             $parent_datatype = null;
 
-            $datatree_array = parent::getDatatreeArray($em);
+            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
             if ( $source_datatype_id !== $target_datatype_id && isset($datatree_array['linked_from'][$target_datatype_id]) && $datatree_array['linked_from'][$target_datatype_id] !== '' ) {
                 /* "Importing into" a linked datatype */
                 $linked_importing = true;
@@ -2027,6 +2039,11 @@ class CSVImportController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Always bypass cache in dev mode
+            $bypass_cache = false;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
+
             // Load settings for import.html.twig and layout.html.twig from the data stored in the tracked job entity
             $parent_datatype_id = '';
             $parent_datatype = null;
@@ -2045,7 +2062,7 @@ class CSVImportController extends ODRCustomController
             }
 
             // Also locate any child or linked datatypes for this datatype
-            $datatree_array = parent::getDatatreeArray($em);
+            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
             /** @var DataType[]|null $childtypes */
             $childtypes = null;
             if ($parent_datatype_id !== '') {
@@ -3283,7 +3300,7 @@ print_r($new_mapping);
             // Delete all cached search results for this datatype
             // TODO - more precise deletion of cached search results...new datarecord created should delete all search results without datafields, update to a datafield should delete all search results with that datafield
             $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
-            if ( isset($cached_searches[$datatype_id]) ) {
+            if ( $cached_searches != false && isset($cached_searches[$datatype_id]) ) {
                 unset( $cached_searches[$datatype_id] );
 
                 // Save the collection of cached searches back to memcached
