@@ -218,45 +218,53 @@ odr_recache_all:
 #-----------------------------------------
 # Theme Controller
 odr_design_add_theme:
-    pattern:  /design/displaytemplate/addtheme/{datatype_id}
+    pattern:  /design/theme/add/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Theme:addtheme }
     requirements:
         datatype_id:  \d+
 
 odr_design_delete_theme:
-    pattern:  /design/displaytemplate/deletetheme/{theme_id}
+    pattern:  /design/theme/delete/{theme_id}
     defaults: { _controller: ODRAdminBundle:Theme:deletetheme }
     requirements:
         theme_id:  \d+
 
 odr_design_get_theme_properties:
-    pattern:  /design/displaytemplate/themeproperties/{theme_id}
+    pattern:  /design/theme/properties/{theme_id}
     defaults: { _controller: ODRAdminBundle:Theme:themeproperties }
     requirements:
         theme_id:  \d+
 
+
 odr_design_add_theme_element:
-    pattern:  /design/displaytemplate/addthemeelement/{theme_id}
+    pattern:  /design/themeelement/add/{theme_id}
     defaults: { _controller: ODRAdminBundle:Theme:addthemeelement }
     requirements:
         theme_id:  \d+
 
 odr_design_delete_theme_element:
-    pattern:  /design/displaytemplate/deletethemeelement/{theme_element_id}
+    pattern:  /design/themeelement/delete/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Theme:deletethemeelement }
     requirements:
         theme_element_id:  \d+
 
 odr_design_get_theme_element_properties:
-    pattern:  /design/displaytemplate/themeelementproperties/{theme_element_id}
+    pattern:  /design/themeelement/properties/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Theme:themeelementproperties }
     requirements:
         theme_element_id:  \d+
 
 odr_design_save_theme_element_order:
-    pattern:  /design/displaytemplate/themeelementorder
+    pattern:  /design/themeelement/order
     defaults: { _controller: ODRAdminBundle:Theme:themeelementorder }
     requirements: { _method: POST }
+
+odr_design_public_theme_element:
+    pattern:  /design/themeelement/public/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themeelementpublic }
+    requirements:
+        theme_element_id:  \d+
+
 
 odr_design_attach_datafield:
     pattern:  /design/displaytemplate/attachdatafield/{datafield_id}/{theme_element_id}
@@ -304,19 +312,22 @@ odr_design_display_template:
         datatype_id:  \d+
 
 odr_design_reload_child:
-    pattern: /design/displaytemplate/childreload/{datatype_id}
+    pattern: /design/displaytemplate/childreload/{source_datatype_id}/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:reloadchild }
     requirements:
+        source_datatype_id: \d+
         datatype_id: \d+
 odr_design_reload_theme_element:
-    pattern: /design/displaytemplate/themeelementreload/{theme_element_id}
+    pattern: /design/displaytemplate/themeelementreload/{source_datatype_id}/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:reloadthemeelement }
     requirements:
+        source_datatype_id: \d+
         theme_element_id: \d+
 odr_design_reload_datafield:
-    pattern: /design/displaytemplate/datafieldreload/{datafield_id}
+    pattern: /design/displaytemplate/datafieldreload/{source_datatype_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:reloaddatafield }
     requirements:
+        source_datatype_id: \d+
         datafield_id: \d+
 
 
@@ -438,10 +449,9 @@ odr_design_add_datafield:
         theme_element_id:  \d+
 
 odr_design_copy_datafield:
-    pattern:  /design/displaytemplate/copydatafield/{datatype_id}/{theme_element_id}/{datafield_id}
+    pattern:  /design/displaytemplate/copydatafield/{theme_element_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:copydatafield }
     requirements:
-        datatype_id:  \d+
         theme_element_id:  \d+
         datafield_id:  \d+
 
@@ -1130,6 +1140,13 @@ odr_design_analyze_datarecord_number:
     defaults: { _controller: ODRAdminBundle:Reports:analyzedatarecordnumber }
     requirements:
         datatree_id: \d+
+
+odr_design_analyze_datarecord_links:
+    pattern:  /design/displaytemplate/analyze_datarecord_links/{local_datatype_id}/{remote_datatype_id}
+    defaults: { _controller: ODRAdminBundle:Reports:analyzedatarecordlinks }
+    requirements:
+        local_datatype_id: \d+
+        remote_datatype_id: \d+
 
 odr_design_analyze_datafield_content:
     pattern:  /edit/record/analyze_datafield_content/{datafield_id}

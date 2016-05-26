@@ -14,7 +14,7 @@
                     {% set datafield = theme_datafield.dataField %}
 
                     {% if datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
-                        {% include 'ODRAdminBundle:XSDCreate:xsd_area_datafield.html.twig' with {
+                        {% include 'ODRAdminBundle:XSDCreate:xsd_datafield.html.twig' with {
                             'datafield': datafield,
                         } %}
                     {% endif %}
@@ -59,7 +59,7 @@
                                                             <xsd:all>
                                                                 <xsd:element name="_datarecord_metadata" type="datarecord_metadata_type" minOccurs="0" />
 
-                                                                {% import "ODRAdminBundle:XSDCreate:xsd_area_childtype.html.twig" as mychildform %}
+                                                                {% import "ODRAdminBundle:XSDCreate:xsd_childtype.html.twig" as mychildform %}
                                                                 {{ mychildform.input(datatype_array, child_datatype.id, child_theme_id, is_top_level) }}
                                                             </xsd:all>
                                                         </xsd:complexType>

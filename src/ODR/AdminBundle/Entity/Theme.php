@@ -39,6 +39,11 @@ class Theme
     /**
      * @var \DateTime
      */
+    private $updated;
+
+    /**
+     * @var \DateTime
+     */
     private $deletedAt;
 
     /**
@@ -60,6 +65,11 @@ class Theme
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
+
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $updatedBy;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -161,6 +171,29 @@ class Theme
         return $this->created;
     }
 
+    /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return Theme
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
+    }
+    
     /**
      * Set deletedAt
      *
@@ -294,6 +327,29 @@ class Theme
     public function getCreatedBy()
     {
         return $this->createdBy;
+    }
+
+    /**
+     * Set updatedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return Theme
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
     }
 
     /**

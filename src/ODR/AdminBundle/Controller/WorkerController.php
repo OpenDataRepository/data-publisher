@@ -3013,6 +3013,8 @@ print '</pre>';
      * Builds the basic theme entries and their metadata for a given top-level datatype
      *
      * @param Request $request
+     *
+     * @return Response
      */
     public function buildthememetadataAction(Request $request)
     {
@@ -3149,6 +3151,8 @@ print '</pre>';
         $master_theme->setThemeType('master');
         $master_theme->setCreatedBy( $datatype->getCreatedBy() );
         $master_theme->setCreated( $datatype->getCreated() );
+        $master_theme->setUpdatedBy( $datatype->getCreatedBy() );
+        $master_theme->setUpdated( $datatype->getCreated() );
 
         if ($datatype->getDeletedAt() !== null) {
             $master_theme->setDeletedAt( $datatype->getDeletedAt() );
@@ -3212,8 +3216,10 @@ print '</pre>';
                 $search_results_theme = new Theme();
                 $search_results_theme->setDataType($datatype);
                 $search_results_theme->setThemeType('search_results');
-                $search_results_theme->setCreatedBy($datatype->getCreatedBy());
-                $search_results_theme->setCreated($datatype->getCreated());
+                $search_results_theme->setCreatedBy( $datatype->getCreatedBy() );
+                $search_results_theme->setCreated( $datatype->getCreated() );
+                $search_results_theme->setUpdatedBy( $datatype->getCreatedBy() );
+                $search_results_theme->setUpdated( $datatype->getCreated() );
 
                 if ($datatype->getDeletedAt() !== null) {
                     $search_results_theme->setDeletedAt( $datatype->getDeletedAt() );
@@ -3254,8 +3260,10 @@ print '</pre>';
                 $table_theme = new Theme();
                 $table_theme->setDataType($datatype);
                 $table_theme->setThemeType('table');
-                $table_theme->setCreatedBy($datatype->getCreatedBy());
-                $table_theme->setCreated($datatype->getCreated());
+                $table_theme->setCreatedBy( $datatype->getCreatedBy() );
+                $table_theme->setCreated( $datatype->getCreated() );
+                $table_theme->setUpdatedBy( $datatype->getCreatedBy() );
+                $table_theme->setUpdated( $datatype->getCreated() );
 
                 if ($datatype->getDeletedAt() !== null) {
                     $table_theme->setDeletedAt( $datatype->getDeletedAt() );
@@ -3291,6 +3299,8 @@ print '</pre>';
         $master_theme_meta->setIsDefault(true);
         $master_theme_meta->setCreatedBy( $datatype->getCreatedBy() );
         $master_theme_meta->setCreated( $datatype->getCreated() );
+        $master_theme_meta->setUpdatedBy( $datatype->getCreatedBy() );
+        $master_theme_meta->setUpdated( $datatype->getCreated() );
 
         if ($master_theme->getDeletedAt() !== null)
             $master_theme_meta->setDeletedAt( $master_theme->getDeletedAt() );
@@ -3307,6 +3317,8 @@ print '</pre>';
             $view_theme_meta->setIsDefault(true);
             $view_theme_meta->setCreatedBy( $datatype->getCreatedBy() );
             $view_theme_meta->setCreated( $datatype->getCreated() );
+            $view_theme_meta->setUpdatedBY( $datatype->getCreatedBy() );
+            $view_theme_meta->setUpdated( $datatype->getCreated() );
 
             if ($view_theme->getDeletedAt() !== null)
                 $view_theme_meta->setDeletedAt( $view_theme->getDeletedAt() );
@@ -3325,6 +3337,8 @@ print '</pre>';
             $search_results_theme_meta->setIsDefault(true);
             $search_results_theme_meta->setCreatedBy( $datatype->getCreatedBy() );
             $search_results_theme_meta->setCreated( $datatype->getCreated() );
+            $search_results_theme_meta->setUpdatedBy( $datatype->getCreatedBy() );
+            $search_results_theme_meta->setUpdated( $datatype->getCreated() );
 
             if ($search_results_theme->getDeletedAt() !== null)
                 $search_results_theme_meta->setDeletedAt( $search_results_theme->getDeletedAt() );
@@ -3342,6 +3356,8 @@ print '</pre>';
             $table_theme_meta->setIsDefault(true);
             $table_theme_meta->setCreatedBy( $datatype->getCreatedBy() );
             $table_theme_meta->setCreated( $datatype->getCreated() );
+            $table_theme_meta->setUpdatedBy( $datatype->getCreatedBy() );
+            $table_theme_meta->setUpdated( $datatype->getCreated() );
 
             if ($table_theme->getDeletedAt() !== null)
                 $table_theme_meta->setDeletedAt( $table_theme->getDeletedAt() );
@@ -3573,6 +3589,8 @@ print '</pre>';
 
             $theme_element_meta->setCreatedBy( $theme_element->getCreatedBy() );
             $theme_element_meta->setCreated( $theme_element->getCreated() );
+            $theme_element_meta->setUpdatedBy( $theme_element->getCreatedBy() );
+            $theme_element_meta->setUpdated( $theme_element->getCreated() );
 
             if ($write)
                 $em->persist($theme_element_meta);
@@ -3694,6 +3712,8 @@ print '</pre>';
 
         $theme_element_meta->setCreatedBy( $theme_element->getCreatedBy() );
         $theme_element_meta->setCreated( $theme_element->getCreated() );
+        $theme_element_meta->setUpdatedBy( $theme_element->getCreatedBy() );
+        $theme_element_meta->setUpdated( $theme_element->getCreated() );
 
         $theme_element_meta->setDeletedAt( $theme_element->getDeletedAt() );
 

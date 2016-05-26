@@ -234,6 +234,7 @@ class DisplayController extends ODRCustomController
             $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
 
             // Grab all datatypes associated with the desired datarecord
+            // NOTE - not using parent::getAssociatedDatatypes() here on purpose...don't care about child/linked datatypes if they aren't attached to this datarecord
             $associated_datatypes = array();
             foreach ($datarecord_array as $dr_id => $dr) {
                 $dt_id = $dr['dataType']['id'];

@@ -27,18 +27,17 @@ ODR\AdminBundle\Entity\ThemeDataType:
             gedmo:
                 timestampable:
                     on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
         deletedAt:
             type: datetime
             nullable: true
 #            gedmo:
 #                - versioned
 
-        #TODO - delete the following property
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
     manyToOne:
         dataType:
             targetEntity: DataType
@@ -77,33 +76,6 @@ ODR\AdminBundle\Entity\ThemeDataType:
 #            gedmo:
 #                blameable:
 #                    on: create
-
-        deletedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                deletedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
-
-        #TODO - delete the following two properties
-        theme:
-            targetEntity: Theme
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                theme_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
-
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -118,5 +90,30 @@ ODR\AdminBundle\Entity\ThemeDataType:
 #            gedmo:
 #                blameable:
 #                    on: update
+        deletedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                deletedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+
+        #TODO - delete the following property
+        theme:
+            targetEntity: Theme
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                theme_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
 
     lifecycleCallbacks: {  }

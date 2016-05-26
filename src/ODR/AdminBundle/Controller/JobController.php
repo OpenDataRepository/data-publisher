@@ -184,10 +184,9 @@ class JobController extends ODRCustomController
                 $job['description'] = $additional_data['description'];
                 $job['can_delete'] = false;
 
-                $top_level_datatype_id = $datatype_id;
-                while ( isset($datatree_array['descendant_of'][$top_level_datatype_id]) && $datatree_array['descendant_of'][$top_level_datatype_id] !== '')
-                    $top_level_datatype_id = $datatree_array['descendant_of'][$top_level_datatype_id];
+                $top_level_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datatype_id);
                 $job['top_level_datatype_id'] = $top_level_datatype_id;
+
 
                 // ----------------------------------------
                 if ( $tracked_job->getCompleted() == null || $tracked_job->getStarted() == null ) {
@@ -558,8 +557,7 @@ class JobController extends ODRCustomController
                 // TODO - let child types have is_admin permission?
                 // Load the top-level parent, since the is_admin permission is used
                 $datatree_array = parent::getDatatreeArray($em);
-                while ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '')
-                    $datatype_id = $datatree_array['descendant_of'][$datatype_id];
+                $datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datatype_id);
 
 
                 // If the Datatype is deleted, there's no point to this job...skip the permissions check and delete it

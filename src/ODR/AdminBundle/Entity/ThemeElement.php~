@@ -576,6 +576,20 @@ class ThemeElement
         return $this->updatedBy;
     }
 
+    /**
+     * Is public
+     * 
+     * @return bool
+     */
+    public function isPublic()
+    {
+        if ($this->getPublicDate()->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+            return false;
+        else
+            return true;
+    }
+
+
     // ----------------------------------------
     // TODO - delete these following functions
 

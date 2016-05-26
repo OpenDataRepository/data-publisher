@@ -61,18 +61,18 @@ ODR\AdminBundle\Entity\Theme:
             gedmo:
                 timestampable:
                     on: create
-
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
         deletedAt:
             type: datetime
             nullable: true
 #            gedmo:
 #                - versioned
 
-#        updated:
-#            type: datetime
-#            gedmo:
-#                timestampable:
-#                    on: update
+
 
     oneToMany:
         themeMeta:
@@ -124,7 +124,18 @@ ODR\AdminBundle\Entity\Theme:
 #            gedmo:
 #                blameable:
 #                    on: create
-
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: update
         deletedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -137,20 +148,5 @@ ODR\AdminBundle\Entity\Theme:
 #            gedmo:
 #                blameable:
 #                    on: create
-
-#        updatedBy:
-#            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-#            cascade: {  }
-#            mappedBy: null
-#            inversedBy: null
-#            joinColumns:
-#                updatedBy:
-#                    referencedColumnName: id
-#            orphanRemoval: false
-#            gedmo:
-#                - versioned
-#            gedmo:
-#                blameable:
-#                    on: update
 
     lifecycleCallbacks: {  }

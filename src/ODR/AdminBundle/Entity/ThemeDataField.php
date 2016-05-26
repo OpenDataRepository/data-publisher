@@ -49,17 +49,17 @@ class ThemeDataField
     /**
      * @var \DateTime
      */
+    private $updated;
+
+    /**
+     * @var \DateTime
+     */
     private $deletedAt;
 
     /**
      * @var boolean
      */
     private $active;
-
-    /**
-     * @var \DateTime
-     */
-    private $updated;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataFields
@@ -195,6 +195,29 @@ class ThemeDataField
     }
 
     /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return ThemeDataField
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
+    }
+
+    /**
      * Set deletedAt
      *
      * @param \DateTime $deletedAt
@@ -240,31 +263,6 @@ class ThemeDataField
     public function getActive()
     {
         return $this->active;
-    }
-
-    /**
-     * Set updated
-     * @deprecated
-     *
-     * @param \DateTime $updated
-     * @return ThemeDataField
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     * @deprecated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
     }
 
     /**
@@ -363,7 +361,6 @@ class ThemeDataField
 
     /**
      * Set updatedBy
-     * @deprecated
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
      * @return ThemeDataField
@@ -377,7 +374,6 @@ class ThemeDataField
 
     /**
      * Get updatedBy
-     * @deprecated 
      *
      * @return \ODR\OpenRepository\UserBundle\Entity\User 
      */

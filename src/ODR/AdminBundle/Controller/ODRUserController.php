@@ -1132,8 +1132,7 @@ class ODRUserController extends ODRCustomController
                 }
                 else {
                     // Determine which top-level datatype to store this under
-                    while ( isset($datatree_array['descendant_of'][$dt_id]) && $datatree_array['descendant_of'][$dt_id] !== '' )
-                        $dt_id = $datatree_array['descendant_of'][$dt_id];
+                    $dt_id = parent::getGrandparentDatatypeId($datatree_array, $dt_id);
 
                     if ( !isset($childtypes[$dt_id]) )
                         $childtypes[$dt_id] = array();
@@ -1227,8 +1226,7 @@ class ODRUserController extends ODRCustomController
                 }
                 else {
                     // Determine which top-level datatype to store this under
-                    while ( isset($datatree_array['descendant_of'][$dt_id]) && $datatree_array['descendant_of'][$dt_id] !== '' )
-                        $dt_id = $datatree_array['descendant_of'][$dt_id];
+                    $dt_id = parent::getGrandparentDatatypeId($datatree_array, $dt_id);
 
                     if ( !isset($childtypes[$dt_id]) )
                         $childtypes[$dt_id] = array();
@@ -1806,6 +1804,9 @@ class ODRUserController extends ODRCustomController
 
 
             // ----------------------------------------
+            //
+            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+
             // Determine which datatypes/childtypes to load from the cache
             $include_links = false;
             $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype_id), $include_links);
@@ -1817,7 +1818,7 @@ class ODRUserController extends ODRCustomController
             foreach ($associated_datatypes as $num => $dt_id) {
                 $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
                 if ($bypass_cache || $datatype_data == false)
-                    $datatype_data = parent::getDatatypeData($em, parent::getDatatreeArray($em, $bypass_cache), $dt_id, $bypass_cache);
+                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
 
                 foreach ($datatype_data as $dt_id => $data)
                     $datatype_array[$dt_id] = $data;

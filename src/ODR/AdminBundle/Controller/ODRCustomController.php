@@ -63,6 +63,39 @@ class ODRCustomController extends Controller
 {
 
     /**
+     * Returns true if caller should create a new meta entry, or false otherwise.
+     * Currently, this decision is based on when the last change was made, and who made the change
+     * ...if change was made by a different person, or within the past hour, don't create a new entry
+     *
+     * @param User $user
+     * @param mixed $meta_entry
+     *
+     * @return boolean
+     */
+    private function createNewMetaEntry($user, $meta_entry)
+    {
+        $current_datetime = new \DateTime();
+
+        /** @var \DateTime $last_updated */
+        /** @var User $last_updated_by */
+        $last_updated = $meta_entry->getUpdated();
+        $last_updated_by = $meta_entry->getUpdatedBy();
+
+        // If this change is being made by a different user, create a new meta entry
+        if ( $last_updated_by->getId() !== $user->getId() )
+            return true;
+
+        // If change was made over an hour ago, create a new meta entry
+        $interval = $last_updated->diff($current_datetime);
+        if ( $interval->y > 0 || $interval->m > 0 || $interval->d > 0 || $interval->h > 1 )
+            return true;
+
+        // Otherwise, update the existing meta entry
+        return false;
+    }
+
+
+    /**
      * Utility function that renders a list of datarecords inside a wrapper template (shortresutlslist.html.twig or textresultslist.html.twig).
      * This is to allow various functions to only worry about what needs to be rendered, instead of having to do it all themselves.
      *
@@ -194,7 +227,7 @@ class ODRCustomController extends Controller
             foreach ($datarecord_list as $num => $dr_id) {
                 $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$dr_id);
                 if ($bypass_cache || $datarecord_data == false)
-                    $datarecord_data = self::getDatarecordData($em, $dr_id, true, $bypass_cache);
+                    $datarecord_data = self::getDatarecordData($em, $dr_id, $bypass_cache);
 
                 foreach ($datarecord_data as $dr_id => $data)
                     $datarecord_array[$dr_id] = $data;
@@ -936,10 +969,16 @@ exit();
             if ( !isset($datatree_array['descendant_of'][$ancestor_id]) )
                 $datatree_array['descendant_of'][$ancestor_id] = '';
 
-            if ($is_link == 0)
+            if ($is_link == 0) {
                 $datatree_array['descendant_of'][$descendant_id] = $ancestor_id;
-            else
-                $datatree_array['linked_from'][$descendant_id] = $ancestor_id;
+            }
+            else {
+                if ( !isset($datatree_array['linked_from'][$descendant_id]) )
+                    $datatree_array['linked_from'][$descendant_id] = array();
+
+                $datatree_array['linked_from'][$descendant_id][] = $ancestor_id;
+            }
+
 
             if ($multiple_allowed == 1)
                 $datatree_array['multiple_allowed'][$descendant_id] = $ancestor_id;
@@ -949,6 +988,24 @@ exit();
 //print '<pre>'.print_r($datatree_array, true).'</pre>';  exit();
         $memcached->set($memcached_prefix.'.cached_datatree_array', $datatree_array, 0);
         return $datatree_array;
+    }
+
+
+    /**
+     * Returns the id of the grandparent of the given datatype
+     *
+     * @param array $datatree_array         @see self::getDatatreeArray()
+     * @param integer $initial_datatype_id
+     *
+     * @return integer
+     */
+    protected function getGrandparentDatatypeId($datatree_array, $initial_datatype_id)
+    {
+        $grandparent_datatype_id = $initial_datatype_id;
+        while( isset($datatree_array['descendant_of'][$grandparent_datatype_id]) && $datatree_array['descendant_of'][$grandparent_datatype_id] !== '' )
+            $grandparent_datatype_id = $datatree_array['descendant_of'][$grandparent_datatype_id];
+
+        return $grandparent_datatype_id;
     }
 
 
@@ -1627,6 +1684,12 @@ exit();
      */
     protected function filterByUserPermissions($datatype_id, &$datatype_array, &$datarecord_array, $datatype_permissions, $datafield_permissions)
     {
+$debug = true;
+$debug = false;
+
+if ($debug)
+    print '----- datatype permissions -----'."\n";
+
         // Determine relevant permissions...
         $has_view_permission = false;
         if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'view' ]) )
@@ -1637,8 +1700,12 @@ exit();
             // ...remove non-public datarecords
             foreach ($datarecord_array as $dr_id => $dr) {
                 $public_date = $dr['dataRecordMeta']['publicDate'];
-                if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-                    unset($datarecord_array[$dr_id]);
+                if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00') {
+if ($debug)
+    print 'removed non-public datarecord '.$dr_id."\n";
+
+                    unset( $datarecord_array[$dr_id] );
+                }
             }
 
             // ...remove non-public files and images
@@ -1646,54 +1713,89 @@ exit();
                 foreach ($dr['dataRecordFields'] as $df_id => $drf) {
                     foreach ($drf['files'] as $file_num => $file) {
                         $public_date = $file['fileMeta']['publicDate'];
-                        if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+                        if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00') {
+if ($debug)
+    print 'removed non-public file '.$file['id'].' from datarecord '.$dr_id."\n";
+
                             unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id][$file_num] );
+                        }
                     }
 
                     foreach ($drf['images'] as $image_num => $image) {
                         $public_date = $image['parent']['imageMeta']['publicDate'];
-                        if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+                        if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00') {
+if ($debug)
+    print 'removed non-public image '.$image['parent']['id'].' from datarecord '.$dr_id."\n";
+
                             unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id][$image_num] );
+                        }
                     }
                 }
             }
-/*
+
             // Remove non-public theme_elements
             foreach ($datatype_array as $dt_id => $dt) {
                 foreach ($dt['themes'] as $theme_id => $theme) {
                     foreach ($theme['themeElements'] as $te_num => $te) {
-                        $public_date = $te['themeElementMeta']['publicDate'];
-                        if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-                            unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num] );
-                    }
-                }
-            }
-*/
-        }
+                        $df_list = array();
 
-        // For each datafield permission the user has...
-        foreach ($datafield_permissions as $df_id => $permission) {
-            // ...if they lack the 'can_view_field' permission for that datafield...
-            if ( isset($permission['view']) && $permission['view'] == 0 ) {
-/*
-                // ...remove that datafield from the layout
-                foreach ($datatype_array as $dt_id => $dt) {
-                    foreach ($dt['themes'] as $theme_id => $theme) {
-                        foreach ($theme['themeElements'] as $te_id => $te) {
-                            foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                                if ( $tdf['dataField']['id'] == $df_id )
-                                    unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry
+                        $public_date = $te['themeElementMeta']['publicDate'];
+                        if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00') {
+                            foreach ($te['themeDataFields'] as $tdf_num => $df)
+                                $df_list[] = $df['id'];
+
+if ($debug)
+    print 'removed non-public theme_element '.$te['id'].' from datatype '.$dt_id.' theme '.$theme_id.' ('.$theme['themeType'].')'."\n";
+
+                            unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num] );
+                        }
+
+                        // Also need to go and remove datafields that were in this theme_element from the datarecord array...
+                        foreach ($df_list as $num => $df_id) {
+                            foreach ($datarecord_array as $dr_id => $dr) {
+                                if ( isset($dr['dataRecordFields'][$df_id]) ) {
+if ($debug)
+    print ' -- removed datafield '.$df_id.' from datarecord '.$dr_id."\n";
+
+                                    unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
+                                }
                             }
                         }
                     }
                 }
+            }
+        }
 
-                // ...also remove that datafield from the datarecord array
-                foreach ($datarecord_array as $dr_id => $dr) {
-                    if ( isset($dr['dataRecordFields'][$df_id]) )
-                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
+if ($debug)
+    print '----- datafield permissions -----'."\n";
+
+        // Check to see if the user doesn't have view permissions for any of the datafields to be displayed
+        foreach ($datatype_array as $dt_id => $dt) {
+            foreach ($dt['themes'] as $theme_id => $theme) {
+                foreach ($theme['themeElements'] as $te_num => $te) {
+                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                        $df_id = $tdf['dataField']['id'];
+
+                        // If they don't have the 'can_view_field' permission for that datafield...
+                        if ( !(isset($datafield_permissions[$df_id]) && $datafield_permissions[$df_id]['view'] == 1) ) {
+                            // ...remove it from the layout
+if ($debug)
+    print 'removed datafield '.$df_id.' from theme_element '.$te['id'].' datatype '.$dt_id.' theme '.$theme_id.' ('.$theme['themeType'].')'."\n";
+
+                            unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry
+
+                            // ...also remove it from the datarecord array
+                            foreach ($datarecord_array as $dr_id => $dr) {
+                                if ( isset($dr['dataRecordFields'][$df_id]) ) {
+if ($debug)
+    print ' -- removed datafield '.$df_id.' from datarecord '.$dr_id."\n";
+
+                                    unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
+                                }
+                            }
+                        }
+                    }
                 }
-*/
             }
         }
     }
@@ -1807,8 +1909,7 @@ exit();
         // ----------------------------------------
         // Get the top-most parent of the datatype scheduled for update
         $datatree_array = self::getDatatreeArray($em);
-        while ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '' )
-            $datatype_id = $datatree_array['descendant_of'][$datatype_id];
+        $datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype_id);
 
 
         // ----------------------------------------
@@ -2087,6 +2188,90 @@ exit();
             $pheanstalk->useTube('recache_record')->put($payload, $priority, $delay);
         }
 
+    }
+
+
+    /**
+     * Temporary? function to mark datarecord as updated and delete cached version
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param DataRecord $datarecord
+     * @param User $user
+     */
+    protected function tmp_updateDatarecordCache($em, $datarecord, $user)
+    {
+        // Mark datarecord as updated
+        $datarecord->setUpdatedBy($user);
+        $em->persist($datarecord);
+        $em->flush();
+
+        // Locate and clear the cache entry for this datarecord
+        $grandparent_datarecord_id = $datarecord->getGrandparent()->getId();
+        $memcached = $this->get('memcached');
+        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+        $memcached->delete($memcached_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
+    }
+
+
+    /**
+     * Temporary? function to mark datatype as updated and delete cached version
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param DataType $datatype
+     * @param User $user
+     */
+    protected function tmp_updateDatatypeCache($em, $datatype, $user)
+    {
+        // Mark datatype as updated
+        $datatype->setUpdatedBy($user);
+        $em->persist($datatype);
+        $em->flush();
+
+        // Locate and clear the cache entry for this datatype
+        $datatree_array = self::getDatatreeArray($em);
+        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype->getId());
+
+        $memcached = $this->get('memcached');
+        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+        $memcached->delete($memcached_prefix.'.cached_datatype_'.$grandparent_datatype_id);
+    }
+
+
+    /**
+     * Temporary? function to mark theme as updated and delete cached version of datatype
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param Theme $theme
+     * @param User $user
+     */
+    protected function tmp_updateThemeCache($em, $theme, $user, $update_datatype = false)
+    {
+        // Mark theme as updated
+        $theme->setUpdatedBy($user);
+        $em->persist($theme);
+
+        if ($update_datatype) {
+            // Also mark datatype as updated
+            $datatype = $theme->getDataType();
+            $datatype->setUpdatedBy($user);
+            $em->persist($datatype);
+        }
+
+        $em->flush();
+
+        // Locate and clear the cache entry for this datatype
+        $datatree_array = self::getDatatreeArray($em);
+        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $theme->getDataType()->getId());
+
+        $memcached = $this->get('memcached');
+        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+        $memcached->delete($memcached_prefix.'.cached_datatype_'.$grandparent_datatype_id);
     }
 
 
@@ -3687,39 +3872,59 @@ exit();
         if (!$changes_made)
             return $old_meta_entry;
 
-        // Create a new meta entry and copy the old entry's data over
-        $theme_meta = new ThemeMeta();
-        $theme_meta->setTheme($theme);
 
-        $theme_meta->setTemplateName( $old_meta_entry->getTemplateName() );
-        $theme_meta->setTemplateDescription( $old_meta_entry->getTemplateDescription() );
-        $theme_meta->setIsDefault( $old_meta_entry->getIsDefault() );
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_theme_meta = null;
+        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+            // Create a new meta entry and copy the old entry's data over
+            $remove_old_entry = true;
 
-        $theme_meta->setCreatedBy($user);
-        $theme_meta->setCreated( new \DateTime() );
+            $new_theme_meta = new ThemeMeta();
+            $new_theme_meta->setTheme($theme);
+
+            $new_theme_meta->setTemplateName( $old_meta_entry->getTemplateName() );
+            $new_theme_meta->setTemplateDescription( $old_meta_entry->getTemplateDescription() );
+            $new_theme_meta->setIsDefault( $old_meta_entry->getIsDefault() );
+
+            $new_theme_meta->setCreatedBy($user);
+            $new_theme_meta->setUpdatedBy($user);
+        }
+        else {
+            // Update the existing meta entry
+            $new_theme_meta = $old_meta_entry;
+        }
+
 
         // Set any new properties
         if ( isset($properties['templateName']) )
-            $theme_meta->setTemplateName( $properties['templateName'] );
+            $new_theme_meta->setTemplateName( $properties['templateName'] );
         if ( isset($properties['templateDescription']) )
-            $theme_meta->setTemplateDescription( $properties['templateDescription'] );
+            $new_theme_meta->setTemplateDescription( $properties['templateDescription'] );
         if ( isset($properties['isDefault']) )
-            $theme_meta->setIsDefault( $properties['isDefault'] );
+            $new_theme_meta->setIsDefault( $properties['isDefault'] );
 
-        // Save the new meta entry and delete the old one
-        $em->remove($old_meta_entry);
-        $em->persist($theme_meta);
+        $new_theme_meta->setUpdatedBy($user);
+
+
+        // Delete the old meta entry if needed
+        if ($remove_old_entry)
+            $em->remove($old_meta_entry);
+
+        // Save the new meta entry
+        $em->persist($new_theme_meta);
         $em->flush();
 
         // Return the new entry
-        return $theme_meta;
+        return $new_theme_meta;
     }
+
 
     /**
      * Creates and persists a new ThemeElement entity.
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user The user requesting the creation of this entity
+     * @param User $user                       The user requesting the creation of this entity
      * @param DataType $datatype
      * @param Theme $theme
      *
@@ -3753,6 +3958,7 @@ exit();
         $theme_element_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
 
         $theme_element_meta->setCreatedBy($user);
+        $theme_element_meta->setUpdatedBy($user);
 
         $em->persist($theme_element_meta);
 
@@ -3796,19 +4002,31 @@ exit();
         if (!$changes_made)
             return $old_meta_entry;
 
-        // Create a new meta entry and copy the old entry's data over
-        $theme_element_meta = new ThemeElementMeta();
-        $theme_element_meta->setThemeElement($theme_element);
 
-        $theme_element_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
-        $theme_element_meta->setCssWidthMed( $old_meta_entry->getCssWidthMed() );
-        $theme_element_meta->setCssWidthXL( $old_meta_entry->getCssWidthXL() );
-        $theme_element_meta->setPublicDate( $old_meta_entry->getPublicDate() );
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $theme_element_meta = null;
+        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+            // Create a new meta entry and copy the old entry's data over
+            $remove_old_entry = true;
+            $theme_element_meta = new ThemeElementMeta();
+            $theme_element_meta->setThemeElement($theme_element);
 
-        $theme_element_meta->setCreatedBy($user);
-        $theme_element_meta->setCreated( new \DateTime() );
+            $theme_element_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
+            $theme_element_meta->setCssWidthMed( $old_meta_entry->getCssWidthMed() );
+            $theme_element_meta->setCssWidthXL( $old_meta_entry->getCssWidthXL() );
+            $theme_element_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
-        // Set any new properties
+            $theme_element_meta->setCreatedBy($user);
+            $theme_element_meta->setCreated( new \DateTime() );
+        }
+        else {
+            // Update the existing meta entry
+            $theme_element_meta = $old_meta_entry;
+        }
+
+
+        // Set any changed properties
         if ( isset($properties['displayOrder']) )
             $theme_element_meta->setDisplayOrder( $properties['displayOrder'] );
         if ( isset($properties['cssWidthMed']) )
@@ -3818,12 +4036,18 @@ exit();
         if ( isset($properties['publicDate']) )
             $theme_element_meta->setPublicDate( $properties['publicDate'] );
 
-        // Save the new meta entry and delete the old one
-        $em->remove($old_meta_entry);
+        $theme_element_meta->setUpdatedBy($user);
+
+
+        // Remove old meta entry if needed
+        if ($remove_old_entry)
+            $em->remove($old_meta_entry);
+
+        // Save the new meta entry
         $em->persist($theme_element_meta);
         $em->flush();
 
-        // Return the new entry
+        // Return the meta entry
         return $theme_element_meta;
     }
 
@@ -3880,11 +4104,11 @@ exit();
         $theme_datafield->setCssWidthXL('1-3');
 
         $theme_datafield->setCreatedBy($user);
+        $theme_datafield->setUpdatedBy($user);
 
-        // TODO - remove these three properties
+        // TODO - remove these two properties
         $theme_datafield->setTheme($theme_element->getTheme());
         $theme_datafield->setActive(true);
-        $theme_datafield->setUpdatedBy($user);
 
         $em->persist($theme_datafield);
         return $theme_datafield;
@@ -3923,22 +4147,34 @@ exit();
         if (!$changes_made)
             return $theme_datafield;
 
-        // Create a new meta entry and copy the old entry's data over
-        $new_theme_datafield = new ThemeDataField();
-        $new_theme_datafield->setDataField( $theme_datafield->getDataField() );
-        $new_theme_datafield->setThemeElement( $theme_datafield->getThemeElement() );
 
-        $new_theme_datafield->setDisplayOrder( $theme_datafield->getDisplayOrder() );
-        $new_theme_datafield->setCssWidthMed( $theme_datafield->getCssWidthMed() );
-        $new_theme_datafield->setCssWidthXL( $theme_datafield->getCssWidthXL() );
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_theme_datafield = null;
+        if ( self::createNewMetaEntry($user, $theme_datafield) ) {
+            // Create a new meta entry and copy the old entry's data over
+            $remove_old_entry = true;
 
-        // TODO - remove these three properties
-        $new_theme_datafield->setTheme( $theme_datafield->getTheme() );
-        $new_theme_datafield->setActive(true);
-        $new_theme_datafield->setUpdatedBy($user);
+            $new_theme_datafield = new ThemeDataField();
+            $new_theme_datafield->setDataField( $theme_datafield->getDataField() );
+            $new_theme_datafield->setThemeElement( $theme_datafield->getThemeElement() );
 
-        $new_theme_datafield->setCreatedBy($user);
-        $new_theme_datafield->setCreated(new \DateTime());
+            $new_theme_datafield->setDisplayOrder( $theme_datafield->getDisplayOrder() );
+            $new_theme_datafield->setCssWidthMed( $theme_datafield->getCssWidthMed() );
+            $new_theme_datafield->setCssWidthXL( $theme_datafield->getCssWidthXL() );
+
+            $new_theme_datafield->setCreatedBy($user);
+            $new_theme_datafield->setUpdatedBy($user);
+
+            // TODO - remove these two properties
+            $new_theme_datafield->setTheme( $theme_datafield->getTheme() );
+            $new_theme_datafield->setActive(true);
+        }
+        else {
+            // Update the existing meta entry
+            $new_theme_datafield = $theme_datafield;
+        }
+
 
         // Set any new properties
         if (isset($properties['themeElement']))
@@ -3951,8 +4187,14 @@ exit();
         if (isset($properties['cssWidthXL']))
             $new_theme_datafield->setCssWidthXL( $properties['cssWidthXL'] );
 
-        // Save the new meta entry and delete the old one
-        $em->remove($theme_datafield);
+        $new_theme_datafield->setUpdatedBy($user);
+
+
+        // Delete the old entry if needed
+        if ($remove_old_entry)
+            $em->remove($theme_datafield);
+
+        // Save the new meta entry
         $em->persist($new_theme_datafield);
         $em->flush();
 
@@ -3981,10 +4223,10 @@ exit();
         $theme_datatype->setDisplayType(0);     // 0 is accordion, 1 is tabbed, 2 is dropdown, 3 is list
 
         $theme_datatype->setCreatedBy($user);
-
-        // TODO - remove these two properties
-        $theme_datatype->setTheme( $theme_element->getTheme() );
         $theme_datatype->setUpdatedBy($user);
+
+        // TODO - remove this property
+        $theme_datatype->setTheme( $theme_element->getTheme() );
 
         $em->persist($theme_datatype);
         return $theme_datatype;
@@ -4019,26 +4261,44 @@ exit();
         if (!$changes_made)
             return $theme_datatype;
 
-        // Create a new meta entry and copy the old entry's data over
-        $new_theme_datatype = new ThemeDataType();
-        $new_theme_datatype->setDataType( $theme_datatype->getDataType() );
-        $new_theme_datatype->setThemeElement( $theme_datatype->getThemeElement() );
 
-        $new_theme_datatype->setDisplayType( $theme_datatype->getDisplayType() );
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_theme_datatype = null;
+        if ( self::createNewMetaEntry($user, $theme_datatype) ) {
+            // Create a new meta entry and copy the old entry's data over
+            $remove_old_entry = true;
 
-        // TODO - remove these two properties
-        $new_theme_datatype->setTheme($theme_datatype->getTheme());
-        $new_theme_datatype->setUpdatedBy($user);
+            $new_theme_datatype = new ThemeDataType();
+            $new_theme_datatype->setDataType( $theme_datatype->getDataType() );
+            $new_theme_datatype->setThemeElement( $theme_datatype->getThemeElement() );
 
-        $new_theme_datatype->setCreatedBy($user);
-        $new_theme_datatype->setCreated( new \DateTime() );
+            $new_theme_datatype->setDisplayType( $theme_datatype->getDisplayType() );
+
+            $new_theme_datatype->setCreatedBy($user);
+            $new_theme_datatype->setUpdatedBy($user);
+
+            // TODO - remove this property
+            $new_theme_datatype->setTheme($theme_datatype->getTheme());
+        }
+        else {
+            // Update the existing meta entry
+            $new_theme_datatype = $theme_datatype;
+        }
+
 
         // Set any new properties
         if (isset($properties['display_type']))
             $new_theme_datatype->setDisplayType( $properties['display_type'] );
 
-        // Save the new meta entry and delete the old one
-        $em->remove($theme_datatype);
+        $new_theme_datatype->setUpdatedBy($user);
+
+
+        // Delete the old meta entry if needed
+        if ($remove_old_entry)
+            $em->remove($theme_datatype);
+
+        // Save the new meta entry
         $em->persist($new_theme_datatype);
         $em->flush();
 
@@ -5153,23 +5413,13 @@ if ($debug)
      */
     protected function ODR_getErrorMessages(\Symfony\Component\Form\Form $form)
     {
-/*
-        $errors = array();
-        if ($form->hasChildren()) {
-            foreach ($form->getChildren() as $child) {
-                if (!$child->isValid()) {
-                    $errors[$child->getName()] = self::ODR_getErrorMessages($child);
-                }
-            }
-        } else {
-            foreach ($form->getErrors() as $key => $error) {
-                $errors[] = $error->getMessage();
-            }
-        }
+        $errors = $form->getErrors();
 
-        return $errors;
-*/
-        return $form->getErrorsAsString();
+        $error_str = '';
+        foreach ($errors as $num => $error)
+            $error_str .= 'ERROR: '.$error->getMessage()."\n";
+
+        return $error_str;
     }
 
 
@@ -5759,7 +6009,7 @@ if ($timing) {
                     // Attach the is_link property to each of the theme_datatype entries
                     foreach ($te['themeDataType'] as $tdt_num => $tdt) {
                         $child_datatype_id = $tdt['dataType']['id'];
-                        if ( isset($datatree_array['linked_from'][$child_datatype_id]) && $datatree_array['linked_from'][$child_datatype_id] == $datatype_id )
+                        if ( isset($datatree_array['linked_from'][$child_datatype_id]) && in_array($datatype_id, $datatree_array['linked_from'][$child_datatype_id]) )
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 1;
                         else
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 0;

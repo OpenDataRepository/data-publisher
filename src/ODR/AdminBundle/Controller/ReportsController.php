@@ -95,9 +95,7 @@ class ReportsController extends ODRCustomController
             }
             else {
                 // Locate the top-level datatype
-                $top_level_datatype_id = $datatype_id;
-                while ( isset($datatree_array['descendant_of'][$top_level_datatype_id]) && $datatree_array['descendant_of'][$top_level_datatype_id] !== '')
-                    $top_level_datatype_id = $datatree_array['descendant_of'][$top_level_datatype_id];
+                $top_level_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datatype_id);
 
                 /** @var DataType $top_level_datatype */
                 $top_level_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($top_level_datatype_id);
@@ -490,6 +488,109 @@ print_r($grandparent_list);
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x531765856 '. $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Given a Datatype, build a list of Datarecords that have children/are linked to multiple Datarecords through this Datatree.
+     *
+     * @param integer $local_datatype_id
+     * @param integer $remote_datatype_id
+     * @param Request $request
+     *
+     * @return Response TODO
+     */
+    public function analyzedatarecordlinksAction($local_datatype_id, $remote_datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $templating = $this->get('templating');
+
+            /** @var DataType $local_datatype */
+            $local_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($local_datatype_id);
+            if ($local_datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            /** @var DataType $remote_datatype */
+            $remote_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($remote_datatype_id);
+            if ($remote_datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $local_datatype_id ]) && isset($user_permissions[ $local_datatype_id ][ 'design' ])) )
+                return parent::permissionDeniedError("edit");
+
+            $can_edit_local = false;
+            if ( isset($user_permissions[ $local_datatype_id ]) && isset($user_permissions[ $local_datatype_id ][ 'edit' ]) )
+                $can_edit_local = true;
+
+            $can_edit_remote = false;
+            if ( isset($user_permissions[ $remote_datatype_id ]) && isset($user_permissions[ $remote_datatype_id ][ 'edit' ]) )
+                $can_edit_remote = true;
+            // --------------------
+
+
+            // Locate any datarecords of the local datatype that link to datarecords of the remote datatype
+            $query = $em->createQuery(
+                'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+                    FROM ODRAdminBundle:DataRecord AS ancestor
+                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    WHERE ancestor.dataType = :local_datatype_id AND descendant.dataType = :remote_datatype_id
+                    AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+            )->setParameters( array('local_datatype_id' => $local_datatype->getId(), 'remote_datatype_id' => $remote_datatype->getId()) );
+            $results = $query->getArrayResult();
+
+            $linked_datarecords = array();
+            foreach ($results as $result) {
+                $ancestor_id = $result['ancestor_id'];
+                $descendant_id = $result['descendant_id'];
+
+                if ( !isset($linked_datarecords[$ancestor_id]) )
+                    $linked_datarecords[$ancestor_id] = array();
+
+                $linked_datarecords[$ancestor_id][] = $descendant_id;
+            }
+
+            // Render and return a page detailing which datarecords have multiple child/linked datarecords...
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Reports:datarecord_links_report.html.twig',
+                    array(
+                        'local_datatype' => $local_datatype,
+                        'remote_datatype' => $remote_datatype,
+                        'linked_datarecords' => $linked_datarecords,
+
+                        'can_edit_local' => $can_edit_local,
+                        'can_edit_remote' => $can_edit_remote,
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x17662658 '. $e->getMessage();
         }
 
         $response = new Response(json_encode($return));

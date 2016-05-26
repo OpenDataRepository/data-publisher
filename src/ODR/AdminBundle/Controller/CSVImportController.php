@@ -132,6 +132,7 @@ class CSVImportController extends ODRCustomController
             if ( count($childtypes) == 0 )
                 $childtypes = null;
 
+throw new \Exception('FIX DATATREE ARRAY HERE');
             $linked_types = array();
             foreach ($datatree_array['linked_from'] as $remote_dt_id => $local_dt_id) {
                 if ($local_dt_id == $datatype_id) {
@@ -315,6 +316,7 @@ class CSVImportController extends ODRCustomController
             $linked_importing = false;
             $parent_datatype = null;
 
+throw new \Exception('FIX DATATREE ARRAY HERE');
             $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
             if ( $source_datatype_id !== $target_datatype_id && isset($datatree_array['linked_from'][$target_datatype_id]) && $datatree_array['linked_from'][$target_datatype_id] !== '' ) {
                 /* "Importing into" a linked datatype */
@@ -2061,6 +2063,7 @@ class CSVImportController extends ODRCustomController
                 $linked_importing = true;
             }
 
+throw new \Exception('FIX DATATREE ARRAY HERE');
             // Also locate any child or linked datatypes for this datatype
             $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
             /** @var DataType[]|null $childtypes */

@@ -2616,13 +2616,9 @@ if ($debug)
         $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
 
         // Grab all datatypes associated with the desired datarecord
-        $associated_datatypes = array();
-        foreach ($datarecord_array as $dr_id => $dr) {
-            $dt_id = $dr['dataType']['id'];
-
-            if ( !in_array($dt_id, $associated_datatypes) )
-                $associated_datatypes[] = $dt_id;
-        }
+        // NOTE - using parent::getAssociatedDatatypes() here because we need to be able to see child/linked datatypes even if none are attached to this datarecord
+        $include_links = true;
+        $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype->getId()), $include_links);
 
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
         $datatype_array = array();

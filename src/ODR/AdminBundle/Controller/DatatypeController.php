@@ -360,6 +360,7 @@ class DatatypeController extends ODRCustomController
                     $theme->setDataType($datatype);
                     $theme->setThemeType('master');
                     $theme->setCreatedBy($admin);
+                    $theme->setUpdatedBy($admin);
 
                     $em->persist($theme);
                     $em->flush();
@@ -372,6 +373,7 @@ class DatatypeController extends ODRCustomController
                     $theme_meta->setTemplateDescription('');
                     $theme_meta->setIsDefault(true);
                     $theme_meta->setCreatedBy($admin);
+                    $theme_meta->setUpdatedBy($admin);
 
                     $em->persist($theme_meta);
                     $em->flush();

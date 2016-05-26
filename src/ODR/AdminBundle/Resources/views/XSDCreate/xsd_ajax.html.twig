@@ -102,7 +102,7 @@
     <xsd:complexType name="datarecord_type">
         <xsd:all>
             {% set is_top_level = 1 %}
-            {% import "ODRAdminBundle:XSDCreate:xsd_area_childtype.html.twig" as mychildform %}
+            {% import "ODRAdminBundle:XSDCreate:xsd_childtype.html.twig" as mychildform %}
             {{ mychildform.input(datatype_array, initial_datatype_id, theme_id, is_top_level) }}
 
             <xsd:element name="_datarecord_metadata" type="datarecord_metadata_type" minOccurs="0" />

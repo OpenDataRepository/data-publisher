@@ -39,12 +39,12 @@ class ThemeDataType
     /**
      * @var \DateTime
      */
-    private $deletedAt;
+    private $updated;
 
     /**
      * @var \DateTime
      */
-    private $updated;
+    private $deletedAt;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataType
@@ -62,11 +62,6 @@ class ThemeDataType
     private $createdBy;
 
     /**
-     * @var \ODR\AdminBundle\Entity\Theme
-     */
-    private $theme;
-
-    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $updatedBy;
@@ -75,6 +70,11 @@ class ThemeDataType
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $deletedBy;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\Theme
+     */
+    private $theme;
     
 
     /**
@@ -134,6 +134,29 @@ class ThemeDataType
     }
 
     /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return ThemeDataType
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
+    }
+
+    /**
      * Set deletedAt
      *
      * @param \DateTime $deletedAt
@@ -154,31 +177,6 @@ class ThemeDataType
     public function getDeletedAt()
     {
         return $this->deletedAt;
-    }
-
-    /**
-     * Set updated
-     * @deprecated
-     *
-     * @param \DateTime $updated
-     * @return ThemeDataType
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     * @deprecated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
     }
 
     /**
@@ -251,33 +249,7 @@ class ThemeDataType
     }
 
     /**
-     * Set theme
-     * @deprecated
-     *
-     * @param \ODR\AdminBundle\Entity\Theme $theme
-     * @return ThemeDataType
-     */
-    public function setTheme(\ODR\AdminBundle\Entity\Theme $theme = null)
-    {
-        $this->theme = $theme;
-
-        return $this;
-    }
-
-    /**
-     * Get theme
-     * @deprecated
-     *
-     * @return \ODR\AdminBundle\Entity\Theme 
-     */
-    public function getTheme()
-    {
-        return $this->theme;
-    }
-
-    /**
      * Set updatedBy
-     * @deprecated
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
      * @return ThemeDataType
@@ -291,9 +263,8 @@ class ThemeDataType
 
     /**
      * Get updatedBy
-     * @deprecated
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getUpdatedBy()
     {
@@ -316,10 +287,35 @@ class ThemeDataType
     /**
      * Get deletedBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getDeletedBy()
     {
         return $this->deletedBy;
+    }
+
+    /**
+     * Set theme
+     * @deprecated
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $theme
+     * @return ThemeDataType
+     */
+    public function setTheme(\ODR\AdminBundle\Entity\Theme $theme = null)
+    {
+        $this->theme = $theme;
+
+        return $this;
+    }
+
+    /**
+     * Get theme
+     * @deprecated
+     *
+     * @return \ODR\AdminBundle\Entity\Theme 
+     */
+    public function getTheme()
+    {
+        return $this->theme;
     }
 }

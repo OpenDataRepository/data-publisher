@@ -70,7 +70,7 @@ class DisplaytemplateController extends ODRCustomController
      * @param integer $datafield_id The database id of the Datafield to delete.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function deletedatafieldAction($datafield_id, Request $request)
     {
@@ -242,7 +242,7 @@ class DisplaytemplateController extends ODRCustomController
      * @param integer $radio_option_id The database id of the RadioOption to delete.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function deleteradiooptionAction($radio_option_id, Request $request)
     {
@@ -328,7 +328,7 @@ class DisplaytemplateController extends ODRCustomController
      * @param integer $radio_option_id The database id of the RadioOption to modify.
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function defaultradiooptionAction($radio_option_id, Request $request)
     {
@@ -427,7 +427,7 @@ class DisplaytemplateController extends ODRCustomController
      * @param integer $datatype_id The database id of the DataType to be deleted.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function deletedatatypeAction($datatype_id, Request $request)
     {
@@ -736,7 +736,7 @@ print '</pre>';
      * @param integer $datatype_id The database id of the DataType to be rendered.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function designAction($datatype_id, Request $request)
     {
@@ -768,7 +768,7 @@ print '</pre>';
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
-                'html' => self::GetDisplayData($request, $datatype_id),
+                'html' => self::GetDisplayData($datatype_id, 'default', $datatype_id, $request),
             );
         }
         catch (\Exception $e) {
@@ -784,84 +784,6 @@ print '</pre>';
 
 
     /**
-     * Saves changes made to the order of a Datatype's ThemeElements.
-     * @deprecated
-     * 
-     * @param Request $request
-     * 
-     * @return Response TODO
-     */
-    public function themeelementorderAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Grab necessary objects
-            $post = $_POST;
-//print_r($post);
-//return;
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
-
-            // Grab the first theme element just to check permissions
-            $theme_element = null;
-            foreach ($post as $index => $theme_element_id) {
-                $theme_element = $repo_theme_element->find($theme_element_id);
-                break;
-            }
-            /** @var ThemeElement $theme_element */
-            $datatype = $theme_element->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-
-            // If user has permissions, go through all of the theme elements setting the order
-            foreach ($post as $index => $theme_element_id) {
-                /** @var ThemeElement $theme_element */
-                $theme_element = $repo_theme_element->find($theme_element_id);
-                $em->refresh($theme_element);
-    
-                $theme_element->setDisplayOrder($index);
-                $theme_element->setUpdatedBy($user);
-    
-                $em->persist($theme_element);
-            }
-            $em->flush();
-
-            // Schedule the cache for an update
-            $options = array();
-            $options['mark_as_updated'] = true;
-            parent::updateDatatypeCache($datatype->getId(), $options);
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x8283002 ' . $e->getMessage();
-        }
-    
-        $response = new Response(json_encode($return));  
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
      * Updates the display order of DataFields inside a ThemeElement, and/or moves the DataField to a new ThemeElement.
      * @deprecated
      * 
@@ -869,7 +791,7 @@ print '</pre>';
      * @param integer $ending_theme_element_id  The database id of the ThemeElement the DataField is in after being moved.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function datafieldorderAction($initial_theme_element_id, $ending_theme_element_id, Request $request)
     {
@@ -959,7 +881,7 @@ print '</pre>';
      * @param integer $theme_element_id The database id of the ThemeElement to modify.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function themeelementvisibleAction($theme_element_id, Request $request)
     {
@@ -1051,177 +973,13 @@ print '</pre>';
 
 
     /**
-     * Deletes a ThemeElement from a DataType, after ensuring it's empty.
-     * @deprecated
-     * 
-     * @param integer $theme_element_id The database id of the ThemeElement to delete.
-     * @param Request $request
-     * 
-     * @return Response TODO
-     */
-    public function deletethemeelementAction($theme_element_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Get Current User
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            // Grab the theme element from the repository
-            /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
-            $em->refresh($theme_element);
-            if ( $theme_element == null )
-                return parent::deletedEntityError('ThemeElement');
-
-            $datatype = $theme_element->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
-
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-
-            // Determine if the theme element holds anything
-            /** @var ThemeElementField[] $theme_element_fields */
-            $theme_element_fields = $em->getRepository('ODRAdminBundle:ThemeElementField')->findBy( array("themeElement" => $theme_element_id) );
-            if ( count($theme_element_fields) == 0 ) {
-                // Delete the theme element
-                $em->remove($theme_element);
-                $em->flush();
-
-                // Schedule the cache for an update
-                $options = array();
-                $options['mark_as_updated'] = true;
-                parent::updateDatatypeCache($datatype->getId(), $options);
-
-            }
-            else {
-                // Notify of inability to remove this theme element
-//                throw new \Exception("This ThemeElement can't be removed...it still contains datafields or a datatype!");
-
-                $return['r'] = 1;
-                $return['t'] = 'ex';
-                $return['d'] = "This ThemeElement can't be removed...it still contains datafields or a datatype!";
-            }
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x77392699 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Saves width changes made to a DataField in it's associated ThemeDataField entity.
-     * @deprecated
-     * 
-     * @param integer $theme_datafield_id The database id of the ThemeDataField entity to change.
-     * @param Request $request
-     * 
-     * @return Response TODO
-     */
-    public function savethemedatafieldAction($theme_datafield_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var ThemeDataField $theme_datafield */
-            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->find($theme_datafield_id);
-            if ($theme_datafield == null)
-                return parent::deletedEntityError('ThemeDatafield');
-
-            $datatype = $theme_datafield->getDataFields()->getDataType();
-
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-
-            // Populate new ThemeDataField form
-            $form = $this->createForm(new UpdateThemeDatafieldForm($theme_datafield), $theme_datafield);
-            $values = array('med_width_old' => $theme_datafield->getCssWidthMed(), 'xl_width_old' => $theme_datafield->getCssWidthXL());
-
-            if ($request->getMethod() == 'POST') {
-                $form->bind($request, $theme_datafield);
-                $return['t'] = "html";
-                if ($form->isValid()) {
-                    // Save the changes made to the datatype
-                    $theme_datafield->setUpdatedBy($user);
-                    $em->persist($theme_datafield);
-                    $em->flush();
-
-                    $em->refresh($theme_datafield);
-                    $values['med_width_current'] = $theme_datafield->getCssWidthMed();
-                    $values['xl_width_current'] = $theme_datafield->getCssWidthXL();
-
-                    // Schedule the cache for an update
-                    $options = array();
-                    $options['mark_as_updated'] = true;
-                    parent::updateDatatypeCache($datatype->getId(), $options);
-
-                }
-/*
-                else {
-                    throw new \Exception( parent::ODR_getErrorMessages($form) );
-                }
-*/
-            }
-
-            // Don't need to return a form object...it's loaded with the regular datafield properties form
-            $return['widths'] = $values;
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x82399100 ' . $e->getMessage();
-        }
-    
-        $response = new Response(json_encode($return));  
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;  
-    }
-
-
-    /**
      * Saves changes made to a Datatree entity.
      * 
      * @param integer $datatype_id  The id of the DataType entity this Datatree belongs to
      * @param integer $datatree_id  The id of the Datatree entity being changed
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function savedatatreeAction($datatype_id, $datatree_id, Request $request)
     {
@@ -1349,7 +1107,7 @@ print '</pre>';
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function navslideoutAction(Request $request)
     {
@@ -1378,81 +1136,12 @@ print '</pre>';
 
 
     /**
-     * Adds a new ThemeElement to the given DataType.
-     * @deprecated
-     * 
-     * @param integer $datatype_id The database id of the DataType to attach a new ThemeElement to.
-     * @param Request $request
-     * 
-     * @return Response TODO
-     */
-    public function addthemeelementAction($datatype_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
-
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-
-            // Create a new theme element entity
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy(array("isDefault" => "1"));
-            $theme_element = parent::ODR_addThemeElementEntry($em, $user, $datatype, $theme);
-
-            // Save changes
-            $em->flush();
-            $em->refresh($theme_element);
-
-            // Return the new theme element's id
-            $return['d'] = array(
-                'theme_element_id' => $theme_element->getId(),
-            );
-
-            // Schedule the cache for an update
-            $options = array();
-            $options['mark_as_updated'] = true;
-            parent::updateDatatypeCache($datatype->getId(), $options);
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x831225029 ' . $e->getMessage();
-        }
-    
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
      * Adds a new DataField to the given DataType and ThemeElement.
      *
      * @param integer $theme_element_id The database id of the ThemeElement to attach this new Datafield to
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function adddatafieldAction($theme_element_id, Request $request)
     {
@@ -1536,7 +1225,7 @@ print '</pre>';
      * @param integer $datafield_id     The database id of the DataField to copy data from.
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function copydatafieldAction($theme_element_id, $datafield_id, Request $request)
     {
@@ -1627,7 +1316,7 @@ print '</pre>';
      * @param integer $datafield_id The database if of the DataField to grab RadioOptions from.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function getradiooptionsAction($datafield_id, Request $request)
     {
@@ -1696,7 +1385,7 @@ print '</pre>';
      * @param integer $radio_option_id The database id of the RadioOption to rename.
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function radiooptionnameAction($radio_option_id, Request $request)
     {
@@ -1785,7 +1474,7 @@ print '</pre>';
      * @param boolean $alphabetical_sort Whether to order the RadioOptions alphabetically or in some user-specified order.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function radiooptionorderAction($datafield_id, $alphabetical_sort, Request $request)
     {
@@ -1904,7 +1593,7 @@ print '</pre>';
      * @param integer $datafield_id The database id of the DataField to add a RadioOption to.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function addradiooptionAction($datafield_id, Request $request)
     {
@@ -1975,7 +1664,7 @@ print '</pre>';
      * @param integer $theme_element_id The database id of the ThemeElement that the new DataType will be rendered in.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function addchildtypeAction($datatype_id, $theme_element_id, Request $request)
     {
@@ -2091,6 +1780,7 @@ print '</pre>';
             $theme->setDataType($child_datatype);
             $theme->setThemeType('master');
             $theme->setCreatedBy($user);
+            $theme->setUpdatedBy($user);
             $em->persist($theme);
 
 
@@ -2114,6 +1804,7 @@ print '</pre>';
             $theme_meta->setTemplateDescription('');
             $theme_meta->setIsDefault(true);
             $theme_meta->setCreatedBy($user);
+            $theme_meta->setUpdatedBy($user);
             $em->persist($theme_meta);
 
 
@@ -2188,13 +1879,13 @@ print '</pre>';
      *                                  rendered in this DataType...
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function getlinktypesAction($datatype_id, $theme_element_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
-        $return['t'] = 'html';
+        $return['t'] = '';
         $return['d'] = '';
 
         try {
@@ -2202,21 +1893,17 @@ print '</pre>';
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
-            $repo_theme_element_field = $em->getRepository('ODRAdminBundle:ThemeElementField');
 
             /** @var DataType $local_datatype */
             $local_datatype = $repo_datatype->find($datatype_id);
             if ( $local_datatype == null )
                 return parent::deletedEntityError('DataType');
+
             /** @var ThemeElement $theme_element */
-            $theme_element = $repo_theme_element->find($theme_element_id);
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
             if ( $theme_element == null )
                 return parent::deletedEntityError('ThemeElement');
 
-            /** @var ThemeElementField[] $theme_element_fields */
-            $theme_element_fields = $repo_theme_element_field->findBy(array("themeElement" => $theme_element_id));
 
             // --------------------
             // Determine user privileges
@@ -2231,54 +1918,97 @@ print '</pre>';
 
 
             // Locate the previously linked datatype if it exists
-            /** @var DataType|null $previous_remote_datatype */
-            $previous_remote_datatype = null;
-            foreach ($theme_element_fields as $tef) {
-                if ($tef->getDataType() !== null)
-                    $previous_remote_datatype = $tef->getDataType();
+            /** @var DataType|null $current_remote_datatype */
+            $has_linked_datarecords = false;
+            $current_remote_datatype = null;
+            if ($theme_element->getThemeDataType()->count() > 0) {
+                $current_remote_datatype = $theme_element->getThemeDataType()->first()->getDataType();  // should only ever be one theme_datatype entry
+
+                // Determine whether any datarecords of the local datatype link to datarecords of the remote datatype
+                $query = $em->createQuery(
+                   'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+                    FROM ODRAdminBundle:DataRecord AS ancestor
+                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    WHERE ancestor.dataType = :local_datatype_id AND descendant.dataType = :remote_datatype_id
+                    AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                )->setParameters( array('local_datatype_id' => $local_datatype->getId(), 'remote_datatype_id' => $current_remote_datatype->getId()) );
+                $results = $query->getArrayResult();
+
+                if ( count($results) > 0 )
+                    $has_linked_datarecords = true;
             }
 
-            // Locate the parent of this datatype if it exists
-            /** @var DataTree $datatree */
-            $datatree = $repo_datatree->findOneBy(array('descendant' => $datatype_id));
-            $parent_datatype_id = null;
-            if ($datatree !== null)
-                $parent_datatype_id = $datatree->getAncestor()->getId();
 
-            // Grab all datatypes and all datatree entries...need to locate the datatypes which can be linked to
-            $linkable_datatypes = array();
-            /** @var DataType[] $datatype_entries */
-            $datatype_entries = $repo_datatype->findBy( array("deletedAt" => null) );
-            /** @var DataTree[] $datatree_entries */
-            $datatree_entries = $repo_datatree->findBy( array("deletedAt" => null) );
+            // Going to need the id of the local datatype's grandparent datatype
+            $current_datatree_array = parent::getDatatreeArray($em);
+            $grandparent_datatype_id = parent::getGrandparentDatatypeId($current_datatree_array, $local_datatype->getId());
 
-            // Iterate through all the datatypes...
-            foreach ($datatype_entries as $datatype_entry) {
-                // TODO - ...
-                // Prevent user from linking to a datatype they can't view
-                if ( !isset($user_permissions[ $datatype_entry->getId() ]) || !isset($user_permissions[ $datatype_entry->getId() ]['view']) )
+
+            // ----------------------------------------
+            // Grab all the ids of all datatypes currently in the database
+            $query = $em->createQuery(
+               'SELECT dt.id AS id
+                FROM ODRAdminBundle:DataType AS dt
+                WHERE dt.deletedAt IS NULL'
+            );
+            $results = $query->getArrayResult();
+
+            $all_datatype_ids = array();
+            foreach ($results as $result)
+                $all_datatype_ids[] = $result['id'];
+
+            // Iterate through all the datatype ids...
+            $linkable_datatype_ids = array();
+            foreach ($all_datatype_ids as $dt_id) {
+                // TODO - should this permission actually be required here?
+                // Prevent user from linking to a datatype they don't have view permissions for
+                if ( !(isset($user_permissions[ $dt_id ]) && isset($user_permissions[ $dt_id ]['view'])) )
                     continue;
 
-                $block = false;
-                foreach ($datatree_entries as $datatree_entry) {
-                    // If the datatype is a non-linked descendant of another datatype, block it from being linked to
-                    if (($datatree_entry->getDescendant()->getId() === $datatype_entry->getId()) && ($datatree_entry->getIsLink() == false)) {
-                        $block = true;
-                        break;
-                    }
-                    // If the datatype is the ancestor of this datatype, block it from being linked to...don't want rendering recursion
-                    // TODO - block datatype_a => datatype_b => datatype_c => datatype_a situations
-                    if ($parent_datatype_id === $datatype_entry->getId()) {
-                        $block = true;
-                        break;
-                    }
-                }
+                // Don't allow linking to child datatypes
+                if ( isset($current_datatree_array['descendant_of'][ $dt_id ]) && $current_datatree_array['descendant_of'][ $dt_id ] !== '' )
+                    continue;
 
-                // If the datatype passes all the tests, and isn't the datatype that originally called this action, add it to the array
-                if (!$block && $local_datatype->getId() !== $datatype_entry->getId())
-                    $linkable_datatypes[] = $datatype_entry;
+                // Don't allow linking to the local datatype's grandparent
+                if ($dt_id == $grandparent_datatype_id)
+                    continue;
+
+                // Don't allow the local datatype to link to a remote datatype more than once
+                if ( isset($current_datatree_array['linked_from'][$dt_id]) && in_array($local_datatype->getId(), $current_datatree_array['linked_from'][$dt_id]) )
+                    continue;
+
+                // Don't allow the local datatype to link to this remote datatype if it would cause the renderer to recurse
+                // e.g. datatype_a => datatype_b and datatype_b => datatype_a
+                // or datatype_a => datatype_b, datatype_b => datatype_c, and datatype_c => datatype_a, etc
+                if ( self::willDatatypeLinkRecurse($current_datatree_array, $local_datatype->getId(), $dt_id) )
+                    continue;
+
+                // Otherwise, linking to this datatype is acceptable
+                $linkable_datatype_ids[] = $dt_id;
             }
 
+
+            // If this theme element currently contains a linked datatype, ensure that remote datatype exists in the array
+            if ($current_remote_datatype !== null) {
+                if ( !in_array($current_remote_datatype->getId(), $linkable_datatype_ids) )
+                    $linkable_datatype_ids[] = $current_remote_datatype->getId();
+            }
+
+            // Load all datatypes which can be linked to
+            $linkable_datatypes = array();
+            foreach ($linkable_datatype_ids as $dt_id)
+                $linkable_datatypes[] = $repo_datatype->find($dt_id);
+
+            // Sort the linkable datatypes list by name
+            usort($linkable_datatypes, function($a, $b) {
+                /** @var DataType $a */
+                /** @var DataType $b */
+                return strcmp($a->getShortName(), $b->getShortName());
+            });
+
+
+            // ----------------------------------------
             // Get Templating Object
             $templating = $this->get('templating');
             $return['d'] = array(
@@ -2286,9 +2016,11 @@ print '</pre>';
                     'ODRAdminBundle:Displaytemplate:link_type_dialog_form.html.twig',
                     array(
                         'local_datatype' => $local_datatype,
-                        'remote_datatype' => $previous_remote_datatype,
+                        'remote_datatype' => $current_remote_datatype,
                         'theme_element' => $theme_element,
-                        'linkable_datatypes' => $linkable_datatypes
+                        'linkable_datatypes' => $linkable_datatypes,
+
+                        'has_linked_datarecords' => $has_linked_datarecords,
                     )
                 )
             );
@@ -2311,7 +2043,7 @@ print '</pre>';
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function linktypeAction(Request $request)
     {
@@ -2323,6 +2055,8 @@ print '</pre>';
         try {
             // Grab the data from the POST request 
             $post = $_POST;
+//print_r($post);
+//exit();
 
             $local_datatype_id = $post['local_datatype_id'];
             $remote_datatype_id = $post['selected_datatype'];
@@ -2333,9 +2067,15 @@ print '</pre>';
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
-            $repo_theme_element_field = $em->getRepository('ODRAdminBundle:ThemeElementField');
+
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ( $theme_element == null )
+                return parent::deletedEntityError('ThemeElement');
 
             /** @var DataType $local_datatype */
             $local_datatype = $repo_datatype->find($local_datatype_id);
@@ -2363,26 +2103,125 @@ print '</pre>';
             if ( !(isset($user_permissions[ $local_datatype->getId() ]) && isset($user_permissions[ $local_datatype->getId() ][ 'design' ])) )
                 return parent::permissionDeniedError("edit");
 
-            // TODO - ...
+            // TODO - should this permission actually be required here?
             // Prevent user from linking to a datatype they can't view
             if ( !(isset($user_permissions[ $remote_datatype->getId() ]) && $user_permissions[ $remote_datatype->getId() ]['view']) )
                 return parent::permissionDeniedError('edit');
             // --------------------
 
 
-            $entities_to_remove = array();
+            // ----------------------------------------
+            // Get the most recent version of the datatree array
+            $current_datatree_array = parent::getDatatreeArray($em, true);
 
-            // Going to need id of theme element regardless
-            /** @var ThemeElement $theme_element */
-            $theme_element = $repo_theme_element->find($theme_element_id);
-            if ( $theme_element == null )
-                return parent::deletedEntityError('ThemeElement');
-            $em->refresh($theme_element);
+            // Perform various checks to ensure that this link request is valid
+            if ($local_datatype_id == $remote_datatype_id)
+                throw new \Exception("A Datatype can't be linked to itself");
+            if ($remote_datatype_id == $previous_remote_datatype_id)
+                throw new \Exception("Already linked to this Datatype");
 
-            $deleting = null;
+
+            if ( isset($current_datatree_array['descendant_of'][$remote_datatype_id]) && $current_datatree_array['descendant_of'][$remote_datatype_id] !== '' )
+                throw new \Exception("Not allowed to link to child Datatypes");
+
+            $grandparent_datatype_id = parent::getGrandparentDatatypeId($current_datatree_array, $local_datatype_id);
+            if ($remote_datatype_id == $grandparent_datatype_id)
+                throw new \Exception("Child Datatypes are not allowed to link to their parents");
+
+            if ( isset($current_datatree_array['linked_from'][$remote_datatype_id]) && in_array($local_datatype_id, $current_datatree_array['linked_from'][$remote_datatype_id]) )
+                throw new \Exception("Unable to link to the same Datatype multiple times");
+
+
+            if ($remote_datatype_id !== '') {
+                // If a link currently exists, remove it from the array for purposes of locating recursion
+                if ($previous_remote_datatype_id !== '') {
+                    $key = array_search($local_datatype_id, $current_datatree_array['linked_from'][$previous_remote_datatype_id]);
+                    unset( $current_datatree_array['linked_from'][$previous_remote_datatype_id][$key] );
+                }
+
+                // Determine whether this link would cause infinite rendering recursion
+                if ( self::willDatatypeLinkRecurse($current_datatree_array, $local_datatype_id, $remote_datatype_id) )
+                    throw new \Exception('Unable to link these two datatypes...rendering would become stuck in an infinite loop');
+            }
+
+
+            // ----------------------------------------
+            // Now that this link request is guaranteed to be valid...
+
+            // Locate and delete any existing LinkedDatatree entries for the previous link
+            if ($previous_remote_datatype_id !== '') {
+                $query = $em->createQuery(
+                   'SELECT grandparent.id AS grandparent_id, ldt.id AS ldt_id
+                    FROM ODRAdminBundle:DataRecord AS grandparent
+                    JOIN ODRAdminBundle:DataRecord AS ancestor WITH ancestor.grandparent = grandparent
+                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
+                    AND grandparent.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                )->setParameters( array('ancestor_datatype' => $local_datatype_id, 'descendant_datatype' => $previous_remote_datatype_id) );
+                $results = $query->getArrayResult();
+//print '<pre>'.print_r($results, true).'</pre>'; exit();
+
+                $ldt_ids = array();
+                $datarecords_to_recache = array();
+                foreach ($results as $result) {
+                    $dr_id = $result['grandparent_id'];
+                    $ldt_id = $result['ldt_id'];
+
+                    $datarecords_to_recache[ $dr_id ] = 1;
+                    $ldt_ids[] = $ldt_id;
+                }
+
+                if ( count($ldt_ids) > 0 ) {
+                    // Perform a DQL mass update to soft-delete all the LinkedDatatree entries
+                    $query = $em->createQuery(
+                       'UPDATE ODRAdminBundle:LinkedDataTree AS ldt
+                        SET ldt.deletedAt = :now, ldt.deletedBy = :user_id
+                        WHERE ldt.id IN (:ldt_ids)'
+                    );
+                    $parameters = array('now' => new \DateTime(), 'user_id' => $user->getId(), 'ldt_ids' => $ldt_ids);
+                    $query->execute($parameters);
+                }
+
+                $entities_to_remove = array();
+
+                // Soft-delete the old datatree entry
+                /** @var DataTree $datatree */
+                $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $local_datatype_id, 'descendant' => $previous_remote_datatype_id) );
+                if ($datatree !== null) {
+                    $datatree_meta = $datatree->getDataTreeMeta();
+
+                    $datatree->setDeletedBy($user);
+                    $em->persist($datatree);
+
+                    $entities_to_remove[] = $datatree;
+                    $entities_to_remove[] = $datatree_meta;
+                }
+
+                // Soft-delete the old theme_datatype entry
+                /** @var ThemeDataType $theme_datatype */
+                $theme_datatype = $theme_element->getThemeDataType()->first();
+                $theme_datatype->setDeletedBy($user);
+                $em->persist($theme_datatype);
+
+                $em->flush();
+                foreach ($entities_to_remove as $entity)
+                    $em->remove($entity);
+                $em->flush();
+
+
+                // Delete memcached key that stores linked datarecords for each of the affected datarecords
+                foreach ($datarecords_to_recache as $dr_id => $num)
+                    $memcached->delete($memcached_prefix.'.associated_datarecords_for_'.$dr_id);
+            }
+
+//throw new \Exception('do not continue');
+
+
+            $using_linked_type = 0;
             if ($remote_datatype_id !== '') {
                 // Create a link between the two datatypes
-                $deleting = false;
+                $using_linked_type = 1;
 
                 $datatree = new DataTree();
                 $datatree->setAncestor($local_datatype);
@@ -2407,98 +2246,11 @@ print '</pre>';
                 $em->persist($datatree_meta);
 
 
-                // Tie Field to ThemeElement
-                parent::ODR_addThemeElementFieldEntry($em, $user, $remote_datatype, null, $theme_element);
-
-                // Remove the previous link if necessary
-                if ($previous_remote_datatype_id !== '') {
-                    // Remove the datatree entry
-                    /** @var DataTree $datatree */
-                    $datatree = $repo_datatree->findOneBy( array("ancestor" => $local_datatype_id, "descendant" => $previous_remote_datatype_id) );
-                    if ($datatree !== null) {
-                        $datatree_meta = $datatree->getDataTreeMeta();
-
-                        $datatree->setDeletedBy($user);
-                        $em->persist($datatree);
-
-                        $entities_to_remove[] = $datatree_meta;
-                        $entities_to_remove[] = $datatree;
-                    }
-
-
-                    // Remove the linked datatree entries between these two datatypes as well
-                    $query = $em->createQuery(
-                       'SELECT ldt
-                        FROM ODRAdminBundle:LinkedDataTree AS ldt
-                        JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
-                        JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                        WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
-                        AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-                    )->setParameters( array('ancestor_datatype' => $local_datatype_id, 'descendant_datatype' => $previous_remote_datatype_id) );
-                    /** @var LinkedDataTree[] $results */
-                    $results = $query->getResult();
-
-                    foreach ($results as $ldt)
-                        $entities_to_remove[] = $ldt;
-
-
-                    // Remove the theme_element_field entry
-                    /** @var ThemeElementField $theme_element_field */
-                    $theme_element_field = $repo_theme_element_field->findOneBy( array("themeElement" => $theme_element_id, "dataType" => $previous_remote_datatype_id) );
-                    if ($theme_element_field !== null)
-                        $entities_to_remove[] = $theme_element_field;
-                }
-            }
-            else {
-                $deleting = true;
-
-                // Remove the datatree entry
-                /** @var DataTree $datatree */
-                $datatree = $repo_datatree->findOneBy( array("ancestor" => $local_datatype_id, "descendant" => $previous_remote_datatype_id) );
-                if ($datatree !== null) {
-                    $datatree_meta = $datatree->getDataTreeMeta();
-
-                    $datatree->setDeletedBy($user);
-                    $em->persist($datatree);
-
-                    $entities_to_remove[] = $datatree_meta;
-                    $entities_to_remove[] = $datatree;
-                }
-
-
-                // Remove the linked datatree entries between these two datatypes as well
-                $query = $em->createQuery(
-                   'SELECT ldt
-                    FROM ODRAdminBundle:LinkedDataTree AS ldt
-                    JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
-                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                    WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
-                    AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-                )->setParameters( array('ancestor_datatype' => $local_datatype_id, 'descendant_datatype' => $previous_remote_datatype_id) );
-                /** @var LinkedDataTree[] $results */
-                $results = $query->getResult();
-
-                foreach ($results as $ldt) 
-                    $entities_to_remove[] = $ldt;
-
-
-                // Remove the theme_element_field entry
-                /** @var ThemeElementField $theme_element_field */
-                $theme_element_field = $repo_theme_element_field->findOneBy( array("themeElement" => $theme_element_id, "dataType" => $previous_remote_datatype_id) );
-                if ($theme_element_field !== null)
-                    $entities_to_remove[] = $theme_element_field;
+                // Create a new theme_datatype entry between the local and the remote datatype
+                parent::ODR_addThemeDatatypeEntry($em, $user, $remote_datatype, $theme_element);
+                $em->flush();
             }
 
-            // Make all deletions
-            $em->flush();
-            foreach ($entities_to_remove as $entity)
-                $em->remove($entity);
-            $em->flush();
-
-
-            $using_linked_type = 1; // assume there will be a linked datatype
-            if ($deleting)
-                $using_linked_type = 0; // if a datatree entry was deleted, there is no longer a linked datatype
 
             if ($remote_datatype_id === '')
                 $remote_datatype_id = $previous_remote_datatype_id;
@@ -2510,11 +2262,10 @@ print '</pre>';
                 'linked_datatype_id' => $remote_datatype_id,
             );
 
-            // Schedule the cache for an update
-            $options = array();
-            $options['mark_as_updated'] = true;
-            parent::updateDatatypeCache($local_datatype->getId(), $options);
 
+            // TODO - update cached version directly?
+            $update_datatype = true;
+            parent::tmp_updateThemeCache($em, $theme_element->getTheme(), $user, $update_datatype);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -2529,6 +2280,75 @@ print '</pre>';
 
 
     /**
+     * Returns whether a potential link from $local_datatype_id to $remote_datatype_id would cause infinite
+     * loops in the template rendering.
+     *
+     * @param array $datatree_array
+     * @param integer $local_datatype_id   The id of the datatype attempting to become the "local" datatype
+     * @param integer $remote_datatype_id  The id of the datatype that could become the "remote" datatype
+     *
+     * @return boolean true if creating this link would cause infinite rendering recursion, false otherwise
+     */
+    private function willDatatypeLinkRecurse($datatree_array, $local_datatype_id, $remote_datatype_id)
+    {
+        // Easiest way to determine whether a link from local_datatype to remote_datatype will recurse is to see if a cycle emerges by adding said link
+        $datatree_array = $datatree_array['linked_from'];
+
+        // 1) Temporarily add a link from local_datatype to remote_datatype
+        if ( !isset($datatree_array[$remote_datatype_id]) )
+            $datatree_array[$remote_datatype_id] = array();
+        if ( !in_array($local_datatype_id, $datatree_array[$remote_datatype_id]) )
+            $datatree_array[$remote_datatype_id][] = $local_datatype_id;
+
+        // 2) Treat the datatree array as a graph, and, starting from $remote_datatype_id...
+        $is_cyclic = false;
+        foreach ($datatree_array[$remote_datatype_id] as $parent_datatype_id) {
+            // 3) ...run a depth-first search on the graph to see if a cycle can be located
+            if ( isset($datatree_array[$parent_datatype_id]) )
+                $is_cyclic = self::datatypeLinkRecursionWorker($datatree_array, $remote_datatype_id, $parent_datatype_id);
+
+            // 4) If a cycle was found, then adding a link from $local_datatype_id to $remote_datatype_id would cause rendering recursion...therefore, do not allow this link to be created
+            if ($is_cyclic)
+                return true;
+        }
+
+        // Otherwise, no cycle was found...adding a link from $local_datatype_id to $remote_datatype_id will not cause rendering recursion
+        return false;
+    }
+
+
+    /**
+     * Handles the recursive depth-first search needed for self::willDatatypeLinkRecurse()
+     *
+     * @param array $datatree_array
+     * @param integer $target_datatype_id
+     * @param integer $current_datatype_id
+     *
+     * @return boolean
+     */
+    private function datatypeLinkRecursionWorker($datatree_array, $target_datatype_id, $current_datatype_id)
+    {
+        $is_cyclic = false;
+        foreach ($datatree_array[$current_datatype_id] as $parent_datatype_id) {
+            // If we found $target_datatype_id in this part of the array, then we've managed to find a cycle
+            if ( $parent_datatype_id == $target_datatype_id )
+                return true;
+
+            // ...otherwise, continue the depth-first search
+            if ( isset($datatree_array[$parent_datatype_id]) )
+                $is_cyclic = self::datatypeLinkRecursionWorker($datatree_array, $target_datatype_id, $parent_datatype_id);
+
+            // If a cycle was found, return true
+            if ($is_cyclic)
+                return true;
+        }
+
+        // Otherwise, no cycles found in this section of the graph
+        return false;
+    }
+
+
+    /**
      * Builds and returns a list of available Render Plugins for a DataType or a DataField.
      *
      * TODO - this currently only reads plugin list from the database
@@ -2537,7 +2357,7 @@ print '</pre>';
      * @param integer $datafield_id The database id of the DataField that is potentially having its RenderPlugin changed, or null
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function plugindialogAction($datatype_id, $datafield_id, Request $request)
     {
@@ -2657,7 +2477,7 @@ print '</pre>';
      * @param integer $render_plugin_id The database id of the RenderPlugin to look up.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function pluginsettingsAction($datatype_id, $datafield_id, $render_plugin_id, Request $request)
     {
@@ -2977,7 +2797,7 @@ print '</pre>';
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function saverenderpluginsettingsAction(Request $request)
     {
@@ -3343,9 +3163,9 @@ print '</pre>';
      * @param integer $datatype_id The database id of the child DataType that needs to be re-rendered.
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
-    public function reloadchildAction($datatype_id, Request $request)
+    public function reloadchildAction($source_datatype_id, $datatype_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -3353,9 +3173,34 @@ print '</pre>';
         $return['d'] = '';
 
         try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $source_datatype */
+            $source_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($source_datatype_id);
+            if ($source_datatype == null)
+                return parent::deletedEntityError('Source Datatype');
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
             $return['d'] = array(
                 'datatype_id' => $datatype_id,
-                'html' => self::GetDisplayData($request, $datatype_id, 'child'),
+                'html' => self::GetDisplayData($source_datatype_id, 'child_datatype', $datatype_id, $request),
             );
         }
         catch (\Exception $e) {
@@ -3376,9 +3221,9 @@ print '</pre>';
      * @param integer $theme_element_id The database id of the ThemeElement that needs to be re-rendered.
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
-    public function reloadthemeelementAction($theme_element_id, Request $request)
+    public function reloadthemeelementAction($source_datatype_id, $theme_element_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -3386,10 +3231,43 @@ print '</pre>';
         $return['d'] = '';
 
         try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $source_datatype */
+            $source_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($source_datatype_id);
+            if ($source_datatype == null)
+                return parent::deletedEntityError('Source Datatype');
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ($theme_element == null)
+                return parent::deletedEntityError('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
             $datatype_id = null;
             $return['d'] = array(
                 'theme_element_id' => $theme_element_id,
-                'html' => self::GetDisplayData($request, $datatype_id, 'theme_element', $theme_element_id),
+                'html' => self::GetDisplayData($source_datatype_id, 'theme_element', $theme_element_id, $request),
             );
         }
         catch (\Exception $e) {
@@ -3410,9 +3288,9 @@ print '</pre>';
      * @param integer $datafield_id THe database id of the DataField that needs to be re-rendered.
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
-    public function reloaddatafieldAction($datafield_id, Request $request)
+    public function reloaddatafieldAction($source_datatype_id, $datafield_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -3420,10 +3298,39 @@ print '</pre>';
         $return['d'] = '';
 
         try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $source_datatype */
+            $source_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($source_datatype_id);
+            if ($source_datatype == null)
+                return parent::deletedEntityError('Source Datatype');
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                return parent::deletedEntityError('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
             $datatype_id = null;
             $return['d'] = array(
                 'datafield_id' => $datafield_id,
-                'html' => self::GetDisplayData($request, $datatype_id, 'datafield', $datafield_id),
+                'html' => self::GetDisplayData($source_datatype_id, 'datafield', $datafield_id, $request),
             );
         }
         catch (\Exception $e) {
@@ -3441,135 +3348,239 @@ print '</pre>';
     /**
      * Renders and returns the HTML for a DesignTemplate version of a DataType.
      *
+     * @param integer $source_datatype_id  The datatype that originally requested this Displaytemplate rendering
+     * @param string $template_name        One of 'default', 'child_datatype', 'theme_element', 'datafield'
+     * @param integer $target_id           If $template_name == 'default', then $target_id should be a top-level datatype id
+     *                                     If $template_name == 'child_datatype', then $target_id should be a child/linked datatype id
+     *                                     If $template_name == 'theme_element', then $target_id should be a theme_element id
+     *                                     If $template_name == 'datafield', then $target_id should be a datafield id
      * @param Request $request
-     * @param integer $datatype_id  Which datatype needs to be re-rendered...if $template_name == 'child', this is the id of a child datatype
-     * @param string $template_name One of 'default', 'child', 'theme_element', 'datafield'
-     * @param integer $other_id     If $template_name == 'theme_element', $other_id is a theme_element id...if $template_name == 'datafield', $other_id is a datafield id
      *
      * @return string
      */
-    private function GetDisplayData(Request $request, $datatype_id, $template_name = 'default', $other_id = null)
+    private function GetDisplayData($source_datatype_id, $template_name = 'default', $target_id, Request $request)
     {
+        // Don't need to check permissions
+
         // Required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-        $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
-        $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-        $templating = $this->get('templating');
+        $memcached = $this->get('memcached');
+        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
+        // Always bypass cache in dev mode?
+        $bypass_cache = false;
+        if ($this->container->getParameter('kernel.environment') === 'dev')
+            $bypass_cache = true;
 
-        /** @var User $user */
-        $user = $this->container->get('security.context')->getToken()->getUser();
+        // Going to need this a lot...
+        $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
 
-        $datatype = null;
-        $theme_element = null;
-        $datafield = null;
-        if ($datatype_id !== null) {
-            $datatype = $repo_datatype->find($datatype_id);
-        }
-        else if ($template_name == 'theme_element' && $other_id !== null) {
-            $theme_element = $repo_theme_element->find($other_id);
-            $datatype = $theme_element->getDataType();
-        }
-        else if ($template_name == 'datafield' && $other_id !== null) {
-            $datafield = $repo_datafield->find($other_id);
-            $datatype = $datafield->getDataType();
-        }
+
+        // Load required objects based on parameters
         /** @var DataType $datatype */
+        $datatype = null;
+        /** @var Theme $theme */
+        $theme = null;
+
+        /** @var DataType|null $child_datatype */
+        $child_datatype = null;
         /** @var ThemeElement|null $theme_element */
+        $theme_element = null;
         /** @var DataFields|null $datafield */
+        $datafield = null;
 
-        $indent = 0;
-        $is_link = 0;
-        $top_level = 1;
-        $short_form = false;
+        // Don't need to check whether these entities are deleted or not
+        if ($template_name == 'default') {
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($target_id);
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+        }
+        else if ($template_name == 'child_datatype') {
+            $child_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($target_id);
 
-        if ($template_name == 'child') {
-            // Determine if this is a 'child' render request for a top-level datatype
-            $query = $em->createQuery(
-               'SELECT dt
-                FROM ODRAdminBundle:DataTree dt
-                WHERE dt.is_link = 0 AND dt.deletedAt IS NULL AND dt.descendant = :datatype'
-            )->setParameters( array('datatype' => $datatype_id) );
-            $results = $query->getResult();
+            // Need to determine the top-level datatype to be able to load all necessary data for rendering this child datatype
+            if ( isset($datatree_array['descendant_of'][ $datatype->getId() ]) && $datatree_array['descendant_of'][ $datatype->getId() ] !== '' ) {
+                $child_datatype = $theme->getDataType();
+                $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $child_datatype->getId());
 
-            // If query found something nothing, then it's a top-level datatype
-            if ( count($results) == 0 )
-                $top_level = 1;
-            else
-                $top_level = 0;
+                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($grandparent_datatype_id);
+            }
         }
         else if ($template_name == 'theme_element') {
-            $is_link = 0;
-            $top_level = 0; // not going to be in a situation where this equal to 1 ever?
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($target_id);
+            $theme = $theme_element->getTheme();
+
+            // This could be a theme element from a child datatype...make sure objects get set properly if it is
+            $datatype = $theme->getDataType();
+            if ( isset($datatree_array['descendant_of'][ $datatype->getId() ]) && $datatree_array['descendant_of'][ $datatype->getId() ] !== '' ) {
+                $child_datatype = $theme->getDataType();
+                $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $child_datatype->getId());
+
+                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($grandparent_datatype_id);
+            }
+        }
+        else if ($template_name == 'datafield') {
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($target_id);
+
+            // This could be a datafield from a child datatype...make sure objects get set properly if it is
+            $datatype = $datafield->getDataType();
+            if ( isset($datatree_array['descendant_of'][ $datatype->getId() ]) && $datatree_array['descendant_of'][ $datatype->getId() ] !== '' ) {
+                $child_datatype = $theme->getDataType();
+                $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $child_datatype->getId());
+
+                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($grandparent_datatype_id);
+            }
         }
 
 
-        $html = null;
-        if ($template_name !== 'datafield') {
-$debug = true;
-$debug = false;
-if ($debug)
-    print '<pre>';
+        // ----------------------------------------
+        // Determine which datatypes/childtypes to load from the cache
+        $include_links = true;
+        $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype->getId()), $include_links);
 
-            $tree = parent::buildDatatypeTree($user, $theme, $datatype, $theme_element, $em, $is_link, $top_level, $short_form, $debug, $indent);
+//print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
 
-if ($debug)
-    print '</pre>';
+        // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+        $datatype_array = array();
+        foreach ($associated_datatypes as $num => $dt_id) {
+            $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
+            if ($bypass_cache || $datatype_data == null)
+                $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
 
-            // Going to need an array of fieldtype ids and fieldtype typenames for notifications about changing fieldtypes
-            $fieldtype_array = array();
-            /** @var FieldType[] $fieldtypes */
-            $fieldtypes = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
-            foreach ($fieldtypes as $fieldtype)
-                $fieldtype_array[ $fieldtype->getId() ] = $fieldtype->getTypeName();
+            foreach ($datatype_data as $dt_id => $data)
+                $datatype_array[$dt_id] = $data;
+        }
 
-            // Potentially need to warn user when changing fieldtype would cause loss of data
-            /** @var DataRecord $datarecords */
-            $datarecords = $em->getRepository('ODRAdminBundle:DataRecord')->findOneByDataType($datatype);
-            $has_datarecords = false;
-            if ($datarecords != null)
-                $has_datarecords = true;
+//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
-            $template = 'ODRAdminBundle:Displaytemplate:design_ajax.html.twig';
-            if ($template_name == 'child')
-                $template = 'ODRAdminBundle:Displaytemplate:design_area_child_load.html.twig';
-            else if ($template_name == 'theme_element')
-                $template = 'ODRAdminBundle:Displaytemplate:design_area_fieldarea.html.twig';
-            
+        // ----------------------------------------
+        // Going to need an array of fieldtype ids and fieldtype typenames for notifications about changing fieldtypes
+        $fieldtype_array = array();
+        /** @var FieldType[] $fieldtypes */
+        $fieldtypes = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
+        foreach ($fieldtypes as $fieldtype)
+            $fieldtype_array[ $fieldtype->getId() ] = $fieldtype->getTypeName();
+
+        // Store whether this datatype has datarecords..affects warnings when changing datafield fieldtypes
+        $query = $em->createQuery(
+           'SELECT COUNT(dr) AS dr_count
+            FROM ODRAdminBundle:DataRecord AS dr
+            WHERE dr.dataType = :datatype_id'
+        )->setParameters( array('datatype_id' => $datatype->getId()) );
+        $results = $query->getArrayResult();
+
+        $has_datarecords = false;
+        if ( $results[0]['dr_count'] > 0 )
+            $has_datarecords = true;
+
+
+        // ----------------------------------------
+        // Render the required version of the page
+        $templating = $this->get('templating');
+
+        $html = '';
+        if ($template_name == 'default') {
             $html = $templating->render(
-                $template,
+                'ODRAdminBundle:Displaytemplate:design_ajax.html.twig',
                 array(
+                    'datatype_array' => $datatype_array,
+                    'initial_datatype_id' => $datatype->getId(),
+                    'theme_id' => $theme->getId(),
+
                     'fieldtype_array' => $fieldtype_array,
-                    'datatype_tree' => $tree,
                     'has_datarecords' => $has_datarecords,
-                    'theme' => $theme,
                 )
             );
         }
-        else {
-            // Rendering a datafield doesn't require the entire tree...
-            $em->refresh($datafield);
-            //parent::ODR_checkThemeDataField($user, $datafield, $theme);
+        else if ($template_name == 'child_datatype') {
 
-            $query = $em->createQuery(
-               'SELECT tdf
-                FROM ODRAdminBundle:ThemeDataField tdf
-                WHERE tdf.dataFields = :datafield AND tdf.theme = :theme AND tdf.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield->getId(), 'theme' => $theme->getId()) );
-            $result = $query->getResult();
-            /** @var ThemeDataField $theme_datafield */
-            $theme_datafield = $result[0];
-            $em->refresh($theme_datafield);
+            // Set variables properly incase this was a theme_element for a child/linked datatype
+            $target_datatype_id = $datatype->getId();
+            $is_top_level = 1;
+            if ($child_datatype !== null) {
+                $target_datatype_id = $child_datatype->getId();
+                $is_top_level = 0;
+            }
+
+            // If the top-level datatype id found doesn't match the original datatype id of the design page, then this is a request for a linked datatype
+            $is_link = 0;
+            if ($source_datatype_id !== $datatype->getId())
+                $is_link = 1;
 
             $html = $templating->render(
-                'ODRAdminBundle:Displaytemplate:design_area_datafield.html.twig',
+                'ODRAdminBundle:Displaytemplate:design_childtype.html.twig',
                 array(
-                    'fieldtheme' => $theme_datafield,
-                    'field' => $datafield,
+                    'datatype_array' => $datatype_array,
+                    'target_datatype_id' => $target_datatype_id,
+                    'theme_id' => $theme->getId(),
+
+                    'is_link' => $is_link,
+                    'is_top_level' => $is_top_level,
+                )
+            );
+        }
+        else if ($template_name == 'theme_element') {
+
+            // Set variables properly incase this was a theme_element for a child/linked datatype
+            $target_datatype_id = $datatype->getId();
+            $is_top_level = 1;
+            if ($child_datatype !== null) {
+                $target_datatype_id = $child_datatype->getId();
+                $is_top_level = 0;
+            }
+
+            // If the top-level datatype id found doesn't match the original datatype id of the design page, then this is a request for a linked datatype
+            $is_link = 0;
+            if ($source_datatype_id != $datatype->getId())
+                $is_link = 1;
+
+            // design_fieldarea.html.twig attempts to render all theme_elements in the given theme...
+            // Since this is a request to only re-render one of them, unset all theme_elements in the theme other than the one the user wants to re-render
+            foreach ($datatype_array[ $datatype->getId() ]['themes'][ $theme->getId() ]['themeElements'] as $te_num => $te) {
+                if ( $te['id'] != $target_id )
+                    unset( $datatype_array[ $datatype->getId() ]['themes'][ $theme->getId() ]['themeElements'][$te_num] );
+            }
+
+//            print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
+
+            $html = $templating->render(
+                'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig',
+                array(
+                    'datatype_array' => $datatype_array,
+
+                    'target_datatype_id' => $target_datatype_id,
+                    'theme_id' => $theme->getId(),
+
+                    'is_top_level' =>  $is_top_level,
+                    'is_link' => $is_link,
+                )
+            );
+        }
+        else if ($template_name == 'datafield') {
+
+            // Locate the array versions of the requested datafield and its associated theme_datafield entry
+            $datafield_array = array();
+            $theme_datafield_array = array();
+
+            foreach ($datatype_array[ $datatype->getId() ]['themes'][ $theme->getId() ]['themeElements'] as $te_num => $te) {
+                foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                    if ( $tdf['dataField']['id'] == $datafield->getId() ) {
+                        $theme_datafield_array = $tdf;
+                        $datafield_array = $tdf['dataField'];
+                        break;
+                    }
+                }
+
+                if ( count($datafield_array) > 0 )
+                    break;
+            }
+
+            $html = $templating->render(
+                'ODRAdminBundle:Displaytemplate:design_datafield.html.twig',
+                array(
+                    'theme_datafield' => $theme_datafield_array,
+                    'datafield' => $datafield_array,
                 )
             );
         }
@@ -3586,7 +3597,7 @@ if ($debug)
      *                                   string
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function datatypepropertiesAction($datatype_id, $parent_datatype_id, Request $request)
     {
@@ -3870,7 +3881,7 @@ if ($debug)
      * @param integer $datafield_id The database id of the DataField being modified.
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function datafieldpropertiesAction($datafield_id, Request $request)
     {
@@ -3915,6 +3926,11 @@ if ($debug)
             if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
+
+            // Always bypass cache in dev mode
+            $bypass_cache = false;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
 
 
             // --------------------
@@ -4337,11 +4353,8 @@ print_r($errors);
                         if ( count($results) > 0 ) {
                             // ----------------------------------------
                             // Need to determine the top-level datatype this datafield belongs to, so other background processes won't attempt to render any part of it and disrupt the migration
-                            $top_level_datatype_id = $datafield->getDataType()->getId();
-                            $datatree_array = parent::getDatatreeArray($em);
-
-                            while ( isset($datatree_array['descendant_of'][$top_level_datatype_id]) && $datatree_array['descendant_of'][$top_level_datatype_id] !== '')
-                                $top_level_datatype_id = $datatree_array['descendant_of'][$top_level_datatype_id];
+                            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+                            $top_level_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datafield->getDataType()->getId());
 
 
                             // Get/create an entity to track the progress of this datafield migration
@@ -4554,108 +4567,12 @@ if ($force_slideout_reload)
 
 
     /**
-     * Loads/saves a Symfony ThemeElement properties Form.
-     * @deprecated
-     * 
-     * @param integer $theme_element_id The database id of the ThemeElement being modified.
-     * @param Request $request
-     * 
-     * @return Response TODO
-     */
-    public function themeelementpropertiesAction($theme_element_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = "";
-        $return['d'] = "";
-
-        try {
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
-            if ( $theme_element == null )
-                return parent::deletedEntityError('ThemeElement');
-            $datatype = $theme_element->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-            // Populate new DataFields form
-            $form = $this->createForm(new UpdateThemeElementForm($theme_element), $theme_element);
-
-            $values = array('med_width_old' => $theme_element->getCssWidthMed(), 'xl_width_old' => $theme_element->getCssWidthXL());
-
-            if ($request->getMethod() == 'POST') {
-                $form->bind($request, $theme_element);
-                $return['t'] = "html";
-                if ($form->isValid()) {
-                    // Save the changes made to the datatype
-                    $theme_element->setUpdatedBy($user);
-                    $em->persist($theme_element);
-                    $em->flush();
-
-                    $em->refresh($theme_element);
-                    $values['med_width_current'] = $theme_element->getCssWidthMed();
-                    $values['xl_width_current'] = $theme_element->getCssWidthXL();
-
-                    // Schedule the cache for an update
-                    $options = array();
-                    $options['mark_as_updated'] = true;
-
-                    parent::updateDatatypeCache($datatype->getId(), $options);
-                }
-/*
-                else {
-                    throw new \Exception( parent::ODR_getErrorMessages($form) );
-                }
-*/
-            }
-
-            $templating = $this->get('templating');
-            $return['d'] = $templating->render(
-                'ODRAdminBundle:Displaytemplate:theme_element_properties_form.html.twig', 
-                array(
-                    'form' => $form->createView(),
-                    'theme_element' => $theme_element,
-
-                )
-            );
-            $return['widths'] = $values;
-
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x82377020 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
      * Gets a list of all datafields that have been deleted from a given datatype.
      *
      * @param integer $datatype_id The database id of the DataType to lookup deleted DataFields from...
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function getdeleteddatafieldsAction($datatype_id, Request $request)
     {
@@ -4744,7 +4661,7 @@ if ($force_slideout_reload)
      *
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function undeleteDatafieldAction(Request $request)
     {
@@ -5008,7 +4925,7 @@ if ($debug)
      * @param integer $datatype_id The database id of the DataType to modify.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function publictypeAction($datatype_id, Request $request)
     {

@@ -37,6 +37,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ThemeController extends ODRCustomController
 {
+
     /**
      * Creates a new Theme entity.
      *
@@ -106,6 +107,8 @@ class ThemeController extends ODRCustomController
             if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
+
+            throw new \Exception('do not continue');
 
             // TODO - don't allow deletion of master theme
             // TODO - change is_default to a different theme upon theme deletion?
@@ -218,6 +221,7 @@ class ThemeController extends ODRCustomController
                 return parent::permissionDeniedError("edit");
             // --------------------
 
+            throw new \Exception('do not continue');
 
             // Populate new Theme form
             $submitted_data = new ThemeMeta();
@@ -245,14 +249,7 @@ $theme_form->addError( new FormError('do not save') );
                 }
                 else {
                     // Form validation failed
-                    // TODO - fix parent::ODR_getErrorMessages() to be consistent enough to use
-                    $return['r'] = 1;
-                    $errors = $theme_form->getErrors();
-
-                    $error_str = '';
-                    foreach ($errors as $num => $error)
-                        $error_str .= 'ERROR: '.$error->getMessage()."\n";
-
+                    $error_str = parent::ODR_getErrorMessages($theme_form);
                     throw new \Exception($error_str);
                 }
             }
@@ -326,7 +323,6 @@ $theme_form->addError( new FormError('do not save') );
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-
             // Create a new theme element entity
             /** @var Theme $theme */
             $data = parent::ODR_addThemeElementEntry($em, $user, $datatype, $theme);
@@ -341,13 +337,11 @@ $theme_form->addError( new FormError('do not save') );
             // Return the new theme element's id
             $return['d'] = array(
                 'theme_element_id' => $theme_element->getId(),
+                'datatype_id' => $datatype->getId(),
             );
 
             // TODO - update cached version directly?
-            // Schedule the cache for an update
-            $options = array();
-            $options['mark_as_updated'] = true;
-            parent::updateDatatypeCache($datatype->getId(), $options);
+            parent::tmp_updateThemeCache($em, $theme, $user);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -407,36 +401,22 @@ $theme_form->addError( new FormError('do not save') );
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-
             $entities_to_remove = array();
 
-            // Don't allow deletion of theme_element if it still has "stuff" in it
+            // Don't allow deletion of theme_element if it still has datafields or a child/linked datatype attached to it
             $theme_datatypes = $theme_element->getThemeDataType();
             $theme_datafields = $theme_element->getThemeDataFields();
 
             if ( count($theme_datatypes) > 0 || count($theme_datafields) > 0 ) {
-                // TODO - test that this works as expected...
-
+                // TODO - allow deletion of theme elements that still have datafields or a child/linked datatype attached to them?
                 $return['r'] = 1;
                 $return['t'] = 'ex';
                 $return['d'] = "This ThemeElement can't be removed...it still contains datafields or a datatype!";
             }
             else {
-                // Need to delete any theme_datatype entries in this theme_element
-                foreach ($theme_datatypes as $theme_datatype) {
-                    /** @var ThemeDataType $theme_datatype */
-                    $entities_to_remove[] = $theme_datatype;    // TODO - does ThemeDatatype need a 'deletedBy' column?
-                }
-
-                // Need to delete any theme_datafield entries in this theme_element
-                foreach ($theme_datafields as $theme_datafield) {
-                    /** @var ThemeDataField $theme_datafield */
-                    $entities_to_remove[] = $theme_datafield;    // TODO - does ThemeDatafield need a 'deletedBy' column?
-                }
-
                 // Save who is deleting this theme_element
                 $theme_element->setDeletedBy($user);
-//                $em->persist($theme_element);
+                $em->persist($theme_element);
 
                 // Also delete the meta entry
                 $theme_element_meta = $theme_element->getThemeElementMeta();
@@ -444,21 +424,15 @@ $theme_form->addError( new FormError('do not save') );
                 $entities_to_remove[] = $theme_element_meta;
                 $entities_to_remove[] = $theme_element;
 
-/*
                 // Commit deletes
                 $em->flush();
                 foreach ($entities_to_remove as $entity)
                     $em->remove($entity);
                 $em->flush();
-*/
 
-                // TODO - directly update cached version?
-                // Schedule the cache for an update
-                $options = array();
-                $options['mark_as_updated'] = true;
-                parent::updateDatatypeCache($datatype->getId(), $options);
+                // TODO - update cached version directly?
+                parent::tmp_updateThemeCache($em, $theme, $user);
             }
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -519,37 +493,35 @@ $theme_form->addError( new FormError('do not save') );
 
             // Populate new ThemeElement form
             $submitted_data = new ThemeElementMeta();
-            $theme_element_form = $this->createForm(new UpdateThemeElementForm($theme), $submitted_data);
+            $theme_element_form = $this->createForm(new UpdateThemeElementForm($theme_element), $submitted_data);
 
             if ($request->getMethod() == 'POST') {
                 $theme_element_form->bind($request, $submitted_data);
 
-$theme_element_form->addError( new FormError('do not save') );
+//$theme_element_form->addError( new FormError('do not save') );
 
                 if ( $theme_element_form->isValid() ) {
-                    // If a value in the form changed, create a new DataTree entity to store the change
+                    // Store the old and the new css widths for this ThemeElement
+                    $return['widths'] = array(
+                        'med_width_old' => $theme_element->getCssWidthMed(),
+                        'xl_width_old' => $theme_element->getCssWidthXL(),
+                        'med_width_current' => $submitted_data->getCssWidthMed(),
+                        'xl_width_current' => $submitted_data->getCssWidthXL(),
+                    );
+
+                    // If a value in the form changed, create a new ThemeElementMeta entity to store the change
                     $properties = array(
                         'cssWidthMed' => $submitted_data->getCssWidthMed(),
                         'cssWidthXL' => $submitted_data->getCssWidthXL(),
                     );
                     parent::ODR_copyThemeElementMeta($em, $user, $theme_element, $properties);
 
-                    // TODO - Schedule the cache for an update?
-                    $options = array();
-                    $options['mark_as_updated'] = true;
-//                    parent::updateDatatypeCache($datatype->getId(), $options);
-
+                    // TODO - update cached version directly?
+                    parent::tmp_updateThemeCache($em, $theme, $user);
                 }
                 else {
                     // Form validation failed
-                    // TODO - fix parent::ODR_getErrorMessages() to be consistent enough to use
-                    $return['r'] = 1;
-                    $errors = $theme_element_form->getErrors();
-
-                    $error_str = '';
-                    foreach ($errors as $num => $error)
-                        $error_str .= 'ERROR: '.$error->getMessage()."\n";
-
+                    $error_str = parent::ODR_getErrorMessages($theme_element_form);
                     throw new \Exception($error_str);
                 }
             }
@@ -557,15 +529,15 @@ $theme_element_form->addError( new FormError('do not save') );
             if ( $request->getMethod() == 'GET' ) {
                 // Create the form objects
                 $theme_element_meta = $theme_element->getThemeElementMeta();
-                $theme_element_form = $this->createForm(new UpdateThemeElementForm($theme), $theme_element_meta);
+                $theme_element_form = $this->createForm(new UpdateThemeElementForm($theme_element), $theme_element_meta);
 
                 // Return the slideout html
                 $templating = $this->get('templating');
                 $return['d'] = $templating->render(
                     'ODRAdminBundle:Theme:theme_element_properties_form.html.twig',
                     array(
-                        'theme' => $theme,
-                        'theme_form' => $theme_element_form->createView(),
+                        'theme_element' => $theme_element,
+                        'theme_element_form' => $theme_element_form->createView(),
                     )
                 );
             }
@@ -592,7 +564,155 @@ $theme_element_form->addError( new FormError('do not save') );
      */
     public function themeelementorderAction(Request $request)
     {
-        // from DisplaytemplateController
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $post = $_POST;
+//print_r($post);
+//return;
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
+
+            // Grab the first theme element just to check permissions
+            $theme_element = null;
+            foreach ($post as $index => $theme_element_id) {
+                $theme_element = $repo_theme_element->find($theme_element_id);
+                break;
+            }
+            /** @var ThemeElement $theme_element */
+
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+            $datatype = $theme->getDataType();
+            if ( $datatype == null )
+                return parent::deletedEntityError('DataType');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+
+            // If user has permissions, go through all of the theme elements updating their display order if needed
+            foreach ($post as $index => $theme_element_id) {
+                /** @var ThemeElement $theme_element */
+                $theme_element = $repo_theme_element->find($theme_element_id);
+                $em->refresh($theme_element);
+
+                if ( $theme_element->getDisplayOrder() !== $index ) {
+                    // Need to update this theme_element's display order
+                    $properties = array(
+                        'displayOrder' => $index
+                    );
+                    parent::ODR_copyThemeElementMeta($em, $user, $theme_element, $properties);
+                }
+            }
+
+            // TODO - update cached version directly?
+            parent::tmp_updateThemeCache($em, $theme, $user);
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x8283002 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Toggles public status of a theme element.
+     *
+     * @param integer $theme_element_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function themeelementpublicAction($theme_element_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ($theme_element == null)
+                return parent::deletedEntityError('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+            $datatype = $theme->getDataType();
+            if ( $datatype == null )
+                return parent::deletedEntityError('DataType');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+
+            // TODO - how will this affect datafield permissions?  users without view permissions should get can_view_field revoked?  what about permissions clash with can_view_type for child/linked datatype?
+//            throw new \Exception('do not continue');
+
+            if ($theme_element->isPublic()) {
+                // Make the theme element not-public
+                $properties = array(
+                    'publicDate' => new \DateTime('2200-00-00 00:00:00')
+                );
+                parent::ODR_copyThemeElementMeta($em, $user, $theme_element, $properties);
+            }
+            else {
+                // Make the theme element public
+                $properties = array(
+                    'publicDate' => new \DateTime()
+                );
+                parent::ODR_copyThemeElementMeta($em, $user, $theme_element, $properties);
+            }
+
+            // TODO - update cached version directly?
+            parent::tmp_updateThemeCache($em, $theme, $user);
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x65828302 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
@@ -685,6 +805,7 @@ $theme_element_form->addError( new FormError('do not save') );
                 return parent::permissionDeniedError("edit");
             // --------------------
 
+            throw new \Exception('do not continue');
 
             // Populate new ThemeDataField form
             $submitted_data = new ThemeDataField();
@@ -708,21 +829,12 @@ $theme_datafield_form->addError( new FormError('do not save') );
                     $widths['med_width_current'] = $new_theme_datafield->getCssWidthMed();
                     $widths['xl_width_current'] = $new_theme_datafield->getCssWidthXL();
 
-                    // TODO - Schedule the cache for an update?
-                    $options = array();
-                    $options['mark_as_updated'] = true;
-//                    parent::updateDatatypeCache($datatype->getId(), $options);
+                    // TODO - update cached version directly?
+                    parent::tmp_updateThemeCache($em, $theme, $user);
                 }
                 else {
                     // Form validation failed
-                    // TODO - fix parent::ODR_getErrorMessages() to be consistent enough to use
-                    $return['r'] = 1;
-                    $errors = $theme_datafield_form->getErrors();
-
-                    $error_str = '';
-                    foreach ($errors as $num => $error)
-                        $error_str .= 'ERROR: '.$error->getMessage()."\n";
-
+                    $error_str = parent::ODR_getErrorMessages($theme_datafield_form);
                     throw new \Exception($error_str);
                 }
             }
@@ -767,7 +879,15 @@ $theme_datafield_form->addError( new FormError('do not save') );
             if ($theme_datatype == null)
                 return parent::deletedEntityError('ThemeDatatype');
 
-            $datatype = $theme_datatype->getDataType();
+            $theme_element = $theme_datatype->getThemeElement();
+            if ($theme_element == null)
+                return parent::deletedEntityError('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+            $datatype = $theme->getDataType();
             if ($datatype == null)
                 return parent::deletedEntityError('Datatype');
 
@@ -782,8 +902,9 @@ $theme_datafield_form->addError( new FormError('do not save') );
                 return parent::permissionDeniedError("edit");
             // --------------------
 
+            throw new \Exception('do not continue');
 
-            // Populate new ThemeDataField form
+            // Populate new ThemeDataType form
             $submitted_data = new ThemeDataType();
             $theme_datatype_form = $this->createForm(new UpdateThemeDatatypeForm($theme_datatype), $submitted_data);
 
@@ -799,21 +920,12 @@ $theme_datatype_form->addError( new FormError('do not save') );
                     );
                     parent::ODR_copyThemeDatatype($em, $user, $theme_datatype, $properties);
 
-                    // TODO - Schedule the cache for an update?
-                    $options = array();
-                    $options['mark_as_updated'] = true;
-//                    parent::updateDatatypeCache($datatype->getId(), $options);
+                    // TODO - update cached version directly?
+                    parent::tmp_updateThemeCache($em, $theme, $user);
                 }
                 else {
                     // Form validation failed
-                    // TODO - fix parent::ODR_getErrorMessages() to be consistent enough to use
-                    $return['r'] = 1;
-                    $errors = $theme_datatype_form->getErrors();
-
-                    $error_str = '';
-                    foreach ($errors as $num => $error)
-                        $error_str .= 'ERROR: '.$error->getMessage()."\n";
-
+                    $error_str = parent::ODR_getErrorMessages($theme_datatype_form);
                     throw new \Exception($error_str);
                 }
             }

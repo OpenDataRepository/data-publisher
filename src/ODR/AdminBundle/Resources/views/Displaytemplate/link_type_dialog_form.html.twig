@@ -1,14 +1,30 @@
+{% spaceless %}
+
     <!-- Link DataType Dialog Form -->
     <form class="ODRLinkDatatypeForm pure-form pure-form-aligned full validate" id="LinkDatatypeForm" action="{{ path('odr_design_link_datatype') }}" method="post">
 
         <input type="hidden" name="theme_element_id" value="{{ theme_element.id }}" />
         <input type="hidden" name="local_datatype_id" value="{{ local_datatype.id }}" />
-        <input type="hidden" name="previous_remote_datatype" value="{% if remote_datatype != null %}{{ remote_datatype.id }}{% endif %}" />
+        <input type="hidden" id="ODRLinkDatatypeForm_previous" name="previous_remote_datatype" value="{% if remote_datatype != null %}{{ remote_datatype.id }}{% endif %}" />
 
-        <fieldset>
+{% if remote_datatype != null and has_linked_datarecords %}
+        {# notify that the datatype doesn't have an external id field #}
+        <div class="pure-u-1">
+            <div>
+                <span class="pure-u-2-24"><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
+                <span class="pure-u-22-24">Several Datarecords of the local Datatype "{{ local_datatype.getShortName }}" are currently connected to Datarecords of the remote Datatype "{{ remote_datatype.getShortName }}".</span>
+            </div>
+            <div>
+                <span class="pure-u-2-24"><i class="fa fa-lg fa-cog Pointer ODRLinkDatatypeAnalyze"></i></span>
+                <span class="pure-u-22-24">Click the icon to see which connections would be deleted if the local Datatype is unlinked from the remote Datatype.</span>
+            </div>
+        </div>
+{% endif %}
+
+        <fieldset style="margin-top: 5px;">
             <div class="pure-control-group">
                 <label for="selected_datatype">
-                    <strong>DataType Short Name:</strong>
+                    <strong>DataType Name:</strong>
                 </label>
                 <select name="selected_datatype" id="selected_datatype">
                     <option value=""></option>
@@ -24,19 +40,37 @@
         </fieldset>
     </form>
 
-    <button type="button" class="pure-button ODRCancelButton">Cancel</button>
-    <button type="button" class="pure-button pure-button-primary ODRSubmitButton">Link Data Type</button>
+    <div style="margin-top: 5px;">
+        <button type="button" class="pure-button ODRCancelButton">Cancel</button>
+        <button type="button" id="ODRLinkDatatypeFormSubmit" class="pure-button pure-button-primary ODRSubmitButton" disabled>Link Data Type</button>
+    </div>
 
     <script>
         $(function() {
+{% if remote_datatype != null and has_linked_datarecords %}
+            $(".ODRLinkDatatypeAnalyze").unbind('click').click(function() {
+                var url = "#{{ path( 'odr_design_analyze_datarecord_links', {'local_datatype_id': local_datatype.id, 'remote_datatype_id': remote_datatype.id }) }}";
+
+                window.open(url, "_blank");
+            });
+{% endif %}
+
+            // Disable submission if already linked to current selection
+            $("#selected_datatype").unbind('change').change(function() {
+                var current_remote_datatype = $("#ODRLinkDatatypeForm_previous").val();
+                if ( $(this).val() == current_remote_datatype )
+                    $("#ODRLinkDatatypeFormSubmit").attr('disabled', 'disabled');
+                else
+                    $("#ODRLinkDatatypeFormSubmit").removeAttr('disabled');
+            });
 
             $("#dialog_link_datatype").dialog({
                 autoOpen: false,
                 modal: true,
-                width: 400,
+                width: 500,
                 open: function() {
                     $(this).parent().css('overflow', 'visible');
-                },
+                }
             });
             $("#dialog_link_datatype").find('.ODRSubmitButton').click(function() {
                 var $el = $(this).parents('.ui-dialog-content');
@@ -66,3 +100,5 @@
         });
 */
     </script>
+
+{% endspaceless %}

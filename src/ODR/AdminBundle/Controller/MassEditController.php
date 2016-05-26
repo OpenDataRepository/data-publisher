@@ -208,7 +208,7 @@ class MassEditController extends ODRCustomController
         parent::filterByUserPermissions($datatype_id, $datatype_array, $datarecord_data, $datatype_permissions, $datafield_permissions);
 
 
-        // Render the CSVExport page
+        // Render the MassEdit page
         $templating = $this->get('templating');
         $html = $templating->render(
             'ODRAdminBundle:MassEdit:massedit_ajax.html.twig',
