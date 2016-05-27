@@ -786,7 +786,7 @@ print '</pre>';
     /**
      * Updates the display order of DataFields inside a ThemeElement, and/or moves the DataField to a new ThemeElement.
      * @deprecated
-     * 
+     *
      * @param integer $initial_theme_element_id The database id of the ThemeElement the DataField was in before being moved.
      * @param integer $ending_theme_element_id  The database id of the ThemeElement the DataField is in after being moved.
      * @param Request $request
@@ -1188,12 +1188,12 @@ print '</pre>';
             $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find('1');
 
             // Create the datafield
-            $objects = parent::ODR_addDataFieldsEntry($em, $user, $datatype, $fieldtype, $render_plugin);
+            $objects = parent::ODR_addDataField($em, $user, $datatype, $fieldtype, $render_plugin);
             /** @var DataFields $datafield */
             $datafield = $objects['datafield'];
 
             // Tie the datafield to the theme element
-            $theme_datafield = parent::ODR_addThemeDataFieldEntry($em, $user, $datafield, $theme_element);
+            $theme_datafield = parent::ODR_addThemeDataField($em, $user, $datafield, $theme_element);
             $em->persist($theme_datafield);
 
             // Save changes
@@ -1276,13 +1276,13 @@ print '</pre>';
 
 
             // Create the new datafield using the same fieldtype as the old datafield
-            $objects = parent::ODR_addDataFieldsEntry($em, $user, $datatype, $old_datafield->getFieldType(), $render_plugin);
+            $objects = parent::ODR_addDataField($em, $user, $datatype, $old_datafield->getFieldType(), $render_plugin);
             /** @var DataFields $new_datafield */
             $new_datafield = $objects['datafield'];
 
             // Attach the new datafield to the correct place in the layout
             $new_theme_element_field = parent::ODR_addThemeElementFieldEntry($em, $user, null, $new_datafield, $theme_element);
-            $new_theme_datafield = parent::ODR_addThemeDataFieldEntry($em, $user, $new_datafield, $theme);
+            $new_theme_datafield = parent::ODR_addThemeDataField($em, $user, $new_datafield, $theme);
 
             // Copy widths of old datafield over to new datafield
             $new_theme_datafield->setCssWidthMed( $old_theme_datafield->getCssWidthMed() );
@@ -1469,7 +1469,7 @@ print '</pre>';
 
     /**
      * Updates the display order of the DataField's associated RadioOption entities.
-     * 
+     *
      * @param integer $datafield_id      The database id of the DataField that is having its RadioOption entities sorted.
      * @param boolean $alphabetical_sort Whether to order the RadioOptions alphabetically or in some user-specified order.
      * @param Request $request
@@ -1760,6 +1760,7 @@ print '</pre>';
             $datatype_meta->setBackgroundImageField(null);
 
             $datatype_meta->setCreatedBy($user);
+            $datatype_meta->setUpdatedBy($user);
             $em->persist($datatype_meta);
 
 
@@ -1810,7 +1811,7 @@ print '</pre>';
 
             // ----------------------------------------
             // Create a new ThemeDatatype entry to let the renderer know it has to render a child datatype in this ThemeElement
-            $theme_datatype = parent::ODR_addThemeDatatypeEntry($em, $user, $child_datatype, $theme_element);
+            $theme_datatype = parent::ODR_addThemeDatatype($em, $user, $child_datatype, $theme_element);
             $em->flush($theme_datatype);
 
 
@@ -2039,7 +2040,8 @@ print '</pre>';
 
     /**
      * Parses a $_POST request to create/delete a link from a 'local' DataType to a 'remote' DataType.
-     * If linked, DataRecords of the 'local' DataType will have the option to link to DataRecords of the 'remote' DataType.
+     * If linked, DataRecords of the 'local' DataType will have the option to link to DataRecords of the 'remote'
+     * DataType.
      * 
      * @param Request $request
      * 
@@ -2247,7 +2249,7 @@ print '</pre>';
 
 
                 // Create a new theme_datatype entry between the local and the remote datatype
-                parent::ODR_addThemeDatatypeEntry($em, $user, $remote_datatype, $theme_element);
+                parent::ODR_addThemeDatatype($em, $user, $remote_datatype, $theme_element);
                 $em->flush();
             }
 
@@ -2353,8 +2355,8 @@ print '</pre>';
      *
      * TODO - this currently only reads plugin list from the database
      * 
-     * @param integer $datatype_id  The database id of the DataType that is potentially having its RenderPlugin changed, or null
-     * @param integer $datafield_id The database id of the DataField that is potentially having its RenderPlugin changed, or null
+     * @param integer|null $datatype_id  The id of the Datatype that might be having its RenderPlugin changed
+     * @param integer|null $datafield_id The id of the Datafield that might be having its RenderPlugin changed
      * @param Request $request
      * 
      * @return Response
@@ -2471,10 +2473,10 @@ print '</pre>';
 
     /**
      * Loads and renders required DataFields and plugin options for the selected Render Plugin.
-     * 
-     * @param integer $datatype_id      The database id of the DataType that is potentially having its RenderPlugin changed, or null
-     * @param integer $datafield_id     The database id of the DataField that is potentially having its RenderPlugin changed, or null
-     * @param integer $render_plugin_id The database id of the RenderPlugin to look up.
+     *
+     * @param integer|null $datatype_id  The id of the Datatype that might be having its RenderPlugin changed
+     * @param integer|null $datafield_id The id of the Datafield that might be having its RenderPlugin changed
+     * @param integer $render_plugin_id  The database id of the RenderPlugin to look up.
      * @param Request $request
      * 
      * @return Response
@@ -2850,9 +2852,6 @@ print '</pre>';
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
             $repo_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin');
             $repo_render_plugin_fields = $em->getRepository('ODRAdminBundle:RenderPluginFields');
@@ -2865,7 +2864,7 @@ print '</pre>';
             $reload_datatype = false;
 
             if ($local_datafield_id == 0) {
-                $datatype = $repo_datatype->find($local_datatype_id);
+                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($local_datatype_id);
                 if ( $datatype == null )
                     return parent::deletedEntityError('DataType');
             }
@@ -2930,9 +2929,7 @@ print '</pre>';
             // ----------------------------------------
             // Create any new datafields required
             /** @var Theme $theme */
-            $theme = $repo_theme->find(1);
-            /** @var Theme $search_theme */
-            $search_theme = $repo_theme->find(2);   // TODO - other themes?
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
 
             $theme_element = null;
             foreach ($plugin_fieldtypes as $rpf_id => $ft_id) {
@@ -2941,25 +2938,24 @@ print '</pre>';
 
                 // Create a single new ThemeElement to store the new datafields in, if necessary
                 if ($theme_element == null) {
-                    $theme_element = parent::ODR_addThemeElementEntry($em, $user, $datatype, $theme);
-
-                    $em->flush();
-                    $em->refresh($theme_element);
+                    $data = parent::ODR_addThemeElement($em, $user, $datatype, $theme);
+                    $theme_element = $data['theme_element'];
+                    //$theme_element_meta = $data['theme_element_meta'];
                 }
 
                 // Load information for the new datafield
                 /** @var RenderPlugin $default_render_plugin */
                 $default_render_plugin = $repo_render_plugin->find(1);
                 /** @var FieldType $fieldtype */
-                $fieldtype = $repo_fieldtype->find($ft_id);
+                $fieldtype = $em->getRepository('ODRAdminBundle:FieldType')->find($ft_id);
                 if ($fieldtype == null)
                     throw new \Exception('Invalid Form');
                 /** @var RenderPluginFields $rpf */
                 $rpf = $repo_render_plugin_fields->find($rpf_id);
 
 
-                // Create the Datafield and set some properties from the render plugin
-                $objects = parent::ODR_addDataFieldsEntry($em, $user, $datatype, $fieldtype, $default_render_plugin);
+                // Create the Datafield and set basic properties from the render plugin settings
+                $objects = parent::ODR_addDataField($em, $user, $datatype, $fieldtype, $default_render_plugin);
                 /** @var DataFields $datafield */
                 $datafield = $objects['datafield'];
                 /** @var DataFieldsMeta $datafield_meta */
@@ -2969,19 +2965,18 @@ print '</pre>';
                 $datafield_meta->setDescription( $rpf->getDescription() );
                 $em->persist($datafield_meta);
 
-                // Also need to create a ThemeElementField...
-                parent::ODR_addThemeElementFieldEntry($em, $user, null, $datafield, $theme_element);
 
-                // ...and a ThemeDataField
-                parent::ODR_addThemeDataFieldEntry($em, $user, $datafield, $theme);
-                parent::ODR_addThemeDataFieldEntry($em, $user, $datafield, $search_theme);
-
-                $em->flush();
+                // Attach the new datafield to the previously created theme_element
+                parent::ODR_addThemeDataField($em, $user, $datafield, $theme_element);
 
                 // Now that the datafield exists, update the plugin map
                 $em->refresh($datafield);
                 $plugin_map[$rpf_id] = $datafield->getId();
             }
+
+            // If new datafields created, flush entity manager to save the theme_element and datafield meta entries
+            if ($reload_datatype)
+                $em->flush();
 
 
             // ----------------------------------------
@@ -2992,9 +2987,6 @@ print '</pre>';
                     'renderPlugin' => $render_plugin->getId()
                 );
                 parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
-
-                $datatype->setUpdatedBy($user);
-                $em->persist($datatype);
             }
             else if ($render_plugin->getPluginType() >= 2 && $datafield != null) {
                 $properties = array(
@@ -3007,7 +2999,7 @@ print '</pre>';
             // ...delete the old render plugin instance object if we changed render plugins
             $render_plugin_instance = null;
             if ($render_plugin_instance_id != '')
-                $render_plugin_instance = $repo_render_plugin_instance->findOneBy(array("id" => $render_plugin_instance_id));
+                $render_plugin_instance = $repo_render_plugin_instance->findOneBy( array("id" => $render_plugin_instance_id) );
             /** @var RenderPluginInstance|null $render_plugin_instance */
 
             if ( $previous_plugin_id != $selected_plugin_id && $render_plugin_instance != null) {
@@ -3037,6 +3029,7 @@ print '</pre>';
 
             $results = $query->getResult();
             $em->getFilters()->enable('softdeleteable');    // Re-enable the filter
+
 
             if ( count($results) > 0 ) {
                 // Un-delete the previous render plugin instance and use that
@@ -3071,12 +3064,15 @@ print '</pre>';
                     $render_plugin_instance->setUpdatedBy($user);
                     $em->persist($render_plugin_instance);
                     $em->flush();
+                    $em->refresh($render_plugin_instance);
                 }
+                /** @var RenderPluginInstance $render_plugin_instance */
 
                 // Save the field mapping
                 foreach ($plugin_map as $rpf_id => $df_id) {
                     // Attempt to locate the mapping for this field in this instance
-                    $render_plugin_map = $repo_render_plugin_map->findOneBy( array('renderPluginInstance' => $render_plugin_instance, 'renderPluginFields' => $rpf_id) );
+                    /** @var RenderPluginMap $render_plugin_map */
+                    $render_plugin_map = $repo_render_plugin_map->findOneBy( array('renderPluginInstance' => $render_plugin_instance->getId(), 'renderPluginFields' => $rpf_id) );
 
                     // If it doesn't exist, create it
                     if ($render_plugin_map == null) {
@@ -3136,6 +3132,7 @@ print '</pre>';
                 'reload_datatype' => $reload_datatype,
             );
 
+/*
             // Schedule the cache for an update
             if ($datatype == null)
                 $datatype = $datafield->getDataType();
@@ -3144,6 +3141,9 @@ print '</pre>';
             $options['mark_as_updated'] = true;
 
             parent::updateDatatypeCache($datatype->getId(), $options);
+*/
+            $update_datatype = true;
+            parent::tmp_updateThemeCache($em, $theme, $user, $update_datatype);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -3365,6 +3365,9 @@ print '</pre>';
         // Required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
+        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+        $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+
         $memcached = $this->get('memcached');
         $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
         $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -3393,18 +3396,22 @@ print '</pre>';
 
         // Don't need to check whether these entities are deleted or not
         if ($template_name == 'default') {
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($target_id);
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            $datatype = $repo_datatype->find($target_id);
+            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
         }
         else if ($template_name == 'child_datatype') {
-            $child_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($target_id);
+            $child_datatype = $repo_datatype->find($target_id);
+            $theme = $repo_theme->findOneBy( array('dataType' => $child_datatype->getId(), 'themeType' => 'master') );
 
             // Need to determine the top-level datatype to be able to load all necessary data for rendering this child datatype
-            if ( isset($datatree_array['descendant_of'][ $datatype->getId() ]) && $datatree_array['descendant_of'][ $datatype->getId() ] !== '' ) {
-                $child_datatype = $theme->getDataType();
+            if ( isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) && $datatree_array['descendant_of'][ $child_datatype->getId() ] !== '' ) {
                 $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $child_datatype->getId());
 
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($grandparent_datatype_id);
+                $datatype = $repo_datatype->find($grandparent_datatype_id);
+            }
+            else if ( !isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) || $datatree_array['descendant_of'][ $child_datatype->getId() ] == '' ) {
+                // Was actually a re-render request for a top-level datatype...re-rendering should still work properly if various flags are set right
+                $datatype = $child_datatype;
             }
         }
         else if ($template_name == 'theme_element') {
@@ -3417,7 +3424,7 @@ print '</pre>';
                 $child_datatype = $theme->getDataType();
                 $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $child_datatype->getId());
 
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($grandparent_datatype_id);
+                $datatype = $repo_datatype->find($grandparent_datatype_id);
             }
         }
         else if ($template_name == 'datafield') {
@@ -3429,7 +3436,7 @@ print '</pre>';
                 $child_datatype = $theme->getDataType();
                 $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $child_datatype->getId());
 
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($grandparent_datatype_id);
+                $datatype = $repo_datatype->find($grandparent_datatype_id);
             }
         }
 
@@ -3496,17 +3503,18 @@ print '</pre>';
         else if ($template_name == 'child_datatype') {
 
             // Set variables properly incase this was a theme_element for a child/linked datatype
-            $target_datatype_id = $datatype->getId();
+            $target_datatype_id = $child_datatype->getId();
             $is_top_level = 1;
-            if ($child_datatype !== null) {
-                $target_datatype_id = $child_datatype->getId();
+            if ($child_datatype->getId() !== $datatype->getId())
                 $is_top_level = 0;
-            }
+
 
             // If the top-level datatype id found doesn't match the original datatype id of the design page, then this is a request for a linked datatype
             $is_link = 0;
-            if ($source_datatype_id !== $datatype->getId())
+            if ($source_datatype_id != $datatype->getId()) {
+                $is_top_level = 0;
                 $is_link = 1;
+            }
 
             $html = $templating->render(
                 'ODRAdminBundle:Displaytemplate:design_childtype.html.twig',

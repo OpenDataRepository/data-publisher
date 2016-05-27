@@ -82,7 +82,7 @@ class ODRCustomController extends Controller
         $last_updated_by = $meta_entry->getUpdatedBy();
 
         // If this change is being made by a different user, create a new meta entry
-        if ( $last_updated_by->getId() !== $user->getId() )
+        if ( $last_updated == null || $last_updated_by == null || $last_updated_by->getId() !== $user->getId() )
             return true;
 
         // If change was made over an hour ago, create a new meta entry
@@ -2515,7 +2515,7 @@ if ($debug)
 
         // If the entity doesn't exist, create it
         if ($theme_datatype == null) {
-            self::ODR_addThemeDatatypeEntry($em, $user, $datatype, $theme);
+            self::ODR_addThemeDatatype($em, $user, $datatype, $theme);
             $em->flush();
         }
     }
@@ -2539,7 +2539,7 @@ if ($debug)
 
         // If the entity doesn't exist, create it
         if ($theme_datafield == null) {
-            self::ODR_addThemeDataFieldEntry($em, $user, $datafield, $theme);
+            self::ODR_addThemeDataField($em, $user, $datafield, $theme);
             $em->flush();
         }
     }
@@ -3526,99 +3526,113 @@ if ($debug)
 
         // Need to do additional checking in case the mentioned datafields were null beforehand
         if ( isset($properties['externalIdField']) && !($properties['externalIdField'] == null || $properties['externalIdField'] == -1) && $datatype->getExternalIdField() == null )
-//            print 'external id field changed from null'."\n";
             $changes_made = true;
         if ( isset($properties['nameField']) && !($properties['nameField'] == null || $properties['nameField'] == -1) && $datatype->getNameField() == null )
-//            print 'name field changed from null'."\n";
             $changes_made = true;
         if ( isset($properties['sortField']) && !($properties['sortField'] == null || $properties['sortField'] == -1) && $datatype->getSortField() == null )
-//            print 'sort field changed from null'."\n";
             $changes_made = true;
         if ( isset($properties['backgroundImageField']) && !($properties['backgroundImageField'] == null || $properties['backgroundImageField'] == -1) && $datatype->getBackgroundImageField() == null )
-//            print 'background image field changed from null'."\n";
             $changes_made = true;
 
         if (!$changes_made)
             return $old_meta_entry;
 
 
-        // Create a new meta entry and copy the old entry's data over
-        $datatype_meta = new DataTypeMeta();
-        $datatype_meta->setDataType($datatype);
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_datatype_meta = null;
+        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+            // Create a new meta entry and copy the old entry's data over
+            $remove_old_entry = true;
 
-        $datatype_meta->setRenderPlugin( $old_meta_entry->getRenderPlugin() );
-        $datatype_meta->setExternalIdField( $old_meta_entry->getExternalIdField() );
-        $datatype_meta->setNameField( $old_meta_entry->getNameField() );
-        $datatype_meta->setSortField( $old_meta_entry->getSortField() );
-        $datatype_meta->setBackgroundImageField( $old_meta_entry->getBackgroundImageField() );
+            // Create a new meta entry and copy the old entry's data over
+            $new_datatype_meta = new DataTypeMeta();
+            $new_datatype_meta->setDataType($datatype);
 
-        $datatype_meta->setSearchSlug( $old_meta_entry->getSearchSlug() );
-        $datatype_meta->setShortName( $old_meta_entry->getShortName() );
-        $datatype_meta->setLongName( $old_meta_entry->getLongName() );
-        $datatype_meta->setDescription( $old_meta_entry->getDescription() );
-        $datatype_meta->setXmlShortName( $old_meta_entry->getXmlShortName() );
+            $new_datatype_meta->setRenderPlugin( $old_meta_entry->getRenderPlugin() );
+            $new_datatype_meta->setExternalIdField( $old_meta_entry->getExternalIdField() );
+            $new_datatype_meta->setNameField( $old_meta_entry->getNameField() );
+            $new_datatype_meta->setSortField( $old_meta_entry->getSortField() );
+            $new_datatype_meta->setBackgroundImageField( $old_meta_entry->getBackgroundImageField() );
 
-        $datatype_meta->setUseShortResults( $old_meta_entry->getUseShortResults() );
-        $datatype_meta->setDisplayType( $old_meta_entry->getDisplayType() );
-        $datatype_meta->setPublicDate( $old_meta_entry->getPublicDate() );
+            $new_datatype_meta->setSearchSlug( $old_meta_entry->getSearchSlug() );
+            $new_datatype_meta->setShortName( $old_meta_entry->getShortName() );
+            $new_datatype_meta->setLongName( $old_meta_entry->getLongName() );
+            $new_datatype_meta->setDescription( $old_meta_entry->getDescription() );
+            $new_datatype_meta->setXmlShortName( $old_meta_entry->getXmlShortName() );
 
-        $datatype_meta->setCreatedBy($user);
-        $datatype_meta->setCreated( new \DateTime() );
+            $new_datatype_meta->setUseShortResults( $old_meta_entry->getUseShortResults() );
+            $new_datatype_meta->setDisplayType( $old_meta_entry->getDisplayType() );
+            $new_datatype_meta->setPublicDate( $old_meta_entry->getPublicDate() );
+
+            $new_datatype_meta->setCreatedBy($user);
+        }
+        else {
+            // Update the existing meta entry
+            $new_datatype_meta = $old_meta_entry;
+        }
+
 
         // Set any new properties
         if ( isset($properties['renderPlugin']) )
-            $datatype_meta->setRenderPlugin( $em->getRepository('ODRAdminBundle:RenderPlugin')->find( $properties['renderPlugin'] ) );
+            $new_datatype_meta->setRenderPlugin( $em->getRepository('ODRAdminBundle:RenderPlugin')->find( $properties['renderPlugin'] ) );
 
         if ( isset($properties['externalIdField']) ) {
             if ($properties['externalIdField'] == null || $properties['externalIdField'] == -1)
-                $datatype_meta->setExternalIdField(null);
+                $new_datatype_meta->setExternalIdField(null);
             else
-                $datatype_meta->setExternalIdField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['externalIdField']) );
+                $new_datatype_meta->setExternalIdField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['externalIdField']) );
         }
         if ( isset($properties['nameField']) ) {
             if ($properties['nameField'] == null || $properties['nameField'] == -1)
-                $datatype_meta->setNameField(null);
+                $new_datatype_meta->setNameField(null);
             else
-                $datatype_meta->setNameField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['nameField']) );
+                $new_datatype_meta->setNameField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['nameField']) );
         }
         if ( isset($properties['sortField']) ) {
             if ($properties['sortField'] == null || $properties['sortField'] == -1)
-                $datatype_meta->setSortField(null);
+                $new_datatype_meta->setSortField(null);
             else
-                $datatype_meta->setSortField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['sortField']) );
+                $new_datatype_meta->setSortField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['sortField']) );
         }
         if ( isset($properties['backgroundImageField']) ) {
             if ($properties['backgroundImageField'] == null || $properties['backgroundImageField'] == -1)
-                $datatype_meta->setBackgroundImageField(null);
+                $new_datatype_meta->setBackgroundImageField(null);
             else
-                $datatype_meta->setBackgroundImageField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['backgroundImageField']) );
+                $new_datatype_meta->setBackgroundImageField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['backgroundImageField']) );
         }
 
         if ( isset($properties['searchSlug']) )
-            $datatype_meta->setSearchSlug( $properties['searchSlug'] );
+            $new_datatype_meta->setSearchSlug( $properties['searchSlug'] );
         if ( isset($properties['shortName']) )
-            $datatype_meta->setShortName( $properties['shortName'] );
+            $new_datatype_meta->setShortName( $properties['shortName'] );
         if ( isset($properties['longName']) )
-            $datatype_meta->setLongName( $properties['longName'] );
+            $new_datatype_meta->setLongName( $properties['longName'] );
         if ( isset($properties['description']) )
-            $datatype_meta->setDescription( $properties['description'] );
+            $new_datatype_meta->setDescription( $properties['description'] );
         if ( isset($properties['xml_shortName']) )
-            $datatype_meta->setXmlShortName( $properties['xml_shortName'] );
+            $new_datatype_meta->setXmlShortName( $properties['xml_shortName'] );
 
         if ( isset($properties['useShortResults']) )
-            $datatype_meta->setUseShortResults( $properties['useShortResults'] );
+            $new_datatype_meta->setUseShortResults( $properties['useShortResults'] );
         if ( isset($properties['display_type']) )
-            $datatype_meta->setDisplayType( $properties['display_type'] );
+            $new_datatype_meta->setDisplayType( $properties['display_type'] );
         if ( isset($properties['publicDate']) )
-            $datatype_meta->setPublicDate( $properties['publicDate'] );
+            $new_datatype_meta->setPublicDate( $properties['publicDate'] );
 
-        // Save the new meta entry and delete the old one
-        $em->remove($old_meta_entry);
-        $em->persist($datatype_meta);
+        $new_datatype_meta->setUpdatedBy($user);
+
+
+        // Delete the old entry if needed
+        if ($remove_old_entry)
+            $em->remove($old_meta_entry);
+
+        // Save the new meta entry
+        $em->persist($new_datatype_meta);
         $em->flush();
 
         // Return the new entry
-        return $datatype_meta;
+        return $new_datatype_meta;
     }
 
 
@@ -3633,7 +3647,7 @@ if ($debug)
      *
      * @return array
      */
-    protected function ODR_addDataFieldsEntry($em, $user, $datatype, $fieldtype, $renderplugin)
+    protected function ODR_addDataField($em, $user, $datatype, $fieldtype, $renderplugin)
     {
         // Poplulate new DataFields form
         $datafield = new DataFields();
@@ -3700,12 +3714,9 @@ if ($debug)
             $datafield_meta->setShortenFilename(0);
         }
         $datafield_meta->setCreatedBy($user);
+        $datafield_meta->setUpdatedBy($user);
 
         $em->persist($datafield_meta);
-
-//        return $datafield;
-
-//        return $datafield_meta;
 
         return array('datafield' => $datafield, 'datafield_meta' => $datafield_meta);
     }
@@ -3762,79 +3773,96 @@ if ($debug)
         if (!$changes_made)
             return $old_meta_entry;
 
-        // Create a new meta entry and copy the old entry's data over
-        $datafield_meta = new DataFieldsMeta();
-        $datafield_meta->setDataField($datafield);
-        $datafield_meta->setFieldType( $old_meta_entry->getFieldType() );
-        $datafield_meta->setRenderPlugin( $old_meta_entry->getRenderPlugin() );
 
-        $datafield_meta->setFieldName( $old_meta_entry->getFieldName() );
-        $datafield_meta->setDescription( $old_meta_entry->getDescription() );
-        $datafield_meta->setXmlFieldName( $old_meta_entry->getXmlFieldName() );
-        $datafield_meta->setMarkdownText( $old_meta_entry->getMarkdownText() );
-        $datafield_meta->setRegexValidator( $old_meta_entry->getRegexValidator() );
-        $datafield_meta->setPhpValidator( $old_meta_entry->getPhpValidator() );
-        $datafield_meta->setRequired( $old_meta_entry->getRequired() );
-        $datafield_meta->setIsUnique( $old_meta_entry->getIsUnique() );
-        $datafield_meta->setAllowMultipleUploads( $old_meta_entry->getAllowMultipleUploads() );
-        $datafield_meta->setShortenFilename( $old_meta_entry->getShortenFilename() );
-        $datafield_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
-        $datafield_meta->setChildrenPerRow( $old_meta_entry->getChildrenPerRow() );
-        $datafield_meta->setRadioOptionNameSort( $old_meta_entry->getRadioOptionNameSort() );
-        $datafield_meta->setRadioOptionDisplayUnselected( $old_meta_entry->getRadioOptionDisplayUnselected() );
-        $datafield_meta->setSearchable( $old_meta_entry->getSearchable() );
-        $datafield_meta->setUserOnlySearch( $old_meta_entry->getUserOnlySearch() );
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_datafield_meta = null;
+        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+            // Create a new meta entry and copy the old entry's data over
+            $remove_old_entry = true;
 
-        $datafield_meta->setCreatedBy($user);
-        $datafield_meta->setCreated( new \DateTime() );
+            // Create a new meta entry and copy the old entry's data over
+            $new_datafield_meta = new DataFieldsMeta();
+            $new_datafield_meta->setDataField($datafield);
+            $new_datafield_meta->setFieldType( $old_meta_entry->getFieldType() );
+            $new_datafield_meta->setRenderPlugin( $old_meta_entry->getRenderPlugin() );
+
+            $new_datafield_meta->setFieldName( $old_meta_entry->getFieldName() );
+            $new_datafield_meta->setDescription( $old_meta_entry->getDescription() );
+            $new_datafield_meta->setXmlFieldName( $old_meta_entry->getXmlFieldName() );
+            $new_datafield_meta->setMarkdownText( $old_meta_entry->getMarkdownText() );
+            $new_datafield_meta->setRegexValidator( $old_meta_entry->getRegexValidator() );
+            $new_datafield_meta->setPhpValidator( $old_meta_entry->getPhpValidator() );
+            $new_datafield_meta->setRequired( $old_meta_entry->getRequired() );
+            $new_datafield_meta->setIsUnique( $old_meta_entry->getIsUnique() );
+            $new_datafield_meta->setAllowMultipleUploads( $old_meta_entry->getAllowMultipleUploads() );
+            $new_datafield_meta->setShortenFilename( $old_meta_entry->getShortenFilename() );
+            $new_datafield_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
+            $new_datafield_meta->setChildrenPerRow( $old_meta_entry->getChildrenPerRow() );
+            $new_datafield_meta->setRadioOptionNameSort( $old_meta_entry->getRadioOptionNameSort() );
+            $new_datafield_meta->setRadioOptionDisplayUnselected( $old_meta_entry->getRadioOptionDisplayUnselected() );
+            $new_datafield_meta->setSearchable( $old_meta_entry->getSearchable() );
+            $new_datafield_meta->setUserOnlySearch( $old_meta_entry->getUserOnlySearch() );
+
+            $new_datafield_meta->setCreatedBy($user);
+        }
+        else {
+            // Update the existing meta entry
+            $new_datafield_meta = $old_meta_entry;
+        }
 
         // Set any new properties
         if ( isset($properties['fieldType']) )
-            $datafield_meta->setFieldType( $em->getRepository('ODRAdminBundle:FieldType')->find( $properties['fieldType'] ) );
+            $new_datafield_meta->setFieldType( $em->getRepository('ODRAdminBundle:FieldType')->find( $properties['fieldType'] ) );
         if ( isset($properties['renderPlugin']) )
-            $datafield_meta->setRenderPlugin( $em->getRepository('ODRAdminBundle:RenderPlugin')->find( $properties['renderPlugin'] ) );
+            $new_datafield_meta->setRenderPlugin( $em->getRepository('ODRAdminBundle:RenderPlugin')->find( $properties['renderPlugin'] ) );
 
         if ( isset($properties['fieldName']) )
-            $datafield_meta->setFieldName( $properties['fieldName'] );
+            $new_datafield_meta->setFieldName( $properties['fieldName'] );
         if ( isset($properties['description']) )
-            $datafield_meta->setDescription( $properties['description'] );
+            $new_datafield_meta->setDescription( $properties['description'] );
         if ( isset($properties['xml_fieldName']) )
-            $datafield_meta->setXmlFieldName( $properties['xml_fieldName'] );
+            $new_datafield_meta->setXmlFieldName( $properties['xml_fieldName'] );
         if ( isset($properties['markdownText']) )
-            $datafield_meta->setMarkdownText( $properties['markdownText'] );
+            $new_datafield_meta->setMarkdownText( $properties['markdownText'] );
         if ( isset($properties['regexValidator']) )
-            $datafield_meta->setRegexValidator( $properties['regexValidator'] );
+            $new_datafield_meta->setRegexValidator( $properties['regexValidator'] );
         if ( isset($properties['phpValidator']) )
-            $datafield_meta->setPhpValidator( $properties['phpValidator'] );
+            $new_datafield_meta->setPhpValidator( $properties['phpValidator'] );
         if ( isset($properties['required']) )
-            $datafield_meta->setRequired( $properties['required'] );
+            $new_datafield_meta->setRequired( $properties['required'] );
         if ( isset($properties['is_unique']) )
-            $datafield_meta->setIsUnique( $properties['is_unique'] );
+            $new_datafield_meta->setIsUnique( $properties['is_unique'] );
         if ( isset($properties['allow_multiple_uploads']) )
-            $datafield_meta->setAllowMultipleUploads( $properties['allow_multiple_uploads'] );
+            $new_datafield_meta->setAllowMultipleUploads( $properties['allow_multiple_uploads'] );
         if ( isset($properties['shorten_filename']) )
-            $datafield_meta->setShortenFilename( $properties['shorten_filename'] );
+            $new_datafield_meta->setShortenFilename( $properties['shorten_filename'] );
         if ( isset($properties['displayOrder']) )
-            $datafield_meta->setDisplayOrder( $properties['displayOrder'] );
+            $new_datafield_meta->setDisplayOrder( $properties['displayOrder'] );
         if ( isset($properties['children_per_row']) )
-            $datafield_meta->setChildrenPerRow( $properties['children_per_row'] );
+            $new_datafield_meta->setChildrenPerRow( $properties['children_per_row'] );
         if ( isset($properties['radio_option_name_sort']) )
-            $datafield_meta->setRadioOptionNameSort( $properties['radio_option_name_sort'] );
+            $new_datafield_meta->setRadioOptionNameSort( $properties['radio_option_name_sort'] );
         if ( isset($properties['radio_option_display_unselected']) )
-            $datafield_meta->setRadioOptionDisplayUnselected( $properties['radio_option_display_unselected'] );
+            $new_datafield_meta->setRadioOptionDisplayUnselected( $properties['radio_option_display_unselected'] );
         if ( isset($properties['searchable']) )
-            $datafield_meta->setSearchable( $properties['searchable'] );
+            $new_datafield_meta->setSearchable( $properties['searchable'] );
         if ( isset($properties['user_only_search']) )
-            $datafield_meta->setUserOnlySearch( $properties['user_only_search'] );
+            $new_datafield_meta->setUserOnlySearch( $properties['user_only_search'] );
+
+        $new_datafield_meta->setUpdatedBy($user);
 
 
-        // Save the new meta entry and delete the old one
-        $em->remove($old_meta_entry);
-        $em->persist($datafield_meta);
+        // Delete the old meta entry if necessary
+        if ($remove_old_entry)
+            $em->remove($old_meta_entry);
+
+        //Save the new meta entry
+        $em->persist($new_datafield_meta);
         $em->flush();
 
         // Return the new entry
-        return $datafield_meta;
+        return $new_datafield_meta;
     }
 
 
@@ -3888,7 +3916,6 @@ if ($debug)
             $new_theme_meta->setIsDefault( $old_meta_entry->getIsDefault() );
 
             $new_theme_meta->setCreatedBy($user);
-            $new_theme_meta->setUpdatedBy($user);
         }
         else {
             // Update the existing meta entry
@@ -3930,7 +3957,7 @@ if ($debug)
      *
      * @return array
      */
-    protected function ODR_addThemeElementEntry($em, $user, $datatype, $theme)
+    protected function ODR_addThemeElement($em, $user, $datatype, $theme)
     {
         $theme_element = new ThemeElement();
         $theme_element->setTheme($theme);
@@ -4092,7 +4119,7 @@ if ($debug)
      *
      * @return ThemeDataField
      */
-    protected function ODR_addThemeDataFieldEntry($em, $user, $datafield, $theme_element)
+    protected function ODR_addThemeDataField($em, $user, $datafield, $theme_element)
     {
         // Create theme entry
         $theme_datafield = new ThemeDataField();
@@ -4213,7 +4240,7 @@ if ($debug)
      *
      * @return ThemeDataType
      */
-    protected function ODR_addThemeDatatypeEntry($em, $user, $datatype, $theme_element)
+    protected function ODR_addThemeDatatype($em, $user, $datatype, $theme_element)
     {
         // Create theme entry
         $theme_datatype = new ThemeDataType();
@@ -5907,7 +5934,7 @@ if ($timing)
         $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
         $cached_datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype_id);
-        if ( !($force_rebuild || $cached_datatype_data == false) )
+        if ( !($force_rebuild || $cached_datatype_data == false || count($cached_datatype_data) > 0) )
             return $cached_datatype_data;
 
 
@@ -6074,7 +6101,7 @@ if ($timing)
         $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
         $cached_datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
-        if ( !($force_rebuild || $cached_datarecord_data == false) )
+        if ( !($force_rebuild || $cached_datarecord_data == false || count($cached_datarecord_data) > 0) )
             return $cached_datarecord_data;
 
 

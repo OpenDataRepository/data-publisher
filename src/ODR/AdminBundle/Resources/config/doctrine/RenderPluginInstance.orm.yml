@@ -45,6 +45,7 @@ ODR\AdminBundle\Entity\RenderPluginInstance:
             joinColumns:
                 render_plugin_option_id:
                     referencedColumnName: id
+            orphanRemoval: false
 
         renderPluginMap:
             targetEntity: RenderPluginMap
@@ -55,6 +56,8 @@ ODR\AdminBundle\Entity\RenderPluginInstance:
             joinColumns:
                 render_plugin_map_id:
                     referencedColumnName: id
+            orphanRemoval: false
+
     manyToOne:
         renderPlugin:
             targetEntity: RenderPlugin

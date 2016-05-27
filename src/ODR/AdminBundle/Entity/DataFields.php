@@ -751,6 +751,8 @@ class DataFields
         $iterator = $this->radioOptions->getIterator();
         $iterator->uasort(function ($a, $b) {
             // Sort by display order first if possible
+            /** @var RadioOptions $a */
+            /** @var RadioOptions $b */
             $a_display_order = $a->getDisplayOrder();
             $b_display_order = $b->getDisplayOrder();
             if ($a_display_order < $b_display_order)

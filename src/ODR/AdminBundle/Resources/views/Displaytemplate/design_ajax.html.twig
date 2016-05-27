@@ -174,8 +174,7 @@ return;
     });
 
     // Setup Add/Info Buttons
-    $(".ODRRenderPlugin").unbind('click');
-    $(".ODRRenderPlugin").click(function() {
+    $(".ODRRenderPlugin").unbind('click').click(function() {
 
         if ( $(this).hasClass('fa-muted') )
             return;
@@ -187,7 +186,8 @@ return;
     });
 
 
-    $(".ODRAddChildtype").unbind('click').click(function() {
+    $(".ODRAddChildtype").unbind('click');
+    $(".ODRAddChildtype").click(function() {
 
         if ( $(this).hasClass('fa-muted') )
             return;

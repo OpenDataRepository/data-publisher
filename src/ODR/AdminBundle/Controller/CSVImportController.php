@@ -2412,7 +2412,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
 
                     // Create new datafield
                     $created = true;
-                    $objects = parent::ODR_addDataFieldsEntry($em, $user, $datatype, $fieldtype, $render_plugin);
+                    $objects = parent::ODR_addDataField($em, $user, $datatype, $fieldtype, $render_plugin);
 
                     /** @var DataFields $datafield */
                     $datafield = $objects['datafield'];

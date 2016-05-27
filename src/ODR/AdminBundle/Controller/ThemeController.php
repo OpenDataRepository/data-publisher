@@ -325,7 +325,7 @@ $theme_form->addError( new FormError('do not save') );
 
             // Create a new theme element entity
             /** @var Theme $theme */
-            $data = parent::ODR_addThemeElementEntry($em, $user, $datatype, $theme);
+            $data = parent::ODR_addThemeElement($em, $user, $datatype, $theme);
             /** @var ThemeElement $theme_element */
             $theme_element = $data['theme_element'];
             /** @var ThemeElementMeta $theme_element_meta */

@@ -77,6 +77,7 @@ ODR\AdminBundle\Entity\RenderPluginMap:
             orphanRemoval: false
             gedmo:
                 - versioned
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -86,7 +87,7 @@ ODR\AdminBundle\Entity\RenderPluginMap:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
+#            gedmo:
 #                blameable:
 #                    on: create
         updatedBy:
@@ -98,7 +99,7 @@ ODR\AdminBundle\Entity\RenderPluginMap:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
+#            gedmo:
 #                blameable:
 #                    on: update
     lifecycleCallbacks: {  }

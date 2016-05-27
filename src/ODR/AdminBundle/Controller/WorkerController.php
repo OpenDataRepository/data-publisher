@@ -2650,6 +2650,8 @@ print '</pre>';
 
                 $datafield_meta->setCreated( $datafield->getCreated() );
                 $datafield_meta->setCreatedBy( $datafield->getCreatedBy() );
+                $datafield_meta->setUpdated( $datafield->getUpdated() );
+                $datafield_meta->setUpdatedBy( $datafield->getUpdatedBy() );
 
                 $datafield_meta->setDeletedAt( $datafield->getDeletedAt() );
 
@@ -2761,6 +2763,8 @@ print '</pre>';
 
                 $datatype_meta->setCreated( $datatype->getCreated() );
                 $datatype_meta->setCreatedBy( $datatype->getCreatedBy() );
+                $datatype_meta->setUpdated( $datatype->getUpdated() );
+                $datatype_meta->setUpdatedBy( $datatype->getUpdatedBy() );
 
                 $datatype_meta->setDeletedAt( $datatype->getDeletedAt() );
 

@@ -340,6 +340,7 @@ class DatatypeController extends ODRCustomController
                     $submitted_data->setBackgroundImageField(null);
 
                     $submitted_data->setCreatedBy($admin);
+                    $submitted_data->setUpdatedBy($admin);
                     $em->persist($submitted_data);
 
                     // ----------------------------------------

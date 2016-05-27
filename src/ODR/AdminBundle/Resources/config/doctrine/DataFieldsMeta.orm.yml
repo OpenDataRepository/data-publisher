@@ -127,6 +127,11 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             gedmo:
                 timestampable:
                     on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
         deletedAt:
             type: datetime
             nullable: true
@@ -184,6 +189,19 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             joinColumns:
                 createdBy:
                     referencedColumnName: id
-#            orphanRemoval: false
+            orphanRemoval: false
+#            gedmo:
 #                - versioned
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
     lifecycleCallbacks: {  }
