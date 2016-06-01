@@ -1844,6 +1844,11 @@ if ($timing)
 
             $search_checksum = md5($search_key);
             $datatype_id = $datatype->getId();
+
+            // If the datatype has a sort datafield, then it was effectively searched on, if only by an ORDER BY clause
+            // Therefore, it should always be included in the list of searched datafields
+            if ($datatype->getSortField() !== null)
+                $searched_datafields[] = $datatype->getSortField()->getId();
             $searched_datafields = implode(',', $searched_datafields);
 
             $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
@@ -1855,6 +1860,7 @@ if ($timing) {
     print 'total execution time: '.((microtime(true) - $start_time)*1000)."ms \n";
     exit();
 }
+
 
             // Create pieces of the array if they don't exist
             if ($cached_searches == false)

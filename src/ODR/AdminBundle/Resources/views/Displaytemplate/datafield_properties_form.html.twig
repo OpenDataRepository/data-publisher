@@ -237,7 +237,7 @@
     </fieldset>
 </form>
 
-<button type="button" id="DeleteField_{{ datafield.id }}" class="pure-button pure-button-primary{% if prevent_fieldtype_change == true %} pure-button-disabled{% endif %} ODRDeleteField"><i class="fa fa-trash-o"></i>&nbsp;Delete Field</button>
+<button type="button" id="DeleteField_{{ datafield.id }}" class="pure-button pure-button-primary{% if prevent_datafield_deletion %} pure-button-disabled{% endif %} ODRDeleteField" {% if prevent_datafield_deletion %}title="{{ prevent_datafield_deletion_message }}"{% endif %}><i class="fa fa-trash-o"></i>&nbsp;Delete Field</button>
 &nbsp;&nbsp;&nbsp;
 <button type="button" id="CopyField_{{ datafield.id }}" class="pure-button pure-button-primary ODRCopyField"><i class="fa fa-repeat"></i>&nbsp;Copy Field</button>
 

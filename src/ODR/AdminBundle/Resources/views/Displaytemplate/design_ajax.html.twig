@@ -124,7 +124,6 @@ function initPage() {
     $(".ODRUndeleteFields").unbind('click');
     $(".ODRUndeleteFields").click(function() {
 
-
         if ( $(this).hasClass('fa-muted') )
             return;
 
@@ -243,8 +242,7 @@ return;
     });
 
 
-    $(".ODRAddDatafield").unbind('click');
-    $(".ODRAddDatafield").click(function() {
+    $(".ODRAddDatafield").unbind('click').click(function() {
 
         if ( $(this).hasClass('fa-muted') )
             return;
@@ -255,8 +253,8 @@ return;
         var url = '{{ path('odr_design_add_datafield', { 'theme_element_id': 0 }) }}';
         url = url.substring(0, (url.length - 1)) + theme_element_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
         $.ajax({
             cache: false,
@@ -853,8 +851,8 @@ function SaveDatafieldProperty(datafield_id, reload_datafield) {
     url = url.substring(0, (url.length - 1));
     url += datafield_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
     var post_data = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
     $.ajax({
@@ -914,8 +912,8 @@ function SaveThemeDatafieldProperty(theme_datafield_id) {
     url = url.substring(0, url.length-1);
     url += theme_datafield_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
     var datafield = $("#ThemeDatafieldPropertiesForm_" + theme_datafield_id).next().attr('id').split(/_/);
     var datafield_id = datafield[1];
@@ -941,6 +939,10 @@ return;
                     $("#Field_" + datafield_id).removeClass('pure-u-xl-' + xl_width_old).addClass('pure-u-xl-' + xl_width_current);
 
                 notifySaved();
+
+                // Forcibly reload slideout
+                $("#ElementData").html("");
+                $("#Field_" + datafield_id).trigger('click');
             }
             else {
                 // An error has occurred.
@@ -973,8 +975,7 @@ function triggerClick(datafield_id) {
 
 function SetupDataFields() {
 
-    $(".ODRDataField").unbind('click');
-    $(".ODRDataField").click(function(event) {
+    $(".ODRDataField").unbind('click').click(function(event) {
 
         // The icon to open RadioOption properties will be overriden by this click event unless this if statement is active
         if ( event.target.className.indexOf('ODRRadioOptions') !== -1 )
@@ -1005,8 +1006,8 @@ function SetupDataFields() {
             url = url.substring(0, (url.length - 1));
             url += datafield_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
             // Attempt to ensure only the most recent datafield property request goes through
             if (datafield_properties_xhr !== null)
@@ -1062,9 +1063,9 @@ function InitDatafieldPropertiesForm() {
         $(this).unbind('click');
         $(this).click(function() {
             if ( $(this).hasClass('pure-button-disabled') ) {
-                alert( "This DataField is being used by a Render Plugin, and can't be deleted" );
+                return;
             }
-            else if( confirm("This will delete the field and all associated data.")) {
+            else if( confirm("This will delete the Datafield from all layouts, and ALL data (including files and images) stored in it.\n\nAre you certain you want to do this?")) {
                 DeleteDatafield(datafield_id);          
             }
         });
@@ -1180,7 +1181,6 @@ function InitDatafieldPropertiesForm() {
 {% for ft_id,ft_typename in fieldtype_array %}
     fieldtype_array[{{ ft_id }}] = "{{ ft_typename }}";
 {% endfor %}
-    console.log( fieldtype_array );
 
     // Override the handler for the fieldtype selector
     $("#ElementData .ODRDatafieldPropertiesForm").find("#DatafieldsForm_field_type").each(function() {
@@ -1525,8 +1525,8 @@ function SaveDatafieldOrder(container, initial_theme_element_id, ending_theme_el
     url = url.substring(0, url.length-3);
     url += initial_theme_element_id + '/' + ending_theme_element_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
     $.ajax({
         cache: false,
@@ -1734,8 +1734,8 @@ function CopyDatafield(datafield_id) {
     url = url.substring(0, (url.length - 3));
     url += theme_element_id + '/' + datafield_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
     $.ajax({
         cache: false,
@@ -1778,8 +1778,8 @@ function DeleteDatafield(datafield_id) {
     url = url.substring(0, (url.length - 1));
     url += datafield_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
     $.ajax({
         cache: false,
@@ -1862,14 +1862,14 @@ function InitRadioOptionsForm(datafield_id) {
 
         AddOption(datafield_id);
     });
-
+/*
     $("#ElementData").find(".ODRImportRadioOption").unbind('click');
     $("#ElementData").find(".ODRImportRadioOption").click(function() {
         var datafield_id = $(this).attr('rel');
 
         ImportRadioOption(datafield_id);
     });
-
+*/
 
     $("#ElementData").find(".ODRRadioOptionName").each(function() {
         $(this).unbind('keyup');

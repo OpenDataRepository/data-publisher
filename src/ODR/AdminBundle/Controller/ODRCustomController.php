@@ -475,7 +475,7 @@ exit();
 
     /**
      * Returns true if the datafield is currently in use by ShortResults
-     * TODO - this will need to be changed when multiple ShortResults themes become available
+     * @deprecated
      *
      * @param DataFields $datafield
      *
@@ -1773,28 +1773,32 @@ if ($debug)
         foreach ($datatype_array as $dt_id => $dt) {
             foreach ($dt['themes'] as $theme_id => $theme) {
                 foreach ($theme['themeElements'] as $te_num => $te) {
-                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                        $df_id = $tdf['dataField']['id'];
 
-                        // If they don't have the 'can_view_field' permission for that datafield...
-                        if ( !(isset($datafield_permissions[$df_id]) && $datafield_permissions[$df_id]['view'] == 1) ) {
-                            // ...remove it from the layout
+                    if ( isset($te['themeDataFields']) ) {
+                        foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                            $df_id = $tdf['dataField']['id'];
+
+                            // If they don't have the 'can_view_field' permission for that datafield...
+                            if ( !(isset($datafield_permissions[$df_id]) && $datafield_permissions[$df_id]['view'] == 1) ) {
+                                // ...remove it from the layout
 if ($debug)
     print 'removed datafield '.$df_id.' from theme_element '.$te['id'].' datatype '.$dt_id.' theme '.$theme_id.' ('.$theme['themeType'].')'."\n";
 
-                            unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry
+                                unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry
 
-                            // ...also remove it from the datarecord array
-                            foreach ($datarecord_array as $dr_id => $dr) {
-                                if ( isset($dr['dataRecordFields'][$df_id]) ) {
+                                // ...also remove it from the datarecord array
+                                foreach ($datarecord_array as $dr_id => $dr) {
+                                    if ( isset($dr['dataRecordFields'][$df_id]) ) {
 if ($debug)
     print ' -- removed datafield '.$df_id.' from datarecord '.$dr_id."\n";
 
-                                    unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
+                                        unset($datarecord_array[$dr_id]['dataRecordFields'][$df_id]);
+                                    }
                                 }
                             }
                         }
                     }
+
                 }
             }
         }
@@ -3765,6 +3769,7 @@ if ($debug)
             'searchable' => $old_meta_entry->getSearchable(),
             'user_only_search' =>$old_meta_entry->getUserOnlySearch(),
         );
+
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value)
                 $changes_made = true;

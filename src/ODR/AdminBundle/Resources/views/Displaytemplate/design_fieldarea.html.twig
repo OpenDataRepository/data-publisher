@@ -26,7 +26,7 @@
                 <i class="Pointer tooltip fa fa-info-circle ODRThemeElementProperties" title="ThemeElement Properties"></i>
                 <i class="Pointer tooltip fa fa-globe{% if theme_element.themeElementMeta.publicDate|is_public %} ODRActiveIcon{% endif %} ODRPublicThemeElement" title="ThemeElement{% if not theme_element.themeElementMeta.publicDate|is_public %} not{% endif %} visible to public"></i>
 
-                <i class="Pointer tooltip fa fa-plus-square {% if not has_childtype %}fa-muted{% endif %} ODRAddDatafield" title="Add DataField" rel="{{ datatype.id }}"></i>
+                <i class="Pointer tooltip fa fa-plus-square {% if has_childtype %}fa-muted{% endif %} ODRAddDatafield" title="Add DataField" rel="{{ datatype.id }}"></i>
                 <i class="Pointer tooltip fa fa-list-alt {% if has_childtype or has_datafields %}fa-muted{% endif %} ODRAddChildtype" title="Add Child Type" rel="{{ datatype.id }}"></i>
 
                 {% if has_datafields or (has_childtype and not child_is_link) %}
