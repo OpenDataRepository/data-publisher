@@ -54,7 +54,7 @@ class RadioOptionsMeta
     /**
      * @var \ODR\AdminBundle\Entity\RadioOptions
      */
-    private $radioOptions;
+    private $radioOption;
     
     /**
      * @var \DateTime
@@ -62,9 +62,19 @@ class RadioOptionsMeta
     private $created;
 
     /**
+     * @var \DateTime
+     */
+    private $updated;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
+
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $updatedBy;
 
 
     /**
@@ -193,26 +203,26 @@ class RadioOptionsMeta
     }
 
     /**
-     * Set radioOptions
+     * Set radioOption
      *
-     * @param \ODR\AdminBundle\Entity\RadioOptions $radioOptions
+     * @param \ODR\AdminBundle\Entity\RadioOptions $radioOption
      * @return RadioOptionsMeta
      */
-    public function setRadioOptions(\ODR\AdminBundle\Entity\RadioOptions $radioOptions = null)
+    public function setRadioOption(\ODR\AdminBundle\Entity\RadioOptions $radioOption = null)
     {
-        $this->radioOptions = $radioOptions;
+        $this->radioOption = $radioOption;
 
         return $this;
     }
 
     /**
-     * Get radioOptions
+     * Get radioOption
      *
      * @return \ODR\AdminBundle\Entity\RadioOptions
      */
-    public function getRadioOptions()
+    public function getRadioOption()
     {
-        return $this->radioOptions;
+        return $this->radioOption;
     }
 
     /**
@@ -239,6 +249,29 @@ class RadioOptionsMeta
     }
 
     /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return RadioOptionsMeta
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
+    }
+
+    /**
      * Set createdBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
@@ -259,5 +292,28 @@ class RadioOptionsMeta
     public function getCreatedBy()
     {
         return $this->createdBy;
+    }
+
+    /**
+     * Set updatedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return RadioOptionsMeta
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
     }
 }

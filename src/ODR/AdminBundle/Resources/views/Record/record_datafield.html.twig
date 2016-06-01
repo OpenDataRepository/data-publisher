@@ -284,7 +284,7 @@
                     <input id="Input_{{ datarecordfield.id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datarecordfield.id }}" {% if is_selected == 1 %}checked{% endif %} class="MultipleRadioGroup" />
                 {% endif %}
 
-                {{ radio_option.radioOptionsMeta.optionName }}
+                {{ radio_option.radioOptionMeta.optionName }}
                 </label>
             {% endfor %}
 
@@ -306,7 +306,7 @@
                     {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
                 {% endif %}
 
-                <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}" {% if is_selected == 1 %}selected {% if field_typename == "Multiple Select" %}class="MultipleSelect_prev"{% endif %}{% endif %}>{{ radio_option.radioOptionsMeta.optionName }}</option>
+                <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}" {% if is_selected == 1 %}selected {% if field_typename == "Multiple Select" %}class="MultipleSelect_prev"{% endif %}{% endif %}>{{ radio_option.radioOptionMeta.optionName }}</option>
             {% endfor %}
             </select>
 

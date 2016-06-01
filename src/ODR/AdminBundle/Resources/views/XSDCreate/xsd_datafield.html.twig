@@ -26,7 +26,7 @@
             <xsd:complexType>
                 <xsd:all>
                 {% for radio_option in datafield.radioOptions %}
-                    <xsd:element name="{{ radio_option.radioOptionsMeta.xml_optionName }}" type="xsd:boolean" minOccurs="0" />
+                    <xsd:element name="{{ radio_option.radioOptionMeta.xml_optionName }}" type="xsd:boolean" minOccurs="0" />
                 {% endfor %}
                 </xsd:all>
                 {% if field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}

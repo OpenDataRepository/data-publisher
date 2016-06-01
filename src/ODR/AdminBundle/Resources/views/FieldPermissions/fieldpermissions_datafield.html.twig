@@ -93,7 +93,7 @@
                 <input id="Option_object_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="MultipleRadioGroup" disabled />
             {% endif %}
 
-            <span id="Option_{{ radio_option.id }}_name">{{ radio_option.radioOptionsMeta.optionName }}</span>
+            <span id="Option_{{ radio_option.id }}_name">{{ radio_option.radioOptionMeta.optionName }}</span>
             </label>
         {% endfor %}
     </fieldset>
@@ -112,7 +112,7 @@
         {% endif %}
 
         {% for radio_option in datafield.radioOptions %}
-            <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionsMeta.optionName }}</option>
+            <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionMeta.optionName }}</option>
         {% endfor %}
         </select>
     </fieldset>

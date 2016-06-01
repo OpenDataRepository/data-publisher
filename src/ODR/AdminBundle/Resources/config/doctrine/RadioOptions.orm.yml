@@ -65,10 +65,10 @@ ODR\AdminBundle\Entity\RadioOptions:
                     on: update
 
     oneToMany:
-        radioOptionsMeta:
+        radioOptionMeta:
             targetEntity: RadioOptionsMeta
             cascade: {  }
-            mappedBy: radioOptions
+            mappedBy: radioOption
             inversedBy: null
             joinColumns:
                 radio_meta_id:

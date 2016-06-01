@@ -525,7 +525,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                     JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
                     JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.dataRecordFields = drf
                     JOIN ODRAdminBundle:RadioOptions AS ro WITH rs.radioOption = ro
-                    JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOptions = ro
+                    JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
                     WHERE drf.dataRecord = :datarecord AND drf.dataField = :datafield AND rs.selected = 1
                     AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
                 )->setParameters( array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()) );
@@ -1232,7 +1232,7 @@ print '<pre>';
                             $query = $em->createQuery(
                                'SELECT drf.id AS drf_id, rom.optionName AS option_name
                                  FROM ODRAdminBundle:RadioOptions AS ro
-                                 JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOptions = ro
+                                 JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
                                  JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
                                  JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
                                  WHERE ro.dataField = :datafield AND (drf.id = :old_drf OR drf.id = :new_drf) AND rs.selected = 1
@@ -2227,7 +2227,7 @@ print '</pre>';
 
             // Attempt to locate a metadata entry for the provided entity
             /** @var RadioOptionsMeta $radio_option_meta */
-            $radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOptions' => $object_id) );
+            $radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOption' => $object_id) );
 
             // No longer need softdeleteable filter disabled
             $em->getFilters()->enable('softdeleteable');
@@ -2238,7 +2238,7 @@ print '</pre>';
             else {
                 // Create a new meta entry and populate from original entity
                 $radio_option_meta = new RadioOptionsMeta();
-                $radio_option_meta->setRadioOptions( $radio_option );
+                $radio_option_meta->setRadioOption( $radio_option );
 
                 $radio_option_meta->setOptionName( $radio_option->getOptionNameOriginal() );
                 $radio_option_meta->setXmlOptionName( $radio_option->getXmlOptionNameOriginal() );
@@ -2247,6 +2247,8 @@ print '</pre>';
 
                 $radio_option_meta->setCreatedBy( $radio_option->getUpdatedBy() );
                 $radio_option_meta->setCreated( $radio_option->getUpdated() );
+                $radio_option_meta->setUpdatedBy( $radio_option->getUpdatedBy() );
+                $radio_option_meta->setUpdated( $radio_option->getUpdated() );
 
                 $radio_option_meta->setDeletedAt( $radio_option->getDeletedAt() );
 

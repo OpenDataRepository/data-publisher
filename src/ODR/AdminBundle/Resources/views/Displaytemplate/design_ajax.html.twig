@@ -684,8 +684,7 @@ return;
 
     });
 
-    $(".ODRRadioOptions").unbind('click');
-    $(".ODRRadioOptions").click(function() {
+    $(".ODRRadioOptions").unbind('click').click(function() {
         var datafield_id = $(this).attr('rel');
 
         // 
@@ -694,8 +693,8 @@ return;
         url = url.substring(0,(url.length-1));
         url += datafield_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
         $.ajax({
             cache: false,
@@ -1834,30 +1833,25 @@ function DeleteDatafield(datafield_id) {
 
 function InitRadioOptionsForm(datafield_id) {
     $("#ElementData").find(".ODRDeleteRadioOption").each(function() {
-        $(this).unbind('click');
-        $(this).click(function() {
+        $(this).unbind('click').click(function() {
             var radio_option_data = $(this).attr('id').split(/_/);
             var radio_option_id = radio_option_data[1];
 
-            var datafield_id = $(this).attr('rel');
-
             if ( confirm('Are you sure you want to delete this radio option?') ) {
-                DeleteOption(radio_option_id, datafield_id);
+                DeleteOption(radio_option_id);
             }
         });
     });
 
     $("#ElementData").find(".ODRDefaultRadioOption").each(function() {
-        $(this).unbind('click');
-        $(this).click(function() {
+        $(this).unbind('click').click(function() {
             var radio_option_id = $(this).attr('rel');
             DefaultOption(radio_option_id);
         });
     });
 
 
-    $("#ElementData").find(".ODRAddRadioOption").unbind('click');
-    $("#ElementData").find(".ODRAddRadioOption").click(function() {
+    $("#ElementData").find(".ODRAddRadioOption").unbind('click').click(function() {
         var datafield_id = $(this).attr('rel');
 
         AddOption(datafield_id);
@@ -1935,8 +1929,8 @@ function SaveRadioOptionOrder(alphabetical_sort) {
     url = url.substring(0, url.length-3);
     url += datafield_id + '/' + alphabetical_sort;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
     $.ajax({
         cache: false,
@@ -1985,8 +1979,8 @@ function SaveRadioOptionName(datafield_id, radio_option_id) {
     url = url.substring(0,(url.length - 1));
     url += radio_option_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
     var post_data = $("#ODRRadioOptionsForm_0").find("#radio_option_" + radio_option_id + "_name").serialize();    // only want one field
     $.ajax({
@@ -2033,8 +2027,8 @@ function AddOption(datafield_id) {
     url = url.substring(0,(url.length - 1));
     url += datafield_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
     $.ajax({
         cache: false,
@@ -2072,13 +2066,13 @@ return;
     });
 }
 
-function DeleteOption(radio_option_id, datafield_id) {
+function DeleteOption(radio_option_id) {
     var url = '{{ path('odr_design_delete_radio_option', { 'radio_option_id': 0 } ) }}';
     url = url.substring(0, (url.length - 1));
     url += radio_option_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
     $.ajax({
         cache: false,
@@ -2087,8 +2081,6 @@ return;
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
-//                ReloadDatafield(datafield_id);
-
                 // Delete the radio option out of the slideout
                 $("#radio_option_" + radio_option_id).remove();
 
@@ -2123,8 +2115,8 @@ function DefaultOption(radio_option_id) {
     url = url.substring(0, (url.length - 1));
     url += radio_option_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
     $.ajax({
         cache: false,

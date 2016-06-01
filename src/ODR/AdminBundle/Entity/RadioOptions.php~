@@ -64,7 +64,7 @@ class RadioOptions
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
-    private $radioOptionsMeta;
+    private $radioOptionMeta;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
@@ -91,12 +91,13 @@ class RadioOptions
      */
     private $updatedBy;
 
+    
     /**
      * Constructor
      */
     public function __construct()
     {
-        $this->radioOptionsMeta = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->radioOptionMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->radioSelections = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
@@ -131,7 +132,7 @@ class RadioOptions
      */
     public function getOptionName()
     {
-        return $this->getRadioOptionsMeta()->getOptionName();
+        return $this->getRadioOptionMeta()->getOptionName();
     }
 
     /**
@@ -201,7 +202,7 @@ class RadioOptions
      */
     public function getXmlOptionName()
     {
-        return $this->getRadioOptionsMeta()->getXmlOptionName();
+        return $this->getRadioOptionMeta()->getXmlOptionName();
     }
 
     /**
@@ -225,7 +226,7 @@ class RadioOptions
      */
     public function getDisplayOrder()
     {
-        return $this->getRadioOptionsMeta()->getDisplayOrder();
+        return $this->getRadioOptionMeta()->getDisplayOrder();
     }
 
     /**
@@ -249,7 +250,7 @@ class RadioOptions
      */
     public function getIsDefault()
     {
-        return $this->getRadioOptionsMeta()->getIsDefault();
+        return $this->getRadioOptionMeta()->getIsDefault();
     }
 
     /**
@@ -278,36 +279,36 @@ class RadioOptions
     }
 
     /**
-     * Add radioOptionsMeta
+     * Add radioOptionMeta
      *
-     * @param \ODR\AdminBundle\Entity\RadioOptionsMeta $radioOptionsMeta
+     * @param \ODR\AdminBundle\Entity\RadioOptionsMeta $radioOptionMeta
      * @return RadioOptions
      */
-    public function addRadioOptionsMetum(\ODR\AdminBundle\Entity\RadioOptionsMeta $radioOptionsMeta)
+    public function addRadioOptionMetum(\ODR\AdminBundle\Entity\RadioOptionsMeta $radioOptionMeta)
     {
-        $this->radioOptionsMeta[] = $radioOptionsMeta;
+        $this->radioOptionMeta[] = $radioOptionMeta;
 
         return $this;
     }
 
     /**
-     * Remove radioOptionsMeta
+     * Remove radioOptionMeta
      *
-     * @param \ODR\AdminBundle\Entity\RadioOptionsMeta $radioOptionsMeta
+     * @param \ODR\AdminBundle\Entity\RadioOptionsMeta $radioOptionMeta
      */
-    public function removeRadioOptionsMetum(\ODR\AdminBundle\Entity\RadioOptionsMeta $radioOptionsMeta)
+    public function removeRadioOptionMetum(\ODR\AdminBundle\Entity\RadioOptionsMeta $radioOptionMeta)
     {
-        $this->radioOptionsMeta->removeElement($radioOptionsMeta);
+        $this->radioOptionMeta->removeElement($radioOptionMeta);
     }
 
     /**
-     * Get radioOptionsMeta
+     * Get radioOptionMeta
      *
      * @return \ODR\AdminBundle\Entity\RadioOptionsMeta
      */
-    public function getRadioOptionsMeta()
+    public function getRadioOptionMeta()
     {
-        return $this->radioOptionsMeta->first();
+        return $this->radioOptionMeta->first();
     }
 
     /**

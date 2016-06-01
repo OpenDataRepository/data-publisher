@@ -308,7 +308,7 @@ class TextResultsController extends ODRCustomController
                     $query = $em->createQuery(
                        'SELECT rom.optionName AS option_name, dr.id AS dr_id
                         FROM ODRAdminBundle:RadioOptions AS ro
-                        JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOptions = ro
+                        JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
                         JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
                         JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
                         JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr

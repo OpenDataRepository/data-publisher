@@ -3284,7 +3284,7 @@ if ($debug)
 
             // Create a new RadioOptionMeta entity
             $radio_option_meta = new RadioOptionsMeta();
-            $radio_option_meta->setRadioOptions($radio_option);
+            $radio_option_meta->setRadioOption($radio_option);
             $radio_option_meta->setOptionName($option_name);
             $radio_option_meta->setXmlOptionName('');
             $radio_option_meta->setDisplayOrder(0);
@@ -3336,7 +3336,7 @@ if ($debug)
 
                 // See if a RadioOptionMeta entity exists for this RadioOption...
                 /** @var RadioOptionsMeta $radio_option_meta */
-                $radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOptions' => $radio_option->getId()) );
+                $radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOption' => $radio_option->getId()) );
                 if ($radio_option_meta == null) {
                     // Define and execute a query to manually create the absolute minimum required for a RadioOption entity...
                     $query =
@@ -3350,7 +3350,7 @@ if ($debug)
                     $rowsAffected = $conn->executeUpdate($query, $params);
 
                     // Now that it exists, fill out the properties of a RadioOptionMeta entity that were skipped during the manual creation...
-                    $radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOptions' => $radio_option->getId()) );
+                    $radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOption' => $radio_option->getId()) );
                     $radio_option_meta->setOptionName($option_name);
                     $radio_option_meta->setXmlOptionName('');
                     $radio_option_meta->setDisplayOrder(0);
@@ -3374,7 +3374,7 @@ if ($debug)
      *  updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
      *
      * The $properties parameter must contain at least one of the following keys...
-     * 'option_name', 'xml_option_name', 'display_order', and/or 'is_default'.
+     * 'optionName', 'xml_optionName', 'displayOrder', and/or 'isDefault'.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                       The user requesting the modification of this meta entry.
@@ -3387,15 +3387,15 @@ if ($debug)
     {
         // Load the old meta entry
         /** @var RadioOptionsMeta $old_meta_entry */
-        $old_meta_entry = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOptions' => $radio_option->getId()) );
+        $old_meta_entry = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOption' => $radio_option->getId()) );
 
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
-            'option_name' => $old_meta_entry->getOptionName(),
-            'xml_option_name' => $old_meta_entry->getXmlOptionName(),
-            'display_order' => $old_meta_entry->getDisplayOrder(),
-            'is_default' => $old_meta_entry->getIsDefault(),
+            'optionName' => $old_meta_entry->getOptionName(),
+            'xml_optionName' => $old_meta_entry->getXmlOptionName(),
+            'displayOrder' => $old_meta_entry->getDisplayOrder(),
+            'isDefault' => $old_meta_entry->getIsDefault(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -3405,35 +3405,54 @@ if ($debug)
         if (!$changes_made)
             return $old_meta_entry;
 
-        // Create a new meta entry and copy the old entry's data over
-        $radio_option_meta = new RadioOptionsMeta();
-        $radio_option_meta->setRadioOptions($radio_option);
 
-        $radio_option_meta->setOptionName( $old_meta_entry->getOptionName() );
-        $radio_option_meta->setXmlOptionName( $old_meta_entry->getXmlOptionName() );
-        $radio_option_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
-        $radio_option_meta->setIsDefault( $old_meta_entry->getIsDefault() );
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_radio_option_meta = null;
+        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+            // Create a new meta entry and copy the old entry's data over
+            $remove_old_entry = true;
 
-        $radio_option_meta->setCreatedBy($user);
-        $radio_option_meta->setCreated( new \DateTime() );
+            // Create a new meta entry and copy the old entry's data over
+            $new_radio_option_meta = new RadioOptionsMeta();
+            $new_radio_option_meta->setRadioOption($radio_option);
+
+            $new_radio_option_meta->setOptionName( $old_meta_entry->getOptionName() );
+            $new_radio_option_meta->setXmlOptionName( $old_meta_entry->getXmlOptionName() );
+            $new_radio_option_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
+            $new_radio_option_meta->setIsDefault( $old_meta_entry->getIsDefault() );
+
+            $new_radio_option_meta->setCreatedBy($user);
+        }
+        else {
+            // Update the existing meta entry
+            $new_radio_option_meta = $old_meta_entry;
+        }
+
 
         // Set any new properties
-        if ( isset($properties['option_name']) )
-            $radio_option_meta->setOptionName( $properties['option_name'] );
-        if ( isset($properties['xml_option_name']) )
-            $radio_option_meta->setXmlOptionName( $properties['xml_option_name'] );
-        if ( isset($properties['display_order']) )
-            $radio_option_meta->setDisplayOrder( $properties['display_order'] );
-        if ( isset($properties['is_default']) )
-            $radio_option_meta->setIsDefault( $properties['is_default'] );
+        if ( isset($properties['optionName']) )
+            $new_radio_option_meta->setOptionName( $properties['optionName'] );
+        if ( isset($properties['xml_optionName']) )
+            $new_radio_option_meta->setXmlOptionName( $properties['xml_optionName'] );
+        if ( isset($properties['displayOrder']) )
+            $new_radio_option_meta->setDisplayOrder( $properties['displayOrder'] );
+        if ( isset($properties['isDefault']) )
+            $new_radio_option_meta->setIsDefault( $properties['isDefault'] );
 
-        // Save the new meta entry and delete the old one
-        $em->remove($old_meta_entry);
-        $em->persist($radio_option_meta);
+        $new_radio_option_meta->setUpdatedBy($user);
+
+
+        // Delete the old entry if needed
+        if ($remove_old_entry)
+            $em->remove($old_meta_entry);
+
+        // Save the new meta entry
+        $em->persist($new_radio_option_meta);
         $em->flush();
 
         // Return the new entry
-        return $radio_option_meta;
+        return $new_radio_option_meta;
     }
 
 
@@ -5972,7 +5991,7 @@ if ($timing)
             LEFT JOIN te.themeDataFields AS tdf
             LEFT JOIN tdf.dataField AS df
             LEFT JOIN df.radioOptions AS ro
-            LEFT JOIN ro.radioOptionsMeta AS rom
+            LEFT JOIN ro.radioOptionMeta AS rom
 
             LEFT JOIN df.dataFieldMeta AS dfm
             LEFT JOIN dfm.fieldType AS ft
@@ -6031,8 +6050,8 @@ if ($timing) {
 
                         // Flatten radio options if it exists
                         foreach ($tdf['dataField']['radioOptions'] as $ro_num => $ro) {
-                            $rom = $ro['radioOptionsMeta'][0];
-                            $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['radioOptions'][$ro_num]['radioOptionsMeta'] = $rom;
+                            $rom = $ro['radioOptionMeta'][0];
+                            $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['radioOptions'][$ro_num]['radioOptionMeta'] = $rom;
                         }
                         if ( count($tdf['dataField']['radioOptions']) == 0 )
                             unset( $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['radioOptions'] );

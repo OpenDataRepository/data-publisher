@@ -81,7 +81,7 @@
                 <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
             {% endif %}
 
-            {{ radio_option.radioOptionsMeta.optionName }}
+            {{ radio_option.radioOptionMeta.optionName }}
             </label>
         {% endfor %}
 
@@ -100,7 +100,7 @@
         {% endif %}
 
         {% for radio_option in datafield.radioOptions %}
-            <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionsMeta.optionName }}</option>
+            <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionMeta.optionName }}</option>
         {% endfor %}
 
         </select>
@@ -119,7 +119,7 @@
                         <i class="fa"></i>
                         <input type="hidden" name="{{ datafield.id }}" rel="{{ radio_option.id }}" value="" />
                     </span>
-                    {{ radio_option.radioOptionsMeta.optionName }}
+                    {{ radio_option.radioOptionMeta.optionName }}
                 </label>
             {% endfor %}
 

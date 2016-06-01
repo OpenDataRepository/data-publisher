@@ -55,13 +55,18 @@ ODR\AdminBundle\Entity\RadioOptionsMeta:
             gedmo:
                 timestampable:
                     on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
 
     manyToOne:
-        radioOptions:
+        radioOption:
             targetEntity: RadioOptions
             cascade: {  }
             mappedBy: null
-            inversedBy: radioOptionsMeta
+            inversedBy: radioOptionMeta
             joinColumns:
                 radio_option_id:
                     referencedColumnName: id
@@ -76,6 +81,18 @@ ODR\AdminBundle\Entity\RadioOptionsMeta:
             inversedBy: null
             joinColumns:
                 createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
 #            gedmo:

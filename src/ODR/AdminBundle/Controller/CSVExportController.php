@@ -549,7 +549,7 @@ return;
                        'SELECT df.id AS df_id, rom.optionName AS option_name
                         FROM ODRAdminBundle:RadioSelection AS rs
                         JOIN ODRAdminBundle:RadioOptions AS ro WITH rs.radioOption = ro
-                        JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOptions = ro
+                        JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
                         JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
                         JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
                         WHERE rs.selected = 1 AND drf.dataRecord = :datarecord AND df.id IN (:datafields)
