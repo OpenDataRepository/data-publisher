@@ -75,6 +75,30 @@ class DisplayController extends ODRCustomController
             if ($theme == null)
                 return parent::deletedEntityError('Theme');
 
+            // Save incase the user originally requested a child datarecord
+            $original_datarecord_id = $datarecord->getId();
+            $original_datatype_id = $datatype->getId();
+            $original_theme_id = $theme->getId();
+
+
+            // ...want the grandparent datarecord and datatype for everything else, however
+            $is_top_level = 1;
+            if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() ) {
+                $is_top_level = 0;
+                $datarecord = $datarecord->getGrandparent();
+
+                $datatype = $datarecord->getDataType();
+                if ($datatype == null)
+                    return parent::deletedEntityError('Datatype');
+
+                /** @var Theme $theme */
+                $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+                if ($theme == null)
+                    return parent::deletedEntityError('Theme');
+            }
+
+            $grandparent_datarecord_id = $datarecord->getId();
+
 
             // ----------------------------------------
             // Determine user privileges
@@ -206,13 +230,13 @@ class DisplayController extends ODRCustomController
 
 
             // Grab all datarecords "associated" with the desired datarecord...
-            $associated_datarecords = $memcached->get($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id);
+            $associated_datarecords = $memcached->get($memcached_prefix.'.associated_datarecords_for_'.$grandparent_datarecord_id);
             if ($bypass_cache || $associated_datarecords == false) {
-                $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord_id));
+                $associated_datarecords = parent::getAssociatedDatarecords($em, array($grandparent_datarecord_id));
 
 //print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
 
-                $memcached->set($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id, $associated_datarecords, 0);
+                $memcached->set($memcached_prefix.'.associated_datarecords_for_'.$grandparent_datarecord_id, $associated_datarecords, 0);
             }
 
 
@@ -228,6 +252,18 @@ class DisplayController extends ODRCustomController
             }
 
 //print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
+
+            // If this request isn't for a top-level datarecord, then the datarecord array needs to have entries removed so twig doesn't render more than it should
+            if ($is_top_level == 0) {
+                $target_datarecord_parent_id = $datarecord_array[$original_datarecord_id]['parent']['id'];
+                unset( $datarecord_array[$target_datarecord_parent_id] );
+
+                foreach ($datarecord_array as $dr_id => $dr) {
+                    if ( $dr_id !== $original_datarecord_id && $dr['parent']['id'] == $target_datarecord_parent_id )
+                        unset( $datarecord_array[$dr_id] );
+                }
+            }
+
 
             // ----------------------------------------
             //
@@ -269,10 +305,12 @@ class DisplayController extends ODRCustomController
                 array(
                     'datatype_array' => $datatype_array,
                     'datarecord_array' => $datarecord_array,
-                    'theme_id' => $theme->getId(),
 
-                    'initial_datatype_id' => $datatype->getId(),
-                    'initial_datarecord_id' => $datarecord->getId(),
+                    'theme_id' => $original_theme_id,    // using these on purpose...user could have requested a child datarecord initially
+                    'initial_datatype_id' => $original_datatype_id,
+                    'initial_datarecord_id' => $original_datarecord_id,
+
+                    'is_top_level' => $is_top_level,
 
                     'search_key' => $search_key,
                 )

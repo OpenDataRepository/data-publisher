@@ -134,7 +134,7 @@
         <fieldset>
             <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
-                <textarea class="pure-u-1" readonly>{{ valuefield.value }}</textarea>
+                <textarea class="pure-u-1 Cursor" readonly="readonly">{{ valuefield.value }}</textarea>
             </div>
         </fieldset>
 
@@ -142,7 +142,7 @@
         <fieldset>
             <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
-                <input type="text" value="{{ valuefield.value }}" readonly="readonly" />
+                <input class="Cursor" type="text" value="{{ valuefield.value }}" readonly="readonly"/>
             </div>
         </fieldset>
 
