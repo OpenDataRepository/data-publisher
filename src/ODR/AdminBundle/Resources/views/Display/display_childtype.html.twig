@@ -57,7 +57,7 @@ display_type: {{ display_type }}</br>
                 {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {'datarecord': datarecord, 'datatype': datatype, 'is_top_level': is_top_level, 'display_type': display_type} %}
 
                 <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
-                    {% if render_plugin.id != '1' %}
+                    {% if render_plugin.id != '1' and (render_plugin.overrideChild == 1 or render_plugin.overrideFields == 1) %}
                         <!-- html for {{ render_plugin.pluginName }} -->
                         {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type} %}
                         {{ [datarecord]|datatype_plugin(datatype, render_plugin, theme, rendering_options)|raw }}   {# [datarecord] converts datarecord into a single-element array #}

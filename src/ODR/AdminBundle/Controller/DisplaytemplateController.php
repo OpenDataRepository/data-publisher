@@ -1126,6 +1126,7 @@ print '</pre>';
             // --------------------
 
 
+            // ----------------------------------------
             // Grab objects required to create a datafield entity
             /** @var FieldType $fieldtype */
             $fieldtype = $em->getRepository('ODRAdminBundle:FieldType')->findOneBy( array('typeName' => 'Short Text') );
@@ -1153,6 +1154,22 @@ print '</pre>';
 */
             $update_datatype = true;
             parent::tmp_updateThemeCache($em, $theme, $user, $update_datatype);
+
+
+            // ----------------------------------------
+            // Since new datafields were created, wipe datafield permission entries for all users
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var User[] $user_list */
+            $user_list = $user_manager->findUsers();
+            foreach ($user_list as $user) {
+                $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datafield_permissions');
+
+                // TODO - schedule a permissions recache via beanstalk?
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1554,7 +1571,6 @@ print '</pre>';
                 /** @var RadioOptionsMeta[] $all_options_meta */
 
                 // Look to the $_POST for the new order
-
                 foreach ($post as $index => $radio_option_id) {
                     if ( !isset($all_options_meta[$radio_option_id]) )
                         throw new \Exception('Invalid POST request');
@@ -2918,10 +2934,12 @@ print '</pre>';
             // Ensure the plugin map doesn't have multiple the same datafield mapped to multiple renderplugin_fields
             $mapped_datafields = array();
             foreach ($plugin_map as $rpf_id => $df_id) {
-                if ( isset($mapped_datafields[$df_id]) )
-                    throw new \Exception('Invalid Form...multiple datafields mapped to the same renderpluginfield');
+                if ($df_id != '-1') {
+                    if ( isset($mapped_datafields[$df_id]) )
+                        throw new \Exception('Invalid Form...multiple datafields mapped to the same renderpluginfield');
 
-                $mapped_datafields[$df_id] = 0;
+                    $mapped_datafields[$df_id] = 0;
+                }
             }
 
             // Ensure the datafields in the plugin map are the correct fieldtype, and that none of the fields required for the plugin are missing
@@ -3007,8 +3025,23 @@ print '</pre>';
             }
 
             // If new datafields created, flush entity manager to save the theme_element and datafield meta entries
-            if ($reload_datatype)
+            if ($reload_datatype) {
                 $em->flush();
+
+                // Since new datafields were created, wipe datafield permission entries for all users
+                $memcached = $this->get('memcached');
+                $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+                $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+                $user_manager = $this->container->get('fos_user.user_manager');
+                /** @var User[] $user_list */
+                $user_list = $user_manager->findUsers();
+                foreach ($user_list as $user) {
+                    $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datafield_permissions');
+
+                    // TODO - schedule a permissions recache via beanstalk?
+                }
+            }
 
 
             // ----------------------------------------

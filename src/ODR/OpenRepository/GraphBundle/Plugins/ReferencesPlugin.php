@@ -35,7 +35,7 @@ class ReferencesPlugin
 
 
     /**
-     * Executes the URL Plugin on the provided datarecord
+     * Executes the References Plugin on the provided datarecord
      *
      * @param array $datarecords
      * @param array $datatype

@@ -12,26 +12,29 @@
     {% if theme_element.themeDataFields is defined %}
 
         {% for theme_datafield in theme_element.themeDataFields %}
-            {# Output via results_datafield or markdown #}
-            {% set datafield = theme_datafield.dataField %}
-
-            {% set can_edit_datafield = false %}
-            {% if datafield_permissions[ datafield.id ] is defined and datafield_permissions[ datafield.id ][ 'edit' ] is defined %}
-                {% set can_edit_datafield = true %}
-            {% endif %}
-
-            <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datafield.id }}" >
-
-            {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
-                {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
+            {% if theme_datafield.dataField is not defined %}
+                <div class="pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"></div>    {# user doesn't have permissions to see this datafield #}
             {% else %}
-                {% include 'ODRAdminBundle:MassEdit:massedit_datafield.html.twig' with {
-                    'datafield': datafield,
-                    'can_edit_datafield': can_edit_datafield
-                } %}
-            {% endif %}
+                {% set datafield = theme_datafield.dataField %}
 
-            </div>
+                {% set can_edit_datafield = false %}
+                {% if datafield_permissions[ datafield.id ] is defined and datafield_permissions[ datafield.id ][ 'edit' ] is defined %}
+                    {% set can_edit_datafield = true %}
+                {% endif %}
+
+                <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datafield.id }}" >
+
+                {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
+                    {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
+                {% else %}
+                    {% include 'ODRAdminBundle:MassEdit:massedit_datafield.html.twig' with {
+                        'datafield': datafield,
+                        'can_edit_datafield': can_edit_datafield
+                    } %}
+                {% endif %}
+
+                </div><!-- end of #Field_{{ datafield.id }} -->
+            {% endif %}
         {% endfor %}
 
     {% elseif theme_element.themeDataType is defined %}

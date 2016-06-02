@@ -203,7 +203,7 @@ class DisplayController extends ODRCustomController
 
             $redirect_path = $router->generate('odr_display_view', array('datarecord_id' => 0));    // blank path
             $header_html = $templating->render(
-                'ODRAdminBundle:Results:results_header.html.twig',
+                'ODRAdminBundle:Display:display_header.html.twig',
                 array(
                     'user_permissions' => $datatype_permissions,
                     'datarecord' => $datarecord,
@@ -296,6 +296,7 @@ class DisplayController extends ODRCustomController
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             parent::filterByUserPermissions($datatype->getId(), $datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
 
+//print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
 
             // ----------------------------------------
             // Render the DataRecord

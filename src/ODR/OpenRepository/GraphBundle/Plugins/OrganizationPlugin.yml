@@ -1,0 +1,17 @@
+ODR\OpenRepository\GraphBundle\Plugins\Organization:
+    name: Organization Plugin
+    datatype: true
+    version: 1.00
+    override_fields: false
+    override_child: false
+    description: The organization plugin provides the basic framework for storing metadata about a organization.
+    required_fields:
+        organization_name:
+            name: Organization Name
+            description: The name of the organization.
+            type: LongVarchar
+        organization_address:
+            name: Organization Address
+            description: The address of the organization.
+            type: LongText
+    config_options:

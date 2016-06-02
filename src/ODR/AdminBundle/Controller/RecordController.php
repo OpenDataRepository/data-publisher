@@ -2633,6 +2633,10 @@ if ($debug)
 
 //print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
 
+        // ----------------------------------------
+        // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
+        parent::filterByUserPermissions($datatype->getId(), $datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
+
 
         // Determine which template to use for rendering
         $template = 'ODRAdminBundle:Record:record_ajax.html.twig';

@@ -33,6 +33,23 @@ parameters:
             name: 'URL Field'
             filename: URLPlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
+
+        organization_plugin:
+            name: 'Organization Plugin'
+            filename: OrganizationPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        person_plugin:
+            name: 'Person Plugin'
+            filename: PersonPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        sample_plugin:
+            name: 'Sample Plugin'
+            filename: SamplePlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        site_plugin:
+            name: 'Site Identifier Plugin'
+            filename: SitePlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
     memcached.servers:
         -
             host: 127.0.0.1

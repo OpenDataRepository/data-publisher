@@ -20,21 +20,24 @@
     {% if theme_element.themeDataFields is defined %}
 
         {% for theme_datafield in theme_element.themeDataFields %}
-            {# Output via results_datafield or markdown #}
-            {% set datafield = theme_datafield.dataField %}
-
-            <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}">
-            {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
-                {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
+            {% if theme_datafield.dataField is not defined %}
+                <div class="pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"></div>    {# user doesn't have permissions to see this datafield #}
             {% else %}
-                {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
-                    'datarecord': datarecord,
-                    'datafield': datafield,
+                {% set datafield = theme_datafield.dataField %}
 
-                    'image_thumbnails_only': false,
-                } %}
+                <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}">
+                {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
+                    {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
+                {% else %}
+                    {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
+                        'datarecord': datarecord,
+                        'datafield': datafield,
+
+                        'image_thumbnails_only': false,
+                    } %}
+                {% endif %}
+                </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->
             {% endif %}
-            </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->
         {% endfor %}
 
     {% elseif theme_element.themeDataType is defined %}

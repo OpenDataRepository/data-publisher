@@ -11,13 +11,16 @@
 
         {% if theme_element.themeDataFields is defined %}
             {% for theme_datafield in theme_element.themeDataFields %}
-                {% set datafield = theme_datafield.dataField %}
+                {% if theme_datafield.dataField is not defined %}
+                    <div class="pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"></div>    {# user doesn't have permissions to see this datafield #}
+                {% else %}
+                    {% set datafield = theme_datafield.dataField %}
 
-                {% include 'ODRAdminBundle:CSVExport:csvexport_datafield.html.twig' with {
-                    'theme_datafield': theme_datafield,
-                    'datafield': datafield,
-                } %}
-
+                    {% include 'ODRAdminBundle:CSVExport:csvexport_datafield.html.twig' with {
+                        'theme_datafield': theme_datafield,
+                        'datafield': datafield,
+                    } %}
+                {% endif %}
             {% endfor %}
         {% elseif theme_element.themeDataType is defined %}
             {# do not render child/linked datatype for CSVExport #}
