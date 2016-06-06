@@ -1,10 +1,8 @@
 {% spaceless %}
 
-{% if for_slideout == true %}
 <div class="pure-u-3-4" style="visibility: hidden;">
     <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
 </div>
-{% endif %}
 
 <form class="ODRDatatypePropertiesForm pure-form pure-form-aligned" {{ form_enctype(datatype_form) }} id="DatatypePropertiesForm_{{ datatype.id }}">
 {% if datatree == null or datatree.getislink == false %}    {# don't display datatype-specific properties if a linked type #}
@@ -13,7 +11,6 @@
 
     <fieldset>
 
-        {% if for_slideout == true %}
         <div class="pure-control-group">
             <label for="{{ datatype_form.short_name.vars.id }}">
                 <strong>{{ datatype_form.short_name.vars.label }}</strong>
@@ -35,7 +32,6 @@
             {{ form_errors(datatype_form.description) }}
             {{ form_widget(datatype_form.description, { 'attr': {'class': 'required', 'data-error-type': 'inline', 'style': 'height:150px;' } }) }}
         </div>
-        {% endif %}
 
 
         <div class="pure-control-group">
@@ -73,23 +69,22 @@
             {{ form_widget(datatype_form.backgroundImageField, { 'attr': {'data-error-type': 'inline' } }) }}
             <span style="color:black;">&nbsp;<i class="fa fa-lg fa-question-circle Cursor" title="This Datatype's search page will select and display a random public Image uploaded to the selected Datafield."></i></span>
         </div>
-        {% endif %}
 
-        {% if for_slideout == false %}
         <div class="pure-control-group">
             <label for="{{ datatype_form.searchSlug.vars.id }}">
                 <strong>{{ datatype_form.searchSlug.vars.label }}</strong>
             </label>
             {{ form_errors(datatype_form.searchSlug) }}
-            {{ site_baseurl ~ '/'}}{{ form_widget(datatype_form.searchSlug, { 'attr': {'style': 'width:auto'} }) }}
+            <span style="color:black; font-size:80%;">{{ site_baseurl ~ '/'}}</span>
+            <span>{{ form_widget(datatype_form.searchSlug, { 'attr': {'style': 'width:auto;', 'maxlength': '32'} }) }}</span>
+{#
             <span id="{{ datatype_form.searchSlug.vars.id }}_error" style="display: none; color:red;">
                 <i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;A Datatype with this abbreviation already exists!
             </span>
             <input type="hidden" id="{{ datatype_form.searchSlug.vars.id }}_original" disabled="disabled" style="display: none;" value="{{ datatype_form.searchSlug.vars.value }}" />
+#}
         </div>
-        {% endif %}
 
-        {% if is_top_level == true %}
         <div class="pure-control-group">
             <label for="{{ datatype_form.useShortResults.vars.id }}">
                 <strong>{{ datatype_form.useShortResults.vars.label }}</strong>
@@ -97,25 +92,34 @@
             {{ form_errors(datatype_form.useShortResults) }}
             {{ form_widget(datatype_form.useShortResults, { 'attr': {'style': 'width:auto'} }) }}
         </div>
-        {% else %}
+        {% endif %}
+
+        {% if is_top_level == true and can_view_permissions == true %}
         <div class="pure-control-group">
-            <label for="{{ datatype_form.display_type.vars.id }}">
-                <strong>{{ datatype_form.display_type.vars.label }}</strong>
+            <label>
+                <strong>Datatype Permissions</strong>
             </label>
-            {{ form_errors(datatype_form.display_type) }}
-            {{ form_widget(datatype_form.display_type, { 'attr': {'style': 'width:auto'} }) }}
+            <span>
+                &nbsp;<a target="_blank" class="address" href="#{{ path( 'odr_datatype_permissions_list', {'datatype_id': datatype.id }) }}" style="color:black;" title="Show all user permissions for this Datatype..."><i class="fa fa-cog fa-lg"></i></a>
+            </span>
         </div>
         {% endif %}
 
         {# render all hidden fields, and anything else that's necessary #}
-        {{ form_rest(datatype_form) }}
+        <div style="display: none">
+            {{ form_rest(datatype_form) }}
+        </div>
 
     </fieldset>
 {% endif %}
 </form>
 
-{% if is_top_level == false and datatree != null and for_slideout == true %}   {# display datatree properties if not a top-level datatype #}
+{% if is_top_level == false and datatree != null %}   {# display datatree properties if not a top-level datatype #}
     {% include 'ODRAdminBundle:Displaytemplate:datatree_properties_form.html.twig' with {'datatree': datatree, 'datatree_form': datatree_form, 'force_multiple': force_multiple} %}
+{% endif %}
+
+{% if is_top_level == false and theme_datatype != null %}   {# display theme_datatype properties if not a top-level datatype #}
+    {% include 'ODRAdminBundle:Theme:theme_datatype_properties_form.html.twig' with {'theme_datatype': theme_datatype, 'theme_datatype_form': theme_datatype_form} %}
 {% endif %}
 
 {% endspaceless %}

@@ -40,6 +40,10 @@ use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioOptionsMeta;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\RenderPlugin;
+use ODR\AdminBundle\Entity\RenderPluginFields;
+use ODR\AdminBundle\Entity\RenderPluginInstance;
+use ODR\AdminBundle\Entity\RenderPluginMap;
+use ODR\AdminBundle\Entity\RenderPluginOptions;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
@@ -1521,8 +1525,9 @@ exit();
                'SELECT df.id AS df_id, ufp.can_view_field, ufp.can_edit_field
                 FROM ODRAdminBundle:DataFields AS df
                 JOIN ODRAdminBundle:UserFieldPermissions AS ufp WITH ufp.dataField = df
+                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
                 WHERE ufp.user = :user_id
-                AND df.deletedAt IS NULL AND ufp.deletedAt IS NULL'
+                AND df.deletedAt IS NULL AND ufp.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters( array('user_id' => $user_id) );
             $datafield_permissions = $query->getArrayResult();
 
@@ -4069,7 +4074,6 @@ if ($debug)
             $theme_element_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
             $theme_element_meta->setCreatedBy($user);
-            $theme_element_meta->setCreated( new \DateTime() );
         }
         else {
             // Update the existing meta entry
@@ -4215,7 +4219,6 @@ if ($debug)
             $new_theme_datafield->setCssWidthXL( $theme_datafield->getCssWidthXL() );
 
             $new_theme_datafield->setCreatedBy($user);
-            $new_theme_datafield->setUpdatedBy($user);
 
             // TODO - remove these two properties
             $new_theme_datafield->setTheme( $theme_datafield->getTheme() );
@@ -4327,7 +4330,6 @@ if ($debug)
             $new_theme_datatype->setDisplayType( $theme_datatype->getDisplayType() );
 
             $new_theme_datatype->setCreatedBy($user);
-            $new_theme_datatype->setUpdatedBy($user);
 
             // TODO - remove this property
             $new_theme_datatype->setTheme($theme_datatype->getTheme());
@@ -4355,6 +4357,245 @@ if ($debug)
 
         // Return the new entry
         return $new_theme_datatype;
+    }
+
+
+    /**
+     * Creates, persists, and flushes a new RenderPluginInstance entity
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param RenderPlugin $render_plugin
+     * @param DataType|null $datatype
+     * @param DataFields|null $datafield
+     *
+     * @throws \Exception
+     *
+     * @return RenderPluginInstance
+     */
+    protected function ODR_addRenderPluginInstance($em, $user, $render_plugin, $datatype, $datafield)
+    {
+        // Ensure a RenderPlugin for a Datatype plugin doesn't get assigned to a Datafield, or a RenderPlugin for a Datafield doesn't get assigned to a Datatype
+        if ( $render_plugin->getPluginType() == 1 && $datatype == null )
+            throw new \Exception('Unable to create an instance of the RenderPlugin "'.$render_plugin->getPluginName().'" for a null Datatype');
+        else if ( $render_plugin->getPluginType() == 3 && $datafield == null )
+            throw new \Exception('Unable to create an instance of the RenderPlugin "'.$render_plugin->getPluginName().'" for a null Datafield');
+
+        // Create the new RenderPluginInstance
+        $rpi = new RenderPluginInstance();
+        $rpi->setRenderPlugin($render_plugin);
+        $rpi->setDataType($datatype);
+        $rpi->setDataField($datafield);
+
+        $rpi->setActive(true);
+
+        $rpi->setCreatedBy($user);
+        $rpi->setUpdatedBy($user);
+
+        $em->persist($rpi);
+        $em->flush();
+        $em->refresh($rpi);
+
+        return $rpi;
+    }
+
+
+    /**
+     * Creates and persists a new RenderPluginMap entity
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param RenderPluginInstance $render_plugin_instance
+     * @param RenderPluginFields $render_plugin_fields
+     * @param DataType|null $datatype
+     * @param DataFields $datafield
+     *
+     * @return RenderPluginMap
+     */
+    protected function ODR_addRenderPluginMap($em, $user, $render_plugin_instance, $render_plugin_fields, $datatype, $datafield)
+    {
+        $rpm = new RenderPluginMap();
+        $rpm->setRenderPluginInstance($render_plugin_instance);
+        $rpm->setRenderPluginFields($render_plugin_fields);
+
+        $rpm->setDataType($datatype);
+        $rpm->setDataField($datafield);
+
+        $rpm->setCreatedBy($user);
+        $rpm->setUpdatedBy($user);
+
+        $em->persist($rpm);
+
+        return $rpm;
+    }
+
+
+    /**
+     * Copies the contents of the given RenderPluginMap entity into a new RenderPluginMap entity if something was changed
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'dataField'
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param RenderPluginMap $render_plugin_map
+     * @param array $properties
+     *
+     * @return RenderPluginMap
+     */
+    protected function ODR_copyRenderPluginMap($em, $user, $render_plugin_map, $properties)
+    {
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'dataField' => $render_plugin_map->getDataField()->getId(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $render_plugin_map;
+
+
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_rpm = null;
+        if ( self::createNewMetaEntry($user, $render_plugin_map) ) {
+            // Create a new meta entry and copy the old entry's data over
+            $remove_old_entry = true;
+
+            $new_rpm = new RenderPluginMap();
+            $new_rpm->setRenderPluginInstance( $render_plugin_map->getRenderPluginInstance() );
+            $new_rpm->setRenderPluginFields( $render_plugin_map->getRenderPluginFields() );
+
+            $new_rpm->setDataType( $render_plugin_map->getDataType() );
+            $new_rpm->setDataField( $render_plugin_map->getDataField() );
+
+            $new_rpm->setCreatedBy($user);
+        }
+        else {
+            // Update the existing meta entry
+            $new_rpm = $render_plugin_map;
+        }
+
+
+        // Set any new properties
+        if (isset($properties['dataField']))
+            $new_rpm->setDataField( $em->getRepository('ODRAdminBundle:DataFields')->find($properties['dataField']) );
+
+        $new_rpm->setUpdatedBy($user);
+
+
+        // Delete the old entry if needed
+        if ($remove_old_entry)
+            $em->remove($render_plugin_map);
+
+        // Save the new meta entry
+        $em->persist($new_rpm);
+        $em->flush();
+
+        // Return the new entry
+        return $new_rpm;
+    }
+
+
+    /**
+     * Creates and persists a new RenderPluginOption entity
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param $render_plugin_instance
+     * @param $option_name
+     * @param $option_value
+     *
+     * @return RenderPluginOptions
+     */
+    protected function ODR_addRenderPluginOption($em, $user, $render_plugin_instance, $option_name, $option_value)
+    {
+        $rpo = new RenderPluginOptions();
+        $rpo->setRenderPluginInstance($render_plugin_instance);
+        $rpo->setOptionName($option_name);
+        $rpo->setOptionValue($option_value);
+
+        $rpo->setActive(true);
+
+        $rpo->setCreatedBy($user);
+        $rpo->setUpdatedBy($user);
+
+        $em->persist($rpo);
+
+        return $rpo;
+    }
+
+
+    /**
+     * Copies the contents of the given RenderPluginOptions entity into a new RenderPluginOptions entity if something was changed
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'optionValue'
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param RenderPluginOptions $render_plugin_option
+     * @param array $properties
+     *
+     * @return RenderPluginOptions
+     */
+    protected function ODR_copyRenderPluginOption($em, $user, $render_plugin_option, $properties)
+    {
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'optionValue' => $render_plugin_option->getOptionValue(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $render_plugin_option;
+
+
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_rpo = null;
+        if ( self::createNewMetaEntry($user, $render_plugin_option) ) {
+            // Create a new meta entry and copy the old entry's data over
+            $remove_old_entry = true;
+
+            $new_rpo = new RenderPluginOptions();
+            $new_rpo->setRenderPluginInstance( $render_plugin_option->getRenderPluginInstance() );
+            $new_rpo->setOptionName( $render_plugin_option->getOptionName() );
+            $new_rpo->setOptionValue( $render_plugin_option->getOptionValue() );
+
+            $new_rpo->setCreatedBy($user);
+        }
+        else {
+            // Update the existing meta entry
+            $new_rpo = $render_plugin_option;
+        }
+
+
+        // Set any new properties
+        if (isset($properties['optionValue']))
+            $new_rpo->setOptionValue( $properties['optionValue'] );
+
+        $new_rpo->setUpdatedBy($user);
+
+
+        // Delete the old entry if needed
+        if ($remove_old_entry)
+            $em->remove($render_plugin_option);
+
+        // Save the new meta entry
+        $em->persist($new_rpo);
+        $em->flush();
+
+        // Return the new entry
+        return $new_rpo;
     }
 
 

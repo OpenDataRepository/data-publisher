@@ -1,25 +1,22 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* RenderPlugin Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The RenderPlugin Entity is automatically generated from 
-* ./Resources/config/doctrine/RenderPlugin.orm.yml
-*
-*/
-
+ * Open Data Repository Data Publisher
+ * RenderPlugin Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The RenderPlugin Entity is automatically generated from
+ * ./Resources/config/doctrine/RenderPlugin.orm.yml
+ *
+ */
 
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 
-/**
- * RenderPlugin
- */
+
 class RenderPlugin
 {
     /**
@@ -43,14 +40,24 @@ class RenderPlugin
     private $pluginClassName;
 
     /**
-     * @var string
+     * @var boolean
      */
-    private $pluginOptions;
+    private $active;
 
     /**
      * @var boolean
      */
-    private $active;
+    private $overrideChild;
+
+    /**
+     * @var boolean
+     */
+    private $overrideFields;
+
+    /**
+     * @var integer
+     */
+    private $plugin_type;
 
     /**
      * @var \DateTime
@@ -68,6 +75,26 @@ class RenderPlugin
     private $updated;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $dataFields;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $dataType;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $renderPluginInstance;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $renderPluginFields;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
@@ -77,6 +104,16 @@ class RenderPlugin
      */
     private $updatedBy;
 
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->dataFields = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->dataType = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->renderPluginInstance = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->renderPluginFields = new \Doctrine\Common\Collections\ArrayCollection();
+    }
 
     /**
      * Get id
@@ -97,7 +134,7 @@ class RenderPlugin
     public function setPluginName($pluginName)
     {
         $this->pluginName = $pluginName;
-    
+
         return $this;
     }
 
@@ -120,7 +157,7 @@ class RenderPlugin
     public function setDescription($description)
     {
         $this->description = $description;
-    
+
         return $this;
     }
 
@@ -143,7 +180,7 @@ class RenderPlugin
     public function setPluginClassName($pluginClassName)
     {
         $this->pluginClassName = $pluginClassName;
-    
+
         return $this;
     }
 
@@ -158,29 +195,6 @@ class RenderPlugin
     }
 
     /**
-     * Set pluginOptions
-     *
-     * @param string $pluginOptions
-     * @return RenderPlugin
-     */
-    public function setPluginOptions($pluginOptions)
-    {
-        $this->pluginOptions = $pluginOptions;
-    
-        return $this;
-    }
-
-    /**
-     * Get pluginOptions
-     *
-     * @return string 
-     */
-    public function getPluginOptions()
-    {
-        return $this->pluginOptions;
-    }
-
-    /**
      * Set active
      *
      * @param boolean $active
@@ -189,7 +203,7 @@ class RenderPlugin
     public function setActive($active)
     {
         $this->active = $active;
-    
+
         return $this;
     }
 
@@ -204,159 +218,6 @@ class RenderPlugin
     }
 
     /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return RenderPlugin
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-    
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
-    }
-
-    /**
-     * Set created
-     *
-     * @param \DateTime $created
-     * @return RenderPlugin
-     */
-    public function setCreated($created)
-    {
-        $this->created = $created;
-    
-        return $this;
-    }
-
-    /**
-     * Get created
-     *
-     * @return \DateTime 
-     */
-    public function getCreated()
-    {
-        return $this->created;
-    }
-
-    /**
-     * Set updated
-     *
-     * @param \DateTime $updated
-     * @return RenderPlugin
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-    
-        return $this;
-    }
-
-    /**
-     * Get updated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
-    }
-
-    /**
-     * Set createdBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
-     * @return RenderPlugin
-     */
-    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
-    {
-        $this->createdBy = $createdBy;
-    
-        return $this;
-    }
-
-    /**
-     * Get createdBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getCreatedBy()
-    {
-        return $this->createdBy;
-    }
-
-    /**
-     * Set updatedBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return RenderPlugin
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-    
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
-    }
-    /**
-     * @var boolean
-     */
-    private $plugin_type;
-
-
-    /**
-     * Set plugin_type
-     *
-     * @param boolean $pluginType
-     * @return RenderPlugin
-     */
-    public function setPluginType($pluginType)
-    {
-        $this->plugin_type = $pluginType;
-    
-        return $this;
-    }
-
-    /**
-     * Get plugin_type
-     *
-     * @return boolean 
-     */
-    public function getPluginType()
-    {
-        return $this->plugin_type;
-    }
-    /**
-     * @var boolean
-     */
-    private $overrideChild;
-
-    /**
-     * @var boolean
-     */
-    private $overrideFields;
-
-
-    /**
      * Set overrideChild
      *
      * @param boolean $overrideChild
@@ -365,7 +226,7 @@ class RenderPlugin
     public function setOverrideChild($overrideChild)
     {
         $this->overrideChild = $overrideChild;
-    
+
         return $this;
     }
 
@@ -388,7 +249,7 @@ class RenderPlugin
     public function setOverrideFields($overrideFields)
     {
         $this->overrideFields = $overrideFields;
-    
+
         return $this;
     }
 
@@ -401,17 +262,97 @@ class RenderPlugin
     {
         return $this->overrideFields;
     }
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $dataFields;
 
     /**
-     * Constructor
+     * Set plugin_type
+     *
+     * @param integer $pluginType
+     * @return RenderPlugin
      */
-    public function __construct()
+    public function setPluginType($pluginType)
     {
-        $this->dataFields = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->plugin_type = $pluginType;
+
+        return $this;
+    }
+
+    /**
+     * Get plugin_type
+     *
+     * @return integer 
+     */
+    public function getPluginType()
+    {
+        return $this->plugin_type;
+    }
+
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return RenderPlugin
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+
+    /**
+     * Set created
+     *
+     * @param \DateTime $created
+     * @return RenderPlugin
+     */
+    public function setCreated($created)
+    {
+        $this->created = $created;
+
+        return $this;
+    }
+
+    /**
+     * Get created
+     *
+     * @return \DateTime 
+     */
+    public function getCreated()
+    {
+        return $this->created;
+    }
+
+    /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return RenderPlugin
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime 
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
     }
 
     /**
@@ -446,11 +387,6 @@ class RenderPlugin
     {
         return $this->dataFields;
     }
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $dataType;
-
 
     /**
      * Add dataType
@@ -484,16 +420,6 @@ class RenderPlugin
     {
         return $this->dataType;
     }
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $renderPluginInstance;
-
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $renderPluginFields;
-
 
     /**
      * Add renderPluginInstance
@@ -559,5 +485,51 @@ class RenderPlugin
     public function getRenderPluginFields()
     {
         return $this->renderPluginFields;
+    }
+
+    /**
+     * Set createdBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
+     * @return RenderPlugin
+     */
+    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
+    {
+        $this->createdBy = $createdBy;
+
+        return $this;
+    }
+
+    /**
+     * Get createdBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getCreatedBy()
+    {
+        return $this->createdBy;
+    }
+
+    /**
+     * Set updatedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return RenderPlugin
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
     }
 }

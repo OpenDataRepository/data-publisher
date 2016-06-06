@@ -1,0 +1,22 @@
+{% spaceless %}
+
+<form class="ODRThemeDatatypePropertiesForm pure-form pure-form-aligned" {{ form_enctype(theme_datatype_form) }} id="ThemeDatafieldPropertiesForm_{{ theme_datatype.id }}">
+    {{ form_errors(theme_datatype_form._token) }}
+    {{ form_widget(theme_datatype_form._token) }}
+
+    <fieldset>
+        <div class="pure-control-group">
+            <label for="{{ theme_datatype_form.display_type.vars.id }}">
+                <strong>{{ theme_datatype_form.display_type.vars.label }}</strong>
+            </label>
+            {{ form_errors(theme_datatype_form.display_type) }}
+            {{ form_widget(theme_datatype_form.display_type, { 'attr': {'style': 'width:auto'} }) }}
+        </div>
+
+        <div style="display: none">
+        {{ form_rest(theme_datatype_form) }}
+        </div>
+    </fieldset>
+</form>
+
+{% endspaceless %}

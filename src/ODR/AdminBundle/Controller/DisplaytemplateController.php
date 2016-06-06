@@ -53,6 +53,7 @@ use ODR\AdminBundle\Form\UpdateDataTypeForm;
 use ODR\AdminBundle\Form\UpdateDataTreeForm;
 use ODR\AdminBundle\Form\UpdateThemeElementForm;
 use ODR\AdminBundle\Form\UpdateThemeDatafieldForm;
+use ODR\AdminBundle\Form\UpdateThemeDatatypeForm;
 // Symfony
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
@@ -556,8 +557,7 @@ class DisplaytemplateController extends ODRCustomController
 
     /**
      * Deletes an entire DataType and all of the entities directly related to rendering it.
-     * DataRecords and DataFields don't have to be deleted.
-     * 
+     *
      * @param integer $datatype_id The database id of the DataType to be deleted.
      * @param Request $request
      * 
@@ -571,12 +571,14 @@ class DisplaytemplateController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            throw new \Exception('DISABLED PENDING SECOND HALF OF THEME REWORK');
-
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
+
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -584,6 +586,9 @@ class DisplaytemplateController extends ODRCustomController
                 return parent::deletedEntityError('DataType');
 
             $top_level_datatypes = parent::getTopLevelDatatypes();
+
+            $datatree_array = parent::getDatatreeArray($em, true);
+            $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datatype->getId());
 
             // --------------------
             // Determine user privileges
@@ -604,184 +609,208 @@ class DisplaytemplateController extends ODRCustomController
             }
             // --------------------
 
-            $entities_to_remove = array();
+            // TODO - prevent datatype deletion when jobs are in progress?
 
-            // TODO - warn about deleting datatype when jobs are in progress
 
-            // Don't delete this datatype if it's set as the default search
-//            if ($datatype->getIsDefaultSearchDatatype() == true)
-//                throw new \Exception("This Datatype can't be deleted because it's marked as the default search datatype...");
+            // ----------------------------------------
+            // Locate ids of all datatypes that need deletion
+            $tmp = array($datatype->getId() => 0);
+
+            $datatypes_to_delete = array(0 => $datatype->getId());
+            while ( count($tmp) > 0 ) {
+                $new_tmp = array();
+                foreach ($tmp as $dt_id => $num) {
+                    $child_datatype_ids = array_keys($datatree_array['descendant_of'], $dt_id);
+
+                    foreach ($child_datatype_ids as $num => $child_datatype_id) {
+                        $new_tmp[$child_datatype_id] = 0;
+                        $datatypes_to_delete[] = $child_datatype_id;
+                    }
+
+                    unset($tmp[$dt_id]);
+                }
+                $tmp = $new_tmp;
+            }
+
+            $datatypes_to_delete = array_unique($datatypes_to_delete);
+            $datatypes_to_delete = array_values($datatypes_to_delete);
+
+//print '<pre>'.print_r($datatypes_to_delete, true).'</pre>'; exit();
+
+            // ----------------------------------------
+            // Delete cached versions of Datarecords if needed
+            if ($datatype->getId() == $grandparent_datatype_id) {
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.dataType = :datatype_id'
+                )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    $dr_id = $result['dr_id'];
+
+                    $memcached->delete($memcached_prefix.'.cached_datarecord_'.$dr_id);
+                    $memcached->delete($memcached_prefix.'.associated_datarecords_for_'.$dr_id);
+                }
+            }
 
 /*
-            // TODO - Does each datarecord of the datatype also need to be deleted?
-            // Get RecordController in order to render everything
-            $odrc = $this->get('record_controller', $request);
-            $odrc->setContainer($this->container);
-            $datarecords = $repo_datarecord->findByDataType($datatype);
-            foreach ($datarecords as $dr)
-                $odrc->deleteAction($dr->getId(), $request);
+            // Delete Datarecordfield entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataRecord AS dr, ODRAdminBundle:DataRecordFields AS drf
+                SET drf.deletedAt = :now
+                WHERE drf.dataRecord = dr
+                AND dr.dataType IN (:datatype_ids)
+                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
+*/
+            // Delete LinkedDatatree entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataRecord AS ancestor, ODRAdminBundle:LinkedDataTree AS ldt, ODRAdminBundle:DataRecord AS descendant
+                SET ldt.deletedAt = :now, ldt.deletedBy = :deleted_by
+                WHERE ldt.ancestor = ancestor AND ldt.descendant = descendant
+                AND (ancestor.dataType IN (:datatype_ids) OR descendant.dataType IN (:datatype_ids) )
+                AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
+/*
+            // Delete Datarecord and DatarecordMeta entries
+            $query = $em->createQuery(
+                'UPDATE ODRAdminBundle:DataRecord AS dr, ODRAdminBundle:DataRecordMeta AS drm
+                SET dr.deletedAt = :now, dr.deletedBy = :deleted_by, drm.deletedAt = :now
+                WHERE drm.dataRecord = dr
+                AND dr.dataType IN (:datatype_ids)
+                AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
 */
 
-
-            // TODO - move to beanstalk?  extremely likely...datarecords, datafields, and datarecordfield entries all need to be deleted...most likely, just wipe caches and delete datatype and permissions here
-
-            // TODO - should all of these need to be done with DQL update?
-
             // ----------------------------------------
-            // First, remove user permission entries for this datatype
-            /** @var UserPermissions[] $user_permissions */
-            $user_ids = array();
-            $user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions')->findBy( array('dataType' => $datatype->getId()) );
-            foreach ($user_permissions as $permission) {
-                $user_ids[] = $permission->getUser()->getId();
-
-                $entities_to_remove[] = $permission;
-            }
-
-
-            // ----------------------------------------
-            // Second, remove all datafields belonging to this datatype
-            /** @var DataFields[] $datafields */
-            $datafield_ids = array();
-            $datafields = $em->getRepository('ODRAdminBundle:DataFields')->findBy( array('dataType' => $datatype->getId()) );
-            foreach ($datafields as $datafield) {
-                $datafield_ids[] = $datafield->getId();
-
-                $datafield->setDeletedBy($user);
-                $em->persist($datafield);
-
-                $entities_to_remove[] = $datafield;
-            }
-
-            // Also remove all user field permissions for these datafields
+/*
+            // Delete DatafieldPermission entries (cached versions deleted later)
             $query = $em->createQuery(
-               'SELECT ufp
-                FROM ODRAdminBundle:UserFieldPermissions AS ufp
-                WHERE ufp.dataField IN (:datafield_ids)
-                AND ufp.deletedAt IS NULL'
-            )->setParameters( array('datafield_ids' => $datafield_ids) );
-            $results = $query->getResult();
+               'UPDATE ODRAdminBundle:DataFields AS df, ODRAdminBundle:UserFieldPermissions AS ufp
+                SET ufp.deletedAt = :now
+                WHERE ufp.dataField = df
+                AND df.dataType IN (:datatype_ids)
+                AND df.deletedAt IS NULL AND ufp.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
 
-            foreach ($results as $ufp) {
-                /** @var UserFieldPermissions $ufp */
-                $entities_to_remove[] = $ufp;
+            // Delete Datafields and their DatafieldMeta entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataFields AS df, ODRAdminBundle:DataFieldsMeta AS dfm
+                SET df.deletedAt = :now, df.deletedBy = :deleted_by, dfm.deletedAt = :now
+                WHERE dfm.dataField = df
+                AND df.dataType IN (:datatype_ids)
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
+*/
+
+            // ----------------------------------------
+/*
+            // Delete all ThemeDatatype entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:ThemeDataType AS tdt, ODRAdminBundle:ThemeElement AS te, ODRAdminBundle:Theme AS t
+                SET tdt.deletedAt = :now, tdt.deletedBy = :deleted_by
+                WHERE tdt.themeElement = te AND te.theme = t
+                AND t.dataType IN (:datatype_ids)
+                AND tdt.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
+*/
+            // Delete any leftover ThemeDatatype entries that refer to $datatypes_to_delete...these would be other datatypes linking to the ones being deleted
+            // (if block above is commented, then it'll also arbitrarily delete child datatypes
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:ThemeDataType AS tdt
+                SET tdt.deletedAt = :now, tdt.deletedBy = :deleted_by
+                WHERE tdt.dataType IN (:datatype_ids)
+                AND tdt.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
+/*
+            // Delete all ThemeDatafield entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:ThemeDataField AS tdf, ODRAdminBundle:ThemeElement AS te, ODRAdminBundle:Theme AS t
+                SET tdf.deletedAt = :now, tdf.deletedBy = :deleted_by
+                WHERE tdf.themeElement = te AND te.theme = t
+                AND t.dataType IN (:datatype_ids)
+                AND tdf.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
+
+            // Delete all ThemeElement and ThemeElementMeta entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:ThemeElement AS te, ODRAdminBundle:ThemeElementMeta AS tem ODRAdminBundle:Theme AS t
+                SET te.deletedAt = :now, te.deletedBy = :deleted_by, tem.deletedAt = :now
+                WHERE tem.themeElement = te AND te.theme = t
+                AND t.dataType IN (:datatype_ids)
+                AND te.deletedAt IS NULL AND tem.deletedAt IS NULL AND t.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
+
+            // Delete all Theme and ThemeMeta entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:Theme AS t, ODRAdminBundle:ThemeMeta AS tm
+                SET t.deletedAt = :now, t.deletedBy = :deleted_by, tm.deletedAt = :now
+                WHERE tm.theme = t
+                AND t.dataType IN (:datatype_ids)
+                AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
+*/
+
+            // ----------------------------------------
+            // Delete all Datatree and DatatreeMeta entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataTree AS dt, ODRAdminBundle:DataTreeMeta AS dtm
+                SET dt.deletedAt = :now, dt.deletedBy = :deleted_by, dtm.deletedAt = :now
+                WHERE dtm.dataTree = dt
+                AND (dt.ancestor IN (:datatype_ids) OR dt.descendant IN (:datatype_ids) )
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
+
+
+            // ----------------------------------------
+/*
+            // Delete all Datatype permission entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:UserPermission AS up
+                SET up.deletedAt = :now
+                WHERE up.dataType IN (:datatype_ids)
+                AND up.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
+*/
+            // Delete all Datatype and DatatypeMeta entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataType AS dt, ODRAdminBundle:DataTypeMeta AS dtm
+                SET dt.deletedAt = :now, dt.deletedBy = :deleted_by, dtm.deletedAt = :now
+                WHERE dtm.dataType = dt
+                AND dt.id IN (:datatype_ids)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
+
+
+            // TODO - move (just about) all this preceeding stuff to beanstalk?
+
+
+            // ----------------------------------------
+            // Grab all the users
+            $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var User[] $user_list */
+            $user_list = $user_manager->findUsers();
+
+            // Delete all cached permissions
+            foreach ($user_list as $user) {
+                $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datatype_permissions');
+                $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datafield_permissions');
             }
-
-
-            // ----------------------------------------
-            // Third, remove the child/parent links from the datatree
-            /** @var DataTree[] $child_datatrees */
-            $child_datatrees = $repo_datatree->findByAncestor($datatype);
-            foreach($child_datatrees as $child_datatree) {
-                if ($child_datatree->getIsLink() == '0') {
-                    // Delete the childtype...the childtype will take care of the datatree entry
-                    self::deletedatatypeAction($child_datatree->getDescendant()->getId(), $request);
-                }
-                else {
-                    // Is a link...delete the datatree entry, but not the "child" type
-                    $child_datatree_meta = $child_datatree->getDataTreeMeta();
-
-                    $child_datatree->setDeletedBy($user);
-                    $em->persist($child_datatree);
-
-                    $entities_to_remove[] = $child_datatree_meta;
-                    $entities_to_remove[] = $child_datatree;
-                }
-            }
-
-            // Also remove any datatree links to a parent
-            /** @var DataTree[] $parent_datatrees */
-            $parent_datatrees = $repo_datatree->findByDescendant($datatype);
-            foreach($parent_datatrees as $parent_datatree) {
-                $parent_datatree_meta = $parent_datatree->getDataTreeMeta();
-
-                $parent_datatree->setDeletedBy($user);
-                $em->persist($parent_datatree);
-
-                $entities_to_remove[] = $parent_datatree_meta;
-                $entities_to_remove[] = $parent_datatree;
-            }
-
-
-            // ----------------------------------------
-            // TODO - use ThemeController:deletethemeAction() instead?
-            // Fourth, find and remove all the theme data for this datatype
-            /** @var Theme[] $themes */
-            $themes = $em->getRepository('ODRAdminBundle:Theme')->findBy( array('dataType' => $datatype->getId()) );
-            foreach ($themes as $theme) {
-                // Delete all the theme elements belonging to this theme
-                $theme_elements = $theme->getThemeElements();
-                foreach ($theme_elements as $theme_element) {
-                    /** @var ThemeElement $theme_element */
-
-                    // Need to delete any theme_datatype entries in this theme_element
-                    $theme_datatypes = $theme_element->getThemeDataType();
-                    foreach ($theme_datatypes as $theme_datatype) {
-                        /** @var ThemeDataType $theme_datatype */
-                        $theme_datatype->setDeletedBy($user);
-                        $em->persist($theme_datatype);
-
-                        $entities_to_remove[] = $theme_datatype;
-                    }
-
-                    // Need to delete any theme_datafield entries in this theme_element
-                    $theme_datafields = $theme_element->getThemeDataFields();
-                    foreach ($theme_datafields as $theme_datafield) {
-                        /** @var ThemeDataField $theme_datafield */
-                        $theme_datafield->setDeletedBy($user);
-                        $em->persist($theme_datafield);
-
-                        $entities_to_remove[] = $theme_datafield;
-                    }
-
-                    // Save who is deleting this theme_element
-                    $theme_element->setDeletedBy($user);
-                    $em->persist($theme_element);
-
-                    // Also delete the meta entry
-                    $theme_element_meta = $theme_element->getThemeElementMeta();
-
-                    $entities_to_remove[] = $theme_element_meta;
-                    $entities_to_remove[] = $theme_element;
-                }
-
-                // Finally, delete the theme and its associated meta entry
-                $theme->setDeletedBy($user);
-                $em->persist($theme);
-
-                $theme_meta = $theme->getThemeMeta();
-                $entities_to_remove[] = $theme_meta;
-                $entities_to_remove[] = $theme;
-            }
-
-
-            // ----------------------------------------
-            // Finally, save who deleted the actual datatype itself
-            $datatype->setUpdatedBy($user);
-            $datatype->setDeletedBy($user);
-            $em->persist($datatype);
-
-            $entities_to_remove[] = $datatype;
-            $entities_to_remove[] = $datatype->getDataTypeMeta();
-
-
-            // ----------------------------------------
-            // Commit Deletes
-            $em->flush();
-            foreach ($entities_to_remove as $entity)
-                $em->remove($entity);
-            $em->flush(); 
-
-
-            // ----------------------------------------
-            // Delete stuff out of the cache...
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-
-            // ...user permissions
-            foreach ($user_ids as $user_id)
-                $memcached->delete($memcached_prefix.'.user_'.$user_id.'_datatype_permissions');
 
             // ...cached searches
             $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
@@ -792,7 +821,10 @@ class DisplaytemplateController extends ODRCustomController
                 $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
             }
 
-            // ...layout data TODO
+            // ...and layout data
+            foreach ($datatypes_to_delete as $num => $dt_id)
+                $memcached->delete($memcached_prefix.'.cached_datatype_'.$dt_id);
+
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1021,11 +1053,13 @@ print '</pre>';
                         'is_link' => $submitted_data->getIsLink(),
                     );
                     parent::ODR_copyDatatreeMeta($em, $user, $datatree, $properties);
-
-                    // Schedule the cache for an update
+/*
+                    // TODO - modify cached version of datatype directly?
                     $options = array();
                     $options['mark_as_updated'] = true;
                     parent::updateDatatypeCache($datatype_id, $options);
+*/
+                    parent::tmp_updateDatatypeCache($em, $datatype, $user);
                 }
 /*
                 else {
@@ -1165,8 +1199,8 @@ print '</pre>';
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var User[] $user_list */
             $user_list = $user_manager->findUsers();
-            foreach ($user_list as $user) {
-                $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datafield_permissions');
+            foreach ($user_list as $u) {
+                $memcached->delete($memcached_prefix.'.user_'.$u->getId().'_datafield_permissions');
 
                 // TODO - schedule a permissions recache via beanstalk?
             }
@@ -1690,19 +1724,17 @@ print '</pre>';
 
     /**
      * Adds a new child DataType to this DataType.
-     * TODO - get rid of $datatype_id?
-     * 
-     * @param integer $datatype_id      The database id of the DataType that will be the new DataType's parent.
+     *
      * @param integer $theme_element_id The database id of the ThemeElement that the new DataType will be rendered in.
      * @param Request $request
      * 
      * @return Response
      */
-    public function addchildtypeAction($datatype_id, $theme_element_id, Request $request)
+    public function addchilddatatypeAction($theme_element_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
-        $return['t'] = 'html';  // TODO - ??
+        $return['t'] = '';
         $return['d'] = '';
 
         try {
@@ -1719,9 +1751,8 @@ print '</pre>';
             if ($theme == null)
                 return parent::deletedEntityError('Theme');
 
-            /** @var DataType $parent_datatype */
-            $parent_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ( $parent_datatype == null )
+            $parent_datatype = $theme->getDataType();
+            if ($parent_datatype == null)
                 return parent::deletedEntityError('DataType');
 
             // --------------------
@@ -1735,6 +1766,8 @@ print '</pre>';
                 return parent::permissionDeniedError("edit");
             // --------------------
 
+            if ($theme->getThemeType() !== 'master')
+                throw new \Exception('Unable to create a new child Datatype outside of the master Theme');
 
             // ----------------------------------------
             // Defaults
@@ -1881,6 +1914,7 @@ print '</pre>';
 
 
             // ----------------------------------------
+/*
             $return['d'] = array(
 //                'theme_element_id' => $theme_element->getId(),
 //                'html' => self::GetDisplayData($request, null, 'theme_element', $theme_element->getId()),
@@ -1890,6 +1924,9 @@ print '</pre>';
             $options = array();
             $options['mark_as_updated'] = true;
             parent::updateDatatypeCache($parent_datatype->getId(), $options);
+*/
+            $update_datatype = true;
+            parent::tmp_updateThemeCache($em, $theme, $user, $update_datatype);
 
         }
         catch (\Exception $e) {
@@ -1929,14 +1966,17 @@ print '</pre>';
 
             /** @var DataType $local_datatype */
             $local_datatype = $repo_datatype->find($datatype_id);
-            if ( $local_datatype == null )
+            if ($local_datatype == null)
                 return parent::deletedEntityError('DataType');
 
             /** @var ThemeElement $theme_element */
             $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
-            if ( $theme_element == null )
+            if ($theme_element == null)
                 return parent::deletedEntityError('ThemeElement');
 
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
 
             // --------------------
             // Determine user privileges
@@ -1948,6 +1988,9 @@ print '</pre>';
             if ( !(isset($user_permissions[ $local_datatype->getId() ]) && isset($user_permissions[ $local_datatype->getId() ][ 'design' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
+
+            if ($theme->getThemeType() !== 'master')
+                throw new \Exception('Unable to link to a remote Datatype outside of the master Theme');
 
 
             // Locate the previously linked datatype if it exists
@@ -2108,12 +2151,16 @@ print '</pre>';
 
             /** @var ThemeElement $theme_element */
             $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
-            if ( $theme_element == null )
+            if ($theme_element == null)
                 return parent::deletedEntityError('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
 
             /** @var DataType $local_datatype */
             $local_datatype = $repo_datatype->find($local_datatype_id);
-            if ( $local_datatype == null )
+            if ($local_datatype == null)
                 return parent::deletedEntityError('DataType');
 
             $remote_datatype = null;
@@ -2123,7 +2170,7 @@ print '</pre>';
                 $remote_datatype = $repo_datatype->find($previous_remote_datatype_id);   // Looking to remove a link
             /** @var DataType $remote_datatype */
 
-            if ( $remote_datatype == null )
+            if ($remote_datatype == null)
                 return parent::deletedEntityError('DataType');
 
 
@@ -2142,6 +2189,9 @@ print '</pre>';
             if ( !(isset($user_permissions[ $remote_datatype->getId() ]) && $user_permissions[ $remote_datatype->getId() ]['view']) )
                 return parent::permissionDeniedError('edit');
             // --------------------
+
+            if ($theme->getThemeType() !== 'master')
+                throw new \Exception('Unable to link to a remote Datatype outside of the master Theme');
 
 
             // ----------------------------------------
@@ -2891,30 +2941,35 @@ print '</pre>';
             $repo_render_plugin_map = $em->getRepository('ODRAdminBundle:RenderPluginMap');
             $repo_render_plugin_instance = $em->getRepository('ODRAdminBundle:RenderPluginInstance');
 
-            $datatype = null;
-            $datafield = null;
+            /** @var DataType|null $target_datatype */
+            $target_datatype = null;
+            /** @var DataFields|null $target_datafield */
+            $target_datafield = null;
+            /** @var DataType $associated_datatype */
+            $associated_datatype = null;
+
             $reload_datatype = false;
 
             $changing_datatype_plugin = false;
             $changing_datafield_plugin = false;
 
             if ($local_datafield_id == 0) {
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($local_datatype_id);
-                if ( $datatype == null )
+                $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($local_datatype_id);
+                if ($target_datatype == null)
                     return parent::deletedEntityError('DataType');
 
+                $associated_datatype = $target_datatype;
                 $changing_datatype_plugin = true;
             }
             else {
-                $datafield = $repo_datafields->find($local_datafield_id);
-                if ( $datafield == null )
+                $target_datafield = $repo_datafields->find($local_datafield_id);
+                if ($target_datafield == null)
                     return parent::deletedEntityError('DataField');
-                $datatype = $datafield->getDataType();
+                $associated_datatype = $target_datafield->getDataType();
 
                 $changing_datafield_plugin = true;
             }
-            /** @var DataType $datatype */
-            /** @var DataFields|null $datafield */
+
 
             /** @var RenderPlugin $render_plugin */
             $render_plugin = $repo_render_plugin->find($selected_plugin_id);
@@ -2922,11 +2977,11 @@ print '</pre>';
                 return parent::deletedEntityError('RenderPlugin');
 
             // 1: datatype only  2: both datatype and datafield  3: datafield only
-            if ($changing_datatype_plugin && $render_plugin->getPluginType() == 1 && $datatype == null)
+            if ($changing_datatype_plugin && $render_plugin->getPluginType() == 1 && $target_datatype == null)
                 throw new \Exception('Unable to save a Datatype plugin to a Datafield');
-            else if ($changing_datafield_plugin && $render_plugin->getPluginType() == 3 && $datafield == null)
+            else if ($changing_datafield_plugin && $render_plugin->getPluginType() == 3 && $target_datafield == null)
                 throw new \Exception('Unable to save a Datafield plugin to a Datatype');
-            else if ($render_plugin->getPluginType() == 2 && $datatype == null && $datafield == null)
+            else if ($render_plugin->getPluginType() == 2 && $target_datatype == null && $target_datafield == null)
                 throw new \Exception('No target specified');
 
 
@@ -2962,7 +3017,7 @@ print '</pre>';
 
                     // Ensure referenced datafields exist
                     /** @var DataFields $df */
-                    $df = $repo_datafields->find($plugin_map[$rpf_id]);
+                    $df = $repo_datafields->find( $plugin_map[$rpf_id] );
                     if ($df == null)
                         throw new \Exception('Invalid Form...datafield does not exist');
 
@@ -2979,7 +3034,7 @@ print '</pre>';
             // ----------------------------------------
             // Create any new datafields required
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $associated_datatype->getId(), 'themeType' => 'master') );
 
             $theme_element = null;
             foreach ($plugin_fieldtypes as $rpf_id => $ft_id) {
@@ -2988,7 +3043,7 @@ print '</pre>';
 
                 // Create a single new ThemeElement to store the new datafields in, if necessary
                 if ($theme_element == null) {
-                    $data = parent::ODR_addThemeElement($em, $user, $datatype, $theme);
+                    $data = parent::ODR_addThemeElement($em, $user, $associated_datatype, $theme);
                     $theme_element = $data['theme_element'];
                     //$theme_element_meta = $data['theme_element_meta'];
                 }
@@ -3005,7 +3060,7 @@ print '</pre>';
 
 
                 // Create the Datafield and set basic properties from the render plugin settings
-                $objects = parent::ODR_addDataField($em, $user, $datatype, $fieldtype, $default_render_plugin);
+                $objects = parent::ODR_addDataField($em, $user, $associated_datatype, $fieldtype, $default_render_plugin);
                 /** @var DataFields $datafield */
                 $datafield = $objects['datafield'];
                 /** @var DataFieldsMeta $datafield_meta */
@@ -3036,8 +3091,8 @@ print '</pre>';
                 $user_manager = $this->container->get('fos_user.user_manager');
                 /** @var User[] $user_list */
                 $user_list = $user_manager->findUsers();
-                foreach ($user_list as $user) {
-                    $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datafield_permissions');
+                foreach ($user_list as $u) {
+                    $memcached->delete($memcached_prefix.'.user_'.$u->getId().'_datafield_permissions');
 
                     // TODO - schedule a permissions recache via beanstalk?
                 }
@@ -3051,28 +3106,28 @@ print '</pre>';
                 $properties = array(
                     'renderPlugin' => $render_plugin->getId()
                 );
-                parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+                parent::ODR_copyDatatypeMeta($em, $user, $target_datatype, $properties);
             }
             else if ($changing_datafield_plugin) {
                 $properties = array(
                     'renderPlugin' => $render_plugin->getId()
                 );
-                parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
+                parent::ODR_copyDatafieldMeta($em, $user, $target_datafield, $properties);
             }
 
 
-            // ...delete the old render plugin instance object if we changed render plugins
+            // ...delete the old render plugin instance object if the user changed render plugins
             $render_plugin_instance = null;
-            if ($render_plugin_instance_id != '')
-                $render_plugin_instance = $repo_render_plugin_instance->findOneBy( array("id" => $render_plugin_instance_id) );
-            /** @var RenderPluginInstance|null $render_plugin_instance */
+            if ($render_plugin_instance_id != '') {
+                $render_plugin_instance = $repo_render_plugin_instance->find($render_plugin_instance_id);
 
-            if ( $previous_plugin_id != $selected_plugin_id && $render_plugin_instance != null) {
-                $em->remove($render_plugin_instance);
-                $render_plugin_instance = null;
+                if ( $previous_plugin_id != $selected_plugin_id && $render_plugin_instance != null ) {
+                    $em->remove($render_plugin_instance);
+                    $render_plugin_instance = null;
+                }
             }
 
-
+/*
             // See if there's a previous render_plugin_instance that matches this datatype and selected plugin id
             // 1: datatype only  2: both datatype and datafield  3: datafield only
             $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted rows
@@ -3098,90 +3153,74 @@ print '</pre>';
 
             if ( count($results) > 0 ) {
                 // Un-delete the previous render plugin instance and use that
-                /** @var RenderPluginInstance $render_plugin_instance */
                 $render_plugin_instance = $results[0];
                 $render_plugin_instance->setDeletedAt(null);
                 $em->persist($render_plugin_instance);
                 $em->flush();
             }
-
+*/
 
             // ----------------------------------------
             if ($render_plugin->getId() != 1) {
-                // If not using the default RenderPlugin, create a RenderPluginInstance if no previous one exists
-                if ($render_plugin_instance == null) {
-                    $render_plugin_instance = new RenderPluginInstance();
-                    $render_plugin_instance->setRenderPlugin($render_plugin);
-
-                    // 1: datatype only  2: both datatype and datafield  3: datafield only
-                    if ($render_plugin->getPluginType() == 1 && $datatype != null) {
-                        $render_plugin_instance->setDataType($datatype);
-                    }
-                    else if ($render_plugin->getPluginType() == 3 && $datafield != null) {
-                        $render_plugin_instance->setDataField($datafield);
-                    }
-                    else {
-                        throw new \Exception("Invalid type settings.");
-                    }
-
-                    $render_plugin_instance->setActive(1);
-                    $render_plugin_instance->setCreatedBy($user);
-                    $render_plugin_instance->setUpdatedBy($user);
-                    $em->persist($render_plugin_instance);
-                    $em->flush();
-                    $em->refresh($render_plugin_instance);
-                }
+                // If not using the default RenderPlugin, create a RenderPluginInstance if needed
+                if ($render_plugin_instance == null)
+                    $render_plugin_instance = parent::ODR_addRenderPluginInstance($em, $user, $render_plugin, $target_datatype, $target_datafield);
                 /** @var RenderPluginInstance $render_plugin_instance */
+
+//print 'rpi id: '.$render_plugin_instance->getId()."\n";
 
                 // Save the field mapping
                 foreach ($plugin_map as $rpf_id => $df_id) {
-                    // Attempt to locate the mapping for this field in this instance
+                    // Attempt to locate the mapping for this render plugin field field in this instance
                     /** @var RenderPluginMap $render_plugin_map */
+//print 'attempting to locate render_plugin_map pointed to by rpi '.$render_plugin_instance->getId().' rpf '.$rpf_id."\n";
                     $render_plugin_map = $repo_render_plugin_map->findOneBy( array('renderPluginInstance' => $render_plugin_instance->getId(), 'renderPluginFields' => $rpf_id) );
 
-                    // If it doesn't exist, create it
+
+                    // If the render plugin map entity doesn't exist, create it
                     if ($render_plugin_map == null) {
-                        $render_plugin_map = new RenderPluginMap();
-                        $render_plugin_map->setRenderPluginInstance($render_plugin_instance);
-                        $render_plugin_map->setDataType($datatype);
-                        $render_plugin_map->setCreatedBy($user);
+                        // Locate the render plugin field object being referenced
+                        /** @var RenderPluginFields $render_plugin_field */
+                        $render_plugin_field = $repo_render_plugin_fields->find($rpf_id);
+
+                        // Locate the desired datafield object...already checked for its existence earlier
+                        /** @var DataFields $df */
+                        $df = $repo_datafields->find($df_id);
+
+                        parent::ODR_addRenderPluginMap($em, $user, $render_plugin_instance, $render_plugin_field, $associated_datatype, $df);
+//print '-- created new'."\n";
                     }
-                    /** @var RenderPluginMap $render_plugin_map */
-
-                    $render_plugin_map->setUpdatedBy($user);
-
-                    // Locate the correct render plugin field object
-                    /** @var RenderPluginFields $render_plugin_field */
-                    $render_plugin_field = $repo_render_plugin_fields->find($rpf_id);
-                    $render_plugin_map->setRenderPluginFields($render_plugin_field);
-
-                    // Locate the correct datafield object
-                    /** @var DataFields $df */
-                    $df = $repo_datafields->find($df_id);
-                    $render_plugin_map->setDataField($df);
-
-                    $em->persist($render_plugin_map);
+                    else {
+                        // ...otherwise, update the existing entity
+                        $properties = array(
+                            'dataField' => $df_id
+                        );
+                        parent::ODR_copyRenderPluginMap($em, $user, $render_plugin_map, $properties);
+//print '-- updated existing rpm '.$render_plugin_map->getId()."\n";
+                    }
                 }
 
                 // Save the plugin options
                 foreach ($plugin_options as $option_name => $option_value) {
                     // Attempt to locate this particular render plugin option in this instance
-                    $render_plugin_option = $repo_render_plugin_options->findOneBy( array('renderPluginInstance' => $render_plugin_instance, 'optionName' => $option_name) );
-
-                    // If it doesn't exist, create it
-                    if ($render_plugin_option == null) {
-                        $render_plugin_option = new RenderPluginOptions();
-                        $render_plugin_option->setRenderPluginInstance($render_plugin_instance);
-                        $render_plugin_option->setOptionName($option_name);
-                        $render_plugin_option->setActive(1);
-                        $render_plugin_option->setCreatedBy($user);
-                    }
                     /** @var RenderPluginOptions $render_plugin_option */
+//print 'attempting to locate render_plugin_option pointed to by rpi '.$render_plugin_instance->getId().' optionName "'.$option_name.'"'."\n";
+                    $render_plugin_option = $repo_render_plugin_options->findOneBy( array('renderPluginInstance' => $render_plugin_instance->getId(), 'optionName' => $option_name) );
 
-                    $render_plugin_option->setOptionValue($option_value);
-                    $render_plugin_option->setUpdatedBy($user);
 
-                    $em->persist($render_plugin_option);
+                    // If the render plugin option entity doesn't exist, create it
+                    if ($render_plugin_option == null) {
+                        parent::ODR_addRenderPluginOption($em, $user, $render_plugin_instance, $option_name, $option_value);
+//print '-- created new'."\n";
+                    }
+                    else {
+                        // ...otherwise, update the existing entity
+                        $properties = array(
+                            'optionValue' => $option_value
+                        );
+                        parent::ODR_copyRenderPluginOption($em, $user, $render_plugin_option, $properties);
+//print '-- updated existing rpo '.$render_plugin_option->getId()."\n";
+                    }
                 }
             }
 
@@ -3667,7 +3706,7 @@ print '</pre>';
 
 
     /**
-     * Loads/saves a Symfony DataType properties Form.
+     * Loads/saves a Symfony DataType properties Form, and chain-loads Datatree and ThemeDataType properties forms as well.
      * 
      * @param integer $datatype_id       The database id of the Datatype that is being modified
      * @param mixed $parent_datatype_id  Either the id of the Datatype of the parent of $datatype_id, or the empty string
@@ -3683,8 +3722,6 @@ print '</pre>';
         $return['d'] = '';
 
         try {
-//print_r( $_POST );
-//return;
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -3707,130 +3744,72 @@ print '</pre>';
             // --------------------
 
 
-            // If $parent_datatype_id is set, locate the datatree entity linking $datatype_id and $parent_datatype_id
+            // If $parent_datatype_id is set, locate the datatree and theme_datatype entities linking $datatype_id and $parent_datatype_id
+            /** @var DataTree|null $datatree */
             $datatree = null;
+            /** @var DataTreeMeta|null $datatree_meta */
             $datatree_meta = null;
+            /** @var ThemeDataType|null $theme_datatype */
+            $theme_datatype = null;
+
             if ($parent_datatype_id !== '') {
+                $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $parent_datatype_id, 'descendant' => $datatype_id) );
+                if ($datatree == null)
+                    throw new \Exception('Datatree entry does not exist');
+
+                $datatree_meta = $datatree->getDataTreeMeta();
+                if ($datatree_meta == null)
+                    throw new \Exception('DatatreeMeta entry does not exist');
+
                 $query = $em->createQuery(
-                   'SELECT dtm
-                    FROM ODRAdminBundle:DataTree AS dt
-                    JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-                    WHERE dt.ancestor = :ancestor AND dt.descendant = :descendant
-                    AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-                )->setParameters( array('ancestor' => $parent_datatype_id, 'descendant' => $datatype_id) );
+                   'SELECT tdt
+                    FROM ODRAdminBundle:Theme AS t
+                    JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
+                    JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.themeElement = te
+                    WHERE t.themeType = :theme_type AND t.dataType = :parent_datatype AND tdt.dataType = :child_datatype
+                    AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL'
+                )->setParameters( array('theme_type' => 'master', 'parent_datatype' => $parent_datatype_id, 'child_datatype' => $datatype_id) );
                 $results = $query->getResult();
 
-                if ( isset($results[0]) ) {
-                    /** @var DataTreeMeta $datatree_meta */
-                    $datatree_meta = $results[0];
-                    $datatree = $datatree_meta->getDataTree();
-                }
+                if ( !isset($results[0]) )
+                    throw new \Exception('ThemeDatatype entry does not exist');
+                $theme_datatype = $results[0];
             }
-            /** @var DataTree|null $datatree */
-            /** @var DataTreeMeta|null $datatree_meta */
 
-            // Create required forms
+
+            // Create the form for the Datatype
             $submitted_data = new DataTypeMeta();
-            $for_slideout = true;
             $is_top_level = true;
-            if ( $parent_datatype_id !== '' && $parent_datatype_id !== $datatype_id )
+            if ($datatree !== null)
                 $is_top_level = false;
 
-            $datatype_form = $this->createForm(new UpdateDataTypeForm($datatype, $for_slideout, $is_top_level), $submitted_data);
+            $datatype_form = $this->createForm(new UpdateDataTypeForm($datatype, $is_top_level), $submitted_data);
 
-            $force_multiple = false;
-            $datatree_form = null;
-            if ($datatree_meta !== null) {
-                $datatree_form = $this->createForm(new UpdateDataTreeForm($datatree_meta), $datatree_meta);
-                $datatree_form = $datatree_form->createView();
-
-                $results = array();
-                if ($datatree_meta->getIsLink() == 0) {
-                    // Determine whether a datarecord of this datatype has multiple child datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
-                    $query = $em->createQuery(
-                       'SELECT parent.id AS ancestor_id, child.id AS descendant_id
-                        FROM ODRAdminBundle:DataRecord AS parent
-                        JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
-                        WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
-                        AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
-                    )->setParameters( array('parent_datatype' => $parent_datatype_id, 'child_datatype' => $datatype_id) );
-                    $results = $query->getArrayResult();
-                }
-                else {
-                    // Determine whether a datarecord of this datatype is linked to multiple datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
-                    $query = $em->createQuery(
-                       'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-                        FROM ODRAdminBundle:DataRecord AS ancestor
-                        JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-                        JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                        WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
-                        AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-                    )->setParameters( array('ancestor_datatype' => $parent_datatype_id, 'descendant_datatype' => $datatype_id) );
-                    $results = $query->getArrayResult();
-                }
-
-                $tmp = array();
-                foreach ($results as $num => $result) {
-                    $ancestor_id = $result['ancestor_id'];
-                    if ( isset($tmp[$ancestor_id]) ) {
-                        $force_multiple = true;
-                        break;
-                    }
-                    else {
-                        $tmp[$ancestor_id] = 1;
-                    }
-                }
-            }
 
             if ($request->getMethod() == 'POST') {
-/*
-                // Check to see if external_id/name/sort field got changed
-                $post = $request->request->all();
-                $post = $post['UpdateDataTypeForm'];
-
-                $external_id_field = $post['externalIdField'];
-                $namefield = $post['nameField'];
-                $sortfield = $post['sortField'];
-
-                $old_external_field = $datatype->getExternalIdField();
-                if ($old_external_field !== null)
-                    $old_external_field = strval($old_external_field->getId());
-                $old_namefield = $datatype->getNameField();
-                if ($old_namefield !== null)
-                    $old_namefield = strval($old_namefield->getId());
-                $old_sortfield = $datatype->getSortField();
-                if ($old_sortfield !== null)
-                    $old_sortfield = strval($old_sortfield->getId());
-*/
-                // Bind the changes to the datatype
+                // Bind the changes to the datatype form
                 $datatype_form->bind($request, $submitted_data);
                 $return['t'] = "html";
 
-                if ($submitted_data->getShortName() == '' && $submitted_data->getLongName() == '' && $submitted_data->getDescription() == '') {
-                    // This is a save request from the datatype properties page...
+                if ( $submitted_data->getSearchSlug() !== $datatype->getSearchSlug() ) {
+                    // ...check that a change to the search slug doesn't collide with an existing search slug
+                    $query = $em->createQuery(
+                       'SELECT dtym.id
+                        FROM ODRAdminBundle:DataTypeMeta AS dtym
+                        WHERE dtym.searchSlug = :search_slug
+                        AND dtym.deletedAt IS NULL'
+                    )->setParameters(array('search_slug' => $submitted_data->getSearchSlug()));
+                    $results = $query->getArrayResult();
 
-                    if ( $submitted_data->getSearchSlug() !== $datatype->getSearchSlug() ) {
-                        // ...check that a change to the search slug doesn't collide with an existing search slug
-                        $query = $em->createQuery(
-                           'SELECT dtym.id
-                            FROM ODRAdminBundle:DataTypeMeta AS dtym
-                            WHERE dtym.searchSlug = :search_slug
-                            AND dtym.deletedAt IS NULL'
-                        )->setParameters(array('search_slug' => $submitted_data->getSearchSlug()));
-                        $results = $query->getArrayResult();
-
-                        if (count($results) > 0)
-                            $datatype_form->addError(new FormError('A different Datatype is already using this abbreviation'));
-                    }
+                    if (count($results) > 0)
+                        $datatype_form->addError( new FormError('A different Datatype is already using this abbreviation') );
                 }
-                else {
-                    // This is a save request from the slideout in Displaytemplate
 
-                    if ($submitted_data->getShortName() == '')
-                        $datatype_form->addError( new FormError('Short Name can not be empty') );
-                    if ($submitted_data->getLongName() == '')
-                        $datatype_form->addError( new FormError('Long Name can not be empty') );
-                }
+                if ($submitted_data->getShortName() == '')
+                    $datatype_form->addError( new FormError('Short Name can not be empty') );
+                if ($submitted_data->getLongName() == '')
+                    $datatype_form->addError( new FormError('Long Name can not be empty') );
+
 //$datatype_form->addError( new FormError('do not save') );
 
                 if ($datatype_form->isValid()) {
@@ -3883,43 +3862,89 @@ print '</pre>';
                         $properties['backgroundImageField'] = $submitted_data->getBackgroundImageField()->getId();
 
                     parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
-
-                    // TODO - modify cached version of datatype directly
+/*
+                    // TODO - modify cached version of datatype directly?
                     // Schedule the cache for an update
                     $options = array();
                     $options['mark_as_updated'] = true;
 
                     parent::updateDatatypeCache($datatype->getId(), $options);
+*/
+                    parent::tmp_updateDatatypeCache($em, $datatype, $user);
                 }
                 else {
                     // Form validation failed
-                    // TODO - fix parent::ODR_getErrorMessages() to be consistent enough to use
-                    $return['r'] = 1;
-                    $errors = $datatype_form->getErrors();
-
-                    $error_str = '';
-                    foreach ($errors as $num => $error)
-                        $error_str .= 'ERROR: '.$error->getMessage()."\n";
-
+                    $error_str = parent::ODR_getErrorMessages($datatype_form);
                     throw new \Exception($error_str);
                 }
             }
 
+
             if ( $request->getMethod() == 'GET' ) {
-                // Create the form objects
+                // Create the required form objects
                 $datatype_meta = $datatype->getDataTypeMeta();
-                $for_slideout = true;
                 $is_top_level = true;
                 if ( $parent_datatype_id !== '' && $parent_datatype_id !== $datatype_id )
                     $is_top_level = false;
 
-                $datatype_form = $this->createForm(new UpdateDataTypeForm($datatype, $for_slideout, $is_top_level), $datatype_meta);
+                $datatype_form = $this->createForm(new UpdateDataTypeForm($datatype, $is_top_level), $datatype_meta);
 
+
+                // Create the form for the Datatree entity (stores whether the parent datatype is allowed to have multiple datarecords of the child datatype)
+                $force_multiple = false;
                 $datatree_form = null;
-                if ( $datatype_meta !== null ) {
-                    $datatree_form = $this->createForm(new UpdateDataTreeForm($datatree_meta), $datatree_meta);
-                    $datatree_form = $datatree_form->createView();
+                if ($datatree_meta !== null) {
+                    $datatree_form = $this->createForm(new UpdateDataTreeForm($datatree_meta), $datatree_meta)->createView();
+
+                    $results = array();
+                    if ($datatree_meta->getIsLink() == 0) {
+                        // Determine whether a datarecord of this datatype has multiple child datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
+                        $query = $em->createQuery(
+                           'SELECT parent.id AS ancestor_id, child.id AS descendant_id
+                            FROM ODRAdminBundle:DataRecord AS parent
+                            JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
+                            WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
+                            AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
+                        )->setParameters( array('parent_datatype' => $parent_datatype_id, 'child_datatype' => $datatype_id) );
+                        $results = $query->getArrayResult();
+                    }
+                    else {
+                        // Determine whether a datarecord of this datatype is linked to multiple datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
+                        $query = $em->createQuery(
+                           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+                            FROM ODRAdminBundle:DataRecord AS ancestor
+                            JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                            JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                            WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
+                            AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+                        )->setParameters( array('ancestor_datatype' => $parent_datatype_id, 'descendant_datatype' => $datatype_id) );
+                        $results = $query->getArrayResult();
+                    }
+
+                    $tmp = array();
+                    foreach ($results as $num => $result) {
+                        $ancestor_id = $result['ancestor_id'];
+                        if ( isset($tmp[$ancestor_id]) ) {
+                            $force_multiple = true;
+                            break;
+                        }
+                        else {
+                            $tmp[$ancestor_id] = 1;
+                        }
+                    }
                 }
+
+
+                // Create the form for the ThemeDatatype entry (stores whether the child/linked datatype should use 'accordion', 'tabbed', 'dropdown', or 'list' rendering style)
+                $theme_datatype_form = null;
+                if ($theme_datatype !== null)
+                    $theme_datatype_form = $this->createForm(new UpdateThemeDatatypeForm($theme_datatype), $theme_datatype)->createView();
+
+                // Determine whether user can view permissions of other users
+                $can_view_permissions = false;
+                if ($user->hasRole('ROLE_SUPER_ADMIN') || (isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['admin'])) )
+                    $can_view_permissions = true;
+
 
                 // Return the slideout html
                 $templating = $this->get('templating');
@@ -3929,12 +3954,15 @@ print '</pre>';
                         'datatype' => $datatype,
                         'datatype_form' => $datatype_form->createView(),
                         'site_baseurl' => $site_baseurl,
-                        'for_slideout' => true,
                         'is_top_level' => $is_top_level,
+                        'can_view_permissions' => $can_view_permissions,
 
                         'datatree' => $datatree,
                         'datatree_form' => $datatree_form,
                         'force_multiple' => $force_multiple,
+
+                        'theme_datatype' => $theme_datatype,
+                        'theme_datatype_form' => $theme_datatype_form,
                     )
                 );
             }
@@ -4957,7 +4985,7 @@ if ($debug)
      * 
      * @return Response
      */
-    public function publictypeAction($datatype_id, Request $request)
+    public function datatypepublicAction($datatype_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -5008,10 +5036,8 @@ if ($debug)
                 parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
             }
 
-            $datatype->setUpdatedBy($user);
-            $em->persist($datatype);
-            $em->flush();
-
+            // TODO - update cached version directly?
+            parent::tmp_updateDatatypeCache($em, $datatype, $user);
         }
         catch (\Exception $e) {
             $return['r'] = 1;

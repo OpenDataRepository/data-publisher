@@ -16,7 +16,7 @@
 
         {% set indent = 0 %}
         {% for datatype_id,data in all_datatypes %}
-            {% include 'ODRAdminBundle:Datatype:datatype_permission.html.twig' with {'data': data, 'user_permissions': user_permissions, 'indent': indent} %}
+            {% include 'ODRAdminBundle:Reports:datatype_permissions_user_content.html.twig' with {'data': data, 'user_permissions': user_permissions, 'indent': indent} %}
         {% endfor %}
 
         </tbody>

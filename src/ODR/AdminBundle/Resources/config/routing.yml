@@ -204,12 +204,6 @@ odr_add_types:
     defaults: { _controller: ODRAdminBundle:Datatype:add }
     requirements: { _method: POST }
 
-odr_edit_type:
-    pattern:  /admin/type/edit/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Datatype:edit }
-    requirements:
-        datatype_id:  \d+
-
 odr_recache_all:
     pattern: /admin/type/recache_all
     defaults: { _controller: ODRAdminBundle:Datatype:recacheall }
@@ -338,7 +332,7 @@ odr_nav_display_template:
         datatype_id:  \d+
 
 odr_design_get_datatype_properties:
-    pattern:  /design/displaytemplate/getdatatypeproperties/{datatype_id}/{parent_datatype_id}
+    pattern:  /design/displaytemplate/datatypeproperties/{datatype_id}/{parent_datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypeproperties, parent_datatype_id: '' }
     requirements:
         datatype_id:  \d+
@@ -430,10 +424,9 @@ odr_design_nav_slideout:
     defaults: { _controller: ODRAdminBundle:Displaytemplate:navslideout }
 
 odr_design_add_childtype:
-    pattern:  /design/displaytemplate/addchildtype/{datatype_id}/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:addchildtype }
+    pattern:  /design/displaytemplate/addchilddatatype/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:addchilddatatype }
     requirements:
-        datatype_id:  \d+
         theme_element_id:  \d+
 
 #odr_design_add_theme_element:
@@ -491,8 +484,8 @@ odr_design_delete_radio_option:
 
 
 odr_design_public_datatype:
-    pattern:  /design/displaytemplate/publictype/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:publictype }
+    pattern:  /design/displaytemplate/publicdatatype/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypepublic }
     requirements:
         datatype_id:  \d+
 
@@ -1123,6 +1116,12 @@ odr_delete_tracked_job:
 
 #-----------------------------------------
 # Reports Controller
+odr_datatype_permissions_list:
+    pattern:  /design/displaytemplate/datatypepermissions/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Reports:datatypepermissionslist }
+    requirements:
+        datatype_id: \d+
+
 odr_design_analyze_datafield_unique:
     pattern:  /design/displaytemplate/analyze_datafield_unique/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Reports:analyzedatafieldunique }
@@ -1171,6 +1170,7 @@ odr_get_file_encrypt_progress:
     defaults: { _controller: ODRAdminBundle:Reports:getfileencryptprogress }
     requirements:
         file_id: \d+
+
 
 #-----------------------------------------
 # Other stuff

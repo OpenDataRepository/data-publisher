@@ -1,20 +1,21 @@
 {% spaceless %}
+
 <form class="ODRThemeDatafieldPropertiesForm pure-form pure-form-aligned" {{ form_enctype(theme_datafield_form) }} id="ThemeDatafieldPropertiesForm_{{ theme_datafield.id }}">
     {{ form_errors(theme_datafield_form._token) }}
     {{ form_widget(theme_datafield_form._token) }}
 
     <fieldset>
         <div class="pure-control-group">
-            <label for="{{theme_datafield_form.cssWidthMed.vars.id}}">
-                <strong>{{theme_datafield_form.cssWidthMed.vars.label}}</strong>
+            <label for="{{ theme_datafield_form.cssWidthMed.vars.id }}">
+                <strong>{{ theme_datafield_form.cssWidthMed.vars.label }}</strong>
             </label>
             {{ form_errors(theme_datafield_form.cssWidthMed) }}
             {{ form_widget(theme_datafield_form.cssWidthMed, { 'attr': {'style': 'width:auto'} }) }}
         </div>
 
         <div class="pure-control-group">
-            <label for="{{theme_datafield_form.cssWidthXL.vars.id}}">
-                <strong>{{theme_datafield_form.cssWidthXL.vars.label}}</strong>
+            <label for="{{ theme_datafield_form.cssWidthXL.vars.id }}">
+                <strong>{{ theme_datafield_form.cssWidthXL.vars.label }}</strong>
             </label>
             {{ form_errors(theme_datafield_form.cssWidthXL) }}
             {{ form_widget(theme_datafield_form.cssWidthXL, { 'attr': {'style': 'width:auto'} }) }}
@@ -24,6 +25,6 @@
         {{ form_rest(theme_datafield_form) }}
         </div>
     </fieldset>
-
 </form>
+
 {% endspaceless %}

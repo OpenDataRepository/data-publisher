@@ -27,21 +27,16 @@ class UpdateDataTypeForm extends AbstractType
     protected $datatype;
 
     /** @var bool */
-    protected $for_slideout;
-
-    /** @var bool */
     protected $is_top_level;
 
     /**
      * UpdateDataTypeForm constructor.
      *
      * @param DataType $datatype
-     * @param bool $for_slideout  If true, then form is being used for right slideout in DisplayTemplate...otherwise, being used for the datatype properties page
      * @param bool $is_top_level  Whether the Datatype is top-level or not
      */
-    public function __construct (\ODR\AdminBundle\Entity\DataType $datatype, $for_slideout, $is_top_level) {
+    public function __construct (\ODR\AdminBundle\Entity\DataType $datatype, $is_top_level) {
         $this->datatype = $datatype;
-        $this->for_slideout = $for_slideout;
         $this->is_top_level = $is_top_level;
     }
 
@@ -53,55 +48,34 @@ class UpdateDataTypeForm extends AbstractType
     {
         // Load values passed in via constructor
         $datatype = $this->datatype;
-        $for_slideout = $this->for_slideout;
         $is_top_level = $this->is_top_level;
 
-        if ($for_slideout) {
-            // If form is being used for the slideout, provide the ability to edit short name, long name, and description...but not searchSlug
-            $builder->add(
-                'short_name',
-                'text',
-                array(
-                    'required' => true,
-                    'label' => 'Short Name',
-                )
-            );
+        $builder->add(
+            'short_name',
+            'text',
+            array(
+                'required' => true,
+                'label' => 'Short Name',
+            )
+        );
 
-            $builder->add(
-                'long_name',
-                'text',
-                array(
-                    'required' => true,
-                    'label' => 'Long Name',
-                )
-            );
+        $builder->add(
+            'long_name',
+            'text',
+            array(
+                'required' => true,
+                'label' => 'Long Name',
+            )
+        );
 
-            $builder->add(
-                'description',
-                'textarea',
-                array(
-                    'required' => true,
-                    'label' => 'Description',
-                )
-            );
-
-            // required so validator won't complain of "extra fields"
-            $builder->add(
-                'searchSlug',
-                'hidden'
-            );
-        }
-        else {
-            // If form is being used on the datatype properties page, don't allow user to edit short name, long name, and description...but allow searchSlug
-            $builder->add(
-                'searchSlug',
-                'text',
-                array(
-                    'label' => 'Search Abbreviation',
-                )
-            );
-        }
-
+        $builder->add(
+            'description',
+            'textarea',
+            array(
+                'required' => true,
+                'label' => 'Description',
+            )
+        );
 
         $builder->add(
             'externalIdField',
@@ -127,13 +101,6 @@ class UpdateDataTypeForm extends AbstractType
             'entity',
             array(
                 'class' => 'ODR\AdminBundle\Entity\DataFields',
-/*
-                'query_builder' => function(EntityRepository $er) use ($datatype) {
-                    return $er->createQueryBuilder('df')
-                                ->where('df.is_unique = 1 AND df.dataType = ?1')
-                                ->setParameter(1, $datatype);
-                },
-*/
                 'query_builder' => function(EntityRepository $er) use ($datatype) {
                     return $er->createQueryBuilder('df')
                                 ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
@@ -196,6 +163,14 @@ class UpdateDataTypeForm extends AbstractType
             );
 
             $builder->add(
+                'searchSlug',
+                'text',
+                array(
+                    'label' => 'Search Abbreviation',
+                )
+            );
+
+            $builder->add(
                 'useShortResults',
                 'choice',
                 array(
@@ -205,29 +180,6 @@ class UpdateDataTypeForm extends AbstractType
                     'multiple' => false,
                     'empty_value' => false
                 )
-            );
-        }
-
-        // TODO - delete this property
-        if ( $for_slideout == true && $is_top_level == false ) {
-            // Only display this property if the form is for a childtype
-            $builder->add(
-                'display_type',
-                'choice',
-                array(
-                    'choices' => array('0' => 'Accordion', '1' => 'Tabbed', '2' => 'Dropdown', '3' => 'List'),
-                    'label'  => 'Display As',
-                    'expanded' => false,
-                    'multiple' => false,
-                    'empty_value' => false
-                )
-            );
-        }
-        else {
-            // required so validator won't complain of "extra fields"
-            $builder->add(
-                'display_type',
-                'hidden'
             );
         }
 

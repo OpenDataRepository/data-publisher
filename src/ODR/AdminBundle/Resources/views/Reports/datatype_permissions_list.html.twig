@@ -1,5 +1,12 @@
 {% spaceless %}
+
 <div class="ODRFormWrap">
+
+{% if all_permissions|length == 0 %}
+    <h1>
+        Only Super-Admins currently have permissions for this Datatype
+    </h1>
+{% else %}
     <h1>
         Permissions of all users able to view this Datatype
     </h1>
@@ -17,17 +24,22 @@
 
     {% for user_id,data in all_permissions %}
         {% set user_permissions = data.permissions %}
-        {% include 'ODRAdminBundle:Datatype:user_permissions.html.twig' with {'all_datatypes': all_datatypes, 'user_id': user_id, 'user_permissions': user_permissions} %}
+        {% include 'ODRAdminBundle:Reports:datatype_permissions_user.html.twig' with {'all_datatypes': all_datatypes, 'user_id': user_id, 'user_permissions': user_permissions} %}
     {% endfor %}
+{% endif %}
 </div>
+
+<style type="text/css">
+    .ODRFormWrap {
+        padding-top: 25px;
+    }
+</style>
 
 <script>
     $(function() {
-        $(".ODRUserPermissionDiv").hide();
-        $(".ODRUserPermissionDiv").first().show();
+        $(".ODRUserPermissionDiv").hide().first().show();
 
-        $("#user_select").unbind('change');
-        $("#user_select").change(function() {
+        $("#user_select").unbind('change').change(function() {
             var data = $(this).children('option:selected').attr('id').split('_');
             var user_id = data[1];
 

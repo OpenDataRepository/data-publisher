@@ -1,19 +1,11 @@
 {% spaceless %}
-{#
-    {% if childtype.getdisplaytype == 0 %}
+
+{% if display_type == 0 %}
     </div><!-- End of .FormAccordion -->
-    {% elseif childtype.getdisplaytype == 1 %}
+{% elseif display_type == 1 %}
     </div><!-- End of .TabAccordion -->
-    {% elseif childtype.getdisplaytype == 2 %}
+{% elseif display_type == 2 %}
     </div><!-- End of .DropdownAccordion -->
-    {% endif %}
-#}
-    {% if display_type == 0 %}
-        </div><!-- End of .FormAccordion -->
-    {% elseif display_type == 1 %}
-        </div><!-- End of .TabAccordion -->
-    {% elseif display_type == 2 %}
-        </div><!-- End of .DropdownAccordion -->
-    {% endif %}
+{% endif %}
 
 {% endspaceless %}

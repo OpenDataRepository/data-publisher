@@ -73,7 +73,7 @@
     </tr>
 
     {% for child_datatype_id, child_data in data['children'] %}
-        {% include 'ODRAdminBundle:Datatype:datatype_permission.html.twig' with {'data': child_data, 'user_permissions': user_permissions, 'indent': indent+1} %}
+        {% include 'ODRAdminBundle:Reports:datatype_permissions_user_content.html.twig' with {'data': child_data, 'user_permissions': user_permissions, 'indent': indent+1} %}
     {% endfor %}
 
 {% endspaceless %}

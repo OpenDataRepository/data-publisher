@@ -30,9 +30,8 @@
             <th></th>
             <th>Type Name</th>
             <th>Number of Records</th>
-            <th>Search Layout</th>
-            <th>Field Layout</th>
-            <th>Datatype Properties</th>
+            <th>Master Layout</th>
+            <th>Derivative Layouts</th>
             <th>Download Schema</th>
             <th>CSV Import</th>
 
@@ -96,9 +95,9 @@
 
             {% if can_design_datatype == true %}
                 {# If user has design permissions... #}
-                <td class="center">{#<a class="address" href="#{{ path('odr_search_template_edit', { 'datatype_id': datatype.id, 'theme_id': 2 }) }}" title="Edit {{ datatype.shortname }} Search Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>#}</td>
                 <td class="center"><a class="address" href="#{{ path('odr_design_display_template', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a></td>
-
+                <td class="center">{#<a class="address" href="#{{ path('odr_search_template_edit', { 'datatype_id': datatype.id, 'theme_id': 2 }) }}" title="Edit {{ datatype.shortname }} Search Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>#}</td>
+{#
                 {% if datatype.searchslug == '' %}
                 <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
                 {% elseif datatype.getnamefield == null %}
@@ -108,11 +107,12 @@
                 {% else %}
                 <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-cog"></i>&nbsp;Edit Properties</a></td>
                 {% endif %}
+#}
             {% else %}
                 {# Otherwise, print out nothing #}
                 <td class="center"></td>
                 <td class="center"></td>
-                <td class="center"></td>
+                {#<td class="center"></td>#}
             {% endif %}
 
                 <td class="center"><a class="address" href="#{{ path('odr_xsd_generate_datatype', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-download"></i>&nbsp;Download</a></td>
@@ -159,8 +159,7 @@
 
 <script>
     $(function() {
-        $(".ODRCreateDatatype").unbind('click');
-        $(".ODRCreateDatatype").click(function() {
+        $(".ODRCreateDatatype").unbind('click').click(function() {
             // Open the dialog to create a new datatype
             $("#dialog_add_datatype").dialog( "open" );
         });
@@ -172,7 +171,7 @@
                     "visible": false,
                 },
                 {
-                    "targets": [1,4,5,6,7,8,9],
+                    "targets": [1,4,5,6,7,8],
                     "orderable": false,
                     "searchable": false,
                 }

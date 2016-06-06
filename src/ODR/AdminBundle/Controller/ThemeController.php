@@ -876,7 +876,83 @@ $theme_form->addError( new FormError('do not save') );
 
 
     /**
-     * Loads/saves an ODR ThemeDatafield properties form.
+     * Loads an ODR ThemeDatafield properties form.
+     *
+     * @param integer $theme_datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function loadthemedatafieldAction($theme_datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ThemeDataType $theme_datatype */
+            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->find($theme_datafield_id);
+            if ($theme_datatype == null)
+                return parent::deletedEntityError('ThemeDatatype');
+
+            $theme_element = $theme_datatype->getThemeElement();
+            if ($theme_element == null)
+                return parent::deletedEntityError('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+
+            // Create the ThemeDatatype form object
+            $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm($theme_datafield), $theme_datafield)->createView();
+
+            // Return the slideout html
+            $templating = $this->get('templating');
+            $return['d'] = $templating->render(
+                'ODRAdminBundle:Theme:theme_datafield_properties_form.html.twig',
+                array(
+                    'theme_datafield' => $theme_datafield,
+                    'theme_datafield_form' => $theme_datafield_form,
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x9112630 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Saves an ODR ThemeDatafield properties form.  Kept separate from self::loadthemedatafieldAction() because
+     * the 'master' theme designed by DisplaytemplateController.php needs to combine Datafield and ThemeDatafield forms
+     * onto a single slideout, but every other theme is only allowed to modify ThemeDatafield entries.
      *
      * @param integer $theme_datafield_id
      * @param Request $request
@@ -968,7 +1044,83 @@ $theme_form->addError( new FormError('do not save') );
 
 
     /**
-     * Loads/saves an ODR ThemeDatatype properties form.
+     * Loads an ODR ThemeDatafield properties form.
+     *
+     * @param integer $theme_datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function loadthemedatatypeAction($theme_datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var ThemeDataType $theme_datatype */
+            $theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDataType')->find($theme_datatype_id);
+            if ($theme_datatype == null)
+                return parent::deletedEntityError('ThemeDatatype');
+
+            $theme_element = $theme_datatype->getThemeElement();
+            if ($theme_element == null)
+                return parent::deletedEntityError('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+
+            // Create the ThemeDatatype form object
+            $theme_datatype_form = $this->createForm(new UpdateThemeDatatypeForm($theme_datatype), $theme_datatype)->createView();
+
+            // Return the slideout html
+            $templating = $this->get('templating');
+            $return['d'] = $templating->render(
+                'ODRAdminBundle:Theme:theme_datatype_properties_form.html.twig',
+                array(
+                    'theme_datatype' => $theme_datatype,
+                    'theme_datatype_form' => $theme_datatype_form,
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x39912560 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Saves an ODR ThemeDatatype properties form.  Kept separate from self::loadthemedatatypeAction() because
+     * the 'master' theme designed by DisplaytemplateController.php needs to combine Datatype, Datatree, and ThemeDatatype forms
+     * onto a single slideout, but every other theme is only allowed to modify ThemeDatatype entries.
      *
      * @param integer $theme_datatype_id
      * @param Request $request
@@ -1015,7 +1167,6 @@ $theme_form->addError( new FormError('do not save') );
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-            throw new \Exception('do not continue');
 
             // Populate new ThemeDataType form
             $submitted_data = new ThemeDataType();
@@ -1024,7 +1175,7 @@ $theme_form->addError( new FormError('do not save') );
             if ($request->getMethod() == 'POST') {
                 $theme_datatype_form->bind($request, $submitted_data);
 
-$theme_datatype_form->addError( new FormError('do not save') );
+//$theme_datatype_form->addError( new FormError('do not save') );
 
                 if ($theme_datatype_form->isValid()) {
                     // Save all changes made via the form
@@ -1042,8 +1193,6 @@ $theme_datatype_form->addError( new FormError('do not save') );
                     throw new \Exception($error_str);
                 }
             }
-
-            // TODO - what to return
         }
         catch (\Exception $e) {
             $return['r'] = 1;

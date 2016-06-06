@@ -185,22 +185,21 @@ return;
     });
 
 
-    $(".ODRAddChildtype").unbind('click');
-    $(".ODRAddChildtype").click(function() {
+    $(".ODRAddChildtype").unbind('click').click(function() {
 
         if ( $(this).hasClass('fa-muted') )
             return;
 
-        var parent_datatype_id = $(this).attr('rel');
+//        var parent_datatype_id = $(this).attr('rel');
         var theme_element_id_data = $(this).parent().parent().attr("id").split(/_/);
         var theme_element_id = theme_element_id_data[1];
 
         // Load display template menu 
-        var url  = '{{ path('odr_design_add_childtype', {'datatype_id': 0, 'theme_element_id': 0 } ) }}';
-        url = url.substring(0,(url.length - 3)) + parent_datatype_id + "/" + theme_element_id;
+        var url  = '{{ path('odr_design_add_childtype', {'theme_element_id': 0 } ) }}';
+        url = url.substring(0,(url.length - 1)) + theme_element_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
         $.ajax({
             cache: false,
@@ -214,9 +213,6 @@ return;
 
                     // ReloadThemeElement() forces a re-render of the theme element, so the 'Add Datafield', 'Add Childtype', 'Link DataType', and 'Delete ThemeElement' icons get muted automatically
                     ReloadThemeElement(theme_element_id);
-
-                    // Need to manually disable the 'RenderPlugin Settings' icon, though
-//                    setDatatypeIcons(parent_datatype_id, {"ODRRenderPlugin": -1});
                 }
                 else {
                     // An error has occurred.
@@ -351,8 +347,7 @@ return;
     });
 
 
-    $(".ODRDeleteDatatype").unbind('click');
-    $(".ODRDeleteDatatype").click(function() {
+    $(".ODRDeleteDatatype").unbind('click').click(function() {
 
         // I think this option is always available, but just incase...
         if ( $(this).hasClass('fa-muted') )
@@ -368,8 +363,8 @@ return;
             url = url.substring(0, (url.length - 1));
             url += datatype_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
             $.ajax({
                 cache: false,
@@ -378,27 +373,12 @@ return;
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
-                        // Locate parent datatype id
-//                        var parent_datatype_id_data = $("#DataType_" + datatype_id).parent().parent().parent().attr('id').split(/_/);
-//                        var parent_datatype_id = parent_datatype_id_data[1];
-
                         // Delete the datatype from the page
                         $("#DataType_" + datatype_id).remove();
 
                         // Reset the containing theme element's icons
                         var icons = {"ODRAddDatafield": 1, "ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
                         setThemeElementIcons(theme_element_id, icons);
-/*
-                        // Determine if the parent datatype has any remaining child datatypes
-                        var has_childtypes = false;
-                        $("#DataType_" + parent_datatype_id).find(".ODRDataType").each(function() {
-                            has_childtypes = true;
-                        });
-
-                        // If not, re-enable the render plugin button
-//                        if (!has_childtypes)
-//                            setDatatypeIcons(parent_datatype_id, {"ODRRenderPlugin": 0});
-*/
                     }
                     else {
                         // An error has occurred.
@@ -477,15 +457,15 @@ return;
     });
 
 
-    $(".ODRDatatypeProperties").unbind('click');
-    $(".ODRDatatypeProperties").click(function() {
+    $(".ODRDatatypeProperties").unbind('click').click(function() {
         // Grab the id of the Datatype to load
         var datatype_id = $(this).attr('rel');
 
         // Determine if this Datatype has a parent
         var parent_datatype_id = '';
-        if ( $("#DataType_" + datatype_id).parent().parent().parent().parent().hasClass('ODRDataType') ) {
-            var id_data = $("#DataType_" + datatype_id).parent().parent().parent().parent().attr('id').split(/_/);
+        var potential_parent_element = $("#DataType_" + datatype_id).parent().parent().parent().parent();
+        if ( $(potential_parent_element).hasClass('ODRDataType') ) {
+            var id_data = $(potential_parent_element).attr('id').split(/_/);
             parent_datatype_id = id_data[1];
         }
 
@@ -498,8 +478,8 @@ return;
         if (parent_datatype_id != '')
             url += '/' + parent_datatype_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
         $.ajax({
             cache: false,
@@ -633,8 +613,7 @@ return;
 
     });
 
-    $(".ODRPublicDatatype").unbind('click');
-    $(".ODRPublicDatatype").click(function() {
+    $(".ODRPublicDatatype").unbind('click').click(function() {
         var datatype_id = $(this).attr('rel');
         var element = $(this);
 
@@ -642,8 +621,8 @@ return;
         url = url.substring(0,(url.length-1));
         url += datatype_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
         $.ajax({
             cache: false,
@@ -1366,8 +1345,8 @@ function SaveDatatypeProperties(datatype_id, short_name) {
     url = url.substring(0, (url.length - 1));
     url += datatype_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
     
     var form_data = $("#DatatypePropertiesForm_" + datatype_id).serialize();
     $.ajax({
@@ -1377,7 +1356,9 @@ return;
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
-                notifySaved();
+//                notifySaved();
+                $("#ElementData").html('');
+                $("#DataTypeTools_" + datatype_id).children(".ODRDatatypeProperties").first().trigger('click');
 
                 // If the datatype's short name got changed, update that on the page
                 if (short_name != '') {
@@ -1420,8 +1401,8 @@ function SaveDatatreeProperties(datatype_id, datatree_id) {
     url = url.substring(0, (url.length - 3));
     url += datatype_id + '/' + datatree_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
     var form_data = $("#DatatreePropertiesForm_" + datatree_id).serialize();
     $.ajax({
@@ -1431,7 +1412,9 @@ return;
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
-                notifySaved();
+//                notifySaved();
+                $("#ElementData").html('');
+                $("#DataTypeTools_" + datatype_id).children(".ODRDatatypeProperties").first().trigger('click');
             }
             else {
                 // An error has occurred.
@@ -1453,6 +1436,53 @@ return;
                  Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
              }
          }
+    });
+}
+
+var SaveThemeDatatypeInterval = [];
+function SaveThemeDatatypeProperties(datatype_id, theme_datatype_id) {
+    if (SaveThemeDatatypeInterval[theme_datatype_id] != undefined)
+        SaveThemeDatatypeInterval[theme_datatype_id] = window.clearInterval(SaveThemeDatatypeInterval[theme_datatype_id]);
+
+    var url = '{{ path('odr_design_save_theme_datatype', {'theme_datatype_id': 0}) }}';
+    url = url.substring(0, (url.length - 1));
+    url += theme_datatype_id;
+
+//alert( url );
+//return;
+
+    var form_data = $("#ThemeDatafieldPropertiesForm_" + theme_datatype_id).serialize();
+    $.ajax({
+        type: 'POST',
+        url: url,
+        data: form_data,
+        dataType: "json",
+        success: function(data, textStatus, jqXHR) {
+            if(data.r == 0) {
+//                notifySaved();
+                $("#ElementData").html('');
+                $("#DataTypeTools_" + datatype_id).children(".ODRDatatypeProperties").first().trigger('click');
+            }
+            else {
+                // An error has occurred.
+                // Show Error message dialog
+                alert(data.d);
+            }
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
     });
 }
 
@@ -1707,6 +1737,20 @@ function InitDatatypePropertiesForm() {
                 SaveDataTreeInterval[datatree_id] = window.setInterval('SaveDatatreeProperties("' + datatype_id + '","' + datatree_id + '")', SaveTimeout);
             });
         }
+    });
+
+    $("#ElementData .ODRThemeDatatypePropertiesForm").find("select").each(function() {
+        var datatype_id_data = $("#ElementData .ODRDatatypePropertiesForm").attr('id').split(/_/);
+        var datatype_id = datatype_id_data[1];
+
+        var theme_datatype_id_data = $("#ElementData .ODRThemeDatatypePropertiesForm").attr('id').split(/_/);
+        var theme_datatype_id = theme_datatype_id_data[1];
+
+        $(this).unbind('change');
+        $(this).change(function() {
+            SaveThemeDatatypeInterval[theme_datatype_id] = window.clearInterval(SaveThemeDatatypeInterval[theme_datatype_id]);
+            SaveThemeDatatypeInterval[theme_datatype_id] = window.setInterval('SaveThemeDatatypeProperties("' + datatype_id + '","' + theme_datatype_id + '")', SaveTimeout);
+        });
     });
 }
 

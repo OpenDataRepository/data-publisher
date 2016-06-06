@@ -92,20 +92,22 @@ ODR\AdminBundle\Entity\RenderPlugin:
             cascade: {  }
             mappedBy: renderPlugin
             inversedBy: null
-            fetch: LAZY
+#            fetch: LAZY
             joinColumns:
                 render_plugin_instance_id:
                     referencedColumnName: id
+            orphanRemoval: false
 
         renderPluginFields:
             targetEntity: RenderPluginFields
             cascade: {  }
             mappedBy: renderPlugin
             inversedBy: null
-            fetch: LAZY
+#            fetch: LAZY
             joinColumns:
                 render_plugin_fields_id:
                     referencedColumnName: id
+            orphanRemoval: false
 
     manyToOne:
         createdBy:

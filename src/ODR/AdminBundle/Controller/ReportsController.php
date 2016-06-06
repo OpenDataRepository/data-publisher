@@ -34,12 +34,153 @@ class ReportsController extends ODRCustomController
 {
 
     /**
+     * Recursively locates and loads all Datatype entities that have the Datatype pointed to by $parent_datatype_id as an ancestor
+     *
+     * @param \Doctrine\ORM\Entitymanager $em
+     * @param array $datatree_array            @see ODRCustomController::getDatatreeArray()
+     * @param integer $parent_datatype_id
+     *
+     * @return array
+     */
+    private function getAllDatatypes($em, $datatree_array, $parent_datatype_id)
+    {
+        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+        $datatypes = array();
+
+        $tmp = array_keys($datatree_array['descendant_of'], $parent_datatype_id);
+        foreach ($tmp as $num => $child_datatype_id) {
+            $datatypes[$child_datatype_id] = array('datatype' => $repo_datatype->find($child_datatype_id), 'children' => array() );
+
+            $datatypes[$child_datatype_id]['children'] = self::getAllDatatypes($em, $datatree_array, $child_datatype_id);
+        }
+
+        return $datatypes;
+    }
+
+
+    /**
+     * Generates a list of all permissions for all users for the specified datatype
+     *
+     * @param string $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function datatypepermissionslistAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
+
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['admin'])) )
+                return parent::permissionDeniedError();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Ensure this isn't called on a child datatype
+            $datatree_array = parent::getDatatreeArray($em);
+            if ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '' )
+                throw new \Exception('This action is only permitted on top-level datatypes.');
+
+
+            // Recursively locate all childtypes of this datatype
+            $all_datatypes = array($datatype_id => array('datatype' => $datatype, 'children' => array()));
+            $all_datatypes[$datatype_id]['children'] = self::getAllDatatypes($em, $datatree_array, $datatype_id);
+
+            // Easier to look through $datatree_array directly to find all relevant datatype ids...
+            $all_datatype_ids = array($datatype_id);
+            $parent_datatype_ids = array($datatype_id);
+            while (count($parent_datatype_ids) > 0) {
+
+                $tmp_datatype_ids = array();
+                foreach ($parent_datatype_ids as $num => $dt_id) {
+                    $tmp = array_keys($datatree_array['descendant_of'], $dt_id);
+
+                    foreach ($tmp as $child_datatype_id) {
+                        $tmp_datatype_ids[] = $child_datatype_id;
+                        $all_datatype_ids[] = $child_datatype_id;
+                    }
+                }
+
+                $parent_datatype_ids = $tmp_datatype_ids;
+            }
+
+            // Locate all users that can access this datatype
+            $query = $em->createQuery(
+               'SELECT DISTINCT(u.id)
+                FROM ODRAdminBundle:UserPermissions AS up
+                JOIN ODROpenRepositoryUserBundle:User AS u WITH up.user = u
+                WHERE up.dataType IN (:datatypes)
+                AND (up.can_view_type = 1 OR up.can_edit_record = 1 OR up.can_add_record = 1 OR up.can_delete_record = 1 OR up.can_design_type = 1 OR up.is_type_admin = 1)'
+            )->setParameters(array('datatypes' => $all_datatype_ids));
+            $results = $query->getArrayResult();
+
+            // Store all relevant permissions in an array for twig...
+            $all_permissions = array();
+            foreach ($results as $num => $data) {
+                $user_id = $data[1];
+
+                if (!isset($all_permissions[$user_id])) {
+                    /** @var User $site_user */
+                    $site_user = $repo_user->find($user_id);
+                    if ($site_user->isEnabled() == 1 && !$site_user->hasRole('ROLE_SUPER_ADMIN'))   // only display this user's permissions for this datatype if they're not deleted and aren't super admin
+                        $all_permissions[$user_id] = array('user' => $site_user, 'permissions' => parent::getPermissionsArray($user_id, $request));
+                }
+            }
+            ksort($all_permissions);
+
+
+            // Render and return the report
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Reports:datatype_permissions_list.html.twig',
+                    array(
+                        'all_datatypes' => $all_datatypes,
+                        'all_permissions' => $all_permissions,
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x23267635 '. $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Given a Datafield, build a list of Datarecords (if any) that have identical values in that Datafield.
      *
      * @param integer $datafield_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function analyzedatafielduniqueAction($datafield_id, Request $request)
     {
@@ -277,7 +418,7 @@ print_r($grandparent_list);
      * @param integer $datafield_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function analyzefileuploadsAction($datafield_id, Request $request)
     {
@@ -398,7 +539,7 @@ print_r($grandparent_list);
      * @param integer $datatree_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function analyzedatarecordnumberAction($datatree_id, Request $request)
     {
@@ -503,7 +644,7 @@ print_r($grandparent_list);
      * @param integer $remote_datatype_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function analyzedatarecordlinksAction($local_datatype_id, $remote_datatype_id, Request $request)
     {
@@ -605,7 +746,7 @@ print_r($grandparent_list);
      * @param integer $datafield_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function analyzedatafieldcontentAction($datafield_id, Request $request)
     {
@@ -734,7 +875,7 @@ print_r($grandparent_list);
      * @param integer $datafield_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function analyzeradioselectionsAction($datafield_id, Request $request)
     {
@@ -839,7 +980,7 @@ print_r($grandparent_list);
      * @param integer $file_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function getfiledecryptprogressAction($file_id, Request $request)
     {
@@ -950,7 +1091,7 @@ print_r($grandparent_list);
      * @param integer $file_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function getfileencryptprogressAction($file_id, Request $request)
     {

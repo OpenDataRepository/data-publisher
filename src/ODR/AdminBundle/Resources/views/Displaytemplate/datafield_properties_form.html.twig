@@ -12,7 +12,7 @@
     <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
 </div>
 
-{% include 'ODRAdminBundle:Displaytemplate:theme_datafield_properties_form.html.twig' with {'theme_datafield': theme_datafield, 'theme_datafield_form': theme_datafield_form} %}
+{% include 'ODRAdminBundle:Theme:theme_datafield_properties_form.html.twig' with {'theme_datafield': theme_datafield, 'theme_datafield_form': theme_datafield_form} %}
 
 <form class="ODRDatafieldPropertiesForm pure-form pure-form-aligned" {{ form_enctype(datafield_form) }} id="DatafieldPropertiesForm_{{ datafield.id }}">
     {{ form_errors(datafield_form._token) }}
