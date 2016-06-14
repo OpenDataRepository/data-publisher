@@ -25,7 +25,7 @@
             {% else %}
                 {% set datafield = theme_datafield.dataField %}
 
-                <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}">
+                <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}">
                 {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
                     {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
                 {% else %}

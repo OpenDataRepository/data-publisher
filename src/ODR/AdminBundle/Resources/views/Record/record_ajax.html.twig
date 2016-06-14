@@ -124,15 +124,14 @@ function initPage() {
 */
     $(".ODRFileDownloadProgress").hide();
 
-    $("a.ODRFileDownload").unbind('click');
-    $("a.ODRFileDownload").click(function(event) {
+    $("a.ODRFileDownload").unbind('click').click(function(event) {
         // Grab necessary attributes
         var file_id = $(this).attr('rel');
         var href = $(this).attr('href');
 
         var short_form = false;
         var can_cancel = true;
-        handleFileDownload(event, file_id, href, short_form, can_cancel);
+        handleFileDownload(event, file_id, href, short_form, can_cancel);    // defined in Default::file_handling.html.twig
     });
 
     $(".ODRDataField").find('.ODRDatafieldHistory').unbind('click');
@@ -1019,14 +1018,16 @@ function ReloadChild(datatype_id, datarecord_id) {
 }
 
 function ReloadDatafield(datarecord_id, datafield_id) {
-    var url = '{{ path('odr_record_reload_datafield', { 'datarecord_id': 0, 'datafield_id': 0 }) }}';
-    url = url.substring(0, (url.length-3));
-    url += datarecord_id + '/' + datafield_id;
-
-//alert( url );
-//return;
 
     var datafield_div = $("#Field_" + datarecord_id + "_" + datafield_id);
+    var theme_id = $(datafield_div).attr('rel');
+
+    var url = '{{ path('odr_record_reload_datafield', { 'datarecord_id': 0, 'datafield_id': 0 }) }}';
+    url = url.substring(0, (url.length - 5));
+    url += datarecord_id + '/' + datafield_id + '/' + theme_id;
+
+alert( url );
+return;
 
     $(datafield_div).children('form').each(function() {
         $(this).fadeOut();

@@ -723,7 +723,7 @@ odr_display_view:
         search_key: '[^\/]*'
         offset: \d+
 
-odr_results_reload_datafield:
+odr_display_reload_datafield:
     pattern: /results/view/datafieldreload/{datarecord_id}/{datafield_id}/{theme_id}
     defaults: { _controller: ODRAdminBundle:Display:reloaddatafield }
     requirements:

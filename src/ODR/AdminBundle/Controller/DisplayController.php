@@ -16,6 +16,7 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\AdminBundle\Entity\ThemeDataType;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -76,9 +77,9 @@ class DisplayController extends ODRCustomController
                 return parent::deletedEntityError('Theme');
 
             // Save incase the user originally requested a child datarecord
-            $original_datarecord_id = $datarecord->getId();
-            $original_datatype_id = $datatype->getId();
-            $original_theme_id = $theme->getId();
+            $original_datarecord = $datarecord;
+            $original_datatype = $datatype;
+            $original_theme = $theme;
 
 
             // ...want the grandparent datarecord and datatype for everything else, however
@@ -96,8 +97,6 @@ class DisplayController extends ODRCustomController
                 if ($theme == null)
                     return parent::deletedEntityError('Theme');
             }
-
-            $grandparent_datarecord_id = $datarecord->getId();
 
 
             // ----------------------------------------
@@ -126,11 +125,11 @@ class DisplayController extends ODRCustomController
                 $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
                 // If user has view permissions, show non-public sections of the datarecord
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'view' ]) )
+                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'view' ]) )
                     $has_view_permission = true;
 
                 // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !$datatype->isPublic() && !$has_view_permission )
+                if ( !$original_datatype->isPublic() && !$has_view_permission )
                     return parent::permissionDeniedError('view');
             }
             // ----------------------------------------
@@ -230,13 +229,13 @@ class DisplayController extends ODRCustomController
 
 
             // Grab all datarecords "associated" with the desired datarecord...
-            $associated_datarecords = $memcached->get($memcached_prefix.'.associated_datarecords_for_'.$grandparent_datarecord_id);
+            $associated_datarecords = $memcached->get($memcached_prefix.'.associated_datarecords_for_'.$datarecord->getId());
             if ($bypass_cache || $associated_datarecords == false) {
-                $associated_datarecords = parent::getAssociatedDatarecords($em, array($grandparent_datarecord_id));
+                $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord->getId()));
 
 //print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
 
-                $memcached->set($memcached_prefix.'.associated_datarecords_for_'.$grandparent_datarecord_id, $associated_datarecords, 0);
+                $memcached->set($memcached_prefix.'.associated_datarecords_for_'.$datarecord->getId(), $associated_datarecords, 0);
             }
 
 
@@ -255,11 +254,11 @@ class DisplayController extends ODRCustomController
 
             // If this request isn't for a top-level datarecord, then the datarecord array needs to have entries removed so twig doesn't render more than it should
             if ($is_top_level == 0) {
-                $target_datarecord_parent_id = $datarecord_array[$original_datarecord_id]['parent']['id'];
+                $target_datarecord_parent_id = $datarecord_array[ $original_datarecord->getId() ]['parent']['id'];
                 unset( $datarecord_array[$target_datarecord_parent_id] );
 
                 foreach ($datarecord_array as $dr_id => $dr) {
-                    if ( $dr_id !== $original_datarecord_id && $dr['parent']['id'] == $target_datarecord_parent_id )
+                    if ( $dr_id !== $original_datarecord->getId() && $dr['parent']['id'] == $target_datarecord_parent_id )
                         unset( $datarecord_array[$dr_id] );
                 }
             }
@@ -307,9 +306,9 @@ class DisplayController extends ODRCustomController
                     'datatype_array' => $datatype_array,
                     'datarecord_array' => $datarecord_array,
 
-                    'theme_id' => $original_theme_id,    // using these on purpose...user could have requested a child datarecord initially
-                    'initial_datatype_id' => $original_datatype_id,
-                    'initial_datarecord_id' => $original_datarecord_id,
+                    'theme_id' => $original_theme->getId(),    // using these on purpose...user could have requested a child datarecord initially
+                    'initial_datatype_id' => $original_datatype->getId(),
+                    'initial_datarecord_id' => $original_datarecord->getId(),
 
                     'is_top_level' => $is_top_level,
 
@@ -372,11 +371,33 @@ class DisplayController extends ODRCustomController
             if ($datatype == null)
                 return parent::deletedEntityError('Datatype');
 
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+
+            // Save incase the user originally requested a re-render of a datafield from a child datarecord
+            $original_datarecord = $datarecord;
+            $original_datatype = $datatype;
+
+            // ...want the grandparent datarecord and datatype for everything else, however
+            if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() ) {
+                $datarecord = $datarecord->getGrandparent();
+
+                $datatype = $datarecord->getDataType();
+                if ($datatype == null)
+                    return parent::deletedEntityError('Datatype');
+            }
+
+
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $has_view_permission = false;
+            $datatype_permissions = array();
+            $datafield_permissions = array();
 
             if ( $user === 'anon.' ) {
                 if ( !$datatype->isPublic() ) {
@@ -390,16 +411,16 @@ class DisplayController extends ODRCustomController
             else {
                 // Grab user's permissions
                 $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
-                $datafield_permissions = parent::getPermissionsArray($user->getId(), $request);
+                $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
                 // If user has view permissions, show non-public sections of the datarecord
-                if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'view' ])) )
+                if ( !(isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'view' ])) )
                     $has_view_permission = false;
                 if ( !(isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ])) )
                     $has_view_permission = false;
 
                 // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !$datatype->isPublic() && !$has_view_permission )
+                if ( !$original_datatype->isPublic() && !$has_view_permission )
                     return parent::permissionDeniedError('view');
             }
             // --------------------
@@ -424,26 +445,37 @@ class DisplayController extends ODRCustomController
             // Grab the cached version of the datafield's datatype
             $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
             $datatype_array = array();
-            $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype->getId());
+            $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$original_datatype->getId());
             if ($bypass_cache || $datatype_data == false)
-                $datatype_data = parent::getDatatypeData($em, $datatree_array, $datatype->getId(), $bypass_cache);
+                $datatype_data = parent::getDatatypeData($em, $datatree_array, $original_datatype->getId(), $bypass_cache);
 
             foreach ($datatype_data as $dt_id => $data)
                 $datatype_array[$dt_id] = $data;
 
 
+            // ----------------------------------------
+            // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
+            parent::filterByUserPermissions($datatype->getId(), $datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
+
+
             // Extract datafield and theme_datafield from datatype_array
             $datafield = null;
-            foreach ($datatype_array[$datatype->getId()]['themes'][$theme_id]['themeElements'] as $te_num => $te) {
-                foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                    if ($tdf['dataField']['id'] == $datafield_id) {
-                        $datafield = $tdf['dataField'];
-                        break;
+            foreach ($datatype_array[ $original_datatype->getId() ]['themes'][$theme_id]['themeElements'] as $te_num => $te) {
+                if ( isset($te['themeDataFields']) ) {
+                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+
+                        if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $datafield_id ) {
+                            $datafield = $tdf['dataField'];
+                            break;
+                        }
                     }
+                    if ($datafield !== null)
+                        break;
                 }
-                if ($datafield !== null)
-                    break;
             }
+
+            if ( $datafield == null )
+                throw new \Exception('Unable to locate array entry for datafield '.$datafield_id);
 
 
             // ----------------------------------------
@@ -452,9 +484,10 @@ class DisplayController extends ODRCustomController
             $html = $templating->render(
                 'ODRAdminBundle:Display:display_datafield.html.twig',
                 array(
-                    'datatype' => $datatype_array[ $datatype->getId() ],
-                    'datarecord' => $datarecord_array[ $datarecord->getId() ],
+                    'datarecord' => $datarecord_array[ $original_datarecord->getId() ],
                     'datafield' => $datafield,
+
+                    'image_thumbnails_only' => false,
                 )
             );
 

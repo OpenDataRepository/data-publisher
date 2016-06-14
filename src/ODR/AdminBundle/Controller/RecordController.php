@@ -43,7 +43,7 @@ class RecordController extends ODRCustomController
      * @param integer $datatype_id The database id of the DataType this DataRecord will belong to.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function adddatarecordAction($datatype_id, Request $request)
     {
@@ -74,19 +74,8 @@ class RecordController extends ODRCustomController
             if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'add' ])) )
                 return parent::permissionDeniedError("create new DataRecords for");
             // --------------------
-/*
-            // TODO - ???
-            // Get default form theme (theme_type = "form"
-            $query = $em->createQuery(
-                'SELECT t FROM ODRAdminBundle:Theme t WHERE t.isDefault = 1 AND t.templateType = :template_type'
-                )->setParameter('template_type', 'form');
 
-            $themes = $query->getResult();
-            if(count($themes) > 1 || count($themes) == 0) {
-                throw new \Exception("An invalid form theme was found.  Error: 0X82383992.");
-            }
-            $theme = $themes[0];
-*/
+
             // Create new Data Record
             $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
 
@@ -160,7 +149,7 @@ class RecordController extends ODRCustomController
      * @param integer $grandparent_id The database id of the top-level DataRecord in this inheritance chain.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function addchildrecordAction($datatype_id, $parent_id, $grandparent_id, Request $request)
     {
@@ -248,7 +237,7 @@ class RecordController extends ODRCustomController
      * @param integer $datarecord_id The database id of the datarecord to delete.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function deletedatarecordAction($datarecord_id, $search_key, Request $request)
     {
@@ -447,7 +436,7 @@ class RecordController extends ODRCustomController
      * @param integer $datatype_id
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function deletechildrecordAction($datarecord_id, $datatype_id, Request $request)
     {
@@ -524,7 +513,7 @@ class RecordController extends ODRCustomController
      * @param integer $file_id The database id of the File to delete.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function deletefileAction($file_id, Request $request)
     {
@@ -625,7 +614,7 @@ class RecordController extends ODRCustomController
      * @param integer $file_id The database id of the File to modify.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function publicfileAction($file_id, Request $request)
     {
@@ -741,7 +730,7 @@ class RecordController extends ODRCustomController
      * @param integer $image_id The database id of the Image to modify
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function publicimageAction($image_id, Request $request)
     {
@@ -857,7 +846,7 @@ class RecordController extends ODRCustomController
      * @param integer $image_id The database id of the Image to delete.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function deleteimageAction($image_id, Request $request)
     {
@@ -968,7 +957,7 @@ class RecordController extends ODRCustomController
      * @param integer $direction -1 for 90 degrees counter-clockwise rotation, 1 for 90 degrees clockwise rotation
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function rotateimageAction($image_id, $direction, Request $request)
     {
@@ -1190,7 +1179,7 @@ class RecordController extends ODRCustomController
      * 
      * @param Request $request 
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function saveimageorderAction(Request $request)
     {
@@ -1306,7 +1295,7 @@ class RecordController extends ODRCustomController
      * @param integer $datarecord_id The database id of the DataRecord to modify.
      * @param Request $request 
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function publicdatarecordAction($datarecord_id, Request $request)
     {
@@ -1392,7 +1381,7 @@ class RecordController extends ODRCustomController
      * @param integer $radio_option_id      The database id of the RadioOption entity being (de)selected.  If 0, then no RadioOption should be selected.
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function radioselectionAction($data_record_field_id, $radio_option_id, Request $request)
     {
@@ -1552,7 +1541,7 @@ class RecordController extends ODRCustomController
      * @param integer $datarecord_id The database id of the datarecord being modified.
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function updateAction($record_type, $datarecord_id, Request $request) 
     {
@@ -1776,21 +1765,10 @@ class RecordController extends ODRCustomController
                 }
                 else {
                     // Form validation failed
-                    // TODO - fix parent::ODR_getErrorMessages() to be consistent enough to use
                     $return['r'] = 2;
                     $return['old_value'] = $old_value;
 
-                    $errors = $form->getErrors();
-                    if ( count($errors) > 0 ) {
-                        $error_str = '';
-                        foreach ($errors as $num => $error)
-                            $error_str .= 'ERROR: '.$error->getMessage()."\n";
-
-                        $return['error'] = $error_str;
-                    }
-                    else {
-                        $return['error'] = $form->getErrorsAsString();
-                    }
+                    $return['error'] = parent::ODR_getErrorMessages($form);
                 }
             }
         }
@@ -1890,7 +1868,7 @@ class RecordController extends ODRCustomController
      * @param string $search_key              The current search on this tab
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function getlinkablerecordsAction($ancestor_datatype_id, $descendant_datatype_id, $local_datarecord_id, $search_key, Request $request)
     {
@@ -2135,7 +2113,7 @@ exit();
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function linkrecordAction(Request $request)
     {
@@ -2331,7 +2309,7 @@ if ($debug)
     * @param integer $datatype_id   The database id of the child DataType to re-render
     * @param Request $request
     * 
-    * @return Response TODO
+    * @return Response
     */
     public function reloadchildAction($datatype_id, $datarecord_id, Request $request)
     {
@@ -2368,7 +2346,7 @@ if ($debug)
     * @param integer $datarecord_id The database id of the DataRecord to re-render
     * @param Request $request
     *  
-    * @return Response TODO
+    * @return Response
     */  
     public function reloaddatafieldAction($datafield_id, $datarecord_id, Request $request)
     {
@@ -2727,7 +2705,7 @@ if ($debug)
      * @param integer $offset        Used for search header, an optional integer indicating which page of the search result list $datarecord_id is on
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function editAction($datarecord_id, $search_key, $offset, Request $request)
     {
@@ -2901,7 +2879,7 @@ if ($debug)
     * @param integer $datarecordfield_id The database id of the DataRecord/DataField pair to look-up in the transaction log
     * @param Request $request
     * 
-    * @return Response TODO
+    * @return Response
     */
     public function getfieldhistoryAction($datarecordfield_id, Request $request)
     {

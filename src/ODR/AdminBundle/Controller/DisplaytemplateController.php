@@ -3674,13 +3674,13 @@ print '</pre>';
         else if ($template_name == 'datafield') {
 
             // Locate the array versions of the requested datafield and its associated theme_datafield entry
-            $datafield_array = array();
-            $theme_datafield_array = array();
+            $datafield_array = null;
+            $theme_datafield_array = null;
 
             foreach ($datatype_array[ $child_datatype->getId() ]['themes'][ $theme->getId() ]['themeElements'] as $te_num => $te) {
                 if ( isset($te['themeDataFields']) ) {
                     foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                        if ( $tdf['dataField']['id'] == $datafield->getId() ) {
+                        if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $datafield->getId() ) {
                             $theme_datafield_array = $tdf;
                             $datafield_array = $tdf['dataField'];
                             break;
@@ -3688,9 +3688,13 @@ print '</pre>';
                     }
                 }
 
-                if ( count($datafield_array) > 0 )
+                if ( $datafield_array !== null )
                     break;
             }
+
+            if ( $datafield_array == null )
+                throw new \Exception('Unable to locate array entry for datafield '.$datafield->getId());
+
 
             $html = $templating->render(
                 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig',

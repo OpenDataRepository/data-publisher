@@ -5403,6 +5403,7 @@ if ($debug) {
 
     /**
      * TODO - rework to use the datatype/datarecord arrays instead of querying everything?
+     * @deprecated
      *
      * Ensures the given datarecord and all its child datarecords have datarecordfield entries for all datafields they contain.
      * 
@@ -5486,6 +5487,7 @@ if ($debug) {
 
     /**
      * Ensures the given datarecord has datarecordfield entries for all datafields it contains.
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user

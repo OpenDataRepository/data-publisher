@@ -193,16 +193,21 @@ class GraphPlugin
                 // Unfortunately, the desired one is buried inside the $theme array somewhere...
                 $df = null;
                 foreach ($theme['themeElements'] as $te) {
-                    foreach ($te['themeDataFields'] as $tdf) {
-                        if ($tdf['dataField']['id'] == $df_id) {
-                            $df = $tdf['dataField'];
-                            break;
+                    if ( isset($te['themeDataFields']) ) {
+                        foreach ($te['themeDataFields'] as $tdf) {
+                            if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $df_id ) {
+                                $df = $tdf['dataField'];
+                                break;
+                            }
                         }
                     }
 
                     if ($df !== null)
                         break;
                 }
+
+                if ($df == null)
+                    throw new \Exception('Unable to locate array entry for the field "'.$rpf['fieldName'].'", mapped to df_id '.$df_id);
 
                 // Grab the fieldname specified in the plugin's config file to use as an array key
                 $key = strtolower( str_replace(' ', '_', $rpf['fieldName']) );
