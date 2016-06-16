@@ -303,7 +303,7 @@
 
     function setupImageGalleries() {
         // Set up image galleries
-        $(".ODRImageGallery").each(function() {
+        $(".ODRImageGallery").not(".ODRImageGallery_ready").each(function() {
             var id_data = $(this).attr('id').split(/_/);
             var datafield_id = id_data[1];
             var datarecord_id = id_data[2];
@@ -333,10 +333,11 @@
                 if (count == 0)
                     $(this).html('<center><strong>No Images Found</strong></center>');
             }
+
+            $(this).addClass("ODRImageGallery_ready");
         });
 
-        $(".ODRGalleryLeftArrow").unbind('click');
-        $(".ODRGalleryLeftArrow").click(function(event) {
+        $(".ODRGalleryLeftArrow").unbind('click').click(function(event) {
             // Stop other click events from firing when this is clicked
             event.stopImmediatePropagation();
 
@@ -348,8 +349,7 @@
             $(storage).children(".ODRImage").first().remove().prependTo(gallery);
         });
 
-        $(".ODRGalleryRightArrow").unbind('click');
-        $(".ODRGalleryRightArrow").click(function(event) {
+        $(".ODRGalleryRightArrow").unbind('click').click(function(event) {
             // Stop other click events from firing when this is clicked
             event.stopImmediatePropagation();
 

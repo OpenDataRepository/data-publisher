@@ -584,116 +584,116 @@ odr_design_public_datatype:
 #-----------------------------------------
 
 #-----------------------------------------
-# Record Controller
+# Edit Controller
 odr_record_edit:
-    pattern:  /edit/record/{datarecord_id}/{search_key}/{offset}
-    defaults: { _controller: ODRAdminBundle:Record:edit, search_key: '', offset: '' }
+    pattern:  /edit/{datarecord_id}/{search_key}/{offset}
+    defaults: { _controller: ODRAdminBundle:Edit:edit, search_key: '', offset: '' }
     requirements:
         datarecord_id:  \d+
         search_key: '[^\/]*'
         offset: \d+
 
 odr_record_reload_child:
-    pattern: /edit/record/childreload/{datatype_id}/{datarecord_id}
-    defaults: { _controller: ODRAdminBundle:Record:reloadchild }
+    pattern: /edit/childreload/{child_datatype_id}/{parent_datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Edit:reloadchild }
     requirements:
-        datatype_id: \d+
-        datarecord_id: \d+
+        child_datatype_id: \d+
+        parent_datarecord_id: \d+
 odr_record_reload_datafield:
-    pattern: /edit/record/datafieldreload/{datarecord_id}/{datafield_id}
-    defaults: { _controller: ODRAdminBundle:Record:reloaddatafield }
+    pattern: /edit/datafieldreload/{datarecord_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Edit:reloaddatafield }
     requirements:
         datarecord_id: \d+
         datafield_id: \d+
 
 
 odr_record_save:
-    pattern:  /edit/record/save/{record_type}/{datarecord_id}
-    defaults: { _controller: ODRAdminBundle:Record:update }
+    pattern:  /edit/save/{record_type}/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Edit:update }
     requirements:
         datarecord_id:  \d+
         record_type:  '[a-zA-Z]+'
 
 odr_record_public:
-    pattern:  /edit/record/public/{datarecord_id}
-    defaults: { _controller: ODRAdminBundle:Record:publicdatarecord }
+    pattern:  /edit/publicdatarecord/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Edit:publicdatarecord }
     requirements:
         datarecord_id:  \d+
 
 odr_record_add:
-    pattern:  /edit/record/add/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Record:adddatarecord }
+    pattern:  /edit/adddatarecord/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Edit:adddatarecord }
     requirements:
         datatype_id:  \d+
 
 odr_record_delete:
-    pattern:  /edit/record/delete/{datarecord_id}/{search_key}
-    defaults: { _controller: ODRAdminBundle:Record:deletedatarecord}
+    pattern:  /edit/deletedatarecord/{datarecord_id}/{search_key}
+    defaults: { _controller: ODRAdminBundle:Edit:deletedatarecord}
     requirements:
         datarecord_id:  \d+
         search_key: '[^\/]*'
 
 odr_record_addchild:
-    pattern:  /edit/record/addchildrecord/{datatype_id}/{parent_id}/{grandparent_id}
-    defaults: { _controller: ODRAdminBundle:Record:addchildrecord }
+    pattern:  /edit/addchilddatarecord/{datatype_id}/{parent_id}/{grandparent_id}
+    defaults: { _controller: ODRAdminBundle:Edit:addchildrecord }
     requirements:
         datatype_id:  \d+
         parent_id:  \d+
         grandparent_id:  \d+
 
 odr_record_deletechild:
-    pattern:  /edit/record/deletechildrecord/{datarecord_id}/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Record:deletechildrecord }
+    pattern:  /edit/deletechilddatarecord/{datarecord_id}/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Edit:deletechildrecord }
     requirements:
         datarecord_id:  \d+
         datatype_id:  \d+
 
 odr_record_radio_selection:
-    pattern:  /edit/record/radioselection/{data_record_field_id}/{radio_option_id}
-    defaults: { _controller: ODRAdminBundle:Record:radioselection }
+    pattern:  /edit/radioselection/{data_record_field_id}/{radio_option_id}
+    defaults: { _controller: ODRAdminBundle:Edit:radioselection }
     requirements:
         data_record_field_id:  \d+
         radio_option_id:  \d+
 
 odr_record_delete_file:
-    pattern:  /edit/record/deletefile/{file_id}
-    defaults: { _controller: ODRAdminBundle:Record:deletefile }
+    pattern:  /edit/deletefile/{file_id}
+    defaults: { _controller: ODRAdminBundle:Edit:deletefile }
     requirements:
         file_id:  \d+
 
 odr_record_public_file:
-    pattern:  /edit/record/publicfile/{file_id}
-    defaults: { _controller: ODRAdminBundle:Record:publicfile }
+    pattern:  /edit/publicfile/{file_id}
+    defaults: { _controller: ODRAdminBundle:Edit:publicfile }
     requirements:
         file_id:  \d+
 
 odr_record_public_image:
-    pattern:  /edit/record/publicimage/{image_id}
-    defaults: { _controller: ODRAdminBundle:Record:publicimage }
+    pattern:  /edit/publicimage/{image_id}
+    defaults: { _controller: ODRAdminBundle:Edit:publicimage }
     requirements:
         image_id:  \d+
 
 odr_record_delete_image:
-    pattern:  /edit/record/deleteimage/{image_id}
-    defaults: { _controller: ODRAdminBundle:Record:deleteimage }
+    pattern:  /edit/deleteimage/{image_id}
+    defaults: { _controller: ODRAdminBundle:Edit:deleteimage }
     requirements:
         image_id:  \d+
 
 odr_record_rotate_image:
-    pattern:  /edit/record/rotateimage/{image_id}/{direction}
-    defaults: { _controller: ODRAdminBundle:Record:rotateimage }
+    pattern:  /edit/rotateimage/{image_id}/{direction}
+    defaults: { _controller: ODRAdminBundle:Edit:rotateimage }
     requirements:
         image_id:  \d+
         direction: -1|1
 
 odr_record_save_image_order:
-    pattern:  /edit/record/saveimageorder
-    defaults: { _controller: ODRAdminBundle:Record:saveimageorder }
+    pattern:  /edit/saveimageorder
+    defaults: { _controller: ODRAdminBundle:Edit:saveimageorder }
     requirements: { _method: POST }
 
 odr_record_get_linkable_records:
-    pattern:  /edit/record/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}/{search_key}
-    defaults: { _controller: ODRAdminBundle:Record:getlinkablerecords, search_key: '' }
+    pattern:  /edit/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}/{search_key}
+    defaults: { _controller: ODRAdminBundle:Edit:getlinkablerecords, search_key: '' }
     requirements:
         ancestor_datatype_id:  \d+
         descendant_datatype_id:  \d+
@@ -702,13 +702,13 @@ odr_record_get_linkable_records:
 
 
 odr_link_records:
-    pattern:  /edit/record/linkrecords
-    defaults: { _controller: ODRAdminBundle:Record:linkrecord }
+    pattern:  /edit/linkrecords
+    defaults: { _controller: ODRAdminBundle:Edit:linkrecord }
     requirements: { _method: POST }
 
 odr_record_get_field_history:
-    pattern:  /edit/record/history/{datarecordfield_id}
-    defaults: { _controller: ODRAdminBundle:Record:getfieldhistory }
+    pattern:  /edit/history/{datarecordfield_id}
+    defaults: { _controller: ODRAdminBundle:Edit:getfieldhistory }
     requirements:
         datarecordfield_id:  \d+
 #-----------------------------------------
@@ -716,7 +716,7 @@ odr_record_get_field_history:
 #-----------------------------------------
 # Display Controller
 odr_display_view:
-    pattern:  /results/view/{datarecord_id}/{search_key}/{offset}
+    pattern:  /view/{datarecord_id}/{search_key}/{offset}
     defaults: { _controller: ODRAdminBundle:Display:view, search_key: '', offset: '' }
     requirements:
         datarecord_id:  \d+
@@ -724,7 +724,7 @@ odr_display_view:
         offset: \d+
 
 odr_display_reload_datafield:
-    pattern: /results/view/datafieldreload/{datarecord_id}/{datafield_id}/{theme_id}
+    pattern: /view/datafieldreload/{datarecord_id}/{datafield_id}/{theme_id}
     defaults: { _controller: ODRAdminBundle:Display:reloaddatafield }
     requirements:
         datarecord_id: \d+
@@ -732,19 +732,19 @@ odr_display_reload_datafield:
         theme_id: \d+
 
 odr_file_download:
-    pattern:  /results/download/file/{file_id}
+    pattern:  /view/downloadfile/{file_id}
     defaults: { _controller: ODRAdminBundle:Display:filedownload }
     requirements:
         file_id:  \d+
 
 odr_cancel_file_decrypt:
-    pattern:  /results/download_cancel/file/{file_id}
+    pattern:  /view/downloadfile_cancel/{file_id}
     defaults: { _controller: ODRAdminBundle:Display:cancelfiledecrypt }
     requirements:
         file_id:  \d+
 
 odr_image_download:
-    pattern:  /results/download/image/{image_id}
+    pattern:  /view/downloadimage/{image_id}
     defaults: { _controller: ODRAdminBundle:Display:imagedownload }
     requirements:
         image_id:  \d+

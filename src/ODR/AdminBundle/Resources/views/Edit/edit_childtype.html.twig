@@ -1,7 +1,5 @@
-{#{% macro input(datatype_tree, datarecord_tree, theme, datatype_permissions, datafield_permissions) %}#}
 {% spaceless %}
 
-{#{% set datatype = datatype_tree.datatype %}#}
 {% set datatype = datatype_array[target_datatype_id] %}
 
 {% set can_edit_record = 0 %}
@@ -17,10 +15,8 @@
     {% set can_delete_record = 1 %}
 {% endif %}
 
-<!-- Child Types -->
-<div class="ODRDataType pure-u-1" id="DataType_{{ datatype.id }}" {#rel="{{ datatype_tree.theme_datatype.id }}"#}>
+<div class="ODRDataType pure-u-1" id="DataType_{{ datatype.id }}">
 
-    {#{% include 'ODRAdminBundle:Default:accordion_header.html.twig' with {'datatype_tree': datatype_tree, 'datarecord_tree': datarecord_tree, 'public_only': false} %}#}
     {% include 'ODRAdminBundle:Default:fieldarea_header.html.twig' with {
         'datatype_array': datatype_array,
         'datarecord_array': datarecord_array,
@@ -33,10 +29,6 @@
         'display_type': display_type
     } %}
 
-{#
-    {% for dr_entry in datarecord_tree %}
-        {% set datarecord = dr_entry.datarecord %}
-#}
     {% for dr_id, datarecord in datarecord_array %}
 {#
 ----------</br>
@@ -54,7 +46,7 @@ display_type: {{ display_type }}</br>
 #}
         {% if (is_link == 1 or datarecord.parent.id == parent_datarecord_id) and datarecord.dataType.id == target_datatype_id %}
 
-            {% include 'ODRAdminBundle:Record:accordion_header.html.twig' with {
+            {% include 'ODRAdminBundle:Edit:accordion_header.html.twig' with {
                 'datarecord': datarecord,
                 'datatype': datatype,
 
@@ -67,7 +59,7 @@ display_type: {{ display_type }}</br>
             } %}
 
             <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
-                {% include 'ODRAdminBundle:Record:record_fields.html.twig' with {
+                {% include 'ODRAdminBundle:Edit:edit_fieldarea.html.twig' with {
                     'datatype_array': datatype_array,
                     'datarecord_array': datarecord_array,
 
@@ -80,18 +72,17 @@ display_type: {{ display_type }}</br>
                     'datafield_permissions': datafield_permissions,
 
                     'is_top_level': is_top_level,
-                    'is_link': is_link
+                    'is_link': is_link,
+                    'display_type': display_type,
                 } %}
             </div><!-- End of #FieldArea_{{ datarecord.id }} -->
 
         {% endif %}
     {% endfor %}
 
-
-    {#{% include 'ODRAdminBundle:Default:accordion_footer.html.twig' with {'childtype': datatype } %}#}
     {% include 'ODRAdminBundle:Default:fieldarea_footer.html.twig' with {'display_type': display_type } %}
 
 </div><!-- End of #DataType_{{ datatype.id }} -->
 
 {% endspaceless %}
-{#{% endmacro %}#}
+

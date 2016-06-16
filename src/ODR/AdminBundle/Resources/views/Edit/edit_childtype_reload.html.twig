@@ -1,0 +1,34 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+
+{% set can_edit_record = 0 %}
+{% set can_add_record = 0 %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'edit' ] is defined %}
+    {% set can_edit_record = 1 %}
+{% endif %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'add' ] is defined %}
+    {% set can_add_record = 1 %}
+{% endif %}
+
+    {% include 'ODRAdminBundle:Edit:edit_fieldarea_childtype.html.twig' with {
+        'datatype_array': datatype_array,
+        'datarecord_array': datarecord_array,
+        'theme_id': theme_id,
+
+        'target_datatype_id': target_datatype_id,
+        'parent_datarecord_id': parent_datarecord_id,
+
+        'datatype_permissions': datatype_permissions,
+        'datafield_permissions': datafield_permissions,
+
+        'can_add_record': can_add_record,
+        'can_edit_record': can_edit_record,
+
+        'is_top_level': is_top_level,
+        'is_link': is_link,
+        'display_type': display_type,
+        'multiple_allowed': multiple_allowed,
+    } %}
+
+{% endspaceless %}

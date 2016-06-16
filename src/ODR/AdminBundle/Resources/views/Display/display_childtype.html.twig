@@ -22,7 +22,7 @@
     <!-- End {{ render_plugin.pluginName }} override child html -->
 
 {% else %}
-    <!-- Child Types -->
+
     <div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
 
         {% include 'ODRAdminBundle:Default:fieldarea_header.html.twig' with {
@@ -75,7 +75,8 @@ display_type: {{ display_type }}</br>
                             'theme_id': theme_id,
 
                             'is_top_level': is_top_level,
-                            'is_link': is_link
+                            'is_link': is_link,
+                            'display_type': display_type
                         } %}
                     {% endif %}
                 </div><!-- End of #FieldArea_{{ datarecord.id }} -->

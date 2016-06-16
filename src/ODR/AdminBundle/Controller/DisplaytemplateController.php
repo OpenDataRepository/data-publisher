@@ -3264,7 +3264,8 @@ print '</pre>';
     /**
      * Triggers a re-render and reload of a child DataType div in the design.
      *
-     * @param integer $datatype_id The database id of the child DataType that needs to be re-rendered.
+     * @param integer $source_datatype_id  The database id of the top-level Datatype
+     * @param integer $datatype_id         The database id of the child DataType that needs to be re-rendered.
      * @param Request $request
      *
      * @return Response
@@ -3290,6 +3291,12 @@ print '</pre>';
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 return parent::deletedEntityError('Datatype');
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
 
             // --------------------
             // Determine user privileges
@@ -3420,6 +3427,12 @@ print '</pre>';
             if ($datatype == null)
                 return parent::deletedEntityError('Datatype');
 
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+            
+
             // --------------------
             // Determine user privileges
             /** @var User $user */
@@ -3460,9 +3473,11 @@ print '</pre>';
      *                                     If $template_name == 'datafield', then $target_id should be a datafield id
      * @param Request $request
      *
+     * @throws \Exception
+     *
      * @return string
      */
-    private function GetDisplayData($source_datatype_id, $template_name = 'default', $target_id, Request $request)
+    private function GetDisplayData($source_datatype_id, $template_name, $target_id, Request $request)
     {
         // Don't need to check permissions
 
@@ -3485,6 +3500,7 @@ print '</pre>';
         $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
 
 
+        // ----------------------------------------
         // Load required objects based on parameters
         /** @var DataType $datatype */
         $datatype = null;

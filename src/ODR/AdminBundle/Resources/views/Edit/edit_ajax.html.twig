@@ -1,36 +1,28 @@
 {% spaceless %}
-<div class="ODRFormHeader clearfix">
 
-{#{% set datatype = datatype_tree.datatype %}#}
 {% set datatype = datatype_array[initial_datatype_id] %}
-{#
-{% set datarecord = null %}
-{% for dr_entry in datarecord_tree %}
-    {% set datarecord = dr_entry.datarecord %}
-{% endfor %}
-#}
 {% set datarecord = datarecord_array[initial_datarecord_id] %}
-{#
-{% for ancestor_id, ancestor_name in ancestor_linked_datatypes %}
-    {% if datatype_permissions[ ancestor_id ] is defined and datatype_permissions[ ancestor_id ][ 'edit' ] is defined %}
-        <button type="button" class="pure-button" onclick="LinkRecord({{ ancestor_id }},{{ datatype.id }},{{ datarecord.id }});">Link to {{ ancestor_name }}.</button>
-    {% endif %}
-{% endfor %}
 
-{% for descendant_id, descendant_name in descendant_linked_datatypes %}
-    {% if datatype_permissions[ descendant_id ] is defined and datatype_permissions[ descendant_id ][ 'edit' ] is defined %}
-        <button type="button" class="pure-button" onclick="LinkRecord({{ datatype.id }},{{ descendant_id }},{{ datarecord.id }});">Link to {{ descendant_name }}.</button>
-    {% endif %}
-{% endfor %}
-#}
+<div class="ODRFormHeader clearfix">
+    {% for ancestor_id, ancestor_name in linked_datatype_ancestors %}
+        {% if datatype_permissions[ ancestor_id ] is defined and datatype_permissions[ ancestor_id ][ 'edit' ] is defined %}
+            <button type="button" class="pure-button" onclick="LinkRecord({{ ancestor_id }},{{ datatype.id }},{{ datarecord.id }});">Link to {{ ancestor_name }}.</button>
+        {% endif %}
+    {% endfor %}
+
+    {% for descendant_id, descendant_name in linked_datatype_descendants %}
+        {% if datatype_permissions[ descendant_id ] is defined and datatype_permissions[ descendant_id ][ 'edit' ] is defined %}
+            <button type="button" class="pure-button" onclick="LinkRecord({{ datatype.id }},{{ descendant_id }},{{ datarecord.id }});">Link to {{ descendant_name }}.</button>
+        {% endif %}
+    {% endfor %}
 </div>
+
 
 <h1 class="no-margin-top-phone">
     <span>Edit Record &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
 </h1>
 
-{#{% include 'ODRAdminBundle:Record:record_area.html.twig' with {'datatype_tree': datatype_tree, 'datarecord_tree': datarecord_tree, 'theme': theme, 'datatype_permissions': datatype_permissions, 'datafield_permissions': datafield_permissions} %}#}
-{% include 'ODRAdminBundle:Record:record_area.html.twig' with {
+{% include 'ODRAdminBundle:Edit:edit_area.html.twig' with {
     'datatype_array': datatype_array,
     'datarecord_array': datarecord_array,
     'theme_id': theme_id,
@@ -39,11 +31,13 @@
     'initial_datarecord_id': initial_datarecord_id,
 
     'datatype_permissions': datatype_permissions,
-    'datafield_permissions': datafield_permissions
+    'datafield_permissions': datafield_permissions,
+
+    'is_top_level': is_top_level,
 } %}
 
 <div id="field_history_dialog_wrapper">
-{% include 'ODRAdminBundle:Record:field_history_dialog.html.twig' %}
+{% include 'ODRAdminBundle:Edit:field_history_dialog.html.twig' %}
 </div>
 
 {% endspaceless %}
@@ -90,38 +84,21 @@ $(function() {
     initPage();
     $(".MenuDesignArea").remove();
     window.scrollTo(0,0);
+
 });
+
+/*
+function tmp(datatype_id, parent_datarecord) {
+    ReloadChild(datatype_id, parent_datarecord);
+}
+*/
+function tmp(datarecord_id, datafield_id) {
+    ReloadDatafield(datarecord_id, datafield_id);
+}
 
 var SaveTimeout = 700;
 function initPage() {
-/*
-    // Resize all elements dependent on window size
-    $(window).unbind('resize');
-    $(window).resize(function() {
-        WindowResizeInterval = window.clearInterval(WindowResizeInterval);
-        WindowResizeInterval = window.setInterval("onWindowResize()", 500);
-    });
 
-    // Resize everything prior to divs being hidden
-    onWindowResize();
-
-    // Hide divs for accordion purposes
-    setupAccordions();
-
-    // Hide empty theme element divs
-    $(".ODRThemeElement").each(function() {
-        var has_children = false;
-        $(this).find(".ODRDataField").each(function() { // TODO - render plugins that hide fieldarea and don't do datafields?
-            has_children = true;
-        });
-        $(this).find(".ODRDataType").each(function() { // TODO - render plugins that hide fieldarea and don't do datafields?
-            has_children = true;
-        });
-
-        if (!has_children)
-            $(this).css( "display", "none" );
-    });
-*/
     $(".ODRFileDownloadProgress").hide();
 
     $("a.ODRFileDownload").unbind('click').click(function(event) {
@@ -147,8 +124,8 @@ function initPage() {
 
 // TODO - Radio fieldtype
 
-//alert( url );
-//return;
+alert( url );
+return;
 
         $.ajax({
             cache: false,
@@ -194,8 +171,7 @@ function initPage() {
             var url = '{{ path('odr_record_delete_image', { 'image_id': 0 } ) }}';
             url = url.substring(0, (url.length - 1));
             url += image_id;
-//alert( url );
-//return;
+
             var tmp = $(this).parents(".ODRDataField").first().attr('id');
             tmp = tmp.split('_');
             var datarecord_id = tmp[1];
@@ -203,6 +179,9 @@ function initPage() {
 
 //alert('datarecord: ' + datarecord_id + ', datafield: ' + datafield_id);
 //return;
+
+alert( url );
+return;
 
             $.ajax({
                 cache: false,
@@ -250,9 +229,6 @@ function initPage() {
             url = url.substring(0,(url.length-1));
             url += file_id;
 
-//alert( url );
-//return;
-
             var tmp = $(this).parents(".ODRDataField").first().attr('id');
             tmp = tmp.split('_');
             var datarecord_id = tmp[1];
@@ -260,6 +236,9 @@ function initPage() {
 
 //alert('datarecord: ' + datarecord_id + ', datafield: ' + datafield_id);
 //return;
+
+alert( url );
+return;
 
             $.ajax({
                 cache: false,
@@ -323,8 +302,8 @@ function initPage() {
         url = url.substring(0,(url.length-1));
         url += file_id;
 
-//alert( url );
-//return;
+alert( url );
+return;
 
         $.ajax({
             cache: false,
@@ -378,8 +357,8 @@ function initPage() {
         url = url.substring(0,(url.length-1));
         url += image_id;
 
-//alert( url );
-//return;
+alert( url );
+return;
 
         $.ajax({
             cache: false,
@@ -391,6 +370,7 @@ function initPage() {
                     // Reload the image control
                     var datarecord_id = data.d.datarecord;
                     var datafield_id = data.d.datafield;
+
                     ReloadDatafield(datarecord_id, datafield_id);
                 }
                 else {
@@ -431,9 +411,6 @@ function initPage() {
         url = url.substring(0,(url.length-3));
         url += image_id + '/' + direction;
 
-//alert( url );
-//return;
-
         // Allow only one 90 degree rotation of this image at a time
         $("#Image_" + image_id).find(".ODRRotateImage").addClass('fa-muted');
 
@@ -441,6 +418,9 @@ function initPage() {
         tmp = tmp.split('_');
         var datarecord_id = tmp[1];
         var datafield_id = tmp[2];
+
+alert( url );
+return;
 
         $.ajax({
             cache: false,
@@ -482,8 +462,8 @@ function initPage() {
         url = url.substring(0, (url.length - 1));
         url += datarecord_id;
 
-//alert( url );
-//return;
+alert( url );
+return;
 
         $.ajax({
             cache: false,
@@ -542,8 +522,8 @@ function initPage() {
             url = url.substring(0,(url.length - 3));
             url += datarecord_id + '/' + datatype_id;
 
-//alert( url );
-//return;
+alert( url );
+return;
 
             $.ajax({
                 cache: false,
@@ -557,7 +537,6 @@ function initPage() {
                         var parent_id = data.d.parent_id;
 
                         ReloadChild(datatype_id, parent_id);
-//                        ReloadChild(datatype_id, parent_id, '');    // don't attempt to scroll to a datarecord
                     }
                     else {
                         // An error has occurred.
@@ -606,8 +585,8 @@ function initPage() {
         url = url.substring(0,(url.length - 3));
         url += datarecordfield_id + '/' + radio_option_id;
 
-//alert( url );
-//return;
+alert( url );
+return;
 
         $.ajax({
             cache: false,
@@ -652,8 +631,8 @@ function initPage() {
         url = url.substring(0,(url.length - 3));
         url += datarecordfield_id + '/' + radio_option_id;
 
-//alert( url );
-//return;
+alert( url );
+return;
 
         $.ajax({
             cache: false,
@@ -698,8 +677,8 @@ function initPage() {
         url = url.substring(0,(url.length - 3));
         url += datarecordfield_id + '/' + radio_option_id;
 
-//alert( url );
-//return;
+alert( url );
+return;
 
         $.ajax({
             cache: false,
@@ -794,6 +773,10 @@ function initPage() {
         $(this).parent().parent().find(".ODRDatePicker").datepicker('setDate', null);
 
         var form_id = $(this).parent().parent().parent().attr('id');
+
+alert('clearing datepicker');
+return;
+
         SaveRecordData('#' + form_id, '');
     });
 
@@ -813,8 +796,8 @@ function SaveImageOrder(container) {
 
     var url = '{{ path('odr_record_save_image_order') }}';
 
-//alert( url );
-//return;
+alert( url );
+return;
 
     $.ajax({
         cache: false,
@@ -852,8 +835,8 @@ function AddChildRecord(datatype_id, parent_id, grandparent_id) {
     url = url.substring(0, (url.length - 5));
     url += datatype_id + '/' + parent_id + '/' + grandparent_id;
 
-//alert( url );
-//return;
+alert( url );
+return;
 
     $.ajax({
         cache: false,
@@ -868,7 +851,6 @@ function AddChildRecord(datatype_id, parent_id, grandparent_id) {
                 var parent_id = data.d.parent_id;
 
                 ReloadChild(datatype_id, parent_id);
-//                ReloadChild(datatype_id, parent_id, new_datarecord_id);
             }
             else {
                 // Error occurred
@@ -899,8 +881,8 @@ function LinkRecord(ancestor_datatype_id, descendant_datatype_id, local_datareco
     url += '/' + '{{ search_key }}';
 {% endif %}
 
-//alert( url );
-//return;
+alert( url );
+return;
 
     UpdateURL(url);
 }
@@ -916,9 +898,9 @@ function SaveRecordData(form_id, interval) {
 
     var url = $(the_form).attr('action');
 
-//alert( url );
-//alert( post_data );
-//return;
+alert( url );
+alert( post_data );
+return;
 
     $.ajax({
         type: 'POST',
@@ -965,18 +947,32 @@ function SaveRecordData(form_id, interval) {
     });
 }
 
+function insertLoadingDiv(parent_div_id) {
 
-//function ReloadChild(datatype_id, datarecord_id, scroll_target_datarecord) {
-function ReloadChild(datatype_id, datarecord_id) {
-    var url = '{{ path('odr_record_reload_child', { 'datatype_id': 0, 'datarecord_id': 0 }) }}';
+    // Need dimensions of parent div...
+    var element = $("#" + parent_div_id);
+    var height = $(element).css('height');
+    var width = $(element).css('width');
+
+    // Create a loading div
+    $(element).prepend("<div id=\"" + parent_div_id + "_loading_div\" class=\"ODROverlayDiv ODRReloadDiv\"><strong>Loading...</strong></div>");
+
+    // Apply dimensions of parent div to loading div
+    $("#" + parent_div_id + "_loading_div").css({"height": height, "line-height": height, "width": width});
+}
+
+
+function ReloadChild(child_datatype_id, parent_datarecord_id) {
+    var url = '{{ path('odr_record_reload_child', { 'child_datatype_id': 0, 'parent_datarecord_id': 0 }) }}';
     url = url.substring(0, (url.length-3));
-    url += datatype_id + '/' + datarecord_id;
+    url += child_datatype_id + '/' + parent_datarecord_id;
+
+    // Remove the datatype that's getting reloaded
+    //$("#ChildTypeWrapper_" + child_datatype_id + "_" + parent_datarecord_id).children(".ODRDataType").fadeOut().remove();
+    insertLoadingDiv("ChildTypeWrapper_" + child_datatype_id + "_" + parent_datarecord_id);
 
 //alert( url );
 //return;
-
-    // Remove the datatype that's getting reloaded
-    $("#ChildTypeWrapper_" + datatype_id + "_" + datarecord_id).children(".ODRDataType").remove();
 
     $.ajax({
         cache: false,
@@ -986,16 +982,12 @@ function ReloadChild(datatype_id, datarecord_id) {
         success: function(data, textStatus, jqXHR) {
             if (data.r == 0) {
                 // The returned html includes #ChildTypeWrapper...completely overwrite the contents of its parent div
-                $("#ChildTypeWrapper_" + datatype_id + "_" + datarecord_id).parent(".ODRInnerBox").html(data.d.html);
+                $("#ChildTypeWrapper_" + child_datatype_id + "_" + parent_datarecord_id).parent(".ODRInnerBox").html(data.d.html);
 
+                onWindowResize();
+                setupImageGalleries();
                 setupAccordions();
                 initPage();
-/*
-                if (scroll_target_datarecord != '') {
-                    var offset = $("#FieldArea_" + scroll_target_datarecord).offset();
-                    window.scrollTo(0, offset.top);
-                }
-*/
             }
             else {
                 alert( data.d );
@@ -1026,13 +1018,14 @@ function ReloadDatafield(datarecord_id, datafield_id) {
     url = url.substring(0, (url.length - 5));
     url += datarecord_id + '/' + datafield_id + '/' + theme_id;
 
-alert( url );
-return;
-
     $(datafield_div).children('form').each(function() {
         $(this).fadeOut();
         $(this).remove();
     });
+
+
+alert( url );
+return;
 
     $.ajax({
         cache: false,

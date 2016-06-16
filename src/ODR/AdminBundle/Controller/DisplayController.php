@@ -252,7 +252,7 @@ class DisplayController extends ODRCustomController
 
 //print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 
-            // If this request isn't for a top-level datarecord, then the datarecord array needs to have entries removed so twig doesn't render more than it should
+            // If this request isn't for a top-level datarecord, then the datarecord array needs to have entries removed so twig doesn't render more than it should...TODO - still leaves more than it should
             if ($is_top_level == 0) {
                 $target_datarecord_parent_id = $datarecord_array[ $original_datarecord->getId() ]['parent']['id'];
                 unset( $datarecord_array[$target_datarecord_parent_id] );

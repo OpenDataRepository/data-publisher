@@ -1,40 +1,36 @@
 {% spaceless %}
-{#
-{% set field_typename = datarecordfield.getdatafield.getfieldtype.typename %}
-{% set field_typeclass = datarecordfield.getdatafield.getfieldtype.typeclass %}
-#}
+
 {% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
 {% set field_typeclass = datafield.dataFieldMeta.fieldType.typeClass %}
 
-{#{% set valuefield = datarecordfield.getassociatedentity %}#}
 {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
 
+{% set valuefield = '' %}
+{% if field_typename == "Boolean" %}
+    {% set valuefield = datarecordfield.boolean[0] %}
+{% elseif field_typename == "File" %}
+    {% set valuefield = datarecordfield.file %}
+{% elseif field_typename == "Image" %}
+    {% set valuefield = datarecordfield.image %}
+{% elseif field_typename == "Decimal" %}
+    {% set valuefield = datarecordfield.decimalValue[0] %}
+{% elseif field_typename == "Integer" %}
+    {% set valuefield = datarecordfield.integerValue[0] %}
+{% elseif field_typename == "Paragraph Text" %}
+    {% set valuefield = datarecordfield.longText[0] %}
+{% elseif field_typename == "Long Text" %}
+    {% set valuefield = datarecordfield.longVarchar[0] %}
+{% elseif field_typename == "Medium Text" %}
+    {% set valuefield = datarecordfield.mediumVarchar[0] %}
+{% elseif field_typename == "Single Radio" %}
+    {% set valuefield = datarecordfield.radioSelection %}
+{% elseif field_typename == "Short Text" %}
+    {% set valuefield = datarecordfield.shortVarchar[0] %}
+{% elseif field_typename == "DateTime" %}
+    {% set valuefield = datarecordfield.datetimeValue[0] %}
+{% elseif field_typename == "Markdown" %}
     {% set valuefield = '' %}
-    {% if field_typename == "Boolean" %}
-        {% set valuefield = datarecordfield.boolean[0] %}
-    {% elseif field_typename == "File" %}
-        {% set valuefield = datarecordfield.file %}
-    {% elseif field_typename == "Image" %}
-        {% set valuefield = datarecordfield.image %}
-    {% elseif field_typename == "Decimal" %}
-        {% set valuefield = datarecordfield.decimalValue[0] %}
-    {% elseif field_typename == "Integer" %}
-        {% set valuefield = datarecordfield.integerValue[0] %}
-    {% elseif field_typename == "Paragraph Text" %}
-        {% set valuefield = datarecordfield.longText[0] %}
-    {% elseif field_typename == "Long Text" %}
-        {% set valuefield = datarecordfield.longVarchar[0] %}
-    {% elseif field_typename == "Medium Text" %}
-        {% set valuefield = datarecordfield.mediumVarchar[0] %}
-    {% elseif field_typename == "Single Radio" %}
-        {% set valuefield = datarecordfield.radioSelection %}
-    {% elseif field_typename == "Short Text" %}
-        {% set valuefield = datarecordfield.shortVarchar[0] %}
-    {% elseif field_typename == "DateTime" %}
-        {% set valuefield = datarecordfield.datetimeValue[0] %}
-    {% elseif field_typename == "Markdown" %}
-        {% set valuefield = '' %}
-    {% endif %}
+{% endif %}
 
     {#<form action="{{ path('odr_record_save', { 'record_type': datarecordfield.getdatafield.getfieldtype.typeclass, 'datarecord_id': datarecord.id }) }}" method="post" {{ form_enctype(form) }} class="pure-u-1" id="EditDataRecordFieldsForm_{{ datarecordfield.id }}" {% if field_typeclass != "File" and field_typeclass != "Image" and field_typeclass != "Radio" %}rel="{{ valuefield.id }}"{% endif %}>#}
     <form action="{{ path('odr_record_save', { 'record_type': field_typeclass, 'datarecord_id': datarecord.id }) }}" {#method="post" {{ form_enctype(form) }}#} class="pure-u-1" id="EditDataRecordFieldsForm_{{ datarecordfield.id }}" {% if field_typeclass != "File" and field_typeclass != "Image" and field_typeclass != "Radio" %}rel="{{ valuefield.id }}"{% endif %}>
