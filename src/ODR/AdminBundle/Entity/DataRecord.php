@@ -513,6 +513,7 @@ class DataRecord
 
     /**
      * Get external_id
+     * @deprecated
      *
      * @return string
      */
@@ -540,6 +541,7 @@ class DataRecord
 
     /**
      * Get namefield_value
+     * @deprecated
      *
      * @return string|integer
      */
@@ -567,6 +569,7 @@ class DataRecord
 
     /**
      * Get sortfield_value
+     * @deprecated
      *
      * @return string|integer
      */

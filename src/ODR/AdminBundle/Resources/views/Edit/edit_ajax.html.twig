@@ -400,8 +400,7 @@ return;
         });
     });
 
-    $(".ODRRotateImage").unbind('click');
-    $(".ODRRotateImage").click(function() {
+    $(".ODRRotateImage").unbind('click').click(function() {
 
         if ( $(this).hasClass('fa-muted') )
             return;
@@ -424,8 +423,8 @@ return;
         var datarecord_id = tmp[1];
         var datafield_id = tmp[2];
 
-alert( url );
-return;
+//alert( url );
+//return;
 
         $.ajax({
             cache: false,

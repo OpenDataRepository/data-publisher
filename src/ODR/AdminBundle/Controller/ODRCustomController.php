@@ -4958,12 +4958,6 @@ if ($debug)
         $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
         $router = $this->container->get('router');
 
-        /** @var DataRecord $datarecord */
-        $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-
-        $datatype = $datarecord->getDataType();
-        $datatype_id = $datatype->getId();
-
 
         // ----------------------------------------
         // Always bypass cache in dev mode
@@ -4971,25 +4965,27 @@ if ($debug)
         if ($this->container->getParameter('kernel.environment') === 'dev')
             $bypass_cache = true;
 
-        // Grab the cached version of the requested datatype
-        $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype_id);
-        if ($bypass_cache || $datatype_data == false)
-            $datatype_data = self::getDatatypeData($em, self::getDatatreeArray($em, $bypass_cache), $datatype_id, $bypass_cache);
-
         // Grab the cached version of the requested datarecord
         $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$datarecord_id);
         if ($bypass_cache || $datarecord_data == false)
             $datarecord_data = self::getDatarecordData($em, $datarecord_id, $bypass_cache);
 
+        $datatype_id = $datarecord_data[$datarecord_id]['dataType']['id'];
+
+        // Grab the cached version of the requested datatype
+        $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype_id);
+        if ($bypass_cache || $datatype_data == false)
+            $datatype_data = self::getDatatypeData($em, self::getDatatreeArray($em, $bypass_cache), $datatype_id, $bypass_cache);
 
 //print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();
 //print '<pre>'.print_r($datarecord_data, true).'</pre>'; exit();
 
+
         // ----------------------------------------
         // Need to build an array to store the data
         $data = array(
-            'default_sort_value' => $datarecord->getSortfieldValue(),
-            'publicDate' => $datarecord->getPublicDate(),
+            'default_sort_value' => $datarecord_data[$datarecord_id]['sortField_value'],
+            'publicDate' => $datarecord_data[$datarecord_id]['dataRecordMeta']['publicDate'],
         );
 
         foreach ($datatype_data[$datatype_id]['themes'] as $theme_id => $theme) {
@@ -6472,7 +6468,7 @@ if ($timing)
         $query = $em->createQuery(
            'SELECT
                dr, drm, p_dr, gp_dr,
-               dt,
+               dt, dtm, dt_eif, dt_nf, dt_sf,
                drf, e_f, e_fm, e_f_cb,
                e_i, e_im, e_ip, e_ipm, e_is, e_ip_cb,
                e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv, rs, ro,
@@ -6485,6 +6481,10 @@ if ($timing)
             LEFT JOIN dr.grandparent AS gp_dr
 
             LEFT JOIN dr.dataType AS dt
+            LEFT JOIN dt.dataTypeMeta AS dtm
+            LEFT JOIN dtm.externalIdField AS dt_eif
+            LEFT JOIN dtm.nameField AS dt_nf
+            LEFT JOIN dtm.sortField AS dt_sf
 
             LEFT JOIN dr.dataRecordFields AS drf
             LEFT JOIN drf.file AS e_f
@@ -6549,6 +6549,26 @@ if ($timing) {
             $drm = $dr['dataRecordMeta'][0];
             $datarecord_data[$dr_num]['dataRecordMeta'] = $drm;
 
+            // Store which datafields are used for the datatype's external_id_datafield, name_datafield, and sort_datafield
+            $external_id_field = null;
+            $name_datafield = null;
+            $sort_datafield = null;
+
+            if ( isset($dr['dataType']['dataTypeMeta'][0]['externalIdField']['id']) )
+                $external_id_field = $dr['dataType']['dataTypeMeta'][0]['externalIdField']['id'];
+            if ( isset($dr['dataType']['dataTypeMeta'][0]['nameField']['id']) )
+                $name_datafield = $dr['dataType']['dataTypeMeta'][0]['nameField']['id'];
+            if ( isset($dr['dataType']['dataTypeMeta'][0]['sortField']['id']) )
+                $sort_datafield = $dr['dataType']['dataTypeMeta'][0]['sortField']['id'];
+
+            $datarecord_data[$dr_num]['externalIdField_value'] = '';
+            $datarecord_data[$dr_num]['nameField_value'] = '';
+            $datarecord_data[$dr_num]['sortField_value'] = '';
+
+            // Don't want to store the datatype's meta entry
+            unset( $datarecord_data[$dr_num]['dataType']['dataTypeMeta'] );
+
+
             // Flatten datafield_meta of each datarecordfield, and organize by datafield id instead of some random number
             $new_drf_array = array();
             foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
@@ -6590,8 +6610,17 @@ if ($timing) {
                 // Scrub all user information from the rest of the array
                 $keys = array('boolean', 'integerValue', 'decimalValue', 'longText', 'longVarchar', 'mediumVarchar', 'shortVarchar', 'datetimeValue');
                 foreach ($keys as $typeclass) {
-                    if ( count($drf[$typeclass]) > 0 )
+                    if ( count($drf[$typeclass]) > 0 ) {
                         $drf[$typeclass][0]['createdBy'] = self::cleanUserData( $drf[$typeclass][0]['createdBy'] );
+
+                        // Store the value from this storage entity if it's the one being used for external_id/name/sort datafields
+                        if ($external_id_field !== null && $external_id_field == $df_id)
+                            $datarecord_data[$dr_num]['externalIdField_value'] = $drf[$typeclass][0]['value'];
+                        if ($name_datafield !== null && $name_datafield == $df_id)
+                            $datarecord_data[$dr_num]['nameField_value'] = $drf[$typeclass][0]['value'];
+                        if ($sort_datafield !== null && $sort_datafield == $df_id)
+                            $datarecord_data[$dr_num]['sortField_value'] = $drf[$typeclass][0]['value'];
+                    }
                 }
 
                 // Organize radio selections by radio option id
@@ -6615,6 +6644,12 @@ if ($timing) {
         $formatted_datarecord_data = array();
         foreach ($datarecord_data as $num => $dr_data) {
             $dr_id = $dr_data['id'];
+
+            // These two values should default to the datarecord id if empty
+            if ( $dr_data['nameField_value'] == '' )
+                $dr_data['nameField_value'] = $dr_id;
+            if ( $dr_data['sortField_value'] == '' )
+                $dr_data['sortField_value'] = $dr_id;
 
             $formatted_datarecord_data[$dr_id] = $dr_data;
         }
