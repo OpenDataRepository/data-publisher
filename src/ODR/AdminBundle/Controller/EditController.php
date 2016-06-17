@@ -581,16 +581,10 @@ class EditController extends ODRCustomController
             $em->flush();
 
 
-            // Determine whether ShortResults needs a recache
-            // TODO - replace this block with code to directly update the cached version of the datarecord
-            // TODO - execute graph plugin if needed
-            $options = array();
-            $options['mark_as_updated'] = true;
-            if ( parent::inShortResults($datafield) )
-                $options['force_shortresults_recache'] = true;
-
-            // Refresh the cache entries for this datarecord
-            parent::updateDatarecordCache($datarecord->getId(), $options);
+            // Delete cached version of this datarecord
+            // TODO - directly update the cached version of the datarecord?
+            // TODO - execute graph plugin?
+            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
 
             // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
             if ($datafield->getAllowMultipleUploads() == "0")
@@ -701,21 +695,15 @@ class EditController extends ODRCustomController
             );
 
 
-            // Determine whether ShortResults needs a recache
+            // Delete cached version of datarecord
             // TODO - replace this block with code to directly update the cached version of the datarecord
-            // TODO - execute graph plugin if needed
-            $options = array();
-            $options['mark_as_updated'] = true;
-            if ( parent::inShortResults($datafield) )
-                $options['force_shortresults_recache'] = true;
-
-            // Refresh the cache entries for this datarecord
-            parent::updateDatarecordCache($datarecord->getId(), $options);
+            // TODO - execute graph plugin?
+            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
-            $return['d'] = 'Error 0x203288355556 '. $e->getMessage();
+            $return['d'] = 'Error 0x2032883556 '. $e->getMessage();
         }
 
         $response = new Response(json_encode($return));
@@ -784,9 +772,13 @@ class EditController extends ODRCustomController
             $all_images[] = $image;
 
             // Toggle public status of specified image...
+            $public_date = null;
+
             if ( $image->isPublic() ) {
                 // Make the original image non-public
-                $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
+                $public_date = new \DateTime('2200-01-01 00:00:00');
+
+                $properties = array('publicDate' => $public_date );
                 parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
                 // Delete the decrypted version of the image and all of its children, if any of them exist
@@ -801,7 +793,9 @@ class EditController extends ODRCustomController
             }
             else {
                 // Make the original image public
-                $properties = array('publicDate' => new \DateTime());
+                $public_date = new \DateTime();
+
+                $properties = array('publicDate' => $public_date);
                 parent::ODR_copyImageMeta($em, $user, $image, $properties);
 
                 // Immediately decrypt the image and all of its children
@@ -813,20 +807,14 @@ class EditController extends ODRCustomController
             // Need to rebuild this particular datafield's html to reflect the changes...
             $return['t'] = 'html';
             $return['d'] = array(
-                'datarecord' => $datarecord->getId(),
-                'datafield' => $datafield->getId()
+                'is_public' => $image->isPublic(),
+                'public_date' => $public_date->format('Y-m-d'),
             );
 
 
-            // Determine whether ShortResults needs a recache
-            // TODO - replace this block with code to directly update the cached version of the datarecord?
-            $options = array();
-            $options['mark_as_updated'] = true;
-            if ( parent::inShortResults($datafield) )
-                $options['force_shortresults_recache'] = true;
-
-            // Refresh the cache entries for this datarecord
-            parent::updateDatarecordCache($datarecord->getId(), $options);
+            // Delete cached version of datarecord
+            // TODO - replace this block with code to directly update the cached version of the datarecord
+            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -924,15 +912,10 @@ class EditController extends ODRCustomController
             $em->flush();
 
 
-            // Determine whether ShortResults needs a recache
-            // TODO - replace this block with code to directly update the cached version of the datarecord?
-            $options = array();
-            $options['mark_as_updated'] = true;
-            if ( parent::inShortResults($datafield) )
-                $options['force_shortresults_recache'] = true;
+            // Delete cached version of this datarecord
+            // TODO - directly update the cached version of the datarecord?
+            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
 
-            // Refresh the cache entries for this datarecord
-            parent::updateDatarecordCache($datarecord->getId(), $options);
 
             // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
             if ($datafield->getAllowMultipleUploads() == "0")
@@ -1153,14 +1136,9 @@ class EditController extends ODRCustomController
             }
 
 
-            // Determine whether ShortResults needs a recache
-            $options = array();
-            $options['mark_as_updated'] = true;
-            if ( parent::inShortResults($datafield) )
-                $options['force_shortresults_recache'] = true;
-
-            // Refresh the cache entries for this datarecord
-            parent::updateDatarecordCache($datarecord->getId(), $options);
+            // Updated cached version of datarecord
+            // TODO - technically, only thing that *needs* updating is datarecord updatedBy property?
+            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1267,15 +1245,9 @@ class EditController extends ODRCustomController
             }
 
 
-            // Determine whether ShortResults needs a recache
-            // TODO - replace this block with code to directly update the cached version of the datarecord?
-            $options = array();
-            $options['mark_as_updated'] = true;
-            if ( parent::inShortResults($datafield) )
-                $options['force_shortresults_recache'] = true;
-
-            // Refresh the cache entries for this datarecord
-            parent::updateDatarecordCache($datarecord->getId());
+            // Delete cached version of this datarecord
+            // TODO - directly update the cached version of the datarecord?
+            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -2463,6 +2435,7 @@ if ($debug)
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
         $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
         $memcached = $this->get('memcached');
@@ -2518,19 +2491,19 @@ if ($debug)
         else if ($template_name == 'child') {
             $is_top_level = 0;
 
-            $child_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($target_id);
+            $child_datatype = $repo_datatype->find($target_id);
             $theme = $repo_theme->findOneBy( array('dataType' => $child_datatype->getId(), 'themeType' => 'master') );
 
             // Need to determine the top-level datatype to be able to load all necessary data for rendering this child datatype
             if ( isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) && $datatree_array['descendant_of'][ $child_datatype->getId() ] !== '' ) {
                 $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $child_datatype->getId());
 
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($grandparent_datatype_id);
+                $datatype = $repo_datatype->find($grandparent_datatype_id);
             }
             else if ( isset($datatree_array['linked_from'][ $child_datatype->getId() ]) && in_array($datarecord->getDataType()->getId(), $datatree_array['linked_from'][ $child_datatype->getId() ]) ) {
                 $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datarecord->getDataType()->getId());
 
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($grandparent_datatype_id);
+                $datatype = $repo_datatype->find($grandparent_datatype_id);
             }
             else {
                 throw new \Exception('Unable to locate grandparent datatype for datatype '.$child_datatype->getId());
@@ -2659,7 +2632,7 @@ if ($debug)
             // Need to find the ThemeDatatype entry for this child datatype
             $theme_datatype = null;
             $parent_datatype = $datarecord->getDataType();
-            $parent_theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $parent_datatype->getId(), 'themeType' => 'master') );
+            $parent_theme = $repo_theme->findOneBy( array('dataType' => $parent_datatype->getId(), 'themeType' => 'master') );
 
 //print 'parent_datatype: '.$parent_datatype->getId();
 //print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();

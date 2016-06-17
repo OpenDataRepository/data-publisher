@@ -57,6 +57,11 @@ class FileMeta
     private $created;
 
     /**
+     * @var \DateTime
+     */
+    private $updated;
+
+    /**
      * @var \ODR\AdminBundle\Entity\File
      */
     private $file;
@@ -65,6 +70,11 @@ class FileMeta
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
+
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $updatedBy;
 
 
     /**
@@ -216,6 +226,29 @@ class FileMeta
     }
 
     /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return FileMeta
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
+    }
+
+    /**
      * Set file
      *
      * @param \ODR\AdminBundle\Entity\File $file
@@ -259,5 +292,28 @@ class FileMeta
     public function getCreatedBy()
     {
         return $this->createdBy;
+    }
+
+    /**
+     * Set updatedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return FileMeta
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
     }
 }

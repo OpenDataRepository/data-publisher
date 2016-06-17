@@ -26,6 +26,12 @@ ODR\AdminBundle\Entity\DataRecordMeta:
             gedmo:
                 timestampable:
                     on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+
         deletedAt:
             type: datetime
             nullable: true
@@ -43,7 +49,19 @@ ODR\AdminBundle\Entity\DataRecordMeta:
             orphanRemoval: false
 #            gedmo:
 #                - versioned
+
         createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            fetch: EXTRA_LAZY
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
             mappedBy: null

@@ -1258,6 +1258,7 @@ exit();
         // If the permissions object does not exist...
         if ($up == null) {
             // Load required objects
+            /** @var User $admin_user */
             $admin_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($admin_id);
 
             // Ensure a permissions object doesn't already exist before creating one
@@ -1271,9 +1272,11 @@ exit();
             $conn = $em->getConnection();
             $rowsAffected = $conn->executeUpdate($query, $params);
 
+            /** @var UserPermissions $up */
             $up = $repo_user_permissions->findOneBy( array('user' => $user_id, 'dataType' => $datatype_id) );
             $up->setCreated( new \DateTime() );
             $up->setCreatedBy($admin_user);
+            $up->setUpdatedBy($admin_user);
 
             if ( isset($initial_permissions['can_view_type']) )
                 $up->setCanViewType($initial_permissions['can_view_type']);
@@ -1323,6 +1326,7 @@ exit();
         // If the permissions object does not exist...
         if ($ufp == null) {
             // Load required objects
+            /** @var User $admin_user */
             $admin_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($admin_id);
 
             // Ensure a permissions object doesn't already exist before creating one
@@ -1336,10 +1340,12 @@ exit();
             $conn = $em->getConnection();
             $rowsAffected = $conn->executeUpdate($query, $params);
 
+            /** @var UserFieldPermissions $ufp */
             $ufp = $repo_user_field_permissions->findOneBy( array('user' => $user_id, 'dataField' => $datafield->getId()) );
             $ufp->setDataType( $datafield->getDataType() );
             $ufp->setCreated( new \DateTime() );
             $ufp->setCreatedBy($admin_user);
+            $ufp->setUpdatedBy($admin_user);
 
             if ( isset($initial_permissions['can_view_field']) )
                 $ufp->setCanViewField($initial_permissions['can_view_field']);
@@ -1390,20 +1396,29 @@ exit();
             return $permission;
 
 
-        // Create a new UserPermissions entry and copy the old entry's data over
-        $new_permission = new UserPermissions();
-        $new_permission->setUser( $permission->getUser() );
-        $new_permission->setDataType( $permission->getDataType() );
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_permission = null;
+        if ( self::createNewMetaEntry($user, $permission) ) {
+            // Create a new UserPermissions entry and copy the old entry's data over
+            $remove_old_entry = true;
 
-        $new_permission->setCanViewType( $permission->getCanViewType() );
-        $new_permission->setCanAddRecord( $permission->getCanAddRecord() );
-        $new_permission->setCanEditRecord( $permission->getCanEditRecord() );
-        $new_permission->setCanDeleteRecord( $permission->getCanDeleteRecord() );
-        $new_permission->setCanDesignType( $permission->getCanDesignType() );
-        $new_permission->setIsTypeAdmin( $permission->getIsTypeAdmin() );
+            $new_permission = new UserPermissions();
+            $new_permission->setUser( $permission->getUser() );
+            $new_permission->setDataType( $permission->getDataType() );
 
-        $new_permission->setCreatedBy($user);
-        $new_permission->setCreated( new \DateTime() );
+            $new_permission->setCanViewType( $permission->getCanViewType() );
+            $new_permission->setCanAddRecord( $permission->getCanAddRecord() );
+            $new_permission->setCanEditRecord( $permission->getCanEditRecord() );
+            $new_permission->setCanDeleteRecord( $permission->getCanDeleteRecord() );
+            $new_permission->setCanDesignType( $permission->getCanDesignType() );
+            $new_permission->setIsTypeAdmin( $permission->getIsTypeAdmin() );
+
+            $new_permission->setCreatedBy($user);
+        }
+        else {
+            $new_permission = $permission;
+        }
 
         // Set any new properties
         if ( isset( $properties['can_view_type']) )
@@ -1419,8 +1434,13 @@ exit();
         if ( isset( $properties['is_type_admin']) )
             $new_permission->setIsTypeAdmin( $properties['is_type_admin'] );
 
-        // Save the new meta entry and delete the old one
-        $em->remove($permission);
+        $new_permission->setUpdatedBy($user);
+
+
+        // Save the new meta entry and delete the old one if needed
+        if ($remove_old_entry)
+            $em->remove($permission);
+
         $em->persist($new_permission);
         $em->flush();
 
@@ -1460,17 +1480,26 @@ exit();
             return $permission;
 
 
-        // Create a new UserPermissions entry and copy the old entry's data over
-        $new_permission = new UserFieldPermissions();
-        $new_permission->setUser( $permission->getUser() );
-        $new_permission->setDataType( $permission->getDataType() );
-        $new_permission->setDataField( $permission->getDataField() );
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_permission = null;
+        if ( self::createNewMetaEntry($user, $permission) ) {
+            // Create a new UserFieldPermissions entry and copy the old entry's data over
+            $remove_old_entry = true;
 
-        $new_permission->setCanViewField( $permission->getCanViewField() );
-        $new_permission->setCanEditField( $permission->getCanEditField() );
+            $new_permission = new UserFieldPermissions();
+            $new_permission->setUser( $permission->getUser() );
+            $new_permission->setDataType( $permission->getDataType() );
+            $new_permission->setDataField( $permission->getDataField() );
 
-        $new_permission->setCreatedBy($user);
-        $new_permission->setCreated( new \DateTime() );
+            $new_permission->setCanViewField( $permission->getCanViewField() );
+            $new_permission->setCanEditField( $permission->getCanEditField() );
+
+            $new_permission->setCreatedBy($user);
+        }
+        else {
+            $new_permission = $permission;
+        }
 
         // Set any new properties
         if ( isset( $properties['can_view_field']) )
@@ -1478,8 +1507,13 @@ exit();
         if ( isset( $properties['can_edit_field']) )
             $new_permission->setCanEditField( $properties['can_edit_field'] );
 
-        // Save the new meta entry and delete the old one
-        $em->remove($permission);
+        $new_permission->setUpdatedBy($user);
+
+
+        // Save the new meta entry and delete the old one if needed
+        if ($remove_old_entry)
+            $em->remove($permission);
+
         $em->persist($new_permission);
         $em->flush();
 
@@ -2626,6 +2660,9 @@ if ($debug)
         $datarecord_meta->setDataRecord($datarecord);
         $datarecord_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
 
+        $datarecord_meta->setCreatedBy($user);
+        $datarecord_meta->setUpdatedBy($user);
+
         $em->persist($datarecord_meta);
 
         // Create initial objects
@@ -2691,21 +2728,36 @@ if ($debug)
             return $old_meta_entry;
 
 
-        // Create a new meta entry and copy the old entry's data over
-        $new_datarecord_meta = new DataRecordMeta();
-        $new_datarecord_meta->setDataRecord( $datarecord );
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_datarecord_meta = null;
+        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+            // Create a new meta entry and copy the old entry's data over
+            $remove_old_entry = true;
 
-        $new_datarecord_meta->setPublicDate( $old_meta_entry->getPublicDate() );
+            $new_datarecord_meta = new DataRecordMeta();
+            $new_datarecord_meta->setDataRecord($datarecord);
 
-        $new_datarecord_meta->setCreatedBy($user);
-        $new_datarecord_meta->setCreated( new \DateTime() );
+            $new_datarecord_meta->setPublicDate( $old_meta_entry->getPublicDate() );
+
+            $new_datarecord_meta->setCreatedBy($user);
+        }
+        else {
+            $new_datarecord_meta = $old_meta_entry;
+        }
+
 
         // Set any new properties
         if ( isset($properties['publicDate']) )
             $new_datarecord_meta->setPublicDate( $properties['publicDate'] );
 
-        // Save the new datatree entry and delete the old one
-        $em->remove($old_meta_entry);
+        $new_datarecord_meta->setUpdatedBy($user);
+
+
+        // Save the new datarecord meta entry and delete the old one if needed
+        if ($remove_old_entry)
+            $em->remove($old_meta_entry);
+
         $em->persist($new_datarecord_meta);
         $em->flush();
 
@@ -2748,15 +2800,25 @@ if ($debug)
             return $old_meta_entry;
 
 
-        // Create a new meta entry and copy the old entry's data over
-        $new_datatree_meta = new DataTreeMeta();
-        $new_datatree_meta->setDataTree( $datatree );
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_datatree_meta = null;
+        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+            // Create a new meta entry and copy the old entry's data over
+            $remove_old_entry = true;
 
-        $new_datatree_meta->setMultipleAllowed( $old_meta_entry->getMultipleAllowed() );
-        $new_datatree_meta->setIsLink( $old_meta_entry->getIsLink() );
+            $new_datatree_meta = new DataTreeMeta();
+            $new_datatree_meta->setDataTree($datatree);
 
-        $new_datatree_meta->setCreatedBy($user);
-        $new_datatree_meta->setCreated( new \DateTime() );
+            $new_datatree_meta->setMultipleAllowed( $old_meta_entry->getMultipleAllowed() );
+            $new_datatree_meta->setIsLink( $old_meta_entry->getIsLink() );
+
+            $new_datatree_meta->setCreatedBy($user);
+        }
+        else {
+            $new_datatree_meta = $old_meta_entry;
+        }
+
 
         // Set any new properties
         if ( isset($properties['multiple_allowed']) )
@@ -2764,8 +2826,13 @@ if ($debug)
         if ( isset($properties['is_link']) )
             $new_datatree_meta->setIsLink( $properties['is_link'] );
 
-        // Save the new datatree entry and delete the old one
-        $em->remove($old_meta_entry);
+        $new_datatree_meta->setUpdatedBy($user);
+
+
+        // Save the new datatree meta entry and delete the old one if needed
+        if ($remove_old_entry)
+            $em->remove($old_meta_entry);
+
         $em->persist($new_datatree_meta);
         $em->flush();
 
@@ -2805,6 +2872,7 @@ if ($debug)
             // ...otherwise, create a new linked_datatree entry
             $linked_datatree = new LinkedDataTree();
             $linked_datatree->setCreatedBy($user);
+            $linked_datatree->setUpdatedBy($user);
 
             $linked_datatree->setAncestor($ancestor_datarecord);
             $linked_datatree->setDescendant($descendant_datarecord);
@@ -2931,6 +2999,7 @@ if ($debug)
             $new_image_meta->setExternalId('');
 
             $new_image_meta->setCreatedBy($user);
+            $new_image_meta->setUpdatedBy($user);
             $em->persist($new_image_meta);
         }
         else if ($typeclass == 'File') {
@@ -2943,6 +3012,7 @@ if ($debug)
             $new_file_meta->setExternalId('');
 
             $new_file_meta->setCreatedBy($user);
+            $new_file_meta->setUpdatedBy($user);
             $em->persist($new_file_meta);
         }
 
@@ -3103,7 +3173,7 @@ if ($debug)
             }
 
             $storage_entity->setCreatedBy($user);
-//            $storage_entity->setUpdatedBy($user);
+            $storage_entity->setUpdatedBy($user);
             $em->persist($storage_entity);
         }
 
@@ -3148,35 +3218,49 @@ if ($debug)
             return $old_meta_entry;
 
 
-        // Create a new meta entry and copy the old entry's data over
-        $file_meta = new FileMeta();
-        $file_meta->setFile($file);
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_file_meta = null;
+        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+            // Create a new meta entry and copy the old entry's data over
+            $remove_old_entry = true;
 
-        $file_meta->setDescription( $old_meta_entry->getDescription() );
-        $file_meta->setOriginalFileName( $old_meta_entry->getOriginalFileName() );
-        $file_meta->setExternalId( $old_meta_entry->getExternalId() );
-        $file_meta->setPublicDate( $old_meta_entry->getPublicDate() );
+            $new_file_meta = new FileMeta();
+            $new_file_meta->setFile($file);
 
-        $file_meta->setCreatedBy($user);
-        $file_meta->setCreated( new \DateTime() );
+            $new_file_meta->setDescription( $old_meta_entry->getDescription() );
+            $new_file_meta->setOriginalFileName( $old_meta_entry->getOriginalFileName() );
+            $new_file_meta->setExternalId( $old_meta_entry->getExternalId() );
+            $new_file_meta->setPublicDate( $old_meta_entry->getPublicDate() );
+
+            $new_file_meta->setCreatedBy($user);
+        }
+        else {
+            $new_file_meta = $old_meta_entry;
+        }
 
         // Set any new properties
         if ( isset($properties['description']) )
-            $file_meta->setDescription( $properties['description'] );
+            $new_file_meta->setDescription( $properties['description'] );
         if ( isset($properties['original_filename']) )
-            $file_meta->setOriginalFileName( $properties['original_filename'] );
+            $new_file_meta->setOriginalFileName( $properties['original_filename'] );
         if ( isset($properties['external_id']) )
-            $file_meta->setExternalId( $properties['external_id'] );
+            $new_file_meta->setExternalId( $properties['external_id'] );
         if ( isset($properties['publicDate']) )
-            $file_meta->setPublicDate( $properties['publicDate'] );
+            $new_file_meta->setPublicDate( $properties['publicDate'] );
 
-        // Save the new meta entry and delete the old one
-        $em->remove($old_meta_entry);
-        $em->persist($file_meta);
+        $new_file_meta->setUpdatedBy($user);
+
+
+        // Save the new meta entry and delete the old one if needed
+        if ($remove_old_entry)
+            $em->remove($old_meta_entry);
+
+        $em->persist($new_file_meta);
         $em->flush();
 
         // Return the new entry
-        return $file_meta;
+        return $new_file_meta;
     }
 
 
@@ -3207,7 +3291,7 @@ if ($debug)
             'original_filename' => $old_meta_entry->getOriginalFileName(),
             'external_id' => $old_meta_entry->getExternalId(),
             'publicDate' => $old_meta_entry->getPublicDate(),
-            'display_order' => $old_meta_entry->getPublicDate()
+            'display_order' => $old_meta_entry->getDisplayorder()
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value)
@@ -3218,38 +3302,52 @@ if ($debug)
             return $old_meta_entry;
 
 
-        // Create a new meta entry and copy the old entry's data over
-        $image_meta = new ImageMeta();
-        $image_meta->setImage($image);
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_image_meta = null;
+        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+            // Create a new meta entry and copy the old entry's data over
+            $remove_old_entry = true;
 
-        $image_meta->setCaption( $old_meta_entry->getCaption() );
-        $image_meta->setOriginalFileName( $old_meta_entry->getOriginalFileName() );
-        $image_meta->setExternalId( $old_meta_entry->getExternalId() );
-        $image_meta->setPublicDate( $old_meta_entry->getPublicDate() );
-        $image_meta->setDisplayorder( $old_meta_entry->getDisplayorder() );
+            $new_image_meta = new ImageMeta();
+            $new_image_meta->setImage($image);
 
-        $image_meta->setCreatedBy($user);
-        $image_meta->setCreated( new \DateTime() );
+            $new_image_meta->setCaption( $old_meta_entry->getCaption() );
+            $new_image_meta->setOriginalFileName( $old_meta_entry->getOriginalFileName() );
+            $new_image_meta->setExternalId( $old_meta_entry->getExternalId() );
+            $new_image_meta->setPublicDate( $old_meta_entry->getPublicDate() );
+            $new_image_meta->setDisplayorder( $old_meta_entry->getDisplayorder() );
+
+            $new_image_meta->setCreatedBy($user);
+        }
+        else {
+            $new_image_meta = $old_meta_entry;
+        }
 
         // Set any new properties
         if ( isset($properties['caption']) )
-            $image_meta->setCaption( $properties['caption'] );
+            $new_image_meta->setCaption( $properties['caption'] );
         if ( isset($properties['original_filename']) )
-            $image_meta->setOriginalFileName( $properties['original_filename'] );
+            $new_image_meta->setOriginalFileName( $properties['original_filename'] );
         if ( isset($properties['external_id']) )
-            $image_meta->setExternalId( $properties['external_id'] );
+            $new_image_meta->setExternalId( $properties['external_id'] );
         if ( isset($properties['publicDate']) )
-            $image_meta->setPublicDate( $properties['publicDate'] );
+            $new_image_meta->setPublicDate( $properties['publicDate'] );
         if ( isset($properties['display_order']) )
-            $image_meta->setDisplayorder( $properties['display_order'] );
+            $new_image_meta->setDisplayorder( $properties['display_order'] );
 
-        // Save the new meta entry and delete the old one
-        $em->remove($old_meta_entry);
-        $em->persist($image_meta);
+        $new_image_meta->setUpdatedBy($user);
+
+
+        // Save the new meta entry and delete the old one if needed
+        if ($remove_old_entry)
+            $em->remove($old_meta_entry);
+
+        $em->persist($new_image_meta);
         $em->flush();
 
         // Return the new entry
-        return $image_meta;
+        return $new_image_meta;
     }
 
 
@@ -3418,7 +3516,6 @@ if ($debug)
             // Create a new meta entry and copy the old entry's data over
             $remove_old_entry = true;
 
-            // Create a new meta entry and copy the old entry's data over
             $new_radio_option_meta = new RadioOptionsMeta();
             $new_radio_option_meta->setRadioOption($radio_option);
 
@@ -3573,7 +3670,6 @@ if ($debug)
             // Create a new meta entry and copy the old entry's data over
             $remove_old_entry = true;
 
-            // Create a new meta entry and copy the old entry's data over
             $new_datatype_meta = new DataTypeMeta();
             $new_datatype_meta->setDataType($datatype);
 
@@ -3810,7 +3906,6 @@ if ($debug)
             // Create a new meta entry and copy the old entry's data over
             $remove_old_entry = true;
 
-            // Create a new meta entry and copy the old entry's data over
             $new_datafield_meta = new DataFieldsMeta();
             $new_datafield_meta->setDataField($datafield);
             $new_datafield_meta->setFieldType( $old_meta_entry->getFieldType() );
@@ -4065,6 +4160,7 @@ if ($debug)
         if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
             // Create a new meta entry and copy the old entry's data over
             $remove_old_entry = true;
+
             $theme_element_meta = new ThemeElementMeta();
             $theme_element_meta->setThemeElement($theme_element);
 
@@ -6471,18 +6567,25 @@ if ($timing) {
                     $drf['file'][$file_num]['createdBy'] = self::cleanUserData( $drf['file'][$file_num]['createdBy'] );
                 }
 
-                // Flatten image metadata and get rid of both the thumbnail's and the parent's encrypt keys
+                // Flatten image metadata, get rid of both the thumbnail's and the parent's encrypt keys, and sort by display_order
+                $ordered_images = array();
                 foreach ($drf['image'] as $image_num => $image) {
-                    unset( $drf['image'][$image_num]['encrypt_key'] );
-                    unset( $drf['image'][$image_num]['parent']['encrypt_key'] ); // TODO - should encrypt_key actually remain in the array?
+                    unset( $image['encrypt_key'] );
+                    unset( $image['parent']['encrypt_key'] ); // TODO - should encrypt_key actually remain in the array?
 
-                    unset( $drf['image'][$image_num]['imageMeta'] );
+                    unset( $image['imageMeta'] );   // This is a phantom meta entry created for this image's thumbnail
                     $im = $image['parent']['imageMeta'][0];
-                    $drf['image'][$image_num]['parent']['imageMeta'] = $im;
+                    $image['parent']['imageMeta'] = $im;
 
                     // Get rid of all private/non-essential information in the createdBy association
-                    $drf['image'][$image_num]['parent']['createdBy'] = self::cleanUserData( $drf['image'][$image_num]['parent']['createdBy'] );
+                    $image['parent']['createdBy'] = self::cleanUserData( $image['parent']['createdBy'] );
+
+                    // Store by display_order
+                    $ordered_images[ $image['parent']['imageMeta']['displayorder'] ] = $image;
                 }
+
+                ksort($ordered_images);
+                $drf['image'] = $ordered_images;
 
                 // Scrub all user information from the rest of the array
                 $keys = array('boolean', 'integerValue', 'decimalValue', 'longText', 'longVarchar', 'mediumVarchar', 'shortVarchar', 'datetimeValue');
@@ -6508,7 +6611,7 @@ if ($timing) {
             $datarecord_data[$dr_num]['dataRecordFields'] = $new_drf_array;
         }
 
-        // Organize by datarecord id...DO NOT even attenpt to make this array recursive
+        // Organize by datarecord id...DO NOT even attenpt to make this array recursive...for now...
         $formatted_datarecord_data = array();
         foreach ($datarecord_data as $num => $dr_data) {
             $dr_id = $dr_data['id'];

@@ -1861,6 +1861,7 @@ print '</pre>';
             $datatree_meta->setIsLink(false);
             $datatree_meta->setMultipleAllowed(true);
             $datatree_meta->setCreatedBy($user);
+            $datatree_meta->setUpdatedBy($user);
             $em->persist($datatree_meta);
 
             // Create a new ThemeMeta entity to store properties of the childtype's Theme
@@ -2327,6 +2328,7 @@ print '</pre>';
                 $datatree_meta->setMultipleAllowed(true);
 
                 $datatree_meta->setCreatedBy($user);
+                $datatree_meta->setUpdatedBy($user);
                 $em->persist($datatree_meta);
 
 

@@ -62,6 +62,11 @@ class ImageMeta
     private $created;
 
     /**
+     * @var \DateTime
+     */
+    private $updated;
+
+    /**
      * @var \ODR\AdminBundle\Entity\Image
      */
     private $image;
@@ -70,6 +75,11 @@ class ImageMeta
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
+
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $updatedBy;
 
 
     /**
@@ -244,6 +254,29 @@ class ImageMeta
     }
 
     /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return ImageMeta
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
+    }
+    
+    /**
      * Set image
      *
      * @param \ODR\AdminBundle\Entity\Image $image
@@ -287,5 +320,28 @@ class ImageMeta
     public function getCreatedBy()
     {
         return $this->createdBy;
+    }
+
+    /**
+     * Set updatedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return ImageMeta
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
     }
 }

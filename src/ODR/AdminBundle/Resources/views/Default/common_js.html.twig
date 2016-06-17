@@ -345,8 +345,8 @@
             var gallery = "#imagegallery_" + id_data + " .ODRImageGalleryImage";
             var storage = "#imagestorage_" + id_data;
 
-            $(gallery).children(".ODRImage").last().remove().appendTo(storage);
-            $(storage).children(".ODRImage").first().remove().prependTo(gallery);
+            $(gallery).children(".ODRImage").first().remove().prependTo(storage);
+            $(storage).children(".ODRImage").last().remove().appendTo(gallery);
         });
 
         $(".ODRGalleryRightArrow").unbind('click').click(function(event) {
@@ -357,8 +357,8 @@
             var gallery = "#imagegallery_" + id_data + " .ODRImageGalleryImage";
             var storage = "#imagestorage_" + id_data;
 
-            $(gallery).children(".ODRImage").first().remove().prependTo(storage);
-            $(storage).children(".ODRImage").last().remove().appendTo(gallery);
+            $(gallery).children(".ODRImage").last().remove().appendTo(storage);
+            $(storage).children(".ODRImage").first().remove().prependTo(gallery);
         });
     }
 </script>

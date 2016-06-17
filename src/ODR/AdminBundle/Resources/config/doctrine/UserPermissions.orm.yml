@@ -52,6 +52,11 @@ ODR\AdminBundle\Entity\UserPermissions:
             gedmo:
                 timestampable:
                     on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
         deletedAt:
             type: datetime
             nullable: true
@@ -77,6 +82,7 @@ ODR\AdminBundle\Entity\UserPermissions:
                 data_type_id:
                     referencedColumnName: id
             orphanRemoval: false
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -86,4 +92,14 @@ ODR\AdminBundle\Entity\UserPermissions:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
     lifecycleCallbacks: {  }

@@ -64,6 +64,11 @@ class UserPermissions
     /**
      * @var \DateTime
      */
+    private $updated;
+
+    /**
+     * @var \DateTime
+     */
     private $deletedAt;
 
     /**
@@ -80,6 +85,11 @@ class UserPermissions
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
+
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $updatedBy;
 
 
     /**
@@ -254,6 +264,29 @@ class UserPermissions
     }
 
     /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return UserPermissions
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
+    }
+
+    /**
      * Set deletedAt
      *
      * @param \DateTime $deletedAt
@@ -343,5 +376,28 @@ class UserPermissions
     public function getCreatedBy()
     {
         return $this->createdBy;
+    }
+
+    /**
+     * Set updatedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return UserPermissions
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
     }
 }

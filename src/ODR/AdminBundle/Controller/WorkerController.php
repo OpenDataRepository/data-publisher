@@ -2343,8 +2343,10 @@ print '</pre>';
                 $file_meta->setExternalId( $file->getExternalIdOriginal() );
                 $file_meta->setPublicDate( $file->getPublicDateOriginal() );
 
-                $file_meta->setCreatedBy( $file->getUpdatedBy() );
-                $file_meta->setCreated( $file->getUpdated() );
+                $file_meta->setCreatedBy( $file->getCreatedBy() );
+                $file_meta->setCreated( $file->getCreated() );
+                $file_meta->setUpdatedBy( $file->getUpdatedBy() );
+                $file_meta->setUpdated( $file->getUpdated() );
 
                 $file_meta->setDeletedAt( $file->getDeletedAt() );
 
@@ -2440,8 +2442,10 @@ print '</pre>';
                 $image_meta->setExternalId( $image->getExternalIdOriginal() );
                 $image_meta->setPublicDate( $image->getPublicDateOriginal() );
 
-                $image_meta->setCreatedBy( $image->getUpdatedBy() );
-                $image_meta->setCreated( $image->getUpdated() );
+                $image_meta->setCreatedBy( $image->getCreatedBy() );
+                $image_meta->setCreated( $image->getCreated() );
+                $image_meta->setUpdatedBy( $image->getUpdatedBy() );
+                $image_meta->setUpdated( $image->getUpdated() );
 
                 $image_meta->setDeletedAt( $image->getDeletedAt() );
 
@@ -2537,6 +2541,8 @@ print '</pre>';
 
                 $datatree_meta->setCreatedBy( $datatree->getCreatedBy() );
                 $datatree_meta->setCreated( $datatree->getCreated() );
+                $datatree_meta->setUpdatedBy( $datatree->getUpdatedBy() );
+                $datatree_meta->setUpdated( $datatree->getUpdated() );
 
                 $datatree_meta->setDeletedAt( $datatree->getDeletedAt() );
 
@@ -2857,10 +2863,12 @@ print '</pre>';
                 $datarecord_meta = new DataRecordMeta();
                 $datarecord_meta->setDataRecord($datarecord);
 
-                $datarecord_meta->setPublicDate($datarecord->getPublicDateOriginal());
+                $datarecord_meta->setPublicDate( $datarecord->getPublicDateOriginal() );
 
-                $datarecord_meta->setCreatedBy($datarecord->getCreatedBy());
-                $datarecord_meta->setCreated($datarecord->getCreated());
+                $datarecord_meta->setCreatedBy( $datarecord->getCreatedBy() );
+                $datarecord_meta->setCreated( $datarecord->getCreated() );
+                $datarecord_meta->setUpdatedBy( $datarecord->getUpdatedBy() );
+                $datarecord_meta->setUpdated( $datarecord->getUpdated() );
 
                 $datarecord_meta->setDeletedAt($datarecord->getDeletedAt());
 
