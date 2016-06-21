@@ -13,7 +13,8 @@ namespace ODR\AdminBundle\Form;
 
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
-use Symfony\Component\OptionsResolver\OptionsResolverInterface;
+use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 
 
 class CreateDatatypeForm extends AbstractType
@@ -42,6 +43,8 @@ class CreateDatatypeForm extends AbstractType
             )
         );
 
+        $builder->add('save', SubmitType::class);
+
 /*
         $builder->add(
             'description', 
@@ -68,7 +71,7 @@ class CreateDatatypeForm extends AbstractType
     /**
      * {@inheritdoc}
      */
-    public function setDefaultOptions(OptionsResolverInterface $resolver)
+    public function configureOptions(OptionsResolver $resolver)
     {
 //        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataType'));
         $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataTypeMeta'));

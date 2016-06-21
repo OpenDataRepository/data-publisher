@@ -67,7 +67,7 @@ class RecordController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -184,7 +184,7 @@ class RecordController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -276,7 +276,7 @@ class RecordController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -460,7 +460,7 @@ class RecordController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -549,7 +549,7 @@ class RecordController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -650,7 +650,7 @@ class RecordController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -767,7 +767,7 @@ class RecordController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -883,7 +883,7 @@ class RecordController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -994,7 +994,7 @@ class RecordController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -1218,7 +1218,7 @@ class RecordController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -1322,7 +1322,7 @@ class RecordController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -1419,7 +1419,7 @@ class RecordController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -1585,7 +1585,7 @@ class RecordController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -1904,7 +1904,7 @@ class RecordController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -2156,7 +2156,7 @@ exit();
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -2376,7 +2376,7 @@ if ($debug)
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 //            $logged_in = true;
 
@@ -2453,7 +2453,7 @@ if ($debug)
         // --------------------
         // Determine user privileges
         /** @var User $user */
-        $user = $this->container->get('security.context')->getToken()->getUser();
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
         $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
         $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
         // --------------------
@@ -2753,7 +2753,7 @@ if ($debug)
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $logged_in = true;
 
@@ -2903,7 +2903,7 @@ if ($debug)
             // ----------------------------------------
             // Ensure user has permissions to be doing this
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
                 return parent::permissionDeniedError('You need to be a super-admin to view datafield history, for now');
 

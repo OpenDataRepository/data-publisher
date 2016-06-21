@@ -404,7 +404,7 @@ exit();
             $datatype = $theme->getDataType();
 
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datafield_permissions = array();
 
             $can_view_datatype = false;
@@ -1941,7 +1941,7 @@ if ($debug)
         }
         else {
             $user = 'anon.';
-            $token = $this->container->get('security.context')->getToken(); // token will be NULL when this function is called from the command line
+            $token = $this->container->get('security.token_storage')->getToken(); // token will be NULL when this function is called from the command line
             if ($token != NULL)
                 $user = $token->getUser();
             if ($user === 'anon.')
@@ -2127,7 +2127,7 @@ if ($debug)
         }
         else {
             $user = 'anon.';
-            $token = $this->container->get('security.context')->getToken(); // token will be NULL when this function is called from the command line
+            $token = $this->container->get('security.token_storage')->getToken(); // token will be NULL when this function is called from the command line
             if ($token != NULL)
                 $user = $token->getUser();
             if ($user === 'anon.')
@@ -4710,7 +4710,7 @@ if ($debug)
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_image = $em->getRepository('ODRAdminBundle:Image');
-//        $user = $this->container->get('security.context')->getToken()->getUser();
+//        $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
         // Create Thumbnails
         /** @var ImageSizes[] $sizes */
@@ -5100,7 +5100,7 @@ if ($debug)
         // --------------------
         // Attempt to get the user
         $user = 'anon.';
-        $token = $this->container->get('security.context')->getToken(); // token will be NULL when called from thh command line
+        $token = $this->container->get('security.token_storage')->getToken(); // token will be NULL when called from thh command line
         if ($token != NULL)
             $user = $token->getUser();
 
@@ -5178,7 +5178,7 @@ if ($debug)
         // Attempt to get the user
         $public_only = false;
         $user = 'anon.';
-        $token = $this->container->get('security.context')->getToken(); // token will be NULL when called from thh command line
+        $token = $this->container->get('security.token_storage')->getToken(); // token will be NULL when called from thh command line
         if ($token != NULL)
             $user = $token->getUser();
 
@@ -5522,7 +5522,7 @@ if ($debug)
 
         // Attempt to get the user
         $user = 'anon.';
-        $token = $this->container->get('security.context')->getToken(); // token will be NULL when called from the command line
+        $token = $this->container->get('security.token_storage')->getToken(); // token will be NULL when called from the command line
         if ($token != NULL)
             $user = $token->getUser();
 
@@ -6340,13 +6340,22 @@ if ($timing)
             LEFT JOIN tdt.dataType AS c_dt
 
             WHERE
-                dt.id = :datatype_id AND (dt_rpi IS NULL OR dt_rpi.dataType = :datatype_id)
+                dt.id = :datatype_id AND (dt_rpi.id IS NULL OR dt_rpi.dataType = :datatype_id)
                 AND t.deletedAt IS NULL AND dt.deletedAt IS NULL AND te.deletedAt IS NULL
             ORDER BY dt.id, t.id, tem.displayOrder, te.id, tdf.displayOrder, df.id, rom.displayOrder, ro.id'
         )->setParameters( array('datatype_id' => $datatype_id) );
 
         //LEFT JOIN df_rp.renderPluginFields AS df_rpf
 //print $query->getSQL();
+        try {
+            $sql = $query->getSQL();
+        }
+        catch(\Exception $e) {
+
+            print $e->getMessage();
+            exit();
+
+        }
 
         $datatype_data = $query->getArrayResult();
 /*
@@ -6523,10 +6532,11 @@ if ($timing)
             WHERE
                 dr.grandparent = :grandparent_id
                 AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
-                AND (e_i IS NULL OR e_i.original = 0)'
+                AND (e_i.id IS NULL OR e_i.original = 0)'
         )->setParameters(array('grandparent_id' => $grandparent_datarecord_id));
 
 //print $query->getSQL();
+        $sql = $query->getSQL();
 
         $datarecord_data = $query->getArrayResult();
 /*

@@ -57,7 +57,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
             $admin_permission_count = 0;
@@ -116,7 +116,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
             $admin_permission_count = 0;
@@ -187,7 +187,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
             $admin_permission_count = 0;
@@ -286,7 +286,7 @@ class ODRUserController extends ODRCustomController
         try {
             // Grab the specified user
             /** @var ODRUser $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Create a new form to edit the user
             $form = $this->createForm(new ODRUserProfileForm($user), $user);
@@ -346,7 +346,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.context')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
@@ -427,7 +427,7 @@ class ODRUserController extends ODRCustomController
         try {
             // Grab the current user
             /** @var ODRUser $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Only allow this if the user is modifying their own profile
             $post = $request->request->all();
@@ -482,7 +482,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.context')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
@@ -547,7 +547,7 @@ class ODRUserController extends ODRCustomController
         $user_manager = $this->container->get('fos_user.user_manager');
         $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
 
-//        $admin_user = $this->container->get('security.context')->getToken()->getUser();
+//        $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
         // Grab which user is being modified
         $post = $request->request->all();
@@ -621,7 +621,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.context')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $user_id ) {
@@ -716,7 +716,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.context')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Bypass all this permissions sillyness if the user is a super admin, or doing this action to his own profile for some reason
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') || $admin->getId() == $target_user_id ) {
@@ -803,7 +803,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // User needs at least one "is_admin" permission to access this
             $user_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
@@ -886,7 +886,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.context')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
             // --------------------
@@ -896,7 +896,7 @@ class ODRUserController extends ODRCustomController
             $users = $user_manager->findUsers();
 
             // Prevent the admin from modifying his own role (potentially removing his own admin role)
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Render them in a list
             $templating = $this->get('templating');
@@ -942,7 +942,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.context')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
             // --------------------
@@ -956,7 +956,7 @@ class ODRUserController extends ODRCustomController
 
             // Prevent the admin from modifying his own role (potentially removing his own admin role)
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Locate the user being changed
             foreach ($users as $user) {
@@ -1064,7 +1064,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
             $admin_permission_count = 0;
@@ -1191,7 +1191,7 @@ class ODRUserController extends ODRCustomController
             // ----------------------------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.context')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
 
@@ -1416,7 +1416,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
 
             $admin_permission_count = 0;
@@ -1492,7 +1492,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
             // --------------------
@@ -1543,7 +1543,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.context')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
             // --------------------
@@ -1555,7 +1555,7 @@ class ODRUserController extends ODRCustomController
 
             // Prevent the admin from deleting himself
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Locate the user being changed
             foreach ($users as $user) {
@@ -1611,7 +1611,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.context')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError();
             // --------------------
@@ -1623,7 +1623,7 @@ class ODRUserController extends ODRCustomController
 
             // Needed for the twig file
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Locate the user being changed
             foreach ($users as $user) {
@@ -1741,7 +1741,7 @@ class ODRUserController extends ODRCustomController
 
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Require admin user to have at least admin role to do this...
             if ( $admin_user->hasRole('ROLE_ADMIN') ) {
@@ -1897,7 +1897,7 @@ class ODRUserController extends ODRCustomController
 
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Require user to have at least admin role to do this...
             if ( $admin_user->hasRole('ROLE_ADMIN') ) {

@@ -55,7 +55,7 @@ class ShortResultsController extends ODRCustomController
 
         try {
             // Get Current User
-//            $user = $this->container->get('security.context')->getToken()->getUser();
+//            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');

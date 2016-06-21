@@ -3,8 +3,10 @@
     <!-- Add DataType Dialog Form -->
     <form class="ODRAddDatatypeForm pure-form pure-form-aligned full validate" id="AddDatatypeForm" action="{{ path('odr_add_types') }}" method="post">
 
-        {{ form_errors(form._token) }}
+        {#
+        { form_errors(form._token) }}
         {{ form_widget(form._token) }}
+        #}
 
         <fieldset>
             <div class="pure-control-group">

@@ -79,7 +79,7 @@ class ResultsController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = array();
             $logged_in = true;
             $has_view_permission = false;
@@ -317,7 +317,7 @@ class ResultsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = array();
             $has_view_permission = false;
 
@@ -481,7 +481,7 @@ class ResultsController extends ODRCustomController
             // ----------------------------------------
             // Non-Public files are more work because they always need decryption...but first, ensure user is permitted to download
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ($user === 'anon.') {
                 // Non-logged in users not allowed to download non-public files
                 return parent::permissionDeniedError();
@@ -813,7 +813,7 @@ fclose($log_file);
             // ----------------------------------------
             // Ensure user has permissions to be doing this
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
@@ -893,7 +893,7 @@ fclose($log_file);
             if ( !$image->isPublic() ) {
                 // Determine user privileges
                 /** @var User $user */
-                $user = $this->container->get('security.context')->getToken()->getUser();
+                $user = $this->container->get('security.token_storage')->getToken()->getUser();
                 if ($user === 'anon.') {
                     // Non-logged in users not allowed to download non-public images
                     return parent::permissionDeniedError();

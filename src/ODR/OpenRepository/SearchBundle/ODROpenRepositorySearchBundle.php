@@ -15,7 +15,15 @@
 namespace ODR\OpenRepository\SearchBundle;
 
 use Symfony\Component\HttpKernel\Bundle\Bundle;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use ODR\OpenRepository\SearchBundle\DependencyInjection\Compiler\ValidatorPass;
 
 class ODROpenRepositorySearchBundle extends Bundle
 {
+    public function build(ContainerBuilder $container)
+    {
+        parent::build($container);
+
+        $container->addCompilerPass(new ValidatorPass());
+    }
 }

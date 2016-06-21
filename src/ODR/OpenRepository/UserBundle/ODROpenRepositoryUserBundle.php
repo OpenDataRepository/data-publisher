@@ -16,11 +16,20 @@
 namespace ODR\OpenRepository\UserBundle;
 
 use Symfony\Component\HttpKernel\Bundle\Bundle;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use ODR\OpenRepository\UserBundle\DependencyInjection\Compiler\ValidatorPass;
 
 class ODROpenRepositoryUserBundle extends Bundle
 {
     public function getParent()
     {
         return 'FOSUserBundle';
+    }
+
+    public function build(ContainerBuilder $container)
+    {
+        parent::build($container);
+
+        $container->addCompilerPass(new ValidatorPass());
     }
 }

@@ -14,7 +14,15 @@
 namespace ODR\AdminBundle;
 
 use Symfony\Component\HttpKernel\Bundle\Bundle;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use ODR\AdminBundle\DependencyInjection\Compiler\ValidatorPass;
 
 class ODRAdminBundle extends Bundle
 {
+    public function build(ContainerBuilder $container)
+    {
+        parent::build($container);
+
+        $container->addCompilerPass(new ValidatorPass());
+    }
 }

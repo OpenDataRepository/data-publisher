@@ -704,7 +704,7 @@ $ret .= '  Set current to '.$count."\n";
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
 //            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             // TODO - check for permissions?  restrict rebuild of thumbnails to certain datatypes?
 
@@ -1861,7 +1861,7 @@ print '</pre>';
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
 //            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
@@ -2928,7 +2928,7 @@ print '</pre>';
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
 //            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )

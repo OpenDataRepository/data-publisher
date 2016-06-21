@@ -62,7 +62,7 @@ class DatatypeController extends ODRCustomController
             // --------------------
             // Grab user privileges to determine what they can do
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             // --------------------
 
@@ -165,7 +165,7 @@ class DatatypeController extends ODRCustomController
 
         try {
             // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $repo_user_permissions = $this->getDoctrine()->getRepository('ODRAdminBundle:UserPermissions');
             $user_permissions = $repo_user_permissions->findBy( array('user_id' => $user) );
 
@@ -269,15 +269,19 @@ class DatatypeController extends ODRCustomController
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
             /** @var User $admin */
-            $admin = $this->container->get('security.context')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Create new DataType form
             $submitted_data = new DataTypeMeta();
-            $form = $this->createForm(new CreateDatatypeForm($submitted_data), $submitted_data);
+            // TODO remove deprecated since 2.8
+            // $form = $this->createForm(new CreateDatatypeForm($submitted_data), $submitted_data);
+            $form = $this->createForm(CreateDatatypeForm::class, $submitted_data);
 
             // Verify 
             if ($request->getMethod() == 'POST') {
-                $form->bind($request, $submitted_data);
+                // TODO Remove deprecated since 2.3
+                // $form->bind($request, $submitted_data);
+                $form->handleRequest($request);
 
                 // Can't seem to figure out why it occassionally attempts to create an empty datatype, so...guessing here
                 if ($form->isEmpty())
@@ -439,7 +443,7 @@ class DatatypeController extends ODRCustomController
         try {
             // Permissions check
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError("rebuild the cache for");  // TODO - really should say everything
 

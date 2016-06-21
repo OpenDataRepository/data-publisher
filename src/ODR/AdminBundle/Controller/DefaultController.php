@@ -43,7 +43,7 @@ class DefaultController extends ODRCustomController
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         /** @var User $user */
-        $user = $this->container->get('security.context')->getToken()->getUser();
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
         $user_permissions = array();
         if ($user !== 'anon.') {
@@ -117,7 +117,7 @@ class DefaultController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Grab the cached graph data

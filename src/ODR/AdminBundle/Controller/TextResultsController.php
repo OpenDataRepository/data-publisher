@@ -98,7 +98,7 @@ class TextResultsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -241,7 +241,7 @@ class TextResultsController extends ODRCustomController
             // TODO - user permissions?
 
             // Determine whether user is logged in or not
-            $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $logged_in = true;
             if ( $user === 'anon.' )
                 $logged_in = false;

@@ -85,7 +85,7 @@ class CSVImportController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -282,7 +282,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -689,7 +689,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
         try {
             // TODO - permissions?
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Get all files in the given user's 'upload' directory
             $uploaded_files = array();
@@ -738,7 +738,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
         try {
             // TODO - permissions?
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Get all files in the given user's 'upload' directory
             $uploaded_files = array();
@@ -782,7 +782,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
         try {
             // Attempt to locate the csv file stored in the user's session
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $session = $request->getSession();
             if ( $session->has('csv_file') ) {
                 // Delete the file if it exists
@@ -920,7 +920,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -2014,7 +2014,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -2283,7 +2283,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this

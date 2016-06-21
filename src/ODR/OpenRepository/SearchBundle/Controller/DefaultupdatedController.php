@@ -65,7 +65,7 @@ class DefaultupdatedController extends Controller
     {
 
         // Grab user and their permissions if possible
-        $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
         // Store if logged in or not
         $logged_in = true;
@@ -356,7 +356,7 @@ exit();
 
             // ------------------------------
             // Grab user and their permissions if possible
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = array();
 
             // Store if logged in or not
@@ -616,7 +616,7 @@ if ($debug) {
 
             // ------------------------------
             // Grab user and their permissions if possible
-            $admin_user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $odrcc->getPermissionsArray($admin_user->getId(), $request);
             $logged_in = true;
 
@@ -754,7 +754,7 @@ if ($debug) {
 
             // --------------------
             // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = array();
             $logged_in = false;
             if ($user !== 'anon.') {
@@ -1117,7 +1117,7 @@ if ($debug) {
 
             // --------------------------------------------------
             // Determine level of user's permissions...
-            $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = array();
             $logged_in = false;
 
