@@ -323,68 +323,6 @@ exit();
 
 
     /**
-     * Attempt to load the ShortResults version of the cached entries for each datarecord in $datarecord_list, returning a blank "click here to recache" entry if the actual cached version does not exist.
-     * @deprecated
-     *
-     * @param array $datarecord_list The list of datarecord ids that need rendered
-     * @param DataType $datatype     Which datatype the datarecords belong to
-     * @param Theme $theme           ...TODO - eventually need to use this to indicate which version to use when rendering
-     * @param Request $request
-     *
-     * @return string
-     */
-    public function renderShortResultsList($datarecord_list, $datatype, $theme, Request $request)
-    {
-/*
-        // Grab necessary objects
-        $templating = $this->get('templating');
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-
-
-        // Build...
-        $datatype_revision = $datatype->getRevision();
-        $final_html = '';
-        foreach ($datarecord_list as $num => $datarecord_id) {
-            // Attempt to grab the textresults thingy for this datarecord from the cache
-            $data = $memcached->get($memcached_prefix.'.data_record_short_form_'.$datarecord_id);
-
-            // No caching in dev environment
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $data = null;
-
-            $html = null;
-            if ($data !== null && is_array($data) && count($data) == 2 && $data['revision'] == $datatype_revision) {
-                // Grab the array of data from the cache entry
-                $html = $data['html'];
-            }
-            else {
-                $html = $templating->render(
-                    'ODRAdminBundle:ShortResults:shortresults_blank.html.twig',
-                    array(
-                        'datatype_id' => $datatype->getId(),
-                        'datarecord_id' => $datarecord_id,
-                    )
-                );
-
-                // Since the memcached entries was null, schedule the datarecord for a memcached update
-                // ...unless we're in dev environment, where it won't matter because it'll get ignored
-                if ($this->container->getParameter('kernel.environment') !== 'dev') {
-                    $options = array();
-                    self::updateDatarecordCache($datarecord_id, $options);
-                }
-            }
-
-            $final_html .= $html;
-        }
-
-        return $final_html;
-*/
-    }
-
-
-    /**
      * Attempt to load the textresult version of the cached entries for each datarecord in $datarecord_list.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -5686,6 +5624,7 @@ if ($debug)
 
 
     /**
+     * TODO - generalize this to support more than just two?
      * Ensures both ImageSizes entities for the given datafield exist.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -5802,8 +5741,10 @@ if ($debug)
         $errors = $form->getErrors();
 
         $error_str = '';
-        foreach ($errors as $num => $error)
-            $error_str .= 'ERROR: '.$error->getMessage()."\n";
+        while( $errors->valid() ) {
+            $error_str .= 'ERROR: '.$errors->current()->getMessage()."\n";
+            $errors->next();
+        }
 
         return $error_str;
     }

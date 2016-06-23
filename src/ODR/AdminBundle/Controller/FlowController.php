@@ -118,13 +118,19 @@ class FlowController extends ODRCustomController
             // Grab required objects...
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return self::flowAbort('Datatype does not exist');
+
             $datafield_id = $typeclass = null;
 
             // Ensure datatype exists
             $query = $em->createQuery(
                'SELECT dt.id
                 FROM ODRAdminBundle:DataType AS dt
-                WHERE dt.id = :datatype AND dt.deletedAt IS NULL'
+                WHERE dt.id = :datatype
+                AND dt.deletedAt IS NULL'
             )->setParameters( array('datatype' => $datatype_id) );
             $result = $query->getArrayResult();
 

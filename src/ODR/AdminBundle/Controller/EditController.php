@@ -446,6 +446,9 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
+
+            throw new \Exception('DISABLED PENDING SECOND HALF OF THEME REWORK');
+
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -1363,6 +1366,9 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
+
+            throw new \Exception('ASSUMES EXISTENCE OF DATARECORDFIELD ENTRIES');
+
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -1375,11 +1381,15 @@ class EditController extends ODRCustomController
 
             $datafield = $datarecordfield->getDataField();
             if ( $datafield == null )
-                return parent::deletedEntityError('DataField');
+                return parent::deletedEntityError('Datafield');
+
+            $datarecord = $datarecordfield->getDataRecord();
+            if ($datarecord == null)
+                return parent::deletedEntityError('Datarecord');
 
             $datatype = $datafield->getDataType();
             if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
+                return parent::deletedEntityError('Datatype');
 
             /** @var RadioOptions $radio_option */
             if ($radio_option_id != 0) {
@@ -1524,6 +1534,9 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
+
+            throw new \Exception('ASSUMES EXISTENCE OF DATARECORDFIELD AND STORAGE ENTITIES');
+
             // Get the Entity Manager
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -1643,28 +1656,6 @@ class EditController extends ODRCustomController
 
                 // Ensure the form has no errors
                 if ($form->isValid()) {
-/*
-                    // ----------------------------------------
-                    // If the field that got modified is the name/sort/external_id field for this datatype, update this datarecord's cache values to match the new value
-                    if ($name_datafield !== null && $name_datafield->getId() == $datafield->getId()) {
-                        $datarecord->setNamefieldValue( $new_value );
-                        $em->persist($datarecord);
-                    }
-                    if ($sort_datafield !== null && $sort_datafield->getId() == $datafield->getId()) {
-                        $datarecord->setSortfieldValue( $new_value );
-                        $em->persist($datarecord);
-
-                        // Since a sort value got changed, also delete the default sorted list of datarecords for this datatype
-                        $memcached->delete($memcached_prefix.'.data_type_'.$datatype_id.'_record_order');
-                    }
-                    if ($external_id_datafield !== null && $external_id_datafield->getId() == $datafield->getId()) {
-                        $datarecord->setExternalId( $new_value );
-                        $em->persist($datarecord);
-                    }
-*/
-//                    // Save changes
-//                    $em->persist($my_obj);
-//                    $em->flush();
 
                     // ----------------------------------------
                     // If saving from a datetime field, convert the submitted string into a datetime object
@@ -1703,6 +1694,27 @@ class EditController extends ODRCustomController
                             $em->flush();
                             break;
                     }
+
+/*
+                    // ----------------------------------------
+                    // TODO - no point running this if following block is run too
+                    // If the field that got modified is the name/sort/external_id field for this datatype, update this datarecord's cache values to match the new value
+                    if ($name_datafield !== null && $name_datafield->getId() == $datafield->getId()) {
+                        $datarecord->setNamefieldValue( $new_value );
+                        $em->persist($datarecord);
+                    }
+                    if ($sort_datafield !== null && $sort_datafield->getId() == $datafield->getId()) {
+                        $datarecord->setSortfieldValue( $new_value );
+                        $em->persist($datarecord);
+
+                        // Since a sort value got changed, also delete the default sorted list of datarecords for this datatype
+                        $memcached->delete($memcached_prefix.'.data_type_'.$datatype_id.'_record_order');
+                    }
+                    if ($external_id_datafield !== null && $external_id_datafield->getId() == $datafield->getId()) {
+                        $datarecord->setExternalId( $new_value );
+                        $em->persist($datarecord);
+                    }
+*/
 
                     // ----------------------------------------
                     // TODO - replace this block with code to directly update the cached version of the datarecord
@@ -2680,6 +2692,9 @@ if ($debug)
             );
         }
         else if ($template_name == 'datafield') {
+
+            throw new \Exception('NOT IMPLEMENTED YET');
+
             $html = $templating->render(
                 'ODRAdminBundle:Edit:edit_datafield.html.twig',
                 array(
@@ -2691,238 +2706,6 @@ if ($debug)
                 )
             );
         }
-
-        return $html;
-
-
-        $parent_datarecord = null;
-        $datarecord = null;
-        $datatype = null;
-        $theme_element = null;
-
-        if ( $template_name === 'child' && $child_datatype_id !== null ) {
-            $datarecord = $repo_datarecord->find($datarecord_id);
-            $datatype = $repo_datatype->find($child_datatype_id);
-            $parent_datarecord = $datarecord->getParent();
-        }
-        else {
-            $datarecord = $repo_datarecord->find($datarecord_id);
-            $parent_datarecord = $datarecord;
-            $datatype = $datarecord->getDataType();
-        }
-        /** @var DataRecord $parent_datarecord */
-        /** @var DataRecord $datarecord */
-        /** @var DataType $datatype */
-
-        // TODO - move this?
-        /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-        if ($theme == null)
-            return parent::deletedEntityError('Theme');
-/*
-        $datarecords = array($datarecord);
-
-        $indent = 0;
-        $is_link = 0;
-        $top_level = 1;
-        $short_form = false;
-        $use_render_plugins = false;
-        $public_only = false;
-
-        if ($template_name == 'child') {
-            // Determine if this is a 'child' render request for a top-level datatype
-            $query = $em->createQuery(
-               'SELECT dt.id AS dt_id
-                FROM ODRAdminBundle:DataTree AS dt
-                WHERE dt.deletedAt IS NULL AND dt.descendant = :datatype'
-            )->setParameters( array('datatype' => $datatype->getId()) );
-            $results = $query->getArrayResult();
-
-            // If query found something, then it's not a top-level datatype
-            if ( count($results) > 0 )
-                $top_level = 0;
-
-            // Since this is a child reload, need to grab all child/linked datarecords that belong in this childtype
-            // TODO - determine whether this will end up grabbing child datarecords or linked datarecords?  only one of these will return results, and figuring out which one to run would require a second query anyways...
-            $datarecords = array();
-            $query = $em->createQuery(
-               'SELECT dr
-                FROM ODRAdminBundle:DataRecord AS dr
-                JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-                WHERE dr.parent = :datarecord AND dr.id != :datarecord_id AND dr.dataType = :datatype AND dr.provisioned = false
-                AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters( array('datarecord' => $datarecord->getId(), 'datarecord_id' => $datarecord->getId(), 'datatype' => $datatype->getId()) );
-            $results = $query->getResult();
-            foreach ($results as $num => $child_datarecord)
-                $datarecords[] = $child_datarecord;
-
-            // ...do the same for any datarecords that this datarecord links to
-            $query = $em->createQuery(
-               'SELECT descendant
-                FROM ODRAdminBundle:LinkedDataTree AS ldt
-                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                JOIN ODRAdminBundle:DataType AS dt WITH descendant.dataType = dt
-                WHERE ldt.ancestor = :datarecord AND descendant.dataType = :datatype AND descendant.provisioned = false
-                AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters( array('datarecord' => $datarecord->getId(), 'datatype' => $datatype->getId()) );
-            $results = $query->getResult();
-            foreach ($results as $num => $linked_datarecord)
-                $datarecords[] = $linked_datarecord;
-        }
-
-$debug = true;
-$debug = false;
-if ($debug)
-    print '<pre>';
-
-$start = microtime(true);
-if ($debug)
-    print "\n>> starting timing...\n\n";
-
-        // Construct the arrays which contain all the required data
-        $datatype_tree = parent::buildDatatypeTree($user, $theme, $datatype, $theme_element, $em, $is_link, $top_level, $short_form, $debug, $indent);
-if ($debug)
-    print "\n>> datatype_tree done in: ".(microtime(true) - $start)."\n\n";
-
-        $datarecord_tree = array();
-        foreach ($datarecords as $datarecord) {
-            $datarecord_tree[] = parent::buildDatarecordTree($datarecord, $em, $user, $short_form, $use_render_plugins, $public_only, $debug, $indent);
-
-if ($debug)
-    print "\n>> datarecord_tree for datarecord ".$datarecord->getId()." done in: ".(microtime(true) - $start)."\n\n";
-
-        }
-
-if ($debug)
-    print '</pre>';
-*/
-
-        // ----------------------------------------
-        // Grab all datarecords "associated" with the desired datarecord...TODO
-        $associated_datarecords = $memcached->get($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id);
-        if ($bypass_cache || $associated_datarecords == false) {
-            $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord_id));
-
-//print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
-
-            $memcached->set($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id, $associated_datarecords, 0);
-        }
-
-
-        // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
-        $datarecord_array = array();
-        foreach ($associated_datarecords as $num => $dr_id) {
-            $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$dr_id);
-            if ($bypass_cache || $datarecord_data == false)
-                $datarecord_data = parent::getDatarecordData($em, $dr_id, $bypass_cache);
-
-            foreach ($datarecord_data as $dr_id => $data)
-                $datarecord_array[$dr_id] = $data;
-        }
-//print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
-
-        // ----------------------------------------
-        $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-
-        // Grab all datatypes associated with the desired datarecord
-        // NOTE - using parent::getAssociatedDatatypes() here because we need to be able to see child/linked datatypes even if none are attached to this datarecord
-        $include_links = true;
-        $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype->getId()), $include_links);
-
-        // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $datatype_array = array();
-        foreach ($associated_datatypes as $num => $dt_id) {
-            $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
-            if ($bypass_cache || $datatype_data == false)
-                $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
-
-            foreach ($datatype_data as $dt_id => $data)
-                $datatype_array[$dt_id] = $data;
-        }
-
-//print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
-
-        // ----------------------------------------
-        // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-        parent::filterByUserPermissions($datatype->getId(), $datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
-
-
-        // Determine which template to use for rendering
-        $template = 'ODRAdminBundle:Edit:edit_ajax.html.twig';
-        if ($template_name == 'child')
-            $template = 'ODRAdminBundle:Record:record_area_child_load.html.twig';
-/*
-        // Determine what datatypes link to this datatype
-        $ancestor_linked_datatypes = array();
-        if ($template_name == 'default') {
-            $query = $em->createQuery(
-               'SELECT ancestor.id AS ancestor_id, ancestor_meta.shortName AS ancestor_name
-                FROM ODRAdminBundle:DataTree AS dt
-                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-                JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataTypeMeta AS ancestor_meta WITH ancestor_meta.dataType = ancestor
-                WHERE dtm.is_link = 1 AND dt.descendant = :datatype
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND ancestor_meta.deletedAt IS NULL'
-            )->setParameters( array('datatype' => $datatype->getId()) );
-            $results = $query->getArrayResult();
-            foreach ($results as $num => $result) {
-                $id = $result['ancestor_id'];
-                $name = $result['ancestor_name'];
-                $ancestor_linked_datatypes[$id] = $name;
-            }
-        }
-
-        // Determine what datatypes link to this datatype
-        $descendant_linked_datatypes = array();
-        if ($template_name == 'default') {
-            $query = $em->createQuery(
-               'SELECT descendant.id AS descendant_id, descendant_meta.shortName AS descendant_name
-                FROM ODRAdminBundle:DataTree AS dt
-                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-                JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-                JOIN ODRAdminBundle:DataTypeMeta AS descendant_meta WITH descendant_meta.dataType = descendant
-                WHERE dtm.is_link = 1 AND dt.ancestor = :datatype
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL AND descendant_meta.deletedAt IS NULL'
-            )->setParameters( array('datatype' => $datatype->getId()) );
-            $results = $query->getArrayResult();
-            foreach ($results as $num => $result) {
-                $id = $result['descendant_id'];
-                $name = $result['descendant_name'];
-                $descendant_linked_datatypes[$id] = $name;
-            }
-        }
-*/
-
-        // Render the DataRecord
-        $templating = $this->get('templating');
-        $html = $templating->render(
-            $template,
-            array(
-/*
-                'search_key' => $search_key,
-
-                'parent_datarecord' => $parent_datarecord,
-
-                'datatype_tree' => $datatype_tree,
-                'datarecord_tree' => $datarecord_tree,
-                'theme' => $theme,
-
-                'ancestor_linked_datatypes' => $ancestor_linked_datatypes,
-                'descendant_linked_datatypes' => $descendant_linked_datatypes,
-*/
-                'datatype_array' => $datatype_array,
-                'datarecord_array' => $datarecord_array,
-                'theme_id' => $theme->getId(),
-
-                'initial_datatype_id' => $datatype->getId(),
-                'initial_datarecord_id' => $datarecord->getId(),
-
-                'datatype_permissions' => $datatype_permissions,
-                'datafield_permissions' => $datafield_permissions,
-
-                'search_key' => $search_key,
-            )
-        );
 
         return $html;
     }
@@ -2947,15 +2730,10 @@ if ($debug)
 
         try {
             // Get necessary objects
-/*
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-*/
-            $session = $request->getSession();
-
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            $session = $request->getSession();
+
 
             // Get Record In Question
             /** @var DataRecord $datarecord */

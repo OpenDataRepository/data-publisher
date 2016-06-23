@@ -843,11 +843,13 @@ function SaveDatafieldProperty(datafield_id, reload_datafield) {
                 notifySaved();
 
                 // Only reload datafield if necessary
-                if (reload_datafield == true)
+                if (reload_datafield == true) {
                     ReloadDatafield(datafield_id);
+                }
+                else if (data.d.force_slideout_reload == true) {
+                    $("#ElementData").fadeOut('slow').html("");
+                    $("#ElementData").html(data.d.html).fadeIn('slow');
 
-                if (data.d.force_slideout_reload == true) {
-                    $("#ElementData").html("").html(data.d.html).fadeIn('fast');
                     InitDatafieldPropertiesForm();
                 }
             }

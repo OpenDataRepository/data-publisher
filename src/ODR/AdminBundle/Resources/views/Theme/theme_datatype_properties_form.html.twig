@@ -1,8 +1,12 @@
 {% spaceless %}
 
-<form class="ODRThemeDatatypePropertiesForm pure-form pure-form-aligned" {{ form_enctype(theme_datatype_form) }} id="ThemeDatafieldPropertiesForm_{{ theme_datatype.id }}">
-    {{ form_errors(theme_datatype_form._token) }}
-    {{ form_widget(theme_datatype_form._token) }}
+{{ form_start(theme_datatype_form, {
+    'method': 'POST',
+    'attr': {
+        'id': 'ThemeDatafieldPropertiesForm_' ~ theme_datatype.id,
+        'class': 'ODRThemeDatatypePropertiesForm pure-form pure-form-aligned'
+    }
+}) }}
 
     <fieldset>
         <div class="pure-control-group">
@@ -17,6 +21,7 @@
         {{ form_rest(theme_datatype_form) }}
         </div>
     </fieldset>
-</form>
+
+{{ form_end(theme_datatype_form) }}
 
 {% endspaceless %}

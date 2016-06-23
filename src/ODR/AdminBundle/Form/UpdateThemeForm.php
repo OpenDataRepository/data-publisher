@@ -9,13 +9,18 @@
  *
  * Builds the Form used for modifying Theme properties via
  * the right slideout in DisplayTemplate.
+ *
  */
 
 namespace ODR\AdminBundle\Form;
 
+// Symfony Forms
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
-use Symfony\Component\OptionsResolver\OptionsResolverInterface;
+use Symfony\Component\OptionsResolver\OptionsResolver;
+// Symfony Form classes
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
 
 
 class UpdateThemeForm extends AbstractType
@@ -28,7 +33,7 @@ class UpdateThemeForm extends AbstractType
     {
         $builder->add(
             'template_name',
-            'text',
+            TextType::class,
             array(
                 'required' => true,
                 'label' => 'Theme Name',
@@ -37,7 +42,7 @@ class UpdateThemeForm extends AbstractType
 
         $builder->add(
             'template_description',
-            'text',
+            TextType::class,
             array(
                 'required' => true,
                 'label' => 'Description Name',
@@ -46,7 +51,7 @@ class UpdateThemeForm extends AbstractType
 
         $builder->add(
             'is_default',
-            'checkbox',
+            CheckboxType::class,
             array(
                 'label'  => 'Is Default?',
                 'required' => false
@@ -66,11 +71,24 @@ class UpdateThemeForm extends AbstractType
 
 
     /**
+     * Returns the prefix of the template block name for this type.
+     *
+     * The block prefixes default to the underscored short class name with
+     * the "Type" suffix removed (e.g. "UserProfileType" => "user_profile").
+     *
+     * @return string The prefix of the template block name
+     */
+    public function getBlockPrefix()
+    {
+        return 'UpdateThemeForm';
+    }
+
+
+    /**
      * {@inheritdoc}
      */
-    public function setDefaultOptions(OptionsResolverInterface $resolver)
+    public function configureOptions(OptionsResolver $resolver)
     {
-//        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\Theme'));
         $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\ThemeMeta'));
     }
 }

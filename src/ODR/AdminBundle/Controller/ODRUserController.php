@@ -1,21 +1,22 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* ODRUser Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The user controller handles setting user roles/permissions, and
-* completely replaces the default FoS functionality for creating,
-* editing, and deleting users.
-* 
-* Password resetting and changing are handled by the ODR UserBundle,
-* which overrides the relevant sections of the FoS bundle.
-*
-* @see src\ODR\OpenRepository\UserBundle
-*/
+ * Open Data Repository Data Publisher
+ * ODRUser Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The user controller handles setting user roles/permissions, and
+ * completely replaces the default FoS functionality for creating,
+ * editing, and deleting users.
+ *
+ * Password resetting and changing are handled by the ODR UserBundle,
+ * which overrides the relevant sections of the FoS bundle.
+ *
+ * @see src\ODR\OpenRepository\UserBundle
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 
@@ -32,6 +33,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
 use ODR\AdminBundle\Form\ODRUserProfileForm;
 // Symfony
+use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -72,7 +74,7 @@ class ODRUserController extends ODRCustomController
 
             // Create the form that will be used
             $new_user = new ODRUser();
-            $form = $this->createForm(new ODRUserProfileForm($new_user), $new_user);
+            $form = $this->createForm(ODRUserProfileForm::class, $new_user);
 
             // Render and return the form
             $templating = $this->get('templating');
@@ -213,49 +215,47 @@ class ODRUserController extends ODRCustomController
             else {
                 // Create a new user and bind the form to it
                 $new_user = new ODRUser();
-                $form = $this->createForm(new ODRUserProfileForm($new_user), $new_user);
-                $form->bind($request, $new_user);
+                $form = $this->createForm(ODRUserProfileForm::class, $new_user);
 
-                // Password fields matching is handled by the Symfony Form 'repeated' field
-                // Password length and complexity is handled by the isPasswordValid() callback function in ODR\OpenRepository\UserBundle\Entity\User
+                $form->handleRequest($request);
 
-                // TODO - check for additional errors to throw?
+                if ($form->isSubmitted()) {
+
+                    // Password fields matching is handled by the Symfony Form 'repeated' field
+                    // Password length and complexity is handled by the isPasswordValid() callback function in ODR\OpenRepository\UserBundle\Entity\User
+
+                    // TODO - check for additional errors to throw?
 
 //$form->addError( new FormError("don't save form...") );
 
-                // If no errors...
-                if ( $form->isValid() ) {
-                    // Enable the user and give default roles
-                    $new_user->setEnabled(true);
-                    $new_user->addRole('ROLE_USER');
+                    // If no errors...
+                    if ($form->isValid()) {
+                        // Enable the user and give default roles
+                        $new_user->setEnabled(true);
+                        $new_user->addRole('ROLE_USER');
 
-                    // Save changes to the user
-                    $user_manager->updateUser($new_user);
+                        // Save changes to the user
+                        $user_manager->updateUser($new_user);
 
-                    // Generate and return the URL to modify the new user's permissions
-                    $em->refresh($new_user);
+                        // Generate and return the URL to modify the new user's permissions
+                        $em->refresh($new_user);
 
-                    $url = $router->generate( 'odr_manage_user_permissions', array('user_id' => $new_user->getId()) );
-                    $return['d'] = array('url' => $url);
+                        $url = $router->generate( 'odr_manage_user_permissions', array('user_id' => $new_user->getId()) );
+                        $return['d'] = array('url' => $url);
 
-                    // The new user is going to need permissions eventually...now is as good a time as any to create them
-                    $top_level_datatypes = parent::getTopLevelDatatypes();
-                    foreach ($top_level_datatypes as $num => $datatype_id)
-                        parent::permissionsExistence($em, $new_user->getId(), $admin_user->getId(), $datatype_id, null);
+                        // The new user is going to need permissions eventually...now is as good a time as any to create them
+                        $top_level_datatypes = parent::getTopLevelDatatypes();
+                        foreach ($top_level_datatypes as $num => $datatype_id)
+                            parent::permissionsExistence($em, $new_user->getId(), $admin_user->getId(), $datatype_id, null);
 
-                }
-                else {
-                    $return['r'] = 1;
-                    $errors = $form->getErrors();
-
-                    $error_str = '';
-                    foreach ($errors as $num => $error)
-                        $error_str .= 'ERROR: '.$error->getMessage()."\n";
-
-                    $return['d'] = array('html' => $error_str);
+                    }
+                    else {
+                        // Form validation failed
+                        $error_str = parent::ODR_getErrorMessages($form);
+                        $return['d'] = array('html' => $error_str);
+                    }
                 }
             }
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -289,7 +289,7 @@ class ODRUserController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Create a new form to edit the user
-            $form = $this->createForm(new ODRUserProfileForm($user), $user);
+            $form = $this->createForm(ODRUserProfileForm::class, $user, array('target_user_id' => $user->getId()));
 
             // Render them in a list
             $templating = $this->get('templating');
@@ -381,7 +381,7 @@ class ODRUserController extends ODRCustomController
                 $self_edit = 'true';
 
             // Create a new form to edit the user
-            $form = $this->createForm(new ODRUserProfileForm($user), $user);
+            $form = $this->createForm(ODRUserProfileForm::class, $user, array('target_user_id' => $user->getId()));
 
             // Render them in a list
             $templating = $this->get('templating');
@@ -567,26 +567,26 @@ class ODRUserController extends ODRCustomController
         $email = $target_user->getEmail();
 
         // Bind the request to a form
-        $form = $this->createForm(new ODRUserProfileForm($target_user), $target_user);
-        $form->bind($request, $target_user);
+        $form = $this->createForm(ODRUserProfileForm::class, $target_user, array('target_user_id' => $target_user->getId()));
+        $form->handleRequest($request);
 
-        // TODO - check for additional non-password errors to throw?
+        if ($form->isSubmitted()) {
 
-        // If no errors...
-        if ( $form->isValid() ) {
-            // Save changes to the user
-            $target_user->setEmail($email);     // as of right now, binding the form will clear the user's email/username because that field is disabled...set the email/username back to what it was originally
-            $user_manager->updateUser($target_user);
-        }
-        else {
-            $return['r'] = 1;
-            $errors = $form->getErrors();
+            // TODO - check for additional non-password errors to throw?
 
-            $error_str = '';
-            foreach ($errors as $num => $error)
-                $error_str .= 'ERROR: '.$error->getMessage()."\n";
+            // If no errors...
+            if ($form->isValid()) {
+                // Save changes to the user
+                $target_user->setEmail($email);     // as of right now, binding the form will clear the user's email/username because that field is disabled...set the email/username back to what it was originally
+                $user_manager->updateUser($target_user);
+            }
+            else {
+                // Form validation failed
+                $error_str = parent::ODR_getErrorMessages($form);
 
-            $return['d'] = array('html' => $error_str);
+                $return['r'] = 1;
+                $return['d'] = array('html' => $error_str);
+            }
         }
 
         return $return;
@@ -652,7 +652,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
 
             // Create a new form to edit the user
-            $form = $this->createForm(new ODRAdminChangePasswordForm($target_user), $target_user);
+            $form = $this->createForm(ODRAdminChangePasswordForm::class, $target_user, array('target_user_id' => $target_user->getId()));
 
             // Render them in a list
             $templating = $this->get('templating');
@@ -699,10 +699,9 @@ class ODRUserController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $user_manager = $this->container->get('fos_user.user_manager');
-//            $router = $this->get('router');
 
             $post = $request->request->all();
-            if ( !isset($post['ODRAdminChangePasswordForm']) )
+            if ( !isset($post['ODRAdminChangePasswordForm']) )      // TODO - better way of grabbing this?
                 throw new \Exception('Invalid Form');
 
             // Locate the target user
@@ -747,31 +746,30 @@ class ODRUserController extends ODRCustomController
             // --------------------
 
             // Bind form to user
-            $form = $this->createForm(new ODRAdminChangePasswordForm($target_user), $target_user);
-            $form->bind($request, $target_user);
+            $form = $this->createForm(ODRAdminChangePasswordForm::class, $target_user, array('target_user_id' => $target_user->getId()));
+            $form->handleRequest($request);
 
-            // Password fields matching is handled by the Symfony Form 'repeated' field
-            // Password length and complexity is handled by the isPasswordValid() callback function in ODR\OpenRepository\UserBundle\Entity\User
+            if ($form->isSubmitted()) {
+                // Password fields matching is handled by the Symfony Form 'repeated' field
+                // Password length and complexity is handled by the isPasswordValid() callback function in ODR\OpenRepository\UserBundle\Entity\User
 
-            // TODO - check for additional errors to throw?
+                // TODO - check for additional errors to throw?
 
-//$form->addError( new FormError("don't save form...") );
+//$form->addError( new FormError('do not save...') );
 
-            // If no errors...
-            if ( $form->isValid() ) {
-                // Save changes to the user
-                $user_manager->updateUser($target_user);
+                // If no errors...
+                if ($form->isValid()) {
+                    // Save changes to the user
+                    $user_manager->updateUser($target_user);
+                }
+                else {
+                    // Form validation failed
+                    $error_str = parent::ODR_getErrorMessages($form);
+
+                    $return['r'] = 1;
+                    $return['d'] = array('html' => $error_str);
+                }
             }
-            else {
-                $return['r'] = 1;
-                $errors = $form->getErrors();
-                $error_str = '';
-                foreach ($errors as $num => $error)
-                    $error_str .= 'ERROR: '.$error->getMessage()."\n";
-
-                $return['d'] = array('html' => $error_str);
-            }
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1263,7 +1261,9 @@ class ODRUserController extends ODRCustomController
 
 
     /**
+     * TODO - this should be replaced by parent::ODR_copyUserPermission()
      * Updates a UserPermission object in the database.
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param ODRUser $user                    The User that is getting their permissions modified.
@@ -1859,7 +1859,9 @@ class ODRUserController extends ODRCustomController
 
 
     /**
+     * TODO - replace with parent::ODR_copyUserFieldPermission()
      * Saves a datafield permission change for a given user.
+     * @deprecated
      *
      * @param integer $user_id      The database id of the User being modified.
      * @param integer $datafield_id The database id of the DataField being modified.

@@ -2,9 +2,13 @@
 
 {% set is_link = datatree.getislink %}
 
-<form class="ODRDatatreePropertiesForm pure-form pure-form-aligned" {{ form_enctype(datatree_form) }} id="DatatreePropertiesForm_{{ datatree.id }}">
-    {{ form_errors(datatree_form._token) }}
-    {{ form_widget(datatree_form._token) }}
+{{ form_start(datatree_form, {
+    'method': 'POST',
+    'attr': {
+        'id': 'DatatreePropertiesForm_' ~ datatree.id,
+        'class': 'ODRDatatreePropertiesForm pure-form pure-form-aligned'
+    }
+}) }}
 
     <fieldset>
         <div class="pure-control-group">
@@ -32,6 +36,6 @@
         </div>
     </fieldset>
 
-</form>
+{{ form_end(datatree_form) }}
 
 {% endspaceless %}

@@ -114,7 +114,7 @@ class DatatypeController extends ODRCustomController
 
             // Build a form for creating a new datatype, if needed
             $new_datatype_data = new DataTypeMeta();
-            $form = $this->createForm(new CreateDatatypeForm($new_datatype_data), $new_datatype_data);
+            $form = $this->createForm(CreateDatatypeForm::class, $new_datatype_data);
 
             // Render and return the html
             $return['d'] = array(
@@ -273,15 +273,12 @@ class DatatypeController extends ODRCustomController
 
             // Create new DataType form
             $submitted_data = new DataTypeMeta();
-            // TODO remove deprecated since 2.8
-            // $form = $this->createForm(new CreateDatatypeForm($submitted_data), $submitted_data);
             $form = $this->createForm(CreateDatatypeForm::class, $submitted_data);
 
-            // Verify 
-            if ($request->getMethod() == 'POST') {
-                // TODO Remove deprecated since 2.3
-                // $form->bind($request, $submitted_data);
-                $form->handleRequest($request);
+            $form->handleRequest($request);
+
+            if ($form->isSubmitted()) {
+                // This was a POST request
 
                 // Can't seem to figure out why it occassionally attempts to create an empty datatype, so...guessing here
                 if ($form->isEmpty())
@@ -405,6 +402,7 @@ class DatatypeController extends ODRCustomController
                 }
             }
             else {
+                // Otherwise, this was a GET request
                 $return['d'] = $templating->render(
                     'ODRAdminBundle:Datatype:add_type_dialog_form.html.twig', 
                     array(
