@@ -9,13 +9,11 @@
 
         var url = '';
         switch (target) {
-//            case "results":
             case 'view':
             case undefined:
             case '':
                 url = '{{ path('odr_display_view', { 'datarecord_id': 0, 'search_key': '', 'offset': '' }) }}';
                 break;
-//            case "record":
             case 'edit':
                 url = '{{ path('odr_record_edit', { 'datarecord_id': 0 }) }}';
                 break;            
@@ -23,7 +21,7 @@
 
         url = url.substring(0, (url.length - 1));
         url += datarecord_id;
-        if (/*target == "results" &&*/ search_key != '') {
+        if (search_key != '') {
             url += '/' + search_key;
 
             if (offset !== '')
@@ -37,99 +35,5 @@
         }
     }
 
-    function loadCacheEntry(datarecord_id) {
-        // Prevent load of datarecord?
-        recaching = true;
-
-        // Theme ID
-        var url = '{{ path('odr_shortresults_reload', { 'datarecord_id': 0 } ) }}';
-        url = url.substring(0, (url.length - 1));
-        url += datarecord_id;
-    
-        var dataType = "json";
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: dataType,
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    var datarecord_id = data.d.datarecord_id;
-//                    var force = data.d.force;
-
-//                    if (force == 'short')
-                        insertShortResults(data, datarecord_id);
-/*
-                    else if (force == 'text')
-                        insertTextResults(data, datarecord_id);
-                    else if (data.d.use_shortresults == 1)
-                        insertShortResults(data, datarecord_id);
-                    else
-                        insertTextResults(data, datarecord_id);
-*/
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-
-                // Allow load of datarecord
-                recaching = false;
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-    }
-
-    function insertShortResults(data, datarecord_id) {
-        var target = $(".DataRecord_" + datarecord_id).parent().prev();
-
-/*
-        var append = true;
-        if ( target == undefined ) {
-            append = false;
-            target = $(".DataRecord_" + datarecord_id).parent().parent();
-        }
-*/
-
-        $(".DataRecord_" + datarecord_id).parent().remove();
-
-
-//        if (append)
-            $( data.d.html ).insertAfter( target );
-//        else
-//            $( target ).prepend( data.d.html );
-
-        var prevent_scroll = true;
-        ShortResults_initPage(prevent_scroll);
-    }
-/*
-    function insertTextResults(data, datarecord_id) {
-        var table = $("#TextResults").dataTable();
-
-        var data_array = [];
-        $.each(data.d.html.split('<td>'), function(index, value) {
-            if (index > 0) {
-                data_array.push( value.substr(0, value.indexOf('</td>')) );
-            }
-        });
-
-        var row = table.fnGetPosition( $('tr.DataRecord_' + datarecord_id)[0] );
-        table.fnUpdate(data_array, row);
-    }
-*/
 </script>
 {% endmacro %}

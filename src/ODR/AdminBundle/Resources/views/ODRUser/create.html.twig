@@ -6,10 +6,14 @@
     </h2>
 </div>
 
-<form class="ODRUserProfileForm pure-form pure-form-aligned" {{ form_enctype(profile_form) }} id="ODRUserProfileForm">
-    {#{{ form_widget(profile_form.id) }}#}
-    {#{{ form_errors(profile_form._token) }}#}
-    {{ form_widget(profile_form._token) }}
+
+{{ form_start(profile_form, {
+    'method': 'POST',
+    'attr': {
+        'id': 'ODRUserProfileForm',
+        'class': 'ODRUserProfileForm pure-form pure-form-aligned'
+    }
+}) }}
 
     <fieldset>
         <div id="form_errors">
@@ -88,11 +92,14 @@
             {{ form_widget(profile_form.phoneNumber, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
         </div>
 
+        <div style="display: none">
+            {{ form_rest(profile_form) }}
+        </div>
     </fieldset>
 
     <input id="submitButton" class="pure-button pure-button-primary" type="button" value="Save" />
 
-</form>
+{{ form_end(profile_form) }}
 
 {% include 'ODRAdminBundle:ODRUser:password_rules.html.twig' with {'form': profile_form} %}
 

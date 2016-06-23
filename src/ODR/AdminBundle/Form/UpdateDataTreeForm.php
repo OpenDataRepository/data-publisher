@@ -9,13 +9,17 @@
  *
  * Builds the form used for modifying DataTree properties via
  * the right slideout in DisplayTemplate
+ *
  */
 
 namespace ODR\AdminBundle\Form;
 
+// Symfony Forms
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
-use Symfony\Component\OptionsResolver\OptionsResolverInterface;
+use Symfony\Component\OptionsResolver\OptionsResolver;
+// Symfony Form classes
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 
 
 class UpdateDataTreeForm extends AbstractType
@@ -28,7 +32,7 @@ class UpdateDataTreeForm extends AbstractType
     {
         $builder->add(
             'multiple_allowed',
-            'checkbox',
+            CheckboxType::class,
             array(
                 'required' => false,
                 'label'  => 'Multiple Allowed',
@@ -48,11 +52,24 @@ class UpdateDataTreeForm extends AbstractType
 
 
     /**
+     * Returns the prefix of the template block name for this type.
+     *
+     * The block prefixes default to the underscored short class name with
+     * the "Type" suffix removed (e.g. "UserProfileType" => "user_profile").
+     *
+     * @return string The prefix of the template block name
+     */
+    public function getBlockPrefix()
+    {
+        return 'UpdateDataTreeForm';
+    }
+
+
+    /**
      * {@inheritdoc}
      */
-    public function setDefaultOptions(OptionsResolverInterface $resolver)
+    public function configureOptions(OptionsResolver $resolver)
     {
-//        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataTree'));
         $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataTreeMeta'));
     }
 }

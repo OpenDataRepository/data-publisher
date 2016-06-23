@@ -559,8 +559,13 @@ print_r($grandparent_list);
             if ($datatree == null)
                 return parent::deletedEntityError('Datatree');
 
-            $parent_datatype_id = $datatree->getAncestor()->getId();
-            $child_datatype_id = $datatree->getDescendant()->getId();
+            $parent_datatype = $datatree->getAncestor();
+            if ($parent_datatype == null)
+                return parent::deletedEntityError('parent Datatype');
+            $child_datatype = $datatree->getDescendant();
+            if ($child_datatype == null)
+                return parent::deletedEntityError('child Datatype');
+
 
             // --------------------
             // Determine user privileges
@@ -569,7 +574,7 @@ print_r($grandparent_list);
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $parent_datatype_id ]) && isset($user_permissions[ $parent_datatype_id ][ 'design' ])) )
+            if ( !(isset($user_permissions[ $parent_datatype->getId() ]) && isset($user_permissions[ $parent_datatype->getId() ][ 'design' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -582,7 +587,7 @@ print_r($grandparent_list);
                     JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
                     WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
                     AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
-                )->setParameters( array('parent_datatype' => $parent_datatype_id, 'child_datatype' => $child_datatype_id) );
+                )->setParameters( array('parent_datatype' => $parent_datatype->getId(), 'child_datatype' => $child_datatype->getId()) );
                 $results = $query->getArrayResult();
             }
             else {
@@ -594,7 +599,7 @@ print_r($grandparent_list);
                     JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
                     WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
                     AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-                )->setParameters( array('ancestor_datatype' => $parent_datatype_id, 'descendant_datatype' => $child_datatype_id) );
+                )->setParameters( array('ancestor_datatype' => $parent_datatype->getId(), 'descendant_datatype' => $child_datatype->getId()) );
                 $results = $query->getArrayResult();
             }
 
@@ -692,12 +697,12 @@ print_r($grandparent_list);
 
             // Locate any datarecords of the local datatype that link to datarecords of the remote datatype
             $query = $em->createQuery(
-                'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-                    FROM ODRAdminBundle:DataRecord AS ancestor
-                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                    WHERE ancestor.dataType = :local_datatype_id AND descendant.dataType = :remote_datatype_id
-                    AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+               'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+                FROM ODRAdminBundle:DataRecord AS ancestor
+                JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                WHERE ancestor.dataType = :local_datatype_id AND descendant.dataType = :remote_datatype_id
+                AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
             )->setParameters( array('local_datatype_id' => $local_datatype->getId(), 'remote_datatype_id' => $remote_datatype->getId()) );
             $results = $query->getArrayResult();
 

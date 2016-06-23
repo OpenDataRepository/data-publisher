@@ -4,10 +4,16 @@
     <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
 </div>
 
-<form class="ODRDatatypePropertiesForm pure-form pure-form-aligned" {{ form_enctype(datatype_form) }} id="DatatypePropertiesForm_{{ datatype.id }}">
+
+{{ form_start(datatype_form, {
+    'method': 'POST',
+    'attr': {
+        'id': 'DatatypePropertiesForm_' ~ datatype.id,
+        'class': 'ODRDatatypePropertiesForm pure-form pure-form-aligned'
+    }
+}) }}
+
 {% if datatree == null or datatree.getislink == false %}    {# don't display datatype-specific properties if a linked type #}
-    {{ form_errors(datatype_form._token) }}
-    {{ form_widget(datatype_form._token) }}
 
     <fieldset>
 
@@ -77,12 +83,6 @@
             {{ form_errors(datatype_form.searchSlug) }}
             <span style="color:black; font-size:80%;">{{ site_baseurl ~ '/'}}</span>
             <span>{{ form_widget(datatype_form.searchSlug, { 'attr': {'style': 'width:auto;', 'maxlength': '32'} }) }}</span>
-{#
-            <span id="{{ datatype_form.searchSlug.vars.id }}_error" style="display: none; color:red;">
-                <i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;A Datatype with this abbreviation already exists!
-            </span>
-            <input type="hidden" id="{{ datatype_form.searchSlug.vars.id }}_original" disabled="disabled" style="display: none;" value="{{ datatype_form.searchSlug.vars.value }}" />
-#}
         </div>
 
         <div class="pure-control-group">
@@ -112,7 +112,7 @@
 
     </fieldset>
 {% endif %}
-</form>
+{{ form_end(datatype_form) }}
 
 {% if is_top_level == false and datatree != null %}   {# display datatree properties if not a top-level datatype #}
     {% include 'ODRAdminBundle:Displaytemplate:datatree_properties_form.html.twig' with {'datatree': datatree, 'datatree_form': datatree_form, 'force_multiple': force_multiple} %}

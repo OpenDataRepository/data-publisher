@@ -10,6 +10,7 @@ odr_logout:
 odr_dashboard:
     defaults: { _controller: ODRAdminBundle:Default:dashboard }
     pattern:  /admin/dashboard
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -23,6 +24,7 @@ odr_self_profile_save:
     pattern:  /profile/save
     defaults: { _controller: ODRAdminBundle:ODRUser:selfsave }
     requirements: { _method: POST }
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -189,6 +191,7 @@ admin_plugin_options:
 admin_plugin_test:
     pattern:  /admin/plugintest
     defaults: { _controller: ODRAdminBundle:Plugins:plugintest }
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -207,6 +210,7 @@ odr_add_types:
 odr_recache_all:
     pattern: /admin/type/recache_all
     defaults: { _controller: ODRAdminBundle:Datatype:recacheall }
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -295,6 +299,7 @@ odr_design_save_theme_datatype:
     methods: [POST]
     requirements:
         theme_datatype_id: \d+
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -364,38 +369,6 @@ odr_design_get_datafield_properties:
     requirements:
         datafield_id:  \d+
 
-#odr_design_get_theme_element_properties:
-#    pattern:  /design/displaytemplate/themeelementproperties/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:Displaytemplate:themeelementproperties }
-#    requirements:
-#        theme_element_id:  \d+
-
-#odr_design_save_theme_element_order:
-#    pattern:  /design/displaytemplate/themeelementorder
-#    defaults: { _controller: ODRAdminBundle:Displaytemplate:themeelementorder }
-#    requirements: { _method: POST }
-
-#odr_design_save_datafield_order:
-#    pattern:  /design/displaytemplate/datafieldorder/{initial_theme_element_id}/{ending_theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldorder }
-#    methods: [POST]
-#    requirements:
-#        initial_theme_element_id: \d+
-#        ending_theme_element_id: \d+
-
-#odr_design_delete_theme_element:
-#    pattern:  /design/displaytemplate/deletethemeelement/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:Displaytemplate:deletethemeelement }
-#    requirements:
-#        theme_element_id:  \d+
-
-#odr_design_save_theme_datafield:
-#    pattern:  /design/displaytemplate/savethemedatafield/{theme_datafield_id}
-#    defaults: { _controller: ODRAdminBundle:Displaytemplate:savethemedatafield }
-#    methods: [POST]
-#    requirements:
-#        theme_datafield_id: \d+
-
 odr_design_delete_datafield:
     pattern:  /design/displaytemplate/deletefield/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:deletedatafield }
@@ -428,12 +401,6 @@ odr_design_add_childtype:
     defaults: { _controller: ODRAdminBundle:Displaytemplate:addchilddatatype }
     requirements:
         theme_element_id:  \d+
-
-#odr_design_add_theme_element:
-#    pattern:  /design/displaytemplate/addthemeelement/{datatype_id}
-#    defaults: { _controller: ODRAdminBundle:Displaytemplate:addthemeelement }
-#    requirements:
-#        datatype_id:  \d+
 
 odr_design_add_datafield:
     pattern:  /design/displaytemplate/adddatafield/{theme_element_id}
@@ -488,12 +455,6 @@ odr_design_public_datatype:
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypepublic }
     requirements:
         datatype_id:  \d+
-
-#odr_design_visible_theme_element:
-#    pattern:  /design/displaytemplate/themeelementvisible/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:Displaytemplate:themeelementvisible }
-#    requirements:
-#        datatype_id:  \d+
 
 #-----------------------------------------
 
@@ -711,6 +672,7 @@ odr_record_get_field_history:
     defaults: { _controller: ODRAdminBundle:Edit:getfieldhistory }
     requirements:
         datarecordfield_id:  \d+
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -748,24 +710,6 @@ odr_image_download:
     defaults: { _controller: ODRAdminBundle:Display:imagedownload }
     requirements:
         image_id:  \d+
-
-
-#-----------------------------------------
-# ShortResults Controller
-#odr_shortresults_list:
-#    pattern:  /shortresults/list/{datatype_id}/{target}/{offset}
-#    defaults: { _controller: ODRAdminBundle:ShortResults:list, offset: 1 }
-#    requirements:
-#        datatype_id:  \d+
-#        target: '[a-z]+'
-#        offset: \d+
-
-odr_shortresults_reload:
-    pattern:  /shortresults/reload/{datarecord_id}/{force}
-    defaults: { _controller: ODRAdminBundle:ShortResults:reload, force: '' }
-    requirements:
-        datarecord_id: \d+
-        force: short|text
 
 #-----------------------------------------
 
@@ -814,6 +758,7 @@ odr_xsd_download:
     defaults: { _controller: ODRAdminBundle:XSD:downloadXSD }
     requirements:
         datatype_id:  \d+
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -856,42 +801,43 @@ odr_xml_download:
     defaults: { _controller: ODRAdminBundle:XML:downloadXML }
     requirements:
         datarecord_id: \d+
+
 #-----------------------------------------
 
 #-----------------------------------------
 # API stuff?
-odr_api_generate:
-    pattern:  /admin/api/generate
-    defaults: { _controller:ODRAdminBundle:Default:buildsitemap }
+#odr_api_generate:
+#    pattern:  /admin/api/generate
+#    defaults: { _controller:ODRAdminBundle:Default:buildsitemap }
 
-odr_api_list_types:
-    pattern:  /api/list/types
-    defaults: { _controller: ODRAdminBundle:Datatype:getlist }
+#odr_api_list_types:
+#    pattern:  /api/list/types
+#    defaults: { _controller: ODRAdminBundle:Datatype:getlist }
 
-odr_api_list_records:
-    pattern:  /api/list/records/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:ShortResults:recordlist }
-    requirements:
-        datatype_id: \d+
+#odr_api_list_records:
+#    pattern:  /api/list/records/{datatype_id}
+#    defaults: { _controller: ODRAdminBundle:ShortResults:recordlist }
+#    requirements:
+#        datatype_id: \d+
 
-odr_api_list_record:
-    pattern:  /api/get/record/{datarecord_id}
-    defaults: { _controller: ODRAdminBundle:XML:getXML }
-    requirements:
-        datarecord_id: \d+
+#odr_api_list_record:
+#    pattern:  /api/get/record/{datarecord_id}
+#    defaults: { _controller: ODRAdminBundle:XML:getXML }
+#    requirements:
+#        datarecord_id: \d+
 
-odr_api_map_datatype:
-    pattern:  /map/datatype/{datatype_id}/{datatype_name}
-    defaults: { _controller: ODRAdminBundle:ShortResults:map, datatype_name: '' }
-    requirements:
-        datatype_id: \d+
+#odr_api_map_datatype:
+#    pattern:  /map/datatype/{datatype_id}/{datatype_name}
+#    defaults: { _controller: ODRAdminBundle:ShortResults:map, datatype_name: '' }
+#    requirements:
+#        datatype_id: \d+
         # does this need some sort of restriction for datatype name?  theoretically it's just discarded, but...
 
-odr_api_map_datarecord:
-    pattern:  /map/datarecord/{datarecord_id}/{datarecord_name}
-    defaults: { _controller: ODRAdminBundle:Results:map, datarecord_name: '' }
-    requirements:
-        datarecord_id: \d+
+#odr_api_map_datarecord:
+#    pattern:  /map/datarecord/{datarecord_id}/{datarecord_name}
+#    defaults: { _controller: ODRAdminBundle:Results:map, datarecord_name: '' }
+#    requirements:
+#        datarecord_id: \d+
         # does this need some sort of restriction for datarecord name?  theoretically it's just discarded, but...
 #-----------------------------------------
 
@@ -932,6 +878,7 @@ odr_crypto_request:
     pattern: /beanstalk/crypto_request
     defaults: { _controller: ODRAdminBundle:Worker:cryptorequest }
     requirements: { _method: POST }
+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -1015,7 +962,6 @@ odr_flow_upload:
 
 #-----------------------------------------
 
-
 #-----------------------------------------
 # MassEdit Controller
 odr_mass_edit_render:
@@ -1042,7 +988,6 @@ odr_mass_update_worker_values:
     defaults: { _controller: ODRAdminBundle:MassEdit:massUpdateWorkerValues }
     requirements: { _method: POST }
 #-----------------------------------------
-
 
 #-----------------------------------------
 # CSVExport Controller
@@ -1084,6 +1029,8 @@ odr_csv_download:
         tracked_job_id: \d+
 
 #-----------------------------------------
+
+#-----------------------------------------
 # Job Controller
 odr_job_list:
     pattern:  /jobs/list
@@ -1113,6 +1060,8 @@ odr_delete_tracked_job:
     defaults: { _controller: ODRAdminBundle:Job:deletejob }
     requirements:
         job_id: \d+
+
+#-----------------------------------------
 
 #-----------------------------------------
 # Reports Controller
@@ -1171,12 +1120,10 @@ odr_get_file_encrypt_progress:
     requirements:
         file_id: \d+
 
+#-----------------------------------------
 
 #-----------------------------------------
 # Other stuff
-odr_dt_check:
-    pattern: /admin/dt_check
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:dtcheck }
 odr_dr_check:
     pattern: /admin/dr_check
     defaults: { _controller: ODRAdminBundle:Worker:drcheck }
@@ -1220,6 +1167,8 @@ odr_duplicate_radio_check:
 #    requirements:
 #        object_type: 'file|File|image|Image'
 
+
+#-----------------------------------------
 
 #-----------------------------------------
 # Metadata creation (one-time use)

@@ -9,37 +9,26 @@
  *
  * Builds the Form used for modifying Datatype properties via
  * the right slideout in DisplayTemplate.
+ *
  */
 
 namespace ODR\AdminBundle\Form;
 
-use Doctrine\ORM\EntityRepository;
-use ODR\AdminBundle\Entity\DataType;
+// Symfony Forms
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
-use Symfony\Component\OptionsResolver\OptionsResolverInterface;
+use Symfony\Component\OptionsResolver\OptionsResolver;
+// Symfony Form classes
+use Symfony\Bridge\Doctrine\Form\Type\EntityType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\TextareaType;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
+//
+use Doctrine\ORM\EntityRepository;
 
 
 class UpdateDataTypeForm extends AbstractType
 {
-
-    /** @var DataType */
-    protected $datatype;
-
-    /** @var bool */
-    protected $is_top_level;
-
-    /**
-     * UpdateDataTypeForm constructor.
-     *
-     * @param DataType $datatype
-     * @param bool $is_top_level  Whether the Datatype is top-level or not
-     */
-    public function __construct (\ODR\AdminBundle\Entity\DataType $datatype, $is_top_level) {
-        $this->datatype = $datatype;
-        $this->is_top_level = $is_top_level;
-    }
-
 
     /**
      * {@inheritdoc}
@@ -47,12 +36,12 @@ class UpdateDataTypeForm extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
         // Load values passed in via constructor
-        $datatype = $this->datatype;
-        $is_top_level = $this->is_top_level;
+        $datatype_id = $options['datatype_id'];
+        $is_top_level = $options['is_top_level'];
 
         $builder->add(
             'short_name',
-            'text',
+            TextType::class,
             array(
                 'required' => true,
                 'label' => 'Short Name',
@@ -61,7 +50,7 @@ class UpdateDataTypeForm extends AbstractType
 
         $builder->add(
             'long_name',
-            'text',
+            TextType::class,
             array(
                 'required' => true,
                 'label' => 'Long Name',
@@ -70,7 +59,7 @@ class UpdateDataTypeForm extends AbstractType
 
         $builder->add(
             'description',
-            'textarea',
+            TextareaType::class,
             array(
                 'required' => true,
                 'label' => 'Description',
@@ -79,62 +68,62 @@ class UpdateDataTypeForm extends AbstractType
 
         $builder->add(
             'externalIdField',
-            'entity',
+            EntityType::class,
             array(
                 'class' => 'ODR\AdminBundle\Entity\DataFields',
-                'query_builder' => function(EntityRepository $er) use ($datatype) {
+                'query_builder' => function(EntityRepository $er) use ($datatype_id) {
                     return $er->createQueryBuilder('df')
                                 ->where('df.is_unique = 1 AND df.dataType = ?1')
-                                ->setParameter(1, $datatype);
+                                ->setParameter(1, $datatype_id);
                 },
 
                 'label' => 'External ID Field',
-                'property' => 'field_name',
+                'choice_label' => 'field_name',
                 'expanded' => false,
                 'multiple' => false,
-                'empty_value' => 'NONE',
+                'placeholder' => 'NONE',
             )
         );
 
         $builder->add(
             'nameField',
-            'entity',
+            EntityType::class,
             array(
                 'class' => 'ODR\AdminBundle\Entity\DataFields',
-                'query_builder' => function(EntityRepository $er) use ($datatype) {
+                'query_builder' => function(EntityRepository $er) use ($datatype_id) {
                     return $er->createQueryBuilder('df')
                                 ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
                                 ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
                                 ->where('ft.canBeSortField = 1 AND df.dataType = ?1')
-                                ->setParameter(1, $datatype);
+                                ->setParameter(1, $datatype_id);
                 },
 
                 'label' => 'Name Field',
-                'property' => 'field_name',
+                'choice_label' => 'field_name',
                 'expanded' => false,
                 'multiple' => false,
-                'empty_value' => 'NONE',
+                'placeholder' => 'NONE',
             )
         );
 
         $builder->add(
             'sortField',
-            'entity',
+            EntityType::class,
             array(
                 'class' => 'ODR\AdminBundle\Entity\DataFields',
-                'query_builder' => function(EntityRepository $er) use ($datatype) {
+                'query_builder' => function(EntityRepository $er) use ($datatype_id) {
                     return $er->createQueryBuilder('df')
                                 ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
                                 ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
                                 ->where('ft.canBeSortField = 1 AND df.dataType = ?1')
-                                ->setParameter(1, $datatype);
+                                ->setParameter(1, $datatype_id);
                 },
 
                 'label' => 'Sort Field',
-                'property' => 'field_name',
+                'choice_label' => 'field_name',
                 'expanded' => false,
                 'multiple' => false,
-                'empty_value' => 'NONE',
+                'placeholder' => 'NONE',
             )
         );
 
@@ -142,29 +131,29 @@ class UpdateDataTypeForm extends AbstractType
             // Only provide options to change these properties if datatype is top-level...
             $builder->add(
                 'backgroundImageField',
-                'entity',
+                EntityType::class,
                 array(
                     'class' => 'ODR\AdminBundle\Entity\DataFields',
-                    'query_builder' => function(EntityRepository $er) use ($datatype) {
+                    'query_builder' => function(EntityRepository $er) use ($datatype_id) {
                         return $er->createQueryBuilder('df')
                             ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
                             ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
                             ->where('ft.typeName = ?1 AND df.dataType = ?2')
                             ->setParameter(1, 'Image')
-                            ->setParameter(2, $datatype);
+                            ->setParameter(2, $datatype_id);
                     },
 
                     'label' => 'Background Image Field',
-                    'property' => 'field_name',
+                    'choice_label' => 'field_name',
                     'expanded' => false,
                     'multiple' => false,
-                    'empty_value' => 'NONE',
+                    'placeholder' => 'NONE',
                 )
             );
 
             $builder->add(
                 'searchSlug',
-                'text',
+                TextType::class,
                 array(
                     'label' => 'Search Abbreviation',
                 )
@@ -172,13 +161,17 @@ class UpdateDataTypeForm extends AbstractType
 
             $builder->add(
                 'useShortResults',
-                'choice',
+                ChoiceType::class,
                 array(
-                    'choices' => array('0' => 'TextResults', '1' => 'ShortResults'),
+                    'choices' => array(
+                        'TextResults' => 0,
+                        'ShortResults' => 1
+                    ),
+                    'choices_as_values' => true,
                     'label' => 'Short Display',
                     'expanded' => false,
                     'multiple' => false,
-                    'empty_value' => false
+                    'placeholder' => false
                 )
             );
         }
@@ -197,11 +190,31 @@ class UpdateDataTypeForm extends AbstractType
 
 
     /**
+     * Returns the prefix of the template block name for this type.
+     *
+     * The block prefixes default to the underscored short class name with
+     * the "Type" suffix removed (e.g. "UserProfileType" => "user_profile").
+     *
+     * @return string The prefix of the template block name
+     */
+    public function getBlockPrefix()
+    {
+        return 'UpdateDataTypeForm';
+    }
+
+
+    /**
      * {@inheritdoc}
      */
-    public function setDefaultOptions(OptionsResolverInterface $resolver)
+    public function configureOptions(OptionsResolver $resolver)
     {
-//        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataType'));
-        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataTypeMeta'));
+        $resolver->setDefaults(array(
+            'data_class' => 'ODR\AdminBundle\Entity\DataTypeMeta',
+            'datatype_id' => null,
+            'is_top_level' => null,
+        ));
+
+        $resolver->setRequired('datatype_id');
+        $resolver->setRequired('is_top_level');
     }
 }

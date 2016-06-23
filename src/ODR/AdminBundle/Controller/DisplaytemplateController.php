@@ -149,6 +149,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Perform a series of DQL mass updates to immediately remove everything that could break if it wasn't deleted...
+/*
             // ...datarecordfield entries
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:DataRecordFields AS drf
@@ -156,7 +157,7 @@ class DisplaytemplateController extends ODRCustomController
                 WHERE drf.dataField = :datafield AND drf.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'datafield' => $datafield->getId()) );
             $rows = $query->execute();
-
+*/
             // ...theme_datafield entries
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:ThemeDataField AS tdf
@@ -723,7 +724,7 @@ class DisplaytemplateController extends ODRCustomController
             $query->execute();
 */
             // Delete any leftover ThemeDatatype entries that refer to $datatypes_to_delete...these would be other datatypes linking to the ones being deleted
-            // (if block above is commented, then it'll also arbitrarily delete child datatypes
+            // (if block above is commented, then it'll also arbitrarily delete themeDatatype entries for child datatypes)
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:ThemeDataType AS tdt
                 SET tdt.deletedAt = :now, tdt.deletedBy = :deleted_by
@@ -835,64 +836,6 @@ class DisplaytemplateController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * Debug function to locate/delete undeleted children of deleted datatypes
-     *
-     * @param Request $request
-     */
-    public function dtcheckAction(Request $request)
-    {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
-        $em->getFilters()->disable('softdeleteable');
-        $query = $em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, ancestor_meta.shortName AS ancestor_name, dt.id AS datatree_id, descendant.id AS descendant_id, descendant_meta.shortName AS descendant_name
-            FROM ODRAdminBundle:DataType AS ancestor
-            JOIN ODRAdminBundle:DataTypeMeta AS ancestor_meta WITH ancestor_meta.dataType = ancestor
-            JOIN ODRAdminBundle:DataTree AS dt WITH dt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            JOIN ODRAdminBundle:DataTypeMeta AS descendant_meta WITH descendant_meta.dataType = descendant
-            WHERE dt.is_link = 0
-            AND ancestor.deletedAt IS NOT NULL AND ancestor_meta.deletedAt IS NULL AND descendant.deletedAt IS NULL AND descendant_meta.deletedAt IS NULL');
-        $results = $query->getResult();
-        $em->getFilters()->enable('softdeleteable');
-//print_r($results);
-//return;
-
-print '<pre>';
-        foreach ($results as $result) {
-            $ancestor_id = $result['ancestor_id'];
-            $ancestor_name = $result['ancestor_name'];
-            $datatree_id = $result['datatree_id'];
-            $descendant_id = $result['descendant_id'];
-            $descendant_name = $result['descendant_name'];
-
-            print 'DataType '.$ancestor_id.' ('.$ancestor_name.') deleted, but childtype '.$descendant_id.' ('.$descendant_name.') still exists'."\n";
-/*
-            print '-- undeleting ancestor...'."\n";
-
-            // temporarily undelete the ancestor datatype that didn't get properly deleted
-            $em->getFilters()->disable('softdeleteable');
-            $query = $em->createQuery(
-                'UPDATE ODRAdminBundle:DataType AS dt SET dt.deletedAt = NULL WHERE dt.id = :ancestor'
-            )->setParameters( array('ancestor' => $ancestor_id) );
-            $query->execute();
-            $query = $em->createQuery(
-                'UPDATE ODRAdminBundle:DataTree AS dt SET dt.deletedAt = NULL WHERE dt.id = :datatree'
-            )->setParameters( array('datatree' => $datatree_id) );
-            $query->execute();
-            $em->getFilters()->enable('softdeleteable');
-
-            // Get displaytemplate controller to properly delete it this time
-            self::deletedatatypeAction($ancestor_id, $request);
-            print '---- ancestor deleted again'."\n";
-*/
-        }
-print '</pre>';
     }
 
 
@@ -1036,15 +979,15 @@ print '</pre>';
 
             // Populate new Datatree form
             $submitted_data = new DataTreeMeta();
-            $datatree_form = $this->createForm(new UpdateDataTreeForm($datatree), $submitted_data);
+            $datatree_form = $this->createForm(UpdateDataTreeForm::class, $submitted_data);
 
-            if ($request->getMethod() == 'POST') {
-                $datatree_form->bind($request, $submitted_data);
+            $datatree_form->handleRequest($request);
+
+            if ( $datatree_form->isSubmitted() ) {
 
                 // Ensure that "multiple allowed" is true if required
                 if ($force_multiple) 
                     $submitted_data->setMultipleAllowed(true);
-
 
                 if ( $datatree_form->isValid() ) {
                     // If a value in the form changed, create a new DataTree entity to store the change
@@ -1053,19 +996,16 @@ print '</pre>';
                         'is_link' => $submitted_data->getIsLink(),
                     );
                     parent::ODR_copyDatatreeMeta($em, $user, $datatree, $properties);
-/*
+
+
                     // TODO - modify cached version of datatype directly?
-                    $options = array();
-                    $options['mark_as_updated'] = true;
-                    parent::updateDatatypeCache($datatype_id, $options);
-*/
                     parent::tmp_updateDatatypeCache($em, $datatype, $user);
                 }
-/*
                 else {
-                    throw new \Exception( parent::ODR_getErrorMessages($form) );
+                    // Form validation failed
+                    $error_str = parent::ODR_getErrorMessages($datatree_form);
+                    throw new \Exception($error_str);
                 }
-*/
             }
 
         }
@@ -2529,6 +2469,19 @@ print '</pre>';
                 $render_plugin_instance = $repo_render_plugin_instance->findOneBy( array('renderPlugin' => $current_render_plugin, 'dataField' => $datafield) );
             }
 
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'design' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+
             // Get Templating Object
             $templating = $this->get('templating');
             $return['d'] = array(
@@ -3798,6 +3751,17 @@ print '</pre>';
                 $theme_datatype = $results[0];
             }
 
+            // Store the current external id/name/sort datafield ids
+            $old_external_id_field = $datatype->getExternalIdField();
+            if ($old_external_id_field !== null)
+                $old_external_id_field = $old_external_id_field->getId();
+            $old_namefield = $datatype->getNameField();
+            if ($old_namefield !== null)
+                $old_namefield = $old_namefield->getId();
+            $old_sortfield = $datatype->getSortField();
+            if ($old_sortfield !== null)
+                $old_sortfield = $old_sortfield->getId();
+
 
             // Create the form for the Datatype
             $submitted_data = new DataTypeMeta();
@@ -3805,13 +3769,10 @@ print '</pre>';
             if ($datatree !== null)
                 $is_top_level = false;
 
-            $datatype_form = $this->createForm(new UpdateDataTypeForm($datatype, $is_top_level), $submitted_data);
+            $datatype_form = $this->createForm(UpdateDataTypeForm::class, $submitted_data, array('datatype_id' => $datatype->getId(), 'is_top_level' => $is_top_level));
+            $datatype_form->handleRequest($request);
 
-
-            if ($request->getMethod() == 'POST') {
-                // Bind the changes to the datatype form
-                $datatype_form->bind($request, $submitted_data);
-                $return['t'] = "html";
+            if ($datatype_form->isSubmitted()) {
 
                 if ( $submitted_data->getSearchSlug() !== $datatype->getSearchSlug() ) {
                     // ...check that a change to the search slug doesn't collide with an existing search slug
@@ -3835,23 +3796,40 @@ print '</pre>';
 //$datatype_form->addError( new FormError('do not save') );
 
                 if ($datatype_form->isValid()) {
-/*
-                    // If any of the external/name/sort datafields got changed, clear the relevant cache fields for datarecords of this datatype
-                    if ($old_external_field !== $external_id_field) {
-                        $query = $em->createQuery('UPDATE ODRAdminBundle:DataRecord AS dr SET dr.external_id = NULL WHERE dr.dataType = :datatype')->setParameters( array('datatype' => $datatype_id) );
-                        $num_updated = $query->execute();
-                    }
-                    if ($old_namefield !== $namefield) {
-                        $query = $em->createQuery('UPDATE ODRAdminBundle:DataRecord AS dr SET dr.namefield_value = NULL WHERE dr.dataType = :datatype')->setParameters( array('datatype' => $datatype_id) );
-                        $num_updated = $query->execute();
-                    }
-                    if ($old_sortfield !== $sortfield) {
-                        $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
 
-                        $query = $em->createQuery('UPDATE ODRAdminBundle:DataRecord AS dr SET dr.sortfield_value = NULL WHERE dr.dataType = :datatype')->setParameters( array('datatype' => $datatype_id) );
-                        $num_updated = $query->execute();
+                    // If any of the external/name/sort datafields got changed, clear the relevant cache fields for datarecords of this datatype
+                    $new_external_id_field = $submitted_data->getExternalIdField();
+                    if ($new_external_id_field !== null)
+                        $new_external_id_field = $new_external_id_field->getId();
+                    $new_namefield = $submitted_data->getNameField();
+                    if ($new_namefield !== null)
+                        $new_namefield = $new_namefield->getId();
+                    $new_sortfield = $submitted_data->getSortField();
+                    if ($new_sortfield !== null)
+                        $new_sortfield = $new_sortfield->getId();
+
+                    if ($parent_datatype_id !== '' && ($old_external_id_field !== $new_external_id_field || $old_namefield !== $new_namefield || $old_sortfield !== $new_sortfield) ) {
+                        // Locate all datarecords of this datatype
+                        $query = $em->createQuery(
+                           'SELECT dr.id AS dr_id
+                            FROM ODRAdminBundle:DataRecord AS dr
+                            WHERE dr.dataType = :datatype_id
+                            AND dr.deletedAt IS NULL'
+                        )->setParameters(array('datatype_id' => $datatype->getId()));
+                        $results = $query->getArrayResult();
+
+                        // Wipe all cached entries for these datarecords
+                        // TODO - update them instead?
+                        $memcached = $this->get('memcached');
+                        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+                        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+                        foreach ($results as $result) {
+                            $dr_id = $result['dr_id'];
+                            $memcached->delete($memcached_prefix.'.cached_datarecord_'.$dr_id);
+                        }
                     }
-*/
+
 
                     $properties = array(
                         'renderPlugin' => $datatype->getRenderPlugin()->getId(),
@@ -3884,14 +3862,8 @@ print '</pre>';
                         $properties['backgroundImageField'] = $submitted_data->getBackgroundImageField()->getId();
 
                     parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
-/*
-                    // TODO - modify cached version of datatype directly?
-                    // Schedule the cache for an update
-                    $options = array();
-                    $options['mark_as_updated'] = true;
 
-                    parent::updateDatatypeCache($datatype->getId(), $options);
-*/
+                    // TODO - modify cached version of datatype directly?
                     parent::tmp_updateDatatypeCache($em, $datatype, $user);
                 }
                 else {
@@ -3900,23 +3872,21 @@ print '</pre>';
                     throw new \Exception($error_str);
                 }
             }
-
-
-            if ( $request->getMethod() == 'GET' ) {
+            else {
                 // Create the required form objects
                 $datatype_meta = $datatype->getDataTypeMeta();
                 $is_top_level = true;
                 if ( $parent_datatype_id !== '' && $parent_datatype_id !== $datatype_id )
                     $is_top_level = false;
 
-                $datatype_form = $this->createForm(new UpdateDataTypeForm($datatype, $is_top_level), $datatype_meta);
+                $datatype_form = $this->createForm(UpdateDataTypeForm::class, $datatype_meta, array('datatype_id' => $datatype->getId(), 'is_top_level' => $is_top_level));
 
 
                 // Create the form for the Datatree entity (stores whether the parent datatype is allowed to have multiple datarecords of the child datatype)
                 $force_multiple = false;
                 $datatree_form = null;
                 if ($datatree_meta !== null) {
-                    $datatree_form = $this->createForm(new UpdateDataTreeForm($datatree_meta), $datatree_meta)->createView();
+                    $datatree_form = $this->createForm(UpdateDataTreeForm::class, $datatree_meta)->createView();
 
                     $results = array();
                     if ($datatree_meta->getIsLink() == 0) {
@@ -3960,11 +3930,11 @@ print '</pre>';
                 // Create the form for the ThemeDatatype entry (stores whether the child/linked datatype should use 'accordion', 'tabbed', 'dropdown', or 'list' rendering style)
                 $theme_datatype_form = null;
                 if ($theme_datatype !== null)
-                    $theme_datatype_form = $this->createForm(new UpdateThemeDatatypeForm($theme_datatype), $theme_datatype)->createView();
+                    $theme_datatype_form = $this->createForm(UpdateThemeDatatypeForm::class, $theme_datatype)->createView();
 
                 // Determine whether user can view permissions of other users
                 $can_view_permissions = false;
-                if ($user->hasRole('ROLE_SUPER_ADMIN') || (isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['admin'])) )
+                if ( $user->hasRole('ROLE_SUPER_ADMIN') || ( isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['admin']) ) )
                     $can_view_permissions = true;
 
 
@@ -3980,11 +3950,11 @@ print '</pre>';
                         'can_view_permissions' => $can_view_permissions,
 
                         'datatree' => $datatree,
-                        'datatree_form' => $datatree_form,
+                        'datatree_form' => $datatree_form,              // not creating view here because form could be legitimately null
                         'force_multiple' => $force_multiple,
 
                         'theme_datatype' => $theme_datatype,
-                        'theme_datatype_form' => $theme_datatype_form,
+                        'theme_datatype_form' => $theme_datatype_form,  // not creating view here because form could be legitimately null
                     )
                 );
             }
@@ -4031,7 +4001,6 @@ print '</pre>';
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
 
-            $em->refresh($datafield);
             $datatype = $datafield->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
@@ -4052,45 +4021,25 @@ print '</pre>';
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-            // Always bypass cache in dev mode
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
+
+            // Get current datafieldMeta entry
+            $current_datafield_meta = $datafield->getDataFieldMeta();
 
 
-            // --------------------
+            // ----------------------------------------
             // Need to immediately force a reload of the right design slideout if certain fieldtypes change
             $force_slideout_reload = false;
 
             // Keep track of conditions where parts of the datafield shouldn't be changed...
-            $prevent_fieldtype_change = false;
-            $prevent_fieldtype_change_message = '';
-            $prevent_datafield_deletion = false;
-            $prevent_datafield_deletion_message = '';
+            $ret = self::canDeleteDatafield($em, $datafield);
+            $prevent_datafield_deletion = $ret['prevent_deletion'];
+            $prevent_datafield_deletion_message = $ret['prevent_deletion_message'];
+            $ret = self::canChangeFieldtype($em, $datafield);
+            $prevent_fieldtype_change = $ret['prevent_change'];
+            $prevent_fieldtype_change_message = $ret['prevent_change_message'];
 
 
-            //
-            if ($datatype->getExternalIdField() !== null && $datatype->getExternalIdField()->getId() == $datafield->getId()) {
-                $prevent_datafield_deletion = true;
-                $prevent_datafield_deletion_message = "This datafield is currently in use as the Datatype's external ID field...unable to delete";
-            }
-
-
-            // --------------------
-            // Get relevant theme_datafield entry for this datatype's master theme
-            $query = $em->createQuery(
-               'SELECT tdf
-                FROM ODRAdminBundle:ThemeElement AS te
-                JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
-                WHERE te.theme = :theme_id AND tdf.dataField = :datafield
-                AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL'
-            )->setParameters( array('theme_id' => $theme->getId(), 'datafield' => $datafield->getId()) );
-            $result = $query->getResult();
-            /** @var ThemeDataField $theme_datafield */
-            $theme_datafield = $result[0];
-
-
-            // --------------------
+            // ----------------------------------------
             // Check to see whether the "allow multiple uploads" checkbox for file/image control needs to be disabled
             $need_refresh = false;
             $has_multiple_uploads = 0;
@@ -4103,9 +4052,10 @@ print '</pre>';
                     JOIN ODRAdminBundle:DataFields AS df WITH e.dataField = df
                     JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
                     WHERE e.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.id = :datafield';
-                    if ($typeclass == 'Image')
-                        $str .= ' AND e.original = 1 ';
-                    $str .= ' GROUP BY dr.id';
+                if ($typeclass == 'Image')
+                    $str .= ' AND e.original = 1 ';
+                $str .= ' GROUP BY dr.id';
+
                 $query = $em->createQuery($str)->setParameters( array('datafield' => $datafield) );
                 $results = $query->getResult();
 
@@ -4131,11 +4081,13 @@ print '</pre>';
                 }
             }
 
-            if ($need_refresh)
+            if ($need_refresh) {
                 $em->refresh($datafield);
+                $current_datafield_meta = $datafield->getDataFieldMeta();
+            }
 
 
-            // --------------------
+            // ----------------------------------------
             // Get a list of fieldtype ids that the datafield is allowed to have
             /** @var FieldType[] $tmp */
             $tmp = $repo_fieldtype->findAll();
@@ -4182,57 +4134,40 @@ print '</pre>';
             }
 
             // The allowed fieldtypes could be restricted by both the datafield's render plugin and the datafield's datatype's render plugin...
-            // ...use the more restrictive of the two conditions
-            if ( count($df_fieldtypes) < count($dt_fieldtypes) )
-                $allowed_fieldtypes = $df_fieldtypes;
-            else
-                $allowed_fieldtypes = $dt_fieldtypes;
+            // ...use the intersection of the restriction
+            $allowed_fieldtypes = array_intersect($df_fieldtypes, $dt_fieldtypes);
+            $allowed_fieldtypes = array_values($allowed_fieldtypes);
 
 
-            // Prevent a datatfield's fieldtype from being changed if a migration is in progress
-            /** @var TrackedJob $tracked_job */
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'target_entity' => 'datafield_'.$datafield->getId(), 'completed' => null) );
-            if ($tracked_job !== null) {
-                $prevent_fieldtype_change = true;
-                $prevent_fieldtype_change_message = "The Fieldtype can't be changed because the server hasn't finished migrating this Datafield's data to the currently displayed Fieldtype.";
-            }
-
-            // Also prevent a fieldtype change if the datafield is marked as unique
-            if ($datafield->getIsUnique() == true) {
-                $prevent_fieldtype_change = true;
-                $prevent_fieldtype_change_message = "The Fieldtype can't be changed because the Datafield is currently marked as Unique.";
-            }
-
-
-            // --------------------
+            // ----------------------------------------
             // Populate new DataFields form
             $submitted_data = new DataFieldsMeta();
-            $datafield_form = $this->createForm(new UpdateDataFieldsForm($allowed_fieldtypes), $submitted_data);
+            $datafield_form = $this->createForm(UpdateDataFieldsForm::class, $submitted_data, array('allowed_fieldtypes' => $allowed_fieldtypes) );
 
-//            $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm(), $theme_datafield);
-            if ($request->getMethod() == 'POST') {
+            $datafield_form->handleRequest($request);
 
-                // --------------------
-                // Deal with change of fieldtype
-                $old_fieldtype = null;
-                $new_fieldtype = null;
+            if ($datafield_form->isSubmitted()) {
+
+                // ----------------------------------------
+                // Deal with possible change of fieldtype
+                $old_fieldtype = $current_datafield_meta->getFieldType();
+                $old_fieldtype_id = $old_fieldtype->getId();
+                $new_fieldtype = $submitted_data->getFieldType();
+
+                $new_fieldtype_id = $old_fieldtype_id;
+                if ($new_fieldtype !== null)
+                    $new_fieldtype_id = $new_fieldtype->getId();
+
                 $migrate_data = false;
-                $extra_fields = $request->request->get('DataFieldsForm');
-                $normal_fields = $request->request->get('DatafieldsForm');
-                if ( isset($extra_fields['previous_field_type']) && isset($normal_fields['field_type']) ) {
-                    $old_fieldtype_id = $extra_fields['previous_field_type'];
-                    $new_fieldtype_id = $normal_fields['field_type'];
 
+                if ( $old_fieldtype_id !== $new_fieldtype_id ) {
                     // If not allowed to change fieldtype or not allowed to change to this fieldtype...
                     if ( $prevent_fieldtype_change || !in_array($new_fieldtype_id, $allowed_fieldtypes) ) {
-                        // ...forcibly revert back to old fieldtype
-                        $new_fieldtype_id = $old_fieldtype_id;
+                        // ...revert back to old fieldtype
                         $prevent_fieldtype_change = true;
                     }
-
-                    // Determine if we need to migrate the data over to the new fieldtype
-                    if ($old_fieldtype_id !== $new_fieldtype_id) {
-                        // Grab necessary objects
+                    else {
+                        // Determine if we need to migrate the data over to the new fieldtype
                         /** @var FieldType $old_fieldtype */
                         $old_fieldtype = $repo_fieldtype->find($old_fieldtype_id);
                         /** @var FieldType $new_fieldtype */
@@ -4297,15 +4232,6 @@ print '</pre>';
                     }
                 }
 
-                // Save old fieldtype incase it somehow got changed when it shouldn't...
-                $old_fieldtype = $datafield->getFieldType();
-                $old_fieldname = $datafield->getFieldName();
-                $old_shortenfilename = $datafield->getShortenFilename();
-                $old_allowmultipleuploads = $datafield->getAllowMultipleUploads();
-
-                // Deal with the rest of the form
-                $datafield_form->bind($request, $submitted_data);
-
                 // If not allowed to change fieldtype, ensure the datafield always has the old fieldtype
                 if ($prevent_fieldtype_change) {
                     $submitted_data->setFieldType( $old_fieldtype );
@@ -4313,27 +4239,28 @@ print '</pre>';
                     $force_slideout_reload = false;
                 }
 
+
+                // ----------------------------------------
+                // If datafield is being used as the datatype's external ID field, ensure it's marked as unique
+                if ( $datatype->getExternalIdField() !== null && $datatype->getExternalIdField()->getId() == $datafield->getId() )
+                    $submitted_data->setIsUnique(true);
+
                 // If the datafield got set to unique...
-                if ( isset($normal_fields['is_unique']) && $normal_fields['is_unique'] == 1 ) {
+                if ( !$current_datafield_meta->getIsUnique() && $submitted_data->getIsUnique() ) {
                     // ...if it has duplicate values, manually add an error to the Symfony form...this will conveniently cause the subsequent isValid() call to fail
                     if ( !self::datafieldCanBeUnique($em, $datafield) )
                         $datafield_form->addError( new FormError("This Datafield can't be set to 'unique' because some Datarecords have duplicate values stored in this Datafield...click the gear icon to list which ones.") ); 
                 }
 
+                // If the unique status of the datafield got changed at all, force a slideout reload so the fieldtype will have the correct state
+                if ( $current_datafield_meta->getIsUnique() != $submitted_data->getIsUnique() )
+                    $force_slideout_reload = true;
 
 //$datafield_form->addError( new FormError("Do not save") );
-/*
-$errors = parent::ODR_getErrorMessages($datafield_form);
-print_r($errors);
-*/
 
-                // --------------------
-                $return['t'] = "html";
+
                 if ($datafield_form->isValid()) {
-
-                    // If datafield is being used as the datatype's external ID field, ensure it's marked as unique
-                    if ( $datafield->getDataType()->getExternalIdField() !== null && $datafield->getDataType()->getExternalIdField()->getId() == $datafield->getId() )
-                        $submitted_data->setIsUnique(true);
+                    // No errors in form
 
                     // ----------------------------------------
                     // Easier to deal with change of fieldtype and how it relates to searchable here
@@ -4367,7 +4294,7 @@ print_r($errors);
                     // ----------------------------------------
                     // If the fieldtype changed, then check several of the properties to see if they need changed too...
                     $update_field_order = false;
-                    if ($new_fieldtype !== null) {
+                    if ( $old_fieldtype_id !== $new_fieldtype_id ) {
                         // Reset the datafield's displayOrder if it got changed to a fieldtype that can't go in TextResults
                         switch ( $new_fieldtype->getTypeName() ) {
                             case 'Image':
@@ -4375,16 +4302,13 @@ print_r($errors);
                             case 'Multiple Select':
                             case 'Markdown':
                                 // Datafields with these fieldtypes can't be in TextResults
-//                                $submitted_data->setDisplayOrder(-1);
                                 $update_field_order = true;
                                 break;
 
                             case 'File':
                                 // File datafields can be in TextResults if they're only allowed to have a single upload
-                                if ( $submitted_data->getAllowMultipleUploads() == '1' ) {
-//                                    $submitted_data->setDisplayOrder(-1);
+                                if ( $submitted_data->getAllowMultipleUploads() == '1' )
                                     $update_field_order = true;
-                                }
                                 break;
 
                             default:
@@ -4404,14 +4328,12 @@ print_r($errors);
                     }
 
                     // Ensure a File datafield isn't in TextResults if it is set to allow multiple uploads
-                    if ( $old_allowmultipleuploads == '0' && $submitted_data->getAllowMultipleUploads() == '1' ) {
-//                        $submitted_data->setDisplayOrder(-1);
+                    if ( !$current_datafield_meta->getAllowMultipleUploads() && $submitted_data->getAllowMultipleUploads() )
                         $update_field_order = true;
-                    }
 
                     // If the radio options are now supposed to be sorted by name, do that
                     $sort_radio_options = false;
-                    if ( $submitted_data->getRadioOptionNameSort() == true && $datafield->getRadioOptionNameSort() == false )
+                    if ( $submitted_data->getRadioOptionNameSort() == true && $current_datafield_meta->getRadioOptionNameSort() == false )
                         $sort_radio_options = true;
 
 
@@ -4448,87 +4370,13 @@ print_r($errors);
                         self::radiooptionorderAction($datafield->getId(), true, $request);  // TODO - might be race condition issue with design_ajax
 
                     if ($update_field_order)
-                        self::updateTextResultsFieldOrder($em, $user, $datatype, $datafield);
+                        self::removeDatafieldFromTableThemes($em, $user, $datafield);
+
+                    if ($migrate_data)
+                        self::startDatafieldMigration($em, $user, $datafield, $old_fieldtype, $new_fieldtype);
 
 
                     // ----------------------------------------
-                    // If datafields are getting migrated, then the datatype will get updated
-                    if ($migrate_data) {
-                        // Grab necessary stuff for pheanstalk...
-                        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-                        $api_key = $this->container->getParameter('beanstalk_api_key');
-                        $pheanstalk = $this->get('pheanstalk');
-
-                        $url = $this->container->getParameter('site_baseurl');
-                        $url .= $this->container->get('router')->generate('odr_migrate_field');
-
-                        // Locate all datarecords of this datatype for purposes of this fieldtype migration
-                        $query = $em->createQuery(
-                           'SELECT dr.id
-                            FROM ODRAdminBundle:DataRecord AS dr
-                            WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
-                        )->setParameters( array('dataType' => $datatype) );
-                        $results = $query->getResult();
-
-                        if ( count($results) > 0 ) {
-                            // ----------------------------------------
-                            // Need to determine the top-level datatype this datafield belongs to, so other background processes won't attempt to render any part of it and disrupt the migration
-                            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-                            $top_level_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datafield->getDataType()->getId());
-
-
-                            // Get/create an entity to track the progress of this datafield migration
-                            $job_type = 'migrate';
-                            $target_entity = 'datafield_'.$datafield->getId();
-                            $additional_data = array('description' => '', 'old_fieldtype' => $old_fieldtype->getTypeName(), 'new_fieldtype' => $new_fieldtype->getTypeName());
-                            $restrictions = 'datatype_'.$top_level_datatype_id;
-                            $total = count($results);
-                            $reuse_existing = false;
-
-                            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
-                            $tracked_job_id = $tracked_job->getId();
-
-
-                            // ----------------------------------------
-                            // Create jobs for beanstalk to asynchronously migrate data
-                            foreach ($results as $num => $result) {
-                                $datarecord_id = $result['id'];
-
-                                // Insert the new job into the queue
-//                                $priority = 1024;   // should be roughly default priority
-                                $payload = json_encode(
-                                    array(
-                                        "tracked_job_id" => $tracked_job_id,
-                                        "user_id" => $user->getId(),
-                                        "datarecord_id" => $datarecord_id,
-                                        "datafield_id" => $datafield->getId(),
-                                        "old_fieldtype_id" => $old_fieldtype->getId(),
-                                        "new_fieldtype_id" => $new_fieldtype->getId(),
-//                                        "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                                        "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                                        "url" => $url,
-                                        "api_key" => $api_key,
-                                    )
-                                );
-
-                                $pheanstalk->useTube('migrate_datafields')->put($payload);
-                            }
-
-                            // TODO - Lock the datatype so no more edits?
-                            // TODO - Lock other stuff?
-                        }
-                    }
-
-                    $datatype = $datafield->getDataType();
-/*
-                    $options = array();
-                    $options['mark_as_updated'] = true;
-                    $options['force_shortresults_recache'] = $force_shortresults_recache;
-                    if ($datafield->getDisplayOrder() != -1)
-                        $options['force_textresults_recache'] = true;
-
-                    parent::updateDatatypeCache($datatype->getId(), $options);
-*/
                     // TODO - directly update cache?
                     parent::tmp_updateDatatypeCache($em, $datatype, $user);
                 }
@@ -4541,27 +4389,46 @@ print_r($errors);
             }
 
 
-            // --------------------
-            // Return the html for the right slideout if necessary
-/*
-print count($datafield_form->getErrors())."\n";
-if ($force_slideout_reload)
-    print 'forcing reload'."\n";
-*/
-            if ( $request->getMethod() == 'GET' || count($datafield_form->getErrors()) > 0 || $force_slideout_reload == true ) {
+            if ( !$datafield_form->isSubmitted() || !$datafield_form->isValid() || $force_slideout_reload ) {
+                // This was a GET request, or the form wasn't valid originally, or the form was valid but needs to be reloaded anyways
                 $em->refresh($datafield);
-                $em->refresh($theme_datafield);
+                $em->refresh($datafield->getDataFieldMeta());
 
+                // ----------------------------------------
+                // Get relevant theme_datafield entry for this datatype's master theme and create the associated form
+                $query = $em->createQuery(
+                   'SELECT tdf
+                    FROM ODRAdminBundle:ThemeElement AS te
+                    JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
+                    WHERE te.theme = :theme_id AND tdf.dataField = :datafield
+                    AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL'
+                )->setParameters( array('theme_id' => $theme->getId(), 'datafield' => $datafield->getId()) );
+                $result = $query->getResult();
+                /** @var ThemeDataField $theme_datafield */
+                $theme_datafield = $result[0];
+                $theme_datafield_form = $this->createForm(UpdateThemeDatafieldForm::class, $theme_datafield);
+
+
+                // Create the form for the datafield entry
                 $datafield_meta = $datafield->getDataFieldMeta();
-                $datafield_form = $this->createForm(new UpdateDataFieldsForm($allowed_fieldtypes), $datafield_meta);
+                $datafield_form = $this->createForm(UpdateDataFieldsForm::class, $datafield_meta, array('allowed_fieldtypes' => $allowed_fieldtypes) );
 
-                $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm(), $theme_datafield);
+
+                // Keep track of conditions where parts of the datafield shouldn't be changed...
+                $ret = self::canDeleteDatafield($em, $datafield);
+                $prevent_datafield_deletion = $ret['prevent_deletion'];
+                $prevent_datafield_deletion_message = $ret['prevent_deletion_message'];
+                $ret = self::canChangeFieldtype($em, $datafield);
+                $prevent_fieldtype_change = $ret['prevent_change'];
+                $prevent_fieldtype_change_message = $ret['prevent_change_message'];
+
+
+                // Render the html for the form
                 $templating = $this->get('templating');
-
                 $return['d'] = array(
                     'force_slideout_reload' => $force_slideout_reload,
                     'html' => $templating->render(
-                        'ODRAdminBundle:Displaytemplate:datafield_properties_form.html.twig', 
+                        'ODRAdminBundle:Displaytemplate:datafield_properties_form.html.twig',
                         array(
                             'has_multiple_uploads' => $has_multiple_uploads,
                             'prevent_fieldtype_change' => $prevent_fieldtype_change,
@@ -4577,6 +4444,7 @@ if ($force_slideout_reload)
                     )
                 );
             }
+
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -4591,17 +4459,168 @@ if ($force_slideout_reload)
 
 
     /**
+     * Helper function to determine whether a datafield can be deleted
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param DataFields $datafield
+     *
+     * @return array
+     */
+    private function canDeleteDatafield($em, $datafield)
+    {
+        $ret = array(
+            'prevent_deletion' => false,
+            'prevent_deletion_message' => '',
+        );
+
+        $datatype = $datafield->getDataType();
+        if ($datatype->getExternalIdField() !== null && $datatype->getExternalIdField()->getId() == $datafield->getId()) {
+            $ret = array(
+                'prevent_deletion' => true,
+                'prevent_deletion_message' => "This datafield is currently in use as the Datatype's external ID field...unable to delete",
+            );
+        }
+
+        return $ret;
+    }
+
+
+    /**
+     * Helper function to determine whether a datafield can have its fieldtype changed
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param DataFields $datafield
+     *
+     * @return array
+     */
+    private function canChangeFieldtype($em, $datafield)
+    {
+        $ret = array(
+            'prevent_change' => false,
+            'prevent_change_message' => '',
+        );
+
+        // Prevent a datatfield's fieldtype from being changed if a migration is in progress
+        /** @var TrackedJob $tracked_job */
+        $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => 'migrate', 'target_entity' => 'datafield_'.$datafield->getId(), 'completed' => null) );
+        if ($tracked_job !== null) {
+            $ret = array(
+                'prevent_change' => true,
+                'prevent_change_message' => "The Fieldtype can't be changed because the server hasn't finished migrating this Datafield's data to the currently displayed Fieldtype.",
+            );
+        }
+
+        // Also prevent a fieldtype change if the datafield is marked as unique
+        if ($datafield->getIsUnique() == true) {
+            $ret = array(
+                'prevent_change' => true,
+                'prevent_change_message' => "The Fieldtype can't be changed because the Datafield is currently marked as Unique.",
+            );
+        }
+
+        return $ret;
+    }
+
+
+    /**
+     * Begins the process of migrating a Datafield from one Fieldtype to another
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param DataFields $datafield
+     * @param FieldType $old_fieldtype
+     * @param FieldType $new_fieldtype
+     *
+     */
+    private function startDatafieldMigration($em, $user, $datafield, $old_fieldtype, $new_fieldtype)
+    {
+        // ----------------------------------------
+        // Grab necessary stuff for pheanstalk...
+        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $api_key = $this->container->getParameter('beanstalk_api_key');
+        $pheanstalk = $this->get('pheanstalk');
+
+        $url = $this->container->getParameter('site_baseurl');
+        $url .= $this->container->get('router')->generate('odr_migrate_field');
+
+        // Always bypass cache in dev mode
+        $bypass_cache = false;
+        if ($this->container->getParameter('kernel.environment') === 'dev')
+            $bypass_cache = true;
+
+
+        // ----------------------------------------
+        // Locate all datarecords of this datatype for purposes of this fieldtype migration
+        $datatype = $datafield->getDataType();
+        $query = $em->createQuery(
+           'SELECT dr.id
+            FROM ODRAdminBundle:DataRecord AS dr
+            WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
+        )->setParameters( array('dataType' => $datatype) );
+        $results = $query->getResult();
+
+        if ( count($results) > 0 ) {
+            // Need to determine the top-level datatype this datafield belongs to, so other background processes won't attempt to render any part of it and disrupt the migration
+            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+            $top_level_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datatype->getId());
+
+
+            // Get/create an entity to track the progress of this datafield migration
+            $job_type = 'migrate';
+            $target_entity = 'datafield_'.$datafield->getId();
+            $additional_data = array('description' => '', 'old_fieldtype' => $old_fieldtype->getTypeName(), 'new_fieldtype' => $new_fieldtype->getTypeName());
+            $restrictions = 'datatype_'.$top_level_datatype_id;
+            $total = count($results);
+            $reuse_existing = false;
+
+            $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
+            $tracked_job_id = $tracked_job->getId();
+
+
+            // ----------------------------------------
+            // Create jobs for beanstalk to asynchronously migrate data
+            foreach ($results as $num => $result) {
+                $datarecord_id = $result['id'];
+
+                // Insert the new job into the queue
+//                $priority = 1024;   // should be roughly default priority
+                $payload = json_encode(
+                    array(
+                        "tracked_job_id" => $tracked_job_id,
+                        "user_id" => $user->getId(),
+                        "datarecord_id" => $datarecord_id,
+                        "datafield_id" => $datafield->getId(),
+                        "old_fieldtype_id" => $old_fieldtype->getId(),
+                        "new_fieldtype_id" => $new_fieldtype->getId(),
+//                        "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
+                        "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                        "url" => $url,
+                        "api_key" => $api_key,
+                    )
+                );
+
+                $pheanstalk->useTube('migrate_datafields')->put($payload);
+            }
+
+            // TODO - Lock the datatype so no more edits?
+            // TODO - Lock other stuff?
+        }
+    }
+
+
+    /**
      * Called after a user makes a change that requires a datafield be removed from TextResults
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
-     * @param DataType $datatype
      * @param DataFields $removed_datafield
      *
      */
-    private function updateTextResultsFieldOrder($em, $user, $datatype, $removed_datafield)
+    private function removeDatafieldFromTableThemes($em, $user, $removed_datafield)
     {
         // Locate each table theme for this datatype
+        $datatype = $removed_datafield->getDataType();
+
         /** @var Theme[] $themes */
         $themes = $em->getRepository('ODRAdminBundle:Theme')->findBy( array('themeType' => 'table', 'dataType' => $datatype->getId()) );
         foreach ($themes as $theme) {

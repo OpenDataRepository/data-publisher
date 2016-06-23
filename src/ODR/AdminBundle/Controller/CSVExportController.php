@@ -484,6 +484,11 @@ return;
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new \Exception('Datatype does not exist');
+
             $datarecord_data = array();
 
             // ----------------------------------
@@ -539,7 +544,10 @@ return;
 */
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            $external_id = $datarecord->getExternalId();
+            if ($datarecord == null)
+                throw new \Exception('Datarecord does not exist');
+
+            $external_id = $datarecord->getExternalId();        // TODO - marked as deprecated, but should it actually be used here?
 
             // ----------------------------------
             // Grab data for each of the datafields selected for export

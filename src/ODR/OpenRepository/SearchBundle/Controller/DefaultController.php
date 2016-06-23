@@ -773,7 +773,7 @@ if ($debug) {
 
 
             // -----------------------------------
-            // TODO - better error handling, likely need more options as well
+            // TODO - better error handling, likely need more options as well...going to need a way to get which theme the user wants to use too
             // Grab the desired theme to use for rendering search results
             $theme_type = null;
             if ($source == 'linking' || $datatype->getUseShortResults() == 0)

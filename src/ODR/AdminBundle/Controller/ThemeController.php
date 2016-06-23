@@ -14,7 +14,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\AdminBundle\Entity\DataFields;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -225,18 +224,18 @@ class ThemeController extends ODRCustomController
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-            throw new \Exception('do not continue');
 
             // Populate new Theme form
             $submitted_data = new ThemeMeta();
-            $theme_form = $this->createForm(new UpdateThemeForm($theme), $submitted_data);
+            $theme_form = $this->createForm(UpdateThemeForm::class, $submitted_data);
 
-            if ($request->getMethod() == 'POST') {
-                $theme_form->bind($request, $submitted_data);
+            $theme_form->handleRequest($request);
+
+            if ($theme_form->isSubmitted()) {
 
 $theme_form->addError( new FormError('do not save') );
 
-                if ( $theme_form->isValid() ) {
+                if ($theme_form->isValid()) {
                     // If a value in the form changed, create a new DataTree entity to store the change
                     $properties = array(
                         'templateName' => $submitted_data->getTemplateName(),
@@ -257,12 +256,7 @@ $theme_form->addError( new FormError('do not save') );
                     throw new \Exception($error_str);
                 }
             }
-
-            if ( $request->getMethod() == 'GET' ) {
-                // Create the form objects
-                $theme_meta = $theme->getThemeMeta();
-                $theme_form = $this->createForm(new UpdateThemeForm($theme), $theme_meta);
-
+            else {
                 // Return the slideout html
                 $templating = $this->get('templating');
                 $return['d'] = $templating->render(
@@ -497,16 +491,17 @@ $theme_form->addError( new FormError('do not save') );
 
             // Populate new ThemeElement form
             $submitted_data = new ThemeElementMeta();
-            $theme_element_form = $this->createForm(new UpdateThemeElementForm($theme_element), $submitted_data);
+            $theme_element_form = $this->createForm(UpdateThemeElementForm::class, $submitted_data);
 
-            if ($request->getMethod() == 'POST') {
-                $theme_element_form->bind($request, $submitted_data);
+            $theme_element_form->handleRequest($request);
+
+            if ($theme_element_form->isSubmitted()) {
 
 //$theme_element_form->addError( new FormError('do not save') );
 
-                if ( $theme_element_form->isValid() ) {
+                if ($theme_element_form->isValid()) {
                     // Store the old and the new css widths for this ThemeElement
-                    $return['widths'] = array(
+                    $widths = array(
                         'med_width_old' => $theme_element->getCssWidthMed(),
                         'xl_width_old' => $theme_element->getCssWidthXL(),
                         'med_width_current' => $submitted_data->getCssWidthMed(),
@@ -522,6 +517,10 @@ $theme_form->addError( new FormError('do not save') );
 
                     // TODO - update cached version directly?
                     parent::tmp_updateThemeCache($em, $theme, $user);
+
+
+                    // Don't need to return a form object after saving
+                    $return['widths'] = $widths;
                 }
                 else {
                     // Form validation failed
@@ -529,11 +528,10 @@ $theme_form->addError( new FormError('do not save') );
                     throw new \Exception($error_str);
                 }
             }
-
-            if ( $request->getMethod() == 'GET' ) {
-                // Create the form objects
+            else {
+                // Create ThemeElement form to modify existing properties
                 $theme_element_meta = $theme_element->getThemeElementMeta();
-                $theme_element_form = $this->createForm(new UpdateThemeElementForm($theme_element), $theme_element_meta);
+                $theme_element_form = $this->createForm(UpdateThemeElementForm::class, $theme_element_meta);
 
                 // Return the slideout html
                 $templating = $this->get('templating');
@@ -925,7 +923,7 @@ $theme_form->addError( new FormError('do not save') );
 
 
             // Create the ThemeDatatype form object
-            $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm($theme_datafield), $theme_datafield)->createView();
+            $theme_datafield_form = $this->createForm(UpdateThemeDatafieldForm::class, $theme_datafield)->createView();
 
             // Return the slideout html
             $templating = $this->get('templating');
@@ -998,13 +996,13 @@ $theme_form->addError( new FormError('do not save') );
 
             // Populate new ThemeDataField form
             $submitted_data = new ThemeDataField();
-            $theme_datafield_form = $this->createForm(new UpdateThemeDatafieldForm($theme_datafield), $submitted_data);
+            $theme_datafield_form = $this->createForm(UpdateThemeDatafieldForm::class, $submitted_data);
 
             $widths = array('med_width_old' => $theme_datafield->getCssWidthMed(), 'xl_width_old' => $theme_datafield->getCssWidthXL());
 
-            if ($request->getMethod() == 'POST') {
-                $theme_datafield_form->bind($request, $submitted_data);
+            $theme_datafield_form->handleRequest($request);
 
+            if ($theme_datafield_form->isSubmitted()) {
 //$theme_datafield_form->addError( new FormError('do not save') );
 
                 if ($theme_datafield_form->isValid()) {
@@ -1093,7 +1091,7 @@ $theme_form->addError( new FormError('do not save') );
 
 
             // Create the ThemeDatatype form object
-            $theme_datatype_form = $this->createForm(new UpdateThemeDatatypeForm($theme_datatype), $theme_datatype)->createView();
+            $theme_datatype_form = $this->createForm(UpdateThemeDatatypeForm::class, $theme_datatype)->createView();
 
             // Return the slideout html
             $templating = $this->get('templating');
@@ -1170,10 +1168,11 @@ $theme_form->addError( new FormError('do not save') );
 
             // Populate new ThemeDataType form
             $submitted_data = new ThemeDataType();
-            $theme_datatype_form = $this->createForm(new UpdateThemeDatatypeForm($theme_datatype), $submitted_data);
+            $theme_datatype_form = $this->createForm(UpdateThemeDatatypeForm::class, $submitted_data);
 
-            if ($request->getMethod() == 'POST') {
-                $theme_datatype_form->bind($request, $submitted_data);
+            $theme_datatype_form->handleRequest($request);
+
+            if ($theme_datatype_form->isSubmitted()) {
 
 //$theme_datatype_form->addError( new FormError('do not save') );
 

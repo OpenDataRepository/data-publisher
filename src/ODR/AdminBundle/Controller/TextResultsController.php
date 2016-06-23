@@ -1,28 +1,27 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* TextResults Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The textresults controller handles the selection of Datafields that are
-* displayed by the jQuery Datatables plugin, in addition to ajax
-* communication with the Datatables plugin for display of data and state storage.
-* @see https://www.datatables.net/
-*
-*/
+ * Open Data Repository Data Publisher
+ * TextResults Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The textresults controller handles the selection of Datafields that are
+ * displayed by the jQuery Datatables plugin, in addition to ajax
+ * communication with the Datatables plugin for display of data and state storage.
+ *
+ * @see https://www.datatables.net/
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
-use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -33,141 +32,12 @@ class TextResultsController extends ODRCustomController
 {
 
     /**
-     * Updates the database with the new TextResults field order specified by the user.
-     * @deprecated
-     * 
-     * @param string $unused_field_ids The database ids of datafields not added to TextResults
-     * @param string $used_field_ids   The database ids of datafields added to TextResults, in order
-     * @param Request $request
-     *
-     * @return Response TODO
-     */
-    public function fieldorderAction($unused_field_ids, $used_field_ids, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            throw new \Exception('DEPRECATED');
-
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-
-            // Turn the field ids into an array...
-            if ($unused_field_ids !== '')
-                $unused_field_ids = preg_split("/,/", $unused_field_ids);
-            if ($used_field_ids !== '')
-                $used_field_ids = preg_split("/,/", $used_field_ids);
-
-            // Ensure all the fields belong to the same datatype...
-            $datatype = null;
-            if ($unused_field_ids !== '') {
-                for ($i = 0; $i < count($unused_field_ids); $i++) {
-                    // Grab datafield being referred to
-                    /** @var DataFields $datafield */
-                    $datafield = $repo_datafield->find( $unused_field_ids[$i] );
-                    if ($datatype == null)
-                        $datatype = $datafield->getDataType();
-
-                    // If datatype of this field doesn't match a previous field, exit
-                    if ( $datatype->getId() !== $datafield->getDataType()->getId() )
-                        throw new \Exception("Malformed URL!");
-                }
-            }
-            if ($used_field_ids !== '') {
-                for ($i = 0; $i < count($used_field_ids); $i++) {
-                    // Grab datafield being referred to
-                    /** @var DataFields $datafield */
-                    $datafield = $repo_datafield->find( $used_field_ids[$i] );
-                    if ($datatype == null)
-                        $datatype = $datafield->getDataType();
-
-                    // If datatype of this field doesn't match a previous field, exit
-                    if ( $datatype->getId() !== $datafield->getDataType()->getId() )
-                        throw new \Exception("Malformed URL!");
-                }
-            }
-            /** @var DataType $datatype */
-
-            // ..now that all datafields have been verified to belong to the same datatype...
-
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-
-            // If user has permissions, go through all of the datafields setting the order
-            if ($unused_field_ids !== '') {
-                for ($i = 0; $i < count($unused_field_ids); $i++) {
-                    /** @var DataFields $datafield */
-                    $datafield = $repo_datafield->find( $unused_field_ids[$i] );
-                    if ( $datafield->getDisplayOrder() != -1 ) {
-                        $properties = array(
-                            'displayOrder' => -1
-                        );
-                        parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
-                    }
-                }
-            }
-            if ($used_field_ids !== '') {
-                for ($i = 0; $i < count($used_field_ids); $i++) {
-                    /** @var DataFields $datafield */
-                    $datafield = $repo_datafield->find( $used_field_ids[$i] );
-                    if ( $datafield->getDisplayOrder() != ($i+1) ) {
-                        $properties = array(
-                            'displayOrder' => ($i+1)
-                        );
-                        parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
-                    }
-                }
-            }
-
-            // Store whether the datatype has textresults
-            if ($used_field_ids !== '')
-                $datatype->setHasTextresults(true);
-            else
-                $datatype->setHasTextresults(false);
-
-            $em->persist($datatype);
-            $em->flush();
-
-            // Schedule the cache for an update
-            $options = array();
-            $options['mark_as_updated'] = true;
-            $options['force_textresults_recache'] = true;
-
-            parent::updateDatatypeCache($datatype->getId(), $options);
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x828368002 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
      * Takes an AJAX request from the jQuery DataTables plugin and builds an array of TextResults rows for the plugin to display.
      * @see http://datatables.net/manual/server-side
      *
      * @param Request $request
      *
-     * @return array TODO
+     * @return array
      */
     public function datatablesrowrequestAction(Request $request)
     {
@@ -188,6 +58,7 @@ class TextResultsController extends ODRCustomController
                 $odr_tab_id = $post['odr_tab_id'];
 
             $datatype_id = intval( $post['datatype_id'] );
+            $theme_id = intval( $post['theme_id'] );
             $draw = intval( $post['draw'] );    // intval() because of recommendation by datatables documentation
             $start = intval( $post['start'] );
 
@@ -232,11 +103,15 @@ class TextResultsController extends ODRCustomController
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            // TODO - deleted datatype?
+            if ($datatype == null)
+                throw new \Exception('Datatype is deleted');
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'table') );
-            // TODO - deleted theme?
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            if ($theme == null)
+                throw new \Exception('Theme is deleted');
+            if ($theme->getDataType()->getId() !== $datatype->getId() || $theme->getThemeType() !== 'table')
+                throw new \Exception('Invalid request');
 
             // TODO - user permissions?
 
@@ -258,15 +133,11 @@ class TextResultsController extends ODRCustomController
             }
             else {
                 // Get all datarecords from the search key
-//                $logged_in = true;
-//                $encoded_search_key = '';
-//                $datarecord_list = '';
                 if ($search_key !== '') {
                     // 
                     $data = parent::getSavedSearch($datatype_id, $search_key, $logged_in, $request);
 //                    $encoded_search_key = $data['encoded_search_key'];
                     $datarecord_list = $data['datarecord_list'];
-
 /*
                     // If the user is attempting to view a datarecord from a search that returned no results...
                     if ($encoded_search_key !== '' && $datarecords === '') {
@@ -274,7 +145,6 @@ class TextResultsController extends ODRCustomController
                         return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
                     }
 */
-
                     // Convert the comma-separated list into an array
                     if ( $data['error'] == false && trim($datarecord_list) !== '')
                         $list = explode(',', $datarecord_list);
@@ -292,15 +162,18 @@ class TextResultsController extends ODRCustomController
 
                 // Need the typeclass of the datafield first
                 $query = $em->createQuery(
-                   'SELECT ft.typeClass AS type_class
-                    FROM ODRAdminBundle:DataFields AS df
+                   'SELECT df.id AS df_id, ft.typeClass AS type_class
+                    FROM ODRAdminBundle:ThemeElement AS te
+                    JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
+                    JOIN ODRAdminBundle:DataFields AS df WITH tdf.dataField = df
                     JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
                     JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
-                    WHERE df.dataType = :datatype AND dfm.displayOrder = :display_order
-                    AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
-                )->setParameters( array('datatype' => $datatype_id, 'display_order' => $sort_column) );
+                    WHERE te.theme = :theme_id AND tdf.displayOrder = :display_order
+                    AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL AND df.deletedAt IS NULL'
+                )->setParameters( array('theme_id' => $theme->getId(), 'display_order' => $sort_column) );
                 $results = $query->getArrayResult();
                 $typeclass = $results[0]['type_class'];
+                $datafield_id = $results[0]['df_id'];
 
 
                 if ($typeclass == 'Radio') {
@@ -312,12 +185,10 @@ class TextResultsController extends ODRCustomController
                         JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
                         JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
                         JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                        JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
-                        JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-                        WHERE dr.id IN (:datarecords) AND dfm.displayOrder = :display_order AND rs.selected = 1
+                        WHERE dr.id IN (:datarecords) AND drf.dataField = :datafield_id AND rs.selected = 1
                         AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL
-                        AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
-                    )->setParameters( array('datarecords' => $list, 'display_order' => $sort_column) );
+                        AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                    )->setParameters( array('datarecords' => $list, 'datafield_id' => $datafield_id) );
                     $results = $query->getArrayResult();
 
                     // Build an array so php can sort the list
@@ -330,11 +201,11 @@ class TextResultsController extends ODRCustomController
                         $tmp[ $key ] = $datarecord_id;
                     }
 
-                    // 
                     if ($sort_dir == 'DESC')
                         krsort($tmp);
                     else
                         ksort($tmp);
+
 
                     // Convert back into a list of datarecord ids for printing
                     $list = array();
@@ -347,14 +218,12 @@ class TextResultsController extends ODRCustomController
                        'SELECT fm.originalFileName AS file_name, dr.id AS dr_id
                         FROM ODRAdminBundle:DataRecord AS dr
                         JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                        JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
-                        JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
                         LEFT JOIN ODRAdminBundle:File AS f WITH f.dataRecordFields = drf
                         LEFT JOIN ODRAdminBundle:FileMeta AS fm WITH fm.file = f
-                        WHERE dr.id IN (:datarecords) AND dfm.displayOrder = :display_order
-                        AND f.deletedAt IS NULL AND fm.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
+                        WHERE dr.id IN (:datarecords) AND drf.dataField = :datafield_id
+                        AND f.deletedAt IS NULL AND fm.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
                         ORDER BY fm.originalFileName '.$sort_dir
-                    )->setParameters( array('datarecords' => $list, 'display_order' => $sort_column) );
+                    )->setParameters( array('datarecords' => $list, 'datafield_id' => $datafield_id) );
                     $results = $query->getArrayResult();
 
                     // Redo the list of datarecords based on the sorted order
@@ -364,17 +233,15 @@ class TextResultsController extends ODRCustomController
                     }
                 }
                 else {
-                    // Get SQL to sort the list of datarecords
+                    // Get the list of datarecords and their values
                     $query = $em->createQuery(
                        'SELECT dr.id AS dr_id, e.value AS value
                         FROM ODRAdminBundle:DataRecord AS dr
                         JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                        JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
-                        JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
                         JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
-                        WHERE dr.id IN (:datarecords) AND dfm.displayOrder = :display_order
-                        AND dr.deletedAt IS NULL AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
-                    )->setParameters( array('datarecords' => $list, 'display_order' => $sort_column) );
+                        WHERE dr.id IN (:datarecords) AND drf.dataField = :datafield_id
+                        AND dr.deletedAt IS NULL AND e.deletedAt IS NULL AND drf.deletedAt IS NULL'
+                    )->setParameters( array('datarecords' => $list, 'datafield_id' => $datafield_id) );
                     $results = $query->getArrayResult();
 
                     // Build an array so php can sort the list of datarecords
@@ -391,11 +258,11 @@ class TextResultsController extends ODRCustomController
                         $tmp[$dr_id] = $value;
                     }
 
-                    //
                     if ($sort_dir == 'DESC')
                         arsort($tmp);
                     else
                         asort($tmp);
+
 
                     // Redo the list of datarecords based on the sorted order
                     $list = array();

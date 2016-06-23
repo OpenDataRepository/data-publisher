@@ -6,10 +6,15 @@
     </h2>
 </div>
 
-<form class="ODRUserProfileForm pure-form pure-form-aligned" {{ form_enctype(profile_form) }} id="ODRUserProfileForm_{{ target_user.id }}">
-    {{ form_widget(profile_form.user_id) }}
-    {{ form_errors(profile_form._token) }}
-    {{ form_widget(profile_form._token) }}
+
+{{ form_start(profile_form, {
+    'method': 'POST',
+    'attr': {
+        'id': 'ODRUserProfileForm_' ~ target_user.id,
+        'class': 'ODRUserProfileForm pure-form pure-form-aligned'
+    }
+}) }}
+
     <fieldset>
 
         <div class="pure-control-group">
@@ -69,11 +74,14 @@
             {{ form_widget(profile_form.phoneNumber, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
         </div>
 
+        <div style="display: none">
+            {{ form_rest(profile_form) }}
+        </div>
     </fieldset>
 
     <input class="pure-button pure-button-primary" type="button" value="Save" onclick="saveProfileForm();" />
 
-</form>
+{{ form_end(profile_form) }}
 
 <script>
     $(function() {

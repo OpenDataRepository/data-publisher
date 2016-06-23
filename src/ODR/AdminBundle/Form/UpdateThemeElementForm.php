@@ -9,13 +9,17 @@
  *
  * Builds the Form used for modifying ThemeDatafield properties via
  * the right slideout in DisplayTemplate.
+ *
  */
 
 namespace ODR\AdminBundle\Form;
 
+// Symfony Forms
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
-use Symfony\Component\OptionsResolver\OptionsResolverInterface;
+use Symfony\Component\OptionsResolver\OptionsResolver;
+// Symfony Form classes
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 
 
 class UpdateThemeElementForm extends AbstractType
@@ -28,25 +32,41 @@ class UpdateThemeElementForm extends AbstractType
     {
         $builder->add(
             'cssWidthMed',
-            'choice',
+            ChoiceType::class,
             array(
-                'choices' => array('1-4' => '25%', '1-3' => '33%', '1-2' => '50%', '2-3' => '66%', '3-4' => '75%', '1-1' => '100%'),
-                'label'  => 'Med Width: ',
+                'choices' => array(
+                    '25%' => '1-4',
+                    '33%' => '1-3',
+                    '50%' => '1-2',
+                    '66%' => '2-3',
+                    '75%' => '3-4',
+                    '100%' => '1-1',
+                ),
+                'choices_as_values' => true,
+                'label'  => 'Med Width',
                 'expanded' => false,
                 'multiple' => false,
-                'empty_value' => false
+                'placeholder' => false
             )
         );
 
         $builder->add(
             'cssWidthXL',
-            'choice',
+            ChoiceType::class,
             array(
-                'choices' => array('1-4' => '25%', '1-3' => '33%', '1-2' => '50%', '2-3' => '66%', '3-4' => '75%', '1-1' => '100%'),
-                'label'  => 'XL Width: ',
+                'choices' => array(
+                    '25%' => '1-4',
+                    '33%' => '1-3',
+                    '50%' => '1-2',
+                    '66%' => '2-3',
+                    '75%' => '3-4',
+                    '100%' => '1-1',
+                ),
+                'choices_as_values' => true,
+                'label'  => 'XL Width',
                 'expanded' => false,
                 'multiple' => false,
-                'empty_value' => false
+                'placeholder' => false
             )
         );
     }
@@ -63,11 +83,24 @@ class UpdateThemeElementForm extends AbstractType
 
 
     /**
+     * Returns the prefix of the template block name for this type.
+     *
+     * The block prefixes default to the underscored short class name with
+     * the "Type" suffix removed (e.g. "UserProfileType" => "user_profile").
+     *
+     * @return string The prefix of the template block name
+     */
+    public function getBlockPrefix()
+    {
+        return 'UpdateThemeElementForm';
+    }
+
+
+    /**
      * {@inheritdoc}
      */
-    public function setDefaultOptions(OptionsResolverInterface $resolver)
+    public function configureOptions(OptionsResolver $resolver)
     {
-//        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\ThemeElement'));
         $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\ThemeElementMeta'));
     }
 }
