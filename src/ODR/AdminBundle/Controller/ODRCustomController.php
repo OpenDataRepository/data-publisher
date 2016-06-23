@@ -304,6 +304,7 @@ exit();
                     'scroll_target' => $scroll_target,
                     'user' => $user,
                     'user_permissions' => $datatype_permissions,
+                    'theme_id' => $theme->getId(),
 
                     'logged_in' => $logged_in,
 
