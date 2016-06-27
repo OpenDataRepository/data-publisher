@@ -1160,7 +1160,7 @@ if ($debug)
                 $initial_datatype_flags[ $datafield_array['datatype_of'][$df_id] ] = -1;
 
             // Top-level datarecords must also be set to -1, otherwise most searches would always return all top-level datarecords
-            $initial_datatype_flags[$target_datatype_id] = -1;
+//            $initial_datatype_flags[$target_datatype_id] = -1;
 
 
             // --------------------------------------------------
@@ -1410,12 +1410,12 @@ if ($timing)
             // $descendants_of_datarecord array is currently partially flattened..."inflate" it into the true tree structure described above
             $matched_datarecords[0] = 0;
             $descendants_of_datarecord = array(0 => self::buildDatarecordTree($descendants_of_datarecord, 0));
-/*
+
 if ($more_debug) {
     print '$matched_datarecords: '.print_r($matched_datarecords, true)."\n";
     print '$descendants_of_datarecord: '.print_r($descendants_of_datarecord, true)."\n";
 }
-*/
+
 
 if ($timing)
     print 'datarecord trees built in: '.((microtime(true) - $start_time)*1000)."ms \n";
@@ -1654,7 +1654,7 @@ if ($more_debug)
                         }
 
                         //
-                        $metadata_str = $search_metadata['metadata_str'].' GROUP BY grandparent.id';
+                        $metadata_str = $search_metadata['metadata_str'];//.' GROUP BY grandparent.id';
                         $parameters = $search_metadata['metadata_params'];
 
                         $query =
@@ -1792,6 +1792,16 @@ if ($more_debug) {
     print '$descendants_of_datarecord: '.print_r($descendants_of_datarecord, true)."\n";
 }
 
+                foreach ($descendants_of_datarecord[0] as $dt_id => $top_level_datarecords) {
+                    foreach ($top_level_datarecords as $gp_id => $tmp) {
+                        self::getIntermediateSearchResults($matched_datarecords, $descendants_of_datarecord[0][$dt_id], $gp_id);
+                    }
+                }
+
+if ($more_debug) {
+    print '$matched_datarecords: '.print_r($matched_datarecords, true)."\n";
+//    print '$descendants_of_datarecord: '.print_r($descendants_of_datarecord, true)."\n";
+}
                 // Build the final list of datarecords/grandparent datarecords matched by the query
                 foreach ($descendants_of_datarecord[0] as $dt_id => $top_level_datarecords) {
                     foreach ($top_level_datarecords as $gp_id => $tmp) {
@@ -1883,7 +1893,7 @@ if ($timing) {
 
 if ($more_debug) {
 //    print 'saving datarecord_str: '.$datarecords."\n";
-    print_r($cached_searches);
+    print '<pre>'.print_r($cached_searches, true).'</pre>';
 }
         }
 
@@ -1951,7 +1961,56 @@ if ($more_debug) {
 
 
     /**
-     * Recursively traverses the datarecord tree for all datarecords if the datatype being searched on, and returns a comma-separated
+     * Recursively traverses the datarecord tree for all datarecords of the datatype being searched on, and marks parent datarecords
+     *  as "not matching search query" if all child datarecords of any given child datatype don't match
+     *
+     * @param array $matched_datarecords
+     * @param array $descendants_of_datarecord
+     * @param integer $current_datarecord_id
+     *
+     * @return integer
+     */
+    private function getIntermediateSearchResults(&$matched_datarecords, $descendants_of_datarecord, $current_datarecord_id)
+    {
+        // If this datarecord is excluded from the search results for some reason, don't bother checking any child datarecords...they're also excluded by definition
+        if ( $matched_datarecords[$current_datarecord_id] == -1 ) {
+            return -1;
+        }
+        // If this datarecord has children...
+        else if ( is_array($descendants_of_datarecord[$current_datarecord_id]) ) {
+
+            // ...then for each child datarecord of each child datatype...
+            foreach ($descendants_of_datarecord[$current_datarecord_id] as $dt_id => $child_datarecords) {
+
+                // ...keep track of how many of the child datarecords failed the search criteria
+                $exclude_count = 0;
+                foreach ($child_datarecords as $dr_id => $tmp) {
+                    $num = self::getIntermediateSearchResults($matched_datarecords, $descendants_of_datarecord[$current_datarecord_id][$dt_id], $dr_id);
+
+                    if ($num == -1)
+                        $exclude_count++;
+                }
+
+                // If all of this datarecord's child datarecords for this child datatype didn't match the search criteria...
+                if ( $exclude_count == count($descendants_of_datarecord[$current_datarecord_id][$dt_id]) ) {
+                    // ...then this datarecord doesn't match the search criteria either
+                    $matched_datarecords[$current_datarecord_id] = -1;
+                    return -1;
+                }
+            }
+
+            // ...if this point is reached, then the current datarecord isn't excluded because of child datarecords...include it in the search results
+            return 0;
+        }
+        else {
+            // ...otherwise, this datarecord has no children, and either matches the search or is not otherwise excluded
+            return $matched_datarecords[$current_datarecord_id];
+        }
+    }
+
+
+    /**
+     * Recursively traverses the datarecord tree for all datarecords of the datatype being searched on, and returns a comma-separated
      *  list of all child/linked/top-level datarecords that effectively match the search query
      *
      * @param array $matched_datarecords
@@ -2111,11 +2170,40 @@ if ($more_debug) {
                 FROM odr_data_record AS grandparent
                 INNER JOIN odr_data_record AS dr ON grandparent.id = dr.grandparent_id
                 '.$drf_join.'
-                LEFT JOIN '.$table_names[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                WHERE drf.data_field_id IN ('.$datafields.') AND ('.$search_params['str'].')
+                INNER JOIN '.$table_names[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+                WHERE drf.data_field_id IN ('.$datafields.') AND e.id IS NOT NULL
                 AND grandparent.deletedAt IS NULL AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL ';
 
             $query .= $metadata_str;
+
+            // If the user is searching for datarecords which do NOT have files/images...
+            if ( strpos($search_params['str'], 'NOT') === false ) {
+
+if ($debug) {
+    print $query."\n";
+    print '$parameters: '.print_r($parameters, true)."\n";
+}
+                // Execute and return the previous native SQL query
+                $conn = $em->getConnection();
+                $results = $conn->fetchAll($query, $parameters);
+
+                // Extract the list of datarecord ids that do have files/images
+                $dr_list = array();
+                foreach ($results as $result)
+                    $dr_list[ $result['dr_id'] ] = 1;
+                $dr_list = implode(',', array_keys($dr_list));
+
+
+                // Build a new query to find all datarecords of the target datatype that aren't in the list of datarecords that have files/images
+                $query =
+                   'SELECT dr.id AS dr_id, grandparent.id AS grandparent_id
+                    FROM odr_data_record AS grandparent
+                    INNER JOIN odr_data_record AS dr ON grandparent.id = dr.grandparent_id
+                    WHERE dr.id NOT IN ('.$dr_list.') AND dr.data_type_id = '.$datatype_id.'
+                    AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL ';
+
+                $query .= $metadata_str;
+            }
         }
         else {
             // Build the native SQL query that will check content of any other datafields
@@ -2339,6 +2427,7 @@ if ($debug) {
 
 if ($debug)
     print_r($pieces);
+
         // clean up the array as best as possible
         $pieces = array_values($pieces);
         $first = true;
@@ -2375,6 +2464,7 @@ if ($debug)
         $num = count($pieces)-1;
         if ( self::isLogicalOperator($pieces[$num]) || self::isInequality($pieces[$num]) )
             unset( $pieces[$num] );
+
 if ($debug)
     print_r($pieces);
 
