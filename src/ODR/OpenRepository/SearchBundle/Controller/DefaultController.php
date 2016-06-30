@@ -1805,7 +1805,7 @@ if ($more_debug) {
                 // Build the final list of datarecords/grandparent datarecords matched by the query
                 foreach ($descendants_of_datarecord[0] as $dt_id => $top_level_datarecords) {
                     foreach ($top_level_datarecords as $gp_id => $tmp) {
-                        $results = self::getFinalSearchResults($matched_datarecords, $descendants_of_datarecord[0][$dt_id], $gp_id);
+                        $results = self::getFinalSearchResults($matched_datarecords, $descendants_of_datarecord[0][$dt_id], $gp_id, true);
 
                         $datarecords .= $results;
                         if ($results !== '')
@@ -1980,6 +1980,7 @@ if ($more_debug) {
         else if ( is_array($descendants_of_datarecord[$current_datarecord_id]) ) {
 
             // ...then for each child datarecord of each child datatype...
+            $include_count = 0;
             foreach ($descendants_of_datarecord[$current_datarecord_id] as $dt_id => $child_datarecords) {
 
                 // ...keep track of how many of the child datarecords failed the search criteria
@@ -1989,6 +1990,8 @@ if ($more_debug) {
 
                     if ($num == -1)
                         $exclude_count++;
+                    if ($num == 1)
+                        $include_count++;
                 }
 
                 // If all of this datarecord's child datarecords for this child datatype didn't match the search criteria...
@@ -2000,7 +2003,10 @@ if ($more_debug) {
             }
 
             // ...if this point is reached, then the current datarecord isn't excluded because of child datarecords...include it in the search results
-            return 0;
+            if ($include_count > 0)
+                return 1;
+            else
+                return 0;
         }
         else {
             // ...otherwise, this datarecord has no children, and either matches the search or is not otherwise excluded
@@ -2016,13 +2022,17 @@ if ($more_debug) {
      * @param array $matched_datarecords
      * @param array $descendants_of_datarecord
      * @param string|integer $current_datarecord_id
+     * @param boolean $is_top_level
      *
      * @return string
      */
-    private function getFinalSearchResults($matched_datarecords, $descendants_of_datarecord, $current_datarecord_id)
+    private function getFinalSearchResults($matched_datarecords, $descendants_of_datarecord, $current_datarecord_id, $is_top_level)
     {
         // If this datarecord is excluded from the search results for some reason, don't bother checking any child datarecords...they're also excluded by definition
         if ( $matched_datarecords[$current_datarecord_id] == -1 ) {
+            return '';
+        }
+        else if ( $is_top_level && $matched_datarecords[$current_datarecord_id] < 1 ) {
             return '';
         }
         // If this datarecord has children...
@@ -2034,7 +2044,7 @@ if ($more_debug) {
 
                 $dr_matches = '';
                 foreach ($child_datarecords as $dr_id => $tmp)
-                    $dr_matches .= self::getFinalSearchResults($matched_datarecords, $descendants_of_datarecord[$current_datarecord_id][$dt_id], $dr_id);
+                    $dr_matches .= self::getFinalSearchResults($matched_datarecords, $descendants_of_datarecord[$current_datarecord_id][$dt_id], $dr_id, false);
 
                 if ($dr_matches == '') {
                     // None of the child datarecords of this datatype matched the search...therefore the parent datarecord doesn't match either
