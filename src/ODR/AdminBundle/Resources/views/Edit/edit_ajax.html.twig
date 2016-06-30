@@ -34,6 +34,7 @@
     'datafield_permissions': datafield_permissions,
 
     'is_top_level': is_top_level,
+    'token_list': token_list,
 } %}
 
 <div id="field_history_dialog_wrapper">
@@ -87,14 +88,6 @@ $(function() {
 
 });
 
-/*
-function tmp(datatype_id, parent_datarecord) {
-    ReloadChild(datatype_id, parent_datarecord);
-}
-*/
-function tmp(datarecord_id, datafield_id) {
-    ReloadDatafield(datarecord_id, datafield_id);
-}
 
 var SaveTimeout = 700;
 function initPage() {
@@ -458,16 +451,15 @@ return;
         });
     });
 
-    $(".ODRPublicChildRecord").unbind('click');
-    $(".ODRPublicChildRecord").click(function() {
+    $(".ODRPublicChildRecord").unbind('click').click(function() {
         var datarecord_id = $(this).attr('rel');
 
         var url = '{{ path('odr_record_public', { 'datarecord_id': 0 }) }}';
         url = url.substring(0, (url.length - 1));
         url += datarecord_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
         $.ajax({
             cache: false,
@@ -515,8 +507,7 @@ return;
     });
 
 
-    $(".ODRDeleteChildRecord").unbind('click');
-    $(".ODRDeleteChildRecord").click(function() {
+    $(".ODRDeleteChildRecord").unbind('click').click(function() {
         if ( confirm('Are you sure you want to delete this DataRecord?') ) {
             var datatype_id = $(this).parent().attr('rel');
             var datarecord_id = $(this).attr('rel');   // which data record to delete
@@ -526,8 +517,8 @@ return;
             url = url.substring(0,(url.length - 3));
             url += datarecord_id + '/' + datatype_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
             $.ajax({
                 cache: false,
@@ -565,8 +556,7 @@ return;
         }
     });
 
-    $(".SingleRadioGroup").unbind('click');
-    $(".SingleRadioGroup").click(function() {
+    $(".SingleRadioGroup").unbind('click').click(function() {
 
         // Want to prevent sending unecessary ajax events...can't detect if option is already selected with is("checked")
 
@@ -582,15 +572,16 @@ return;
 
         // Grab relevant entity ids
         var id_data = $(this).attr('id').split(/_/);
-        var datarecordfield_id = id_data[1];
-        var radio_option_id = id_data[2];
+        var datarecord_id = id_data[1];
+        var datafield_id = id_data[2];
+        var radio_option_id = id_data[3];
 
-        var url  = '{{ path('odr_record_radio_selection', {'data_record_field_id': 0, 'radio_option_id': 0} ) }}';
-        url = url.substring(0,(url.length - 3));
-        url += datarecordfield_id + '/' + radio_option_id;
+        var url  = '{{ path('odr_record_radio_selection', {'datarecord_id': 0, 'datafield_id': 0, 'radio_option_id': 0} ) }}';
+        url = url.substring(0,(url.length - 5));
+        url += datarecord_id + '/' + datafield_id + '/' + radio_option_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
         $.ajax({
             cache: false,
@@ -622,21 +613,20 @@ return;
         });
     });
 
-    $(".MultipleRadioGroup").unbind('click');
-    $(".MultipleRadioGroup").click(function() {
+    $(".MultipleRadioGroup").unbind('click').click(function() {
 
         // Grab relevant entity ids
         var id_data = $(this).attr('id').split(/_/);
-        var datarecordfield_id = id_data[1];
-        var radio_option_id = id_data[2];
+        var datarecord_id = id_data[1];
+        var datafield_id = id_data[2];
+        var radio_option_id = id_data[3];
 
-        // Load display template menu
-        var url  = '{{ path('odr_record_radio_selection', {'data_record_field_id': 0, 'radio_option_id': 0} ) }}';
-        url = url.substring(0,(url.length - 3));
-        url += datarecordfield_id + '/' + radio_option_id;
+        var url  = '{{ path('odr_record_radio_selection', {'datarecord_id': 0, 'datafield_id': 0, 'radio_option_id': 0} ) }}';
+        url = url.substring(0,(url.length - 5));
+        url += datarecord_id + '/' + datafield_id + '/' + radio_option_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
         $.ajax({
             cache: false,
@@ -668,21 +658,21 @@ return;
         });
     });
 
-    $(".SingleSelectGroup").unbind('change');
-    $(".SingleSelectGroup").change(function() {
+    $(".SingleSelectGroup").unbind('change').change(function() {
 
         // Grab relevant entity ids
+        var id_data = $(this).attr('id').split(/_/);
+        var datarecord_id = id_data[1];
+        var datafield_id = id_data[2];
+
         var radio_option_id = $(this).val();
-        var id_data = $(this).attr('id').split(/_/);
-        var datarecordfield_id = id_data[1];    // which data field to save the option
 
-        // Load display template menu
-        var url  = '{{ path('odr_record_radio_selection', {'data_record_field_id': 0, 'radio_option_id': 0} ) }}';
-        url = url.substring(0,(url.length - 3));
-        url += datarecordfield_id + '/' + radio_option_id;
+        var url  = '{{ path('odr_record_radio_selection', {'datarecord_id': 0, 'datafield_id': 0, 'radio_option_id': 0} ) }}';
+        url = url.substring(0,(url.length - 5));
+        url += datarecord_id + '/' + datafield_id + '/' + radio_option_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
         $.ajax({
             cache: false,
@@ -758,6 +748,7 @@ return;
     });
     $( ".ODRSortableImage" ).disableSelection();
 
+
     $(".ODRDatePicker").datepicker({
         dateFormat: 'yy-mm-dd',
         changeMonth: true,
@@ -772,15 +763,10 @@ return;
         }
     });
 
-    $(".ODRDatePicker_clear").unbind('click');
-    $(".ODRDatePicker_clear").click(function() {
+    $(".ODRDatePicker_clear").unbind('click').click(function() {
         $(this).parent().parent().find(".ODRDatePicker").datepicker('setDate', null);
 
         var form_id = $(this).parent().parent().parent().attr('id');
-
-alert('clearing datepicker');
-return;
-
         SaveRecordData('#' + form_id, '');
     });
 
@@ -839,8 +825,8 @@ function AddChildRecord(datatype_id, parent_id, grandparent_id) {
     url = url.substring(0, (url.length - 5));
     url += datatype_id + '/' + parent_id + '/' + grandparent_id;
 
-alert( url );
-return;
+//alert( url );
+//return;
 
     $.ajax({
         cache: false,
@@ -885,26 +871,24 @@ function LinkRecord(ancestor_datatype_id, descendant_datatype_id, local_datareco
     url += '/' + '{{ search_key }}';
 {% endif %}
 
-alert( url );
-return;
+//alert( url );
+//return;
 
     UpdateURL(url);
 }
 
 function SaveRecordData(form_id, interval) {
-    // Clear the save interval for this specific datafield...interval itself is defined in record_datafields.html.twig
+    // Clear the save interval for this specific datafield...interval itself is defined by the variable "SaveTimeout" in this file
     if(interval != "") 
         interval = window.clearInterval(interval);
 
     // Determine save type
-    var the_form = $(form_id);
-    var post_data = $(the_form).serialize();
+    var post_data = $(form_id).serialize();
+    var url = $(form_id).attr('action');
 
-    var url = $(the_form).attr('action');
-
-alert( url );
-alert( post_data );
-return;
+//alert( url );
+//alert( post_data );
+//return;
 
     $.ajax({
         type: 'POST',
@@ -923,9 +907,13 @@ return;
             }
             else if (data.r == 2) {
                 // Revert back to old value
-                var tmp = form_id.split(/_/);
-                var drf_id = tmp[1];
-                $("#Form_" + drf_id).val( data.old_value );
+                var ids = form_id.split(/_/);
+                var input_id = "#Input_" + ids[1] + "_" + ids[2];
+
+                if (data.typeclass == 'LongText')
+                    $(form_id).find(input_id).children('textarea').first().html( data.old_value );
+                else
+                    $(form_id).find(input_id).children('input').first().val( data.old_value );
 
                 alert(data.error);
             }
@@ -1019,17 +1007,16 @@ function ReloadDatafield(datarecord_id, datafield_id) {
     var theme_id = $(datafield_div).attr('rel');
 
     var url = '{{ path('odr_record_reload_datafield', { 'datarecord_id': 0, 'datafield_id': 0 }) }}';
-    url = url.substring(0, (url.length - 5));
-    url += datarecord_id + '/' + datafield_id + '/' + theme_id;
+    url = url.substring(0, (url.length - 3));
+    url += datarecord_id + '/' + datafield_id;
 
     $(datafield_div).children('form').each(function() {
         $(this).fadeOut();
         $(this).remove();
     });
 
-
-alert( url );
-return;
+//alert( url );
+//return;
 
     $.ajax({
         cache: false,

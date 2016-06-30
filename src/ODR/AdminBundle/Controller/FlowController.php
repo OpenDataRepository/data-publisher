@@ -1,25 +1,27 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* Flow Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The Flow controller is originally based off the flow-php-server library,
-* but has been modified to work with Symfony's natural file handling, and
-* further modified to meed the specific needs of ODR.
-*
-* @see https://github.com/flowjs/flow.js
-* @see https://github.com/flowjs/flow-php-server
-*/
+ * Open Data Repository Data Publisher
+ * Flow Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The Flow controller is originally based off the flow-php-server library,
+ * but has been modified to work with Symfony's natural file handling, and
+ * further modified to meed the specific needs of ODR.
+ *
+ * @see https://github.com/flowjs/flow.js
+ * @see https://github.com/flowjs/flow-php-server
+ */
 
 namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataRecord;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
@@ -106,12 +108,13 @@ class FlowController extends ODRCustomController
      *
      * @param string  $upload_type
      * @param integer $datatype_id
-     * @param integer $datarecordfield_id
+     * @param integer $datarecord_id
+     * @param integer $datafield_id
      * @param Request $request
      * 
      * @return Response TODO
      */
-    public function flowAction($upload_type, $datatype_id, $datarecordfield_id, Request $request)
+    public function flowAction($upload_type, $datatype_id, $datarecord_id, $datafield_id, Request $request)
     {
         try {
             // ----------------------------------------
@@ -122,8 +125,6 @@ class FlowController extends ODRCustomController
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 return self::flowAbort('Datatype does not exist');
-
-            $datafield_id = $typeclass = null;
 
             // Ensure datatype exists
             $query = $em->createQuery(
@@ -140,26 +141,21 @@ class FlowController extends ODRCustomController
             }
 
             // If datarecordfield is specified, ensure it exists
-            if ($datarecordfield_id !== '') {
-                $query = $em->createQuery(
-                   'SELECT drf.id AS drf_id, df.id AS df_id, ft.typeClass AS typeclass
-                    FROM ODRAdminBundle:DataRecordFields AS drf
-                    JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
-                    JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-                    JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
-                    WHERE drf.id = :drf_id AND df.dataType = :datatype
-                    AND drf.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL'
-                )->setParameters( array('datatype' => $datatype_id, 'drf_id' => $datarecordfield_id) );
-                $result = $query->getArrayResult();
+            $datarecord = null;
+            $datafield = null;
+            if ($datarecord_id != 0 && $datafield_id != 0) {
+                /** @var DataRecord $datarecord */
+                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+                if ($datarecord == null)
+                    return self::flowAbort('Datarecord does not exist');
 
-                if ( !isset($result[0]) ) {
-                    // Datarecordfield doesn't exist
-                    return self::flowAbort('DataRecordField does not exist');
-                }
+                /** @var DataFields $datafield */
+                $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+                if ($datafield == null)
+                    return self::flowAbort('Datafield does not exist');
 
-                // Store the datafield id for use...
-                $datafield_id = $result[0]['df_id'];
-//                $typeclass = $result[0]['typeclass'];
+                if ($datarecord->getDataType()->getId() != $datatype_id || $datafield->getDataType()->getId() != $datatype_id)
+                    return self::flowAbort('Parameter mismatch');
             }
 
 
@@ -293,9 +289,10 @@ class FlowController extends ODRCustomController
                     // Upload is an XMLImport file
                     self::finishXMLUpload($path_prefix.$destination_folder, $original_filename, $user_id, $request);
                 }
-                else if ($datafield_id !== null) {
+                else if ($datarecord_id != 0 && $datafield_id != 0) {
                     // Upload meant for a file/image datafield...finish moving the uploaded file and store it properly
-                    parent::finishUpload($em, $destination_folder, $original_filename, $user_id, $datarecordfield_id);
+                    $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
+                    parent::finishUpload($em, $destination_folder, $original_filename, $user_id, $drf->getId());
                 }
                 else {
                     // Upload is a file/image meant to be referenced by a later XML/CSV Import

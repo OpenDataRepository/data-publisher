@@ -50,6 +50,7 @@
                     {% set content = mychildform.input(datatype_array, datarecord_array, child_theme_id, child_datatype.id, datarecord.id, is_top_level, theme_datatype.is_link, using_metadata, baseurl) %}
 
                     {% if "<" in content|trim %}
+                        {% set child_datatype = datatype_array[ child_datatype.id ] %}
                         <{{ child_datatype.dataTypeMeta.xml_shortName }}>{{ content }}</{{ child_datatype.dataTypeMeta.xml_shortName }}>
                     {% endif %}
                 {% endif %}
@@ -82,6 +83,7 @@
                         {% set content = mychildform.input(datatype_array, datarecord_array, child_theme_id, child_datatype.id, datarecord.id, is_top_level, theme_datatype.is_link, using_metadata, baseurl) %}
 
                         {% if "<" in content|trim %}
+                            {% set child_datatype = datatype_array[ child_datatype.id ] %}
                             <{{ child_datatype.dataTypeMeta.xml_shortName }}>{{ content }}</{{ child_datatype.dataTypeMeta.xml_shortName }}>
                         {% endif %}
                     {% endif %}

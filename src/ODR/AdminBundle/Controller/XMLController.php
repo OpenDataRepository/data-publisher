@@ -1881,7 +1881,6 @@ if ($write) {
 
 
             // Ensure all Entities exist before rendering the XML
-            parent::verifyExistence($datarecord);
             $return['d'] = array(
                 'xml' => parent::XML_GetDisplayData($em, $datarecord_id, $request)
             );

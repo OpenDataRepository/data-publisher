@@ -2473,7 +2473,7 @@ class DisplaytemplateController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this

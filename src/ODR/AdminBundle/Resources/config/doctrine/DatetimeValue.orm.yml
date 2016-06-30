@@ -19,21 +19,22 @@ ODR\AdminBundle\Entity\DatetimeValue:
             column: value
 #            gedmo:
 #                - versioned
-        deletedAt:
-            type: datetime
-            nullable: true
-#            gedmo:
-#                - versioned
+
         created:
             type: datetime
             gedmo:
                 timestampable:
                     on: create
-#        updated:
-#            type: datetime
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        deletedAt:
+            type: datetime
+            nullable: true
 #            gedmo:
-#                timestampable:
-#                    on: update
+#                - versioned
     manyToOne:
         dataField:
             targetEntity: DataFields
@@ -68,33 +69,6 @@ ODR\AdminBundle\Entity\DatetimeValue:
             orphanRemoval: false
 #            gedmo:
 #                - versioned
-        createdBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                createdBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
-#        updatedBy:
-#            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-#            cascade: {  }
-#            mappedBy: null
-#            inversedBy: null
-#            joinColumns:
-#                updatedBy:
-#                    referencedColumnName: id
-#            orphanRemoval: false
-#            gedmo:
-#                - versioned
-#            gedmo:
-#                blameable:
-#                    on: update
-#    oneToOne:
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
@@ -105,4 +79,24 @@ ODR\AdminBundle\Entity\DatetimeValue:
             orphanRemoval: false
 #            gedmo:
 #                - versioned
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
     lifecycleCallbacks: {  }

@@ -78,17 +78,18 @@ class MassEditCommand extends ContainerAwareCommand
                 }
                 else if ($data->job_type == 'value_change') {
                     //
-                    $logger->info('MassEditCommand.php: value_change request for DataRecordField '.$data->datarecordfield_id.' from '.$data->memcached_prefix.'...');
+                    $logger->info('MassEditCommand.php: value_change request for DataRecord '.$data->datarecord_id.' Datafield '.$data->datafield_id.' from '.$data->memcached_prefix.'...');
                     $current_time = new \DateTime();
                     $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
-                    $output->writeln('value_change request for DataRecordField '.$data->datarecordfield_id.' from '.$data->memcached_prefix.'...');
+                    $output->writeln('value_change request for DataRecord '.$data->datarecord_id.' Datafield '.$data->datafield_id.' from '.$data->memcached_prefix.'...');
 
                     // Create the required parameters to send
                     $parameters = array(
                         'tracked_job_id' => $data->tracked_job_id,
                         'user_id' => $data->user_id,
 
-                        'datarecordfield_id' => $data->datarecordfield_id,
+                        'datarecord_id' => $data->datarecord_id,
+                        'datafield_id' => $data->datafield_id,
                         'value' => $data->value,
 
                         'api_key' => $data->api_key

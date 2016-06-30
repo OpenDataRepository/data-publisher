@@ -68,6 +68,8 @@ class WorkerController extends ODRCustomController
         $return['t'] = '';
         $return['d'] = '';
 
+        $ret = '';
+
         try {
             $post = $_POST;
             if ( !isset($post['tracked_job_id']) || !isset($post['datarecord_id']) || !isset($post['api_key']) || !isset($post['scheduled_at']) )
@@ -77,13 +79,12 @@ class WorkerController extends ODRCustomController
             $tracked_job_id = intval($post['tracked_job_id']);
             $datarecord_id = $post['datarecord_id'];
             $api_key = $post['api_key'];
-            $scheduled_at = \DateTime::createFromFormat('Y-m-d H:i:s', $post['scheduled_at']);
-
-            $delay = new \DateInterval( 'PT1S' );    // one second delay
+//            $scheduled_at = \DateTime::createFromFormat('Y-m-d H:i:s', $post['scheduled_at']);
+//            $delay = new \DateInterval( 'PT1S' );    // one second delay
 
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $pheanstalk = $this->get('pheanstalk');
+//            $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
@@ -96,51 +97,35 @@ class WorkerController extends ODRCustomController
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
 
-            // TODO - get rid of $block
 
             // ----------------------------------------
             // Grab necessary objects
             $block = false;
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            $datatype_id = null;
+            if ($datarecord == null)
+                throw new \Exception('RecacheRecordCommand.php: Recache request for deleted DataRecord '.$datarecord_id.', skipping');
 
-            $ret = '';
-            if ($datarecord == null) {
-                $ret = 'RecacheRecordCommand.php: Recache request for deleted DataRecord '.$datarecord_id.', skipping';
-                $block = true;
-            }
-            else if ($datarecord->getProvisioned() == true) {
-                $ret = 'RecacheRecordCommand.php: Recache request for provisioned Datarecord '.$datarecord_id.', skipping';
-                $block = true;
-            }
+            if ($datarecord->getProvisioned() == true)
+                throw new \Exception('RecacheRecordCommand.php: Recache request for provisioned Datarecord '.$datarecord_id.', skipping');
 
-            $datatype = null;
-            if (!$block) {
-                $em->refresh($datarecord);  // TODO - apparently $datarecord is sometimes NULL at this point?!
-                $datatype = $datarecord->getDataType();
-                if ($datatype == null) {
-                    $ret = 'RecacheRecordCommand.php: Recache request involving DataRecord '.$datarecord_id.' requires deleted DataType, skipping';
-                    $block = true;
-                }
-
-                $datatype_id = $datatype->getId();
-            }
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() !== null)
+                throw new \Exception('RecacheRecordCommand.php: Recache request involving DataRecord '.$datarecord_id.' requires deleted DataType, skipping');
+            $datatype_id = $datatype->getId();
 
 
             // ----------------------------------------
-            if (!$block) {
-                // See if there are migration jobs in progress for this datatype
-                $tracked_job = $repo_tracked_job->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
-                if ($tracked_job !== null) {
-                    $target_entity = $tracked_job->getTargetEntity();
-                    $tmp = explode('_', $target_entity);
-                    $datafield_id = $tmp[1];
+            // See if there are migration jobs in progress for this datatype
+            $tracked_job = $repo_tracked_job->findOneBy( array('job_type' => 'migrate', 'restrictions' => 'datatype_'.$datatype_id, 'completed' => null) );
+            if ($tracked_job !== null) {
+                $target_entity = $tracked_job->getTargetEntity();
+                $tmp = explode('_', $target_entity);
+                $datafield_id = $tmp[1];
 
-                    $ret = 'RecacheRecordCommand.php: Datafield '.$datafield_id.' is currently being migrated to a different fieldtype...'."\n";
-                    $return['r'] = 2;
-                    $block = true;
-                }
+                $ret = 'RecacheRecordCommand.php: Datafield '.$datafield_id.' is currently being migrated to a different fieldtype...'."\n";
+                $return['r'] = 2;
+                $block = true;
             }
 
             $tracked_job = null;
@@ -159,174 +144,65 @@ class WorkerController extends ODRCustomController
 
             // ----------------------------------------
             if (!$block) {
-/*
-                // TODO 
-                $external_id_field = $datatype->getExternalIdField();
-                $namefield = $datatype->getNameField();
-                $sortfield = $datatype->getSortField();
-                
-                if ($external_id_field !== null) {
-                    $typeclass = $external_id_field->getFieldType()->getTypeClass();
-                
-                    $query = $em->createQuery(
-                       'SELECT e.value AS value
-                        FROM ODRAdminBundle:'.$typeclass.' AS e
-                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                        WHERE e.dataRecord = :datarecord AND e.dataField = :datafield
-                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL'
-                    )->setParameters( array('datarecord' => $datarecord_id, 'datafield' => $external_id_field->getId()) );
-                    $result = $query->getArrayResult();
-                    $current_value = $result[0]['value'];
-                
-                    if ($typeclass == 'DatetimeValue')
-                        $current_value = $current_value->format('Y-m-d');
-                
-                    if ($datarecord->getExternalId() !== $current_value) {
-                //print 'set external_id to '.$current_value."\n";
-                        $datarecord->setExternalId($current_value);
-                    }
-                }
-                
-                if ($namefield !== null) {
-                    $typeclass = $namefield->getFieldType()->getTypeClass();
-                
-                    $query = $em->createQuery(
-                       'SELECT e.value AS value
-                        FROM ODRAdminBundle:'.$typeclass.' AS e
-                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                        WHERE e.dataRecord = :datarecord AND e.dataField = :datafield
-                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL'
-                    )->setParameters( array('datarecord' => $datarecord_id, 'datafield' => $namefield->getId()) );
-                    $result = $query->getArrayResult();
-                    $current_value = $result[0]['value'];
-                
-                    if ($typeclass == 'DatetimeValue')
-                        $current_value = $current_value->format('Y-m-d');
-                
-                    if ($datarecord->getNamefieldValue() !== $current_value) {
-                //print 'set namefield_value to '.$current_value."\n";
-                        $datarecord->setNamefieldValue($current_value);
-                    }
-                }
-                
-                if ($sortfield !== null) {
-                    $typeclass = $sortfield->getFieldType()->getTypeClass();
-                
-                    $query = $em->createQuery(
-                       'SELECT e.value AS value
-                        FROM ODRAdminBundle:'.$typeclass.' AS e
-                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                        WHERE e.dataRecord = :datarecord AND e.dataField = :datafield
-                        AND e.deletedAt IS NULL AND drf.deletedAt IS NULL'
-                    )->setParameters( array('datarecord' => $datarecord_id, 'datafield' => $sortfield->getId()) );
-                    $result = $query->getArrayResult();
-                    $current_value = $result[0]['value'];
-                
-                    if ($typeclass == 'DatetimeValue')
-                        $current_value = $current_value->format('Y-m-d');
-                
-                    if ($datarecord->getSortfieldValue() !== $current_value) {
-                //print 'set sortfield_value to '.$current_value."\n";
-                        $datarecord->setSortfieldValue($current_value);
-                    }
-                }
-                
-                $em->persist($datarecord);
-                $em->flush();
-*/
 
                 // ----------------------------------------
-                // Determine if the datarecord is missing any memcached entries
-                $oldest_revision = null;
-                $missing_cache_entries = false;
-                $memcache_keys = array('data_record_short_form', 'data_record_short_text_form', 'data_record_long_form', 'data_record_long_form_public');
-                foreach ($memcache_keys as $memcache_key) {
-                    $data = $memcached->get($memcached_prefix.'.'.$memcache_key.'_'.$datarecord_id);
+                // Ensure the memcached version of the datarecord's datatype exists
+                $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype_id);
+                if ($datatype_data == false)
+                    self::getDatatypeData($em, self::getDatatreeArray($em), $datatype_id);
 
-                    if ($data == false)
-                        $missing_cache_entries = true;
-                    else if ($oldest_revision == null || $data['revision'] < $oldest_revision)
-                        $oldest_revision = $data['revision'];                
+                // Ensure the memcached version of the datarecord exists
+                $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$datarecord_id);
+                if ($datarecord_data == false)
+                    self::getDatarecordData($em, $datarecord_id);
+
+                // Ensure the memcached version of the datarecord's
+                $datarecord_table_data = $memcached->get($memcached_prefix.'.datarecord_table_data_'.$datarecord_id);
+                if ($datarecord_table_data == false)
+                    self::Text_GetDisplayData($em, $datarecord_id, $request);
+
+                // Also recreate the XML version of the datarecord
+                $xml_export_path = dirname(__FILE__).'/../../../../web/uploads/xml_export/';
+
+                // Ensure directory exists
+                if ( !file_exists($xml_export_path) )
+                    mkdir( $xml_export_path );
+
+                $filename = 'DataRecord_'.$datarecord_id.'.xml';
+                $handle = fopen($xml_export_path.$filename, 'w');
+                if ($handle !== false) {
+                    $content = parent::XML_GetDisplayData($em, $datarecord->getId(), $request);
+                    fwrite($handle, $content);
+                    fclose($handle);
                 }
 
-$ret = 'RecacheRecordCommand.php: Recache request for DataRecord '.$datarecord->getId().', datarecord_revision: '.$oldest_revision.'  datatype_revision: '.$datatype->getRevision().', ';
-if ($missing_cache_entries == true)
-    $ret .= 'missing_cache_entries: true'."\n";
-else
-    $ret .= 'missing_cache_entries: false'."\n";
+$ret .= '>> Recached DataRecord '.$datarecord->getId()."\n";
+$logger->info('WorkerController::recacherecordAction() >> Recached DataRecord '.$datarecord->getId());
 
-                if ( $missing_cache_entries || $oldest_revision < $datatype->getRevision() ) {
-                    // 
-$ret .= 'Attempting to recache DataRecord '.$datarecord->getId().' of DataType '.$datatype->getId()."\n";
-$logger->info('WorkerController::recacherecordAction()  Attempting to recache DataRecord '.$datarecord->getId().' of DataType '.$datatype->getId());
+                // Update the job tracker if necessary
+                if ($tracked_job_id !== -1 && $tracked_job !== null) {
 
-                    // Ensure all entities exist prior to attempting to render HTML for the datarecord
-                    parent::verifyExistence($datarecord);
-                    $current_revision = $datatype->getRevision();
-
-                    // Render and cache the ShortResults form of the record
-                    $short_form_html = parent::Short_GetDisplayData($request, $datarecord->getId());
-                    $data = array( 'revision' => $current_revision, 'html' => $short_form_html );
-                    $memcached->set($memcached_prefix.'.data_record_short_form_'.$datarecord_id, $data, 0);
-/*
-                    // Render and cache the TextResults form of the record
-                    $short_form_html = parent::Text_GetDisplayData($request, $datarecord->getId());
-                    $data = array( 'revision' => $current_revision, 'html' => $short_form_html );
-                    $memcached->set($memcached_prefix.'.data_record_short_text_form_'.$datarecord_id, $data, 0);
-*/
-                    // Also render and store the public and non-public forms of the record
-                    $long_form_html = parent::Long_GetDisplayData($request, $datarecord->getId(), 'force_render_all');
-                    $data = array( 'revision' => $current_revision, 'html' => $long_form_html );
-                    $memcached->set($memcached_prefix.'.data_record_long_form_'.$datarecord_id, $data, 0);
-
-                    $long_form_html = parent::Long_GetDisplayData($request, $datarecord->getId(), 'public_only');
-                    $data = array( 'revision' => $current_revision, 'html' => $long_form_html );
-                    $memcached->set($memcached_prefix.'.data_record_long_form_public_'.$datarecord_id, $data, 0);
-
-                    // Also recreate the XML version of the datarecord
-                    $xml_export_path = dirname(__FILE__).'/../../../../web/uploads/xml_export/';
-
-                    // Ensure directory exists
-                    if ( !file_exists($xml_export_path) )
-                        mkdir( $xml_export_path );
-
-                    $filename = 'DataRecord_'.$datarecord_id.'.xml';
-                    $handle = fopen($xml_export_path.$filename, 'w');
-                    if ($handle !== false) {
-                        $content = parent::XML_GetDisplayData($em, $datarecord->getId(), $request);
-                        fwrite($handle, $content);
-                        fclose($handle);
-                    }
-
-$ret .= '>> Recached DataRecord '.$datarecord->getId().' to datatype revision '.$current_revision."\n";
-$logger->info('WorkerController::recacherecordAction() >> Recached DataRecord '.$datarecord->getId().' to datatype revision '.$datatype->getRevision());
-
-                    // Update the job tracker if necessary
-                    if ($tracked_job_id !== -1 && $tracked_job !== null) {
-
-                        $em->refresh($tracked_job);
+                    $em->refresh($tracked_job);
 
 $ret .= '  original tracked_job_target: '.$tracked_job_target.'  current tracked_job_target: '.$tracked_job->getRestrictions()."\n";
 
-                        if ( $tracked_job !== null && intval($tracked_job_target) == intval($tracked_job->getRestrictions()) ) {
-                            $total = $tracked_job->getTotal();
-                            $count = $tracked_job->incrementCurrent($em);
+                    if ( $tracked_job !== null && intval($tracked_job_target) == intval($tracked_job->getRestrictions()) ) {
+                        $total = $tracked_job->getTotal();
+                        $count = $tracked_job->incrementCurrent($em);
 
-                            if ($count >= $total)
-                                $tracked_job->setCompleted( new \DateTime() );
+                        if ($count >= $total)
+                            $tracked_job->setCompleted( new \DateTime() );
                         
-                            $em->persist($tracked_job);
-                            $em->flush();
+                        $em->persist($tracked_job);
+                        $em->flush();
 $ret .= '  Set current to '.$count."\n";
-                        }
                     }
-
                 }
-                else {
+
+            }
+            else {
 $ret = '>> Ignored update request for DataRecord '.$datarecord->getId()."\n";
 $logger->info('WorkerController::recacherecordAction() >> Ignored update request for DataRecord '.$datarecord->getId());
-                }
-
             }
 
             $return['d'] = $ret;
@@ -334,82 +210,6 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
         catch (\Exception $e) {
             // TODO - increment tracked job counter on error?
 
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x6642397853 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Called by the recaching background process to forcibly rebuild the various pieces of cached data that ODR relies on.
-     *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function forcerecacheAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        $ret = '';
-
-        try {
-            $post = $_POST;
-            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
-                throw new \Exception('Invalid Form');
-
-            // Pull data from the post
-            $object_type = $post['object_type'];
-            $object_id = $post['object_id'];
-            $api_key = $post['api_key'];
-
-            // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $logger = $this->get('logger');
-
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
-
-            $force_rebuild = true;
-
-            if ($object_type == 'datarecord') {
-                parent::getDatarecordData($em, $object_id, $force_rebuild);
-                $ret .= 'Rebuilt cached datarecord array for datarecord '.$object_id;
-            }
-            else if ($object_type == 'datatype') {
-                parent::getDatatypeData($em, parent::getDatatreeArray($em, $force_rebuild), $object_id, $force_rebuild);
-                $ret .= 'Rebuilt cached datatype array for datatype '.$object_id;
-            }
-            else if ($object_type == 'datatype_permission') {
-                // Ensure user has all permissions objects
-                $top_level_datatypes = parent::getTopLevelDatatypes();
-                foreach ($top_level_datatypes as $num => $datatype_id)
-                    parent::permissionsExistence($em, $object_id, $object_id, $datatype_id, null);
-
-                parent::getPermissionsArray($object_id, $request, $force_rebuild);
-                $ret .= 'Rebuilt datatype permissions array for user '.$object_id;
-            }
-            else if ($object_type == 'datafield_permission') {
-                // Ensure user has all datafield permission objects
-
-                parent::getDatafieldPermissionsArray($object_id, $request, $force_rebuild);
-                $ret .= 'Rebuilt datafield permissions array for user '.$object_id;
-            }
-
-            $return['d'] = $ret."\n";
-        }
-        catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x6642397853 ' . $e->getMessage();
@@ -456,11 +256,10 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 //            $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
-/*
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-*/
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
@@ -617,12 +416,14 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                     $em->remove($src_entity);
 
                     $new_obj = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                    $new_obj->setValue($value);
 
-                    $em->persist($new_obj);
-                    $em->flush();
+                    parent::ODR_copyStorageEntity($em, $user, $new_obj, array('value' => $value));
+
 
                     // TODO - code to directly update the cached version of the datarecord
+                    // Locate and clear the cache entry for this datarecord
+                    $grandparent_datarecord_id = $datarecord->getGrandparent()->getId();
+                    $memcached->delete($memcached_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
                 }
                 else {
                     $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";

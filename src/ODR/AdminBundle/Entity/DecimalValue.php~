@@ -38,12 +38,17 @@ class DecimalValue
     /**
      * @var \DateTime
      */
-    private $deletedAt;
+    private $created;
 
     /**
      * @var \DateTime
      */
-    private $created;
+    private $updated;
+    
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataRecordFields
@@ -70,6 +75,11 @@ class DecimalValue
      */
     private $createdBy;
 
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $updatedBy;
+    
 
     /**
      * Get id
@@ -238,6 +248,29 @@ class DecimalValue
     }
 
     /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return DecimalValue
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
+    }
+
+    /**
      * Set dataRecordFields
      *
      * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
@@ -350,5 +383,28 @@ class DecimalValue
     public function getCreatedBy()
     {
         return $this->createdBy;
+    }
+
+    /**
+     * Set updatedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return DecimalValue
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
     }
 }

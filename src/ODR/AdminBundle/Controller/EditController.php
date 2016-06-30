@@ -1,34 +1,50 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* Record Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* This controller handles everything required to edit any kind of
-* data stored in a DataRecord.
-*
-*/
+ * Open Data Repository Data Publisher
+ * Edit Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * This controller handles everything required to edit any kind of
+ * data stored in a DataRecord.
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DatetimeValue;
+use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
+use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LinkedDataTree;
+use ODR\AdminBundle\Entity\LongText;
+use ODR\AdminBundle\Entity\LongVarchar;
+use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
+use ODR\AdminBundle\Form\BooleanForm;
+use ODR\AdminBundle\Form\DatetimeValueForm;
+use ODR\AdminBundle\Form\DecimalValueForm;
+use ODR\AdminBundle\Form\IntegerValueForm;
+use ODR\AdminBundle\Form\LongTextForm;
+use ODR\AdminBundle\Form\LongVarcharForm;
+use ODR\AdminBundle\Form\MediumVarcharForm;
+use ODR\AdminBundle\Form\ShortVarcharForm;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -56,7 +72,6 @@ class EditController extends ODRCustomController
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -67,7 +82,7 @@ class EditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -76,27 +91,17 @@ class EditController extends ODRCustomController
             // --------------------
 
 
-            // Create new Data Record
+            // Create a new datarecord
             $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
 
-            $em->flush();
-            $em->refresh($datarecord);
-
-            // Top Level Record - must have grandparent and parent set to itself
-            /** @var DataRecord $parent */
-            $parent = $repo_datarecord->find($datarecord->getId());
-            /** @var DataRecord $grandparent */
-            $grandparent = $repo_datarecord->find($datarecord->getId());
-
-            $datarecord->setGrandparent($grandparent);
-            $datarecord->setParent($parent);
+            // This is a top-level datarecord...must have grandparent and parent set to itself
+            $datarecord->setParent($datarecord);
+            $datarecord->setGrandparent($datarecord);
 
             // Datarecord is ready, remove provisioned flag
             $datarecord->setProvisioned(false);
-
-            $em->persist($datarecord);
             $em->flush();
-            $em->refresh($datarecord);
+
 
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
@@ -106,8 +111,8 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Build the cache entries for this new datarecord
-            $options = array();
-            parent::updateDatarecordCache($datarecord->getId(), $options);
+//            $options = array();
+//            parent::updateDatarecordCache($datarecord->getId(), $options);
 
             // Delete the cached string containing the ordered list of datarecords for this datatype
             $memcached = $this->get('memcached');
@@ -184,7 +189,7 @@ class EditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -204,10 +209,6 @@ class EditController extends ODRCustomController
             $em->persist($datarecord);
             $em->flush();
 
-            // Ensure the new child record has all its fields
-            parent::verifyExistence($datarecord);
-
-
             // Get record_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
                 'new_datarecord_id' => $datarecord->getId(),
@@ -216,8 +217,7 @@ class EditController extends ODRCustomController
             );
 
             // Refresh the cache entries for this datarecord
-            $options = array('mark_as_updated' => true);
-            parent::updateDatarecordCache($grandparent->getId(), $options);
+            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -232,7 +232,7 @@ class EditController extends ODRCustomController
 
 
     /**
-     * Deletes a DataRecord.
+     * Deletes a top-level DataRecord.
      * 
      * @param integer $datarecord_id The database id of the datarecord to delete.
      * @param Request $request
@@ -247,8 +247,6 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            throw new \Exception('DISABLED PENDING SECOND HALF OF THEME REWORK');
-
             // Grab memcached stuff
             $memcached = $this->get('memcached');
             $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
@@ -257,13 +255,10 @@ class EditController extends ODRCustomController
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
-            $repo_linked_data_tree = $em->getRepository('ODRAdminBundle:LinkedDataTree');
 
             // Grab the necessary entities
             /** @var DataRecord $datarecord */
-            $datarecord = $repo_datarecord->find($datarecord_id);
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 return parent::deletedEntityError('Datarecord');
 
@@ -272,11 +267,10 @@ class EditController extends ODRCustomController
                 return parent::deletedEntityError('Datatype');
             $datatype_id = $datatype->getId();
 
-
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -285,88 +279,92 @@ class EditController extends ODRCustomController
             // --------------------
 
 
-            // TODO - move most of this to beanstalk...leave deleting actual datarecord, its children, and wiping cache entries here
+            if ($datarecord->getId() !== $datarecord->getGrandparent()->getId())
+                throw new \Exception('EditController::deletedatarecordAction() called on a Datarecord that is not top-level');
+
+
+            // ----------------------------------------
+            // Grab all children of this datarecord
+            $query = $em->createQuery(
+               'SELECT dr.id AS dr_id
+                FROM ODRAdminBundle:DataRecord AS dr
+                WHERE dr.grandparent = :datarecord_id
+                AND dr.deletedAt IS NULL'
+            )->setParameters( array('datarecord_id' => $datarecord->getId()) );
+            $results = $query->getArrayResult();
+
+            $affected_datarecords = array();
+            foreach ($results as $result)
+                $affected_datarecords[] = $result['dr_id'];
+
+//print '<pre>'.print_r($affected_datarecords, true).'</pre>';  exit();
+
+            // Grab all datarecords that link to any of the affected datarecords...don't really care about the other direction
+            $query = $em->createQuery(
+               'SELECT ancestor.id AS ancestor_id
+                FROM ODRAdminBundle:LinkedDataTree AS ldt
+                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                WHERE ldt.descendant IN (:datarecord_ids)
+                AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
+            )->setParameters( array('datarecord_ids' => $affected_datarecords) );
+            $results = $query->getArrayResult();
+
+            $ancestor_datarecord_ids = array();
+            foreach ($results as $result)
+                $ancestor_datarecord_ids[] = $result['ancestor_id'];
+
+//print '<pre>'.print_r($ancestor_datarecord_ids, true).'</pre>';  exit();
+
+            // ----------------------------------------
+            // Perform a series of DQL mass updates to immediately remove everything that could break if it wasn't deleted...
+/*
+            // ...datarecordfield entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataRecordFields AS drf
+                SET drf.deletedAt = :now
+                WHERE drf.dataRecord IN (:datarecord_ids) AND drf.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'datarecord_ids' => $affected_datarecords) );
+            $rows = $query->execute();
+*/
+            // ...linked_datatree entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:LinkedDataTree AS ldt
+                SET ldt.deletedAt = :now, ldt.deletedBy = :deleted_by
+                WHERE (ldt.ancestor IN (:datarecord_ids) OR ldt.descendant IN (:datarecord_ids))
+                AND ldt.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datarecord_ids' => $affected_datarecords) );
+            $rows = $query->execute();
+
+            // ...delete each meta entry for the datarecord and its children
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataRecordMeta AS drm
+                SET drm.deletedAt = :now
+                WHERE drm.dataRecord IN (:datarecord_ids)
+                AND drm.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'datarecord_ids' => $affected_datarecords) );
+            $rows = $query->execute();
+
+            // ...delete the datarecord and all its children
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataRecord AS dr
+                SET dr.deletedAt = :now, dr.deletedBy = :deleted_by
+                WHERE dr.id IN (:datarecord_ids)
+                AND dr.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datarecord_ids' => $affected_datarecords) );
+            $rows = $query->execute();
 
 
             // -----------------------------------
-            // Delete DataRecordField entries for this datarecord
-            $entities_to_remove = array();
+            // Delete the list of associated datarecords for the datarecords that linked to this now-deleted datarecord
+            foreach ($ancestor_datarecord_ids as $num => $ancestor_id)
+                $memcached->delete($memcached_prefix.'.associated_datarecords_for_'.$ancestor_id);
 
-            $query = $em->createQuery(
-               'SELECT drf.id AS drf_id
-                FROM ODRAdminBundle:DataRecordFields AS drf
-                WHERE drf.dataRecord = :datarecord'
-            )->setParameters( array('datarecord' => $datarecord->getId()) );
-            $results = $query->getResult();
+            // Delete the cached entry for this now-deleted datarecord
+            $memcached->delete($memcached_prefix.'.cached_datarecord_'.$datarecord_id);
 
-            foreach ($results as $num => $data) {
-                $drf_id = $data['drf_id'];
-                /** @var DataRecordFields $drf */
-                $drf = $repo_datarecordfields->find($drf_id);
-                $entities_to_remove[] = $drf;
-            }
-
-            // Build a list of all datarecords that need recaching as a result of this deletion
-            $recache_list = array();
-
-            // Locate and delete any LinkedDataTree entities so rendering doesn't crash
-            /** @var LinkedDataTree[] $linked_data_trees */
-            $linked_data_trees = $repo_linked_data_tree->findBy( array('descendant' => $datarecord->getId()) );
-            foreach ($linked_data_trees as $ldt) {
-                // Need to recache the datarecord on the other side of the link
-                $ancestor_id = $ldt->getAncestor()->getGrandparent()->getId();
-                if ( !in_array($ancestor_id, $recache_list) )
-                    $recache_list[] = $ancestor_id;
-
-                $ldt->setDeletedBy($user);
-                $em->persist($ldt);
-
-                $entities_to_remove[] = $ldt;
-            }
-
-            /** @var LinkedDataTree[] $linked_data_trees */
-            $linked_data_trees = $repo_linked_data_tree->findBy( array('ancestor' => $datarecord->getId()) );
-            foreach ($linked_data_trees as $ldt) {
-                // Need to recache the datarecord on the other side of the link
-                $descendant_id = $ldt->getDescendant()->getGrandparent()->getId();
-                if ( !in_array($descendant_id, $recache_list) )
-                    $recache_list[] = $descendant_id;
-
-                $ldt->setDeletedBy($user);
-                $em->persist($ldt);
-
-                $entities_to_remove[] = $ldt;
-            }
-
-            // Delete the datarecord entity like the user wanted, in addition to all children of this datarecord so external_id doesn't grab them
-            /** @var DataRecord[] $datarecords */
-            $datarecords = $repo_datarecord->findBy( array('grandparent' => $datarecord->getId()) );
-            foreach ($datarecords as $dr) {
-                $dr_meta = $dr->getDataRecordMeta();
-
-                $entities_to_remove[] = $dr_meta;
-                $entities_to_remove[] = $dr;
-
-                $dr->setDeletedBy($user);
-                $em->persist($dr);
-                // TODO - links to/from child datarecord?
-            }
-
-            // Save who is doing the deletions for all the entities, then remove all of them
-            $em->flush();
-            foreach ($entities_to_remove as $entity)
-                $em->remove($entity);
-
-            $em->flush();
-
-            // Delete the list of DataRecords for this DataType that ShortResults uses to build its list
+            // Delete the sorted list of datarecords for this datatype
             $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
 
-
-            // Schedule all datarecords that were connected to the now deleted datarecord for a recache
-            $options = array();
-            foreach ($recache_list as $num => $dr_id)
-                parent::updateDatarecordCache($dr_id, $options);
 
             // ----------------------------------------
             // See if any cached search results need to be deleted...
@@ -446,8 +444,10 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-
-            throw new \Exception('DISABLED PENDING SECOND HALF OF THEME REWORK');
+            // Grab memcached stuff
+            $memcached = $this->get('memcached');
+            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -463,7 +463,7 @@ class EditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -471,26 +471,108 @@ class EditController extends ODRCustomController
                 return parent::permissionDeniedError("delete child DataRecords from");
             // --------------------
 
-            // Grab the grandparent data record so GetDisplayData creates html for all the child records of this datatype
+            if ($datarecord->getId() == $datarecord->getGrandparent()->getId())
+                throw new \Exception('EditController::deletechildrecordAction() called on a Datarecord that is top-level');
+
             $parent = $datarecord->getParent();
             $grandparent = $datarecord->getGrandparent();
+            $grandparent_id = $grandparent->getId();
 
-            // Delete the datarecord entity like the user wanted
-            $datarecord->setDeletedBy($user);
-            $em->persist($datarecord);
-            $em->flush();
-            $em->refresh($datarecord);
 
-            $datarecord_meta = $datarecord->getDataRecordMeta();
-            $em->remove($datarecord_meta);
-            $em->remove($datarecord);
-            $em->flush();
+            // ----------------------------------------
+            // Grab all children of this datarecord
+            $parent_ids = array();
+            $parent_ids[] = $datarecord->getId();
 
-            // Refresh the cache entries for the grandparent
-            $options = array('mark_as_updated' => true);
-            parent::updateDatarecordCache($grandparent->getId(), $options);
+            $affected_datarecords = array();
+            $affected_datarecords[] = $datarecord->getId();
 
-            // TODO - schedule recaches for other datarecords?
+
+            while ( count($parent_ids) > 0 ) {
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS parent
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.parent = parent
+                    WHERE dr.id != parent.id AND parent.id IN (:parent_ids)
+                    AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
+                )->setParameters( array('parent_ids' => $parent_ids) );
+                $results = $query->getArrayResult();
+
+                $parent_ids = array();
+                foreach ($results as $result) {
+                    $dr_id = $result['dr_id'];
+
+                    $parent_ids[] = $dr_id;
+                    $affected_datarecords[] = $dr_id;
+                }
+            }
+
+//print '<pre>'.print_r($affected_datarecords, true).'</pre>';  exit();
+
+            // Grab all datarecords that link to any of the affected datarecords...don't really care about the other direction
+            $query = $em->createQuery(
+               'SELECT ancestor.id AS ancestor_id
+                FROM ODRAdminBundle:LinkedDataTree AS ldt
+                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                WHERE ldt.descendant IN (:datarecord_ids)
+                AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
+            )->setParameters( array('datarecord_ids' => $affected_datarecords) );
+            $results = $query->getArrayResult();
+
+            $ancestor_datarecord_ids = array();
+            foreach ($results as $result)
+                $ancestor_datarecord_ids[] = $result['ancestor_id'];
+
+//print '<pre>'.print_r($ancestor_datarecord_ids, true).'</pre>';  exit();
+
+            // ----------------------------------------
+            // Perform a series of DQL mass updates to immediately remove everything that could break if it wasn't deleted...
+/*
+            // ...datarecordfield entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataRecordFields AS drf
+                SET drf.deletedAt = :now
+                WHERE drf.dataRecord IN (:datarecord_ids) AND drf.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'datarecord_ids' => $affected_datarecords) );
+            $rows = $query->execute();
+*/
+            // ...linked_datatree entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:LinkedDataTree AS ldt
+                SET ldt.deletedAt = :now, ldt.deletedBy = :deleted_by
+                WHERE (ldt.ancestor IN (:datarecord_ids) OR ldt.descendant IN (:datarecord_ids))
+                AND ldt.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datarecord_ids' => $affected_datarecords) );
+            $rows = $query->execute();
+
+            // ...delete each meta entry for the datarecord and its children
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataRecordMeta AS drm
+                SET drm.deletedAt = :now
+                WHERE drm.dataRecord IN (:datarecord_ids)
+                AND drm.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'datarecord_ids' => $affected_datarecords) );
+            $rows = $query->execute();
+
+            // ...delete the datarecord and all its children
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataRecord AS dr
+                SET dr.deletedAt = :now, dr.deletedBy = :deleted_by
+                WHERE dr.id IN (:datarecord_ids)
+                AND dr.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datarecord_ids' => $affected_datarecords) );
+            $rows = $query->execute();
+
+
+            // -----------------------------------
+            // Delete the list of associated datarecords for the datarecords that linked to this now-deleted datarecord
+            foreach ($ancestor_datarecord_ids as $num => $ancestor_id)
+                $memcached->delete($memcached_prefix.'.associated_datarecords_for_'.$ancestor_id);
+
+            // Delete the cached entries for this datarecord's grandparent
+            $memcached->delete($memcached_prefix.'.associated_datarecords_for_'.$grandparent_id);
+            parent::tmp_updateDatarecordCache($em, $grandparent, $user);
+
 
             // Get record_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
@@ -552,7 +634,7 @@ class EditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -647,7 +729,7 @@ class EditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -758,7 +840,7 @@ class EditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -874,7 +956,7 @@ class EditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -980,7 +1062,7 @@ class EditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -1199,7 +1281,7 @@ class EditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -1297,7 +1379,7 @@ class EditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -1352,13 +1434,14 @@ class EditController extends ODRCustomController
     /**
      * Handles selection changes made to SingleRadio, MultipleRadio, SingleSelect, and MultipleSelect DataFields
      *
-     * @param integer $data_record_field_id The database id of the DataRecord/DataField pair being modified.
-     * @param integer $radio_option_id      The database id of the RadioOption entity being (de)selected.  If 0, then no RadioOption should be selected.
+     * @param integer $datarecord_id    The database id of the Datarecord being modified
+     * @param integer $datafield_id     The database id of the Datafield being modified
+     * @param integer $radio_option_id  The database id of the RadioOption entity being (de)selected.  If 0, then no RadioOption should be selected.
      * @param Request $request
      *
      * @return Response
      */
-    public function radioselectionAction($data_record_field_id, $radio_option_id, Request $request)
+    public function radioselectionAction($datarecord_id, $datafield_id, $radio_option_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1366,24 +1449,18 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-
-            throw new \Exception('ASSUMES EXISTENCE OF DATARECORDFIELD ENTRIES');
-
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
-            /** @var DataRecordFields $datarecordfield */
-            $datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields')->find($data_record_field_id);
-            if ( $datarecordfield == null )
-                return parent::deletedEntityError('DataRecordField');
-
-            $datafield = $datarecordfield->getDataField();
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
                 return parent::deletedEntityError('Datafield');
 
-            $datarecord = $datarecordfield->getDataRecord();
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 return parent::deletedEntityError('Datarecord');
 
@@ -1398,10 +1475,11 @@ class EditController extends ODRCustomController
                     return parent::deletedEntityError('RadioOption');
             }
 
+
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -1414,6 +1492,9 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Locate the existing datarecordfield entry, or create one if it doesn't exist
+            $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
+
             // Course of action differs based on whether multiple selections are allowed
             $typename = $datafield->getFieldType()->getTypeName();
 
@@ -1421,7 +1502,7 @@ class EditController extends ODRCustomController
             if ( $radio_option_id != 0 && ($typename == 'Multiple Radio' || $typename == 'Multiple Select') ) {
                 // Don't care about selected status of other RadioSelection entities...
                 /** @var RadioSelection $old_radio_selection */
-                $old_radio_selection = $repo_radio_selection->findOneBy( array('radioOption' => $radio_option_id, 'dataRecordFields' => $data_record_field_id) );
+                $old_radio_selection = $repo_radio_selection->findOneBy( array('radioOption' => $radio_option_id, 'dataRecordFields' => $drf->getId()) );
 
                 // Default to a value of 'selected' if an older RadioSelection entity does not exist
                 $new_value = 1;
@@ -1435,14 +1516,14 @@ class EditController extends ODRCustomController
                 }
 
                 // Create the new RadioSelection entity
-                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, $new_value);
+                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, $new_value);
                 $em->persist($new_radio_selection);
                 $em->flush();
             }
             else if ($typename == 'Single Radio' || $typename == 'Single Select') {
                 // Probably need to change selected status of at least one other RadioSelection entity...
                 /** @var RadioSelection[] $radio_selections */
-                $radio_selections = $repo_radio_selection->findBy( array('dataRecordFields' => $data_record_field_id) );
+                $radio_selections = $repo_radio_selection->findBy( array('dataRecordFields' => $drf->getId()) );
 
                 $found = false;
                 foreach ($radio_selections as $radio_selection) {
@@ -1453,7 +1534,7 @@ class EditController extends ODRCustomController
                             $radio_option_tmp = $radio_selection->getRadioOption();
                             $em->remove($radio_selection);
 
-                            $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option_tmp, $datarecordfield, 0);
+                            $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option_tmp, $drf, 0);
                             $em->persist($new_radio_selection);
                         }
                     }
@@ -1466,7 +1547,7 @@ class EditController extends ODRCustomController
                             $radio_option_tmp = $radio_selection->getRadioOption();
                             $em->remove($radio_selection);
 
-                            $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option_tmp, $datarecordfield, 1);
+                            $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option_tmp, $drf, 1);
                             $em->persist($new_radio_selection);
                         }
                         else {
@@ -1477,7 +1558,7 @@ class EditController extends ODRCustomController
 
                 // If a RadioSelection entity for this RadioOption doesn't exist, create it
                 if (!$found && $radio_option_id != 0) {
-                    $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, 1);
+                    $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, 1);
                     $em->persist($new_radio_selection);
                 }
 
@@ -1490,17 +1571,9 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // TODO - replace this block with code to directly update the cached version of the datarecord
-            // Determine whether ShortResults needs a recache
-            $options = array();
-            $options['mark_as_updated'] = true;
+            // TODO - replace this block with code to directly update the cached version of the datarecord?
+            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
 
-            if ( parent::inShortResults($datafield) )
-                $options['force_shortresults_recache'] = true;
-
-            // Refresh the cache entries for this datarecord
-            $datarecord = $datarecordfield->getDataRecord();
-            parent::updateDatarecordCache($datarecord->getId(), $options);
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1519,13 +1592,13 @@ class EditController extends ODRCustomController
      * File and Image uploads are handled by @see FlowController
      * Changes to RadioSelections are handled by RecordController::radioselectionAction()
      * 
-     * @param string $record_type    Apparently, the typeclass of the datafield being modified.     TODO - change the variable name to $typeclass or something?
-     * @param integer $datarecord_id The database id of the datarecord being modified.
+     * @param integer $datarecord_id  The datarecord of the storage entity being modified
+     * @param integer $datafield_id   The datafield of the storage entity being modified
      * @param Request $request
      * 
      * @return Response
      */
-    public function updateAction($record_type, $datarecord_id, Request $request) 
+    public function updateAction($datarecord_id, $datafield_id, Request $request)
     {
         // Save Data Record Entries
         $return = array();
@@ -1534,9 +1607,6 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-
-            throw new \Exception('ASSUMES EXISTENCE OF DATARECORDFIELD AND STORAGE ENTITIES');
-
             // Get the Entity Manager
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -1547,212 +1617,170 @@ class EditController extends ODRCustomController
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if ( $datarecord == null )
+            if ($datarecord == null)
                 return parent::deletedEntityError('DataRecord');
 
             $datatype = $datarecord->getDataType();
-            if ( $datatype == null )
+            if ($datatype == null)
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
-            $datafield_id = $_POST[$record_type.'Form']['data_field'];
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-            if ( $datafield == null )
+            if ($datafield == null)
                 return parent::deletedEntityError('DataField');
-
-
-            $datatype_id = $datatype->getId();
-            $external_id_datafield = $datatype->getExternalIdField();
-            $sort_datafield = $datatype->getSortField();
-            $name_datafield = $datatype->getNameField();
 
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'edit' ])) )
+            if (!(isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['edit'])))
                 return parent::permissionDeniedError("edit");
-            if ( !(isset($datafield_permissions[ $datafield_id ]) && isset($datafield_permissions[ $datafield_id ][ 'edit' ])) )
+            if (!(isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit'])))
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-            // Need to reload the datafield on file/image update
-            $need_datafield_reload = false;
 
-            // Determine Form based on Type
-            $form_classname = "\\ODR\\AdminBundle\\Form\\" . $record_type . 'Form';
-            $obj_classname = "ODR\\AdminBundle\\Entity\\" . $record_type;
-
-            $form = null;
-            $my_obj = null;
-            switch($record_type) {
+            // ----------------------------------------
+            // Determine class of form needed
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            $form_object = null;
+            $form_class = null;
+            switch ($typeclass) {
                 case 'Boolean':
+                    $form_class = BooleanForm::class;
+                    $form_object = new Boolean();
+                    break;
                 case 'DatetimeValue':
+                    $form_class = DatetimeValueForm::class;
+                    $form_object = new DatetimeValue();
+                    break;
                 case 'DecimalValue':
+                    $form_class = DecimalValueForm::class;
+                    $form_object = new DecimalValue();
+                    break;
                 case 'IntegerValue':
-                case 'LongVarchar':
+                    $form_class = IntegerValueForm::class;
+                    $form_object = new IntegerValue();
+                    break;
                 case 'LongText':    // paragraph text
+                    $form_class = LongTextForm::class;
+                    $form_object = new LongText();
+                    break;
+                case 'LongVarchar':
+                    $form_class = LongVarcharForm::class;
+                    $form_object = new LongVarchar();
+                    break;
                 case 'MediumVarchar':
+                    $form_class = MediumVarcharForm::class;
+                    $form_object = new MediumVarchar();
+                    break;
                 case 'ShortVarchar':
-                    $my_obj = new $obj_classname();
-                    $post = $_POST;
-                    if ( isset($post['id']) && $post['id'] > 0 ) {
-                        $repo = $em->getRepository('ODRAdminBundle:'.$record_type);
-                        $my_obj = $repo->find($post['id']);
-                    }
+                    $form_class = ShortVarcharForm::class;
+                    $form_object = new ShortVarchar();
                     break;
 
-                case 'File':
-                case 'Image':
-                    /* do nothing */
-                    break;
-
-                case 'Radio':
-                    // No point continuing if a radio fieldtype
-                    throw new \Exception('RecordController::updateAction() called on Datafield with a Radio FieldType');
+                default:
+                    // Radio fieldtypes aren't supposed to be updated here ever
+                    // Files/Images might be permissible in the future
+                    throw new \Exception('RecordController::updateAction() called for a Datafield using the '.$typeclass.' Radio FieldType');
                     break;
             }
-            $form = $this->createForm(
-                new $form_classname($em), 
-                $my_obj
-            );
 
-//print_r($_POST);
-//exit();
-
-            // Grab the new value for the datafield
-            $old_value = $new_value = '';
-            if ( isset($_POST[$record_type.'Form']['value']) )
-                $new_value = $_POST[$record_type.'Form']['value'];
-
-            // Save the old value incase we have to revert
-            /** @var DataRecordFields $drf */
-            $drf = $my_obj->getDataRecordFields();
-            $tmp_obj = $drf->getAssociatedEntity();
-            $old_value = $tmp_obj->getValue();
-
-            if ($record_type == 'DatetimeValue')
-                $old_value = $old_value->format('Y-m-d');
+            // Ensure the associated storage entity exists
+            /** @var Boolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
+            $storage_entity = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()));
+            if ($storage_entity == null)
+                $storage_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
+            $old_value = $storage_entity->getValue();
 
 
-            // Only save if the new value is different from the old value
-            if ($new_value !== $old_value && $request->getMethod() == 'POST') {
-                $form->bind($request, $my_obj);
+            // ----------------------------------------
+            // Create a new form for this storage entity and bind it to the request
+            $form = $this->createForm($form_class, $form_object, array('datarecord_id' => $datarecord->getId(), 'datafield_id' => $datafield->getId()));
+            $form->handleRequest($request);
 
-                // If the datafield is marked as unique...
-                if ( $datafield->getIsUnique() == true ) {
-                    // ...determine whether the new value is a duplicate of a value that already exists
-                    $found_existing_value = self::findExistingValue($em, $datafield, $datarecord->getParent()->getId(), $new_value);
-                    if ($found_existing_value)
-                        $form->addError( new FormError('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield...reverting back to old value.') );
-                }
+            if ($form->isSubmitted()) {
+                $new_value = $form_object->getValue();
 
-//$form->addError( new FormError('do not save') );
+                if ($old_value !== $new_value) {
 
-                // Ensure the form has no errors
-                if ($form->isValid()) {
-
-                    // ----------------------------------------
-                    // If saving from a datetime field, convert the submitted string into a datetime object
-                    if ( $record_type == 'DatetimeValue' ) {
-                        if ($new_value == '')
-                            $new_value = new \DateTime('0000-00-00 00:00:00');
-                        else
-                            $new_value = new \DateTime($new_value);
+                    // If the datafield is marked as unique...
+                    if ($datafield->getIsUnique() == true) {
+                        // ...determine whether the new value is a duplicate of a value that already exists
+                        $found_existing_value = self::findExistingValue($em, $datafield, $datarecord->getParent()->getId(), $new_value);
+                        if ($found_existing_value)
+                            $form->addError( new FormError('Another Datarecord already has the value "'.$new_value.'" stored in this Datafield...reverting back to old value.') );
                     }
 
+//$form->addError(new FormError('do not save'));
 
-                    // Save the change in the database
-                    switch ($record_type) {
-                        case 'Boolean':
-                        case 'DatetimeValue':
-                        case 'DecimalValue':
-                        case 'IntegerValue':
-                        case 'LongVarchar':
-                        case 'LongText':    // paragraph text
-                        case 'MediumVarchar':
-                        case 'ShortVarchar':
-                            // Delete the old storage entity and create a new one to take its place
-                            $em->remove($my_obj);
-
-                            $new_obj = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                            $new_obj->setValue($new_value);
-
-                            $em->persist($new_obj);
-                            $em->flush();
-                            break;
-
-                        case 'File':
-                        case 'Image':
-                            // Save changes
-                            $em->persist($my_obj);
-                            $em->flush();
-                            break;
-                    }
-
-/*
-                    // ----------------------------------------
-                    // TODO - no point running this if following block is run too
-                    // If the field that got modified is the name/sort/external_id field for this datatype, update this datarecord's cache values to match the new value
-                    if ($name_datafield !== null && $name_datafield->getId() == $datafield->getId()) {
-                        $datarecord->setNamefieldValue( $new_value );
-                        $em->persist($datarecord);
-                    }
-                    if ($sort_datafield !== null && $sort_datafield->getId() == $datafield->getId()) {
-                        $datarecord->setSortfieldValue( $new_value );
-                        $em->persist($datarecord);
-
-                        // Since a sort value got changed, also delete the default sorted list of datarecords for this datatype
-                        $memcached->delete($memcached_prefix.'.data_type_'.$datatype_id.'_record_order');
-                    }
-                    if ($external_id_datafield !== null && $external_id_datafield->getId() == $datafield->getId()) {
-                        $datarecord->setExternalId( $new_value );
-                        $em->persist($datarecord);
-                    }
-*/
-
-                    // ----------------------------------------
-                    // TODO - replace this block with code to directly update the cached version of the datarecord
-                    // Determine whether ShortResults needs a recache
-                    $options = array();
-                    $options['mark_as_updated'] = true;
-                    if ( parent::inShortResults($datafield) )
-                        $options['force_shortresults_recache'] = true;
-                    if ( $datafield->getDisplayOrder() != -1 )
-                        $options['force_textresults_recache'] = true;
-
-                    // Refresh the cache entries for this datarecord
-                    parent::updateDatarecordCache($datarecord_id, $options);
-
-
-                    // ----------------------------------------
-                    // See if any cached search results need to be deleted...
-                    $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
-                    if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
-                        // Delete all cached search results for this datatype that were run with criteria for this specific datafield
-                        foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
-                            $searched_datafields = $search_data['searched_datafields'];
-                            $searched_datafields = explode(',', $searched_datafields);
-
-                            if ( in_array($datafield_id, $searched_datafields) )
-                                unset( $cached_searches[$datatype_id][$search_checksum] );
+                    if ($form->isValid()) {
+                        // ----------------------------------------
+                        // If saving to a datetime field, ensure it's a datetime object?
+                        if ($typeclass == 'DatetimeValue') {
+                            if ($new_value == '')
+                                $new_value = new \DateTime('0000-00-00 00:00:00');
+                            else
+                                $new_value = new \DateTime($new_value);
                         }
 
-                        // Save the collection of cached searches back to memcached
-                        $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
-                    }
-                }
-                else {
-                    // Form validation failed
-                    $return['r'] = 2;
-                    $return['old_value'] = $old_value;
+                        // Save the value
+                        parent::ODR_copyStorageEntity($em, $user, $storage_entity, array('value' => $new_value));
 
-                    $return['error'] = parent::ODR_getErrorMessages($form);
+
+                        // ----------------------------------------
+                        // TODO - replace this block with code to directly update the cached version of the datarecord?
+                        // TODO - if cached datarecord version isn't completely wiped, then need to have code to modify external id/name/sort datafield value...
+/*
+                        $external_id_datafield = $datatype->getExternalIdField();
+                        $sort_datafield = $datatype->getSortField();
+                        $name_datafield = $datatype->getNameField();
+*/
+                        parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+
+
+                        // ----------------------------------------
+                        // See if any cached search results need to be deleted...
+                        $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+                        if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
+                            // Delete all cached search results for this datatype that were run with criteria for this specific datafield
+                            foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
+                                $searched_datafields = $search_data['searched_datafields'];
+                                $searched_datafields = explode(',', $searched_datafields);
+
+                                if ( in_array($datafield_id, $searched_datafields) )
+                                    unset($cached_searches[$datatype_id][$search_checksum]);
+                            }
+
+                            // Save the collection of cached searches back to memcached
+                            $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+                        }
+                    }
+                    else {
+                        // Form validation failed
+                        $return['r'] = 2;
+                        $return['typeclass'] = $typeclass;
+                        if ($typeclass == 'DatetimeValue') {
+                            // Need to convert datetime values into strings...
+                            $old_value = $old_value->format('Y-m-d');
+                            if ($old_value == '-0001-11-30')
+                                $old_value = '';
+
+                            $return['old_value'] = $old_value;
+                        }
+                        else {
+                            // ...otherwise, just return the old value
+                            $return['old_value'] = $old_value;
+                        }
+
+                        $return['error'] = parent::ODR_getErrorMessages($form);
+                    }
                 }
             }
         }
@@ -1762,9 +1790,9 @@ class EditController extends ODRCustomController
             $return['d'] = 'Error 0x88320029 ' . $e->getMessage();
         }
 
-        $response = new Response(json_encode($return));  
+        $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
-        return $response;  
+        return $response;
     }
 
 
@@ -1888,7 +1916,7 @@ class EditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -2140,7 +2168,7 @@ exit();
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -2329,7 +2357,7 @@ if ($debug)
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -2401,7 +2429,7 @@ if ($debug)
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -2446,7 +2474,6 @@ if ($debug)
         // Required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
         $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
@@ -2461,7 +2488,7 @@ if ($debug)
 
         // Load all permissions for this user
         /** @var User $user */
-        $user = $this->container->get('security.context')->getToken()->getUser();
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
         $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
         $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
@@ -2484,6 +2511,9 @@ if ($debug)
 
         /** @var DataType|null $child_datatype */
         $child_datatype = null;
+        /** @var DataFields|null $datafield */
+        $datafield = null;
+        $datafield_id = null;
 
 
         // Don't allow a child reload request for a top-level datatype
@@ -2522,7 +2552,14 @@ if ($debug)
             }
         }
         else if ($template_name == 'datafield') {
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($target_id);
+            $datafield_id = $target_id;
 
+            $child_datatype = $datafield->getDataType();
+            $theme = $repo_theme->findOneBy( array('dataType' => $child_datatype->getId(), 'themeType' => 'master') );
+
+            $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datarecord->getDataType()->getId());
+            $datatype = $repo_datatype->find($grandparent_datatype_id);
         }
 
 
@@ -2616,6 +2653,8 @@ if ($debug)
                     $linked_datatype_ancestors[ $result['ancestor_id'] ] = $result['ancestor_name'];
             }
 
+            // Generate a csrf token for each of the datarecord/datafield pairs
+            $token_list = self::generateCSRFTokens($datatype_array, $datarecord_array);
 
             $html = $templating->render(
                 'ODRAdminBundle:Edit:edit_ajax.html.twig',
@@ -2636,6 +2675,7 @@ if ($debug)
                     'linked_datatype_descendants' => $linked_datatype_descendants,
 
                     'is_top_level' => $is_top_level,
+                    'token_list' => $token_list,
                 )
             );
         }
@@ -2670,6 +2710,8 @@ if ($debug)
             $display_type = $theme_datatype['display_type'];
             $multiple_allowed = $theme_datatype['multiple_allowed'];
 
+            // Generate a csrf token for each of the datarecord/datafield pairs
+            $token_list = self::generateCSRFTokens($datatype_array, $datarecord_array);
 
             $html = $templating->render(
                 'ODRAdminBundle:Edit:edit_childtype_reload.html.twig',
@@ -2688,12 +2730,38 @@ if ($debug)
                     'is_link' => $is_link,
                     'display_type' => $display_type,
                     'multiple_allowed' => $multiple_allowed,
+
+                    'token_list' => $token_list,
                 )
             );
         }
         else if ($template_name == 'datafield') {
 
-            throw new \Exception('NOT IMPLEMENTED YET');
+            // Generate a csrf token for each of the datarecord/datafield pairs
+            $token_list = self::generateCSRFTokens($datatype_array, $datarecord_array);
+
+            // Extract all needed arrays from $datatype_array and $datarecord_array
+            $datatype = $datatype_array[ $child_datatype->getId() ];
+            $datarecord = $datarecord_array[ $initial_datarecord_id ];
+
+            $datafield = null;
+            foreach ($datatype_array[ $child_datatype->getId() ]['themes'][ $theme->getId() ]['themeElements'] as $te_num => $te) {
+                if ( isset($te['themeDataFields']) ) {
+                    foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+
+                        if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $datafield_id ) {
+                            $datafield = $tdf['dataField'];
+                            break;
+                        }
+                    }
+                    if ($datafield !== null)
+                        break;
+                }
+            }
+
+            if ( $datafield == null )
+                throw new \Exception('Unable to locate array entry for datafield '.$datafield_id);
+
 
             $html = $templating->render(
                 'ODRAdminBundle:Edit:edit_datafield.html.twig',
@@ -2703,11 +2771,57 @@ if ($debug)
                     'datafield' => $datafield,
 
                     'force_image_reload' => false,
+
+                    'token_list' => $token_list,
                 )
             );
         }
 
         return $html;
+    }
+
+
+    /**
+     * Generates a CSRF token for every datarecord/datafield pair in the provided arrays.
+     *
+     * @param array $datatype_array    @see parent::getDatatypeData()
+     * @param array $datarecord_array  @see parent::getDatarecordData()
+     *
+     * @return array
+     */
+    private function generateCSRFTokens($datatype_array, $datarecord_array)
+    {
+        /** @var \Symfony\Component\Security\Csrf\CsrfTokenManager $token_generator */
+        $token_generator = $this->get('security.csrf.token_manager');
+
+        $token_list = array();
+
+        foreach ($datarecord_array as $dr_id => $dr) {
+            if ( !isset($token_list[$dr_id]) )
+                $token_list[$dr_id] = array();
+
+            $dt_id = $dr['dataType']['id'];
+
+            foreach ($datatype_array[$dt_id]['themes'] as $theme_id => $theme) {
+                if ( $theme['themeType'] !== 'master' )
+                    continue;
+
+                foreach ($theme['themeElements'] as $te_num => $te) {
+                    if ( isset($te['themeDataFields']) ) {
+                        foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                            $df_id = $tdf['dataField']['id'];
+                            $typeclass = $tdf['dataField']['dataFieldMeta']['fieldType']['typeClass'];
+
+                            $token_id = $typeclass.'Form_'.$dr_id.'_'.$df_id;
+
+                            $token_list[$dr_id][$df_id] = $token_generator->getToken($token_id)->getValue();
+                        }
+                    }
+                }
+            }
+        }
+
+        return $token_list;
     }
 
 
@@ -2762,7 +2876,7 @@ if ($debug)
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             $logged_in = true;
 
@@ -2808,7 +2922,7 @@ if ($debug)
                 if ( isset($stored_tab_data[$odr_tab_id]) ) {
                     // Grab datarecord list if it exists
                     if ( isset($stored_tab_data[$odr_tab_id]['datarecord_list']) )
-                        $datarecord_list = $stored_tab_data[$odr_tab_id]['datarecord_list'];
+                        $datarecord_list = $stored_tab_data[$odr_tab_id]['datarecord_list'];    // TODO - what to do when $datarecord_list from $odr_tab_id doesn't match $datarecord_list from parent::getSavedSearch()?
 
                     // Grab start/length from the datatables state object if it exists
                     if ( isset($stored_tab_data[$odr_tab_id]['state']) ) {
@@ -2914,7 +3028,7 @@ if ($debug)
             // ----------------------------------------
             // Ensure user has permissions to be doing this
             /** @var User $user */
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
                 return parent::permissionDeniedError('You need to be a super-admin to view datafield history, for now');
 

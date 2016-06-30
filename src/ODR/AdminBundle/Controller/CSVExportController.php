@@ -1,17 +1,17 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* CSVExport Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The csvexport controller handles rendering and processing a
-* form that allows the user to select which datafields to export
-* into a csv file, and also handles the work of exporting the data.
-*
-*/
+ * Open Data Repository Data Publisher
+ * CSVExport Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The csvexport controller handles rendering and processing a
+ * form that allows the user to select which datafields to export
+ * into a csv file, and also handles the work of exporting the data.
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 

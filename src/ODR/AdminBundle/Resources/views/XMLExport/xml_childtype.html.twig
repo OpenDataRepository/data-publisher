@@ -36,14 +36,14 @@ is_link: {{ is_link }}</br>
 
             {% if using_metadata == true %}
                 <_datarecord_metadata>
-                    <_external_id>{#{{ datarecord.getexternalid }}#}{{ datarecord.id }}</_external_id>
+                    <_external_id>{{ datarecord.externalIdField_value }}</_external_id>
                     <_create_date>{{ datarecord.dataRecordMeta.created|date('Y-m-d H:i:s') }}</_create_date>
                     <_create_auth>{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string }}{% endif %}</_create_auth>
                     <_public_date>{{ datarecord.dataRecordMeta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
                 </_datarecord_metadata>
             {% endif %}
 
-            {% include 'ODRAdminBundle:XMLExport:xml_fields.html.twig' with {
+            {% include 'ODRAdminBundle:XMLExport:xml_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
                 'datarecord_array': datarecord_array,
 
@@ -65,7 +65,7 @@ is_link: {{ is_link }}</br>
 
         {% else %}
             {# only display external id for linked datarecords #}
-            <datarecord><_external_id>{#{{ datarecord.getexternalid }}#}{{ datarecord.id }}</_external_id></datarecord>
+            <datarecord><_external_id>{{ datarecord.externalIdField_value }}</_external_id></datarecord>
         {% endif %}
     {% endif %}
 

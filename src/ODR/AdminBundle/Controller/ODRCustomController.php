@@ -27,6 +27,8 @@ use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\DatetimeValue;
+use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileChecksum;
@@ -35,7 +37,11 @@ use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageChecksum;
 use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\ImageSizes;
+use ODR\AdminBundle\Entity\IntegerValue;
 use ODR\AdminBundle\Entity\LinkedDataTree;
+use ODR\AdminBundle\Entity\LongText;
+use ODR\AdminBundle\Entity\LongVarchar;
+use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioOptionsMeta;
 use ODR\AdminBundle\Entity\RadioSelection;
@@ -44,6 +50,7 @@ use ODR\AdminBundle\Entity\RenderPluginFields;
 use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\RenderPluginMap;
 use ODR\AdminBundle\Entity\RenderPluginOptions;
+use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
@@ -103,14 +110,15 @@ class ODRCustomController extends Controller
      * Utility function that renders a list of datarecords inside a wrapper template (shortresutlslist.html.twig or textresultslist.html.twig).
      * This is to allow various functions to only worry about what needs to be rendered, instead of having to do it all themselves.
      *
-     * @param array $datarecord_list The unfiltered list of datarecord ids that need rendered...this should contain EVERYTHING
-     * @param DataType $datatype     Which datatype the datarecords belong to
-     * @param Theme $theme           Which theme to use for rendering this datatype
-     * @param User $user             Which user is requesting this list
+     * @param array $datarecords  The unfiltered list of datarecord ids that need rendered...this should contain EVERYTHING
+     * @param DataType $datatype  Which datatype the datarecords belong to
+     * @param Theme $theme        Which theme to use for rendering this datatype
+     * @param User $user          Which user is requesting this list
+     * @param string $path_str
      *
-     * @param string $target         "Results" or "Record"...where to redirect when a datarecord from this list is selected
-     * @param string $search_key     Used for search header, an optional string describing which search result list $datarecord_id is a part of
-     * @param integer $offset        Used for search header, an optional integer indicating which page of the search result list $datarecord_id is on
+     * @param string $target      "Results" or "Record"...where to redirect when a datarecord from this list is selected
+     * @param string $search_key  Used for search header, an optional string describing which search result list $datarecord_id is a part of
+     * @param integer $offset     Used for search header, an optional integer indicating which page of the search result list $datarecord_id is on
      *
      * @param Request $request
      *
@@ -290,7 +298,7 @@ exit();
             //
             $template = 'ODRAdminBundle:TextResults:textresultslist.html.twig';
             if ($target == 'linking')
-                $template = 'ODRAdminBundle:Record:link_datarecord_form_search.html.twig';
+                $template = 'ODRAdminBundle:Edit:link_datarecord_form_search.html.twig';
 
             $final_html = $templating->render(
                 $template,
@@ -438,7 +446,7 @@ exit();
     /**
      * Determines values for the pagination header
      *
-     * @param integer $num_datarecords The total number of datarecords belonging to the datatype/search result 
+     * @param integer $num_datarecords The total number of datarecords belonging to the datatype/search result
      * @param integer $offset          Which page of results the user is currently on
      * @param string $path_str         The base url used before paging gets involved...$path_str + '/2' would redirect to page 2, $path_str + '/3' would redirect to page 3, etc
      * @param Request $request
@@ -673,7 +681,7 @@ exit();
 
                 if ( !file_exists($file_upload_path.$filename) )
                     throw new \Exception("File does not exist");
-        
+
                 // crypto bundle requires an absolute path to the file to encrypt/decrypt
                 $absolute_path = realpath($file_upload_path.$filename);
             }
@@ -686,7 +694,7 @@ exit();
 
                 if ( !file_exists($image_upload_path.$imagename) )
                     throw new \Exception("Image does not exist");
-        
+
                 // crypto bundle requires an absolute path to the file to encrypt/decrypt
                 $absolute_path = realpath($image_upload_path.$imagename);
             }
@@ -699,7 +707,7 @@ exit();
             // Convert the binary key into a hex string for db storage
             $hexEncoded_num = bin2hex($bytes);
 
-            // Save the encryption key 
+            // Save the encryption key
             $base_obj->setEncryptKey($hexEncoded_num);
             $em->persist($base_obj);
 
@@ -724,9 +732,9 @@ exit();
                 // Attempt to load a checksum object
                 $obj = null;
                 if ($object_type == 'file')
-                    $obj = $repo_filechecksum->findOneBy( array('File' => $object_id, 'chunk_id' => $chunk_id) );
+                    $obj = $repo_filechecksum->findOneBy( array('file' => $object_id, 'chunk_id' => $chunk_id) );
                 else if ($object_type == 'image')
-                    $obj = $repo_imagechecksum->findOneBy( array('Image' => $object_id, 'chunk_id' => $chunk_id) );
+                    $obj = $repo_imagechecksum->findOneBy( array('image' => $object_id, 'chunk_id' => $chunk_id) );
                 /** @var FileChecksum|ImageChecksum $obj */
 
                 // Create a checksum entry if it doesn't exist
@@ -763,10 +771,10 @@ exit();
     /**
      * Utility function that does the work of decrypting a given File/Image entity.
      * Note that the filename of the decrypted file/image is determined solely by $object_id and $object_type because of constraints in the $crypto->decryptFile() function
-     * 
+     *
      * @param integer $object_id  The id of the File/Image to decrypt
      * @param string $object_type "File" or "Image"
-     * 
+     *
      * @return string The absolute path to the newly decrypted file/image
      */
     protected function decryptObject($object_id, $object_type)
@@ -827,7 +835,7 @@ exit();
 
     /**
      * Determines and returns an array of top-level datatype ids
-     * 
+     *
      * @return int[]
      */
     public function getTopLevelDatatypes()
@@ -874,6 +882,7 @@ exit();
      * Utility function to returns the DataTree table in array format
      *
      * @param \Doctrine\ORM\EntityManager $em
+     * @param boolean $force_rebuild
      *
      * @return array
      */
@@ -888,7 +897,7 @@ exit();
         if ( !($force_rebuild || $datatree_array == false) )
             return $datatree_array;
 
-        // 
+        //
         $query = $em->createQuery(
            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
             FROM ODRAdminBundle:DataType AS ancestor
@@ -960,7 +969,7 @@ exit();
      * @param integer $user_id        The database id of the user to grab permissions for
      * @param Request $request
      * @param boolean $force_rebuild  If true, save the calling user's permissions in memcached...if false, just return an array
-     * 
+     *
      * @return array
      */
     public function getPermissionsArray($user_id, Request $request, $force_rebuild = false)
@@ -1785,9 +1794,9 @@ if ($debug)
 
     /**
      * Utility function so other controllers can return 403 errors easily.
-     * 
+     *
      * @param string $type
-     * 
+     *
      * @return Response
      */
     protected function permissionDeniedError($type = '')
@@ -1814,9 +1823,9 @@ if ($debug)
 
     /**
      * Utility function so other controllers can notify of deleted entities easily.
-     * 
+     *
      * @param string $entity
-     * 
+     *
      * @return Response
      */
     protected function deletedEntityError($entity = '')
@@ -1843,9 +1852,9 @@ if ($debug)
     /**
      * Notifies beanstalk to schedule a rebuild of all cached versions of all DataRecords of this DataType.
      * Usually called after a changes is made via DisplayTemplate or SearchTemplate.
-     * 
+     *
      * @param integer $datatype_id The database id of the DataType that needs to be rebuilt.
-     * @param array $options       
+     * @param array $options
      *
      */
     public function updateDatatypeCache($datatype_id, $options = array())
@@ -1859,7 +1868,7 @@ if ($debug)
         $em = $this->getDoctrine()->getManager();
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
         $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
-        
+
         $pheanstalk = $this->get('pheanstalk');
         $router = $this->container->get('router');
         $memcached = $this->get('memcached');
@@ -2021,10 +2030,10 @@ if ($debug)
     /**
      * Notifies beanstalk to eventually schedule a rebuild of all cache entries of a specific DataRecord.
      * Usually called after one of the DataFields of the DataRecord have been updated with a new value/file/image.
-     * 
+     *
      * @param integer $id    The database id of the DataRecord that needs to be recached.
-     * @param array $options 
-     * 
+     * @param array $options
+     *
      */
     public function updateDatarecordCache($id, $options = array())
     {
@@ -2043,7 +2052,7 @@ if ($debug)
         $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
         $api_key = $this->container->getParameter('beanstalk_api_key');
-        
+
         // Generate the url for cURL to use
         $url = $this->container->getParameter('site_baseurl');
         $url .= $router->generate('odr_recache_record');
@@ -2229,6 +2238,7 @@ if ($debug)
      * @param \Doctrine\ORM\EntityManager $em
      * @param Theme $theme
      * @param User $user
+     * @param boolean $update_datatype
      */
     protected function tmp_updateThemeCache($em, $theme, $user, $update_datatype = false)
     {
@@ -2259,10 +2269,10 @@ if ($debug)
 
     /**
      * Sorts DataRecords of a given DataType by the value contained in the DataField marked as the DataRecord's sorting field, and returns a comma-separated string of DataRecord ids in that order.
-     * 
+     *
      * @param DataType $datatype The DataType that needs to have its DataRecords sorted
      * @param string $subset_str The subset of datarecord ids to return as a string
-     * 
+     *
      * @return string
      */
     public function getSortedDatarecords($datatype, $subset_str = '')
@@ -2298,7 +2308,7 @@ if ($debug)
             $sortfield = $datatype->getSortField();
             if ($sortfield === null) {
                 // ...no sort order defined, use database id order
-                
+
                 // Create a query to return the ids of all datarecords belonging to this datatype
                 $query = $em->createQuery(
                    'SELECT dr.id
@@ -2387,7 +2397,7 @@ if ($debug)
 
     /**
      * Gets or creates a TrackedJob entity in the database for use by background processes
-     * 
+     *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user              The user to use if a new TrackedJob is to be created
      * @param string $job_type        A label used to indicate which type of job this is  e.g. 'recache', 'import', etc.
@@ -2396,7 +2406,7 @@ if ($debug)
      * @param string $restrictions    TODO - ...additional info/restrictions attached to the job
      * @param integer $total          ...how many pieces the job is broken up into?
      * @param boolean $reuse_existing TODO - multi-user concerns
-     * 
+     *
      * @return TrackedJob
      */
     protected function ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing = false)
@@ -2470,7 +2480,7 @@ if ($debug)
      */
     protected function ODR_deleteTrackedErrorsByJob($em, $tracked_job_id)
     {
-        // Because there could potentially be thousands of errors for this TrackedJob, do a mass DQL deletion 
+        // Because there could potentially be thousands of errors for this TrackedJob, do a mass DQL deletion
         $query = $em->createQuery(
            'DELETE FROM ODRAdminBundle:TrackedError AS te
             WHERE te.trackedJob = :tracked_job'
@@ -2480,36 +2490,12 @@ if ($debug)
 
 
     /**
-     * Ensures a ThemeDataType entity exists for a given combination of a datatype and a theme.
-     * @deprecated
-     * 
-     * @param User $user         The user to use if a new ThemeDataType is to be created
-     * @param Datatype $datatype 
-     * @param Theme $theme       
-     *
-     */
-    protected function ODR_checkThemeDataType($user, $datatype, $theme)
-    {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        /** @var ThemeDataType $theme_datatype */
-        $theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDataType')->findOneBy( array('dataType' => $datatype->getId(), 'theme' => $theme->getId()) );
-
-        // If the entity doesn't exist, create it
-        if ($theme_datatype == null) {
-            self::ODR_addThemeDatatype($em, $user, $datatype, $theme);
-            $em->flush();
-        }
-    }
-
-
-    /**
      * Ensures a ThemeDataField entity exists for a given combination of a datafield and a theme.
      * @deprecated
-     * 
+     *
      * @param User $user            The user to use if a new ThemeDataField is to be created
-     * @param DataFields $datafield 
-     * @param Theme $theme          
+     * @param DataFields $datafield
+     * @param Theme $theme
      *
      */
     protected function ODR_checkThemeDataField($user, $datafield, $theme)
@@ -2530,9 +2516,9 @@ if ($debug)
     /**
      * Creates and persists a new DataRecordField entity, if one does not already exist for the given (DataRecord, DataField) pair.
      *
-     * @param \Doctrine\ORM\EntityManager $em            
+     * @param \Doctrine\ORM\EntityManager $em
      * @param User $user             The user requesting the creation of this entity
-     * @param DataRecord $datarecord 
+     * @param DataRecord $datarecord
      * @param DataFields $datafield
      *
      * @return DataRecordFields
@@ -2556,8 +2542,6 @@ if ($debug)
             $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
             $drf->setCreated( new \DateTime() );
             $drf->setCreatedBy($user);
-//            $drf->setUpdated( new \DateTime() );
-//            $drf->setUpdatedBy($user);
 
             $em->persist($drf);
             $em->flush($drf);
@@ -2573,7 +2557,7 @@ if ($debug)
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user         The user requesting the creation of this entity
-     * @param DataType $datatype 
+     * @param DataType $datatype
      *
      * @return DataRecord
      */
@@ -2603,7 +2587,7 @@ if ($debug)
         $datarecord_meta->setUpdatedBy($user);
 
         $em->persist($datarecord_meta);
-
+/*
         // Create initial objects
         foreach ($datatype->getDataFields() as $datafield) {
             // Create a datarecordfield entry for every datafield of the datatype
@@ -2619,7 +2603,7 @@ if ($debug)
             $typename = $datafield->getFieldType()->getTypeName();
             if ($typename == 'Single Select' || $typename == 'Multiple Select' || $typename == 'Single Radio' || $typename == 'Multiple Radio') {
                 // Need to create radio selection entities for the new datarecord...
-                /** @var RadioOptions[] $radio_options */
+
                 $radio_options = $em->getRepository('ODRAdminBundle:RadioOptions')->findBy( array('dataField' => $datafield->getId()) );
                 foreach ($radio_options as $radio_option) {
                     self::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield);   // use default of radio_option for selected status
@@ -2629,6 +2613,7 @@ if ($debug)
 
         // Need to flush because of possibility of having creating new storage entity/radio selection objects
         $em->flush();
+*/
 
         return $datarecord;
     }
@@ -3060,63 +3045,175 @@ if ($debug)
 
 
     /**
-     * Creates a new storage entity (Short/Medium/Long Varchar, File, Radio, etc)
+     * Creates, persists, and flushes a new storage entity
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                        The user requesting the creation of this entity
-     * @param DataRecord $datarecord            
-     * @param DataFields $datafield             
+     * @param DataRecord $datarecord
+     * @param DataFields $datafield
+     * @param boolean|integer|string|\DateTime $initial_value
      *
-     * @return mixed
+     * @throws \Exception
+     *
+     * @return Boolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
      */
-    protected function ODR_addStorageEntity($em, $user, $datarecord, $datafield)
+    protected function ODR_addStorageEntity($em, $user, $datarecord, $datafield, $initial_value = null)
     {
-        $storage_entity = null;
-
+        // Locate the table name that will be inserted into if the storage entity doesn't exist
         $fieldtype = $datafield->getFieldType();
         $typeclass = $fieldtype->getTypeClass();
 
-        $classname = "ODR\\AdminBundle\\Entity\\".$typeclass;
+        $default_value = '';
+        $table_name = null;
+        switch ($typeclass) {
+            case 'Boolean':
+                $table_name = 'odr_boolean';
+                $default_value = false;
+                break;
+            case 'DatetimeValue':
+                $table_name = 'odr_datetime_value';
+                $default_value = new \DateTime('0000-00-00 00:00:00');
+                break;
+            case 'DecimalValue':
+                $table_name = 'odr_decimal_value';
+                break;
+            case 'IntegerValue':
+                $table_name = 'odr_integer_value';
+                break;
+            case 'LongText':    // paragraph text
+                $table_name = 'odr_long_text';
+                break;
+            case 'LongVarchar':
+                $table_name = 'odr_long_varchar';
+                break;
+            case 'MediumVarchar':
+                $table_name = 'odr_medium_varchar';
+                break;
+            case 'ShortVarchar':
+                $table_name = 'odr_short_varchar';
+                break;
 
-        // Create initial entity if insert_on_create
-        if ($fieldtype->getInsertOnCreate() == 1) {
-            // Create Instance of field
-            /** @var mixed $storage_entity */
-            $storage_entity = new $classname();
-            $storage_entity->setDataRecord($datarecord);
-            $storage_entity->setDataField($datafield);
-
-            // If Datarecordfields entry is missing, create it
-            /** @var DataRecordFields $drf */
-            $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
-            if ($drf == null) {
-                $drf = self::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
-                $em->persist($drf);
-            }
-            $storage_entity->setDataRecordFields($drf);
-
-            // Store Fieldtype and set default values
-            $storage_entity->setFieldType($fieldtype);
-            if ($typeclass == 'DatetimeValue') {
-                $storage_entity->setValue( new \DateTime('0000-00-00 00:00:00') );
-            }
-            else if ($typeclass == 'IntegerValue') {
-                $storage_entity->setValue(null);
-            }
-            else if ($typeclass == 'DecimalValue') {
-                $storage_entity->setOriginalValue(null);
-                $storage_entity->setValue(null);
-            }
-            else {
-                $storage_entity->setValue('');
-            }
-
-            $storage_entity->setCreatedBy($user);
-            $storage_entity->setUpdatedBy($user);
-            $em->persist($storage_entity);
+            case 'File':
+            case 'Image':
+            case 'Radio':
+            case 'Markdown':
+            default:
+                throw new \Exception('ODR_addStorageEntity() called on invalid fieldtype "'.$typeclass.'"');
+                break;
         }
 
+        // Return the storage entity if it already exists
+        /** @var Boolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
+        $storage_entity = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
+        if ($storage_entity !== null)
+            return $storage_entity;
+
+
+        // Otherwise, locate/create the datarecordfield entity for this datarecord/datafield pair
+        $drf = self::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
+
+
+        // Create a new storage entity
+        // TODO - better method for doing this?
+        $query =
+           'INSERT INTO '.$table_name.' (data_record_id, data_field_id, data_record_fields_id)
+            SELECT * FROM (SELECT :datarecord AS dr_id, :datafield AS df_id, :datarecordfield AS drf_id) AS tmp
+            WHERE NOT EXISTS (
+                SELECT id FROM '.$table_name.' WHERE data_record_id = :datarecord AND data_field_id = :datafield AND data_record_fields_id = :datarecordfield AND deletedAt IS NULL
+            ) LIMIT 1;';
+        $params = array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId(), 'datarecordfield' => $drf->getId());
+        $conn = $em->getConnection();
+        $rowsAffected = $conn->executeUpdate($query, $params);
+
+        // Reload the storage entity
+        $storage_entity = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
+        $storage_entity->setFieldType( $datafield->getFieldType() );
+
+        if ($initial_value !== null)
+            $storage_entity->setValue( $initial_value );
+        else
+            $storage_entity->setValue( $default_value );
+
+        $storage_entity->setCreated( new \DateTime() );
+        $storage_entity->setCreatedBy($user);
+        $storage_entity->setUpdatedBy($user);
+
+        $em->persist($storage_entity);
+        $em->flush();
+
         return $storage_entity;
+    }
+
+
+    /**
+     * Modifies a given storage entity by copying the old value into a new storage entity, then deleting the old entity.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param Boolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $entity
+     * @param array $properties
+     *
+     * @return Boolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
+     */
+    protected function ODR_copyStorageEntity($em, $user, $entity, $properties)
+    {
+        // No point making new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'value' => $entity->getValue()
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $entity;
+
+
+        // Determine whether to create a new entry or modify the previous one
+        $remove_old_entry = false;
+        $new_entity = null;
+        if ( self::createNewMetaEntry($user, $entity) ) {
+            // Create a new entry and copy the previous one's data over
+            $remove_old_entry = true;
+
+            // Determine which type of entity to create
+            $typeclass = $entity->getDataField()->getFieldType()->getTypeClass();
+            $classname = "ODR\\AdminBundle\\Entity\\".$typeclass;
+
+            /** @var Boolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $new_entity */
+            $new_entity = new $classname();
+            $new_entity->setDataRecord( $entity->getDataRecord() );
+            $new_entity->setDataField( $entity->getDataField() );
+            $new_entity->setDataRecordFields( $entity->getDataRecordFields() );
+            $new_entity->setFieldType( $entity->getFieldType() );
+
+            $new_entity->setValue( $entity->getValue() );
+            if ($typeclass == 'DecimalValue')
+                $new_entity->setOriginalValue( $entity->getOriginalValue() );
+
+            $new_entity->setCreatedBy($user);
+        }
+        else {
+            $new_entity = $entity;
+        }
+
+        // Set any new properties
+        if ( isset($properties['value']) )
+            $new_entity->setValue( $properties['value'] );
+
+        $new_entity->setUpdatedBy($user);
+
+
+        // Save the new entry and delete the old one if needed
+        if ($remove_old_entry)
+            $em->remove($entity);
+
+        $em->persist($new_entity);
+        $em->flush();
+
+        return $new_entity;
     }
 
 
@@ -3398,8 +3495,8 @@ if ($debug)
                     $radio_option_meta->setDisplayOrder(0);
                     $radio_option_meta->setIsDefault(false);
 
-                    $radio_option_meta->setCreatedBy($user);
                     $radio_option_meta->setCreated( new \DateTime() );
+                    $radio_option_meta->setCreatedBy($user);
 
                     $em->persist($radio_option_meta);
                     $em->flush($radio_option_meta);
@@ -3704,8 +3801,8 @@ if ($debug)
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                 The user requesting the creation of this entity
-     * @param DataType $datatype         
-     * @param FieldType $fieldtype       
+     * @param DataType $datatype
+     * @param FieldType $fieldtype
      * @param RenderPlugin $renderplugin The RenderPlugin for this new DataField to use...(almost?) always going to be the default RenderPlugin
      *
      * @return array
@@ -4148,9 +4245,9 @@ if ($debug)
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                  The user requesting the creation of this entity.
-     * @param DataType $datatype          
-     * @param DataFields $datafield       
-     * @param ThemeElement $theme_element 
+     * @param DataType $datatype
+     * @param DataFields $datafield
+     * @param ThemeElement $theme_element
      *
      * @return ThemeElementField
      */
@@ -4639,7 +4736,7 @@ if ($debug)
      * Will automatically attempt to replace existing thumbnails if possible.
      *
      * NOTE: all thumbnails for the provided image will have their decrypted version deleted off the server...if for some reason you need it immediately after calling this function, you'll have to use decryptObject() to re-create it
-     * 
+     *
      * @param Image $my_obj The Image that was just uploaded.
      * @param User $user    The user requesting this action
      *
@@ -4689,7 +4786,7 @@ if ($debug)
                 /** @var Image $image */
                 $image = $repo_image->findOneBy( array('parent' => $my_obj->getId(), 'imageSize' => $size->getId()) );
 
-                // If thumbnail doesn't exist, create a new image entity 
+                // If thumbnail doesn't exist, create a new image entity
                 if ( $image == null ) {
                     $image = new Image();
                     $image->setDataField($my_obj->getDataField());
@@ -4707,10 +4804,10 @@ if ($debug)
 
                     // TODO - delete these six properties
                     $image->setOriginalFileName( $my_obj->getOriginalFileName() );
-                    $my_obj->setDisplayorder(0);
-                    $my_obj->setPublicDate( $my_obj->getPublicDate() );
-                    $my_obj->setCaption( $my_obj->getCaption() );
-                    $my_obj->setExternalId('');
+                    $image->setDisplayorder(0);
+                    $image->setPublicDate( $my_obj->getPublicDate() );
+                    $image->setCaption( $my_obj->getCaption() );
+                    $image->setExternalId('');
 
                     $image->setUpdatedBy($user);
 
@@ -4843,7 +4940,7 @@ if ($debug)
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param Theme $theme                     The 'table' theme that stores the order of datafields for its datatype
-     * 
+     *
      * @return array
      */
     public function getDatatablesColumnNames($em, $theme)
@@ -4951,6 +5048,10 @@ if ($debug)
                             throw new \Exception( 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$df['id'].' Datarecord '.$dr['id'].': '.$e->getMessage() );
                         }
                     }
+                    else if ( !isset($dr['dataRecordFields']) || !isset($dr['dataRecordFields'][$df_id]) ) {
+                        // A drf entry hasn't been created for this storage entity...just use the empty string
+                        $df_value = '';
+                    }
                     else {
                         // Locate this datafield's value from the datarecord array
                         $df_typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
@@ -5020,197 +5121,13 @@ if ($debug)
 
 
     /**
-     * Re-renders and returns a given ShortResults version of a given DataRecord's html.
-     * @deprecated
-     * 
-     * @param Request $request
-     * @param integer $datarecord_id The database id of the DataRecord...
-     * @param integer $theme_id      The database id of the Theme to use when rendering this DataRecord
-     * @param string $template_name  unused
-     * 
-     * @return string
-     */
-    public function Short_GetDisplayData(Request $request, $datarecord_id, $theme_id = 2, $template_name = 'default')
-    {
-        // Required objects
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
-        // --------------------
-        // Attempt to get the user
-        $user = 'anon.';
-        $token = $this->container->get('security.token_storage')->getToken(); // token will be NULL when called from thh command line
-        if ($token != NULL)
-            $user = $token->getUser();
-
-        // If this function is being called without a user, grab the 'system' user
-        if ($user === 'anon.')
-            $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find(3);   // TODO - need an actual system user...
-        // --------------------
-        /** @var User $user */
-
-        $theme_element = null;
-
-        /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
-
-        /** @var DataRecord $datarecord */
-        $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-        $datatype = $datarecord->getDataType();
-        $datarecords = array($datarecord);
-
-        $indent = 0;
-        $is_link = 0;
-        $top_level = 1;
-        $short_form = true;
-        $use_render_plugins = false;
-        $public_only = true; // TODO - currently never show non-public info on ShortResults ever?
-
-$debug = true;
-$debug = false;
-if ($debug)
-    print '<pre>';
-
-        // Construct the arrays which contain all the required data
-        $datatype_tree = self::buildDatatypeTree($user, $theme, $datatype, $theme_element, $em, $is_link, $top_level, $short_form, $debug, $indent);
-        $datarecord_tree = array();
-        foreach ($datarecords as $datarecord)
-            $datarecord_tree[] = self::buildDatarecordTree($datarecord, $em, $user, $short_form, $use_render_plugins, $public_only, $debug, $indent);
-
-if ($debug)
-    print '</pre>';
-
-        // Determine which template to use for rendering
-        $template = 'ODRAdminBundle:ShortResults:shortresults_ajax.html.twig';
-
-        // Render the DataRecord
-        $templating = $this->get('templating');
-        $html = $templating->render(
-            $template,
-            array(
-                'datatype_tree' => $datatype_tree,
-                'datarecord_tree' => $datarecord_tree,
-            )
-        );
-
-        return $html;
-    }
-
-
-    /**
-     * Renders the Results version of the datarecord.
-     * @deprecated
-     *
-     * @param Request $request
-     * @param integer $datarecord_id The database id of the DataRecord to render
-     * @param string $template_name  If "public_only", do not render any non-public parts of the datarecord...
-     *
-     * @return string
-     */
-    protected function Long_GetDisplayData(Request $request, $datarecord_id, $template_name = 'default')
-    {
-        // Required objects
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
-        // --------------------
-        // Attempt to get the user
-        $public_only = false;
-        $user = 'anon.';
-        $token = $this->container->get('security.token_storage')->getToken(); // token will be NULL when called from thh command line
-        if ($token != NULL)
-            $user = $token->getUser();
-
-        // If this function is being called without a user, grab the 'system' user
-        if ($user === 'anon.') {
-            $public_only = true;
-            $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find(3);   // TODO - need an actual system user...
-        }
-        // --------------------
-        /** @var User $user */
-
-        $theme_element = null;
-
-        /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
-
-        /** @var DataRecord $datarecord */
-        $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-        $datatype = $datarecord->getDataType();
-        $datarecords = array($datarecord);
-
-        $indent = 0;
-        $is_link = 0;
-        $top_level = 1;
-        $short_form = false;
-        $use_render_plugins = true;
-
-        if ($template_name == 'public_only')
-            $public_only = true;
-        else if ($template_name == 'force_render_all')
-            $public_only = false;
-
-$debug = true;
-$debug = false;
-if ($debug)
-    print '<pre>';
-
-$start = microtime(true);
-if ($debug)
-    print "\n>> starting timing...\n\n";
-
-        // Construct the arrays which contain all the required data
-        $datatype_tree = self::buildDatatypeTree($user, $theme, $datatype, $theme_element, $em, $is_link, $top_level, $short_form, $debug, $indent);
-
-if ($debug)
-    print "\n>> datatype_tree done in: ".(microtime(true) - $start)."\n\n";
-
-        $datarecord_tree = array();
-        foreach ($datarecords as $datarecord) {
-            $datarecord_tree[] = self::buildDatarecordTree($datarecord, $em, $user, $short_form, $use_render_plugins, $public_only, $debug, $indent);
-
-if ($debug)
-    print "\n>> datarecord_tree for datarecord ".$datarecord->getId()." done in: ".(microtime(true) - $start)."\n\n";
-        
-        }
-
-
-if ($debug)
-    print '</pre>';
-
-        // Determine which template to use for rendering
-        $template = 'ODRAdminBundle:Results:results_ajax.html.twig';
-
-if ($debug) {
-    if ($public_only == true)
-        print 'public_only: true'."\n";
-    else
-        print 'public_only: false'."\n";
-}
-
-        // Render the DataRecord
-        $templating = $this->get('templating');
-        $html = $templating->render(
-            $template,
-            array(
-                'datatype_tree' => $datatype_tree,
-                'datarecord_tree' => $datarecord_tree,
-                'theme' => $theme,
-//                'user_permissions' => $user_permissions,
-                'public_only' => $public_only,
-            )
-        );
-
-        return $html;
-    }
-
-
-    /**
      * Renders the XMLExport version of the datarecord.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $datarecord_id
      * @param Request $request
+     *
+     * @throws \Exception
      *
      * @return string
      */
@@ -5331,7 +5248,7 @@ if ($debug) {
      * @param string $output              'browser', 'file', or 'return'
      * @param boolean $delete_original    Whether to delete the original file or not after resizing
      * @param boolean $use_linux_commands If true, use linux commands to delete the original file, otherwise use windows commands
-     * 
+     *
      * @return array Contains height/width after resizing
      */
     public static function smart_resize_image(
@@ -5344,7 +5261,7 @@ if ($debug) {
                               $use_linux_commands = false ) {
 
         if ( $height <= 0 && $width <= 0 ) return false;
-   
+
         # Setting defaults and meta
         $info                         = getimagesize($file);
         $image                        = '';
@@ -5426,201 +5343,9 @@ if ($debug) {
             case IMAGETYPE_PNG:   imagepng($image_resized, $output, '2');    break;
             default: return false;
         }
-   
+
         $stats = array($final_height, $final_width);
         return $stats;
-    }
-
-
-    /**
-     * TODO - rework to use the datatype/datarecord arrays instead of querying everything?
-     * @deprecated
-     *
-     * Ensures the given datarecord and all its child datarecords have datarecordfield entries for all datafields they contain.
-     * 
-     * @param DataRecord $datarecord
-     *
-     * @return boolean
-     */
-    public function verifyExistence($datarecord)
-    {
-        // Don't do anything to a provisioned datarecord
-        if ($datarecord->getProvisioned() == true)
-            return false;
-
-$start = microtime(true);
-$debug = true;
-$debug = false;
-
-if ($debug)
-    print '<pre>';
-
-        // ----------------------------------------
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-
-        // Attempt to get the user
-        $user = 'anon.';
-        $token = $this->container->get('security.token_storage')->getToken(); // token will be NULL when called from the command line
-        if ($token != NULL)
-            $user = $token->getUser();
-
-        // If this function is being called without a user, grab the 'system' user
-        if ($user === 'anon.')
-            $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find(3);   // TODO - need an actual system user...
-        /** @var User $user */
-
-
-        // ----------------------------------------
-        // Verify the existence of all fields in this datatype/datarecord first
-        self::verifyExistence_worker($em, $user, $datarecord, $debug);
-
-
-        // ----------------------------------------
-        // Verify the existence of all fields in all the child datarecords
-        $query = $em->createQuery(
-            'SELECT dr
-            FROM ODRAdminBundle:DataRecord AS dr
-            JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-            WHERE dr.grandparent = :grandparent AND dr.id != :datarecord AND dr.provisioned = false
-            AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL'
-        )->setParameters( array('grandparent' => $datarecord->getId(), 'datarecord' => $datarecord->getId()) );
-        $childrecords = $query->getResult();
-
-        foreach ($childrecords as $childrecord)
-            self::verifyExistence_worker($em, $user, $childrecord, $debug);
-
-
-        // ----------------------------------------
-        // Verify the existence of all fields in all the linked datarecords
-        $query = $em->createQuery(
-           'SELECT descendant
-            FROM ODRAdminBundle:DataRecord AS ancestor
-            JOIN ODRAdminBundle:LinkedDataTree AS dt WITH dt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataRecord AS descendant WITH dt.descendant = descendant
-            WHERE ancestor = :ancestor AND descendant.provisioned = false
-            AND ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-        )->setParameters( array('ancestor' => $datarecord->getId()) );
-        $linked_datarecords = $query->getResult();
-
-        foreach ($linked_datarecords as $linked_datarecord)
-            self::verifyExistence_worker($em, $user, $linked_datarecord, $debug);
-
-
-if ($debug) {
-    print 'verifyExistence() completed in '.(microtime(true) - $start)."\n";
-    print '</pre>';
-}
-
-        // empty return
-        return true;
-    }
-
-    /**
-     * Ensures the given datarecord has datarecordfield entries for all datafields it contains.
-     * @deprecated
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user
-     * @param DataRecord $datarecord
-     * @param boolean $debug
-     *
-     * @return boolean
-     */
-    private function verifyExistence_worker($em, $user, $datarecord, $debug)
-    {
-        // Don't do anything to a provisioned datarecord
-        if ( $datarecord->getProvisioned() == true )
-            return false;
-
-        // Track whether we need to flush
-        $made_change = false;
-        $datatype = $datarecord->getDataType();
-
-$start = microtime(true);
-if ($debug)
-    print "\n---------------\nattempting to verify datarecord ".$datarecord->getId()." of datatype ".$datatype->getId()."...\n";
-
-
-        $datarecordfield_array = array();
-        foreach ($datarecord->getDataRecordFields() as $datarecordfield) {
-            /** @var DataRecordFields $datarecordfield */
-            $datafield = $datarecordfield->getDataField();
-if ($debug)
-    print "-- storing datafield: ".$datafield->getId()." drf: ".$datarecordfield->getId()."\n";
-            array_push($datarecordfield_array, $datafield->getId());
-        }
-
-if ($debug)
-    print "\ndatatype: ".$datatype->getId()."\n";
-        // Create initial record fields
-        $forms = array();
-        foreach($datatype->getDataFields() as $datafield) {
-            /** @var DataFields $datafield */
-if ($debug)
-    print "-- datafield: ".$datafield->getId()."\n";
-
-            if (!in_array($datafield->getId(), $datarecordfield_array) ) {
-                // Don't create a datarecordfield entry for...
-                if ($datafield->getFieldType()->getTypeName() == "Markdown") {
-if ($debug)
-    print "-- -- ignoring ".$datafield->getFieldType()->getTypeName()." field\n";
-                }
-                else {
-if ($debug)
-    print "-- -- creating new datarecordfield\n";
-                    // Need to save changes
-                    $made_change = true;
-
-                    // Create a new DataRecordFields to link the datarecord and the datafield
-                    $datarecordfield = self::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
-
-                    // Create initial storage entity if necessary
-                    self::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-
-                    $datarecord->addDataRecordField($datarecordfield);   // $datarecord gets the right objects, but the properties of one of them aren't set... 
-                }
-            }
-        }
-
-if ($debug)
-    print "datarecord: ".$datarecord->getId()."\n";
-        // All the datarecordfields exist, ensure object that would point to them exist as well
-        foreach ($datarecord->getDataRecordFields() as $datarecordfield) {
-            /** @var DataRecordFields $datarecordfield */
-            $datafield = $datarecordfield->getDataField();
-            $type_class = $datafield->getFieldType()->getTypeClass();
-if ($debug)
-    print "-- looking for \"".$type_class."\" entity object of datarecordfield ".$datarecordfield->getId()."\n";
-
-            $my_obj = $datarecordfield->getAssociatedEntity();
-
-            if ($my_obj === NULL && $datafield->getFieldType()->getInsertOnCreate() == 1) {
-                // Need to save changes
-                $made_change = true;
-
-                // Create Instance of field
-                $classname = "ODR\\AdminBundle\\Entity\\".$type_class;
-if ($debug)
-    print "-- -- creating new \"".$classname."\" for datarecordfield\n";
-
-                self::ODR_addStorageEntity($em, $user, $datarecordfield->getDataRecord(), $datafield);
-            }
-
-            // Need to ensure that entries in odr_image_sizes exist for images...
-            if ($type_class == 'Image')
-                self::ODR_checkImageSizes($em, $user, $datafield);
-        }
-
-if ($debug)
-    print "\ndatarecord ".$datarecord->getId()." of datatype ".$datatype->getId()." has been verified in ".(microtime(true) - $start)."\n";
-
-        // Only flush if changes were made
-        if ($made_change)
-            $em->flush();
-
-        // empty return
-        return true;
     }
 
 
@@ -5732,9 +5457,9 @@ if ($debug)
 
     /**
      * Returns errors encounted while processing a Symfony Form object as a string.
-     * 
+     *
      * @param \Symfony\Component\Form\Form $form
-     * 
+     *
      * @return string
      */
     protected function ODR_getErrorMessages(\Symfony\Component\Form\Form $form)
@@ -5748,461 +5473,6 @@ if ($debug)
         }
 
         return $error_str;
-    }
-
-
-    /**
-     * Gathers and returns an array of all layout information needed to render a DataType.
-     * @deprecated
-     *
-     * @param User $user
-     * @param Theme $theme
-     * @param DataType $datatype                 The datatype to build the tree from.
-     * @param ThemeElement $target_theme_element If reloading a 'fieldarea' the theme_element to be reloaded, null otherwise.
-     * @param \Doctrine\ORM\EntityManager $em                        
-     * @param boolean $is_link                   Whether $datatype is the descendent side of a linked datatype in this context.
-     * @param boolean $top_level                 Whether $datatype is a top-level datatype or not.
-     * @param boolean $short_form                If true, don't recurse...used for SearchTemplate, ShortResults, and TextResults.
-     *
-     * @param boolean $debug                     Whether to print debug information or not
-     * @param integer $indent                    How "deep" in the tree this function is, effectively...used to print out tabs so debugging output looks nicer
-     *
-     * @return array
-     */
-    protected function buildDatatypeTree($user, $theme, $datatype, $target_theme_element, $em, $is_link, $top_level, $short_form, $debug, $indent)
-    {
-
-$start = microtime(true);
-if ($debug) {
-    print "\n";
-    self::indent($indent);
-    print ">> starting buildDatatypeTree (indent ".$indent.") timing...\n\n";
-}
-
-        $tree = array();
-
-        $tree['datatype'] = $datatype;
-        $tree['is_link'] = $is_link;
-        $tree['top_level'] = $top_level;
-        $tree['multiple_allowed'] = 0;
-        $tree['has_childtype'] = 0;
-        $tree['fieldarea_reload'] = 0;
-
-        // If just reloading a 'field_area'...
-        if ($target_theme_element !== null) {
-            $em->refresh($target_theme_element);
-            $tree['fieldarea_reload'] = 1;
-        }
-
-        $em->refresh($theme);
-        $em->refresh($datatype);
-
-        // Ensure theme_datatype exists
-        self::ODR_checkThemeDataType($user, $datatype, $theme);
-
-if ($debug) {
-    self::indent($indent);
-    print 'refreshed datatype '.$datatype->getId().' ('.$datatype->getShortName().')'." in ".(microtime(true) - $start)."\n";
-    self::indent($indent+1);
-    print 'is_link: '.$is_link."\n";
-    self::indent($indent+1);
-    print 'top_level: '.$top_level."\n";
-}
-
-        // Grab theme_datatype
-/*
-        $query = $em->createQuery(
-           'SELECT tdt
-            FROM ODRAdminBundle:ThemeDataType tdt
-            WHERE tdt.dataType = :datatype AND tdt.theme = :theme AND tdt.deletedAt IS NULL'
-        )->setParameters( array('datatype' => $datatype->getId(), 'theme' => $theme->getId()) );
-        $result = $query->getResult();
-        $theme_datatype = $result[0];
-*/
-        /** @var ThemeDataType $theme_datatype */
-        $theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDataType')->findOneBy( array('dataType' => $datatype->getId(), 'theme' => $theme->getId()) );
-
-        $em->refresh($theme_datatype);
-        $tree['theme_datatype'] = $theme_datatype;
-        $tree['theme_elements'] = array();
-
-if ($debug) {
-    self::indent($indent+1);
-    print 'loaded theme_datatype '.$theme_datatype->getId()." in ".(microtime(true) - $start)."\n";
-}
-
-        // Grab theme_elements
-        $theme_elements = array();
-        foreach($datatype->getThemeElement() as $theme_element) {
-            /** @var ThemeElement $theme_element */
-            // if 'field_area' reload and this theme element isn't the one that we wanted to reload, skip
-            if ( $target_theme_element !== null && $target_theme_element->getId() != $theme_element->getId() )
-                continue;
-
-            $em->refresh($theme_element);
-
-            // Don't grab theme elements belonging to different themes
-            if ( $theme_element->getTheme()->getId() != $theme->getId() )
-                continue;
-
-            $ted_child = array();
-            $ted_child['theme_element'] = $theme_element;
-            $ted_child['datafields'] = null;
-            $ted_child['datatype'] = null;
-
-if ($debug) {
-    self::indent($indent+1);
-    print 'loaded theme_element '.$theme_element->getId()." in ".(microtime(true) - $start)."\n";
-}
-
-            foreach ($theme_element->getThemeElementField() as $theme_element_field) {
-                /** @var ThemeElementField $theme_element_field */
-                if ($theme_element_field->getDataFields() !== null) {
-                    $datafield = $theme_element_field->getDataFields();
-                    $em->refresh($datafield);
-                    self::ODR_checkThemeDataField($user, $datafield, $theme);
-
-                    if ($ted_child['datafields'] == null)
-                        $ted_child['datafields'] = array();
-/*
-                    $query = $em->createQuery(
-                       'SELECT tdf
-                        FROM ODRAdminBundle:ThemeDataField tdf
-                        WHERE tdf.dataFields = :datafield AND tdf.theme = :theme AND tdf.deletedAt IS NULL'
-                    )->setParameters( array('datafield' => $datafield->getId(), 'theme' => $theme->getId()) );
-                    $result = $query->getResult();
-                    $theme_datafield = $result[0];
-*/
-                    /** @var ThemeDataField $theme_datafield */
-                    $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield->getId(), 'theme' => $theme->getId()) );
-                    $em->refresh($theme_datafield);
-
-                    if ( $theme_datafield->getActive() == true ) {
-                        $tmp = array();
-                        $tmp['datafield'] = $datafield;
-                        $tmp['theme_datafield'] = $theme_datafield;
-
-if ($debug) {
-    self::indent($indent+2);
-    print 'loaded datafield '.$datafield->getId().' ('.$datafield->getFieldName().')'." in ".(microtime(true) - $start)."\n";
-    self::indent($indent+2);
-    print 'loaded theme_data_field '.$theme_datafield->getId()."\n";
-}
-
-                        $ted_child['datafields'][] = $tmp;
-                    }
-                }
-                else if (!$short_form) {
-                    // Only grab childtypes if not rendering SearchTemplate/ShortResults/TextResults
-                    $childtype = $theme_element_field->getDataType();
-
-                    $query = $em->createQuery(
-                       'SELECT dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
-                        FROM ODRAdminBundle:DataTree AS dt
-                        JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-                        WHERE dt.ancestor = :ancestor AND dt.descendant = :descendant
-                        AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-                    )->setParameters( array('ancestor' => $datatype, 'descendant' => $childtype) );
-                    $result = $query->getResult();
-
-                    // TODO - empty query results?
-
-                    $tree['has_childtype'] = 1;
-                    $top_level = 0;
-
-                    $is_link = 0;
-                    if ($result[0]['is_link'] == true)
-                        $is_link = 1;
-    
-                    $multiple_allowed = 0;
-                    if ($result[0]['multiple_allowed'] == true)
-                        $multiple_allowed = 1;
-
-                    $ted_child['datatype'] = self::buildDatatypeTree($user, $theme, $childtype, null, $em, $is_link, $top_level, $short_form, $debug, $indent+2);
-                    $ted_child['datatype']['multiple_allowed'] = $multiple_allowed;
-                }
-            }
-
-            $theme_elements[] = $ted_child;
-        }
-
-        $tree['theme_elements'] = $theme_elements;
-
-if ($debug) {
-    print "\n";
-    self::indent($indent);
-    print ">> ending buildDatatypeTree (indent ".$indent.") timing...\n\n";
-}
-        return $tree;
-    }
-
-    /**
-     * Gathers and returns an array of all DataRecordField/DataFields/Form objects needed to render the data in a DataRecord.
-     * @deprecated
-     *
-     * @param DataRecord $datarecord      The datarecord to build the tree from.
-     * @param \Doctrine\ORM\EntityManager $em                 
-     * @param User $user                  The user to use for building forms.
-     * @param boolean $short_form         If true, don't recurse...used for SearchTemplate, ShortResults, and TextResults.
-     * @param boolean $use_render_plugins 
-     * @param boolean $public_only        If true, don't render non-public items...if false, render everything
-     *
-     * @param boolean $debug              Whether to print debug information or not
-     * @param integer $indent             How "deep" in the tree this function is, effectively...used to print out tabs so debugging output looks nicer
-     *
-     * @return array
-     */
-    protected function buildDatarecordTree($datarecord, $em, $user, $short_form, $use_render_plugins, $public_only, $debug, $indent)
-    {
-$start = microtime(true);
-if ($debug) {
-    print "\n";
-    self::indent($indent);
-    print ">> starting buildDatarecordTree (indent ".$indent.") timing...\n\n";
-}
-
-        $tree = array();
-
-        $tree['datarecord'] = $datarecord;
-        $tree['datarecordfields'] = array();
-        $tree['forms'] = array();
-        $tree['child_datarecords'] = array();
-
-if ($debug) {
-    self::indent($indent);
-    print 'building tree for datarecord '.$datarecord->getId()."\n";
-}
-
-        $override_child = false;
-        $override_fields = false;
-        $render_plugin = $datarecord->getDataType()->getRenderPlugin();
-        if ($use_render_plugins && $render_plugin->getId() != '1') {
-            if ($render_plugin->getOverrideChild() == '1')
-                $override_child = true;
-            if ($render_plugin->getOverrideFields() == '1')
-                $override_fields = true;
-
-if ($debug) {
-    self::indent($indent);
-    print '> override_child: '.$override_child."\n";
-    self::indent($indent);
-    print '> override_fields: '.$override_fields."\n";
-}
-        }
-
-        // If this datarecord uses a render_plugin that doesn't override_child...
-        // ...plugins that use override_child require an array as the first argument of execute()?
-        if ($use_render_plugins && $render_plugin->getId() != '1' && !$override_child) {
-            $plugin = $this->get($render_plugin->getPluginClassName());
-            $html = $plugin->execute($datarecord, $render_plugin, $public_only);
-
-            $tree['render_plugin_html'] = $html;
-if ($debug) {
-    self::indent($indent+1);
-    print 'created and stored render plugin html for datarecord'." in ".(microtime(true) - $start)."\n";
-}
-        }
-
-        // If a render plugin isn't overriding datafield display, grab all datarecordfield and build all form entities for this datarecord
-        if (!$override_fields) {
-            // Grab all datarecordfield entries for this datarecord
-            foreach ($datarecord->getDataRecordFields() as $datarecordfield) {
-                /** @var DataRecordFields $datarecordfield */
-                $datafield = $datarecordfield->getDataField();
-                $datafield_id = $datafield->getId();
-
-                if ($datafield->getFieldType()->getTypeName() !== "Markdown") {
-                    $tree['datarecordfields'][$datafield_id] = $datarecordfield;
-if ($debug) {
-    self::indent($indent+1);
-    print 'stored datarecordfield '.$datarecordfield->getId().' and associated form under datafield_id '.$datafield_id." in ".(microtime(true) - $start)."\n";
-}
-
-                    // Build the form object while we're here...
-                    $tree['forms'][$datafield_id] = self::buildForm($em, $user, $datarecord, $datafield, $datarecordfield, $debug, $indent+1);
-                }
-            }
-        }
-
-        // Only grab child/linked datarecords if not rendering ShortResults or TextResults...
-        if (!$short_form) {
-            // Grab all child datarecords of this datarecord
-            $query = $em->createQuery(
-               'SELECT dr
-                FROM ODRAdminBundle:DataRecord AS dr
-                JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-                WHERE dr.parent = :datarecord AND dr.id != :datarecord_id AND dr.provisioned = false
-                AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters( array('datarecord' => $datarecord->getId(), 'datarecord_id' => $datarecord->getId()) );
-            $results = $query->getResult();
-            foreach ($results as $num => $child_datarecord) {
-                /** @var DataRecord $child_datarecord */
-                $datatype = $child_datarecord->getDataType();
-                $datatype_id = $datatype->getId();
-                if ( !isset($tree['child_datarecords'][$datatype_id]) )
-                    $tree['child_datarecords'][$datatype_id] = array();
-
-if ($debug) {
-    self::indent($indent+1);
-    print 'storing child_datarecord '.$child_datarecord->getId().' under datatype '.$datatype_id."...\n";
-}
-                $tree['child_datarecords'][$datatype_id][] = self::buildDatarecordTree($child_datarecord, $em, $user, $short_form, $use_render_plugins, $public_only, $debug, $indent+2);
-            }
-
-            // Grab all datarecords that are linked to from this datarecord
-            $query = $em->createQuery(
-               'SELECT descendant
-                FROM ODRAdminBundle:LinkedDataTree AS ldt
-                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-                JOIN ODRAdminBundle:DataType AS dt WITH descendant.dataType = dt
-                WHERE ldt.ancestor = :datarecord AND descendant.provisioned = false
-                AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters( array('datarecord' => $datarecord->getId()) );
-            $results = $query->getResult();
-            foreach ($results as $num => $linked_datarecord) {
-                /** @var DataRecord $linked_datarecord */
-                $datatype = $linked_datarecord->getDataType();
-                $datatype_id = $datatype->getId();
-
-                if ( !isset($tree['child_datarecords'][$datatype_id]) )
-                    $tree['child_datarecords'][$datatype_id] = array();
-
-if ($debug) {
-    self::indent($indent+1);
-    print 'storing linked_datarecord '.$linked_datarecord->getId().' under datatype '.$datatype_id."...\n";
-}
-
-                $tree['child_datarecords'][$datatype_id][] = self::buildDatarecordTree($linked_datarecord, $em, $user, $short_form, $use_render_plugins, $public_only, $debug, $indent+2);
-//                $tree['child_datarecords'][$datatype_id][] = self::buildDatarecordTree($linked_datarecord, $em, $user, $short_form, true, $public_only, $debug, $indent+2);     // render Results version for linked datarecords
-            }
-
-            // If using render plugins (just in general), check to see whether any of the child records use a render_plugin that overrides child datarecords (graph, comments, etc)...
-            if ($use_render_plugins) {
-                foreach ( $tree['child_datarecords'] as $datatype_id => $child_tree ) {
-                    /** @var DataRecord $child_datarecord */
-                    $child_datarecord = $child_tree[0]['datarecord'];
-                    $datatype = $child_datarecord->getDataType();
-                    $render_plugin = $child_datarecord->getDataType()->getRenderPlugin();
-
-                    if ($render_plugin->getId() != '1' && $render_plugin->getOverrideChild() > 0) {
-                        // ...gather the child datarecords into an array and pass it to the plugin to render
-                        $child_datarecords = array();
-                        foreach ($child_tree as $num => $tmp)
-                            $child_datarecords[] = $tmp['datarecord'];
-
-                        $plugin = $this->get($render_plugin->getPluginClassName());
-                        $html = $plugin->execute($child_datarecords, $render_plugin);
-
-                        if ( !isset($tree['rendered_child_datarecords_html']) )
-                            $tree['rendered_child_datarecords_html'] = array();
-
-                        $tree['rendered_child_datarecords_html'][$datatype_id] = $html;
-if ($debug) {
-    self::indent($indent+1);
-    print 'created and stored child_override render plugin html for all datarecord children of datatype '.$datatype->getId()."\n";
-}
-                    }
-                }
-            }
-        }
-
-if ($debug) {
-    print "\n";
-    self::indent($indent);
-    print ">> ending buildDatarecordTree (indent ".$indent.") timing...\n\n";
-}
-
-        return $tree;
-    }
-
-
-    /**
-     * Helper function for debugging buildDatatypeTree() and buildDatarecordTree()
-     *
-     * @param integer $indent
-     */
-    private function indent($indent)
-    {
-        for ($i = 0; $i < $indent; $i++)
-            print '-- ';
-    }
-
-
-    /**
-     * Generates the required Form objects for renders of Record (and results? might be able to speed up results rendering if not...)
-     * @deprecated
-     *
-     * @param \Doctrine\ORM\EntityManager $em                      
-     * @param User $user                       The user to use when rendering this form object
-     * @param DataRecord $datarecord           
-     * @param DataFields $datafield
-     * @param DataRecordFields $datarecordfield
-     *
-     * @param boolean $debug                   Whether to print out debug info or not
-     * @param integer $indent
-     *
-     */
-    protected function buildForm($em, $user, $datarecord, $datafield, $datarecordfield, $debug, $indent)
-    {
-
-        $type_class = $datarecordfield->getDataField()->getFieldType()->getTypeClass();
-        $obj_classname = "ODR\\AdminBundle\\Entity\\".$type_class;
-        $form_classname = "\\ODR\\AdminBundle\\Form\\".$type_class.'Form';
-
-if ($debug) {
-    self::indent($indent+1);
-    print "attempting to load a \"".$type_class."\" from datarecordfield...\n";
-}
-
-        $my_obj = $datarecordfield->getAssociatedEntity();
-
-        // Refresh the objects retrieved from the DataRecordField
-        $form_obj = null;
-        switch ($type_class) {
-            case 'File':
-            case 'Image':
-            case 'Radio':
-                // Files and Images return a collection...
-                foreach ($my_obj as $obj) {
-                    $em->refresh($obj);
-if ($debug) {
-    self::indent($indent+2);
-    print "\"".$type_class."\" ".$obj->getId()." refreshed\n";
-}
-            }
-                break;
-            default:
-                // Everything else returns a single object...
-                $em->refresh($my_obj);
-if ($debug) {
-    self::indent($indent+2);
-    print "\"".$type_class."\" ".$my_obj->getId()." refreshed\n";
-}
-                $form_obj = $my_obj;
-                break;
-        }
-
-        // Files and Images just need a default form object
-        if ($type_class == 'File' || $type_class == 'Image' || $type_class == 'Radio') {
-            $form_obj = new $obj_classname();
-            $form_obj->setDataField($datafield);
-            $form_obj->setFieldType($datafield->getFieldType());
-            $form_obj->setDataRecord($datarecord);
-            $form_obj->setDataRecordFields($datarecordfield);
-            $form_obj->setCreatedBy($user);
-//            $form_obj->setUpdatedBy($user);
-            switch($type_class) {
-                case 'File':
-//                    $form_obj->setGraphable('0');
-                    break;
-                case 'Image':
-                    $form_obj->setOriginal('0');
-                    break;
-            }
-        }
-
-        $form = $this->createForm( new $form_classname($em), $form_obj );
-        return $form->createView();
     }
 
 
@@ -6289,6 +5559,7 @@ if ($timing)
 
         //LEFT JOIN df_rp.renderPluginFields AS df_rpf
 //print $query->getSQL();
+/*
         try {
             $sql = $query->getSQL();
         }
@@ -6298,7 +5569,7 @@ if ($timing)
             exit();
 
         }
-
+*/
         $datatype_data = $query->getArrayResult();
 /*
 if ($timing) {
@@ -6418,7 +5689,7 @@ if ($timing)
         // Otherwise...get all non-layout data for a given grandparent datarecord
         $query = $em->createQuery(
            'SELECT
-               dr, drm, p_dr, gp_dr,
+               dr, drm, dr_cb, dr_ub, p_dr, gp_dr,
                dt, dtm, dt_eif, dt_nf, dt_sf,
                drf, e_f, e_fm, e_f_cb,
                e_i, e_im, e_ip, e_ipm, e_is, e_ip_cb,
@@ -6428,6 +5699,8 @@ if ($timing)
 
             FROM ODRAdminBundle:DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
+            LEFT JOIN dr.createdBy AS dr_cb
+            LEFT JOIN dr.updatedBy AS dr_ub
             LEFT JOIN dr.parent AS p_dr
             LEFT JOIN dr.grandparent AS gp_dr
 
@@ -6478,7 +5751,7 @@ if ($timing)
         )->setParameters(array('grandparent_id' => $grandparent_datarecord_id));
 
 //print $query->getSQL();
-        $sql = $query->getSQL();
+//        $sql = $query->getSQL();
 
         $datarecord_data = $query->getArrayResult();
 /*
@@ -6500,6 +5773,8 @@ if ($timing) {
             // Flatten datarecord_meta
             $drm = $dr['dataRecordMeta'][0];
             $datarecord_data[$dr_num]['dataRecordMeta'] = $drm;
+            $datarecord_data[$dr_num]['createdBy'] = self::cleanUserData( $dr['createdBy'] );
+            $datarecord_data[$dr_num]['updatedBy'] = self::cleanUserData( $dr['updatedBy'] );
 
             // Store which datafields are used for the datatype's external_id_datafield, name_datafield, and sort_datafield
             $external_id_field = null;

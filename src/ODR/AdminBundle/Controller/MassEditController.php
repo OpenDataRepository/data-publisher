@@ -18,15 +18,22 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DatetimeValue;
+use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
+use ODR\AdminBundle\Entity\IntegerValue;
+use ODR\AdminBundle\Entity\LongText;
+use ODR\AdminBundle\Entity\LongVarchar;
+use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
+use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
@@ -321,7 +328,7 @@ class MassEditController extends ODRCustomController
                 /** @var DataFields $df */
                 $df = $repo_datafield->find($df_id);
                 if ( $df->getIsUnique() == 1 )
-                    unset($datafields[$df_id]);
+                    unset( $datafields[$df_id] );
             }
 /*
 print '$datarecords: '.print_r($datarecords, true)."\n";
@@ -347,15 +354,18 @@ return;
 
 
             // ----------------------------------------
+            // Set the url for mass updating public status
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $this->container->get('router')->generate('odr_mass_update_worker_status');
+
             $job_count = 0;
 
             // Deal with datarecord public status first, if needed
             $updated = false;
             foreach ($public_status as $dt_id => $status) {
-                // TODO - is this necessary?
                 // Get all datarecords of this datatype
                 $query = $em->createQuery(
-                   'SELECT dr.id AS id
+                   'SELECT dr.id AS dr_id
                     FROM ODRAdminBundle:DataRecord AS dr
                     WHERE dr.dataType = :datatype_id AND dr.provisioned = false
                     AND dr.deletedAt IS NULL'
@@ -364,16 +374,13 @@ return;
 
                 $all_datarecord_ids = array();
                 foreach ($results as $num => $tmp)
-                    $all_datarecord_ids[] = $tmp['id'];
+                    $all_datarecord_ids[] = $tmp['dr_id'];
 
+                // Only save the datarecords from $complete_datarecord_list that belong to this datatype
                 $affected_datarecord_ids = array_intersect($all_datarecord_ids, $complete_datarecord_list);
 
-                // Set the url for mass updating public status
-                $url = $this->container->getParameter('site_baseurl');
-                $url .= $this->container->get('router')->generate('odr_mass_update_worker_status');
-
                 foreach ($affected_datarecord_ids as $num => $dr_id) {
-                    // ...create a new beanstalk job
+                    // ...create a new beanstalk job for each datarecord of this datatype
                     $job_count++;
 
                     $priority = 1024;   // should be roughly default priority
@@ -399,55 +406,52 @@ return;
 
 
             // ----------------------------------------
+            // Set the url for mass updating datarecord values
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $this->container->get('router')->generate('odr_mass_update_worker_values');
+
             foreach ($datafields as $df_id => $value) {
-                // TODO - is this necessary?
+                // Get all datarecords that display this datafield
                 $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id, drf.id AS drf_id
+                   'SELECT dr.id AS dr_id
                     FROM ODRAdminBundle:DataFields AS df
-                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataField = df
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                    JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
                     WHERE df.id = :datafield_id
-                    AND df.deletedAt IS NULL AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL'
+                    AND df.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL'
                 )->setParameters( array('datafield_id' => $df_id) );
                 $results = $query->getArrayResult();
 
-                $affected_drfs = array();
-                foreach ($results as $num => $tmp) {
-                    $dr_id = $tmp['dr_id'];
-                    $drf_id = $tmp['drf_id'];
+                $all_datarecord_ids = array();
+                foreach ($results as $num => $tmp)
+                    $all_datarecord_ids[] = $tmp['dr_id'];
 
-                    $affected_drfs[ $dr_id ] = $drf_id;
-                }
+                // Only save the datarecords from $complete_datarecord_list that belong to this datatype
+                $affected_datarecord_ids = array_intersect($all_datarecord_ids, $complete_datarecord_list);
 
-                // Set the url for mass updating datarecord values
-                $url = $this->container->getParameter('site_baseurl');
-                $url .= $this->container->get('router')->generate('odr_mass_update_worker_values');
+                foreach ($affected_datarecord_ids as $num => $dr_id) {
+                    // ...create a new beanstalk job for each datarecord of this datatype
+                    $job_count++;
 
-                foreach ($affected_drfs as $dr_id => $drf_id) {
-                    // If this datarecord matched the search...
-                    if ( in_array($dr_id, $complete_datarecord_list) ) {
-                        // ...create a new beanstalk job
-                        $job_count++;
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+                            "job_type" => 'value_change',
+                            "tracked_job_id" => $tracked_job_id,
+                            "user_id" => $user->getId(),
 
-                        $priority = 1024;   // should be roughly default priority
-                        $payload = json_encode(
-                            array(
-                                "job_type" => 'value_change',
-                                "tracked_job_id" => $tracked_job_id,
-                                "user_id" => $user->getId(),
+                            "datarecord_id" => $dr_id,
+                            "datafield_id" => $df_id,
+                            "value" => $value,
 
-                                "datarecordfield_id" => $drf_id,
-                                "value" => $value,
+                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
 
-                                "memcached_prefix" => $memcached_prefix,    // debug purposes only
-                                "url" => $url,
-                                "api_key" => $api_key,
-                            )
-                        );
-
-                        $delay = 15;    // TODO - delay set rather high because unable to determine how many jobs need to be created beforehand...better way of dealing with this?
-                        $pheanstalk->useTube('mass_edit')->put($payload, $priority, $delay);
-                    }
+                    $delay = 15;    // TODO - delay set rather high because unable to determine how many jobs need to be created beforehand...better way of dealing with this?
+                    $pheanstalk->useTube('mass_edit')->put($payload, $priority, $delay);
                 }
             }
 
@@ -601,7 +605,6 @@ return;
             // Save all the changes that were made
             $em->flush();
 
-
             $return['d'] = $ret;
         }
         catch (\Exception $e) {
@@ -630,17 +633,19 @@ return;
         $return['t'] = '';
         $return['d'] = '';
 
+        $ret = '';
+
         try {
-            $ret = '';
             $post = $_POST;
-//$ret = print_r($post, true);
-            if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecordfield_id']) || !isset($post['value']) || !isset($post['api_key']) )
+
+            if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecord_id']) || !isset($post['datafield_id']) || !isset($post['value']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
             $tracked_job_id = $post['tracked_job_id'];
             $user_id = $post['user_id'];
-            $datarecordfield_id = $post['datarecordfield_id'];
+            $datarecord_id = $post['datarecord_id'];
+            $datafield_id = $post['datafield_id'];
             $value = $post['value'];
             $api_key = $post['api_key'];
 
@@ -654,8 +659,7 @@ return;
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
-            $repo_datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields');
+//            $repo_datarecordfield = $em->getRepository('ODRAdminBundle:DataRecordFields');
             $repo_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions');
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
@@ -665,25 +669,21 @@ return;
 
             // ----------------------------------------
             /** @var User $user */
-            $user = $repo_user->find($user_id);
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
 
-            /** @var DataRecordFields $datarecordfield */
-            $datarecordfield = $repo_datarecordfield->find($datarecordfield_id);
-            if ($datarecordfield == null)
-                throw new \Exception('MassEditCommand.php: DataRecordField '.$datarecordfield_id.' is deleted, skipping');
-
-            $datarecord = $datarecordfield->getDataRecord();
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                throw new \Exception('MassEditCommand.php: DataRecordField '.$datarecordfield_id.' refers to deleted DataRecord, skipping');
+                throw new \Exception('MassEditCommand.php: Datarecord '.$datarecord_id.' is deleted, skipping');
 
-            $datafield = $datarecordfield->getDataField();
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
-                throw new \Exception('MassEditCommand.php: DataRecordField '.$datarecordfield_id.' refers to deleted DataField, skipping');
+                throw new \Exception('MassEditCommand.php: Datafield '.$datafield_id.' is deleted, skipping');
 
             $datatype = $datarecord->getDataType();
-            if ($datatype == null)
-                throw new \Exception('MassEditCommand.php: DataRecordField '.$datarecordfield_id.' refers to deleted DataType, skipping');
-
+            if ($datatype->getDeletedAt() !== null)
+                throw new \Exception('MassEditCommand.php: Datatype '.$datatype->getId().' is deleted, skipping');
             $datatype_id = $datatype->getId();
 
 
@@ -704,14 +704,18 @@ return;
 
             // ----------------------------------------
             if (!$block) {
+                //
                 $field_typeclass = $datafield->getFieldType()->getTypeClass();
                 $field_typename = $datafield->getFieldType()->getTypeName();
 
                 if ($field_typeclass == 'Radio') {
+                    // Ensure a datarecordfield entity exists...will receive the existing one back if it already exists
+                    $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
+
                     // Grab all selection objects attached to this radio object
                     $radio_selections = array();
                     /** @var RadioSelection[] $tmp */
-                    $tmp = $repo_radio_selection->findBy( array('dataRecordFields' => $datarecordfield->getId()) );
+                    $tmp = $repo_radio_selection->findBy( array('dataRecordFields' => $drf->getId()) );
                     foreach ($tmp as $radio_selection)
                         $radio_selections[ $radio_selection->getRadioOption()->getId() ] = $radio_selection;
                     /** @var RadioSelection[] $radio_selections */
@@ -725,7 +729,7 @@ return;
 
                         if ( !isset($radio_selections[$radio_option_id]) ) {
                             // A RadioSelection entity for this RadioOption doesn't exist...create it
-                            $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, $selected);
+                            $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, $selected);
                             $em->persist($new_radio_selection);
 
                             $ret .= 'created radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...setting selected to '.$selected."\n";
@@ -739,7 +743,7 @@ return;
                                 $em->remove($radio_selection);
 
                                 // Create a new RadioSelection entity with the desired state
-                                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, $selected);
+                                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, $selected);
                                 $em->persist($new_radio_selection);
 
                                 $ret .= 'found radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...setting selected to '.$selected."\n";
@@ -764,7 +768,7 @@ return;
                                 // Create a new RadioSelection entity with the desired state
                                 /** @var RadioOptions $radio_option */
                                 $radio_option = $repo_radio_option->find($radio_option_id);
-                                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, 0);
+                                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, 0);
                                 $em->persist($new_radio_selection);
 
                                 $ret .= 'deselecting radio_option_id '.$radio_option_id.' for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
@@ -778,9 +782,9 @@ return;
                         $query = $em->createQuery(
                            'SELECT file
                             FROM ODRAdminBundle:File AS file
-                            WHERE file.dataRecordFields = :drf
+                            WHERE file.dataRecord = :dr_id AND file.dataField = :df_id
                             AND file.deletedAt IS NULL'
-                        )->setParameters( array('drf' => $datarecordfield_id) );
+                        )->setParameters( array('dr_id' => $datarecord_id, 'df_id' => $datafield_id) );
                         $results = $query->getResult();
 
                         if ( count($results) > 0 ) {
@@ -823,9 +827,9 @@ return;
                         $query = $em->createQuery(
                            'SELECT image
                             FROM ODRAdminBundle:Image AS image
-                            WHERE image.dataRecordFields = :drf
+                            WHERE image.dataRecord = :dr_id AND image.dataField = :df_id
                             AND image.deletedAt IS NULL'
-                        )->setParameters( array('drf' => $datarecordfield_id) );
+                        )->setParameters( array('dr_id' => $datarecord_id, 'df_id' => $datafield_id) );
                         $results = $query->getResult();
 
                         if ( count($results) > 0 ) {
@@ -864,61 +868,36 @@ return;
                 }
                 else if ($field_typeclass == 'DatetimeValue') {
                     // For the DateTime fieldtype...
-                    /** @var DatetimeValue $entity */
-                    $entity = $datarecordfield->getAssociatedEntity();
+                    /** @var DatetimeValue $storage_entity */
+                    $storage_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);    // will create if it doesn't exist, and return existing entity otherwise
+                    $old_value = $storage_entity->getValue()->format('Y-m-d');
 
-                    if ($entity === null) {
-                        // Create a new storage entity if one doesn't exist for some reason
-                        $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                        $new_entity->setValue( new \DateTime($value) );
-                        $em->persist($new_entity);
-
-                        $ret .= 'storage entity for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' did not exist...created and set to "'.$value."\"\n";
-                    }
-                    else if ($entity->getValue()->format('Y-m-d') != $value) {
-                        // Delete old storage entity
-                        $old_value = $entity->getValue()->format('Y-m-d');
-                        $em->remove($entity);
-
-                        // Create new storage entity with desired value
-                        $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                        $new_entity->setValue( new \DateTime($value) );
-                        $em->persist($new_entity);
+                    if ($old_value != $value) {
+                        // Make the change to the value stored in the storage entity
+                        parent::ODR_copyStorageEntity($em, $user, $storage_entity, array('value' => new \DateTime($value)));
 
                         $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
                     }
                     else {
                         /* do nothing, current value in entity already matches desired value */
-                        $ret .= 'ignoring datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$entity->getValue()->format('Y-m-d').'" identical to desired value "'.$value.'"'."\n";
+                        $ret .= 'ignoring datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$old_value.'" identical to desired value "'.$value.'"'."\n";
                     }
                 }
                 else {
-                    // For every other fieldtype...
-                    $entity = $datarecordfield->getAssociatedEntity();
+                    // For every other fieldtype...ensure the storage entity exists
+                    /** @var Boolean|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
+                    $storage_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);    // will create if it doesn't exist, and return existing entity otherwise
+                    $old_value = $storage_entity->getValue();
 
-                    if ($entity === null) {
-                        // Create a new storage entity if one doesn't exist for some reason
-                        $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                        $new_entity->setValue($value);
-                        $em->persist($new_entity);
-
-                        $ret .= 'storage entity for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' did not exist...created and set to "'.$value."\"\n";
-                    }
-                    else if ($entity->getValue() != $value) {
-                        // Delete old storage entity
-                        $old_value = $entity->getValue();
-                        $em->remove($entity);
-
-                        // Create new storage entity with desired value
-                        $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                        $new_entity->setValue($value);
-                        $em->persist($new_entity);
+                    if ($old_value != $value) {
+                        // Make the change to the value stored in the storage entity
+                        parent::ODR_copyStorageEntity($em, $user, $storage_entity, array('value' => $value));
 
                         $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
                     }
                     else {
                         /* do nothing, current value in entity already matches desired value */
-                        $ret .= 'ignoring datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$entity->getValue().'" identical to desired value "'.$value.'"'."\n";
+                        $ret .= 'ignoring datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', current value "'.$old_value.'" identical to desired value "'.$value.'"'."\n";
                     }
                 }
 
@@ -944,20 +923,9 @@ $ret .= '  Set current to '.$count."\n";
 
 
                 // ----------------------------------------
-                // TODO - replace this block with code to directly update the cached version of the datarecord
-                // Determine whether short/textresults needs to be updated
-                $options = array(
-                    'user_id' => $user->getId(),    // since this action is called via command-line, need to specify which user is doing the mass updating
-                    'mark_as_updated' => true
-                );
+                // TODO - replace this block with code to directly update the cached version of the datarecord?
+                parent::tmp_updateDatarecordCache($em, $datarecord, $user);
 
-                if ( parent::inShortResults($datafield) )
-                    $options['force_shortresults_recache'] = true;
-                if ( $datafield->getDisplayOrder() != -1 )
-                    $options['force_textresults_recache'] = true;
-
-                // Recache this datarecord
-                parent::updateDatarecordCache($datarecord->getId(), $options);
 $ret .=  "---------------\n";
                 $return['d'] = $ret;
             }

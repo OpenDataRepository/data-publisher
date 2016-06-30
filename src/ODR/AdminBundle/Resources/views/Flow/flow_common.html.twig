@@ -16,8 +16,7 @@
             $("#ODRFileUploadProgress_" + target).append(html);
 
             // Attach a cancel handler for this file
-            $("#" + id + " > .ODRFileUploadCancel").unbind('click');
-            $("#" + id + " > .ODRFileUploadCancel").on('click', function() {
+            $("#" + id + " > .ODRFileUploadCancel").unbind('click').on('click', function() {
                 // Abort uploading this file
                 file.cancel();
 

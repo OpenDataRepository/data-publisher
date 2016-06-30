@@ -16,7 +16,9 @@
 
             'is_top_level': is_top_level,
             'is_link': 0,
-            'display_type': 0
+            'display_type': 0,
+
+            'token_list': token_list,
         } %}
     {% else %}
         {# render a child datarecord as if it's a top-level datarecord #}
@@ -35,7 +37,9 @@
 
             'is_top_level': is_top_level,
             'is_link': 0,
-            'display_type': 0
+            'display_type': 0,
+
+            'token_list': token_list,
         } %}
     {% endif %}
 

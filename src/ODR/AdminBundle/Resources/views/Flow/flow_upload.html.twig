@@ -83,7 +83,7 @@
 
         // Create a new Flow.js instance
         flow_{{ target }} = new Flow({
-            "target": "{{ path('odr_flow_upload', {'upload_type': upload_type, 'datatype_id': datatype_id, 'datarecordfield_id': datarecordfield_id}) }}",
+            "target": "{{ path('odr_flow_upload', {'upload_type': upload_type, 'datatype_id': datatype_id, 'datarecord_id': datarecord_id, 'datafield_id': datafield_id}) }}",
             "chunkSize": 2 * 1024 * 1024,
             "forceChunkSize": true,
 //            "simultaneousUploads": 3,

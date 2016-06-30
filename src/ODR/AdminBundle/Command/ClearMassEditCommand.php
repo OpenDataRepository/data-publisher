@@ -60,9 +60,9 @@ class ClearMassEditCommand extends ContainerAwareCommand
 
             $str = '';
             if ($data->job_type == 'public_status_change')
-                $str = 'deleted public status change job for datarecord '.$job->datarecord_id;
+                $str = 'deleted public status change job for datarecord '.$data->datarecord_id;
             else if ($data->job_type == 'value_change')
-                $str = 'deleted value change for datarecordfield '.$job->datarecordfield_id;
+                $str = 'deleted value change for datarecord '.$data->datarecord_id.' datafield '.$data->datafield_id;
 
             // Dealt with the job
             $pheanstalk->delete($job);

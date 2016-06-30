@@ -3,39 +3,55 @@
 {% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
 {% set field_typeclass = datafield.dataFieldMeta.fieldType.typeClass %}
 
-{% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
-
 {% set valuefield = '' %}
-{% if field_typename == "Boolean" %}
-    {% set valuefield = datarecordfield.boolean[0] %}
-{% elseif field_typename == "File" %}
-    {% set valuefield = datarecordfield.file %}
-{% elseif field_typename == "Image" %}
-    {% set valuefield = datarecordfield.image %}
-{% elseif field_typename == "Decimal" %}
-    {% set valuefield = datarecordfield.decimalValue[0] %}
-{% elseif field_typename == "Integer" %}
-    {% set valuefield = datarecordfield.integerValue[0] %}
-{% elseif field_typename == "Paragraph Text" %}
-    {% set valuefield = datarecordfield.longText[0] %}
-{% elseif field_typename == "Long Text" %}
-    {% set valuefield = datarecordfield.longVarchar[0] %}
-{% elseif field_typename == "Medium Text" %}
-    {% set valuefield = datarecordfield.mediumVarchar[0] %}
-{% elseif field_typename == "Single Radio" %}
-    {% set valuefield = datarecordfield.radioSelection %}
-{% elseif field_typename == "Short Text" %}
-    {% set valuefield = datarecordfield.shortVarchar[0] %}
-{% elseif field_typename == "DateTime" %}
-    {% set valuefield = datarecordfield.datetimeValue[0] %}
-{% elseif field_typename == "Markdown" %}
-    {% set valuefield = '' %}
+{% set valuefield_value = '' %}
+{% if datarecord.dataRecordFields[ datafield.id ] is defined %}
+    {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
+
+    {% if field_typename == "Boolean" %}
+        {% set valuefield = datarecordfield.boolean[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "File" %}
+        {% set valuefield = datarecordfield.file %}
+    {% elseif field_typename == "Image" %}
+        {% set valuefield = datarecordfield.image %}
+    {% elseif field_typename == "Decimal" %}
+        {% set valuefield = datarecordfield.decimalValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Integer" %}
+        {% set valuefield = datarecordfield.integerValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Paragraph Text" %}
+        {% set valuefield = datarecordfield.longText[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Long Text" %}
+        {% set valuefield = datarecordfield.longVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Medium Text" %}
+        {% set valuefield = datarecordfield.mediumVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typeclass == "Radio" %}
+        {% set valuefield = datarecordfield.radioSelection %}
+    {% elseif field_typename == "Short Text" %}
+        {% set valuefield = datarecordfield.shortVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "DateTime" %}
+        {% set valuefield = datarecordfield.datetimeValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Markdown" %}
+        {% set valuefield = '' %}
+    {% endif %}
+
+{% endif %}
+
+{% if valuefield == '' and (field_typename == 'File' or field_typename == 'Image' or field_typeclass == 'Radio') %}
+    {% set valuefield = [] %}
 {% endif %}
 
 
 {% if field_typename == "Boolean" %}
 
-    <{{ datafield.dataFieldMeta.xml_fieldName }}>{% if valuefield.value == 1 %}1{% else %}0{% endif %}</{{ datafield.dataFieldMeta.xml_fieldName }}>
+    <{{ datafield.dataFieldMeta.xml_fieldName }}>{% if valuefield_value == 1 %}1{% else %}0{% endif %}</{{ datafield.dataFieldMeta.xml_fieldName }}>
 
 {% elseif field_typename == "File" %}
 
@@ -91,7 +107,7 @@
 
 {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Short Text" or field_typename == "Medium Text" or field_typename == "Long Text" or field_typename == "Paragraph Text" %}
 
-    <{{ datafield.dataFieldMeta.xml_fieldName }}>{{ valuefield.value|xml|raw }}</{{ datafield.dataFieldMeta.xml_fieldName }}>
+    <{{ datafield.dataFieldMeta.xml_fieldName }}>{{ valuefield_value|xml|raw }}</{{ datafield.dataFieldMeta.xml_fieldName }}>
 
 {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
 
@@ -114,7 +130,7 @@
 
 {% elseif field_typename == "DateTime" %}
 
-    <{{ datafield.dataFieldMeta.xml_fieldName }}>{% if valuefield.value|date('Y-m-d') == '-0001-11-30' %}0000-00-00{% else %}{{ valuefield.value|date('Y-m-d') }}{% endif %}</{{ datafield.dataFieldMeta.xml_fieldName }}>
+    <{{ datafield.dataFieldMeta.xml_fieldName }}>{% if valuefield_value|date('Y-m-d') == '-0001-11-30' %}0000-00-00{% else %}{{ valuefield_value|date('Y-m-d') }}{% endif %}</{{ datafield.dataFieldMeta.xml_fieldName }}>
 
 {% endif %}
 

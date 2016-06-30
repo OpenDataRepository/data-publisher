@@ -72,7 +72,7 @@
 
         {% if upload_type == 'csv' %}
         <div id="file_upload_div">
-            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': 'csv_import', 'single_file': true, 'upload_type': 'csv', 'datatype_id': datatype.id, 'datarecordfield_id': '', 'callback': 'loadLayout();'} %}
+            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': 'csv_import', 'single_file': true, 'upload_type': 'csv', 'datatype_id': datatype.id, 'datarecord_id': 0, 'datafield_id': 0, 'callback': 'loadLayout();'} %}
         </div>
         {% endif %}
     </form>

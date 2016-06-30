@@ -21,7 +21,7 @@
 {% if is_top_level == 0 and (display_type == 1 or display_type == 2) %}    {# tabbed or dropdown display_type #}
     <div id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools pure-u-1">
         <span style="float: right;" rel="{{ datatype.id }}">
-            <i id="datarecord_{{ datarecord.id }}_public" class="fa fa-globe {% if not datarecord.dataRecordMeta.publicDate|is_public %}IconRed{% endif %} {% if is_link == 1 and can_edit_record == 1 %}Pointer tooltip ODRPublicChildRecord{% endif %}" title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}"></i>
+            <i id="datarecord_{{ datarecord.id }}_public" class="fa fa-globe {% if not datarecord.dataRecordMeta.publicDate|is_public %}IconRed{% endif %} {% if is_link == 0 and can_edit_record == 1 %}Pointer tooltip ODRPublicChildRecord{% endif %}" title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}"></i>
 
         {% if is_link == 0 and can_delete_record == 1 %}
             <i class="Pointer tooltip fa fa-times ODRDeleteChildRecord" title="Delete Child Record" rel="{{ datarecord.id }}"></i>
@@ -59,7 +59,9 @@
                         'datarecord': datarecord,
                         'datafield': datafield,
 
-                        'force_image_reload' : false
+                        'force_image_reload' : false,
+
+                        'token_list': token_list,
                     } %}
                 {% else %}
                     {# datafield from a linked datatype, or user isn't allowed to edit datafield#}
@@ -105,6 +107,8 @@
                     'is_link': theme_datatype.is_link,
                     'display_type': theme_datatype.display_type,
                     'multiple_allowed': theme_datatype.multiple_allowed,
+
+                    'token_list': token_list,
                 } %}
             {% endif %}
         {% endfor %}

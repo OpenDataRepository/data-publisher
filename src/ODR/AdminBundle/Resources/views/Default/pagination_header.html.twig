@@ -69,8 +69,7 @@
 <script>
     $(function() {
 
-        $("#ODRPageSelect").unbind('click');
-        $("#ODRPageSelect").click(function() {
+        $("#ODRPageSelect").unbind('click').click(function() {
             if ( $("#ODRPagePopup").is(':hidden') )
                 $("#ODRPagePopup").fadeIn();
             else
@@ -84,8 +83,7 @@
             $("#ODRPagePopup").offset( new_offset );
         });
 
-        $("#ODRPageSelectButton").unbind('click');
-        $("#ODRPageSelectButton").click(function() {
+        $("#ODRPageSelectButton").unbind('click').click(function() {
             var page = parseInt( $("#odr_page_input").val() );
             if ( isNaN(page) ) {
                 $("#odr_page_input").val('');
@@ -101,8 +99,7 @@
             UpdateURL(url);
         });
 
-        $(".ODRPageLength").unbind('click');
-        $(".ODRPageLength").click(function() {
+        $(".ODRPageLength").unbind('click').click(function() {
             var num = $(this).attr('rel');
 
             var url = '{{ path( 'odr_session_pagelength', {'length': 10} ) }}';

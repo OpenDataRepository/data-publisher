@@ -3,36 +3,54 @@
 {% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
 {% set field_typeclass = datafield.dataFieldMeta.fieldType.typeClass %}
 
-{% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
-
 {% set valuefield = '' %}
-{% if field_typename == "Boolean" %}
-    {% set valuefield = datarecordfield.boolean[0] %}
-{% elseif field_typename == "File" %}
-    {% set valuefield = datarecordfield.file %}
-{% elseif field_typename == "Image" %}
-    {% set valuefield = datarecordfield.image %}
-{% elseif field_typename == "Decimal" %}
-    {% set valuefield = datarecordfield.decimalValue[0] %}
-{% elseif field_typename == "Integer" %}
-    {% set valuefield = datarecordfield.integerValue[0] %}
-{% elseif field_typename == "Paragraph Text" %}
-    {% set valuefield = datarecordfield.longText[0] %}
-{% elseif field_typename == "Long Text" %}
-    {% set valuefield = datarecordfield.longVarchar[0] %}
-{% elseif field_typename == "Medium Text" %}
-    {% set valuefield = datarecordfield.mediumVarchar[0] %}
-{% elseif field_typename == "Single Radio" %}
-    {% set valuefield = datarecordfield.radioSelection %}
-{% elseif field_typename == "Short Text" %}
-    {% set valuefield = datarecordfield.shortVarchar[0] %}
-{% elseif field_typename == "DateTime" %}
-    {% set valuefield = datarecordfield.datetimeValue[0] %}
-{% elseif field_typename == "Markdown" %}
-    {% set valuefield = '' %}
+{% set valuefield_value = '' %}
+{% if datarecord.dataRecordFields[ datafield.id ] is defined %}
+    {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
+
+    {% if field_typename == "Boolean" %}
+        {% set valuefield = datarecordfield.boolean[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "File" %}
+        {% set valuefield = datarecordfield.file %}
+    {% elseif field_typename == "Image" %}
+        {% set valuefield = datarecordfield.image %}
+    {% elseif field_typename == "Decimal" %}
+        {% set valuefield = datarecordfield.decimalValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Integer" %}
+        {% set valuefield = datarecordfield.integerValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Paragraph Text" %}
+        {% set valuefield = datarecordfield.longText[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Long Text" %}
+        {% set valuefield = datarecordfield.longVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Medium Text" %}
+        {% set valuefield = datarecordfield.mediumVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typeclass == "Radio" %}
+        {% set valuefield = datarecordfield.radioSelection %}
+    {% elseif field_typename == "Short Text" %}
+        {% set valuefield = datarecordfield.shortVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "DateTime" %}
+        {% set valuefield = datarecordfield.datetimeValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Markdown" %}
+        {% set valuefield = '' %}
+    {% endif %}
+
 {% endif %}
 
-<form class="pure-u-1" id="EditDataRecordFieldsForm_{{ datarecordfield.id }}">
+{% if valuefield == '' and (field_typename == 'File' or field_typename == 'Image' or field_typeclass == 'Radio') %}
+    {% set valuefield = [] %}
+{% endif %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+
+    <form class="pure-u-1" id="ViewForm_{{ unique_id }}">
 
     {% set render_plugin = datafield.dataFieldMeta.renderPlugin %}
     {% if render_plugin.id != 1 %}
@@ -40,9 +58,11 @@
 
     {% elseif field_typename == "Boolean" %}
         <fieldset>
-            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield.dataFieldMeta.description }}">
-                <input type="checkbox" name="BooleanForm[value]" value="1" {% if valuefield.value == 1 %}checked{% endif %} disabled />
-                {{ datafield.dataFieldMeta.fieldName }}
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield.dataFieldMeta.description }}">
+                <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                    <input type="checkbox" value="1" {% if valuefield_value == 1 %}checked{% endif %} disabled />
+                    {{ datafield.dataFieldMeta.fieldName }}
+                </div>
             </label>
         </fieldset>
 
@@ -132,23 +152,23 @@
 
     {% elseif field_typename == "Paragraph Text" %}
         <fieldset>
-            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
-            <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
-                <textarea class="pure-u-1 Cursor" readonly="readonly">{{ valuefield.value }}</textarea>
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <textarea class="pure-u-1 Cursor" readonly="readonly">{{ valuefield_value }}</textarea>
             </div>
         </fieldset>
 
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
         <fieldset>
-            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
-            <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
-                <input class="Cursor" type="text" value="{{ valuefield.value }}" readonly="readonly"/>
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <input class="pure-u-1 Cursor" type="text" value="{{ valuefield_value }}" readonly="readonly"/>
             </div>
         </fieldset>
 
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
         <fieldset>
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
 
             {% for radio_option in datafield.radioOptions %}
                 {% set is_selected = 0 %}
@@ -157,12 +177,12 @@
                 {% endif %}
 
                 {% if datafield.dataFieldMeta.radio_option_display_unselected == 1 or is_selected == 1 %}
-                    <label id="Label_{{ datafield.id }}" for="Input_{{ datarecordfield.id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
+                    <label for="Input_{{ unique_id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
 
                     {% if field_typename == "Single Radio" or field_typename == "Single Select" %}
-                        <input id="Input_{{ datarecordfield.id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datarecordfield.id }}" {% if is_selected == 1 %}checked{% endif %} disabled class="SingleRadioGroup" />
+                        <input id="Input_{{ unique_id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ unique_id }}" {% if is_selected == 1 %}checked{% endif %} disabled class="SingleRadioGroup" />
                     {% else %}
-                        <input id="Input_{{ datarecordfield.id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datarecordfield.id }}" {% if is_selected == 1 %}checked{% endif %} disabled class="MultipleRadioGroup" />
+                        <input id="Input_{{ unique_id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ unique_id }}" {% if is_selected == 1 %}checked{% endif %} disabled class="MultipleRadioGroup" />
                     {% endif %}
 
                     {{ radio_option.radioOptionMeta.optionName }}
@@ -174,9 +194,9 @@
 
     {% elseif field_typename == "DateTime" %}
         <fieldset>
-            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
-            <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
-                <input type="text" value="{% if valuefield.value|date('Y-m-d') != "-0001-11-30" %}{{ valuefield.value|date('Y-m-d') }}{% endif %}" readonly="readonly" />
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <input type="text" class="pure-u-1 Cursor" value="{% if valuefield_value|date('Y-m-d') != "-0001-11-30" %}{{ valuefield_value|date('Y-m-d') }}{% endif %}" readonly="readonly" />
             </div>
         </fieldset>
 

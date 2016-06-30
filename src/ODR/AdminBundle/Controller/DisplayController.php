@@ -16,7 +16,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\AdminBundle\Entity\ThemeDataType;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities

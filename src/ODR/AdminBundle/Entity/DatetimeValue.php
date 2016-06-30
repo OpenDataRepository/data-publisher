@@ -9,9 +9,7 @@
 *
 * The DatetimeValue Entity is automatically generated from 
 * ./Resources/config/doctrine/DatetimeValue.orm.yml
-*
 */
-
 
 namespace ODR\AdminBundle\Entity;
 
@@ -35,13 +33,18 @@ class DatetimeValue
     /**
      * @var \DateTime
      */
-    private $deletedAt;
+    private $created;
 
     /**
      * @var \DateTime
      */
-    private $created;
+    private $updated;
 
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
+    
     /**
      * @var \ODR\AdminBundle\Entity\DataFields
      */
@@ -58,14 +61,19 @@ class DatetimeValue
     private $dataRecord;
 
     /**
+     * @var \ODR\AdminBundle\Entity\DataRecordFields
+     */
+    private $dataRecordFields;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
 
     /**
-     * @var \ODR\AdminBundle\Entity\DataRecordFields
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
-    private $dataRecordFields;
+    private $updatedBy;
 
 
     /**
@@ -118,29 +126,6 @@ class DatetimeValue
     }
 
     /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return DatetimeValue
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-    
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
-    }
-
-    /**
      * Set created
      *
      * @param \DateTime $created
@@ -163,6 +148,52 @@ class DatetimeValue
         return $this->created;
     }
 
+    /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return DatetimeValue
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
+    }
+
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return DatetimeValue
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+    
     /**
      * Set dataField
      *
@@ -233,6 +264,29 @@ class DatetimeValue
     }
 
     /**
+     * Set dataRecordFields
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
+     * @return DatetimeValue
+     */
+    public function setDataRecordFields(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields = null)
+    {
+        $this->dataRecordFields = $dataRecordFields;
+
+        return $this;
+    }
+
+    /**
+     * Get dataRecordFields
+     *
+     * @return \ODR\AdminBundle\Entity\DataRecordFields
+     */
+    public function getDataRecordFields()
+    {
+        return $this->dataRecordFields;
+    }
+
+    /**
      * Set createdBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
@@ -256,25 +310,25 @@ class DatetimeValue
     }
 
     /**
-     * Set dataRecordFields
+     * Set updatedBy
      *
-     * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
      * @return DatetimeValue
      */
-    public function setDataRecordFields(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields = null)
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
     {
-        $this->dataRecordFields = $dataRecordFields;
-    
+        $this->updatedBy = $updatedBy;
+
         return $this;
     }
 
     /**
-     * Get dataRecordFields
+     * Get updatedBy
      *
-     * @return \ODR\AdminBundle\Entity\DataRecordFields 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
-    public function getDataRecordFields()
+    public function getUpdatedBy()
     {
-        return $this->dataRecordFields;
+        return $this->updatedBy;
     }
 }

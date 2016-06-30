@@ -3,77 +3,81 @@
 {% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
 {% set field_typeclass = datafield.dataFieldMeta.fieldType.typeClass %}
 
-{% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
-
 {% set valuefield = '' %}
-{% if field_typename == "Boolean" %}
-    {% set valuefield = datarecordfield.boolean[0] %}
-{% elseif field_typename == "File" %}
-    {% set valuefield = datarecordfield.file %}
-{% elseif field_typename == "Image" %}
-    {% set valuefield = datarecordfield.image %}
-{% elseif field_typename == "Decimal" %}
-    {% set valuefield = datarecordfield.decimalValue[0] %}
-{% elseif field_typename == "Integer" %}
-    {% set valuefield = datarecordfield.integerValue[0] %}
-{% elseif field_typename == "Paragraph Text" %}
-    {% set valuefield = datarecordfield.longText[0] %}
-{% elseif field_typename == "Long Text" %}
-    {% set valuefield = datarecordfield.longVarchar[0] %}
-{% elseif field_typename == "Medium Text" %}
-    {% set valuefield = datarecordfield.mediumVarchar[0] %}
-{% elseif field_typename == "Single Radio" %}
-    {% set valuefield = datarecordfield.radioSelection %}
-{% elseif field_typename == "Short Text" %}
-    {% set valuefield = datarecordfield.shortVarchar[0] %}
-{% elseif field_typename == "DateTime" %}
-    {% set valuefield = datarecordfield.datetimeValue[0] %}
-{% elseif field_typename == "Markdown" %}
-    {% set valuefield = '' %}
+{% set valuefield_value = '' %}
+{% if datarecord.dataRecordFields[ datafield.id ] is defined %}
+    {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
+
+    {% if field_typename == "Boolean" %}
+        {% set valuefield = datarecordfield.boolean[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "File" %}
+        {% set valuefield = datarecordfield.file %}
+    {% elseif field_typename == "Image" %}
+        {% set valuefield = datarecordfield.image %}
+    {% elseif field_typename == "Decimal" %}
+        {% set valuefield = datarecordfield.decimalValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Integer" %}
+        {% set valuefield = datarecordfield.integerValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Paragraph Text" %}
+        {% set valuefield = datarecordfield.longText[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Long Text" %}
+        {% set valuefield = datarecordfield.longVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Medium Text" %}
+        {% set valuefield = datarecordfield.mediumVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typeclass == "Radio" %}
+        {% set valuefield = datarecordfield.radioSelection %}
+    {% elseif field_typename == "Short Text" %}
+        {% set valuefield = datarecordfield.shortVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "DateTime" %}
+        {% set valuefield = datarecordfield.datetimeValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Markdown" %}
+        {% set valuefield = '' %}
+    {% endif %}
+
 {% endif %}
 
-    {#<form action="{{ path('odr_record_save', { 'record_type': datarecordfield.getdatafield.getfieldtype.typeclass, 'datarecord_id': datarecord.id }) }}" method="post" {{ form_enctype(form) }} class="pure-u-1" id="EditDataRecordFieldsForm_{{ datarecordfield.id }}" {% if field_typeclass != "File" and field_typeclass != "Image" and field_typeclass != "Radio" %}rel="{{ valuefield.id }}"{% endif %}>#}
-    <form action="{{ path('odr_record_save', { 'record_type': field_typeclass, 'datarecord_id': datarecord.id }) }}" {#method="post" {{ form_enctype(form) }}#} class="pure-u-1" id="EditDataRecordFieldsForm_{{ datarecordfield.id }}" {% if field_typeclass != "File" and field_typeclass != "Image" and field_typeclass != "Radio" %}rel="{{ valuefield.id }}"{% endif %}>
+{% if valuefield == '' and (field_typename == 'File' or field_typename == 'Image' or field_typeclass == 'Radio') %}
+    {% set valuefield = [] %}
+{% endif %}
 
-    {% if field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
-        {# do nothing #}
-    {% elseif field_typename == "File" or field_typename == "Image" %}
-        <input type="hidden" name="ObjType" value="{{ field_typename }}" />
-    {% else %}
-        <input type="hidden" name="id" value="{{ valuefield.id }}" />
-        {#<input type="hidden" name="ObjType" value="{{ valuefield.getdatafield.getfieldtype.gettypeclass }}" />#}
-        <input type="hidden" name="ObjType" value="{{ field_typeclass }}" />
-{#
-        {{ form_errors(form.createdBy) }}
-        {{ form_widget(form.createdBy) }}
-#}
-    {% endif %}
-{#
-        {{ form_errors(form._token) }}
-        {{ form_widget(form._token) }}
+{% set max_length = '' %}
+{% if field_typename == "Long Text" %}
+    {% set max_length = 255 %}
+{% elseif field_typename == "Medium Text" %}
+    {% set max_length = 64 %}
+{% elseif field_typename == "Short Text" %}
+    {% set max_length = 32 %}
+{% endif %}
 
-        {{ form_errors(form.data_field) }}
-        {{ form_widget(form.data_field) }}
-        {{ form_errors(form.field_type) }}
-        {{ form_widget(form.field_type) }}
-        {{ form_errors(form.data_record) }}
-        {{ form_widget(form.data_record) }}
-        {{ form_errors(form.data_record_fields) }}
-        {{ form_widget(form.data_record_fields) }}
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+{% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
+{% set input_name = field_typeclass ~ 'Form[value]' %}
+
+
+    <form action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}" class="pure-u-1" id="EditForm_{{ unique_id }}" method="POST">
+
+        <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
+{#
+        <input type="hidden" name="{{ field_typeclass }}Form_datarecord" value="{{ datarecord.id }}" />
+        <input type="hidden" name="{{ field_typeclass }}Form_datafield" value="{{ datafield.id }}" />
 #}
 
     {% if field_typename == "Boolean" %}
         <fieldset>
-            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield.dataFieldMeta.description }}">
-            <input type="checkbox" name="BooleanForm[value]" value="1" {% if valuefield.value == 1 %}checked{% endif %} />
-
-                {{ datafield.dataFieldMeta.fieldName }}
+            <label for="{{ input_id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield.dataFieldMeta.description }}">
+                <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                    <input id="{{ input_id }}" type="checkbox" name="{{ input_name }}" value="1" {% if valuefield_value == 1 %}checked{% endif %} />
+                    {{ datafield.dataFieldMeta.fieldName }}
+                </div>
             </label>
-
-{#
-                {{ form_errors(form.value) }}
-                {{ form_widget(form.value, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
-#}
         </fieldset>
 
     {% elseif field_typename == "File" %}
@@ -88,6 +92,7 @@
                         </tr>
                     </thead>
                     <tbody class="pure-u-1">
+
                     {% for file in valuefield %}
                         {% set has_file = true %}
                         <tr id="File_{{ file.id }}" class="pure-u-1">
@@ -131,20 +136,21 @@
                             </td>
                         </tr>
                     {% endfor %}
+
                     </tbody>
                 </table>
             </div>
             <div class="pure-u-1">
             {% if datafield.dataFieldMeta.allow_multiple_uploads == 1 or has_file == false %}
                 {# show upload area only if multiples are allowed or nothing has been uploaded yet #}
-                {% set target = 'drf_' ~ datarecordfield.id %}
+                {% set target = 'drf_' ~ datarecord.id ~ '_' ~ datafield.id %}
                 {% set single_file = true %}
                 {% if datafield.dataFieldMeta.allow_multiple_uploads == 1 %}
                     {% set single_file = false %}
                 {% endif %}
                 {% set callback = 'ReloadDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
 
-                {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'file', 'datatype_id': datatype.id, 'datarecordfield_id': datarecordfield.id, 'callback': callback} %}
+                {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'file', 'datatype_id': datatype.id, 'datarecord_id': datarecord.id, 'datafield_id': datafield.id, 'callback': callback} %}
             {% endif %}
             </div>
         </fieldset>
@@ -154,10 +160,7 @@
         {#<fieldset>#}
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
             <div class="ODRSortableImage pure-u-1">
-{#
-                <div class="ODRImageRow">
-                {% set count = -1 %}
-#}
+
                 {% for image in valuefield %}
                     {% set oimage = image.parent %}
                     {% set image_ext = oimage.ext %}
@@ -182,76 +185,50 @@
                         </div>
                     </div>
                 {% endfor %}
-{#
-                </div>
-#}
+
             </div>
             <div class="pure-u-1">
             {% if datafield.dataFieldMeta.allow_multiple_uploads == 1 or has_image == false %}
                 {# show upload area only if multiples are allowed or nothing has been uploaded yet #}
-                {% set target = 'drf_' ~ datarecordfield.id %}
+                {% set target = 'drf_' ~ datarecord.id ~ '_' ~ datafield.id %}
                 {% set single_file = true %}
                 {% if datafield.dataFieldMeta.allow_multiple_uploads == 1 %}
                     {% set single_file = false %}
                 {% endif %}
                 {% set callback = 'ReloadDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
 
-                {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'image', 'datatype_id': datatype.id, 'datarecordfield_id': datarecordfield.id, 'callback': callback} %}
-
+                {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'image', 'datatype_id': datatype.id, 'datarecord_id': datarecord.id, 'datafield_id': datafield.id, 'callback': callback} %}
             {% endif %}
             </div>
         {#</fieldset>#}
 
     {% elseif field_typename == "Paragraph Text" %}
         <fieldset>
-            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
-            <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
-                <textarea name="LongTextForm[value]" data-error-type="inline" class="pure-u-1" {% if datafield.dataFieldMeta.required == 1 %}required="required"{% endif %}>{{ valuefield.value }}</textarea>
-{#
-                {{ form_errors(form.value) }}
-                {{ form_widget(form.value, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
-#}
+            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <textarea id="{{ input_id }}" class="pure-u-1" name="{{ input_name }}" {% if datafield.dataFieldMeta.required == 1 %}required="required"{% endif %} data-error-type="inline">{{ valuefield_value }}</textarea>
             </div>
         </fieldset>
 
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
-        {% set form_id = 'Form_'~datarecordfield.id %}
-        {% set maxlength = '' %}
-        {% if field_typename == "Long Text" %}
-            {% set maxlength = 255 %}
-        {% elseif field_typename == "Medium Text" %}
-            {% set maxlength = 64 %}
-        {% elseif field_typename == "Short Text" %}
-            {% set maxlength = 32 %}
-        {% endif %}
-
         <fieldset>
-            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
-            <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
-{#
-                {{ form_errors(form.value) }}
-                {% if field.required == 1 %}
-                    {{ form_widget(form.value, { 'id': form_id, 'attr': {'class': 'pure-u-1 required', 'data-error-type': 'inline' } }) }}
-                {% else %}
-                    {{ form_widget(form.value, { 'id': form_id, 'attr': {'class': 'pure-u-1', 'data-error-type': 'inline' } }) }}
-                {% endif %}
-#}
+            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <input type="text" id="{{ input_id }}" class="pure-u-1" name="{{ input_name }}" value="{{ valuefield_value }}" data-error-type="inline" />
             </div>
         </fieldset>
 
     {#{% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}#}
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
         <fieldset>
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel ODRDatafieldHistory pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
-
-            {#{% set option_list = radiooptionlist(field.getRadioOptions, datarecordfield.getRadioSelection) %}#}
+            <label class="ODRFieldLabel ODRDatafieldHistory pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
 
             {% set print_null_option = false %}
             {% set has_selection = false %}
             {% if field_typename == "Single Radio" %}
                 {% set print_null_option = true %}
     
-                {% for radio_selection in datarecordfield.radioSelection %}
+                {% for radio_selection in valuefield %}
                     {% if radio_selection.selected == 1 %}
                         {% set has_selection = true %}
                     {% endif %}
@@ -266,18 +243,18 @@
 
                 {% if print_null_option == true %}
                     {% set print_null_option = false %}
-                    <label id="Label_{{ datafield.id }}_0" for="Input_{{ datarecordfield.id }}_0" class="pure-u-1 pure-u-md-1-{{ datafield.children_per_row }}" style="margin: 0.5em 0;">
-                        <input id="Input_{{ datarecordfield.id }}_0" type="radio" name="RadioGroup_{{ datarecordfield.id }}" {% if has_selection == false %}checked{% endif %} class="SingleRadioGroup {% if has_selection == false %}ODRRadioOptionChecked{% endif %}" />
+                    <label for="{{ input_id }}_0" class="pure-u-1 pure-u-md-1-{{ datafield.children_per_row }}" style="margin: 0.5em 0;">
+                        <input id="{{ input_id }}_0" type="radio" name="RadioGroup_{{ unique_id }}" {% if has_selection == false %}checked{% endif %} class="SingleRadioGroup {% if has_selection == false %}ODRRadioOptionChecked{% endif %}" />
                         No Option Selected
                     </label>
                 {% endif %}
 
-                <label id="Label_{{ datafield.id }}" for="Input_{{ datarecordfield.id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.children_per_row }}" style="margin: 0.5em 0;">
+                <label for="{{ input_id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.children_per_row }}" style="margin: 0.5em 0;">
 
                 {% if field_typename == "Single Radio" %}
-                    <input id="Input_{{ datarecordfield.id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datarecordfield.id }}" {% if is_selected == 1 %}checked{% endif %} class="SingleRadioGroup {% if is_selected == 1 %}ODRRadioOptionChecked{%endif %}" />
+                    <input id="{{ input_id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ unique_id }}" {% if is_selected == 1 %}checked{% endif %} class="SingleRadioGroup {% if is_selected == 1 %}ODRRadioOptionChecked{%endif %}" />
                 {% else %}
-                    <input id="Input_{{ datarecordfield.id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datarecordfield.id }}" {% if is_selected == 1 %}checked{% endif %} class="MultipleRadioGroup" />
+                    <input id="{{ input_id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ unique_id }}" {% if is_selected == 1 %}checked{% endif %} class="MultipleRadioGroup" />
                 {% endif %}
 
                 {{ radio_option.radioOptionMeta.optionName }}
@@ -289,9 +266,9 @@
     {#{% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}#}
     {% elseif field_typename == "Single Select" %}
         <fieldset>
-            <label id="Label_{{ datafield.id }}" for="SelectGroup_{{ datarecordfield.id }}" class="ODRFieldLabel ODRDatafieldHistory pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
 
-            <select id="SelectGroup_{{ datarecordfield.id }}" class="pure-u-23-24 {% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
+            <select id="{{ input_id }}" class="pure-u-23-24 {% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
             {% if field_typename == "Single Select" %}
                 <option id="Option_0" value="0">No Option Selected</option>
             {% endif %}
@@ -309,18 +286,11 @@
         </fieldset>
 
     {% elseif field_typename == "DateTime" %}
+        {% set new_id = 'DatetimeValueForm_value_' ~ datafield.id %}
         <fieldset>
-            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
-            <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
-                {% set new_id = 'DatetimeValueForm_value_' ~ datafield.id %}
-{#
-                {{ form_errors(form.value) }}
-                {% if field.required == 1 %}
-                    {{ form_widget(form.value, { 'id': new_id, 'attr': {'class': 'Pointer pure-u-1 ODRDatePicker required', 'data-error-type': 'inline', 'readonly': 'readonly'} }) }}
-                {% else %}
-                    {{ form_widget(form.value, { 'id': new_id, 'attr': {'class': 'Pointer pure-u-1 ODRDatePicker', 'data-error-type': 'inline', 'readonly': 'readonly'} }) }}
-                {% endif %}
-#}
+            <label for="{{ new_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <input type="text" id="{{ new_id }}" class="Pointer pure-u-1 ODRDatePicker" name="{{ input_name }}" readonly="readonly" value="{% if valuefield_value|date('Y-m-d') != "-0001-11-30" %}{{ valuefield_value|date('Y-m-d') }}{% endif %}" data-error-type="inline" />
             </div>
             <div style="margin-bottom:5px;"><label class="Pointer ODRDatePicker_clear"><u>Clear Date</u></label></div>
         </fieldset>
@@ -328,195 +298,67 @@
     {% endif %}
     </form>
 
-{% set drf_id = datarecordfield.id %}
-
 {% if field_typename == "Boolean" %}
-    {% set boolean_id = valuefield.id %}
     <script type="text/javascript">
-        window.BooleanInterval_{{ boolean_id }} = null;
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='BooleanForm[value]']").unbind('change');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='BooleanForm[value]']").change(function() {
-            window.BooleanInterval_{{ boolean_id }} = window.clearInterval(window.BooleanInterval_{{ boolean_id }});
-            window.BooleanInterval_{{ boolean_id }} = window.setInterval("$('#EditDataRecordFieldsForm_{{ drf_id }}').submit()", SaveTimeout);
+        window.{{ field_typeclass }}Interval_{{ unique_id }} = null;
+        $("#EditForm_{{ unique_id }}").find("input[name='{{ input_name }}'").unbind('change').change(function() {
+            window.{{ field_typeclass }}Interval_{{ unique_id }} = window.clearInterval( window.{{ field_typeclass }}Interval_{{ unique_id }} );
+            window.{{ field_typeclass }}Interval_{{ unique_id }} = window.setInterval( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
         });
 
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").validate({
+        $("#EditForm_{{ unique_id }}").validate({
             submitHandler: function(form) {
                 SaveRecordData(
-                    '#EditDataRecordFieldsForm_{{ drf_id }}', 
-                    window.BooleanInterval_{{ boolean_id }}
-                );
+                    '#EditForm_{{ unique_id }}',
+                    window.{{ field_typeclass }}Interval_{{ unique_id }}
+                )
             }
         });
     </script>
-
 {% elseif field_typename == "File" or field_typename == "Image" %}
     {# handled elsewhere by flow.js #}
-{% elseif field_typename == "Integer" %}
-    {% set integervalue_id = valuefield.id %}
+{% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Paragraph Text" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
     <script type="text/javascript">
-        window.IntegerValueInterval_{{ integervalue_id }} = null;
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='IntegerValueForm[value]']").unbind('keyup');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='IntegerValueForm[value]']").unbind('paste');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='IntegerValueForm[value]']").on('keyup paste', function() {
-            window.IntegerValueInterval_{{ integervalue_id }} = window.clearInterval(window.IntegerValueInterval_{{ integervalue_id }});
-            window.IntegerValueInterval_{{ integervalue_id }} = window.setInterval("$('#EditDataRecordFieldsForm_{{ drf_id }}').submit()", SaveTimeout);
+        window.{{ field_typeclass }}Interval_{{ unique_id }} = null;
+        $("#EditForm_{{ unique_id }}").find("input[name='{{ input_name }}'").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+            window.{{ field_typeclass }}Interval_{{ unique_id }} = window.clearInterval( window.{{ field_typeclass }}Interval_{{ unique_id }} );
+            window.{{ field_typeclass }}Interval_{{ unique_id }} = window.setInterval( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
         });
 
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").validate({
+        $("#EditForm_{{ unique_id }}").validate({
+    {% if field_typename == "Integer" %}
             rules: {
-                "IntegerValueForm[value]": {
+                "{{ input_name }}": {
                     digits: true
                 }
             },
-            submitHandler: function(form) {
-                SaveRecordData(
-                    '#EditDataRecordFieldsForm_{{ drf_id }}', 
-                    window.IntegerValueInterval_{{ integervalue_id }}
-                );
-            }
-        });
-    </script>
-{% elseif field_typename == "Decimal" %}
-    {% set decimalvalue_id = valuefield.id %}
-    <script type="text/javascript">
-        window.DecimalValueInterval_{{ decimalvalue_id }} = null;
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='DecimalValueForm[value]']").unbind('keyup');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='DecimalValueForm[value]']").unbind('paste');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='DecimalValueForm[value]']").on('keyup paste', function() {
-            window.DecimalValueInterval_{{ decimalvalue_id }} = window.clearInterval(window.DecimalValueInterval_{{ decimalvalue_id }});
-            window.DecimalValueInterval_{{ decimalvalue_id }} = window.setInterval("$('#EditDataRecordFieldsForm_{{ drf_id }}').submit()", SaveTimeout);
-        });
-
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").validate({
+    {% elseif field_typename == "Decimal" %}
             rules: {
-                "DecimalValueForm[value]": {
+                "{{ input_name }}": {
                     number: true
                 }
             },
-            submitHandler: function(form) {
-                SaveRecordData(
-                    '#EditDataRecordFieldsForm_{{ drf_id }}', 
-                    window.DecimalValueInterval_{{ decimalvalue_id }}
-                );
-            }
-        });
-    </script>
-{% elseif field_typename == "Paragraph Text" %}
-    {% set longtext_id = valuefield.id %}
-    <script type="text/javascript">
-        window.LongTextInterval_{{ longtext_id }} = null;
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("textarea[name='LongTextForm[value]']").unbind('keyup');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("textarea[name='LongTextForm[value]']").unbind('paste');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("textarea[name='LongTextForm[value]']").on('keyup paste', function() {
-            window.LongTextInterval_{{ longtext_id }} = window.clearInterval(window.LongTextInterval_{{ longtext_id }});
-            window.LongTextInterval_{{ longtext_id }} = window.setInterval("$('#EditDataRecordFieldsForm_{{ drf_id }}').submit()", SaveTimeout);
-
-            WindowResizeInterval = window.clearInterval(WindowResizeInterval);
-            WindowResizeInterval = window.setInterval("onWindowResize()", 500);
-        });
-
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").validate({
-            submitHandler: function(form) {
-                SaveRecordData(
-                    '#EditDataRecordFieldsForm_{{ drf_id }}', 
-                    window.LongTextInterval_{{ longtext_id }}
-                );
-            }
-        });
-    </script>
-{% elseif field_typename == "Long Text" %}
-    {% set longvarchar_id = valuefield.id %}
-    <script type="text/javascript">
-        window.LongVarcharInterval_{{ longvarchar_id }} = null;
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='LongVarcharForm[value]']").unbind('keyup');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='LongVarcharForm[value]']").unbind('paste');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='LongVarcharForm[value]']").on('keyup paste', function() {
-            window.LongVarcharInterval_{{ longvarchar_id }} = window.clearInterval(window.LongVarcharInterval_{{ longvarchar_id }});
-            window.LongVarcharInterval_{{ longvarchar_id }} = window.setInterval("$('#EditDataRecordFieldsForm_{{ drf_id }}').submit()", SaveTimeout);
-        });
-
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").validate({
+    {% elseif field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
             rules: {
-                "LongVarcharForm[value]": {
-                    maxlength: 255
+                "{{ input_name }}": {
+                    maxlength: {{ max_length }}
                 }
             },
             messages: {
-                "LongVarcharForm[value]": {
-                    maxlength: "255 characters max"
+                "{{ input_name }}": {
+                    maxlength: "{{ max_length }} characters max"
                 }
             },
+    {% endif %}
             submitHandler: function(form) {
                 SaveRecordData(
-                    '#EditDataRecordFieldsForm_{{ drf_id }}', 
-                    window.LongVarcharInterval_{{ longvarchar_id }}
-                );
+                    '#EditForm_{{ unique_id }}',
+                    window.{{ field_typeclass }}Interval_{{ unique_id }}
+                )
             }
         });
     </script>
-{% elseif field_typename == "Medium Text" %}
-    {% set mediumvarchar_id = valuefield.id %}
-    <script type="text/javascript">
-        window.MediumVarcharInterval_{{ mediumvarchar_id }} = null;
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='MediumVarcharForm[value]']").unbind('keyup');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='MediumVarcharForm[value]']").unbind('paste');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='MediumVarcharForm[value]']").on('keyup paste', function() {
-            window.MediumVarcharInterval_{{ mediumvarchar_id }} = window.clearInterval(window.MediumVarcharInterval_{{ mediumvarchar_id }});
-            window.MediumVarcharInterval_{{ mediumvarchar_id }} = window.setInterval("$('#EditDataRecordFieldsForm_{{ drf_id }}').submit()", SaveTimeout);
-        });
-
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").validate({
-            rules: {
-                "MediumVarcharForm[value]": {
-                    maxlength: 64
-                }
-            },
-            messages: {
-                "MediumVarcharForm[value]": {
-                    maxlength: "64 characters max"
-                }
-            },
-            submitHandler: function(form) {
-                SaveRecordData(
-                    '#EditDataRecordFieldsForm_{{ drf_id }}', 
-                    window.MediumVarcharInterval_{{ mediumvarchar_id }}
-                );
-            }
-        });
-    </script>
-{% elseif field_typename == "Short Text" %}
-
-    {% set shortvarchar_id = valuefield.id %}
-    <script type="text/javascript">
-        window.ShortVarcharInterval_{{ shortvarchar_id }} = null;
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='ShortVarcharForm[value]']").unbind('keyup');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='ShortVarcharForm[value]']").unbind('paste');
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").find("input[name='ShortVarcharForm[value]']").on('keyup paste', function() {
-            window.ShortVarcharInterval_{{ shortvarchar_id }} = window.clearInterval(window.ShortVarcharInterval_{{ shortvarchar_id }});
-            window.ShortVarcharInterval_{{ shortvarchar_id }} = window.setInterval("$('#EditDataRecordFieldsForm_{{ drf_id }}').submit()", SaveTimeout);
-        });
-
-        $("#EditDataRecordFieldsForm_{{ drf_id }}").validate({
-            rules: {
-                "ShortVarcharForm[value]": {
-                    maxlength: 32
-                }
-            },
-            messages: {
-                "ShortVarcharForm[value]": {
-                    maxlength: "32 characters max"
-                }
-            },
-            submitHandler: function(form) {
-                SaveRecordData(
-                    '#EditDataRecordFieldsForm_{{ drf_id }}', 
-                    window.ShortVarcharInterval_{{ shortvarchar_id }}
-                );
-            },
-        });
-    </script>
-
 {% endif %}
+
 
 {% endspaceless %}
