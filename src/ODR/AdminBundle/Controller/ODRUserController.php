@@ -948,6 +948,9 @@ class ODRUserController extends ODRCustomController
             // Grab all the users
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
+            $repo_user_field_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');
+
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var ODRUser[] $users */
             $users = $user_manager->findUsers();
@@ -961,13 +964,10 @@ class ODRUserController extends ODRCustomController
                 if (($user->getId() == $user_id) && ($user !== $admin_user)) {
 
                     // Grab all permissions for this user
-                    $repo_user_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
-                    $repo_user_field_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');
-
-                    /** @var UserPermissions[] $user_permissions */
-                    $user_permissions = $repo_user_permissions->findBy( array('user' => $user) );
-                    /** @var UserFieldPermissions[] $user_field_permissions */
-                    $user_field_permissions = $repo_user_field_permissions->findBy( array('user' => $user) );
+                    /** @var UserPermissions[] $datatype_permissions */
+                    $datatype_permissions = $repo_user_permissions->findBy( array('user' => $user) );
+                    /** @var UserFieldPermissions[] $datafield_permissions */
+                    $datafield_permissions = $repo_user_field_permissions->findBy( array('user' => $user) );
 
                     if ($role == 'user') {
                         $user->addRole('ROLE_USER');
@@ -995,7 +995,7 @@ class ODRUserController extends ODRCustomController
                         $top_level_datatypes = parent::getTopLevelDatatypes();
 
                         // Enable all datatype permissions for this (now admin) user
-                        $new_permissions = array(
+                        $properties = array(
                             'can_view_type' => 1,
                             'can_add_record' => 1,
                             'can_edit_record' => 1,
@@ -1003,25 +1003,33 @@ class ODRUserController extends ODRCustomController
                             'can_design_type' => 1,
                         );
 
-                        foreach ($user_permissions as $user_permission) {
+                        foreach ($datatype_permissions as $permission) {
                             // Determine whether this permission is for a top-level or child datatype
-                            if ( in_array($user_permission->getDataType()->getId(), $top_level_datatypes) )
-                                $new_permissions['is_type_admin'] = 1;
+                            if ( in_array($permission->getDataType()->getId(), $top_level_datatypes) )
+                                $properties['is_type_admin'] = 1;
                             else
-                                $new_permissions['is_type_admin'] = 0;
+                                $properties['is_type_admin'] = 0;
 
                             // Update this permission for this user
-                            parent::ODR_copyUserPermission($em, $admin_user, $user_permission, $new_permissions);
+                            parent::ODR_copyUserPermission($em, $admin_user, $permission, $properties);
                         }
 
                         // Enable all datafield permissions for this (now admin) user
-                        foreach ($user_field_permissions as $user_field_permission) {
-                            $user_field_permission->setCanViewField(1);
-                            $user_field_permission->setCanEditField(1);
-                            $em->persist($user_field_permission);
+                        foreach ($datafield_permissions as $permission) {
+                            $properties = array(
+                                'can_view_field' => 1,
+                                'can_edit_field' => 1
+                            );
+                            parent::ODR_copyUserFieldPermission($em, $user, $permission, $properties);
                         }
 
-                        $em->flush();
+                        // Delete any cached permissions for this user
+                        $memcached = $this->get('memcached');
+                        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+                        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+
+                        $memcached->delete($memcached_prefix.'.user_'.$user_id.'_datatype_permissions');
+                        $memcached->delete($memcached_prefix.'.user_'.$user_id.'_datafield_permissions');
                     }
 
                     $user_manager->updateUser($user);
@@ -1039,7 +1047,6 @@ class ODRUserController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -1261,9 +1268,7 @@ class ODRUserController extends ODRCustomController
 
 
     /**
-     * TODO - this should be replaced by parent::ODR_copyUserPermission()
      * Updates a UserPermission object in the database.
-     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param ODRUser $user                    The User that is getting their permissions modified.
@@ -1364,25 +1369,22 @@ class ODRUserController extends ODRCustomController
                 /** @var UserFieldPermissions[] $datafield_permissions */
                 $datafield_permissions = $repo_user_field_permissions->findBy( array('user' => $user->getId(), 'dataType' => $datatype->getId()) );
 
-                foreach ($datafield_permissions as $permission) {
+                foreach ($datafield_permissions as $df_permission) {
+                    $properties = array();
                     if ($value == '1') {
                         // user was given edit permissions for this datatype...grant edit permissions for this datafield unless they're already restricted from viewing the datafield
-                        if ($permission->getCanViewField() == '1')
-                            $permission->setCanEditField('1');
+                        if ($df_permission->getCanViewField() == '1')
+                            $properties['can_edit_field'] = 1;
                     }
                     else {
                         // user had his edit permissions revoked for this datatype...revoke edit permissions for this datafield
-                        $permission->setCanEditField('0');
+                        $properties['can_edit_field'] = 0;
                     }
 
                     // Save changes to the datafield permission
-                    $em->persist($permission);
+                    parent::ODR_copyUserFieldPermission($em, $user, $df_permission, $properties);
                 }
             }
-
-            // Commit all changes
-            $em->flush();
-
 
             // Force a recache of the target user's permissions
             $memcached = $this->get('memcached');
@@ -1390,6 +1392,8 @@ class ODRUserController extends ODRCustomController
             $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
 
             $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datatype_permissions');
+            if ($reset_can_edit_datafield)
+                $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datafield_permissions');
         }
     }
 
@@ -1859,9 +1863,7 @@ class ODRUserController extends ODRCustomController
 
 
     /**
-     * TODO - replace with parent::ODR_copyUserFieldPermission()
      * Saves a datafield permission change for a given user.
-     * @deprecated
      *
      * @param integer $user_id      The database id of the User being modified.
      * @param integer $datafield_id The database id of the DataField being modified.
@@ -1932,23 +1934,20 @@ class ODRUserController extends ODRCustomController
             /** @var UserFieldPermissions $user_field_permission */
             $user_field_permission = $em->getRepository('ODRAdminBundle:UserFieldPermissions')->findOneBy( array('user' => $user->getId(), 'dataField' => $datafield->getId()) );
 
+            $properties = array();
             if ($permission == 2) {
-                $user_field_permission->setCanViewField(1);
-                $user_field_permission->setCanEditField(1);
+                $properties['can_view_field'] = 1;
+                $properties['can_edit_field'] = 1;
             }
             else if ($permission == 1) {
-                $user_field_permission->setCanViewField(1);
-                $user_field_permission->setCanEditField(0);
+                $properties['can_view_field'] = 1;
+                $properties['can_edit_field'] = 0;
             }
             else if ($permission == 0) {
-                $user_field_permission->setCanViewField(0);
-                $user_field_permission->setCanEditField(0);
+                $properties['can_view_field'] = 0;
+                $properties['can_edit_field'] = 0;
             }
-
-            // Save the permissions change
-            $em->persist($user_field_permission);
-            $em->flush();
-
+            parent::ODR_copyUserFieldPermission($em, $user, $user_field_permission, $properties);
 
             // Force a recache of the target user's permissions
             $memcached = $this->get('memcached');
