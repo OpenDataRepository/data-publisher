@@ -215,11 +215,37 @@ odr_recache_all:
 
 #-----------------------------------------
 # Theme Controller
+odr_design_derivative_themes:
+    path:  /design/searchtemplate/{datatype_id}
+    defaults: { _controller:ODRAdminBundle:Theme:design }
+    requirements:
+        datatype_id:  \d+
+
+odr_design_load_theme_list:
+    path:  /design/theme/load_all/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Theme:loadThemeList }
+    requirements:
+        datatype_id:  \d+
+
 odr_design_add_theme:
-    path:  /design/theme/add/{datatype_id}
+    path:  /design/theme/add/{datatype_id}/{theme_type}
     defaults: { _controller: ODRAdminBundle:Theme:addtheme }
     requirements:
         datatype_id:  \d+
+        theme_type: 'derivative|search_results|table|'
+
+odr_design_load_theme:
+    path:  /design/theme/load/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:loadtheme }
+    requirements:
+        theme_id:  \d+
+
+odr_derivative_reload_theme_element:
+    path: /design/searchtemplate/themeelementreload/{source_datatype_id}/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:reloadthemeelement }
+    requirements:
+        source_datatype_id: \d+
+        theme_element_id: \d+
 
 odr_design_delete_theme:
     path:  /design/theme/delete/{theme_id}
@@ -286,6 +312,13 @@ odr_design_save_datafield_order:
         initial_theme_element_id: \d+
         ending_theme_element_id: \d+
 
+odr_design_load_theme_datafield:
+    path:  /design/displaytemplate/loadthemedatafieldproperties/{datafield_id}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:Theme:loadthemedatafield }
+    requirements:
+        datafield_id: \d+
+        theme_id: \d+
+
 odr_design_save_theme_datafield:
     path:  /design/displaytemplate/themedatafieldproperties/{theme_datafield_id}
     defaults: { _controller: ODRAdminBundle:Theme:savethemedatafield }
@@ -304,7 +337,7 @@ odr_design_save_theme_datatype:
 
 #-----------------------------------------
 # Displaytemplate Controller
-odr_design_display_template:
+odr_design_master_theme:
     path:  /design/displaytemplate/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:design }
     requirements:

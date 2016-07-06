@@ -5893,7 +5893,7 @@ if ($timing) {
      *
      * @return array
      */
-    private function cleanUserData($user_data)
+    protected function cleanUserData($user_data)
     {
         foreach ($user_data as $key => $value) {
             if ($key !== 'username' && $key !== 'email' && $key !== 'firstName' && $key !== 'lastName'/* && $key !== 'institution' && $key !== 'position'*/)

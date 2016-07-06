@@ -95,8 +95,8 @@
 
             {% if can_design_datatype == true %}
                 {# If user has design permissions... #}
-                <td class="center"><a class="address" href="#{{ path('odr_design_display_template', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a></td>
-                <td class="center">{#<a class="address" href="#{{ path('odr_search_template_edit', { 'datatype_id': datatype.id, 'theme_id': 2 }) }}" title="Edit {{ datatype.shortname }} Search Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>#}</td>
+                <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a></td>
+                <td class="center"><a class="address" href="#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a></td>
 {#
                 {% if datatype.searchslug == '' %}
                 <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
@@ -124,7 +124,7 @@
             {% endif %}
 
             {% if level == 7 or is_type_admin == true %}
-                <td class="center"><a style="cursor:pointer;" onclick="deleteDataType({{ datatype.id }});"><i class="fa fa-lg fa-times"></i>&nbsp;Delete</a></td>
+                <td class="center"><a style="cursor:pointer;" onclick="deleteDataType({{ datatype.id }});"><i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete</a></td>
             {#{% elseif level > 1 %}#}
             {% else %}
                 <td class="center"></td>

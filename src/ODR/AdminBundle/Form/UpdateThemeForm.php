@@ -32,7 +32,7 @@ class UpdateThemeForm extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
         $builder->add(
-            'template_name',
+            'templateName',
             TextType::class,
             array(
                 'required' => true,
@@ -41,16 +41,16 @@ class UpdateThemeForm extends AbstractType
         );
 
         $builder->add(
-            'template_description',
+            'templateDescription',
             TextType::class,
             array(
                 'required' => true,
-                'label' => 'Description Name',
+                'label' => 'Theme Description',
             )
         );
 
         $builder->add(
-            'is_default',
+            'isDefault',
             CheckboxType::class,
             array(
                 'label'  => 'Is Default?',
