@@ -165,7 +165,8 @@ class DisplayController extends ODRCustomController
                 $stored_tab_data = $session->get('stored_tab_data');
 
                 if ( isset($stored_tab_data[$odr_tab_id]) && isset($stored_tab_data[$odr_tab_id]['datarecord_list']) ) {
-                    if ( !in_array($datarecord->getId(), $stored_tab_data[$odr_tab_id]['datarecord_list']) ) {
+                    $dr_list = explode(',', $stored_tab_data[$odr_tab_id]['datarecord_list']);
+                    if ( !in_array($datarecord->getId(), $dr_list) ) {
                         // There's some sort of mismatch between the URL the user wants and the data stored by the tab id...wipe the tab data and just use the search results
                         unset( $stored_tab_data[$odr_tab_id] );
                     }
