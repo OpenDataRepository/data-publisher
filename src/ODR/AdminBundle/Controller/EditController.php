@@ -2919,28 +2919,33 @@ if ($debug)
                 // Prefer the use of the sorted lists created during usage of the datatables plugin over the default list created during searching
                 $stored_tab_data = $session->get('stored_tab_data');
 
-                if ( isset($stored_tab_data[$odr_tab_id]) ) {
-                    // Grab datarecord list if it exists
-                    if ( isset($stored_tab_data[$odr_tab_id]['datarecord_list']) )
-                        $datarecord_list = $stored_tab_data[$odr_tab_id]['datarecord_list'];    // TODO - what to do when $datarecord_list from $odr_tab_id doesn't match $datarecord_list from parent::getSavedSearch()?
+                if ( isset($stored_tab_data[$odr_tab_id]) && isset($stored_tab_data[$odr_tab_id]['datarecord_list']) ) {
+                    if ( !in_array($datarecord->getId(), $stored_tab_data[$odr_tab_id]['datarecord_list']) ) {
+                        // There's some sort of mismatch between the URL the user wants and the data stored by the tab id...wipe the tab data and just use the search results
+                        unset( $stored_tab_data[$odr_tab_id] );
+                    }
+                    else {
+                        // Otherwise, use the sorted list stored in the user's session
+                        $datarecord_list = $stored_tab_data[$odr_tab_id]['datarecord_list'];
 
-                    // Grab start/length from the datatables state object if it exists
-                    if ( isset($stored_tab_data[$odr_tab_id]['state']) ) {
-                        $start = intval($stored_tab_data[$odr_tab_id]['state']['start']);
-                        $length = intval($stored_tab_data[$odr_tab_id]['state']['length']);
+                        // Grab start/length from the datatables state object if it exists
+                        if ( isset($stored_tab_data[$odr_tab_id]['state']) ) {
+                            $start = intval($stored_tab_data[$odr_tab_id]['state']['start']);
+                            $length = intval($stored_tab_data[$odr_tab_id]['state']['length']);
 
-                        // Calculate which page datatables claims it's on
-                        $datatables_page = 0;
-                        if ($start > 0)
-                            $datatables_page = $start / $length;
-                        $datatables_page++; 
+                            // Calculate which page datatables says it's on
+                            $datatables_page = 0;
+                            if ($start > 0)
+                                $datatables_page = $start / $length;
+                            $datatables_page++;
 
-                        // If the offset doesn't match the page, update it
-                        if ( $offset !== '' && intval($offset) !== intval($datatables_page) ) {
-                            $new_start = strval( (intval($offset) - 1) * $length );
+                            // If the offset doesn't match the page, update it
+                            if ( $offset !== '' && intval($offset) !== intval($datatables_page) ) {
+                                $new_start = strval( (intval($offset) - 1) * $length );
 
-                            $stored_tab_data[$odr_tab_id]['state']['start'] = $new_start;
-                            $session->set('stored_tab_data', $stored_tab_data);
+                                $stored_tab_data[$odr_tab_id]['state']['start'] = $new_start;
+                                $session->set('stored_tab_data', $stored_tab_data);
+                            }
                         }
                     }
                 }
