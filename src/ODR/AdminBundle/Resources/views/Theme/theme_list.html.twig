@@ -13,6 +13,7 @@
             </div>
             <div class="pure-u-1-12"></div>
             <div class="pure-u-11-12">
+                {% set count = 0 %}
                 {% for theme in theme_list %}
                     {% set theme_name = theme.themeMeta.templateName %}
                     {% if theme_name == '' %}
@@ -20,6 +21,7 @@
                     {% endif %}
 
                     {% if theme.themeType == 'derivative' %}
+                        {% set count = count = 1 %}
                         <div class="pure-u-1">
                             <span style="float:left;">
                                 <i class="fa fa-lg fa-info-circle Pointer ODRThemeProperties" title="Theme Properties" rel="{{ theme.id }}"></i>
@@ -36,6 +38,14 @@
                         </div>
                     {% endif %}
                 {% endfor %}
+
+                {% if count == 0 %}
+                        <div class="pure-u-1">
+                            <span class="Cursor" style="padding-left:15px; color: red;">
+                                No Search Results Themes exist!
+                            </span>
+                        </div>
+                {% endif %}
             </div>
         </div>
 #}
@@ -50,6 +60,7 @@
             </div>
             <div class="pure-u-1-12"></div>
             <div class="pure-u-11-12">
+                {% set count = 0 %}
                 {% for theme in theme_list %}
                     {% set theme_name = theme.themeMeta.templateName %}
                     {% if theme_name == '' %}
@@ -57,6 +68,7 @@
                     {% endif %}
 
                     {% if theme.themeType == 'search_results' %}
+                        {% set count = count + 1 %}
                         <div class="pure-u-1">
                             <span style="float:left;">
                                 <i class="fa fa-lg fa-info-circle Pointer ODRThemeProperties" title="Theme Properties" rel="{{ theme.id }}"></i>
@@ -73,6 +85,14 @@
                         </div>
                     {% endif %}
                 {% endfor %}
+
+                {% if count == 0 %}
+                        <div class="pure-u-1">
+                            <span class="Cursor" style="padding-left:15px; color: red;">
+                                No Search Results Themes exist!
+                            </span>
+                        </div>
+                {% endif %}
             </div>
         </div>
         <div class="pure-u-1" style="padding-top:15px">
@@ -86,6 +106,7 @@
             </div>
             <div class="pure-u-1-12"></div>
             <div class="pure-u-11-12">
+                {% set count = 0 %}
                 {% for theme in theme_list %}
                     {% set theme_name = theme.themeMeta.templateName %}
                     {% if theme_name == '' %}
@@ -93,6 +114,7 @@
                     {% endif %}
 
                     {% if theme.themeType == 'table' %}
+                        {% set count = count + 1 %}
                         <div class="pure-u-1">
                             <span style="float:left;">
                                 <i class="fa fa-lg fa-info-circle Pointer ODRThemeProperties" title="Theme Properties" rel="{{ theme.id }}"></i>
@@ -109,6 +131,14 @@
                         </div>
                     {% endif %}
                 {% endfor %}
+
+                {% if count == 0 %}
+                        <div class="pure-u-1">
+                            <span class="Cursor" style="padding-left:15px; color: red;">
+                                No Table Themes exist!
+                            </span>
+                        </div>
+                {% endif %}
             </div>
         </div>
     </div>

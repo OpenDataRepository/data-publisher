@@ -295,6 +295,15 @@ class ThemeController extends ODRCustomController
             // Create a new default Theme Element for the theme
             parent::ODR_addThemeElement($em, $user, $datatype, $theme);
 
+            // Ensure that the datatype knows it has this particular theme type available to it
+            if ($theme_type == 'search_results' && $datatype->getHasShortresults() == false) {
+                $datatype->setHasShortresults(true);
+                $em->persist($datatype);
+            }
+            else if ($theme_type == 'table' && $datatype->getHasTextresults() == false) {
+                $datatype->setHasTextresults(true);
+                $em->persist($datatype);
+            }
 
             // Save all changes
             $em->flush();
@@ -460,7 +469,8 @@ class ThemeController extends ODRCustomController
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-            if ($theme->getThemeType() == 'master')
+            $theme_type = $theme->getThemeType();
+            if ($theme_type == 'master')
                 throw new \Exception('Unable to directly delete "master" theme...delete the Datatype instead');
 
             // TODO - change is_default to a different theme upon theme deletion?
@@ -474,6 +484,23 @@ class ThemeController extends ODRCustomController
             $em->remove($theme_meta);
 
             $em->flush();
+
+            if ($theme_type == 'search_results') {
+                $themes = $em->getRepository('ODRAdminBundle:Theme')->findBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
+                if ( count($themes) == 0 ) {
+                    $datatype->setHasShortresults(false);
+                    $em->persist($datatype);
+                }
+            }
+            else if ($theme_type == 'table') {
+                $themes = $em->getRepository('ODRAdminBundle:Theme')->findBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
+                if ( count($themes) == 0 ) {
+                    $datatype->setHasTextresults(false);
+                    $em->persist($datatype);
+                }
+            }
+
+            // next function call will flush...
 
             // TODO - updating cached versions
             parent::tmp_updateDatatypeCache($em,$datatype, $user);
