@@ -704,10 +704,11 @@ odr_link_records:
     requirements: { methods: POST }
 
 odr_record_get_field_history:
-    path:  /edit/history/{datarecordfield_id}
+    path:  /edit/history/{datarecord_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Edit:getfieldhistory }
     requirements:
-        datarecordfield_id:  \d+
+        datarecord_id:  \d+
+        datafield_id:  \d+
 
 #-----------------------------------------
 

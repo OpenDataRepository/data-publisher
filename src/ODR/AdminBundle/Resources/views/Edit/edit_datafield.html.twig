@@ -72,7 +72,7 @@
 
     {% if field_typename == "Boolean" %}
         <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield.dataFieldMeta.description }}">
+            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory pure-u-1" style="margin:0.5em 0;" title="{{ datafield.dataFieldMeta.description }}">
                 <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                     <input id="{{ input_id }}" type="checkbox" name="{{ input_name }}" value="1" {% if valuefield_value == 1 %}checked{% endif %} />
                     {{ datafield.dataFieldMeta.fieldName }}
@@ -87,7 +87,7 @@
                 <table class="NotODRTable pure-table pure-u-1">
                     <thead class="pure-u-1">
                         <tr class="pure-u-1">
-                            <th class="pure-u-20-24">{{ datafield.dataFieldMeta.fieldName }}</th>
+                            <th class="pure-u-20-24" style="cursor:default;">{{ datafield.dataFieldMeta.fieldName }}</th>
                             <th class="pure-u-1-24">Options</th>
                         </tr>
                     </thead>
@@ -221,7 +221,7 @@
     {#{% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}#}
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
         <fieldset>
-            <label class="ODRFieldLabel ODRDatafieldHistory pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label class="ODRFieldLabel {#ODRDatafieldHistory#} pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
 
             {% set print_null_option = false %}
             {% set has_selection = false %}
@@ -266,7 +266,7 @@
     {#{% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}#}
     {% elseif field_typename == "Single Select" %}
         <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label for="{{ input_id }}" class="ODRFieldLabel {#ODRDatafieldHistory#} pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
 
             <select id="{{ input_id }}" class="pure-u-23-24 {% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
             {% if field_typename == "Single Select" %}
@@ -320,7 +320,7 @@
 {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Paragraph Text" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
     <script type="text/javascript">
         window.{{ field_typeclass }}Interval_{{ unique_id }} = null;
-        $("#EditForm_{{ unique_id }}").find("input[name='{{ input_name }}'").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+        $("#EditForm_{{ unique_id }}").find("{% if field_typename == 'Paragraph Text' %}textarea{% else %}input{% endif %}[name='{{ input_name }}'").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
             window.{{ field_typeclass }}Interval_{{ unique_id }} = window.clearInterval( window.{{ field_typeclass }}Interval_{{ unique_id }} );
             window.{{ field_typeclass }}Interval_{{ unique_id }} = window.setInterval( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
         });

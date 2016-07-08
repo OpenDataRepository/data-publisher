@@ -3005,14 +3005,15 @@ if ($debug)
 
 
     /**
-    * Builds an array of all prior values of the given datafield, to serve as a both display of field history and a reversion dialog.
-    * 
-    * @param integer $datarecordfield_id The database id of the DataRecord/DataField pair to look-up in the transaction log
-    * @param Request $request
-    * 
-    * @return Response
-    */
-    public function getfieldhistoryAction($datarecordfield_id, Request $request)
+     * Builds an array of all prior values of the given datafield, to serve as a both display of field history and a reversion dialog.
+     *
+     * @param integer $datarecord_id
+     * @param integer $datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function getfieldhistoryAction($datarecord_id, $datafield_id, Request $request)
     {
         $return['r'] = 0;
         $return['t'] = '';
@@ -3024,19 +3025,27 @@ if ($debug)
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DataRecordFields $drf */
-            $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->find($datarecordfield_id);
-            if ($drf == null)
-                return parent::deletedEntityError('Datarecordfield');
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            if ($datarecord == null)
+                return parent::deletedEntityError('Datarecord');
 
-            $datatype = $drf->getDataRecord()->getDataType();
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                return parent::deletedEntityError('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ($datatype->getDeletedAt() !== null)
+                return parent::deletedEntityError('Datatype');
+
 
             // ----------------------------------------
             // Ensure user has permissions to be doing this
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                return parent::permissionDeniedError('You need to be a super-admin to view datafield history, for now');
+                return parent::permissionDeniedError('You need to be a super-admin to view datafield history, for now');    // TODO - less restrictive requirements
 
             // Ensure user has permissions to be doing this
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
@@ -3047,7 +3056,7 @@ if ($debug)
 
             // ----------------------------------------
             // Don't check field history of certain fieldtypes
-            $typeclass = $drf->getDataField()->getFieldType()->getTypeClass();
+            $typeclass = $datafield->getFieldType()->getTypeClass();
             if ($typeclass == 'File' || $typeclass == 'Image' || $typeclass == 'Markdown' || $typeclass == 'Radio')
                 throw new \Exception('Unable to view history of a '.$typeclass.' datafield, for now');
 
@@ -3055,48 +3064,45 @@ if ($debug)
             // Grab all fieldtypes that the datafield has been
             $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted rows
             $query = $em->createQuery(
-               'SELECT ft.id AS id, ft.typeClass AS type_class, ft.typeName AS type_name
-                FROM ODRAdminBundle:DataRecordFields AS drf
-                JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
+               'SELECT DISTINCT(ft.typeClass) AS type_class
+                FROM ODRAdminBundle:DataFields AS df
                 JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
                 JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
-                WHERE drf = :drf_id'
-            )->setParameters( array('drf_id' => $datarecordfield_id) );
+                WHERE df = :df_id'
+            )->setParameters( array('df_id' => $datafield->getId()) );
             $results = $query->getArrayResult();
 
             $all_typeclasses = array();
-            $all_typenames = array();
             foreach ($results as $result) {
-                $fieldtype_id = $result['id'];
                 $typeclass = $result['type_class'];
-                $typename = $result['type_name'];
 
-                if ( $typeclass !== 'File' && $typeclass !== 'Image' && $typeclass !== 'Markdown' && $typeclass !== 'Radio' ) {
-                    $all_typeclasses[$fieldtype_id] = $typeclass;
-                    $all_typenames[$fieldtype_id] = $typename;
-                }
+                if ( $typeclass !== 'File' && $typeclass !== 'Image' && $typeclass !== 'Markdown' && $typeclass !== 'Radio' )
+                    $all_typeclasses[] = $typeclass;
             }
+
 
             // Grab all values that the datafield has had across all fieldtypes
             $historical_values = array();
-            foreach ($all_typeclasses as $ft_id => $typeclass) {
+            foreach ($all_typeclasses as $num => $typeclass) {
                 $query = $em->createQuery(
-                   'SELECT e.value AS value, e.created AS create_date, creator.firstName, creator.lastName, creator.username
+                   'SELECT e.value AS value, ft.typeName AS typename, e.created AS created, created_by.firstName, created_by.lastName, created_by.username
                     FROM ODRAdminBundle:'.$typeclass.' AS e
-                    JOIN ODROpenRepositoryUserBundle:User AS creator WITH e.createdBy = creator
-                    WHERE e.dataRecordFields = :drf_id'
-                )->setParameters( array('drf_id' => $datarecordfield_id) );
+                    JOIN ODRAdminBundle:FieldType AS ft WITH e.fieldType = ft
+                    JOIN ODROpenRepositoryUserBundle:User AS created_by WITH e.createdBy = created_by
+                    WHERE e.dataRecord = :datarecord_id AND e.dataField = :datafield_id'
+                )->setParameters( array('datarecord_id' => $datarecord->getId(), 'datafield_id' => $datafield->getId()) );
                 $results = $query->getArrayResult();
 
                 foreach ($results as $result) {
                     $value = $result['value'];
-                    $create_date = $result['create_date'];
+                    $created = $result['created'];
+                    $typename = $result['typename'];
 
                     $user_string = $result['username'];
                     if ( $result['firstName'] !== '' && $result['lastName'] !== '' )
                         $user_string = $result['firstName'].' '.$result['lastName'];
 
-                    $historical_values[] = array('value' => $value, 'user' => $user_string, 'create_date' => $create_date, 'typeclass' => $typeclass, 'typename' => $all_typenames[$ft_id]);
+                    $historical_values[] = array('value' => $value, 'user' => $user_string, 'created' => $created, 'typeclass' => $typeclass, 'typename' => $typename);
                 }
             }
 
@@ -3107,7 +3113,7 @@ if ($debug)
             // Sort array from earliest date to latest date
             usort($historical_values, function ($a, $b) {
                 // Sort by display order first if possible
-                $interval = date_diff($a['create_date'], $b['create_date']);
+                $interval = date_diff($a['created'], $b['created']);
                 if ( $interval->invert == 0 )
                     return -1;
                 else
@@ -3120,12 +3126,18 @@ if ($debug)
             foreach ($historical_values as $num => $data)
                 $historical_values[$num]['version'] = ($num+1);
 
-            // Create a form for the object to use if value gets reverted
-            $current_typeclass = $drf->getDataField()->getFieldType()->getTypeClass();
-            $form_classname = "\\ODR\\AdminBundle\\Form\\".$current_typeclass."Form";
+//print_r($historical_values);
+//exit();
 
-            $my_obj = $drf->getAssociatedEntity();
-            $form = $this->createForm(new $form_classname($em), $my_obj);
+            // Generate a csrf token to use if the user wants to revert back to an earlier value
+            $current_typeclass = $datafield->getFieldType()->getTypeClass();
+
+            /** @var \Symfony\Component\Security\Csrf\CsrfTokenManager $token_generator */
+            $token_generator = $this->get('security.csrf.token_manager');
+
+            $token_id = $current_typeclass.'Form_'.$datarecord->getId().'_'.$datafield->getId();
+            $csrf_token = $token_generator->getToken($token_id)->getValue();
+
 
             // Render the dialog box for this request
             $templating = $this->get('templating');
@@ -3134,10 +3146,12 @@ if ($debug)
                     'ODRAdminBundle:Edit:field_history_dialog_form.html.twig',
                     array(
                         'historical_values' => $historical_values,
-                        'current_typeclass' => $current_typeclass,
-                        'drf' => $drf,
 
-                        'form' => $form->createView()
+                        'datarecord' => $datarecord,
+                        'datafield' => $datafield,
+                        'current_typeclass' => $current_typeclass,
+
+                        'csrf_token' => $csrf_token,
                     )
                 )
             );

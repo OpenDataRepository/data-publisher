@@ -1,31 +1,12 @@
 {% spaceless %}
-    {% set datarecord_id = drf.getdatarecord.id %}
-    {% set entity_id = drf.getassociatedentity.id %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
 
     <!-- Field History Dialog Form -->
-    <form class="ODRDatafieldHistoryForm pure-form pure-form-aligned" action="{{ path('odr_record_save', {'record_type': current_typeclass, 'datarecord_id': datarecord_id }) }}" method="post" id="DatafieldHistoryForm">
-        <input type="hidden" name="id" value="{{ entity_id }}" />
-        <input type="hidden" name="ObjType" value="{{ current_typeclass }}" />
+    <form action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}" class="pure-u-1" id="DatafieldHistoryForm" method="POST">
 
-        {{ form_errors(form.createdBy) }}
-        {{ form_widget(form.createdBy) }}
-{#
-        {{ form_errors(form.updatedBy) }}
-        {{ form_widget(form.updatedBy) }}
-#}
-        {{ form_errors(form._token) }}
-        {{ form_widget(form._token) }}
-
-        {{ form_errors(form.data_field) }}
-        {{ form_widget(form.data_field) }}
-        {{ form_errors(form.field_type) }}
-        {{ form_widget(form.field_type) }}
-        {{ form_errors(form.data_record) }}
-        {{ form_widget(form.data_record) }}
-        {{ form_errors(form.data_record_fields) }}
-        {{ form_widget(form.data_record_fields) }}
-
-        <input type="hidden" value="" data-error-type="inline" class="required" required="required" name="{{ current_typeclass }}Form[value]" id="{{ current_typeclass }}Form_value" />
+        <input type="hidden" id="{{ current_typeclass }}Form__token" name="{{ current_typeclass }}Form[_token]" value="{{ csrf_token }}" />
+        <input type="hidden" value="" required="required" name="{{ current_typeclass }}Form[value]" id="{{ current_typeclass }}Form_revert" />
 
         <fieldset>
             <div class="pure-control-group" id="field_history_table_container" style="overflow: auto; max-height: 500px;">
@@ -50,7 +31,7 @@
                         <tr class="row">
                             <td class="center">{{ historical_value.version }}</td>
                             <td class="center">{{ historical_value.typename }}</td>
-                            <td class="center">{{ historical_value.create_date|date("Y-m-d H:i:s") }}</td>
+                            <td class="center">{{ historical_value.created|date("Y-m-d H:i:s") }}</td>
                             <td class="center">{{ historical_value.user }}</td>
                         {% if historical_value.typeclass == "DatetimeValue" %}
                             <td id="version_{{ historical_value.version }}" class="center">{% if historical_value.value|date('Y-m-d') == '-0001-11-30' %}{% else %}{{ historical_value.value|date('Y-m-d') }}{% endif %}</td>
@@ -71,24 +52,17 @@
 
     <script>
         $(function() {
-            $( "#dialog_field_history" ).dialog({
+            $("#dialog_field_history").dialog({
                 autoOpen: false,
                 modal: true,
                 width: 800,
-                open: function(){
+                open: function() {
                     $(this).parent().css('overflow', 'visible');
                     /* $$.utils.forms.resize()*/
                     $("#field_history_table_container").scrollTop(0);
                 }
-/*
-            }).find('button.submit').click(function(){
-                var $el = $(this).parents('.ui-dialog-content');
-                if ($el.validate().form()) {
-                    $el.find('form')[0].reset();
-                    $el.dialog('close');
-                }
-*/
-            }).find('.ODRCancelButton').click(function(){
+            });
+            $("#dialog_field_history").find('.ODRCancelButton').unbind('click').click(function() {
                 var $el = $(this).parents('.ui-dialog-content');
                 $el.find('form')[0].reset();
                 $el.dialog('close');
@@ -122,6 +96,26 @@
                 var target_typeclass = $(parent).attr('rel');
 
                 if ( target_typeclass == 'DatetimeValue' )
+                    $(parent).children('button').first().attr('title', 'Unable to revert back to this value').attr('disabled', 'disabled');
+            });
+{% endif %}
+
+{% if current_typeclass == 'Boolean' %}
+            // The field is currently a boolean value...don't permit reversions to non-boolean values
+            $(".row").each(function() {
+                var parent = $(this).find(".pure-button").parent();
+                var target_typeclass = $(parent).attr('rel');
+
+                if ( target_typeclass !== 'Boolean' )
+                    $(parent).children('button').first().attr('title', 'Unable to revert back to this value').attr('disabled', 'disabled');
+            });
+{% else %}
+            // The field is currently not a boolean value...don't permit reversions to boolean values
+            $(".row").each(function() {
+                var parent = $(this).find(".pure-button").parent();
+                var target_typeclass = $(parent).attr('rel');
+
+                if ( target_typeclass == 'Boolean' )
                     $(parent).children('button').first().attr('title', 'Unable to revert back to this value').attr('disabled', 'disabled');
             });
 {% endif %}
@@ -184,23 +178,42 @@
             if ( confirm(confirm_str) ) {
                 var previous_value = $("#" + id).html();
 
-                var element = "{{ current_typeclass }}Form_value";
-                $("#DatafieldHistoryForm > #" + element).val(previous_value);
+                // Transfer the desired previous_value into the datafield history form
+                if ("{{ current_typeclass }}" == "Boolean") {
+                    $("#{{ current_typeclass }}Form_revert").val(1);
 
-                if ( "{{ current_typeclass }}" == "DatetimeValue" ) {
-                    $("#EditDataRecordFieldsForm_{{ drf.id }} .ODRDatePicker").datepicker( "setDate", previous_value );
+                    if (previous_value == '')
+                        $("#{{ current_typeclass }}Form_revert").attr('disabled', 'disabled');  // force non-submission of value
+                    else
+                        $("#{{ current_typeclass }}Form_revert").removeAttr('disabled');
                 }
                 else {
-                    $("#EditDataRecordFieldsForm_{{ drf.id }} #" + element).val(previous_value);
-                    $("#Form_{{ drf.id }}").val(previous_value);
+                    $("#{{ current_typeclass }}Form_revert").val(previous_value);
                 }
 
                 var $el = $('#dialog_field_history');
-                if ($el.validate().form()) {
+                if ( $el.validate().form() ) {
                     $("#DatafieldHistoryForm").submit();
-    
+
+                    // If no errors, copy the desired previous_value onto the page itself
+                    if ("{{ current_typeclass }}" == "DatetimeValue") {
+                        $("#EditForm_{{ unique_id }}").find('.ODRDatePicker').datepicker("setDate", previous_value);
+                    }
+                    else if ("{{ current_typeclass }}" == "Boolean") {
+                        if (previous_value == '')
+                            $("#EditForm_{{ unique_id }}").find('input[type="checkbox"]').first().prop('checked', false);
+                        else
+                            $("#EditForm_{{ unique_id }}").find('input[type="checkbox"]').first().prop('checked', true);
+                    }
+                    else if ("{{ current_typeclass }}" == "LongText") {
+                        $("#EditForm_{{ unique_id }}").find('textarea').first().html(previous_value);
+                    }
+                    else {
+                        // All other typeclasses
+                        $("#EditForm_{{ unique_id }}").find('input[type="text"]').first().val(previous_value);
+                    }
+
                     $el.find('form')[0].reset();
-                    $el.dialog('close');
                 }
             }
         }
