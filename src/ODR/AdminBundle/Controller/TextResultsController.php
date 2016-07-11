@@ -158,7 +158,7 @@ class TextResultsController extends ODRCustomController
             // ----------------------------------------
             if ($sort_column >= 2) {    // column 0 is datarecord id, column 1 is default sort column...
                 // Adjust datatables column number to datafield display order number
-                $sort_column--;
+                $sort_column -= 2;
 
                 // Need the typeclass of the datafield first
                 $query = $em->createQuery(
@@ -174,6 +174,11 @@ class TextResultsController extends ODRCustomController
                 $results = $query->getArrayResult();
                 $typeclass = $results[0]['type_class'];
                 $datafield_id = $results[0]['df_id'];
+
+                // Because the drf entry and the storage entity may not exist, pre-initialize the array of datarecord ids and values so datarecords with non-existent drf/storage entities don't get dropped from this sorting
+                $query_results = array();
+                foreach ($list as $num => $dr_id)
+                    $query_results[$dr_id] = '';
 
 
                 if ($typeclass == 'Radio') {
@@ -192,25 +197,14 @@ class TextResultsController extends ODRCustomController
                     $results = $query->getArrayResult();
 
                     // Build an array so php can sort the list
-                    $tmp = array();
                     foreach ($results as $num => $result) {
                         $option_name = $result['option_name'];
-                        $datarecord_id = $result['dr_id'];
+                        $dr_id = $result['dr_id'];
 
-                        $key = $option_name.'_'.$datarecord_id;
-                        $tmp[ $key ] = $datarecord_id;
+                        // Since this is a single select/radio datafield, there will be at most one option per datarecord id here...wouldn't be the case if a multiple select/radio datafield
+                        // Therefore, using the datarecord id as a key is perfectly viable here
+                        $query_results[$dr_id] = $option_name;
                     }
-
-                    if ($sort_dir == 'DESC')
-                        krsort($tmp);
-                    else
-                        ksort($tmp);
-
-
-                    // Convert back into a list of datarecord ids for printing
-                    $list = array();
-                    foreach ($tmp as $key => $dr_id)
-                        $list[] = $dr_id;
                 }
                 else if ($typeclass == 'File') {
                     // Get the list of file names...have to left join the file table because datarecord id is required, but there may not always be a file uploaded
@@ -221,15 +215,16 @@ class TextResultsController extends ODRCustomController
                         LEFT JOIN ODRAdminBundle:File AS f WITH f.dataRecordFields = drf
                         LEFT JOIN ODRAdminBundle:FileMeta AS fm WITH fm.file = f
                         WHERE dr.id IN (:datarecords) AND drf.dataField = :datafield_id
-                        AND f.deletedAt IS NULL AND fm.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
-                        ORDER BY fm.originalFileName '.$sort_dir
+                        AND f.deletedAt IS NULL AND fm.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
                     )->setParameters( array('datarecords' => $list, 'datafield_id' => $datafield_id) );
                     $results = $query->getArrayResult();
 
-                    // Redo the list of datarecords based on the sorted order
-                    $list = array();
+                    // Build an array from the query results so php can sort it
                     foreach ($results as $num => $result) {
-                        $list[] = $result['dr_id'];
+                        $dr_id = $result['dr_id'];
+                        $filename = $result['file_name'];
+
+                        $query_results[$dr_id] = $filename;
                     }
                 }
                 else {
@@ -244,8 +239,7 @@ class TextResultsController extends ODRCustomController
                     )->setParameters( array('datarecords' => $list, 'datafield_id' => $datafield_id) );
                     $results = $query->getArrayResult();
 
-                    // Build an array so php can sort the list of datarecords
-                    $tmp = array();
+                    // Build an array from the query results so php can sort it
                     foreach ($results as $num => $result) {
                         $dr_id = $result['dr_id'];
                         $value = $result['value'];
@@ -255,21 +249,30 @@ class TextResultsController extends ODRCustomController
                         else if ($typeclass == 'DecimalValue')
                             $value = floatval($value);
 
-                        $tmp[$dr_id] = $value;
-                    }
-
-                    if ($sort_dir == 'DESC')
-                        arsort($tmp);
-                    else
-                        asort($tmp);
-
-
-                    // Redo the list of datarecords based on the sorted order
-                    $list = array();
-                    foreach ($tmp as $dr_id => $value) {
-                        $list[] = $dr_id;
+                        $query_results[$dr_id] = $value;
                     }
                 }
+
+                // Get PHP to sort the list of datarecords
+                if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue') {
+                    // PHP can sort integer/decimal values directly
+                    if ($sort_dir == 'DESC')
+                        arsort($query_results);
+                    else
+                        asort($query_results);
+                }
+                else {
+                    // Text values need to use "natural" sorting
+                    natsort($query_results);
+
+                    if ($sort_dir == 'DESC')
+                        $query_results = array_reverse($query_results, true);
+                }
+
+                // Redo the list of datarecords based on the sorted order
+                $list = array();
+                foreach ($query_results as $dr_id => $value)
+                    $list[] = $dr_id;
             }
 
             // Only save the subset of records pointed to by the $start and $length values
