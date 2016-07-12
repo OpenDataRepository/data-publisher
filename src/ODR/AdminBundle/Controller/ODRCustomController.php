@@ -2208,6 +2208,7 @@ if ($debug)
     {
         // Mark datarecord as updated
         $datarecord->setUpdatedBy($user);
+        $datarecord->setUpdated(new \DateTime());   // guarantee that the datarecord gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
         $em->persist($datarecord);
         $em->flush();
 
@@ -2232,6 +2233,7 @@ if ($debug)
     {
         // Mark datatype as updated
         $datatype->setUpdatedBy($user);
+        $datatype->setUpdated(new \DateTime());   // guarantee that the datatype gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
         $em->persist($datatype);
         $em->flush();
 
@@ -2259,11 +2261,13 @@ if ($debug)
     {
         // Mark theme as updated
         $theme->setUpdatedBy($user);
+        $theme->setUpdated(new \DateTime());   // guarantee that the theme gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
         $em->persist($theme);
 
         if ($update_datatype) {
             // Also mark datatype as updated
             $datatype = $theme->getDataType();
+            $datatype->setUpdated(new \DateTime());   // guarantee that the datatype gets a new updated timestamp...apparently won't happen if the same user makes changes repeatedly
             $datatype->setUpdatedBy($user);
             $em->persist($datatype);
         }
@@ -3116,6 +3120,7 @@ if ($debug)
                 throw new \Exception('ODR_addStorageEntity() called on invalid fieldtype "'.$typeclass.'"');
                 break;
         }
+
 
         // Return the storage entity if it already exists
         /** @var Boolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */

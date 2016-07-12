@@ -7,31 +7,19 @@
 	<script>
 
     function DatafieldHistoryFormInit() {
-        // Initialize the form
-/*
-        $("#dialog_field_history .submit").unbind('click');
-        $("#dialog_field_history .submit").click(function() {
-            $("#DatafieldHistoryForm").submit();
-        });
-*/
 
         $("#DatafieldHistoryForm").validationOptions({
-            submitHandler: function(form){
-                var data = $(form).serialize();
+            submitHandler: function(form) {
+                var post_data = $(form).serialize();
                 var url = $(form).attr('action');
-                var dataType = "json";
+
                 $.ajax({
                     type: 'POST',
                     url: url,
-                    data: data,
-//                    dataType: dataType,
+                    dataType: "json",
+                    data: post_data,
                     success: function(data, textStatus, jqXHR) {
                         if(data.r == 0) {
-//                            switch(data.t) {
-//                                case 'html':
-//                                    $("#ChildTypeWrapper_" + data.d.datatype_id).html(data.d.childarea_html);
-//                                break;
-//                            }
                             alert("Value reverted!");
                         }
 /*
@@ -52,7 +40,7 @@
                         else {
                             // An error has occurred.
                             // Show Error message dialog
-                            alert(data.error);
+                            alert(data.d);
                         }
                         $("#dialog_field_history").dialog('close');
                     },
@@ -72,14 +60,6 @@
                 });
             }
         });
-/*
-        // - Validate
-        $("#DatafieldHistoryForm").validate({
-            submitHandler: function(form){
-                $(this).data('submit') ? $(this).data('submit')() : form.submit();
-            }
-        });
-*/
     }
 
 	</script>

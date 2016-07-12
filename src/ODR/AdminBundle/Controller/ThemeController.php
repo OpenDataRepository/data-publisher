@@ -1150,6 +1150,43 @@ class ThemeController extends ODRCustomController
             // Attach the datafield to the specified theme element
             parent::ODR_addThemeDataField($em, $user, $datafield, $theme_element);
 
+            // If this datafield was attached to a table theme, then ensure the display orders are sequential
+            if ($theme->getThemeType() == 'table') {
+                $em->flush();
+
+                $query = $em->createQuery(
+                   'SELECT tdf
+                    FROM ODRAdminBundle:ThemeDataField AS tdf
+                    WHERE tdf.themeElement = :theme_element
+                    AND tdf.deletedAt IS NULL'
+                )->setParameters( array('theme_element' => $theme_element->getId()) );
+
+                /** @var ThemeDataField[] $theme_datafields */
+                $theme_datafields = $query->getResult();
+
+                $datafield_list = array();
+                foreach ($theme_datafields as $tdf)
+                    $datafield_list[ $tdf->getDisplayOrder() ] = $tdf;
+
+                /** @var ThemeDataField[] $datafield_list */
+                ksort($datafield_list);
+
+                // Reset displayOrder to be sequential
+                $datafield_list = array_values($datafield_list);
+                for ($i = 0; $i < count($datafield_list); $i++) {
+                    $tdf = $datafield_list[$i];
+
+                    if ($tdf->getDisplayOrder() !== $i) {
+                        $properties = array(
+                            'displayOrder' => $i
+                        );
+                        parent::ODR_copyThemeDatafield($em, $user, $tdf, $properties);
+                    }
+                }
+
+                // TODO - empty table themes still count as having table themes?
+            }
+
             // TODO - other stuff?
 
             // TODO - update cached version directly?
@@ -1231,6 +1268,44 @@ class ThemeController extends ODRCustomController
             $em->flush();
 
             $em->remove($theme_datafield);
+
+
+            // If this datafield was detached from a table theme, then ensure the display orders are sequential
+            if ($theme->getThemeType() == 'table') {
+                $em->flush();
+
+                $query = $em->createQuery(
+                   'SELECT tdf
+                    FROM ODRAdminBundle:ThemeDataField AS tdf
+                    WHERE tdf.themeElement = :theme_element
+                    AND tdf.deletedAt IS NULL'
+                )->setParameters( array('theme_element' => $theme_element->getId()) );
+
+                /** @var ThemeDataField[] $theme_datafields */
+                $theme_datafields = $query->getResult();
+
+                $datafield_list = array();
+                foreach ($theme_datafields as $tdf)
+                    $datafield_list[ $tdf->getDisplayOrder() ] = $tdf;
+
+                /** @var ThemeDataField[] $datafield_list */
+                ksort($datafield_list);
+
+                // Reset displayOrder to be sequential
+                $datafield_list = array_values($datafield_list);
+                for ($i = 0; $i < count($datafield_list); $i++) {
+                    $tdf = $datafield_list[$i];
+
+                    if ($tdf->getDisplayOrder() !== $i) {
+                        $properties = array(
+                            'displayOrder' => $i
+                        );
+                        parent::ODR_copyThemeDatafield($em, $user, $tdf, $properties);
+                    }
+                }
+
+                // TODO - empty table themes still count as having table themes?
+            }
 
             // TODO - other stuff?
 

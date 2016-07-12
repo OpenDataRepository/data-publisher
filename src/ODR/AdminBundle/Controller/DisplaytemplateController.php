@@ -4642,10 +4642,10 @@ class DisplaytemplateController extends ODRCustomController
             $datafield_list = array_values($datafield_list);
             for ($i = 0; $i < count($datafield_list); $i++) {
                 $tdf = $datafield_list[$i];
-                if ($tdf->getDisplayOrder() !== ($i+1)) {
+                if ($tdf->getDisplayOrder() !== $i) {
 
                     $properties = array(
-                        'displayOrder' => ($i+1)
+                        'displayOrder' => $i
                     );
                     parent::ODR_copyThemeDatafield($em, $user, $tdf, $properties);
                 }

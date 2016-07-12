@@ -1105,7 +1105,7 @@
 
     function AttachDatafield(datafield_id, theme_element_id) {
 
-        var url = '{{ path('odr_design_attach_datafield', {'datafield_id': 0, 'theme_element_id' : 0} ) }}';
+        var url = '{{ path('odr_design_attach_datafield', {'datafield_id': 0, 'theme_element_id': 0} ) }}';
         url = url.substring(0, url.length-3);
         url += datafield_id + '/' + theme_element_id;
 
@@ -1149,7 +1149,7 @@
 
     function DetachDatafield(datafield_id, theme_element_id) {
 
-        var url = '{{ path('odr_design_detach_datafield', {'datafield_id': 0, 'theme_element_id' : 0} ) }}';
+        var url = '{{ path('odr_design_detach_datafield', {'datafield_id': 0, 'theme_element_id': 0} ) }}';
         url = url.substring(0, url.length-3);
         url += datafield_id + '/' + theme_element_id;
 
@@ -1208,7 +1208,7 @@
         ending_theme_element_id = theme_element[1];
 
         // Theme ID
-        var url = '{{ path('odr_design_save_datafield_order', {'initial_theme_element_id': 0, 'ending_theme_element_id' : 0} ) }}';
+        var url = '{{ path('odr_design_save_datafield_order', {'initial_theme_element_id': 0, 'ending_theme_element_id': 0} ) }}';
         url = url.substring(0, url.length-3);
         url += initial_theme_element_id + '/' + ending_theme_element_id;
 

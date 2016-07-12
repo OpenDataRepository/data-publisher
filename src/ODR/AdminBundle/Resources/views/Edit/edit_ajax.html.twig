@@ -104,21 +104,25 @@ function initPage() {
         handleFileDownload(event, file_id, href, short_form, can_cancel);    // defined in Default::file_handling.html.twig
     });
 
-    $(".ODRDataField").find('.ODRDatafieldHistory').unbind('click');
-    $(".ODRDataField").find('.ODRDatafieldHistory').click(function() {
+    $(".ODRDataField").find('.ODRDatafieldHistory').unbind('click').click(function(event) {
+
+        // Don't trigger whatever the click normally would have done (mostly for boolean fields)
+        event.preventDefault();
+        event.stopImmediatePropagation();
 
         // Grab relevant entity ids
         var id_data = $(this).parent().parent().attr('id').split(/_/);
-        var datarecordfield_id = id_data[1];
+        var datarecord_id = id_data[1];
+        var datafield_id = id_data[2];
 
-        var url = '{{ path('odr_record_get_field_history', { 'datarecordfield_id': 0 } ) }}';
-        url = url.substring(0, (url.length - 1));
-        url += datarecordfield_id;
+        var url = '{{ path('odr_record_get_field_history', { 'datarecord_id': 0, 'datafield_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 3));
+        url += datarecord_id + '/' + datafield_id;
 
-// TODO - Radio fieldtype
+        // TODO - File/Image/Radio fieldtypes?
 
-alert( url );
-return;
+//alert( url );
+//return;
 
         $.ajax({
             cache: false,
@@ -898,12 +902,14 @@ function SaveRecordData(form_id, interval) {
         success: function(data, textStatus, xhr) {
 
             if(data.r == 0) {
+/*
+                // TODO - make this work again
                 // Refresh Field
                 $(the_form).find(".valid-icon").fadeIn();
                 setTimeout(function() {
                     $(the_form).find(".valid-icon").fadeOut();
                 }, 500);
-
+*/
             }
             else if (data.r == 2) {
                 // Revert back to old value
