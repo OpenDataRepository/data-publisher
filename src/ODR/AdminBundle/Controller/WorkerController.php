@@ -86,9 +86,9 @@ class WorkerController extends ODRCustomController
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 //            $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -147,17 +147,17 @@ class WorkerController extends ODRCustomController
 
                 // ----------------------------------------
                 // Ensure the memcached version of the datarecord's datatype exists
-                $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype_id);
+                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype_id)));
                 if ($datatype_data == false)
                     self::getDatatypeData($em, self::getDatatreeArray($em), $datatype_id);
 
                 // Ensure the memcached version of the datarecord exists
-                $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$datarecord_id);
+                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$datarecord_id)));
                 if ($datarecord_data == false)
                     self::getDatarecordData($em, $datarecord_id);
 
                 // Ensure the memcached version of the datarecord's
-                $datarecord_table_data = $memcached->get($memcached_prefix.'.datarecord_table_data_'.$datarecord_id);
+                $datarecord_table_data = parent::getRedisData(($redis->get($redis_prefix.'.datarecord_table_data_'.$datarecord_id)));
                 if ($datarecord_table_data == false)
                     self::Text_GetDisplayData($em, $datarecord_id, $request);
 
@@ -256,9 +256,9 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 //            $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -423,7 +423,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                     // TODO - code to directly update the cached version of the datarecord
                     // Locate and clear the cache entry for this datarecord
                     $grandparent_datarecord_id = $datarecord->getGrandparent()->getId();
-                    $memcached->delete($memcached_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
+                    $redis->delete($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
                 }
                 else {
                     $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";
@@ -492,9 +492,9 @@ $ret .= '  Set current to '.$count."\n";
             $em = $this->getDoctrine()->getManager();
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->container->get('router');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
             /** @var DataType $datatype */
@@ -557,7 +557,7 @@ $ret .= '  Set current to '.$count."\n";
                             "tracked_job_id" => $tracked_job_id,
                             "object_type" => $object_type,
                             "object_id" => $object_id,
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
                         )
@@ -1251,8 +1251,8 @@ print '</pre>';
         $em = $this->getDoctrine()->getManager();
         $pheanstalk = $this->get('pheanstalk');
         $router = $this->container->get('router');
-        $memcached = $this->get('memcached');
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         $api_key = $this->container->getParameter('beanstalk_api_key');
 
@@ -1287,7 +1287,7 @@ print '</pre>';
                 array(
                     "object_type" => $object_type,
                     "object_id" => $object_id,
-                    "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                    "redis_prefix" => $redis_prefix,    // debug purposes only
                     "url" => $url,
                     "api_key" => $api_key,
                 )
@@ -1370,8 +1370,8 @@ print '</pre>';
             $em = $this->getDoctrine()->getManager();
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->container->get('router');
-            $memcached = $this->get('memcached');
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
@@ -1413,7 +1413,7 @@ print '</pre>';
                         "object_id" => $file['id'],
                         "target_filepath" => '',
                         "crypto_type" => 'decrypt',
-                        "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                        "redis_prefix" => $redis_prefix,    // debug purposes only
                         "url" => $url,
                         "api_key" => $api_key,
                     )
@@ -1652,9 +1652,9 @@ print '</pre>';
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->container->get('router');
 
-            $memcached = $this->get('memcached');
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $redis = $this->container->get('snc_redis.default');;
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
@@ -1701,7 +1701,7 @@ print '</pre>';
 //                            "tracked_job_id" => $tracked_job_id,
                             "object_type" => $object_type,
                             "object_id" => $object_id,
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
                         )
@@ -1743,7 +1743,7 @@ print '</pre>';
 //                            "tracked_job_id" => $tracked_job_id,
                             "object_type" => $object_type,
                             "object_id" => $object_id,
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
                         )
@@ -1786,7 +1786,7 @@ print '</pre>';
 //                            "tracked_job_id" => $tracked_job_id,
                             "object_type" => $object_type,
                             "object_id" => $object_id,
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
                         )
@@ -1828,7 +1828,7 @@ print '</pre>';
 //                            "tracked_job_id" => $tracked_job_id,
                             "object_type" => $object_type,
                             "object_id" => $object_id,
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
                         )
@@ -1870,7 +1870,7 @@ print '</pre>';
 //                            "tracked_job_id" => $tracked_job_id,
                             "object_type" => $object_type,
                             "object_id" => $object_id,
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
                         )
@@ -1912,7 +1912,7 @@ print '</pre>';
 //                            "tracked_job_id" => $tracked_job_id,
                             "object_type" => $object_type,
                             "object_id" => $object_id,
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
                         )
@@ -1954,7 +1954,7 @@ print '</pre>';
 //                            "tracked_job_id" => $tracked_job_id,
                             "object_type" => $object_type,
                             "object_id" => $object_id,
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
                         )
@@ -2005,9 +2005,9 @@ print '</pre>';
 /*
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 */
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2104,8 +2104,8 @@ print '</pre>';
 /*
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 */
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2202,8 +2202,8 @@ print '</pre>';
 /*
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 */
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2301,9 +2301,9 @@ print '</pre>';
 /*
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 */
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2398,9 +2398,9 @@ print '</pre>';
 /*
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 */
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2515,9 +2515,9 @@ print '</pre>';
 /*
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 */
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2628,9 +2628,9 @@ print '</pre>';
 /*
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 */
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2719,9 +2719,9 @@ print '</pre>';
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->container->get('router');
 
-            $memcached = $this->get('memcached');
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $redis = $this->container->get('snc_redis.default');;
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
@@ -2802,7 +2802,7 @@ print '</pre>';
 //                        "tracked_job_id" => $tracked_job_id,
                             "object_type" => $object_type,
                             "object_id" => $datatype_id,
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
                         )

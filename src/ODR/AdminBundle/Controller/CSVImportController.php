@@ -873,9 +873,9 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
             // Load symfony objects
             $session = $request->getSession();
             $pheanstalk = $this->get('pheanstalk');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 
             $router = $this->get('router');
@@ -1318,7 +1318,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
 
                         'api_key' => $beanstalk_api_key,
                         'url' => $url,
-                        'memcached_prefix' => $memcached_prefix,    // debug purposes only
+                        'redis_prefix' => $redis_prefix,    // debug purposes only
 
                         // Only used when importing into a top-level or child datatype
                         'unique_columns' => $unique_columns,
@@ -2351,9 +2351,9 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
 
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 //            $session = $request->getSession();
 
 
@@ -2491,7 +2491,7 @@ print_r($new_mapping);
 
                         'api_key' => $beanstalk_api_key,
                         'url' => $url,
-                        'memcached_prefix' => $memcached_prefix,    // debug purposes only
+                        'redis_prefix' => $redis_prefix,    // debug purposes only
 
                         'column_delimiters' => $column_delimiters,
                         'synch_columns' => $synch_columns,
@@ -2578,9 +2578,9 @@ print_r($new_mapping);
             // Load symfony objects
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -3290,7 +3290,7 @@ print_r($new_mapping);
 
             // ----------------------------------------
             // Rebuild the list of sorted datarecords, since the datarecord order may have changed
-            $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
+            $redis->delete($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
             // Schedule the datarecord for an update
             $options = array(
                 'mark_as_updated' => true,
@@ -3302,12 +3302,12 @@ print_r($new_mapping);
 
             // Delete all cached search results for this datatype
             // TODO - more precise deletion of cached search results...new datarecord created should delete all search results without datafields, update to a datafield should delete all search results with that datafield
-            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
             if ( $cached_searches != false && isset($cached_searches[$datatype_id]) ) {
                 unset( $cached_searches[$datatype_id] );
 
                 // Save the collection of cached searches back to memcached
-                $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
             }
 
             $return['d'] = $status;
@@ -3404,9 +3404,9 @@ print_r($new_mapping);
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 /*
             $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 */
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();

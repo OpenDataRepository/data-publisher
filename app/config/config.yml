@@ -113,6 +113,15 @@ fos_user:
         form:
             type: odr_user_change_password
 
+snc_redis:
+    clients:
+        default:
+            type: predis
+            alias: default
+            dsn: redis://localhost
+            # TODO: https://github.com/snc/SncRedisBundle/pull/199/files
+            #serialization: php
+
 drymek_pheanstalk: ~
 
 services:

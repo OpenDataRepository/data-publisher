@@ -82,9 +82,9 @@ class DisplaytemplateController extends ODRCustomController
 
         try {
             // Grab necessary objects
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Grab entity manager and repositories
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -190,7 +190,7 @@ class DisplaytemplateController extends ODRCustomController
                 $properties['sortField'] = null;
 
                 // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
-                $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
+                $redis->delete($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
             }
 
             // Ensure that the datatype doesn't continue to think this datafield is its background image field
@@ -230,7 +230,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Wipe cached data for the grandparent datatype
-//            $memcached->delete($memcached_prefix.'.cached_datatype_'.$grandparent_datatype_id);
+//            $redis->delete($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
 
             // Wipe cached data for all the datatype's datarecords
             $query = $em->createQuery(
@@ -242,7 +242,7 @@ class DisplaytemplateController extends ODRCustomController
 
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
-                $memcached->delete($memcached_prefix.'.cached_datarecord_'.$dr_id);
+                $redis->delete($redis_prefix.'.cached_datarecord_'.$dr_id);
 
                 // TODO - schedule each of these datarecords for a recache?
             }
@@ -250,14 +250,14 @@ class DisplaytemplateController extends ODRCustomController
             // Wipe datafield permissions involving this datafield
             foreach ($all_affected_users as $user) {
                 $user_id = $user['user_id'];
-                $memcached->delete($memcached_prefix.'.user_'.$user_id.'_datafield_permissions');
+                $redis->delete($redis_prefix.'.user_'.$user_id.'_datafield_permissions');
 
                 // TODO - schedule each of these for a recache?
             }
 
 
             // See if any cached search results need to be deleted...
-            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
             if ( $cached_searches != false && isset($cached_searches[$grandparent_datatype_id]) ) {
                 // Delete all cached search results for this datatype that were run with criteria for this specific datafield
                 foreach ($cached_searches[$grandparent_datatype_id] as $search_checksum => $search_data) {
@@ -269,7 +269,7 @@ class DisplaytemplateController extends ODRCustomController
                 }
 
                 // Save the collection of cached searches back to memcached
-                $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
             }
         }
         catch (\Exception $e) {
@@ -301,9 +301,9 @@ class DisplaytemplateController extends ODRCustomController
 
         try {
             // Grab necessary objects
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -398,7 +398,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Wipe cached data for the grandparent datatype
-//            $memcached->delete($memcached_prefix.'.cached_datatype_'.$grandparent_datatype_id);
+//            $redis->delete($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
 
             // Wipe cached data for all the datatype's datarecords
             $query = $em->createQuery(
@@ -410,13 +410,13 @@ class DisplaytemplateController extends ODRCustomController
 
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
-                $memcached->delete($memcached_prefix.'.cached_datarecord_'.$dr_id);
+                $redis->delete($redis_prefix.'.cached_datarecord_'.$dr_id);
 
                 // TODO - schedule each of these datarecords for a recache?
             }
 
             // See if any cached search results need to be deleted...
-            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
             if ( $cached_searches != false && isset($cached_searches[$grandparent_datatype_id]) ) {
                 // Delete all cached search results for this datatype that were run with criteria for this specific datafield
                 foreach ($cached_searches[$grandparent_datatype_id] as $search_checksum => $search_data) {
@@ -428,7 +428,7 @@ class DisplaytemplateController extends ODRCustomController
                 }
 
                 // Save the collection of cached searches back to memcached
-                $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
             }
 
         }
@@ -577,9 +577,9 @@ class DisplaytemplateController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
 
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -651,8 +651,8 @@ class DisplaytemplateController extends ODRCustomController
                 foreach ($results as $result) {
                     $dr_id = $result['dr_id'];
 
-                    $memcached->delete($memcached_prefix.'.cached_datarecord_'.$dr_id);
-                    $memcached->delete($memcached_prefix.'.associated_datarecords_for_'.$dr_id);
+                    $redis->delete($redis_prefix.'.cached_datarecord_'.$dr_id);
+                    $redis->delete($redis_prefix.'.associated_datarecords_for_'.$dr_id);
                 }
             }
 
@@ -809,22 +809,22 @@ class DisplaytemplateController extends ODRCustomController
 
             // Delete all cached permissions
             foreach ($user_list as $user) {
-                $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datatype_permissions');
-                $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datafield_permissions');
+                $redis->delete($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
+                $redis->delete($redis_prefix.'.user_'.$user->getId().'_datafield_permissions');
             }
 
             // ...cached searches
-            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
             if ( $cached_searches != false && isset($cached_searches[$datatype_id]) ) {
                 unset( $cached_searches[$datatype_id] );
 
                 // Save the collection of cached searches back to memcached
-                $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
             }
 
             // ...and layout data
             foreach ($datatypes_to_delete as $num => $dt_id)
-                $memcached->delete($memcached_prefix.'.cached_datatype_'.$dt_id);
+                $redis->delete($redis_prefix.'.cached_datatype_'.$dt_id);
 
         }
         catch (\Exception $e) {
@@ -1132,15 +1132,15 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Since new datafields were created, wipe datafield permission entries for all users
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var User[] $user_list */
             $user_list = $user_manager->findUsers();
             foreach ($user_list as $u) {
-                $memcached->delete($memcached_prefix.'.user_'.$u->getId().'_datafield_permissions');
+                $redis->delete($redis_prefix.'.user_'.$u->getId().'_datafield_permissions');
 
                 // TODO - schedule a permissions recache via beanstalk?
             }
@@ -1844,14 +1844,14 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Clear memcached of all datatype permissions for all users...the entries will get rebuilt the next time they do something
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             $user_manager = $this->container->get('fos_user.user_manager');
             $users = $user_manager->findUsers();
             foreach ($users as $user)
-                $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datatype_permissions');
+                $redis->delete($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
 
 
             // ----------------------------------------
@@ -2086,9 +2086,9 @@ class DisplaytemplateController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var ThemeElement $theme_element */
             $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
@@ -2237,7 +2237,7 @@ class DisplaytemplateController extends ODRCustomController
 
                 // Delete memcached key that stores linked datarecords for each of the affected datarecords
                 foreach ($datarecords_to_recache as $dr_id => $num)
-                    $memcached->delete($memcached_prefix.'.associated_datarecords_for_'.$dr_id);
+                    $redis->delete($redis_prefix.'.associated_datarecords_for_'.$dr_id);
             }
 
 //throw new \Exception('do not continue');
@@ -3039,15 +3039,15 @@ class DisplaytemplateController extends ODRCustomController
                 $em->flush();
 
                 // Since new datafields were created, wipe datafield permission entries for all users
-                $memcached = $this->get('memcached');
-                $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-                $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+                $redis = $this->container->get('snc_redis.default');;
+                // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+                $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
                 $user_manager = $this->container->get('fos_user.user_manager');
                 /** @var User[] $user_list */
                 $user_list = $user_manager->findUsers();
                 foreach ($user_list as $u) {
-                    $memcached->delete($memcached_prefix.'.user_'.$u->getId().'_datafield_permissions');
+                    $redis->delete($redis_prefix.'.user_'.$u->getId().'_datafield_permissions');
 
                     // TODO - schedule a permissions recache via beanstalk?
                 }
@@ -3442,9 +3442,9 @@ class DisplaytemplateController extends ODRCustomController
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
         $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         // Always bypass cache in dev mode?
         $bypass_cache = false;
@@ -3528,7 +3528,7 @@ class DisplaytemplateController extends ODRCustomController
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
         $datatype_array = array();
         foreach ($associated_datatypes as $num => $dt_id) {
-            $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
+            $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
             if ($bypass_cache || $datatype_data == null)
                 $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
 
@@ -3820,13 +3820,13 @@ class DisplaytemplateController extends ODRCustomController
 
                         // Wipe all cached entries for these datarecords
                         // TODO - update them instead?
-                        $memcached = $this->get('memcached');
-                        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-                        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+                        $redis = $this->container->get('snc_redis.default');;
+                        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+                        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
                         foreach ($results as $result) {
                             $dr_id = $result['dr_id'];
-                            $memcached->delete($memcached_prefix.'.cached_datarecord_'.$dr_id);
+                            $redis->delete($redis_prefix.'.cached_datarecord_'.$dr_id);
                         }
                     }
 
@@ -4536,7 +4536,7 @@ class DisplaytemplateController extends ODRCustomController
     {
         // ----------------------------------------
         // Grab necessary stuff for pheanstalk...
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
         $api_key = $this->container->getParameter('beanstalk_api_key');
         $pheanstalk = $this->get('pheanstalk');
 
@@ -4593,7 +4593,7 @@ class DisplaytemplateController extends ODRCustomController
                         "old_fieldtype_id" => $old_fieldtype->getId(),
                         "new_fieldtype_id" => $new_fieldtype->getId(),
 //                        "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                        "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                        "redis_prefix" => $redis_prefix,    // debug purposes only
                         "url" => $url,
                         "api_key" => $api_key,
                     )

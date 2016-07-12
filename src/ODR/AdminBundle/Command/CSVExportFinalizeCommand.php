@@ -56,7 +56,7 @@ class CSVExportFinalizeCommand extends ContainerAwareCommand
                 $data = json_decode($job->getData());
 
                 // 
-                $str = 'CSVExportFinalize request from '.$data->memcached_prefix.'...';
+                $str = 'CSVExportFinalize request from '.$data->redis_prefix.'...';
 
                 $current_time = new \DateTime();
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );                

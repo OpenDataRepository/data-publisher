@@ -111,7 +111,7 @@ class XMLController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->get('router');
 
@@ -140,7 +140,7 @@ class XMLController extends ODRCustomController
                 array(
                     "datatype_id" => $datatype->getId(),
                     "user_id" => $user->getId(),
-                    "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                    "redis_prefix" => $redis_prefix,    // debug purposes only
                     "url" => $url,
                     "api_key" => $api_key,
                 )
@@ -191,12 +191,12 @@ class XMLController extends ODRCustomController
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->get('router');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -252,7 +252,7 @@ class XMLController extends ODRCustomController
                         'xml_filename' => $xml_filename,
                         'api_key' => $beanstalk_api_key,
                         'url' => $url,
-                        'memcached_prefix' => $memcached_prefix,    // debug purposes only
+                        'redis_prefix' => $redis_prefix,    // debug purposes only
                         'datatype_id' => $datatype_id,
                         'user_id' => $user_id
                     )
@@ -305,13 +305,13 @@ class XMLController extends ODRCustomController
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
             $router = $this->get('router');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -391,7 +391,7 @@ class XMLController extends ODRCustomController
                             'xml_filename' => $xml_filename,
                             'api_key' => $beanstalk_api_key,
                             'url' => $url,
-                            'memcached_prefix' => $memcached_prefix,    // debug purposes only
+                            'redis_prefix' => $redis_prefix,    // debug purposes only
                             'datatype_id' => $datatype_id,
                             'user_id' => $user_id
                         )
@@ -449,11 +449,11 @@ class XMLController extends ODRCustomController
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -586,7 +586,7 @@ if ($write) {
                         $ret .= 'Moved "'.$xml_filename.'" to succeeded directory'."\n";
 
                         // Rebuild the list of sorted datarecords, since the datarecord order may have changed
-                        $memcached->delete($memcached_prefix.'.data_type_'.$datatype_id.'_record_order');
+                        $redis->delete($redis_prefix.'.data_type_'.$datatype_id.'_record_order');
                     }
                     else {
                         throw new \Exception('Could not move "'.$xml_filename.'" to succeeded directory');
@@ -1003,7 +1003,7 @@ if ($write) {
             return $return;
         }
 
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
         $api_key = $this->container->getParameter('beanstalk_api_key');
         $router = $this->container->get('router');
         $pheanstalk = $this->get('pheanstalk');
@@ -1084,7 +1084,7 @@ if ($write) {
                             "original_name" => $original_name,
                             "metadata" => $metadata,
 
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
                         )
@@ -1217,7 +1217,7 @@ if ($write) {
                             "original_name" => $original_name,
                             "metadata" => $metadata,
 
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
                         )
@@ -1504,12 +1504,12 @@ if ($write) {
 
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
             $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();

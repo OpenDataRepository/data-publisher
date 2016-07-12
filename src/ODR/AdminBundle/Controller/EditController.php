@@ -115,13 +115,13 @@ class EditController extends ODRCustomController
 //            parent::updateDatarecordCache($datarecord->getId(), $options);
 
             // Delete the cached string containing the ordered list of datarecords for this datatype
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-            $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis->delete($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
 
             // See if any cached search results need to be deleted...
-            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
             if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                 // Delete all cached search results for this datatype that were NOT run with datafield criteria
                 foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
@@ -131,7 +131,7 @@ class EditController extends ODRCustomController
                 }
 
                 // Save the collection of cached searches back to memcached
-                $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+                $redis->set($redis_prefix.'.cached_search_results', gzcompess(serialize($cached_searches)), 0);
             }
         }
         catch (\Exception $e) {
@@ -248,9 +248,9 @@ class EditController extends ODRCustomController
 
         try {
             // Grab memcached stuff
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -357,18 +357,18 @@ class EditController extends ODRCustomController
             // -----------------------------------
             // Delete the list of associated datarecords for the datarecords that linked to this now-deleted datarecord
             foreach ($ancestor_datarecord_ids as $num => $ancestor_id)
-                $memcached->delete($memcached_prefix.'.associated_datarecords_for_'.$ancestor_id);
+                $redis->delete($redis_prefix.'.associated_datarecords_for_'.$ancestor_id);
 
             // Delete the cached entry for this now-deleted datarecord
-            $memcached->delete($memcached_prefix.'.cached_datarecord_'.$datarecord_id);
+            $redis->delete($redis_prefix.'.cached_datarecord_'.$datarecord_id);
 
             // Delete the sorted list of datarecords for this datatype
-            $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
+            $redis->delete($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
 
 
             // ----------------------------------------
             // See if any cached search results need to be deleted...
-            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
             if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                 // Delete all cached search results for this datatype that contained this now-deleted datarecord
                 foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
@@ -385,7 +385,7 @@ class EditController extends ODRCustomController
                 }
 
                 // Save the collection of cached searches back to memcached
-                $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
             }
 
 
@@ -445,9 +445,9 @@ class EditController extends ODRCustomController
 
         try {
             // Grab memcached stuff
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -567,10 +567,10 @@ class EditController extends ODRCustomController
             // -----------------------------------
             // Delete the list of associated datarecords for the datarecords that linked to this now-deleted datarecord
             foreach ($ancestor_datarecord_ids as $num => $ancestor_id)
-                $memcached->delete($memcached_prefix.'.associated_datarecords_for_'.$ancestor_id);
+                $redis->delete($redis_prefix.'.associated_datarecords_for_'.$ancestor_id);
 
             // Delete the cached entries for this datarecord's grandparent
-            $memcached->delete($memcached_prefix.'.associated_datarecords_for_'.$grandparent_id);
+            $redis->delete($redis_prefix.'.associated_datarecords_for_'.$grandparent_id);
             parent::tmp_updateDatarecordCache($em, $grandparent, $user);
 
 
@@ -1611,9 +1611,9 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -1747,7 +1747,7 @@ class EditController extends ODRCustomController
 
                         // ----------------------------------------
                         // See if any cached search results need to be deleted...
-                        $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+                        $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
                         if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                             // Delete all cached search results for this datatype that were run with criteria for this specific datafield
                             foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
@@ -1759,7 +1759,7 @@ class EditController extends ODRCustomController
                             }
 
                             // Save the collection of cached searches back to memcached
-                            $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+                            $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
                         }
                     }
                     else {
@@ -2477,9 +2477,9 @@ if ($debug)
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
         $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         // Always bypass cache in dev mode?
         $bypass_cache = false;
@@ -2565,19 +2565,19 @@ if ($debug)
 
         // ----------------------------------------
         // Grab all datarecords "associated" with the desired datarecord...
-        $associated_datarecords = $memcached->get($memcached_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId());
+        $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId())));
         if ($bypass_cache || $associated_datarecords == false) {
             $associated_datarecords = parent::getAssociatedDatarecords($em, array($grandparent_datarecord->getId()));
 
 //print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
 
-            $memcached->set($memcached_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId(), $associated_datarecords, 0);
+            $redis->set($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId(), gzcompress(serialize($associated_datarecords)));
         }
 
         // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
         $datarecord_array = array();
         foreach ($associated_datarecords as $num => $dr_id) {
-            $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$dr_id);
+            $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
             if ($bypass_cache || $datarecord_data == false)
                 $datarecord_data = parent::getDatarecordData($em, $dr_id, $bypass_cache);
 
@@ -2597,7 +2597,7 @@ if ($debug)
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
         $datatype_array = array();
         foreach ($associated_datatypes as $num => $dt_id) {
-            $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
+            $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
             if ($bypass_cache || $datatype_data == false)
                 $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
 

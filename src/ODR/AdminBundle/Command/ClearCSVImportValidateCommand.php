@@ -37,7 +37,7 @@ class ClearCSVImportValidateCommand extends ContainerAwareCommand
         $this
             ->setName('odr_csv_import:clear_validate')
             ->setDescription('Deletes all jobs from the csv_import_validate tube')
-            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the memcached_prefix to the tube name for deleting jobs');
+            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the redis_prefix to the tube name for deleting jobs');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -46,23 +46,23 @@ class ClearCSVImportValidateCommand extends ContainerAwareCommand
         $container = $this->getContainer();
         $pheanstalk = $container->get('pheanstalk');
 
-        $memcached_prefix = $container->getParameter('memcached_key_prefix');
+        $redis_prefix = $container->getParameter('memcached_key_prefix');
 
         while (true) {
             // Wait for a job?
             if ($input->getOption('old'))
-                $job = $pheanstalk->watch($memcached_prefix.'_csv_import_validate')->ignore('default')->reserve();
+                $job = $pheanstalk->watch($redis_prefix.'_csv_import_validate')->ignore('default')->reserve();
             else
                 $job = $pheanstalk->watch('csv_import_validate')->ignore('default')->reserve(); 
 
             $data = json_decode($job->getData());
             $datatype_id = $data->datatype_id;
-            $job_source = $data->memcached_prefix;
+            $job_source = $data->redis_prefix;
 
             // Dealt with the job
             $pheanstalk->delete($job);
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted job for datatype '.$datatype_id.' from '.$memcached_prefix.'_csv_import_validate');
+    $output->writeln( date('H:i:s').'  deleted job for datatype '.$datatype_id.' from '.$redis_prefix.'_csv_import_validate');
 else
     $output->writeln( date('H:i:s').'  deleted job for datatype '.$datatype_id.' ('.$job_source.') from csv_import_validate');
 

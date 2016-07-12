@@ -60,10 +60,10 @@ class MassEditCommand extends ContainerAwareCommand
                 $parameters = array();
                 if ($data->job_type == 'public_status_change') {
                     //
-                    $logger->info('MassEditCommand.php: public_status_change request for DataRecord '.$data->datarecord_id.' from '.$data->memcached_prefix.'...');
+                    $logger->info('MassEditCommand.php: public_status_change request for DataRecord '.$data->datarecord_id.' from '.$data->redis_prefix.'...');
                     $current_time = new \DateTime();
                     $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
-                    $output->writeln('public_status_change request for DataRecord '.$data->datarecord_id.' from '.$data->memcached_prefix.'...');
+                    $output->writeln('public_status_change request for DataRecord '.$data->datarecord_id.' from '.$data->redis_prefix.'...');
 
                     // Create the required parameters to send
                     $parameters = array(
@@ -78,10 +78,10 @@ class MassEditCommand extends ContainerAwareCommand
                 }
                 else if ($data->job_type == 'value_change') {
                     //
-                    $logger->info('MassEditCommand.php: value_change request for DataRecord '.$data->datarecord_id.' Datafield '.$data->datafield_id.' from '.$data->memcached_prefix.'...');
+                    $logger->info('MassEditCommand.php: value_change request for DataRecord '.$data->datarecord_id.' Datafield '.$data->datafield_id.' from '.$data->redis_prefix.'...');
                     $current_time = new \DateTime();
                     $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
-                    $output->writeln('value_change request for DataRecord '.$data->datarecord_id.' Datafield '.$data->datafield_id.' from '.$data->memcached_prefix.'...');
+                    $output->writeln('value_change request for DataRecord '.$data->datarecord_id.' Datafield '.$data->datafield_id.' from '.$data->redis_prefix.'...');
 
                     // Create the required parameters to send
                     $parameters = array(

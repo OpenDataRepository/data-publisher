@@ -37,7 +37,7 @@ class ClearXMLImportFileDownloadCommand extends ContainerAwareCommand
         $this
             ->setName('odr_xml_import:clear_file_download')
             ->setDescription('Deletes all jobs from the import_file tube')
-            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the memcached_prefix to the tube name for deleting jobs');
+            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the redis_prefix to the tube name for deleting jobs');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -46,12 +46,12 @@ class ClearXMLImportFileDownloadCommand extends ContainerAwareCommand
         $container = $this->getContainer();
         $pheanstalk = $container->get('pheanstalk');
 
-        $memcached_prefix = $container->getParameter('memcached_key_prefix');
+        $redis_prefix = $container->getParameter('memcached_key_prefix');
 
         while (true) {
             // Wait for a job?
             if ($input->getOption('old'))
-                $job = $pheanstalk->watch($memcached_prefix.'_import_file')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch($redis_prefix.'_import_file')->ignore('default')->reserve();
             else
                 $job = $pheanstalk->watch('import_file')->ignore('default')->reserve(); 
 
@@ -61,7 +61,7 @@ class ClearXMLImportFileDownloadCommand extends ContainerAwareCommand
             $pheanstalk->delete($job);
 
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted import job for '.$data->object_type.' drf '.$data->drf_id.' from '.$memcached_prefix.'_import_file');
+    $output->writeln( date('H:i:s').'  deleted import job for '.$data->object_type.' drf '.$data->drf_id.' from '.$redis_prefix.'_import_file');
 else
     $output->writeln( date('H:i:s').'  deleted import job for '.$data->object_type.' drf '.$data->drf_id.' from import_file');
 

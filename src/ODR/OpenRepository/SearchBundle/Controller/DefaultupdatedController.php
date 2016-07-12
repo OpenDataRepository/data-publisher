@@ -293,9 +293,9 @@ exit();
 
         try {
 
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Grab necessary objects
             $em = $this->getDoctrine()->getManager();
@@ -320,7 +320,7 @@ exit();
             }
             else {
                 // Find search slug and get datatype
-                if ($target_datatype = $memcached->get($memcached_prefix . '.target_datatype_' . $search_slug)) {
+                if ($target_datatype = parent::getRedisData(($redis->get($redis_prefix . '.target_datatype_' . $search_slug)))) {
                     $target_datatype = unserialize($target_datatype);
                    //  No further action needed
                 } else {
@@ -345,7 +345,7 @@ exit();
                     $target_datatype = $query->getSingleResult();
 
                     // Store Cache Entry
-                    $memcached->set($memcached_prefix . '.target_datatype_' . $search_slug, serialize($target_datatype), 0);
+                    $redis->set($redis_prefix . '.target_datatype_' . $search_slug, gzcompress(serialize($target_datatype)), 0);
                     $t1 = microtime(true);
                 }
 
@@ -384,7 +384,7 @@ $debug = false;
 
 
             // Find search slug and get datatype
-            if ($related_datatypes = $memcached->get($memcached_prefix . '.related_datatypes_' . $search_slug)) {
+            if ($related_datatypes = parent::getRedisData(($redis->get($redis_prefix . '.related_datatypes_' . $search_slug)))) {
                 $related_datatypes = unserialize($related_datatypes);
                 //  No further action needed
             } else {
@@ -393,7 +393,7 @@ $debug = false;
                 $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $user_permissions);
 
                 // Store Cache Entry
-                $memcached->set($memcached_prefix . '.related_datatypes_' . $search_slug, serialize($related_datatypes), 0);
+                $redis->set($redis_prefix . '.related_datatypes_' . $search_slug, gzcompress(serialize($related_datatypes)), 0);
                 $t1 = microtime(true);
             }
 
@@ -404,7 +404,7 @@ if ($debug) {
     print '$related_datatypes: '.print_r($related_datatypes, true)."\n";
 }
             // Find search slug and get datatype
-            if ($searchable_datafields = $memcached->get($memcached_prefix . '.searchable_datafields_' . $search_slug)) {
+            if ($searchable_datafields = parent::getRedisData(($redis->get($redis_prefix . '.searchable_datafields_' . $search_slug)))) {
                 $searchable_datafields = unserialize($searchable_datafields);
                 //  No further action needed
             } else {
@@ -412,7 +412,7 @@ if ($debug) {
                 $searchable_datafields = self::getSearchableDatafields($em, $related_datatypes, $user_permissions);
 
                 // Store Cache Entry
-                $memcached->set($memcached_prefix . '.searchable_datafields_' . $search_slug, serialize($searchable_datafields), 0);
+                $redis->set($redis_prefix . '.searchable_datafields_' . $search_slug, gzcompress(serialize($searchable_datafields)), 0);
                 $t1 = microtime(true);
             }
 
@@ -437,7 +437,7 @@ if ($debug) {
                 $thedatafield = $target_datatype->getBackgroundImageField();
 
                 // Find search slug and get datatype
-                if ($images = $memcached->get($memcached_prefix . '.images_' . $search_slug)) {
+                if ($images = parent::getRedisData(($redis->get($redis_prefix . '.images_' . $search_slug)))) {
                     $images = unserialize($images);
                     //  No further action needed
                 } else {
@@ -459,7 +459,7 @@ if ($debug) {
                     $images = $query->getArrayResult();
 
                     // Store Cache Entry
-                    $memcached->set($memcached_prefix . '.images_' . $search_slug, serialize($images), 0);
+                    $redis->set($redis_prefix . '.images_' . $search_slug, gzcompress(serialize($images)), 0);
                 }
 
                 // Pick a random image from the list of available images
@@ -475,7 +475,7 @@ if ($debug) {
             // TODO Filter to users who have access on this datatype
 
             // Find search slug and get datatype
-            if ($user_list = $memcached->get($memcached_prefix . '.user_list_' . $search_slug)) {
+            if ($user_list = parent::getRedisData(($redis->get($redis_prefix . '.user_list_' . $search_slug)))) {
                 $user_list = unserialize($user_list);
                 //  No further action needed
             } else {
@@ -484,7 +484,7 @@ if ($debug) {
                 $user_list = $user_manager->findUsers();
 
                 // Store Cache Entry
-                $memcached->set($memcached_prefix . '.user_list_' . $search_slug, serialize($user_list), 0);
+                $redis->set($redis_prefix . '.user_list_' . $search_slug, gzcompress(serialize($user_list)), 0);
                 $t1 = microtime(true);
             }
 
@@ -743,9 +743,9 @@ if ($debug) {
             $theme = $repo_theme->find(2);
 
             $templating = $this->get('templating');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $session = $request->getSession();
 
             // Get ODRCustomController from the AdminBundle...going to need functions from it

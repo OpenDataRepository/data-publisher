@@ -1024,12 +1024,12 @@ class ODRUserController extends ODRCustomController
                         }
 
                         // Delete any cached permissions for this user
-                        $memcached = $this->get('memcached');
-                        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-                        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+                        $redis = $this->container->get('snc_redis.default');;
+                        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+                        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-                        $memcached->delete($memcached_prefix.'.user_'.$user_id.'_datatype_permissions');
-                        $memcached->delete($memcached_prefix.'.user_'.$user_id.'_datafield_permissions');
+                        $redis->delete($redis_prefix.'.user_'.$user_id.'_datatype_permissions');
+                        $redis->delete($redis_prefix.'.user_'.$user_id.'_datafield_permissions');
                     }
 
                     $user_manager->updateUser($user);
@@ -1387,13 +1387,13 @@ class ODRUserController extends ODRCustomController
             }
 
             // Force a recache of the target user's permissions
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-            $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datatype_permissions');
+            $redis->delete($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
             if ($reset_can_edit_datafield)
-                $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datafield_permissions');
+                $redis->delete($redis_prefix.'.user_'.$user->getId().'_datafield_permissions');
         }
     }
 
@@ -1736,9 +1736,9 @@ class ODRUserController extends ODRCustomController
             // Grab the user from their id
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
@@ -1820,7 +1820,7 @@ class ODRUserController extends ODRCustomController
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
             $datatype_array = array();
             foreach ($associated_datatypes as $num => $dt_id) {
-                $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
+                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
                 if ($bypass_cache || $datatype_data == false)
                     $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
 
@@ -1950,11 +1950,11 @@ class ODRUserController extends ODRCustomController
             parent::ODR_copyUserFieldPermission($em, $user, $user_field_permission, $properties);
 
             // Force a recache of the target user's permissions
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-            $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datafield_permissions');
+            $redis->delete($redis_prefix.'.user_'.$user->getId().'_datafield_permissions');
 
         }
         catch (\Exception $e) {

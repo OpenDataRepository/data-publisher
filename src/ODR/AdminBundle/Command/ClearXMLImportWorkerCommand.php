@@ -38,7 +38,7 @@ class ClearXMLImportWorkerCommand extends ContainerAwareCommand
         $this
             ->setName('odr_xml_import:clear_worker')
             ->setDescription('Deletes all jobs from the import_datarecord tube')
-            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the memcached_prefix to the tube name for deleting jobs');
+            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the redis_prefix to the tube name for deleting jobs');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -46,12 +46,12 @@ class ClearXMLImportWorkerCommand extends ContainerAwareCommand
         // Only need to load these once...
         $container = $this->getContainer();
         $pheanstalk = $container->get('pheanstalk');
-        $memcached_prefix = $container->getParameter('memcached_key_prefix');
+        $redis_prefix = $container->getParameter('memcached_key_prefix');
 
         while (true) {
             // Wait for a job?
             if ($input->getOption('old'))
-                $job = $pheanstalk->watch($memcached_prefix.'_import_datarecord')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch($redis_prefix.'_import_datarecord')->ignore('default')->reserve();
             else
                 $job = $pheanstalk->watch('import_datarecord')->ignore('default')->reserve(); 
 
@@ -62,7 +62,7 @@ class ClearXMLImportWorkerCommand extends ContainerAwareCommand
             $pheanstalk->delete($job);
 
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted job for xml file "'.$data->xml_filename.'" of datatype '.$datatype_id.' from '.$memcached_prefix.'_import_datarecord');
+    $output->writeln( date('H:i:s').'  deleted job for xml file "'.$data->xml_filename.'" of datatype '.$datatype_id.' from '.$redis_prefix.'_import_datarecord');
 else
     $output->writeln( date('H:i:s').'  deleted job for xml file "'.$data->xml_filename.'" of datatype '.$datatype_id.' from import_datarecord');
 

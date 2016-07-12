@@ -277,7 +277,7 @@ class GraphPlugin
                 // Files exist in this datafield
                 $file_id_list = implode('_', $nv_files);
                 $filename = 'Chart__'.$file_id_list.'.png';
-                $jp_output_files['rollup'] = 'uploads/files/graphs/'.$filename;
+                $jp_output_files['rollup'] = '/uploads/files/graphs/'.$filename;
 
                 if (file_exists(dirname(__FILE__).'/../../../../../web/uploads/files/graphs/'.$filename)) {
                     /* Pre-rendered graph file exists, do nothing */
