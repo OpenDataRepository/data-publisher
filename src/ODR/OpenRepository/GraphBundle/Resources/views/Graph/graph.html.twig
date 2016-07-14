@@ -96,7 +96,7 @@
             {% if jp_output_files|length %}
                 {% for jp_id, jp_file_name in jp_output_files %}
                     <div id="StaticGraph_{{ jp_id }}" class="ODRGraph pure-u-1" {% if jp_id != "rollup" %}style="display: none"{% endif %}>
-                        <img class="pure-u-1" src="{{ jp_file_name }}" /> 
+                        <img class="pure-u-1" src="{{ jp_file_name }}" />
                     </div><!-- end of .ODRGraph -->
                 {% endfor %}
             {% endif %}

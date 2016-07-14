@@ -220,9 +220,9 @@ class ODRCustomController extends Controller
 
             // ----------------------------------------
             // Load datatype and datarecord data from the cache
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Always bypass cache if in dev mode?
             $bypass_cache = false;
@@ -231,14 +231,14 @@ class ODRCustomController extends Controller
 
 
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            $datatype_array = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype->getId());
+            $datatype_array = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype->getId())));
             if ($bypass_cache || $datatype_array == false)
                 $datatype_array = self::getDatatypeData($em, self::getDatatreeArray($em, $bypass_cache), $datatype->getId(), $bypass_cache);
 
             // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
             $datarecord_array = array();
             foreach ($datarecord_list as $num => $dr_id) {
-                $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$dr_id);
+                $datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
                 if ($bypass_cache || $datarecord_data == false)
                     $datarecord_data = self::getDatarecordData($em, $dr_id, $bypass_cache);
 
@@ -368,9 +368,9 @@ exit();
 
 
             // Grab necessary objects
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Always bypass cache if in dev mode?
             $bypass_cache = false;
@@ -384,7 +384,7 @@ exit();
             $rows = array();
             foreach ($datarecord_list as $num => $datarecord_id) {
                 // Get the table version for this datarecord from memcached if possible
-                $data = $memcached->get($memcached_prefix.'.datarecord_table_data_'.$datarecord_id);
+                $data = self::getRedisData(($redis->get($redis_prefix.'.datarecord_table_data_'.$datarecord_id)));
                 if ($bypass_cache || $data == false)
                     $data = self::Text_GetDisplayData($em, $datarecord_id, $request);
 
@@ -502,9 +502,9 @@ exit();
     public function getSavedSearch($datatype_id, $search_key, $logged_in, Request $request)
     {
         // Get necessary objects
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
         $search_checksum = md5($search_key);
 
         // Going to need the search controller if a cached search doesn't exist
@@ -517,7 +517,7 @@ exit();
 
         // Attempt to load the search result for this search_key
         $data = array();
-        $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+        $cached_searches = self::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
         if ( $cached_searches == false
             || !isset($cached_searches[$datatype_id])
             || !isset($cached_searches[$datatype_id][$search_checksum])
@@ -535,7 +535,7 @@ exit();
                 return $data;
             }
 
-            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            $cached_searches = self::getRedisData($redis->get($redis_prefix.'.cached_search_results'));
         }
 
         // Now that the search result is guaranteed to exist, grab it
@@ -871,11 +871,11 @@ exit();
     public function getDatatreeArray($em, $force_rebuild = false)
     {
         // Attempt to load from cache first
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        $datatree_array = $memcached->get($memcached_prefix.'.cached_datatree_array');
+        $datatree_array = self::getRedisData(($redis->get($redis_prefix.'.cached_datatree_array')));
         if ( !($force_rebuild || $datatree_array == false) )
             return $datatree_array;
 
@@ -920,7 +920,7 @@ exit();
 
         // Store in cache and return
 //print '<pre>'.print_r($datatree_array, true).'</pre>';  exit();
-        $memcached->set($memcached_prefix.'.cached_datatree_array', $datatree_array, 0);
+        $redis->set($redis_prefix.'.cached_datatree_array', gzcompress(serialize($datatree_array)));
         return $datatree_array;
     }
 
@@ -942,6 +942,21 @@ exit();
         return $grandparent_datatype_id;
     }
 
+    /**
+     * Automatically decompresses and unserializes redis data.
+     *
+     * @throws \Exception
+     *
+     * @param string $redis_value - the value returned by the redis call.
+     *
+     * @return data or object
+     */
+    public static function getRedisData($redis_value) {
+        if(strlen($redis_value) > 0) {
+            return unserialize(gzuncompress($redis_value));
+        }
+        return false;
+    }
 
     /**
      * Builds an array of all datatype permissions possessed by the given user.
@@ -958,11 +973,11 @@ exit();
     {
         try {
             // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-            $datatype_permissions = $memcached->get($memcached_prefix.'.user_'.$user_id.'_datatype_permissions');
+            $datatype_permissions = self::getRedisData(($redis->get($redis_prefix.'.user_'.$user_id.'_datatype_permissions')));
             if ( !($force_rebuild || $datatype_permissions == false) )
                 return $datatype_permissions;
 
@@ -1066,7 +1081,7 @@ exit();
             // ----------------------------------------
             // Save and return the permissions array
             ksort($all_permissions);
-            $memcached->set($memcached_prefix.'.user_'.$user_id.'_datatype_permissions', $all_permissions, 0);
+            $redis->set($redis_prefix.'.user_'.$user_id.'_datatype_permissions', gzcompress(serialize($all_permissions)));
 
             return $all_permissions;
         }
@@ -1467,11 +1482,11 @@ exit();
     {
         try {
             // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-            $datafield_permissions = $memcached->get($memcached_prefix.'.user_'.$user_id.'_datafield_permissions');
+            $datafield_permissions = self::getRedisData(($redis->get($redis_prefix.'.user_'.$user_id.'_datafield_permissions')));
             if ( !($force_rebuild || $datafield_permissions == false) )
                 return $datafield_permissions;
 
@@ -1553,7 +1568,7 @@ exit();
 
             // Save and return the permissions array
             ksort($all_permissions);
-            $memcached->set($memcached_prefix.'.user_'.$user_id.'_datafield_permissions', $all_permissions, 0);
+            $redis->set($redis_prefix.'.user_'.$user_id.'_datafield_permissions', gzcompress(serialize($all_permissions)));
 
             return $all_permissions;
         }
@@ -1855,9 +1870,9 @@ if ($debug)
 
         $pheanstalk = $this->get('pheanstalk');
         $router = $this->container->get('router');
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         $api_key = $this->container->getParameter('beanstalk_api_key');
 
@@ -1948,9 +1963,9 @@ if ($debug)
                 $datarecord_id = $result['dr_id'];
 
                 if ($force_shortresults_recache)
-                    $memcached->delete($memcached_prefix.'.data_record_short_form_'.$datarecord_id);
+                    $redis->del($redis_prefix.'.data_record_short_form_'.$datarecord_id);
                 if ($force_textresults_recache)
-                    $memcached->delete($memcached_prefix.'.data_record_short_text_form_'.$datarecord_id);
+                    $redis->del($redis_prefix.'.data_record_short_text_form_'.$datarecord_id);
 
                 // Insert the new job into the queue
                 $priority = 1024;   // should be roughly default priority
@@ -1959,7 +1974,7 @@ if ($debug)
                         "tracked_job_id" => $tracked_job_id,
                         "datarecord_id" => $datarecord_id,
                         "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                        "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                        "redis_prefix" => $redis_prefix,    // debug purposes only
                         "url" => $url,
                         "api_key" => $api_key,
                     )
@@ -1989,8 +2004,8 @@ if ($debug)
                 continue;
 
             // Delete relevant memcached entries...
-            $memcached->delete($memcached_prefix.'.data_record_long_form_'.$grandparent_id);
-            $memcached->delete($memcached_prefix.'.data_record_long_form_public_'.$grandparent_id);
+            $redis->del($redis_prefix.'.data_record_long_form_'.$grandparent_id);
+            $redis->del($redis_prefix.'.data_record_long_form_public_'.$grandparent_id);
 
             // Insert the new job into the queue
             $priority = 1024;   // should be roughly default priority
@@ -1999,7 +2014,7 @@ if ($debug)
                     "tracked_job_id" => -1,     // don't track job status for single datarecord recache
                     "datarecord_id" => $grandparent_id,
                     "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                    "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                    "redis_prefix" => $redis_prefix,    // debug purposes only
                     "url" => $url,
                     "api_key" => $api_key,
                 )
@@ -2033,9 +2048,9 @@ if ($debug)
 
         $pheanstalk = $this->get('pheanstalk');
         $router = $this->container->get('router');
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         $api_key = $this->container->getParameter('beanstalk_api_key');
 
@@ -2102,12 +2117,12 @@ if ($debug)
         // Delete the memcached entries so a recache is guaranteed...
         $datarecord_id = $datarecord->getId();
         if ($force_shortresults_recache)
-            $memcached->delete($memcached_prefix.'.data_record_short_form_'.$datarecord_id);
+            $redis->del($redis_prefix.'.data_record_short_form_'.$datarecord_id);
         if ($force_textresults_recache)
-            $memcached->delete($memcached_prefix.'.data_record_short_text_form_'.$datarecord_id);
+            $redis->del($redis_prefix.'.data_record_short_text_form_'.$datarecord_id);
 
-        $memcached->delete($memcached_prefix.'.data_record_long_form_'.$datarecord_id);
-        $memcached->delete($memcached_prefix.'.data_record_long_form_public_'.$datarecord_id);
+        $redis->del($redis_prefix.'.data_record_long_form_'.$datarecord_id);
+        $redis->del($redis_prefix.'.data_record_long_form_public_'.$datarecord_id);
 
         // Insert the new job into the queue
         $priority = 1024;   // should be roughly default priority
@@ -2116,7 +2131,7 @@ if ($debug)
                 "tracked_job_id" => -1,     // don't track job status for single datarecord recache
                 "datarecord_id" => $datarecord->getId(),
                 "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                "redis_prefix" => $redis_prefix,    // debug purposes only
                 "url" => $url,
                 "api_key" => $api_key,
             )
@@ -2145,8 +2160,8 @@ if ($debug)
                 continue;
 
             // Delete relevant memcached entries...
-            $memcached->delete($memcached_prefix.'.data_record_long_form_'.$grandparent_id);
-            $memcached->delete($memcached_prefix.'.data_record_long_form_public_'.$grandparent_id);
+            $redis->del($redis_prefix.'.data_record_long_form_'.$grandparent_id);
+            $redis->del($redis_prefix.'.data_record_long_form_public_'.$grandparent_id);
 
             // Insert the new job into the queue
             $priority = 1024;   // should be roughly default priority
@@ -2155,7 +2170,7 @@ if ($debug)
                     "tracked_job_id" => -1,     // don't track job status for single datarecord recache
                     "datarecord_id" => $grandparent_id,
                     "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                    "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                    "redis_prefix" => $redis_prefix,    // debug purposes only
                     "url" => $url,
                     "api_key" => $api_key,
                 )
@@ -2185,11 +2200,11 @@ if ($debug)
 
         // Locate and clear the cache entry for this datarecord
         $grandparent_datarecord_id = $datarecord->getGrandparent()->getId();
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        $memcached->delete($memcached_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
+        $redis->del($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
     }
 
 
@@ -2212,11 +2227,11 @@ if ($debug)
         $datatree_array = self::getDatatreeArray($em);
         $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype->getId());
 
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        $memcached->delete($memcached_prefix.'.cached_datatype_'.$grandparent_datatype_id);
+        $redis->del($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
     }
 
 
@@ -2249,11 +2264,11 @@ if ($debug)
         $datatree_array = self::getDatatreeArray($em);
         $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $theme->getDataType()->getId());
 
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        $memcached->delete($memcached_prefix.'.cached_datatype_'.$grandparent_datatype_id);
+        $redis->del($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
     }
 
 
@@ -2271,13 +2286,13 @@ if ($debug)
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 //        $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         // Attempt to grab the list of datarecords for this datatype from the cache
         $datarecords = array();
-        $datarecord_str = $memcached->get($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
+        $datarecord_str = self::getRedisData(($redis->get($redis_prefix.'.data_type_'.$datatype->getId().'_record_order')));
 
         // No caching in dev environment
         $bypass_cache = false;
@@ -2358,7 +2373,7 @@ if ($debug)
             $datarecord_str = substr($str, 0, strlen($str)-1);
 //print 'saving record_order: '.$datarecord_str."\n";
 
-            $memcached->set($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order', $datarecord_str, 0);
+            $redis->set($redis_prefix.'.data_type_'.$datatype->getId().'_record_order', gzcompress(serialize($datarecord_str)));
         }
 
         // TODO - leave this as comma-separated list, or return an array instead?
@@ -2982,7 +2997,7 @@ if ($debug)
             // Use beanstalk to encrypt the file so the UI doesn't block on huge files
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->container->get('router');
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
@@ -2998,7 +3013,7 @@ if ($debug)
                     "object_id" => $my_obj->getId(),
                     "target_filepath" => '',
                     "crypto_type" => 'encrypt',
-                    "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                    "redis_prefix" => $redis_prefix,    // debug purposes only
                     "url" => $url,
                     "api_key" => $api_key,
                 )
@@ -5015,9 +5030,9 @@ if ($debug)
     {
         // ----------------------------------------
         // Grab necessary objects
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
         $router = $this->container->get('router');
 
 
@@ -5028,14 +5043,14 @@ if ($debug)
             $bypass_cache = true;
 
         // Grab the cached version of the requested datarecord
-        $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$datarecord_id);
+        $datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$datarecord_id)));
         if ($bypass_cache || $datarecord_data == false)
             $datarecord_data = self::getDatarecordData($em, $datarecord_id, $bypass_cache);
 
         $datatype_id = $datarecord_data[$datarecord_id]['dataType']['id'];
 
         // Grab the cached version of the requested datatype
-        $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype_id);
+        $datatype_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype_id)));
         if ($bypass_cache || $datatype_data == false)
             $datatype_data = self::getDatatypeData($em, self::getDatatreeArray($em, $bypass_cache), $datatype_id, $bypass_cache);
 
@@ -5141,7 +5156,7 @@ if ($debug)
         }
 
         // Store the resulting array back in memcached before returning it
-        $memcached->set($memcached_prefix.'.datarecord_table_data_'.$datarecord_id, $data, 0);
+        $redis->set($redis_prefix.'.datarecord_table_data_'.$datarecord_id, gzcompress(serialize($data)));
         return $data;
     }
 
@@ -5162,9 +5177,9 @@ if ($debug)
         try {
             // ----------------------------------------
             // Grab necessary objects
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // All of these should already exist
             /** @var DataRecord $datarecord */
@@ -5182,20 +5197,20 @@ if ($debug)
 
 
             // Grab all datarecords "associated" with the desired datarecord...
-            $associated_datarecords = $memcached->get($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id);
+            $associated_datarecords = self::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$datarecord_id)));
             if ($bypass_cache || $associated_datarecords == false) {
                 $associated_datarecords = self::getAssociatedDatarecords($em, array($datarecord_id));
 
 //print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
 
-                $memcached->set($memcached_prefix.'.associated_datarecords_for_'.$datarecord_id, $associated_datarecords, 0);
+                $redis->set($redis_prefix.'.associated_datarecords_for_'.$datarecord_id, gzcompress(serialize($associated_datarecords)));
             }
 
 
             // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
             $datarecord_array = array();
             foreach ($associated_datarecords as $num => $dr_id) {
-                $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$dr_id);
+                $datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
                 if ($bypass_cache || $datarecord_data == false)
                     $datarecord_data = self::getDatarecordData($em, $dr_id, true);
 
@@ -5221,7 +5236,7 @@ if ($debug)
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
             $datatype_array = array();
             foreach ($associated_datatypes as $num => $dt_id) {
-                $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
+                $datatype_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
                 if ($bypass_cache || $datatype_data == false)
                     $datatype_data = self::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
 
@@ -5325,6 +5340,7 @@ if ($debug)
             $transparency = imagecolortransparent($image);
 
             if ($transparency >= 0) {
+                // TODO figure out what trnprt_index is used for.
                 $transparent_color  = imagecolorsforindex($image, $trnprt_indx);
                 $transparency       = imagecolorallocate($image_resized, $transparent_color['red'], $transparent_color['green'], $transparent_color['blue']);
                 imagefill($image_resized, 0, 0, $transparency);
@@ -5526,11 +5542,11 @@ if ($timing)
 */
 
         // If datatype data exists in memcached and user isn't demanding a fresh version, return that
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        $cached_datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype_id);
+        $cached_datatype_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype_id)));
         if ( !($force_rebuild || $cached_datatype_data == false || count($cached_datatype_data) > 0) )
             return $cached_datatype_data;
 
@@ -5676,7 +5692,7 @@ if ($timing) {
             $formatted_datatype_data[$dt_id] = $dt_data;
         }
 
-        $memcached->set($memcached_prefix.'.cached_datatype_'.$datatype_id, $formatted_datatype_data, 0);
+        $redis->set($redis_prefix.'.cached_datatype_'.$datatype_id, gzcompress(serialize($formatted_datatype_data)));
         return $formatted_datatype_data;
     }
 
@@ -5703,11 +5719,11 @@ if ($timing)
     $t0 = microtime(true);
 */
         // If datarecord data exists in memcached and user isn't demanding a fresh version, return that
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        $cached_datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
+        $cached_datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id)));
         if ( !($force_rebuild || $cached_datarecord_data == false || count($cached_datarecord_data) > 0) )
             return $cached_datarecord_data;
 
@@ -5907,7 +5923,7 @@ if ($timing) {
             $formatted_datarecord_data[$dr_id] = $dr_data;
         }
 
-        $memcached->set($memcached_prefix.'.cached_datarecord_'.$grandparent_datarecord_id, $formatted_datarecord_data, 0);
+        $redis->set($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id, gzcompress(serialize($formatted_datarecord_data)));
         return $formatted_datarecord_data;
     }
 

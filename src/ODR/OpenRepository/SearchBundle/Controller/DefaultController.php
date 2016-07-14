@@ -18,6 +18,8 @@ namespace ODR\OpenRepository\SearchBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
+// Controllers/Classes
+use ODR\AdminBundle\Controller\ODRCustomController;
 // Entites
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
@@ -700,9 +702,9 @@ if ($debug) {
 
 //            $templating = $this->get('templating');
 /*
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $session = $request->getSession();
 */
 
@@ -1848,9 +1850,9 @@ if ($timing)
 
             // --------------------------------------------------
             // Store the list of datarecord ids for later use
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             $search_checksum = md5($search_key);
             $datatype_id = $datatype->getId();
@@ -1861,7 +1863,7 @@ if ($timing)
                 $searched_datafields[] = $datatype->getSortField()->getId();
             $searched_datafields = implode(',', $searched_datafields);
 
-            $cached_searches = $memcached->get($memcached_prefix.'.cached_search_results');
+            $cached_searches = ODRCustomController::getRedisData($redis->get($redis_prefix.'.cached_search_results'));
 
 if ($debug || $more_debug || $timing)
     print '</pre>';
@@ -1889,7 +1891,7 @@ if ($timing) {
             else
                 $cached_searches[$datatype_id][$search_checksum]['not_logged_in'] = array('complete_datarecord_list' => $datarecords, 'datarecord_list' => $grandparents);
 
-            $memcached->set($memcached_prefix.'.cached_search_results', $cached_searches, 0);
+            $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
 
 if ($more_debug) {
 //    print 'saving datarecord_str: '.$datarecords."\n";

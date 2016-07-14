@@ -56,9 +56,9 @@ class DisplayController extends ODRCustomController
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $session = $request->getSession();
 
             /** @var DataRecord $datarecord */
@@ -234,20 +234,20 @@ class DisplayController extends ODRCustomController
 
 
             // Grab all datarecords "associated" with the desired datarecord...
-            $associated_datarecords = $memcached->get($memcached_prefix.'.associated_datarecords_for_'.$datarecord->getId());
+            $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId())));
             if ($bypass_cache || $associated_datarecords == false) {
                 $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord->getId()));
 
 //print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
 
-                $memcached->set($memcached_prefix.'.associated_datarecords_for_'.$datarecord->getId(), $associated_datarecords, 0);
+                $redis->set($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId(), gzcompress(serialize($associated_datarecords)));
             }
 
 
             // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
             $datarecord_array = array();
             foreach ($associated_datarecords as $num => $dr_id) {
-                $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$dr_id);
+                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
                 if ($bypass_cache || $datarecord_data == false)
                     $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
 
@@ -286,7 +286,7 @@ class DisplayController extends ODRCustomController
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
             $datatype_array = array();
             foreach ($associated_datatypes as $num => $dt_id) {
-                $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
+                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
                 if ($bypass_cache || $datatype_data == false)
                     $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
 
@@ -360,9 +360,9 @@ class DisplayController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -439,7 +439,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Grab the cached versions of the desired datarecord
             $datarecord_array = array();
-            $datarecord_data = $memcached->get($memcached_prefix.'.cached_datarecord_'.$datarecord->getId());
+            $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$datarecord->getId())));
             if ($bypass_cache || $datarecord_data == false)
                 $datarecord_data = parent::getDatarecordData($em, $datarecord->getId(), $bypass_cache);
 
@@ -450,7 +450,7 @@ class DisplayController extends ODRCustomController
             // Grab the cached version of the datafield's datatype
             $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
             $datatype_array = array();
-            $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$original_datatype->getId());
+            $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$original_datatype->getId())));
             if ($bypass_cache || $datatype_data == false)
                 $datatype_data = parent::getDatatypeData($em, $datatree_array, $original_datatype->getId(), $bypass_cache);
 
@@ -534,9 +534,9 @@ class DisplayController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Locate the file in the database
             /** @var File $file */
@@ -620,17 +620,17 @@ class DisplayController extends ODRCustomController
 
             // Determine whether the user is already decrypting this file
             $request_number = 1;
-            $file_decryptions = $memcached->get($memcached_prefix.'_file_decryptions');
+            $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
             if ( $file_decryptions == false ) {
                 // User is either not decrypting any file at the moment
-                $memcached->set($memcached_prefix.'_file_decryptions', array($temp_filename => 1), 0);
+                $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize(array($temp_filename => 1))));
             }
             else {
                 // User is currently decrypting something...
                 if ( !isset($file_decryptions[$temp_filename]) ) {
                     // ...but not this specific file, which is fine
                     $file_decryptions[$temp_filename] = 1;
-                    $memcached->set($memcached_prefix.'_file_decryptions', $file_decryptions, 0);
+                    $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
                 }
                 else {
                     // ...and they happen to somehow have already requested a decryption on this file
@@ -639,7 +639,7 @@ class DisplayController extends ODRCustomController
                     // The first process will finish decrypting, but only the most recent requesting process should serve the file
                     $request_number = $file_decryptions[$temp_filename] + 1;
                     $file_decryptions[$temp_filename] = $request_number;
-                    $memcached->set($memcached_prefix.'_file_decryptions', $file_decryptions, 0);
+                    $redis->set($redis_prefix.'_file_decryptions', gzcompress($redis->__serialize($file_decryptions)));
                 }
             }
 /*
@@ -679,7 +679,7 @@ fwrite($log_file, time().': request number: '.$request_number."\n");
 
                     // Check occasionally to see if the decryption was cancelled
                     if ( ($chunk_id % 50) == 0 ) {
-                        $file_decryptions = $memcached->get($memcached_prefix.'_file_decryptions');
+                        $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
 /*
 fwrite($log_file, time().': checking memcached...');
 fwrite($log_file, print_r($file_decryptions, true) );
@@ -738,7 +738,7 @@ fwrite($log_file, "\n");
                     }
 
                     // If the decryption process got cancelled by the user, or the user somehow managed to start yet another decryption request for this file...don't sit around waiting
-                    $file_decryptions = $memcached->get($memcached_prefix.'_file_decryptions');
+                    $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
 /*
 fwrite($log_file, time().': checking memcached...');
 fwrite($log_file, print_r($file_decryptions, true) );
@@ -759,7 +759,7 @@ fwrite($log_file, "\n");
 
             // ----------------------------------------
             // File decryption is done
-            $file_decryptions = $memcached->get($memcached_prefix.'_file_decryptions');
+            $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
             if ( $file_decryptions != false && isset($file_decryptions[$temp_filename]) ) {
 
                 if ( $file_decryptions[$temp_filename] == $request_number ) {
@@ -776,7 +776,7 @@ fclose($log_file);
 
                     // No longer waiting on this file to decrypt
                     unset($file_decryptions[$temp_filename]);
-                    $memcached->set($memcached_prefix.'_file_decryptions', $file_decryptions, 0);
+                    $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
 
                     // Start the file download
                     return $response;
@@ -812,12 +812,12 @@ fclose($log_file);
 
             // No longer waiting on this file to decrypt
             if ( isset($file_decryptions[$temp_filename]) ) {
-                $memcached = $this->get('memcached');
-                $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-                $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+                $redis = $this->container->get('snc_redis.default');;
+                // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+                $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
                 unset($file_decryptions[$temp_filename]);
-                $memcached->set($memcached_prefix.'_file_decryptions', $file_decryptions, 0);
+                $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
             }
 
             // If error encountered, do a json return
@@ -908,9 +908,9 @@ fclose($log_file);
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Locate the file in the database
             /** @var File $file */
@@ -948,10 +948,10 @@ fclose($log_file);
                 $temp_filename .= '.'.$file->getExt();
 
                 // Ensure that the memcached marker for the decryption of this file does not exist
-                $file_decryptions = $memcached->get($memcached_prefix.'_file_decryptions');
+                $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
                 if ($file_decryptions != false && isset($file_decryptions[$temp_filename])) {
                     unset($file_decryptions[$temp_filename]);
-                    $memcached->set($memcached_prefix.'_file_decryptions', $file_decryptions, 0);
+                    $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
                 }
             }
 

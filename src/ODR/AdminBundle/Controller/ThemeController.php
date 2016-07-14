@@ -373,9 +373,9 @@ class ThemeController extends ODRCustomController
 
             // ----------------------------------------
             // Attempt to load theme data from memcached...
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Always bypass cache in dev mode?
             $bypass_cache = false;
@@ -399,7 +399,7 @@ class ThemeController extends ODRCustomController
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
             $datatype_array = array();
             foreach ($associated_datatypes as $num => $dt_id) {
-                $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
+                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
                 if ($bypass_cache || $datatype_data == null)
                     $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
 
@@ -2057,9 +2057,9 @@ class ThemeController extends ODRCustomController
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
         $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         // Always bypass cache in dev mode?
         $bypass_cache = false;
@@ -2150,7 +2150,7 @@ class ThemeController extends ODRCustomController
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
         $datatype_array = array();
         foreach ($associated_datatypes as $num => $dt_id) {
-            $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
+            $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
             if ($bypass_cache || $datatype_data == null)
                 $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
 

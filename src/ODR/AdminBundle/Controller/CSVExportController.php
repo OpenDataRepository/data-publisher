@@ -151,9 +151,9 @@ class CSVExportController extends ODRCustomController
         // Required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         // All of these should already exist
         /** @var DataType $datatype */
@@ -177,7 +177,7 @@ class CSVExportController extends ODRCustomController
 
         // ----------------------------------------
         // Grab the cached version of the desired datatype
-        $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$datatype->getId());
+        $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype->getId())));
         if ($bypass_cache || $datatype_data == false)
             $datatype_data = parent::getDatatypeData($em, parent::getDatatreeArray($em, $bypass_cache), $datatype->getId(), $bypass_cache);
 
@@ -249,9 +249,9 @@ class CSVExportController extends ODRCustomController
                 return parent::deletedEntityError('Datatype');
 
 
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             $session = $request->getSession();
             $api_key = $this->container->getParameter('beanstalk_api_key');
@@ -400,7 +400,7 @@ return;
                             'secondary_delimiter' => $secondary_delimiter,
                             'datarecord_id' => $datarecord_id,
                             'datafields' => $datafields,
-                            'memcached_prefix' => $memcached_prefix,    // debug purposes only
+                            'redis_prefix' => $redis_prefix,    // debug purposes only
                             'datatype_id' => $datatype_id,              // debug purposes only?
                             'url' => $url,
                             'api_key' => $api_key,
@@ -467,12 +467,12 @@ return;
                 $secondary_delimiter = $post['secondary_delimiter'];
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
@@ -647,7 +647,7 @@ print_r($line);
                     'datatype_id' => $datatype_id,
                     'datafields' => $datafields,
                     'line' => $line,
-                    'memcached_prefix' => $memcached_prefix,    // debug purposes only
+                    'redis_prefix' => $redis_prefix,    // debug purposes only
                     'url' => $url,
                     'api_key' => $api_key,
                 )
@@ -704,12 +704,12 @@ print_r($line);
             $delimiter = $post['delimiter'];
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
@@ -891,7 +891,7 @@ print_r($line);
                         'random_keys' => $random_keys,
 
                         'user_id' => $user_id,
-                        'memcached_prefix' => $memcached_prefix,    // debug purposes only
+                        'redis_prefix' => $redis_prefix,    // debug purposes only
                         'url' => $url,
                         'api_key' => $api_key,
                     )
@@ -947,12 +947,12 @@ print_r($line);
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
@@ -1009,7 +1009,7 @@ print_r($line);
                         'random_keys' => $random_keys,
 
                         'user_id' => $user_id,
-                        'memcached_prefix' => $memcached_prefix,    // debug purposes only
+                        'redis_prefix' => $redis_prefix,    // debug purposes only
                         'url' => $url,
                         'api_key' => $api_key,
                     )

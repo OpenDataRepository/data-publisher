@@ -33,7 +33,7 @@ class ClearCryptoCommand extends ContainerAwareCommand
         $this
             ->setName('odr_crypto:clear_worker')
             ->setDescription('Deletes all jobs from the crypto_requests tube')
-            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the memcached_prefix to the tube name for deleting jobs');
+            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the redis_prefix to the tube name for deleting jobs');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -42,21 +42,21 @@ class ClearCryptoCommand extends ContainerAwareCommand
         $container = $this->getContainer();
         $pheanstalk = $container->get('pheanstalk');
 
-        $memcached_prefix = $container->getParameter('memcached_key_prefix');
+        $redis_prefix = $container->getParameter('memcached_key_prefix');
 
         while (true) {
             // Wait for a job?
             if ($input->getOption('old'))
-                $job = $pheanstalk->watch($memcached_prefix.'_crypto_requests')->ignore('default')->reserve();
+                $job = $pheanstalk->watch($redis_prefix.'_crypto_requests')->ignore('default')->reserve();
             else
                 $job = $pheanstalk->watch('crypto_requests')->ignore('default')->reserve();
 
             $data = json_decode($job->getData());
 
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted '.$data->crypto_type.' job for '.$data->object_type.' '.$data->object_id.' from '.$data->memcached_prefix.'_crypto_requests');
+    $output->writeln( date('H:i:s').'  deleted '.$data->crypto_type.' job for '.$data->object_type.' '.$data->object_id.' from '.$data->redis_prefix.'_crypto_requests');
 else
-    $output->writeln( date('H:i:s').'  deleted '.$data->crypto_type.' job for '.$data->object_type.' '.$data->object_id.' ('.$data->memcached_prefix.') from crypto_requests');
+    $output->writeln( date('H:i:s').'  deleted '.$data->crypto_type.' job for '.$data->object_type.' '.$data->object_id.' ('.$data->redis_prefix.') from crypto_requests');
 
             // Dealt with the job
             $pheanstalk->delete($job);

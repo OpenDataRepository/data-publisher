@@ -160,9 +160,9 @@ class MassEditController extends ODRCustomController
         // Required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -200,7 +200,7 @@ class MassEditController extends ODRCustomController
 
         $datatype_array = array();
         foreach ($associated_datatypes as $num => $dt_id) {
-            $datatype_data = $memcached->get($memcached_prefix.'.cached_datatype_'.$dt_id);
+            $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
             if ($bypass_cache || $datatype_data == null)
                 $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
 
@@ -273,9 +273,9 @@ class MassEditController extends ODRCustomController
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
 //            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
 
-//            $memcached = $this->get('memcached');
-//            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+//            $redis = $this->container->get('snc_redis.default');;
+//            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $session = $request->getSession();
             $api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
@@ -393,7 +393,7 @@ return;
                             "datarecord_id" => $dr_id,
                             "public_status" => $status,
 
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
                         )
@@ -444,7 +444,7 @@ return;
                             "datafield_id" => $df_id,
                             "value" => $value,
 
-                            "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
                         )
@@ -503,12 +503,12 @@ return;
             $api_key = $post['api_key'];
 
             // Load symfony objects
-//            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+//            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 //            $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -653,12 +653,12 @@ return;
             $api_key = $post['api_key'];
 
             // Load symfony objects
-//            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+//            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 //            $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();

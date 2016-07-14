@@ -59,7 +59,7 @@ class XMLImportWorkerCommand extends ContainerAwareCommand
                 $data = json_decode($job->getData());
 
                 // 
-                $str = 'XMLImportWorkerCommand.php: Attempting to import "'.$data->xml_filename.'" for DataType '.$data->datatype_id.' from '.$data->memcached_prefix.'...';
+                $str = 'XMLImportWorkerCommand.php: Attempting to import "'.$data->xml_filename.'" for DataType '.$data->datatype_id.' from '.$data->redis_prefix.'...';
 
                 $current_time = new \DateTime();
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );

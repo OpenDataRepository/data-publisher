@@ -385,15 +385,15 @@ class DatatypeController extends ODRCustomController
 
                     // ----------------------------------------
                     // Clear memcached of all datatype permissions for all users...the entries will get rebuilt the next time they do something
-                    $memcached = $this->get('memcached');
-                    $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-                    $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+                    $redis = $this->container->get('snc_redis.default');;
+                    // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+                    $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
                     $user_manager = $this->container->get('fos_user.user_manager');
                     /** @var User[] $users */
                     $users = $user_manager->findUsers();
                     foreach ($users as $user)
-                        $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datatype_permissions');
+                        $redis->del($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
                 }
                 else {
                     // Return any errors encountered
@@ -452,7 +452,7 @@ class DatatypeController extends ODRCustomController
 //            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->container->get('router');
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
@@ -511,7 +511,7 @@ class DatatypeController extends ODRCustomController
                                 "tracked_job_id" => $tracked_job_id,
                                 "datarecord_id" => $datarecord_id,
                                 "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                                "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                                "redis_prefix" => $redis_prefix,    // debug purposes only
                                 "url" => $url,
                                 "api_key" => $api_key,
                             )

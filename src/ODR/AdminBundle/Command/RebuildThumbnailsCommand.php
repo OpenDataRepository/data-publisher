@@ -57,10 +57,10 @@ class RebuildThumbnailsCommand extends ContainerAwareCommand
                 $data = json_decode($job->getData()); 
 
                 // 
-                $logger->info('RebuildThumbnailsCommand.php: Rebuild request for '.$data->object_type.' '.$data->object_id.' from '.$data->memcached_prefix.'...');
+                $logger->info('RebuildThumbnailsCommand.php: Rebuild request for '.$data->object_type.' '.$data->object_id.' from '.$data->redis_prefix.'...');
                 $current_time = new \DateTime();
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
-                $output->writeln('Rebuild request for '.$data->object_type.' '.$data->object_id.' from '.$data->memcached_prefix.'...');
+                $output->writeln('Rebuild request for '.$data->object_type.' '.$data->object_id.' from '.$data->redis_prefix.'...');
 
                 // Need to use cURL to send a POST request...thanks symfony
                 $ch = curl_init();

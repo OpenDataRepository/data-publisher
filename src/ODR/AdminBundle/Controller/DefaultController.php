@@ -121,9 +121,9 @@ class DefaultController extends ODRCustomController
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Grab the cached graph data
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Only want to create dashboard html graphs for top-level datatypes...
             $datatypes = parent::getTopLevelDatatypes();
@@ -144,7 +144,7 @@ class DefaultController extends ODRCustomController
                 if ($this->container->getParameter('kernel.environment') === 'dev')
                     $bypass_cache = true;
 
-                $data = $memcached->get($memcached_prefix.'.dashboard_'.$datatype_id);
+                $data = parent::getRedisData(($redis->get($redis_prefix.'.dashboard_'.$datatype_id)));
                 if ($data == false || $bypass_cache)
                     $data = self::getDashboardHTML($em, $datatype_id);
 
@@ -344,12 +344,15 @@ class DefaultController extends ODRCustomController
         );
 
         // Grab memcached stuff
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         // Store the dashboard data in memcached
-        $memcached->set($memcached_prefix.'.dashboard_'.$datatype_id, $data, 1*24*60*60); // Cache this dashboard entry for upwards of one day
+        // TODO Figure out how to set an lifetime using PREDIS
+        $redis->set($redis_prefix.'.dashboard_'.$datatype_id, gzcompress(serialize($data))); // Cache this dashboard entry for upwards of one day
+        $redis->expire($redis_prefix.'.dashboard_'.$datatype_id, 1*24*60*60); // Cache this dashboard entry for upwards of one day
+        // $redis->set($redis_prefix.'.dashboard_'.$datatype_id, gzcompress(serialize($data)), 1*24*60*60); // Cache this dashboard entry for upwards of one day
 
         // 
         return $data;

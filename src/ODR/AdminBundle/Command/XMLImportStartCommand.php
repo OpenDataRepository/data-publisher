@@ -60,7 +60,7 @@ class XMLImportStartCommand extends ContainerAwareCommand
                 $data = json_decode($job->getData());
 
                 // 
-                $str = 'XMLImport request for DataType '.$data->datatype_id.' from '.$data->memcached_prefix.'...';
+                $str = 'XMLImport request for DataType '.$data->datatype_id.' from '.$data->redis_prefix.'...';
 
                 $current_time = new \DateTime();
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );                
