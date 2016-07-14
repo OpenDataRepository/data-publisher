@@ -147,6 +147,10 @@ class DisplaytemplateController extends ODRCustomController
 //print '<pre>'.print_r($all_affected_users, true).'</pre>'; exit();
 
 
+            // Delete this datafield from all table themes and ensure all remaining datafields in the theme are still in sequential order
+            self::removeDatafieldFromTableThemes($em, $user, $datafield);
+
+
             // ----------------------------------------
             // Perform a series of DQL mass updates to immediately remove everything that could break if it wasn't deleted...
 /*
@@ -648,6 +652,8 @@ class DisplaytemplateController extends ODRCustomController
                 )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
                 $results = $query->getArrayResult();
 
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
                 foreach ($results as $result) {
                     $dr_id = $result['dr_id'];
 
@@ -667,15 +673,39 @@ class DisplaytemplateController extends ODRCustomController
             )->setParameters( array('now' => new \DateTime(), 'datatype_ids' => $datatypes_to_delete) );
             $query->execute();
 */
-            // Delete LinkedDatatree entries
+            // Delete LinkedDatatree entries...can't do multi-table updates in Doctrine, so have to split it apart into three queries
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecord AS ancestor, ODRAdminBundle:LinkedDataTree AS ldt, ODRAdminBundle:DataRecord AS descendant
+               'SELECT ancestor.id AS ancestor_id
+                FROM ODRAdminBundle:DataRecord AS ancestor
+                WHERE ancestor.dataType IN (:datatype_ids)
+                AND ancestor.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            $results = $query->getArrayResult();
+
+            $ancestor_ids = array();
+            foreach ($results as $result)
+                $ancestor_ids[] = $result['ancestor_id'];
+
+            $query = $em->createQuery(
+               'SELECT descendant.id AS descendant_id
+                FROM ODRAdminBundle:DataRecord AS descendant
+                WHERE descendant.dataType IN (:datatype_ids)
+                AND descendant.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            $results = $query->getArrayResult();
+
+            $descendant_ids = array();
+            foreach ($results as $result)
+                $descendant_ids[] = $result['descendant_id'];
+
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:LinkedDataTree AS ldt
                 SET ldt.deletedAt = :now, ldt.deletedBy = :deleted_by
-                WHERE ldt.ancestor = ancestor AND ldt.descendant = descendant
-                AND (ancestor.dataType IN (:datatype_ids) OR descendant.dataType IN (:datatype_ids) )
-                AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
+                WHERE (ldt.ancestor IN (:ancestor_ids) OR ldt.descendant IN (:descendant_ids))
+                AND ldt.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'ancestor_ids' => $ancestor_ids, 'descendant_ids' => $descendant_ids) );
             $query->execute();
+
 /*
             // Delete Datarecord and DatarecordMeta entries
             $query = $em->createQuery(
@@ -767,12 +797,31 @@ class DisplaytemplateController extends ODRCustomController
             // ----------------------------------------
             // Delete all Datatree and DatatreeMeta entries
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataTree AS dt, ODRAdminBundle:DataTreeMeta AS dtm
-                SET dt.deletedAt = :now, dt.deletedBy = :deleted_by, dtm.deletedAt = :now
-                WHERE dtm.dataTree = dt
-                AND (dt.ancestor IN (:datatype_ids) OR dt.descendant IN (:datatype_ids) )
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
+               'SELECT dt.id AS dt_id
+                FROM ODRAdminBundle:DataTree AS dt
+                WHERE (dt.ancestor IN (:datatype_ids) OR dt.descendant IN (:datatype_ids) )
+                AND dt.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            $results = $query->getArrayResult();
+
+            $datatree_ids = array();
+            foreach ($results as $result)
+                $datatree_ids[] = $result['dt_id'];
+
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataTreeMeta AS dtm
+                SET dtm.deletedAt = :now
+                WHERE dtm.dataTree IN (:datatree_ids)
+                AND dtm.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'datatree_ids' => $datatree_ids) );
+            $query->execute();
+
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataTree AS dt
+                SET dt.deletedAt = :now, dt.deletedBy = :deleted_by
+                WHERE dt.id IN (:datatree_ids)
+                AND dt.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatree_ids' => $datatree_ids) );
             $query->execute();
 
 
@@ -789,12 +838,19 @@ class DisplaytemplateController extends ODRCustomController
 */
             // Delete all Datatype and DatatypeMeta entries
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataType AS dt, ODRAdminBundle:DataTypeMeta AS dtm
-                SET dt.deletedAt = :now, dt.deletedBy = :deleted_by, dtm.deletedAt = :now
-                WHERE dtm.dataType = dt
-                AND dt.id IN (:datatype_ids)
-                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+               'UPDATE ODRAdminBundle:DataTypeMeta AS dtm
+                SET dtm.deletedAt = :now
+                WHERE dtm.dataType IN (:datatype_ids)
+                AND dtm.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
+
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:DataType AS dt
+                SET dt.deletedAt = :now, dt.deletedBy = :deleted_by
+                WHERE dt.id IN (:datatype_ids)
+                AND dt.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
             $query->execute();
 
 
@@ -3032,6 +3088,9 @@ class DisplaytemplateController extends ODRCustomController
                 // Now that the datafield exists, update the plugin map
                 $em->refresh($datafield);
                 $plugin_map[$rpf_id] = $datafield->getId();
+
+                if ($fieldtype->getTypeClass() == 'Image')
+                    parent::ODR_checkImageSizes($em, $user, $datafield);
             }
 
             // If new datafields created, flush entity manager to save the theme_element and datafield meta entries
@@ -4159,6 +4218,7 @@ class DisplaytemplateController extends ODRCustomController
                     $new_fieldtype_id = $new_fieldtype->getId();
 
                 $migrate_data = false;
+                $check_image_sizes = false;
 
                 if ( $old_fieldtype_id !== $new_fieldtype_id ) {
                     // If not allowed to change fieldtype or not allowed to change to this fieldtype...
@@ -4198,6 +4258,11 @@ class DisplaytemplateController extends ODRCustomController
                             case 'ShortVarchar':
                             case 'DecimalValue':
                             case 'DatetimeValue':
+                                break;
+
+                            case 'Image':
+                                $check_image_sizes = true;  // need to ensure that ImageSizes entities exist for this datafield...
+                                $migrate_data = false;
                                 break;
 
                             default:
@@ -4371,6 +4436,9 @@ class DisplaytemplateController extends ODRCustomController
 
                     if ($update_field_order)
                         self::removeDatafieldFromTableThemes($em, $user, $datafield);
+
+                    if ($check_image_sizes)
+                        parent::ODR_checkImageSizes($em, $user, $datafield);
 
                     if ($migrate_data)
                         self::startDatafieldMigration($em, $user, $datafield, $old_fieldtype, $new_fieldtype);
@@ -4632,8 +4700,16 @@ class DisplaytemplateController extends ODRCustomController
             $datafield_list = array();
 
             foreach ($theme_datafields as $tdf) {
-                if ( $tdf->getDataField()->getId() !== $removed_datafield->getId() )
+                if ( $tdf->getDataField()->getId() !== $removed_datafield->getId() ) {
+                    // Store the themeDatafield by its current display order to sort later
                     $datafield_list[ $tdf->getDisplayOrder() ] = $tdf;
+                }
+                else {
+                    // This datafield needs to be removed from the table theme...delete the themeDatafield entry
+                    $tdf->setDeletedBy($user);
+                    $em->persist($tdf);
+                    $em->remove($tdf);
+                }
             }
             /** @var ThemeDataField[] $datafield_list */
             ksort($datafield_list);

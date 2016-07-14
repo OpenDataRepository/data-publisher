@@ -1407,9 +1407,13 @@ class EditController extends ODRCustomController
                 $public = 1;
             }
 
-            // Refresh the cache entries for this datarecord
+            // Refresh the cache entries for this datarecord?
+/*
             $options = array('mark_as_updated' => true);
             parent::updateDatarecordCache($datarecord->getId(), $options);
+*/
+            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+
 
             // re-render?  wat
             $return['d'] = array(
@@ -1469,6 +1473,7 @@ class EditController extends ODRCustomController
                 return parent::deletedEntityError('Datatype');
 
             /** @var RadioOptions $radio_option */
+            $radio_option = null;
             if ($radio_option_id != 0) {
                 $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find($radio_option_id);
                 if ($radio_option == null)
@@ -1501,68 +1506,44 @@ class EditController extends ODRCustomController
             // A RadioOption id of 0 has no effect on a Multiple Radio/Select datafield
             if ( $radio_option_id != 0 && ($typename == 'Multiple Radio' || $typename == 'Multiple Select') ) {
                 // Don't care about selected status of other RadioSelection entities...
-                /** @var RadioSelection $old_radio_selection */
-                $old_radio_selection = $repo_radio_selection->findOneBy( array('radioOption' => $radio_option_id, 'dataRecordFields' => $drf->getId()) );
+                $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf);
 
                 // Default to a value of 'selected' if an older RadioSelection entity does not exist
                 $new_value = 1;
-                if ($old_radio_selection !== null) {
+                if ($radio_selection !== null) {
                     // An older version does exist...determine what the new value should be
-                    if ($old_radio_selection->getSelected() == 1)
+                    if ($radio_selection->getSelected() == 1)
                         $new_value = 0;
-
-                    // Delete the old entity
-                    $em->remove($old_radio_selection);
                 }
 
-                // Create the new RadioSelection entity
-                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, $new_value);
-                $em->persist($new_radio_selection);
-                $em->flush();
+                // Update the RadioSelection entity to match $new_value
+                $properties = array('selected' => $new_value);
+                parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
             }
             else if ($typename == 'Single Radio' || $typename == 'Single Select') {
                 // Probably need to change selected status of at least one other RadioSelection entity...
                 /** @var RadioSelection[] $radio_selections */
                 $radio_selections = $repo_radio_selection->findBy( array('dataRecordFields' => $drf->getId()) );
 
-                $found = false;
-                foreach ($radio_selections as $radio_selection) {
-
-                    if ( $radio_option_id != $radio_selection->getRadioOption()->getId() ) {
-                        if ($radio_selection->getSelected() == 1) {
+                foreach ($radio_selections as $rs) {
+                    if ( $radio_option_id != $rs->getRadioOption()->getId() ) {
+                        if ($rs->getSelected() == 1) {
                             // Deselect all RadioOptions that are selected and are not the one the user wants to be selected
-                            $radio_option_tmp = $radio_selection->getRadioOption();
-                            $em->remove($radio_selection);
-
-                            $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option_tmp, $drf, 0);
-                            $em->persist($new_radio_selection);
-                        }
-                    }
-                    else {
-                        // Found a prior entry for the RadioOption the user is attempting to modify...
-                        $found = true;
-
-                        if ($radio_selection->getSelected() == 0) {
-                            // The RadioOption the user wants to be selected is not selected...delete the old entity and create a RadioSelection for this one
-                            $radio_option_tmp = $radio_selection->getRadioOption();
-                            $em->remove($radio_selection);
-
-                            $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option_tmp, $drf, 1);
-                            $em->persist($new_radio_selection);
-                        }
-                        else {
-                            // The RadioOption the user wants to be selected is somehow already selected...do nothing in this case
+                            $properties = array('selected' => 0);
+                            parent::ODR_copyRadioSelection($em, $user, $rs, $properties);
                         }
                     }
                 }
 
-                // If a RadioSelection entity for this RadioOption doesn't exist, create it
-                if (!$found && $radio_option_id != 0) {
-                    $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, 1);
-                    $em->persist($new_radio_selection);
-                }
+                // If the user selected something other than "<no option selected>"...
+                if ($radio_option_id != 0) {
+                    // ...locate the RadioSelection entity the user wanted to set to selected
+                    $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf);
 
-                $em->flush();
+                    // ...ensure it's selected
+                    $properties = array('selected' => 1);
+                    parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
+                }
             }
             else {
                 // No point doing anything if not a radio fieldtype
@@ -1600,7 +1581,6 @@ class EditController extends ODRCustomController
      */
     public function updateAction($datarecord_id, $datafield_id, Request $request)
     {
-        // Save Data Record Entries
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -1729,6 +1709,17 @@ class EditController extends ODRCustomController
                             else
                                 $new_value = new \DateTime($new_value);
                         }
+                        else if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue') {
+                            // DecimalValue::setValue() already does its own thing, and parent::ODR_copyStorageEntity() will set $new_value back to NULL for an IntegerValue
+                            $new_value = strval($new_value);
+                        }
+                        else if ($typeclass == 'ShortVarchar' || $typeclass == 'MediumVarchar' || $typeclass == 'LongVarchar' || $typeclass == 'LongText') {
+                            // if array($key => NULL), then isset($property[$key]) returns false...change $new_value to the empty string instead
+                            // The text fields should store the empty string instead of NULL anyways
+                            if ( is_null($new_value) )
+                                $new_value = '';
+                        }
+
 
                         // Save the value
                         parent::ODR_copyStorageEntity($em, $user, $storage_entity, array('value' => $new_value));

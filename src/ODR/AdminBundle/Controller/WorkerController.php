@@ -32,6 +32,7 @@ use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileMeta;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageMeta;
+use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioOptionsMeta;
 use ODR\AdminBundle\Entity\RadioSelection;
@@ -244,7 +245,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
-            $tracked_job_id = $post['tracked_job_id'];
+            $tracked_job_id = intval($post['tracked_job_id']);
             $datarecord_id = $post['datarecord_id'];
             $datafield_id = $post['datafield_id'];
             $user_id = $post['user_id'];
@@ -315,7 +316,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 
             // Need to handle radio options separately...
             if ( ($old_typename == 'Multiple Radio' || $old_typename == 'Multiple Select') && ($new_typename == 'Single Radio' || $new_typename == 'Single Select') ) {
-                // If more than one radio option selected, then deselect all but the first one
+                // If migrating from multiple radio/select to single radio/select, and more than one radio option selected...then need to deselect all but one option
 
                 // Grab all selected radio options
                 $query = $em->createQuery(
@@ -326,7 +327,8 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                     JOIN ODRAdminBundle:RadioOptions AS ro WITH rs.radioOption = ro
                     JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
                     WHERE drf.dataRecord = :datarecord AND drf.dataField = :datafield AND rs.selected = 1
-                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
+                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL
+                    ORDER BY rom.displayOrder, ro.id'
                 )->setParameters( array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()) );
                 $results = $query->getArrayResult();
 
@@ -335,21 +337,19 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                     // ...deselect all but the first one in the list
                     for ($i = 1; $i < count($results); $i++) {
                         $rs_id = $results[$i]['rs_id'];
-                        /** @var RadioSelection $radio_selection */
-                        $radio_selection = $repo_radio_selection->find($rs_id);
-                        if ($radio_selection->getSelected() != false) {
-                            // Delete the existing radio selection
-                            $radio_option_tmp = $radio_selection->getRadioOption();
-                            $em->remove($radio_selection);
-
-                            // Create a new radio selection and set it to unselected
-                            $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option_tmp, $drf, 0);
-                            $em->persist($new_radio_selection);
-                        }
-
                         $ro_id = $results[$i]['ro_id'];
                         $option_name = $results[$i]['option_name'];
-                        $ret .= '>> Deselected Radio Option '.$ro_id.' ('.$option_name.')'."\n";
+
+                        /** @var RadioSelection $radio_selection */
+                        $radio_selection = $repo_radio_selection->find($rs_id);
+
+                        if ($radio_selection->getSelected() == 1) {
+                            // Ensure this RadioSelection is unselected
+                            $properties = array('selected' => 0);
+                            parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
+
+                            $ret .= '>> Deselected Radio Option '.$ro_id.' ('.$option_name.')'."\n";
+                        }
                     }
                     $em->flush();
                 }
@@ -455,6 +455,8 @@ $ret .= '  Set current to '.$count."\n";
             $logger->info('WorkerController:migrateAction()  >> scheduled DataRecord '.$datarecord_id.' for update');
             $ret .= '>> scheduled DataRecord '.$datarecord_id.' for update'."\n";
 */
+            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+
             $return['d'] = $ret;
         }
         catch (\Exception $e) {
@@ -603,7 +605,7 @@ $ret .= '  Set current to '.$count."\n";
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
-            $tracked_job_id = $post['tracked_job_id'];
+            $tracked_job_id = intval($post['tracked_job_id']);
             $object_type = $post['object_type'];
             $object_id = $post['object_id'];
             $api_key = $post['api_key'];
@@ -628,6 +630,32 @@ $ret .= '  Set current to '.$count."\n";
             /** @var User $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find(2);    // TODO - need an actual system user...
 
+
+            // Ensure an ImageSizes entity exists for this image
+            /** @var ImageSizes[] $image_sizes */
+            $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataFields' => $img->getDataField()->getId()) );
+            if ( count($image_sizes) == 0 ) {
+                // Create missing ImageSizes entities for this datafield
+                parent::ODR_checkImageSizes($em, $user, $img->getDataField());
+
+                // Reload the newly created ImageSizes for this datafield
+                while ( count($image_sizes) == 0 ) {
+                    sleep(1);   // wait a second so whichever process is creating the ImageSizes entities has time to finish
+                    $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataFields' => $img->getDataField()->getId()) );
+                }
+
+                // Set this image to point to the correct ImageSizes entity, since it didn't exist before
+                foreach ($image_sizes as $size) {
+                    if ($size->getOriginal() == true) {
+                        $img->setImageSize($size);
+                        $em->persist($img);
+                    }
+                }
+
+                $em->flush($img);
+                $em->refresh($img);
+            }
+
             // Recreate the thumbnail from the full-sized image
             parent::resizeImages($img, $user);
 
@@ -635,17 +663,20 @@ $ret .= '  Set current to '.$count."\n";
             // ----------------------------------------
             // Update the job tracker if necessary
             if ($tracked_job_id !== -1) {
+                /** @var TrackedJob $tracked_job */
                 $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
 
-                $total = $tracked_job->getTotal();
-                $count = $tracked_job->incrementCurrent($em);
+                if ($tracked_job !== null) {
+                    $total = $tracked_job->getTotal();
+                    $count = $tracked_job->incrementCurrent($em);
 
-                if ($count >= $total)
-                    $tracked_job->setCompleted( new \DateTime() );
+                    if ($count >= $total)
+                        $tracked_job->setCompleted(new \DateTime());
 
-                $em->persist($tracked_job);
-                $em->flush();
+                    $em->persist($tracked_job);
+                    $em->flush();
 //$ret .= '  Set current to '.$count."\n";
+                }
             }
 
             $return['d'] = '>> Rebuilt thumbnails for '.$object_type.' '.$object_id."\n";
@@ -654,16 +685,19 @@ $ret .= '  Set current to '.$count."\n";
             // Update the job tracker even if an error occurred...right? TODO
             if ($tracked_job_id !== -1) {
                 $em = $this->getDoctrine()->getManager();
+                /** @var TrackedJob $tracked_job */
                 $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
 
-                $total = $tracked_job->getTotal();
-                $count = $tracked_job->incrementCurrent($em);
+                if ($tracked_job !== null) {
+                    $total = $tracked_job->getTotal();
+                    $count = $tracked_job->incrementCurrent($em);
 
-                if ($count >= $total)
-                    $tracked_job->setCompleted( new \DateTime() );
+                    if ($count >= $total)
+                        $tracked_job->setCompleted(new \DateTime());
 
-                $em->persist($tracked_job);
-                $em->flush();
+                    $em->persist($tracked_job);
+                    $em->flush();
+                }
             }
 
             $return['r'] = 1;

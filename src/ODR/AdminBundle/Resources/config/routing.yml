@@ -895,11 +895,11 @@ odr_migrate_field:
     defaults: { _controller: ODRAdminBundle:Worker:migrate }
     requirements: { methods: POST }
 
-odr_start_rebuild_thumbnails:
-    path: /admin/rebuild_thumbnails/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Worker:startrebuildthumbnails }
-    requirements:
-        datatype_id: \d+
+#odr_start_rebuild_thumbnails:
+#    path: /admin/rebuild_thumbnails/{datatype_id}
+#    defaults: { _controller: ODRAdminBundle:Worker:startrebuildthumbnails }
+#    requirements:
+#        datatype_id: \d+
 
 odr_rebuild_thumbnails:
     path: /beanstalk/rebuild_thumbnails

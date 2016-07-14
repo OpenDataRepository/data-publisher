@@ -124,7 +124,7 @@ class JobController extends ODRCustomController
      * @param integer $job_id   Which TrackedJob to look at, or 0 to return all TrackedJobs
      * @param Request $request
      *
-     * @return Response TODO
+     * @return array
      */
     private function refreshJob($user, $job_type, $job_id, Request $request)
     {

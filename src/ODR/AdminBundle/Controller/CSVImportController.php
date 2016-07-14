@@ -36,6 +36,8 @@ use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\ThemeElement;
+use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\TrackedError;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
@@ -60,7 +62,7 @@ class CSVImportController extends ODRCustomController
      * @param integer $datatype_id Which DataType the CSV data is being imported into.
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function importAction($datatype_id, Request $request)
     {
@@ -70,8 +72,6 @@ class CSVImportController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            throw new \Exception('DISABLED PENDING SECOND HALF OF THEME REWORK');
-
             // Get necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -132,13 +132,12 @@ class CSVImportController extends ODRCustomController
             if ( count($childtypes) == 0 )
                 $childtypes = null;
 
-throw new \Exception('FIX DATATREE ARRAY HERE');
             $linked_types = array();
-            foreach ($datatree_array['linked_from'] as $remote_dt_id => $local_dt_id) {
-                if ($local_dt_id == $datatype_id) {
+            foreach ($datatree_array['linked_from'] as $descendant_dt_id => $ancestor_ids) {
+                if ( in_array($datatype_id, $ancestor_ids) ) {
                     // Ensure user has permissions to modify this linked type before storing it
-                    if ( isset($user_permissions[ $remote_dt_id ]) && $user_permissions[ $remote_dt_id ]['edit'] == 1 ) {
-                        $linked_types[] = $repo_datatype->find($remote_dt_id);
+                    if ( isset($user_permissions[ $descendant_dt_id ]) && $user_permissions[ $descendant_dt_id ]['edit'] == 1 ) {
+                        $linked_types[] = $repo_datatype->find($descendant_dt_id);
                     }
                 }
             }
@@ -190,7 +189,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
      * @param string $delimiter
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function delimiterAction($delimiter, Request $request)
     {
@@ -252,7 +251,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
      * @param integer $target_datatype_id  Which datatype the CSV data is being imported into.
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function layoutAction($source_datatype_id, $target_datatype_id, Request $request)
     {
@@ -316,9 +315,9 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
             $linked_importing = false;
             $parent_datatype = null;
 
-throw new \Exception('FIX DATATREE ARRAY HERE');
+
             $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-            if ( $source_datatype_id !== $target_datatype_id && isset($datatree_array['linked_from'][$target_datatype_id]) && $datatree_array['linked_from'][$target_datatype_id] !== '' ) {
+            if ( $source_datatype_id !== $target_datatype_id && isset($datatree_array['linked_from'][$target_datatype_id]) && in_array($source_datatype_id, $datatree_array['linked_from'][$target_datatype_id]) ) {
                 /* "Importing into" a linked datatype */
                 $linked_importing = true;
                 $parent_datatype = $repo_datatype->find($datatree_array['linked_from'][$target_datatype_id]);
@@ -357,7 +356,8 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
                'SELECT df
                 FROM ODRAdminBundle:DataFields AS df
                 JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-                WHERE df.dataType = :datatype AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
+                WHERE df.dataType = :datatype
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
                 ORDER BY dfm.fieldName'
             )->setParameters( array('datatype' => $target_datatype->getId()) );
             /** @var DataFields[] $datafields */
@@ -677,7 +677,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
      * 
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function refreshfilelistAction(Request $request)
     {
@@ -726,7 +726,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
      * 
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function deletefilelistAction(Request $request)
     {
@@ -770,7 +770,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
      *
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function cancelAction(Request $request)
     {
@@ -815,7 +815,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
      *
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function startvalidateAction(Request $request)
     {
@@ -1189,13 +1189,13 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
                         // Grab a list of all child datarecords grouped by parent datarecord
                         // TODO - external id for child datarecords...currently CSV Importing only can create child datarecords
                         $query = $em->createQuery(
-                         'SELECT e.value AS parent_external_id, child.id AS child_external_id
-                          FROM ODRAdminBundle:'.$parent_typeclass.' AS e
-                          JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                          JOIN ODRAdminBundle:DataRecord AS parent WITH drf.dataRecord = parent
-                          JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
-                          WHERE drf.dataField = :parent_external_id_field AND child.dataType = :child_datatype
-                          AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
+                           'SELECT e.value AS parent_external_id, child.id AS child_external_id
+                            FROM ODRAdminBundle:'.$parent_typeclass.' AS e
+                            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
+                            JOIN ODRAdminBundle:DataRecord AS parent WITH drf.dataRecord = parent
+                            JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
+                            WHERE drf.dataField = :parent_external_id_field AND child.dataType = :child_datatype
+                            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
                         )->setParameters( array('parent_external_id_field' => $parent_datatype->getExternalIdField()->getId(), 'child_datatype' => $datatype->getId()) );
                         $results = $query->getArrayResult();
 
@@ -1434,7 +1434,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
      *
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function csvvalidateAction(Request $request)
     {
@@ -1457,7 +1457,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
             }
 
             // Pull data from the post
-            $tracked_job_id = $post['tracked_job_id'];
+            $tracked_job_id = intval($post['tracked_job_id']);
             $column_names = $post['column_names'];
             $line_num = $post['line_num'];
             $line = $post['line'];
@@ -1973,7 +1973,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
      * @param integer $tracked_job_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function validateresultsAction($tracked_job_id, Request $request)
     {
@@ -2063,7 +2063,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
                 $linked_importing = true;
             }
 
-throw new \Exception('FIX DATATREE ARRAY HERE');
+
             // Also locate any child or linked datatypes for this datatype
             $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
             /** @var DataType[]|null $childtypes */
@@ -2087,11 +2087,11 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
             /** @var DataType[]|null $linked_types */
             $linked_types = null;
             if ($parent_datatype_id !== '') {
-                foreach ($datatree_array['linked_from'] as $remote_dt_id => $local_dt_id) {
-                    if ($local_dt_id == $datatype_id) {
+                foreach ($datatree_array['linked_from'] as $descendant_dt_id => $ancestor_ids) {
+                    if ( in_array($datatype_id, $ancestor_ids) ) {
                         // Ensure user has permissions to modify this linked type before storing it
-                        if (isset($user_permissions[$remote_dt_id]) && $user_permissions[$remote_dt_id]['edit'] == 1) {
-                            $linked_types[] = $repo_datatype->find($remote_dt_id);
+                        if (isset($user_permissions[$descendant_dt_id]) && $user_permissions[$descendant_dt_id]['edit'] == 1) {
+                            $linked_types[] = $repo_datatype->find($descendant_dt_id);
                         }
                     }
                 }
@@ -2244,7 +2244,7 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
      * @param integer $job_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function startworkerAction($job_id, Request $request)
     {
@@ -2419,37 +2419,57 @@ throw new \Exception('FIX DATATREE ARRAY HERE');
                     /** @var DataFieldsMeta $datafield_meta */
                     $datafield_meta = $objects['datafield_meta'];
 
-                    // Set the datafield's name, then persist/reload it
+                    // Set the datafield's name
                     $datafield_meta->setFieldName( $column_names[$column_id] );
                     if ( isset($unique_columns[$column_id]) )
                         $datafield_meta->setIsUnique(true);
-                    $em->persist($datafield_meta);
+                    $em->persist($datafield_meta);  // don't need to flush just yet, nothing needs the meta entry to have the correct name
 
                     $new_datafields[] = $datafield;
 
-                    $logger->notice('Created new datafield '.$datafield->getId().' "'.$datafield->getFieldName().'" for csv import of datatype '.$datatype->getId().' by '.$user->getId());
+                    $logger->notice('Created new datafield '.$datafield->getId().' "'.$column_names[$column_id].'" for csv import of datatype '.$datatype->getId().' by '.$user->getId());
 //print 'created new datafield of fieldtype "'.$fieldtype->getTypeName().'" with name "'.$column_names[$column_id].'"'."\n";
                 }
 
                 // Store ID of target datafield
                 $new_mapping[$column_id] = $datafield->getId();
             }
+            /** @var DataFields[] $new_datafields */
 
             if ($created) {
                 // Since datafields were created for this import, create a new theme element and attach the new datafields to it
                 /** @var Theme $theme */
-                $theme = $em->getRepository('ODRAdminBundle:Theme')->find(1);
-                $theme_element = parent::ODR_addThemeElementEntry($em, $user, $datatype, $theme);
-                $em->flush($theme_element);
-                $em->refresh($theme_element);
+                $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+                $objects = parent::ODR_addThemeElement($em, $user, $datatype, $theme);
+                /** @var ThemeElement $theme_element */
+                $theme_element = $objects['theme_element'];
+                /** @var ThemeElementMeta $theme_element_meta */
+//                $theme_element_meta = $objects['theme_element_meta'];
 
                 foreach ($new_datafields as $new_datafield) {
-                    // Tie each new datafield to the new theme element
-                    parent::ODR_addThemeElementFieldEntry($em, $user, null, $new_datafield, $theme_element);
+                    // Attach each of the previously created datafields to the new theme_element
+                    parent::ODR_addThemeDataField($em, $user, $new_datafield, $theme_element);
+
+                    // If this is a newly created image datafield, ensure it has the required ImageSizes entities
+                    if ($new_datafield->getFieldType()->getTypeClass() == 'Image')
+                        parent::ODR_checkImageSizes($em, $user, $new_datafield);
                 }
 
-                // Save all theme element changes
+                // Save all changes
                 $em->flush();
+
+                // Update theme and datatype becuase new datafields were added
+                parent::tmp_updateThemeCache($em, $theme, $user, true);
+
+                // Since new datafields were created, wipe the lists of datafield permissions for all users
+                $user_manager = $this->container->get('fos_user.user_manager');
+                /** @var User[] $user_list */
+                $user_list = $user_manager->findUsers();
+                foreach ($user_list as $u) {
+                    $memcached->delete($memcached_prefix.'.user_'.$u->getId().'_datafield_permissions');
+
+                    // TODO - schedule a permissions recache via beanstalk?
+                }
             }
 
 /*
@@ -2535,7 +2555,7 @@ print_r($new_mapping);
      *
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function csvworkerAction(Request $request)
     {
@@ -2556,7 +2576,7 @@ print_r($new_mapping);
                 throw new \Exception('Invalid job data');
 
             // Pull data from the post
-            $tracked_job_id = $post['tracked_job_id'];
+            $tracked_job_id = intval($post['tracked_job_id']);
             $user_id = $post['user_id'];
             $datatype_id = $post['datatype_id'];
             $mapping = $post['mapping'];
@@ -2713,9 +2733,7 @@ print_r($new_mapping);
             $em->refresh($datarecord);
 
 
-            // All datarecordfield and storage entities should exist now...
-
-            // ----------------------------------------
+           // ----------------------------------------
             // Break apart the line into constituent columns...
             foreach ($line as $column_num => $column_data) {
                 // Only care about this column if it's mapped to a datafield...
@@ -2732,40 +2750,19 @@ print_r($new_mapping);
                     $column_data = trim($column_data);
 
                     if ($typeclass == 'Boolean') {
-                        // Grab repository for entity
-                        $repo_entity = $em->getRepository($classname);
+                        // Get the existing entity for this datarecord/datafield, or create a new one if it doesn't exist
                         /** @var ODRBoolean $entity */
-                        $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+                        $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
 
                         // Any character in the field counts as checked
-                        $checked = 0;
-                        if ( $column_data !== '' )
-                            $checked = 1;
+                        $checked = false;
+                        if ($column_data !== '')
+                            $checked = true;
 
-                        if ($entity === null) {
-                            // Create a new storage entity if one doesn't exist
-                            $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                            $new_entity->setValue($checked);
-                            $em->persist($new_entity);
+                        // Ensure the value in the datafield matches the value in the import file
+                        parent::ODR_copyStorageEntity($em, $user, $entity, array('value' => $checked));
+                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$checked.'"...'."\n";
 
-                            $status .= '    -- >> created new '.$typeclass.', set to "'.$checked."\n";
-                        }
-                        else {
-                            // If old storage entity doesn't match desired state...
-                            if ($entity->getValue() != $checked) {
-                                // ...delete it and create a new storage entity
-                                $em->remove($entity);
-
-                                $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                                $new_entity->setValue($checked);
-                                $em->persist($new_entity);
-
-                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$checked.'"...'."\n";
-                            }
-                            else {
-                                /* do nothing, current value in entity already matches desired value */
-                            }
-                        }
                     }
                     else if ($typeclass == 'File' || $typeclass == 'Image') {
 
@@ -2778,15 +2775,7 @@ print_r($new_mapping);
                         // If a filename is in this column...
                         if ($column_data !== '') {
                             // Grab the associated datarecordfield entity
-                            $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
-                            if ($drf == null) {
-                                $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
-                                $em->persist($drf);
-                                $em->flush($drf);
-                                $em->refresh($drf);
-                                $status .= '    -- >> created new drf'."\n";
-                            }
-                            /** @var DataRecordFields $drf */
+                            $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
 
                             // Store the path to the user's upload area...
                             $path_prefix = dirname(__FILE__).'/../../../../web/';
@@ -2887,53 +2876,6 @@ print_r($new_mapping);
                                     $em->remove($old_obj);
                                     $em->remove($old_obj_meta);
                                     $em->flush();
-/*
-                                    // Determine the path to the current file/image
-                                    $my_obj = $existing_files[$csv_filename];
-                                    $local_filepath = $path_prefix.'uploads/files/File_';
-                                    if ($typeclass == 'Image')
-                                        $local_filepath = $path_prefix.'uploads/images/Image_';
-                                    $local_filepath .= $my_obj->getId().'.'.$my_obj->getExt();
-
-                                    $handle = fopen($local_filepath, 'w');
-                                    if ($handle == false)
-                                        throw new \Exception('Could not write to '.$local_filepath);
-
-                                    // Update the current file/image with the new contents
-                                    $file_contents = file_get_contents($path_prefix.$storage_filepath.'/'.$csv_filename);
-                                    fwrite($handle, $file_contents);
-                                    fclose($handle);
-
-                                    // Delete the uploaded file/image from the storage directory
-                                    unlink($path_prefix.$storage_filepath.'/'.$csv_filename);
-                                    $status .= 'overwritten...';
-
-                                    // Update other properties of the file/image that got changed
-                                    $my_obj->setOriginalChecksum( md5($file_contents) );
-
-                                    if ($typeclass == 'Image') {
-                                        $sizes = getimagesize($local_filepath);
-                                        $my_obj->setImageWidth($sizes[0]);
-                                        $my_obj->setImageHeight($sizes[1]);
-                                    }
-
-                                    $em->persist($my_obj);
-                                    $em->flush();
-
-                                    if ($typeclass == 'Image') {
-                                        // Generate other sizes of image
-                                        parent::resizeImages($my_obj, $user);
-                                        $status .= 'rebuilt thumbnails...';
-                                    }
-
-                                    // Re-encrypt the file/image
-                                    parent::encryptObject($my_obj->getId(), $typeclass);
-                                    $status .= 'encrypted...'."\n";
-
-                                    // A decrypted version of the File/Image might still exist on the server...delete it here since all its properties have been saved
-                                    if ( file_exists($local_filepath) )
-                                        unlink($local_filepath);
-*/
                                 }
                             }
                         }
@@ -3012,151 +2954,60 @@ print_r($new_mapping);
                             $em->flush();
                     }
                     else if ($typeclass == 'IntegerValue') {
-                        // Grab repository for entity
-                        $repo_entity = $em->getRepository($classname);
+                        // Get the existing entity for this datarecord/datafield, or create a new one if it doesn't exist
                         /** @var IntegerValue $entity */
-                        $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+                        $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
 
-                        // Turn the data into an integer...csvvalidateAction() already would've warned if column data isn't actually an integer
-                        $value = null;
-                        if ( $column_data !== '' )
-                            $value = intval($column_data);
+                        // NOTE - intentionally not using intval() here...self::csvvalidateAction() would've already warned if column data wasn't an integer
+                        // In addition, parent::ODR_copyStorageEntity() has to have values passed as strings, and will convert back to integer before saving
+                        $value = $column_data;
 
-                        if ($entity === null) {
-                            // Create a new storage entity if one doesn't exist
-                            $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                            $new_entity->setValue($value);
-                            $em->persist($new_entity);
+                        // Ensure the value stored in the entity matches the value in the import file
+                        parent::ODR_copyStorageEntity($em, $user, $entity, array('value' => $value));
+                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
 
-                            $status .= '    -- >> created new '.$typeclass.', set to "'.$value."\n";
-                        }
-                        else {
-                            // If old storage entity doesn't match desired state...
-                            if ($entity->getValue() != $value) {
-                                // ...delete it and create a new storage entity
-                                $em->remove($entity);
-
-                                $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                                $new_entity->setValue($value);
-                                $em->persist($new_entity);
-
-                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
-                            }
-                            else {
-                                /* do nothing, current value in entity already matches desired value */
-                            }
-                        }
                     }
                     else if ($typeclass == 'DecimalValue') {
-                        // Grab repository for entity
-                        $repo_entity = $em->getRepository($classname);
+                        // Get the existing entity for this datarecord/datafield, or create a new one if it doesn't exist
                         /** @var DecimalValue $entity */
-                        $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+                        $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
 
-                        // NOTE - intentionally not using floatval here, whereas IntegerValue still uses intval()...DecimalValue::setValue() will deal with any string received
-                        $value = null;
-                        if ( $column_data !== '' )
-                            $value = $column_data;
+                        // NOTE - intentionally not using floatval() here...self::csvvalidateAction() would've already warned if column data wasn't a float
+                        // In addition, parent::ODR_copyStorageEntity() has to have values passed as strings...DecimalValue::setValue() will deal with any string received
+                        $value = $column_data;
 
-                        if ($entity === null) {
-                            // Create a new storage entity if one doesn't exist
-                            $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                            $new_entity->setValue($value);
-                            $em->persist($new_entity);
+                        // Ensure the value stored in the entity matches the value in the import file
+                        parent::ODR_copyStorageEntity($em, $user, $entity, array('value' => $value));
+                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
 
-                            $status .= '    -- >> created new '.$typeclass.', set to "'.$value."\n";
-                        }
-                        else {
-                            // If old storage entity doesn't match desired state...
-                            if ($entity->getValue() != $value) {
-                                // ...delete it and create a new storage entity
-                                $em->remove($entity);
-
-                                $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                                $new_entity->setValue($value);
-                                $em->persist($new_entity);
-
-                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
-                            }
-                            else {
-                                /* do nothing, current value in entity already matches desired value */
-                            }
-                        }
                     }
                     else if ($typeclass == 'LongText' || $typeclass == 'LongVarchar' || $typeclass == 'MediumVarchar' || $typeclass == 'ShortVarchar') {
-                        // Grab repository for entity
-                        $repo_entity = $em->getRepository($classname);
+                        // Get the existing entity for this datarecord/datafield, or create a new one if it doesn't exist
                         /** @var LongText|LongVarchar|MediumVarchar|ShortVarchar $entity */
-                        $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+                        $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
 
-                        if ($entity === null) {
-                            // Create a new storage entity if one doesn't exist
-                            $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                            $new_entity->setValue($column_data);
-                            $em->persist($new_entity);
+                        // Ensure the value stored in the entity matches the value in the import file
+                        parent::ODR_copyStorageEntity($em, $user, $entity, array('value' => $column_data));
+                        $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'"...'."\n";
 
-                            $status .= '    -- >> created new '.$typeclass.', set to "'.$column_data."\n";
-                        }
-                        else {
-                            // If old storage entity doesn't match desired state...
-                            if ($entity->getValue() != $column_data) {
-                                // ...delete it and create a new storage entity
-                                $em->remove($entity);
-
-                                $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                                $new_entity->setValue($column_data);
-                                $em->persist($new_entity);
-
-                                $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'"...'."\n";
-                            }
-                            else {
-                                /* do nothing, current value in entity already matches desired value */
-                            }
-                        }
                     }
                     else if ($typeclass == 'DatetimeValue') {
-                        // Grab repository for entity
-                        $repo_entity = $em->getRepository($classname);
+                        // Get the existing entity for this datarecord/datafield, or create a new one if it doesn't exist
                         /** @var DatetimeValue $entity */
-                        $entity = $repo_entity->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+                        $entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
 
                         // Turn the data into a DateTime object...csvvalidateAction() already would've warned if column data isn't actually a date
                         $value = null;
                         if ( $column_data !== '' )
                             $value = new \DateTime($column_data);
 
-                        if ($entity === null) {
-                            // Create a new storage entity if one doesn't exist
-                            $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                            $new_entity->setValue($value);
-                            $em->persist($new_entity);
+                        // Ensure the value stored in the entity matches the value in the import file
+                        parent::ODR_copyStorageEntity($em, $user, $entity, array('value' => $value));
+                        if ($value == null)
+                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to ""...'."\n";
+                        else
+                            $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value->format('Y-m-d H:i:s').'"...'."\n";
 
-                            $status .= '    -- >> created new '.$typeclass;
-                            if ($value !== null)
-                                $status .= ', set to "'.$value->format('Y-m-d')."\n";
-                            else
-                                $status .= ', set to "..."'."\n";
-                        }
-                        else {
-                            // If old storage entity doesn't match desired state...
-                            if ($entity->getValue() != $value) {
-                                // ...delete it and create a new storage entity
-                                $em->remove($entity);
-
-                                // Save value from csv file...different formats are already taken care of courtesy of the bundle used for csv importing
-                                $new_entity = parent::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-                                $new_entity->setValue($value);
-                                $em->persist($new_entity);
-
-                                if ($value == null)
-                                    $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to ""...'."\n";
-                                else
-                                    $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value->format('Y-m-d H:i:s').'"...'."\n";
-                            }
-                            else {
-                                /* do nothing, current value in entity already matches desired value */
-                            }
-                        }
                     }
                     else if ($typeclass == 'Radio') {
                         $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.') ';
@@ -3171,48 +3022,13 @@ print_r($new_mapping);
                             $option_name = trim($option_name);
                             if ( $option_name == '' )
                                 continue;
-/*
-                            // See if a radio_option entity with this name already exists
-                            $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('optionName' => $option_name, 'dataField' => $datafield->getId()) );
-                            if ($radio_option == null) {
-                                // TODO - CURRENTLY WORKS, BUT MIGHT WANT TO LOOK INTO AN OFFICIAL MUTEX...
 
-                                // Define and execute a query to manually create the absolute minimum required for a RadioOption entity...
-                                $query = 
-                                   'INSERT INTO odr_radio_options (option_name, data_fields_id)
-                                    SELECT * FROM (SELECT :name AS option_name, :df_id AS df_id) AS tmp
-                                    WHERE NOT EXISTS (
-                                        SELECT option_name FROM odr_radio_options WHERE option_name = :name AND data_fields_id = :df_id AND deletedAt IS NULL
-                                    ) LIMIT 1;';
-                                $params = array('name' => $option_name, 'df_id' => $datafield->getId());
-                                $conn = $em->getConnection();
-                                $rowsAffected = $conn->executeUpdate($query, $params);
-
-                                if ($rowsAffected > 0) {
-                                    $logger->notice('Created new RadioOption ("'.$option_name.'") as part of csv import for datatype '.$datatype->getId().' by '.$user->getId());
-                                    $status .= '    ...created new radio_option ("'.$option_name.'")';
-                                }
-
-                                // Now that it exists, fill out the properties of a RadioOption entity that were skipped during the manual creation...
-                                $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('optionName' => $option_name, 'dataField' => $datafield->getId()) );
-                                $radio_option->setCreatedBy($user);
-                                $radio_option->setCreated( new \DateTime() );
-                                $radio_option->setUpdatedBy($user);
-                                $radio_option->setUpdated( new \DateTime() );
-                                $radio_option->setExternalId(0);
-
-                                $em->persist($radio_option);
-                            }
-*/
                             // Create a radio_option entity for this datafield with this name if it doesn't already exist
                             $force_create = false;
                             $radio_option = parent::ODR_addRadioOption($em, $user, $datafield, $force_create, $option_name);
 
                             // Now that the radio option is guaranteed to exist...grab the relevant RadioSelection entity...
-                            /** @var DataRecordFields $drf */
-                            $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
-                            if ($drf == null)
-                                $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
+                            $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
 
 
                             // If this field only allows a single selection...
@@ -3224,40 +3040,23 @@ print_r($new_mapping);
                                 foreach ($radio_selections as $rs) {
                                     if ( $rs->getRadioOption()->getId() !== $radio_option->getId() && $rs->getSelected() == 1 ) {
                                         // ...if it's not the one that's supposed to be selected, deselect it
-                                        $em->remove($rs);
-
-                                        $new_rs = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, 0);
-                                        $em->persist($new_rs);
+                                        $properties = array('selected' => 0);
+                                        parent::ODR_copyRadioSelection($em, $user, $rs, $properties);
                                     }
                                 }
                             }
 
                             // TODO - add Radio equivalent of "delete all unlisted files/images" for Multiple Radio/Select
 
-                            // Now that there won't be extraneous radio options selected afterwards... ensure the desired radio option is selected
-                            /** @var RadioSelection $radio_selection */
-                            $radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy( array('dataRecordFields' => $drf->getId(), 'radioOption' => $radio_option->getId()) );
+                            // Now that there won't be extraneous radio options selected afterwards... ensure the radio selection entity for the desired radio option exists
+                            $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf);
 
-                            if ($radio_selection == null) {
-                                // ...doesn't exist, create it
-                                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, 1);
-                                $em->persist($new_radio_selection);
+                            // Ensure it has the correct selected status
+                            $properties = array('selected' => 1);
+                            parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
 
-                                $status .= '    ...created new radio_selection for radio_option ("'.$radio_option->getOptionName().'")'."\n";
-                            }
-                            else if ($radio_selection->getSelected() == 0) {
-                                // ...exists, but the value stored in it does not match the desired state...delete the old entity
-                                $em->remove($radio_selection);
+                            $status .= '    ...radio_selection for radio_option ("'.$radio_option->getOptionName().'") now selected'."\n";
 
-                                // Create a new RadioSelection entity with the desired state
-                                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, 1);
-                                $em->persist($new_radio_selection);
-
-                                $status .= '    ...radio_selection for radio_option ("'.$radio_option->getOptionName().'") now selected'."\n";
-                            }
-                            else {
-                                /* Desired radio option is already selected, do nothing */
-                            }
                         }
                         $status .= "\n";
                     }
@@ -3292,6 +3091,8 @@ print_r($new_mapping);
             // Rebuild the list of sorted datarecords, since the datarecord order may have changed
             $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
             // Schedule the datarecord for an update
+            parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+/*
             $options = array(
                 'mark_as_updated' => true,
                 'user_id' => $user->getId(),    // since this action is called via command-line, need to specify which user is doing the importing
@@ -3299,6 +3100,7 @@ print_r($new_mapping);
                 'force_textresults_recache' => true
             );
             parent::updateDatarecordCache($datarecord->getId(), $options);
+*/
 
             // Delete all cached search results for this datatype
             // TODO - more precise deletion of cached search results...new datarecord created should delete all search results without datafields, update to a datafield should delete all search results with that datafield
@@ -3350,7 +3152,7 @@ print_r($new_mapping);
      *
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function csvlinkworkerAction(Request $request)
     {
@@ -3372,7 +3174,7 @@ print_r($new_mapping);
                 throw new \Exception('Invalid job data');
 
             // Pull data from the post
-            $tracked_job_id = $post['tracked_job_id'];
+            $tracked_job_id = intval($post['tracked_job_id']);
             $user_id = $post['user_id'];
             $datatype_id = $post['datatype_id'];
 //            $mapping = $post['mapping'];
@@ -3463,14 +3265,15 @@ print_r($new_mapping);
 
             // ----------------------------------------
             // Datarecord order can't change as a result of linking/unlinking
-
+/*
             // Schedule the local datarecord for an update
             $options = array(
                 'user_id' => $user->getId(),    // since this action is called via command-line, need to specify which user is doing the importing
                 'mark_as_updated' => true
             );
-
             parent::updateDatarecordCache($local_datarecord->getId(), $options);
+*/
+            parent::tmp_updateDatarecordCache($em, $local_datarecord, $user);
 
             $return['d'] = $status;
         }

@@ -111,7 +111,7 @@ function initPage() {
         event.stopImmediatePropagation();
 
         // Grab relevant entity ids
-        var id_data = $(this).parent().parent().attr('id').split(/_/);
+        var id_data = $(this).parents('.ODRDataField').attr('id').split(/_/);
         var datarecord_id = id_data[1];
         var datafield_id = id_data[2];
 

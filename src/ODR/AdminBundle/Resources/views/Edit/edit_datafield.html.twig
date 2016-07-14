@@ -72,10 +72,10 @@
 
     {% if field_typename == "Boolean" %}
         <fieldset>
-            <label for="{{ input_id }}" class="ODRFieldLabel ODRDatafieldHistory pure-u-1" style="margin:0.5em 0;" title="{{ datafield.dataFieldMeta.description }}">
+            <label for="{{ input_id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield.dataFieldMeta.description }}">
                 <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                     <input id="{{ input_id }}" type="checkbox" name="{{ input_name }}" value="1" {% if valuefield_value == 1 %}checked{% endif %} />
-                    {{ datafield.dataFieldMeta.fieldName }}
+                    <span class="ODRDatafieldHistory">{{ datafield.dataFieldMeta.fieldName }}</span>
                 </div>
             </label>
         </fieldset>
@@ -329,7 +329,7 @@
     {% if field_typename == "Integer" %}
             rules: {
                 "{{ input_name }}": {
-                    digits: true
+                    ODRInteger: {}  {# 'ODRInteger' rule defined in app.js...the default 'digits' rule apparently doesn't allow negative numbers #}
                 }
             },
     {% elseif field_typename == "Decimal" %}

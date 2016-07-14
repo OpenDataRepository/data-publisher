@@ -1333,9 +1333,11 @@ if ($write) {
                     $radio_selection = $repo_radio_selection->findOneBy( array("radioOption" => $radio_option->getId(), "dataRecordFields" => $drf->getId()) );
 
 if ($write) {
+                    // TODO - WARNING, THIS WILL NO LONGER WORK RIGHT BECAUSE THOSE TWO FUNCTIONS FLUSH
                     if ($radio_selection == null) {
                         // Create a new RadioSelection object
-                        $radio_selection = parent::ODR_addRadioSelection($entity_manager, $user, $radio_option, $drf, $option_value);
+                        $radio_selection = parent::ODR_addRadioSelection($entity_manager, $user, $radio_option, $drf);
+                        parent::ODR_copyRadioSelection($entity_manager, $user, $radio_selection, array('selected' => $option_value));
                         $need_flush = true;
 
                         // Store the radio option so they can all be deleted if an error occurs
@@ -1348,7 +1350,9 @@ if ($write) {
                             $entity_manager->remove($radio_selection);
 
                             // Create a new radio selection
-                            $radio_selection = parent::ODR_addRadioSelection($entity_manager, $user, $radio_option, $drf, $option_value);
+                            $radio_selection = parent::ODR_addRadioSelection($entity_manager, $user, $radio_option, $drf);
+                            parent::ODR_copyRadioSelection($entity_manager, $user, $radio_selection, array('selected' => $option_value));
+
                             $entity_manager->persist($radio_selection);
                             $need_flush = true;
                         }
@@ -1378,7 +1382,7 @@ if ($write) {
 if ($write) {
                             $entity_manager->remove($rs);
 
-                            $rs = parent::ODR_addRadioSelection($entity_manager, $user, $radio_option, $drf, 0);
+                            $rs = parent::ODR_addRadioSelection($entity_manager, $user, $radio_option, $drf);
                             $entity_manager->persist($rs);
                             $need_flush = true;
 }

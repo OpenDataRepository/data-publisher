@@ -496,7 +496,7 @@ return;
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
-            $tracked_job_id = $post['tracked_job_id'];
+            $tracked_job_id = intval($post['tracked_job_id']);
             $user_id = $post['user_id'];
             $datarecord_id = $post['datarecord_id'];
             $public_status = $post['public_status'];
@@ -575,6 +575,7 @@ return;
                 }
 
                 if ($updated) {
+/*
                     $options = array(
                         'user_id' => $user->getId(),    // since this action is called via command-line, need to specify which user is doing the mass updating
                         'mark_as_updated' => true
@@ -582,13 +583,15 @@ return;
 
                     // Refresh the cache entries for this datarecord
                     parent::updateDatarecordCache($datarecord->getId(), $options);
+*/
+                    parent::tmp_updateDatarecordCache($em, $datarecord, $user);
                 }
             }
 
 
             // ----------------------------------------
             // Update the job tracker if necessary
-            if ($tracked_job_id != -1) {
+            if ($tracked_job_id !== -1) {
                 $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();
@@ -642,7 +645,7 @@ return;
                 throw new \Exception('Invalid Form');
 
             // Pull data from the post
-            $tracked_job_id = $post['tracked_job_id'];
+            $tracked_job_id = intval($post['tracked_job_id']);
             $user_id = $post['user_id'];
             $datarecord_id = $post['datarecord_id'];
             $datafield_id = $post['datafield_id'];
@@ -724,57 +727,34 @@ return;
                     // Set radio_selection objects to the desired state
                     foreach ($value as $radio_option_id => $selected) {
 
+                        // Ensure a RadioSelection entity exists
                         /** @var RadioOptions $radio_option */
                         $radio_option = $repo_radio_option->find($radio_option_id);
+                        $radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf);
 
-                        if ( !isset($radio_selections[$radio_option_id]) ) {
-                            // A RadioSelection entity for this RadioOption doesn't exist...create it
-                            $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, $selected);
-                            $em->persist($new_radio_selection);
+                        // Ensure it has the correct selected value
+                        $properties = array('selected' => $selected);
+                        parent::ODR_copyRadioSelection($em, $user, $radio_selection, $properties);
 
-                            $ret .= 'created radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...setting selected to '.$selected."\n";
-                        }
-                        else {
-                            // A RadioSelection entity for this RadioOption already exists...
-                            $radio_selection = $radio_selections[$radio_option_id];
+                        $ret .= 'setting radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.' to '.$selected."\n";
 
-                            if ( $selected != $radio_selection->getSelected() ) {
-                                // ...but the value stored in it does not match the desired state...delete the old entity
-                                $em->remove($radio_selection);
-
-                                // Create a new RadioSelection entity with the desired state
-                                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, $selected);
-                                $em->persist($new_radio_selection);
-
-                                $ret .= 'found radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...setting selected to '.$selected."\n";
-                            }
-                            else {
-                                /* value stored in RadioSelection entity matches desired state, do nothing */
-                                $ret .= 'not changing radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.'...current selected status to desired status'."\n";
-                            }
-
-                            // Need to keep track of which radio_selection was modified for Single Radio/Select...
-                            unset( $radio_selections[$radio_option_id] );
-                        }
+                        // If this datafield is a Single Radio/Select datafield, then every single RadioSelection in $radio_selections except for this one that just got selected need to be deselected
+                        unset( $radio_selections[$radio_option_id] );
                     }
 
                     // If only a single selection is allowed, deselect the other existing radio_selection objects
                     if ( $field_typename == "Single Radio" || $field_typename == "Single Select" ) {
-                        foreach ($radio_selections as $radio_option_id => $radio_selection) {
-                            if ( $radio_selection->getSelected() == 1 ) {
-                                // Delete the old RadioSelection entity
-                                $em->remove($radio_selection);
-
-                                // Create a new RadioSelection entity with the desired state
-                                /** @var RadioOptions $radio_option */
-                                $radio_option = $repo_radio_option->find($radio_option_id);
-                                $new_radio_selection = parent::ODR_addRadioSelection($em, $user, $radio_option, $drf, 0);
-                                $em->persist($new_radio_selection);
+                        foreach ($radio_selections as $radio_option_id => $rs) {
+                            if ( $rs->getSelected() == 1 ) {
+                                // Ensure this RadioSelection is deselected
+                                $properties = array('selected' => 0);
+                                parent::ODR_copyRadioSelection($em, $user, $rs, $properties);
 
                                 $ret .= 'deselecting radio_option_id '.$radio_option_id.' for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
                             }
                         }
                     }
+
                 }
                 else if ($field_typeclass == 'File') {
                     // Load all files associated with this entity
@@ -904,7 +884,7 @@ return;
 
                 // ----------------------------------------
                 // Update the job tracker if necessary
-                if ($tracked_job_id != -1) {
+                if ($tracked_job_id !== -1) {
                     $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
 
                     $total = $tracked_job->getTotal();

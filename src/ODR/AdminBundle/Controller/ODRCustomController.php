@@ -18,6 +18,7 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\Boolean AS ODRBoolean;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataFieldsMeta;
 use ODR\AdminBundle\Entity\DataRecord;
@@ -421,25 +422,6 @@ exit();
         catch (\Exception $e) {
             throw new \Exception( $e->getMessage() );
         }
-    }
-
-
-    /**
-     * Returns true if the datafield is currently in use by ShortResults
-     * @deprecated
-     *
-     * @param DataFields $datafield
-     *
-     * @return boolean TODO
-     */
-    protected function inShortResults($datafield)
-    {
-        foreach ($datafield->getThemeDataField() as $tdf) {
-            if ($tdf->getTheme()->getId() == 2 && $tdf->getActive())
-                return true;
-        }
-
-        return false;
     }
 
 
@@ -1853,6 +1835,8 @@ if ($debug)
      * Notifies beanstalk to schedule a rebuild of all cached versions of all DataRecords of this DataType.
      * Usually called after a changes is made via DisplayTemplate or SearchTemplate.
      *
+     * @deprecated
+     *
      * @param integer $datatype_id The database id of the DataType that needs to be rebuilt.
      * @param array $options
      *
@@ -2030,6 +2014,8 @@ if ($debug)
     /**
      * Notifies beanstalk to eventually schedule a rebuild of all cache entries of a specific DataRecord.
      * Usually called after one of the DataFields of the DataRecord have been updated with a new value/file/image.
+     *
+     * @deprecated
      *
      * @param integer $id    The database id of the DataRecord that needs to be recached.
      * @param array $options
@@ -2494,30 +2480,6 @@ if ($debug)
 
 
     /**
-     * Ensures a ThemeDataField entity exists for a given combination of a datafield and a theme.
-     * @deprecated
-     *
-     * @param User $user            The user to use if a new ThemeDataField is to be created
-     * @param DataFields $datafield
-     * @param Theme $theme
-     *
-     */
-    protected function ODR_checkThemeDataField($user, $datafield, $theme)
-    {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        /** @var ThemeDataField $theme_datafield */
-        $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield->getId(), 'theme' => $theme->getId()) );
-
-        // If the entity doesn't exist, create it
-        if ($theme_datafield == null) {
-            self::ODR_addThemeDataField($em, $user, $datafield, $theme);
-            $em->flush();
-        }
-    }
-
-
-    /**
      * Creates and persists a new DataRecordField entity, if one does not already exist for the given (DataRecord, DataField) pair.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -2810,6 +2772,8 @@ if ($debug)
         }
 
         // Refresh the cache entries for the datarecords
+        self::tmp_updateDatarecordCache($em, $ancestor_datarecord, $user);
+/*
         $options = array(
             'user_id' => $user->getId(),    // This action may be called via the command-line...specify user id so datarecord is guaranteed to be updated correctly
             'mark_as_updated' => true
@@ -2817,7 +2781,7 @@ if ($debug)
         self::updateDatarecordCache($ancestor_datarecord->getId(), $options);
 
         self::updateDatarecordCache($descendant_datarecord->getId(), array());  // nothing changed in the descendant
-
+*/
         return $linked_datatree;
     }
 
@@ -3059,7 +3023,7 @@ if ($debug)
      *
      * @throws \Exception
      *
-     * @return Boolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
+     * @return ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
      */
     protected function ODR_addStorageEntity($em, $user, $datarecord, $datafield, $initial_value = null)
     {
@@ -3108,7 +3072,7 @@ if ($debug)
 
 
         // Return the storage entity if it already exists
-        /** @var Boolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
+        /** @var ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
         $storage_entity = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
         if ($storage_entity !== null)
             return $storage_entity;
@@ -3155,18 +3119,27 @@ if ($debug)
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
-     * @param Boolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $entity
+     * @param ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $entity
      * @param array $properties
      *
-     * @return Boolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
+     * @return ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
      */
     protected function ODR_copyStorageEntity($em, $user, $entity, $properties)
     {
+        // Determine which type of entity to create if needed
+        $typeclass = $entity->getDataField()->getFieldType()->getTypeClass();
+        $classname = "ODR\\AdminBundle\\Entity\\".$typeclass;
+
         // No point making new entry if nothing is getting changed
         $changes_made = false;
         $existing_values = array(
             'value' => $entity->getValue()
         );
+
+        // Change current values stored in IntegerValue or DecimalValue entities to strings...all values in $properties are already strings, and php does odd compares between strings and numbers
+        if ($typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
+            $existing_values['value'] = strval($existing_values['value']);
+
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -3176,6 +3149,15 @@ if ($debug)
             return $entity;
 
 
+        // If this is an IntegerValue entity, set the value back to an integer or null so it gets saved correctly
+        if ($typeclass == 'IntegerValue') {
+            if ($properties['value'] == '')
+                $properties['value'] = null;
+            else
+                $properties['value'] = intval($properties['value']);
+        }
+
+
         // Determine whether to create a new entry or modify the previous one
         $remove_old_entry = false;
         $new_entity = null;
@@ -3183,11 +3165,7 @@ if ($debug)
             // Create a new entry and copy the previous one's data over
             $remove_old_entry = true;
 
-            // Determine which type of entity to create
-            $typeclass = $entity->getDataField()->getFieldType()->getTypeClass();
-            $classname = "ODR\\AdminBundle\\Entity\\".$typeclass;
-
-            /** @var Boolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $new_entity */
+            /** @var ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $new_entity */
             $new_entity = new $classname();
             $new_entity->setDataRecord( $entity->getDataRecord() );
             $new_entity->setDataField( $entity->getDataField() );
@@ -3204,9 +3182,9 @@ if ($debug)
             $new_entity = $entity;
         }
 
-        // Set any new properties
-        if ( isset($properties['value']) )
-            $new_entity->setValue( $properties['value'] );
+        // Set any new properties...not checking isset() because it couldn't reach this point without being isset()
+        // Also,  isset( array[key] ) == false  when  array(key => null)
+        $new_entity->setValue( $properties['value'] );
 
         $new_entity->setUpdatedBy($user);
 
@@ -3600,36 +3578,109 @@ if ($debug)
 
 
     /**
-     * Creates a new RadioSelection entity
+     * Creates a new RadioSelection entity for the specified RadioOption/Datarecordfield pair if one doesn't already exist
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                         The user requesting the creation of this entity.
      * @param RadioOptions $radio_option         The RadioOption entity receiving this RadioSelection
-     * @param DataRecordFields $datarecordfield
-     * @param integer|string $initial_value      If "auto", initial value is based on the default setting from RadioOption...otherwise 0 for unselected, or 1 for selected
+     * @param DataRecordFields $drf
      *
      * @return RadioSelection
      */
-    protected function ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield, $initial_value = "auto")
+    protected function ODR_addRadioSelection($em, $user, $radio_option, $drf)
     {
-        //
-        $radio_selection = new RadioSelection();
-        $radio_selection->setRadioOption($radio_option);
-        $radio_selection->setDataRecordFields($datarecordfield);
-        $radio_selection->setCreatedBy($user);
+        /** @var RadioSelection $radio_selection */
+        $radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy( array('dataRecordFields' => $drf->getId(), 'radioOption' => $radio_option->getId()) );
+        if ($radio_selection == null) {
+            // TODO - better method for doing this?
+            $query =
+               'INSERT INTO odr_radio_selection (data_record_fields_id, radio_option_id)
+                SELECT * FROM (SELECT :dataRecordFields AS drf_id, :radioOption AS ro_id) AS tmp
+                WHERE NOT EXISTS (
+                    SELECT id FROM odr_radio_selection WHERE data_record_fields_id = :dataRecordFields AND radio_option_id = :radioOption AND deletedAt IS NULL
+                ) LIMIT 1;';
+            $params = array('dataRecordFields' => $drf->getId(), 'radioOption' => $radio_option->getId());
+            $conn = $em->getConnection();
+            $rowsAffected = $conn->executeUpdate($query, $params);
 
-        if ($initial_value == "auto") {
-            if ($radio_option->getIsDefault() == true)
-                $radio_selection->setSelected(1);
-            else
-                $radio_selection->setSelected(0);
+            $radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy( array('dataRecordFields' => $drf->getId(), 'radioOption' => $radio_option->getId()) );
+            $radio_selection->setCreated( new \DateTime() );
+            $radio_selection->setCreatedBy($user);
+            $radio_selection->setUpdated( new \DateTime() );
+            $radio_selection->setUpdatedBy($user);
+
+            $radio_selection->setSelected(0);
+
+            $em->persist($radio_selection);
+            $em->flush($radio_selection);
+            $em->refresh($radio_selection);
         }
-        else {
-            $radio_selection->setSelected($initial_value);
-        }
-        $em->persist($radio_selection);
 
         return $radio_selection;
+    }
+
+
+    /**
+     * Modifies a given radio selection entity by copying the old value into a new storage entity, then deleting the old entity.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param RadioSelection $entity
+     * @param array $properties
+     *
+     * @return RadioSelection
+     */
+    protected function ODR_copyRadioSelection($em, $user, $entity, $properties)
+    {
+        // No point making new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'selected' => $entity->getSelected()
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $entity;
+
+
+        // Determine whether to create a new entry or modify the previous one
+        $remove_old_entry = false;
+        $new_entity = null;
+        if ( self::createNewMetaEntry($user, $entity) ) {
+            // Create a new entry and copy the previous one's data over
+            $remove_old_entry = true;
+
+            /** @var RadioSelection $new_entity */
+            $new_entity = new RadioSelection();
+            $new_entity->setRadioOption( $entity->getRadioOption() );
+            $new_entity->setDataRecordFields( $entity->getDataRecordFields() );
+
+            $new_entity->setSelected( $entity->getSelected() );
+
+            $new_entity->setCreatedBy($user);
+        }
+        else {
+            $new_entity = $entity;
+        }
+
+        // Set any new properties
+        if ( isset($properties['selected']) )
+            $new_entity->setSelected( $properties['selected'] );
+
+        $new_entity->setUpdatedBy($user);
+
+
+        // Save the new entry and delete the old one if needed
+        if ($remove_old_entry)
+            $em->remove($entity);
+
+        $em->persist($new_entity);
+        $em->flush();
+
+        return $new_entity;
     }
 
 
@@ -4245,36 +4296,6 @@ if ($debug)
 
 
     /**
-     * Creates and persists a new ThemeElementField entity.
-     * @deprecated
-     *
-     * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user                  The user requesting the creation of this entity.
-     * @param DataType $datatype
-     * @param DataFields $datafield
-     * @param ThemeElement $theme_element
-     *
-     * @return ThemeElementField
-     */
-    protected function ODR_addThemeElementFieldEntry($em, $user, $datatype, $datafield, $theme_element)
-    {
-        $theme_element_field = new ThemeElementField();
-        $theme_element_field->setCreatedBy($user);
-        $theme_element_field->setUpdatedBy($user);
-        if ($datatype !== null)
-            $theme_element_field->setDataType($datatype);
-        if ($datafield !== null)
-            $theme_element_field->setDataFields($datafield);
-        $theme_element_field->setThemeElement($theme_element);
-        $theme_element_field->setDisplayOrder(999);
-
-        $em->persist($theme_element_field);
-
-        return $theme_element_field;
-    }
-
-
-    /**
      * Creates and persists a new ThemeDataField entity.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -4757,15 +4778,15 @@ if ($debug)
         /** @var ImageSizes[] $sizes */
         $sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataFields' => $my_obj->getDataField()->getId()) );
 
-        foreach($sizes as $size) {
+        foreach ($sizes as $size) {
             // Set original
-            if($size->getOriginal()) {
+            if ($size->getOriginal()) {
                 $my_obj->setImageSize($size);
                 $em->persist($my_obj);
             }
             else {
                 $proportional = false;
-                if($size->getSizeConstraint() == "width" ||
+                if ($size->getSizeConstraint() == "width" ||
                     $size->getSizeConstraint() == "height" ||
                     $size->getSizeConstraint() == "both") {
                         $proportional = true;
@@ -4792,7 +4813,7 @@ if ($debug)
                 $image = $repo_image->findOneBy( array('parent' => $my_obj->getId(), 'imageSize' => $size->getId()) );
 
                 // If thumbnail doesn't exist, create a new image entity
-                if ( $image == null ) {
+                if ($image == null) {
                     $image = new Image();
                     $image->setDataField($my_obj->getDataField());
                     $image->setFieldType($my_obj->getFieldType());

@@ -274,11 +274,13 @@ class FlowController extends ODRCustomController
 
                 // Have Symfony check mimetype now that file is uploaded...
                 if ( count($validation_params['mimeTypes']) > 0 && !in_array($uploaded_file->getMimeType(), $validation_params['mimeTypes']) ) {
+                    $mimetype = $uploaded_file->getMimeType();
+
                     // Not allowed to upload file...delete it
                     unlink( $destination );
 
                     // Instruct flow.js to abort
-                    return self::flowAbort( $validation_params['mimeTypesErrorMessage'] );
+                    return self::flowAbort( 'You attempted to upload a file with mimetype "'.$mimetype.'", '.$validation_params['mimeTypesErrorMessage'] );
                 }
 
                 if ($upload_type == 'csv') {
