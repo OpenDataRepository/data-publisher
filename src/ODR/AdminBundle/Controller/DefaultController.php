@@ -349,7 +349,10 @@ class DefaultController extends ODRCustomController
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         // Store the dashboard data in memcached
-        $redis->set($redis_prefix.'.dashboard_'.$datatype_id, gzcompress(serialize($data)), 1*24*60*60); // Cache this dashboard entry for upwards of one day
+        // TODO Figure out how to set an lifetime using PREDIS
+        $redis->set($redis_prefix.'.dashboard_'.$datatype_id, gzcompress(serialize($data))); // Cache this dashboard entry for upwards of one day
+        $redis->expire($redis_prefix.'.dashboard_'.$datatype_id, 1*24*60*60); // Cache this dashboard entry for upwards of one day
+        // $redis->set($redis_prefix.'.dashboard_'.$datatype_id, gzcompress(serialize($data)), 1*24*60*60); // Cache this dashboard entry for upwards of one day
 
         // 
         return $data;

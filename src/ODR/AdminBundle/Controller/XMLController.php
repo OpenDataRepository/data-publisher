@@ -586,7 +586,7 @@ if ($write) {
                         $ret .= 'Moved "'.$xml_filename.'" to succeeded directory'."\n";
 
                         // Rebuild the list of sorted datarecords, since the datarecord order may have changed
-                        $redis->delete($redis_prefix.'.data_type_'.$datatype_id.'_record_order');
+                        $redis->del($redis_prefix.'.data_type_'.$datatype_id.'_record_order');
                     }
                     else {
                         throw new \Exception('Could not move "'.$xml_filename.'" to succeeded directory');

@@ -553,7 +553,7 @@ exit();
                 return $data;
             }
 
-            $cached_searches = self::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            $cached_searches = self::getRedisData($redis->get($redis_prefix.'.cached_search_results'));
         }
 
         // Now that the search result is guaranteed to exist, grab it
@@ -969,7 +969,7 @@ exit();
      *
      * @return data or object
      */
-    public function getRedisData($redis_value) {
+    public static function getRedisData($redis_value) {
         if(strlen($redis_value) > 0) {
             return unserialize(gzuncompress($redis_value));
         }
@@ -1979,9 +1979,9 @@ if ($debug)
                 $datarecord_id = $result['dr_id'];
 
                 if ($force_shortresults_recache)
-                    $redis->delete($redis_prefix.'.data_record_short_form_'.$datarecord_id);
+                    $redis->del($redis_prefix.'.data_record_short_form_'.$datarecord_id);
                 if ($force_textresults_recache)
-                    $redis->delete($redis_prefix.'.data_record_short_text_form_'.$datarecord_id);
+                    $redis->del($redis_prefix.'.data_record_short_text_form_'.$datarecord_id);
 
                 // Insert the new job into the queue
                 $priority = 1024;   // should be roughly default priority
@@ -2020,8 +2020,8 @@ if ($debug)
                 continue;
 
             // Delete relevant memcached entries...
-            $redis->delete($redis_prefix.'.data_record_long_form_'.$grandparent_id);
-            $redis->delete($redis_prefix.'.data_record_long_form_public_'.$grandparent_id);
+            $redis->del($redis_prefix.'.data_record_long_form_'.$grandparent_id);
+            $redis->del($redis_prefix.'.data_record_long_form_public_'.$grandparent_id);
 
             // Insert the new job into the queue
             $priority = 1024;   // should be roughly default priority
@@ -2131,12 +2131,12 @@ if ($debug)
         // Delete the memcached entries so a recache is guaranteed...
         $datarecord_id = $datarecord->getId();
         if ($force_shortresults_recache)
-            $redis->delete($redis_prefix.'.data_record_short_form_'.$datarecord_id);
+            $redis->del($redis_prefix.'.data_record_short_form_'.$datarecord_id);
         if ($force_textresults_recache)
-            $redis->delete($redis_prefix.'.data_record_short_text_form_'.$datarecord_id);
+            $redis->del($redis_prefix.'.data_record_short_text_form_'.$datarecord_id);
 
-        $redis->delete($redis_prefix.'.data_record_long_form_'.$datarecord_id);
-        $redis->delete($redis_prefix.'.data_record_long_form_public_'.$datarecord_id);
+        $redis->del($redis_prefix.'.data_record_long_form_'.$datarecord_id);
+        $redis->del($redis_prefix.'.data_record_long_form_public_'.$datarecord_id);
 
         // Insert the new job into the queue
         $priority = 1024;   // should be roughly default priority
@@ -2174,8 +2174,8 @@ if ($debug)
                 continue;
 
             // Delete relevant memcached entries...
-            $redis->delete($redis_prefix.'.data_record_long_form_'.$grandparent_id);
-            $redis->delete($redis_prefix.'.data_record_long_form_public_'.$grandparent_id);
+            $redis->del($redis_prefix.'.data_record_long_form_'.$grandparent_id);
+            $redis->del($redis_prefix.'.data_record_long_form_public_'.$grandparent_id);
 
             // Insert the new job into the queue
             $priority = 1024;   // should be roughly default priority
@@ -2218,7 +2218,7 @@ if ($debug)
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        $redis->delete($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
+        $redis->del($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
     }
 
 
@@ -2245,7 +2245,7 @@ if ($debug)
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        $redis->delete($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
+        $redis->del($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
     }
 
 
@@ -2282,7 +2282,7 @@ if ($debug)
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        $redis->delete($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
+        $redis->del($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
     }
 
 

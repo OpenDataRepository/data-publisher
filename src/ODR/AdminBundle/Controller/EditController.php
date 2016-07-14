@@ -118,7 +118,7 @@ class EditController extends ODRCustomController
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $redis->delete($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
+            $redis->del($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
 
             // See if any cached search results need to be deleted...
             $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
@@ -131,7 +131,7 @@ class EditController extends ODRCustomController
                 }
 
                 // Save the collection of cached searches back to memcached
-                $redis->set($redis_prefix.'.cached_search_results', gzcompess(serialize($cached_searches)), 0);
+                $redis->set($redis_prefix.'.cached_search_results', gzcompess(serialize($cached_searches)));
             }
         }
         catch (\Exception $e) {
@@ -357,13 +357,13 @@ class EditController extends ODRCustomController
             // -----------------------------------
             // Delete the list of associated datarecords for the datarecords that linked to this now-deleted datarecord
             foreach ($ancestor_datarecord_ids as $num => $ancestor_id)
-                $redis->delete($redis_prefix.'.associated_datarecords_for_'.$ancestor_id);
+                $redis->del($redis_prefix.'.associated_datarecords_for_'.$ancestor_id);
 
             // Delete the cached entry for this now-deleted datarecord
-            $redis->delete($redis_prefix.'.cached_datarecord_'.$datarecord_id);
+            $redis->del($redis_prefix.'.cached_datarecord_'.$datarecord_id);
 
             // Delete the sorted list of datarecords for this datatype
-            $redis->delete($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
+            $redis->del($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
 
 
             // ----------------------------------------
@@ -567,10 +567,10 @@ class EditController extends ODRCustomController
             // -----------------------------------
             // Delete the list of associated datarecords for the datarecords that linked to this now-deleted datarecord
             foreach ($ancestor_datarecord_ids as $num => $ancestor_id)
-                $redis->delete($redis_prefix.'.associated_datarecords_for_'.$ancestor_id);
+                $redis->del($redis_prefix.'.associated_datarecords_for_'.$ancestor_id);
 
             // Delete the cached entries for this datarecord's grandparent
-            $redis->delete($redis_prefix.'.associated_datarecords_for_'.$grandparent_id);
+            $redis->del($redis_prefix.'.associated_datarecords_for_'.$grandparent_id);
             parent::tmp_updateDatarecordCache($em, $grandparent, $user);
 
 

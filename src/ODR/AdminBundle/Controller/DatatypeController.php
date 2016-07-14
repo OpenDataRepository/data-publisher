@@ -393,7 +393,7 @@ class DatatypeController extends ODRCustomController
                     /** @var User[] $users */
                     $users = $user_manager->findUsers();
                     foreach ($users as $user)
-                        $redis->delete($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
+                        $redis->del($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
                 }
                 else {
                     // Return any errors encountered

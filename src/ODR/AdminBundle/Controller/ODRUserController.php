@@ -1028,8 +1028,8 @@ class ODRUserController extends ODRCustomController
                         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
                         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-                        $redis->delete($redis_prefix.'.user_'.$user_id.'_datatype_permissions');
-                        $redis->delete($redis_prefix.'.user_'.$user_id.'_datafield_permissions');
+                        $redis->del($redis_prefix.'.user_'.$user_id.'_datatype_permissions');
+                        $redis->del($redis_prefix.'.user_'.$user_id.'_datafield_permissions');
                     }
 
                     $user_manager->updateUser($user);
@@ -1391,9 +1391,9 @@ class ODRUserController extends ODRCustomController
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-            $redis->delete($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
+            $redis->del($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
             if ($reset_can_edit_datafield)
-                $redis->delete($redis_prefix.'.user_'.$user->getId().'_datafield_permissions');
+                $redis->del($redis_prefix.'.user_'.$user->getId().'_datafield_permissions');
         }
     }
 
@@ -1954,7 +1954,7 @@ class ODRUserController extends ODRCustomController
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-            $redis->delete($redis_prefix.'.user_'.$user->getId().'_datafield_permissions');
+            $redis->del($redis_prefix.'.user_'.$user->getId().'_datafield_permissions');
 
         }
         catch (\Exception $e) {

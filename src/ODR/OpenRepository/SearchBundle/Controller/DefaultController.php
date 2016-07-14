@@ -18,6 +18,8 @@ namespace ODR\OpenRepository\SearchBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
+// Controllers/Classes
+use ODR\AdminBundle\Controller\ODRCustomController;
 // Entites
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
@@ -1861,7 +1863,7 @@ if ($timing)
                 $searched_datafields[] = $datatype->getSortField()->getId();
             $searched_datafields = implode(',', $searched_datafields);
 
-            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            $cached_searches = ODRCustomController::getRedisData($redis->get($redis_prefix.'.cached_search_results'));
 
 if ($debug || $more_debug || $timing)
     print '</pre>';
@@ -1889,7 +1891,7 @@ if ($timing) {
             else
                 $cached_searches[$datatype_id][$search_checksum]['not_logged_in'] = array('complete_datarecord_list' => $datarecords, 'datarecord_list' => $grandparents);
 
-            $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)), 0);
+            $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
 
 if ($more_debug) {
 //    print 'saving datarecord_str: '.$datarecords."\n";

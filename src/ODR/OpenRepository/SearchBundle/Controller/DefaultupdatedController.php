@@ -16,10 +16,10 @@
 
 namespace ODR\OpenRepository\SearchBundle\Controller;
 
+
+// Controllers/Classes
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-
 use ODR\AdminBundle\Controller\ODRCustomController;
-
 // Entites
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
@@ -320,7 +320,7 @@ exit();
             }
             else {
                 // Find search slug and get datatype
-                if ($target_datatype = parent::getRedisData(($redis->get($redis_prefix . '.target_datatype_' . $search_slug)))) {
+                if ($target_datatype = ODRCustomController::getRedisData(($redis->get($redis_prefix . '.target_datatype_' . $search_slug)))) {
                     $target_datatype = unserialize($target_datatype);
                    //  No further action needed
                 } else {
@@ -345,7 +345,7 @@ exit();
                     $target_datatype = $query->getSingleResult();
 
                     // Store Cache Entry
-                    $redis->set($redis_prefix . '.target_datatype_' . $search_slug, gzcompress(serialize($target_datatype)), 0);
+                    $redis->set($redis_prefix . '.target_datatype_' . $search_slug, gzcompress(serialize($target_datatype)));
                     $t1 = microtime(true);
                 }
 
@@ -384,7 +384,7 @@ $debug = false;
 
 
             // Find search slug and get datatype
-            if ($related_datatypes = parent::getRedisData(($redis->get($redis_prefix . '.related_datatypes_' . $search_slug)))) {
+            if ($related_datatypes = ODRCustomController::getRedisData(($redis->get($redis_prefix . '.related_datatypes_' . $search_slug)))) {
                 $related_datatypes = unserialize($related_datatypes);
                 //  No further action needed
             } else {
@@ -393,7 +393,7 @@ $debug = false;
                 $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $user_permissions);
 
                 // Store Cache Entry
-                $redis->set($redis_prefix . '.related_datatypes_' . $search_slug, gzcompress(serialize($related_datatypes)), 0);
+                $redis->set($redis_prefix . '.related_datatypes_' . $search_slug, gzcompress(serialize($related_datatypes)));
                 $t1 = microtime(true);
             }
 
@@ -404,7 +404,7 @@ if ($debug) {
     print '$related_datatypes: '.print_r($related_datatypes, true)."\n";
 }
             // Find search slug and get datatype
-            if ($searchable_datafields = parent::getRedisData(($redis->get($redis_prefix . '.searchable_datafields_' . $search_slug)))) {
+            if ($searchable_datafields = ODRCustomController::getRedisData(($redis->get($redis_prefix . '.searchable_datafields_' . $search_slug)))) {
                 $searchable_datafields = unserialize($searchable_datafields);
                 //  No further action needed
             } else {
@@ -412,7 +412,7 @@ if ($debug) {
                 $searchable_datafields = self::getSearchableDatafields($em, $related_datatypes, $user_permissions);
 
                 // Store Cache Entry
-                $redis->set($redis_prefix . '.searchable_datafields_' . $search_slug, gzcompress(serialize($searchable_datafields)), 0);
+                $redis->set($redis_prefix . '.searchable_datafields_' . $search_slug, gzcompress(serialize($searchable_datafields)));
                 $t1 = microtime(true);
             }
 
@@ -437,7 +437,7 @@ if ($debug) {
                 $thedatafield = $target_datatype->getBackgroundImageField();
 
                 // Find search slug and get datatype
-                if ($images = parent::getRedisData(($redis->get($redis_prefix . '.images_' . $search_slug)))) {
+                if ($images = ODRCustomController::getRedisData(($redis->get($redis_prefix . '.images_' . $search_slug)))) {
                     $images = unserialize($images);
                     //  No further action needed
                 } else {
@@ -459,7 +459,7 @@ if ($debug) {
                     $images = $query->getArrayResult();
 
                     // Store Cache Entry
-                    $redis->set($redis_prefix . '.images_' . $search_slug, gzcompress(serialize($images)), 0);
+                    $redis->set($redis_prefix . '.images_' . $search_slug, gzcompress(serialize($images)));
                 }
 
                 // Pick a random image from the list of available images
@@ -475,7 +475,7 @@ if ($debug) {
             // TODO Filter to users who have access on this datatype
 
             // Find search slug and get datatype
-            if ($user_list = parent::getRedisData(($redis->get($redis_prefix . '.user_list_' . $search_slug)))) {
+            if ($user_list = ODRCustomController::getRedisData(($redis->get($redis_prefix . '.user_list_' . $search_slug)))) {
                 $user_list = unserialize($user_list);
                 //  No further action needed
             } else {
@@ -484,7 +484,7 @@ if ($debug) {
                 $user_list = $user_manager->findUsers();
 
                 // Store Cache Entry
-                $redis->set($redis_prefix . '.user_list_' . $search_slug, gzcompress(serialize($user_list)), 0);
+                $redis->set($redis_prefix . '.user_list_' . $search_slug, gzcompress(serialize($user_list)));
                 $t1 = microtime(true);
             }
 

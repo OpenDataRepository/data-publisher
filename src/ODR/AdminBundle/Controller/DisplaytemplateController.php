@@ -190,7 +190,7 @@ class DisplaytemplateController extends ODRCustomController
                 $properties['sortField'] = null;
 
                 // Delete the sort order for the datatype too, so it doesn't attempt to sort on a non-existent datafield
-                $redis->delete($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
+                $redis->del($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
             }
 
             // Ensure that the datatype doesn't continue to think this datafield is its background image field
@@ -230,7 +230,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Wipe cached data for the grandparent datatype
-//            $redis->delete($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
+//            $redis->del($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
 
             // Wipe cached data for all the datatype's datarecords
             $query = $em->createQuery(
@@ -242,7 +242,7 @@ class DisplaytemplateController extends ODRCustomController
 
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
-                $redis->delete($redis_prefix.'.cached_datarecord_'.$dr_id);
+                $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
 
                 // TODO - schedule each of these datarecords for a recache?
             }
@@ -250,7 +250,7 @@ class DisplaytemplateController extends ODRCustomController
             // Wipe datafield permissions involving this datafield
             foreach ($all_affected_users as $user) {
                 $user_id = $user['user_id'];
-                $redis->delete($redis_prefix.'.user_'.$user_id.'_datafield_permissions');
+                $redis->del($redis_prefix.'.user_'.$user_id.'_datafield_permissions');
 
                 // TODO - schedule each of these for a recache?
             }
@@ -398,7 +398,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
             // Wipe cached data for the grandparent datatype
-//            $redis->delete($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
+//            $redis->del($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
 
             // Wipe cached data for all the datatype's datarecords
             $query = $em->createQuery(
@@ -410,7 +410,7 @@ class DisplaytemplateController extends ODRCustomController
 
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
-                $redis->delete($redis_prefix.'.cached_datarecord_'.$dr_id);
+                $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
 
                 // TODO - schedule each of these datarecords for a recache?
             }
@@ -651,8 +651,8 @@ class DisplaytemplateController extends ODRCustomController
                 foreach ($results as $result) {
                     $dr_id = $result['dr_id'];
 
-                    $redis->delete($redis_prefix.'.cached_datarecord_'.$dr_id);
-                    $redis->delete($redis_prefix.'.associated_datarecords_for_'.$dr_id);
+                    $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
+                    $redis->del($redis_prefix.'.associated_datarecords_for_'.$dr_id);
                 }
             }
 
@@ -809,8 +809,8 @@ class DisplaytemplateController extends ODRCustomController
 
             // Delete all cached permissions
             foreach ($user_list as $user) {
-                $redis->delete($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
-                $redis->delete($redis_prefix.'.user_'.$user->getId().'_datafield_permissions');
+                $redis->del($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
+                $redis->del($redis_prefix.'.user_'.$user->getId().'_datafield_permissions');
             }
 
             // ...cached searches
@@ -824,7 +824,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // ...and layout data
             foreach ($datatypes_to_delete as $num => $dt_id)
-                $redis->delete($redis_prefix.'.cached_datatype_'.$dt_id);
+                $redis->del($redis_prefix.'.cached_datatype_'.$dt_id);
 
         }
         catch (\Exception $e) {
@@ -1140,7 +1140,7 @@ class DisplaytemplateController extends ODRCustomController
             /** @var User[] $user_list */
             $user_list = $user_manager->findUsers();
             foreach ($user_list as $u) {
-                $redis->delete($redis_prefix.'.user_'.$u->getId().'_datafield_permissions');
+                $redis->del($redis_prefix.'.user_'.$u->getId().'_datafield_permissions');
 
                 // TODO - schedule a permissions recache via beanstalk?
             }
@@ -1851,7 +1851,7 @@ class DisplaytemplateController extends ODRCustomController
             $user_manager = $this->container->get('fos_user.user_manager');
             $users = $user_manager->findUsers();
             foreach ($users as $user)
-                $redis->delete($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
+                $redis->del($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
 
 
             // ----------------------------------------
@@ -2237,7 +2237,7 @@ class DisplaytemplateController extends ODRCustomController
 
                 // Delete memcached key that stores linked datarecords for each of the affected datarecords
                 foreach ($datarecords_to_recache as $dr_id => $num)
-                    $redis->delete($redis_prefix.'.associated_datarecords_for_'.$dr_id);
+                    $redis->del($redis_prefix.'.associated_datarecords_for_'.$dr_id);
             }
 
 //throw new \Exception('do not continue');
@@ -3047,7 +3047,7 @@ class DisplaytemplateController extends ODRCustomController
                 /** @var User[] $user_list */
                 $user_list = $user_manager->findUsers();
                 foreach ($user_list as $u) {
-                    $redis->delete($redis_prefix.'.user_'.$u->getId().'_datafield_permissions');
+                    $redis->del($redis_prefix.'.user_'.$u->getId().'_datafield_permissions');
 
                     // TODO - schedule a permissions recache via beanstalk?
                 }
@@ -3826,7 +3826,7 @@ class DisplaytemplateController extends ODRCustomController
 
                         foreach ($results as $result) {
                             $dr_id = $result['dr_id'];
-                            $redis->delete($redis_prefix.'.cached_datarecord_'.$dr_id);
+                            $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
                         }
                     }
 

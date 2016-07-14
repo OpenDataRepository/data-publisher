@@ -423,7 +423,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                     // TODO - code to directly update the cached version of the datarecord
                     // Locate and clear the cache entry for this datarecord
                     $grandparent_datarecord_id = $datarecord->getGrandparent()->getId();
-                    $redis->delete($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
+                    $redis->del($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
                 }
                 else {
                     $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";

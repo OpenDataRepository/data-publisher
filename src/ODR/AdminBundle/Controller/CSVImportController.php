@@ -3290,7 +3290,7 @@ print_r($new_mapping);
 
             // ----------------------------------------
             // Rebuild the list of sorted datarecords, since the datarecord order may have changed
-            $redis->delete($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
+            $redis->del($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
             // Schedule the datarecord for an update
             $options = array(
                 'mark_as_updated' => true,
