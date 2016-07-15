@@ -1206,9 +1206,13 @@ odr_duplicate_radio_check:
 
 #-----------------------------------------
 # Metadata creation (one-time use)
+odr_console_start_build_metadata:
+    path:  /admin/build_metadata_start
+    defaults: { _controller: ODRAdminBundle:Worker:startbuildmetadata }
+
 odr_start_build_metadata_entries:
-    path:  /admin/build_metadata_entries
-    defaults: { _controller:ODRAdminBundle:Worker:startbuildmetadataentries }
+    path:  /beanstalk/build_metadata_entries
+    defaults: { _controller: ODRAdminBundle:Worker:startbuildmetadataentries }
 
 odr_radio_option_metadata:
     path: /beanstalk/radio_option_metadata

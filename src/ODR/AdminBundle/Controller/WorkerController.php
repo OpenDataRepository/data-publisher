@@ -1665,14 +1665,11 @@ print '</pre>';
 
 
     /**
-     * Looks for entities without metadata entries in the database, and schedules them for beanstalk to create
-     *
-     * @param integer $datatype_id Which datatype should have all its image thumbnails rebuilt
      * @param Request $request
      *
      * @return Response
      */
-    public function startbuildmetadataentriesAction(Request $request)
+    public function startbuildmetadataAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1704,6 +1701,78 @@ print '</pre>';
             // --------------------
 
 
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_start_build_metadata_entries');
+
+            // Insert the new job into the queue
+            $priority = 1024;   // should be roughly default priority
+            $payload = json_encode(
+                array(
+                    "url" => $url,
+//                    "redis_previx" => $redis_prefix,
+                    "api_key" => $api_key,
+                )
+            );
+
+            $delay = 1;
+            $pheanstalk->useTube('build_metadata_start')->put($payload, $priority, $delay);
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x212672862 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Looks for entities without metadata entries in the database, and schedules them for beanstalk to create
+     *
+     * @param integer $datatype_id Which datatype should have all its image thumbnails rebuilt
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function startbuildmetadataentriesAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $pheanstalk = $this->get('pheanstalk');
+            $router = $this->container->get('router');
+
+            $redis = $this->container->get('snc_redis.default');;
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+
+            $api_key = $this->container->getParameter('beanstalk_api_key');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+//            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find(2);     // TEMPORARY HACK
+
+//            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                return parent::permissionDeniedError();
+            // --------------------
+
+
             // ----------------------------------------
             // Radio Options
             // ----------------------------------------
@@ -1715,13 +1784,17 @@ print '</pre>';
             $em->getFilters()->disable('softdeleteable');
             $query = $em->createQuery(
                'SELECT ro.id AS id
-                FROM ODRAdminBundle:RadioOptions AS ro'
+                FROM ODRAdminBundle:RadioOptions AS ro
+                LEFT JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
+                WHERE rom.id IS NULL'
             );
             $results = $query->getArrayResult();
             $em->getFilters()->enable('softdeleteable');
 
-//print_r($results);
-//return;
+//print $query->getSQL();
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+            $return['d'] .= 'Scheduled '.count($results).' Radio Options for metadata creation...'."\n";
 
             if (count($results) > 0) {
                 $object_type = 'radio_option';
@@ -1756,14 +1829,18 @@ print '</pre>';
             // Grab a list of all radio options in the database
             $em->getFilters()->disable('softdeleteable');
             $query = $em->createQuery(
-               'SELECT e.id AS id
-                FROM ODRAdminBundle:File AS e'
+               'SELECT f.id AS id
+                FROM ODRAdminBundle:File AS f
+                LEFT JOIN ODRAdminBundle:FileMeta AS fm WITH fm.file = f
+                WHERE fm.id IS NULL'
             );
             $results = $query->getArrayResult();
             $em->getFilters()->enable('softdeleteable');
 
-//print_r($results);
-//return;
+//print $query->getSQL();
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+            $return['d'] .= 'Scheduled '.count($results).' Files for metadata creation...'."\n";
 
             if (count($results) > 0) {
                 $object_type = 'file';
@@ -1798,15 +1875,18 @@ print '</pre>';
             // Grab a list of all radio options in the database
             $em->getFilters()->disable('softdeleteable');
             $query = $em->createQuery(
-               'SELECT e.id AS id
-                FROM ODRAdminBundle:Image AS e
-                WHERE e.original = 1'
+               'SELECT i.id AS id
+                FROM ODRAdminBundle:Image AS i
+                LEFT JOIN ODRAdminBundle:ImageMeta AS im WITH im.image = i
+                WHERE i.original = 1 AND im.id IS NULL'
             );
             $results = $query->getArrayResult();
             $em->getFilters()->enable('softdeleteable');
 
-//print_r($results);
-//return;
+//print $query->getSQL();
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+            $return['d'] .= 'Scheduled '.count($results).' Images for metadata creation...'."\n";
 
             if (count($results) > 0) {
                 $object_type = 'image';
@@ -1842,13 +1922,17 @@ print '</pre>';
             $em->getFilters()->disable('softdeleteable');
             $query = $em->createQuery(
                'SELECT dt.id AS id
-                FROM ODRAdminBundle:DataTree AS dt'
+                FROM ODRAdminBundle:DataTree AS dt
+                LEFT JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+                WHERE dtm.id IS NULL'
             );
             $results = $query->getArrayResult();
             $em->getFilters()->enable('softdeleteable');
 
-//print_r($results);
-//return;
+//print $query->getSQL();
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+            $return['d'] .= 'Scheduled '.count($results).' DataTrees for metadata creation...'."\n";
 
             if (count($results) > 0) {
                 $object_type = 'datatree';
@@ -1884,13 +1968,17 @@ print '</pre>';
             $em->getFilters()->disable('softdeleteable');
             $query = $em->createQuery(
                'SELECT df.id AS id
-                FROM ODRAdminBundle:DataFields AS df'
+                FROM ODRAdminBundle:DataFields AS df
+                LEFT JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                WHERE dfm.id IS NULL'
             );
             $results = $query->getArrayResult();
             $em->getFilters()->enable('softdeleteable');
 
-//print_r($results);
-//return;
+//print $query->getSQL();
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+            $return['d'] .= 'Scheduled '.count($results).' Datafields for metadata creation...'."\n";
 
             if (count($results) > 0) {
                 $object_type = 'datafield';
@@ -1925,14 +2013,18 @@ print '</pre>';
             // Grab a list of all radio options in the database
             $em->getFilters()->disable('softdeleteable');
             $query = $em->createQuery(
-                'SELECT dt.id AS id
-                FROM ODRAdminBundle:DataType AS dt'
+               'SELECT dt.id AS id
+                FROM ODRAdminBundle:DataType AS dt
+                LEFT JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                WHERE dtm.id IS NULL'
             );
             $results = $query->getArrayResult();
             $em->getFilters()->enable('softdeleteable');
 
-//print_r($results);
-//return;
+//print $query->getSQL();
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+            $return['d'] .= 'Scheduled '.count($results).' Datatypes for metadata creation...'."\n";
 
             if (count($results) > 0) {
                 $object_type = 'datatype';
@@ -1968,13 +2060,17 @@ print '</pre>';
             $em->getFilters()->disable('softdeleteable');
             $query = $em->createQuery(
                'SELECT dr.id AS id
-                FROM ODRAdminBundle:DataRecord AS dr'
+                FROM ODRAdminBundle:DataRecord AS dr
+                LEFT JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                WHERE drm.id IS NULL'
             );
             $results = $query->getArrayResult();
             $em->getFilters()->enable('softdeleteable');
 
-//print_r($results);
-//return;
+//print $query->getSQL();
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+            $return['d'] .= 'Scheduled '.count($results).' Datarecords for metadata creation...'."\n";
 
             if (count($results) > 0) {
                 $object_type = 'datarecord';
