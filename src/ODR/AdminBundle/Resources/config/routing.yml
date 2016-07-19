@@ -1251,7 +1251,7 @@ odr_datatype_metadata:
 
 # Theme Metadata creation
 odr_start_build_theme_entries:
-    path:  /admin/build_theme_entries
+    path:  /beanstalk/build_theme_entries
     defaults: { _controller:ODRAdminBundle:Worker:startbuildthemeentries }
 
 odr_theme_metadata:

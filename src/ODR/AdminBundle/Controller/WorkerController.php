@@ -1703,7 +1703,8 @@ print '</pre>';
 
             // Generate the url for cURL to use
             $url = $this->container->getParameter('site_baseurl');
-            $url .= $router->generate('odr_start_build_metadata_entries');
+            // $url .= $router->generate('odr_start_build_metadata_entries');
+            $url .= $router->generate('odr_start_build_theme_entries');
 
             // Insert the new job into the queue
             $priority = 1024;   // should be roughly default priority
