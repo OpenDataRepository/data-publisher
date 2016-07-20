@@ -5062,7 +5062,7 @@ if ($debug)
         // Need to build an array to store the data
         $data = array(
             'default_sort_value' => $datarecord_data[$datarecord_id]['sortField_value'],
-            'publicDate' => $datarecord_data[$datarecord_id]['dataRecordMeta']['publicDate'],
+            'publicDate' => $datarecord_data[$datarecord_id]['dataRecordMeta']['publicDate']->format('Y-m-d'),
         );
 
         foreach ($datatype_data[$datatype_id]['themes'] as $theme_id => $theme) {
@@ -5898,12 +5898,23 @@ if ($timing) {
                         $drf[$typeclass][0]['createdBy'] = self::cleanUserData( $drf[$typeclass][0]['createdBy'] );
 
                         // Store the value from this storage entity if it's the one being used for external_id/name/sort datafields
-                        if ($external_id_field !== null && $external_id_field == $df_id)
+                        if ($external_id_field !== null && $external_id_field == $df_id) {
                             $datarecord_data[$dr_num]['externalIdField_value'] = $drf[$typeclass][0]['value'];
-                        if ($name_datafield !== null && $name_datafield == $df_id)
-                            $datarecord_data[$dr_num]['nameField_value'] = $drf[$typeclass][0]['value'];
-                        if ($sort_datafield !== null && $sort_datafield == $df_id)
-                            $datarecord_data[$dr_num]['sortField_value'] = $drf[$typeclass][0]['value'];
+                        }
+                        if ($name_datafield !== null && $name_datafield == $df_id) {
+                            // Need to ensure this value is a string so php sorting functions don't complain
+                            if ($typeclass == 'datetimeValue')
+                                $datarecord_data[$dr_num]['nameField_value'] = $drf[$typeclass][0]['value']->format('Y-m-d');
+                            else
+                                $datarecord_data[$dr_num]['nameField_value'] = $drf[$typeclass][0]['value'];
+                        }
+                        if ($sort_datafield !== null && $sort_datafield == $df_id) {
+                            // Need to ensure this value is a string so php sorting functions don't complain
+                            if ($typeclass == 'datetimeValue')
+                                $datarecord_data[$dr_num]['sortField_value'] = $drf[$typeclass][0]['value']->format('Y-m-d');
+                            else
+                                $datarecord_data[$dr_num]['sortField_value'] = $drf[$typeclass][0]['value'];
+                        }
                     }
                 }
 
