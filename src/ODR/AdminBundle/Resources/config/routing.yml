@@ -1206,9 +1206,9 @@ odr_duplicate_radio_check:
 
 #-----------------------------------------
 # Metadata creation (one-time use)
-odr_console_start_build_metadata:
-    path:  /admin/build_metadata_start
-    defaults: { _controller: ODRAdminBundle:Worker:startbuildmetadata }
+#odr_console_start_build_metadata:
+#    path:  /admin/build_metadata_start
+#    defaults: { _controller: ODRAdminBundle:Worker:startbuildmetadata }
 
 odr_start_build_metadata_entries:
     path:  /beanstalk/build_metadata_entries
@@ -1252,9 +1252,14 @@ odr_datatype_metadata:
 # Theme Metadata creation
 odr_start_build_theme_entries:
     path:  /beanstalk/build_theme_entries
-    defaults: { _controller:ODRAdminBundle:Worker:startbuildthemeentries }
+    defaults: { _controller: ODRAdminBundle:Worker:startbuildthemeentries }
 
 odr_theme_metadata:
     path: /beanstalk/theme_metadata
     defaults: { _controller: ODRAdminBundle:Worker:buildthememetadata }
     requirements: { methods: POST }
+
+
+odr_table_rebuild:
+    path:  /admin/rebuild_table_themes
+    defaults: { _controller: ODRAdminBundle:Worker:redoTableThemes }

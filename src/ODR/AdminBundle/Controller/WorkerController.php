@@ -1760,6 +1760,7 @@ print '</pre>';
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
+            throw new \Exception('DISABLED DUE TO TEMPORARY HACK BELOW');
 
             // --------------------
             // Determine user privileges
@@ -2856,11 +2857,13 @@ print '</pre>';
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
+            throw new \Exception('DISABLED DUE TO TEMPORARY HACK BELOW');
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+//            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find(2);     // TEMPORARY HACK
 //            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
@@ -3664,5 +3667,89 @@ print '</pre>';
         $theme_element_meta->setDeletedAt( $theme_element->getDeletedAt() );
 
         return $theme_element_meta;
+    }
+
+
+    /**
+     * Debug function to more easily reset datafield order in table themes
+     *
+     * @param Request $request
+     */
+    public function redoTableThemesAction(Request $request)
+    {
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+
+        /** @var User $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+        if ( !($user->hasRole('ROLE_SUPER_ADMIN')) )
+            throw new \Exception('NOT ALLOWED');
+
+        // Load all theme, theme_element, and theme_datafield information for all non-deleted table themes
+        $query = $em->createQuery(
+           'SELECT t.id AS t_id, te.id AS te_id, tdf.displayOrder AS display_order, df.id AS df_id
+            FROM ODRAdminBundle:Theme AS t
+            JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
+            JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
+            JOIN ODRAdminBundle:DataFields AS df WITH tdf.dataField = df
+            WHERE t.themeType = :theme_type
+            AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL AND df.deletedAt IS NULL
+            ORDER BY t.id, te.displayOrder, tdf.displayOrder'
+        )->setParameters( array('theme_type' => 'table') );
+        $results = $query->getArrayResult();
+
+        $data = array();
+        foreach ($results as $result) {
+            $theme_id = $result['t_id'];
+            $theme_element_id = $result['te_id'];
+            $display_order = $result['display_order'];
+            $datafield_id = $result['df_id'];
+
+            if ( !isset($data[$theme_id]) )
+                $data[$theme_id] = array();
+            if ( !isset($data[$theme_id][$theme_element_id]) )
+                $data[$theme_id][$theme_element_id] = array();
+            if ( !isset($data[$theme_id][$theme_element_id][$display_order]) )
+                $data[$theme_id][$theme_element_id][$display_order] = $datafield_id;
+        }
+
+//        print '<pre>'.print_r($data, true).'</pre>';
+
+        // Get rid of all themes that already have their theme_datafield entries with a starting index of 0
+        foreach ($data as $t_id => $tmp_1) {
+            foreach ($tmp_1 as $te_id => $tmp_2) {
+                if ( isset($tmp_2[0]) ) {
+                    unset( $data[$t_id] );
+                    break;
+                }
+            }
+
+        }
+//        print '<pre>'.print_r($data, true).'</pre>';
+
+
+        $router = $this->get('router');
+
+        // Create some basic html forms to force a call to ThemeController::datafieldorderAction()
+        foreach ($data as $t_id => $tmp_1) {
+            $printed_start = false;
+
+            foreach ($tmp_1 as $te_id => $tmp_2) {
+                $url = $this->container->getParameter('site_baseurl').$router->generate('odr_design_save_datafield_order', array('initial_theme_element_id' => $te_id, 'ending_theme_element_id' => $te_id));
+
+                if (!$printed_start) {
+                    print '<form action="'.$url.'" method="POST">';
+                    $printed_start = true;
+                }
+
+                foreach ($tmp_2 as $display_order => $df_id) {
+                    print '<input type="hidden" name="'.(intval($display_order)-1).'" value="'.$df_id.'" />';
+                }
+            }
+            print '<input type="submit" value="update order for theme '.$t_id.'" />';
+            print '</form>';
+        }
+
+        // Don't bother to return anything...symfony will complain, but it's a debug action anyways
     }
 }
