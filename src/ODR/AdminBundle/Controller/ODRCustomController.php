@@ -1478,7 +1478,7 @@ exit();
      *
      * @return array
      */
-    protected function getDatafieldPermissionsArray($user_id, Request $request, $force_rebuild = false)
+    public function getDatafieldPermissionsArray($user_id, Request $request, $force_rebuild = false)
     {
         try {
             // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
@@ -5125,7 +5125,7 @@ if ($debug)
                                 $df_value = $drf['shortVarchar'][0]['value'];
                                 break;
                             case 'DatetimeValue':
-                                $df_value = $drf['datetimeValue'][0]->format('Y-m-d');
+                                $df_value = $drf['datetimeValue'][0]['value']->format('Y-m-d');
                                 if ($df_value == '-0001-11-30')
                                     $df_value = '0000-00-00';
                                 break;
