@@ -5568,7 +5568,7 @@ if ($timing)
             LEFT JOIN t.themeMeta AS tm
 
             LEFT JOIN dtm.renderPlugin AS dt_rp
-            LEFT JOIN dt_rp.renderPluginInstance AS dt_rpi
+            LEFT JOIN dt_rp.renderPluginInstance AS dt_rpi WITH (dt_rpi.dataType = dt)
             LEFT JOIN dt_rpi.renderPluginOptions AS dt_rpo
             LEFT JOIN dt_rpi.renderPluginMap AS dt_rpm
             LEFT JOIN dt_rpm.renderPluginFields AS dt_rpf
@@ -5586,7 +5586,7 @@ if ($timing)
             LEFT JOIN dfm.fieldType AS ft
 
             LEFT JOIN dfm.renderPlugin AS df_rp
-            LEFT JOIN df_rp.renderPluginInstance AS df_rpi
+            LEFT JOIN df_rp.renderPluginInstance AS df_rpi WITH (df_rpi.dataField = df)
             LEFT JOIN df_rpi.renderPluginOptions AS df_rpo
             LEFT JOIN df_rpi.renderPluginMap AS df_rpm
 
@@ -5594,13 +5594,14 @@ if ($timing)
             LEFT JOIN tdt.dataType AS c_dt
 
             WHERE
-                dt.id = :datatype_id AND (dt_rpi.id IS NULL OR dt_rpi.dataType = :datatype_id)
+                dt.id = :datatype_id
                 AND t.deletedAt IS NULL AND dt.deletedAt IS NULL AND te.deletedAt IS NULL
             ORDER BY dt.id, t.id, tem.displayOrder, te.id, tdf.displayOrder, df.id, rom.displayOrder, ro.id'
         )->setParameters( array('datatype_id' => $datatype_id) );
 
-        //LEFT JOIN df_rp.renderPluginFields AS df_rpf
-//print $query->getSQL();
+                //dt.id = :datatype_id AND (dt_rpi.id IS NULL OR dt_rpi.dataType = :datatype_id)
+
+//print $query->getSQL();  exit();
 /*
         try {
             $sql = $query->getSQL();
@@ -5613,6 +5614,9 @@ if ($timing)
         }
 */
         $datatype_data = $query->getArrayResult();
+
+//    print '<pre>'.print_r($datatype_data, true).'</pre>';  exit();
+
 /*
 if ($timing) {
     $t1 = microtime(true);
@@ -5624,6 +5628,8 @@ if ($timing) {
         // The entity -> entity_metadata relationships have to be one -> many from a database perspective, even though there's only supposed to be a single non-deleted entity_metadata object for each entity
         // Therefore, the preceeding query generates an array that needs to be slightly flattened in a few places
         foreach ($datatype_data as $dt_num => $dt) {
+
+//print 'dt_id: '.$dt['id']."\n";
             // Flatten datatype meta
             $dtm = $dt['dataTypeMeta'][0];
             $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
@@ -5632,6 +5638,7 @@ if ($timing) {
             $new_theme_array = array();
             foreach ($dt['themes'] as $t_num => $theme) {
 
+//print ' -- t_id: '.$theme['id']."\n";
                 $theme_id = $theme['id'];
 
                 $tm = $theme['themeMeta'][0];
@@ -5639,16 +5646,22 @@ if ($timing) {
 
                 // Flatten theme_element_meta of each theme_element
                 foreach ($theme['themeElements'] as $te_num => $te) {
+
+//print '    -- te_id: '.$te['id']."\n";
                     $tem = $te['themeElementMeta'][0];
                     $theme['themeElements'][$te_num]['themeElementMeta'] = $tem;
 
                     // Flatten datafield_meta of each datafield
                     foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+
+//print '       -- tdf_id: '.$tdf['id']."\n";
                         $dfm = $tdf['dataField']['dataFieldMeta'][0];
                         $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['dataFieldMeta'] = $dfm;
 
                         // Flatten radio options if it exists
                         foreach ($tdf['dataField']['radioOptions'] as $ro_num => $ro) {
+
+//print '          -- ro_id: '.$ro['id']."\n";
                             $rom = $ro['radioOptionMeta'][0];
                             $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['radioOptions'][$ro_num]['radioOptionMeta'] = $rom;
                         }
@@ -5658,6 +5671,8 @@ if ($timing) {
 
                     // Attach the is_link property to each of the theme_datatype entries
                     foreach ($te['themeDataType'] as $tdt_num => $tdt) {
+
+//print '       -- tdt_id: '.$tdt['id']."\n";
                         $child_datatype_id = $tdt['dataType']['id'];
                         if ( isset($datatree_array['linked_from'][$child_datatype_id]) && in_array($datatype_id, $datatree_array['linked_from'][$child_datatype_id]) )
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 1;
