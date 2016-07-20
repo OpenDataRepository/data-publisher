@@ -131,7 +131,7 @@ class EditController extends ODRCustomController
                 }
 
                 // Save the collection of cached searches back to memcached
-                $redis->set($redis_prefix.'.cached_search_results', gzcompess(serialize($cached_searches)));
+                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
             }
         }
         catch (\Exception $e) {
@@ -1080,6 +1080,7 @@ class EditController extends ODRCustomController
             $interval = $create_date->diff($current_date);
 
             // TODO - duration in which image can be rotated without creating new entry?
+            // TODO - change to use parent::createNewMetaEntry() ?
             // If the image has existed on the server for less than 30 minutes
             $replace_existing = false;
             if ($interval->days == 0 && $interval->h == 0 && $interval->i <= 30)
@@ -2761,7 +2762,7 @@ if ($debug)
                     'datarecord' => $datarecord,
                     'datafield' => $datafield,
 
-                    'force_image_reload' => false,
+                    'force_image_reload' => true,
 
                     'token_list' => $token_list,
                 )
