@@ -37,7 +37,7 @@ class TextResultsController extends ODRCustomController
      *
      * @param Request $request
      *
-     * @return array
+     * @return Response
      */
     public function datatablesrowrequestAction(Request $request)
     {
@@ -121,6 +121,7 @@ class TextResultsController extends ODRCustomController
             if ( $user === 'anon.' )
                 $logged_in = false;
 
+
             // ----------------------------------------
 //            $datarecord_count = 0;
             $list = array();
@@ -133,22 +134,19 @@ class TextResultsController extends ODRCustomController
             }
             else {
                 // Get all datarecords from the search key
-                if ($search_key !== '') {
-                    // 
-                    $data = parent::getSavedSearch($datatype_id, $search_key, $logged_in, $request);
-//                    $encoded_search_key = $data['encoded_search_key'];
-                    $datarecord_list = $data['datarecord_list'];
+                $data = parent::getSavedSearch($datatype_id, $search_key, $logged_in, $request);
+//                $encoded_search_key = $data['encoded_search_key'];
+                $datarecord_list = $data['datarecord_list'];
 /*
-                    // If the user is attempting to view a datarecord from a search that returned no results...
-                    if ($encoded_search_key !== '' && $datarecords === '') {
-                        // ...redirect to "no results found" page
-                        return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
-                    }
-*/
-                    // Convert the comma-separated list into an array
-                    if ( $data['error'] == false && trim($datarecord_list) !== '')
-                        $list = explode(',', $datarecord_list);
+                // If the user is attempting to view a datarecord from a search that returned no results...
+                if ($encoded_search_key !== '' && $datarecords === '') {
+                    // ...redirect to "no results found" page
+                    return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
                 }
+*/
+                // Convert the comma-separated list into an array
+                if ( $data['error'] == false && trim($datarecord_list) !== '')
+                    $list = explode(',', $datarecord_list);
             }
 
             // Save how many records total there are before filtering...
@@ -244,10 +242,17 @@ class TextResultsController extends ODRCustomController
                         $dr_id = $result['dr_id'];
                         $value = $result['value'];
 
-                        if ($typeclass == 'IntegerValue')
+                        if ($typeclass == 'IntegerValue') {
                             $value = intval($value);
-                        else if ($typeclass == 'DecimalValue')
+                        }
+                        else if ($typeclass == 'DecimalValue') {
                             $value = floatval($value);
+                        }
+                        else if ($typeclass == 'DatetimeValue') {
+                            $value = $value->format('Y-m-d');
+                            if ($value == '-0001-11-30')
+                                $value = '0000-00-00';
+                        }
 
                         $query_results[$dr_id] = $value;
                     }

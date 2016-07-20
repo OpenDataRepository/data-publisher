@@ -2323,7 +2323,7 @@ if ($debug)
                     ORDER BY dr.id'
                 )->setParameters( array('datatype' => $datatype) );
 
-                $results = $query->getResult();
+                $results = $query->getArrayResult();
 //print_r($results);
 
                 // Flatten the array
@@ -2345,7 +2345,7 @@ if ($debug)
                      ORDER BY e.value'
                 )->setParameters( array('datatype' => $datatype, 'datafield' => $sortfield) );
 
-                $results = $query->getResult();
+                $results = $query->getArrayResult();
 //print_r($results);
 
 
