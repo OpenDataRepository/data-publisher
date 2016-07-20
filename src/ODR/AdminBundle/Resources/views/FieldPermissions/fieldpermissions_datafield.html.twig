@@ -84,18 +84,20 @@
             </span>
         </span>
 
-        {% for radio_option in datafield.radioOptions %}
-            <label id="Option_{{ radio_option.id }}" for="Option_object_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
+        {% if datafield.radioOptions is defined %}
+            {% for radio_option in datafield.radioOptions %}
+                <label id="Option_{{ radio_option.id }}" for="Option_object_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
 
-            {% if field_typename == "Single Radio" %}
-                <input id="Option_object_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datafield.id }}" class="SingleRadioGroup" disabled />
-            {% else %}
-                <input id="Option_object_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="MultipleRadioGroup" disabled />
-            {% endif %}
+                {% if field_typename == "Single Radio" %}
+                    <input id="Option_object_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datafield.id }}" class="SingleRadioGroup" disabled />
+                {% else %}
+                    <input id="Option_object_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="MultipleRadioGroup" disabled />
+                {% endif %}
 
-            <span id="Option_{{ radio_option.id }}_name">{{ radio_option.radioOptionMeta.optionName }}</span>
-            </label>
-        {% endfor %}
+                <span id="Option_{{ radio_option.id }}_name">{{ radio_option.radioOptionMeta.optionName }}</span>
+                </label>
+            {% endfor %}
+        {% endif %}
     </fieldset>
 
     {% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}
@@ -107,13 +109,16 @@
             </span>
         </span>
         <select id="SelectGroup_{{ datafield.id }}" class="{% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
-        {% if field_typename == "Single Select" %}
-            <option id="Option_0" value="0">Select an Option</option>
-        {% endif %}
 
-        {% for radio_option in datafield.radioOptions %}
-            <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionMeta.optionName }}</option>
-        {% endfor %}
+        {% if datafield.radioOptions is defined %}
+            {% if field_typename == "Single Select" %}
+                <option id="Option_0" value="0">Select an Option</option>
+            {% endif %}
+
+            {% for radio_option in datafield.radioOptions %}
+                <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionMeta.optionName }}</option>
+            {% endfor %}
+        {% endif %}
         </select>
     </fieldset>
 

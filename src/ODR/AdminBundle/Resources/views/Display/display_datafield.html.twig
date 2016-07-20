@@ -170,26 +170,27 @@
         <fieldset>
             <label class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
 
-            {% for radio_option in datafield.radioOptions %}
-                {% set is_selected = 0 %}
-                {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
-                    {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
-                {% endif %}
-
-                {% if datafield.dataFieldMeta.radio_option_display_unselected == 1 or is_selected == 1 %}
-                    <label for="Input_{{ unique_id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
-
-                    {% if field_typename == "Single Radio" or field_typename == "Single Select" %}
-                        <input id="Input_{{ unique_id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ unique_id }}" {% if is_selected == 1 %}checked{% endif %} disabled class="SingleRadioGroup" />
-                    {% else %}
-                        <input id="Input_{{ unique_id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ unique_id }}" {% if is_selected == 1 %}checked{% endif %} disabled class="MultipleRadioGroup" />
+            {% if datafield.radioOptions is defined %}
+                {% for radio_option in datafield.radioOptions %}
+                    {% set is_selected = 0 %}
+                    {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
+                        {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
                     {% endif %}
 
-                    {{ radio_option.radioOptionMeta.optionName }}
-                    </label>
-                {% endif %}
+                    {% if datafield.dataFieldMeta.radio_option_display_unselected == 1 or is_selected == 1 %}
+                        <label for="Input_{{ unique_id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
 
-            {% endfor %}
+                        {% if field_typename == "Single Radio" or field_typename == "Single Select" %}
+                            <input id="Input_{{ unique_id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ unique_id }}" {% if is_selected == 1 %}checked{% endif %} disabled class="SingleRadioGroup" />
+                        {% else %}
+                            <input id="Input_{{ unique_id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ unique_id }}" {% if is_selected == 1 %}checked{% endif %} disabled class="MultipleRadioGroup" />
+                        {% endif %}
+
+                        {{ radio_option.radioOptionMeta.optionName }}
+                        </label>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
         </fieldset>
 
     {% elseif field_typename == "DateTime" %}

@@ -72,19 +72,20 @@
                 &lt;No change&gt;
             </label>
 
-        {% for radio_option in datafield.radioOptions %}
-            <label id="Label_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
+        {% if datafield.radioOptions is defined %}
+            {% for radio_option in datafield.radioOptions %}
+                <label id="Label_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
 
-            {% if field_typename == "Single Radio" %}
-                <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
-            {% else %}
-                <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
-            {% endif %}
+                {% if field_typename == "Single Radio" %}
+                    <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
+                {% else %}
+                    <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
+                {% endif %}
 
-            {{ radio_option.radioOptionMeta.optionName }}
-            </label>
-        {% endfor %}
-
+                {{ radio_option.radioOptionMeta.optionName }}
+                </label>
+            {% endfor %}
+        {% endif %}
         </div>
     </fieldset>
 
@@ -95,14 +96,16 @@
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
         </span>
         <select id="SelectGroup_{{ datafield.id }}" class="ODRSingleSelect" {% if can_edit_datafield == 0 %}disabled{% endif %}>
-        {% if field_typename == "Single Select" %}
-            <option id="Option_0" value="0">&lt;No change&gt;</option>
+
+        {% if datafield.radioOptions is defined %}
+            {% if field_typename == "Single Select" %}
+                <option id="Option_0" value="0">&lt;No change&gt;</option>
+            {% endif %}
+
+            {% for radio_option in datafield.radioOptions %}
+                <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionMeta.optionName }}</option>
+            {% endfor %}
         {% endif %}
-
-        {% for radio_option in datafield.radioOptions %}
-            <option id="Option_{{ radio_option.id }}" value="{{ radio_option.id}}">{{ radio_option.radioOptionMeta.optionName }}</option>
-        {% endfor %}
-
         </select>
     </fieldset>
 
@@ -113,16 +116,17 @@
                 <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
             </label>
 
-            {% for radio_option in datafield.radioOptions %}
-                <label id="Label_{{ datafield.id }}_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="ODRRadioLabel pure-u-1">
-                    <span class="ODRTristateCheckbox" rel="multiple">
-                        <i class="fa"></i>
-                        <input type="hidden" name="{{ datafield.id }}" rel="{{ radio_option.id }}" value="" />
-                    </span>
-                    {{ radio_option.radioOptionMeta.optionName }}
-                </label>
-            {% endfor %}
-
+            {% if datafield.radioOptions is defined %}
+                {% for radio_option in datafield.radioOptions %}
+                    <label id="Label_{{ datafield.id }}_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="ODRRadioLabel pure-u-1">
+                        <span class="ODRTristateCheckbox" rel="multiple">
+                            <i class="fa"></i>
+                            <input type="hidden" name="{{ datafield.id }}" rel="{{ radio_option.id }}" value="" />
+                        </span>
+                        {{ radio_option.radioOptionMeta.optionName }}
+                    </label>
+                {% endfor %}
+            {% endif %}
         </span>
     </fieldset>
 
