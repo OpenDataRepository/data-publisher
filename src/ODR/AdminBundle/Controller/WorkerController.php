@@ -3539,7 +3539,7 @@ print '</pre>';
             $theme_element_meta->setCssWidthMed( '1-1' );
             $theme_element_meta->setCssWidthXL( '1-1' );
 
-            $theme_element_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
+            $theme_element_meta->setPublicDate( new \DateTime() );
 
             $theme_element_meta->setCreatedBy( $theme_element->getCreatedBy() );
             $theme_element_meta->setCreated( $theme_element->getCreated() );
