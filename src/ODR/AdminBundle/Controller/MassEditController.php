@@ -212,7 +212,7 @@ class MassEditController extends ODRCustomController
         // ----------------------------------------
         // Filter by user permissions
         $datarecord_data = array();
-        parent::filterByUserPermissions($datatype_id, $datatype_array, $datarecord_data, $datatype_permissions, $datafield_permissions);
+        parent::filterByUserPermissions($datatype_array, $datarecord_data, $datatype_permissions, $datafield_permissions);
 
 
         // Render the MassEdit page

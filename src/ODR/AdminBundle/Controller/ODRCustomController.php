@@ -247,7 +247,7 @@ class ODRCustomController extends Controller
             }
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            self::filterByUserPermissions($datatype->getId(), $datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
+            self::filterByUserPermissions($datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
 
 
             // -----------------------------------
@@ -393,7 +393,7 @@ exit();
                 if ($can_view_datatype || $data['publicDate']->format('Y-m-d H:i:s') !== '2200-01-01 00:00:00') {
                     // Don't save values from datafields the user isn't allowed to see...
                     $dr_data = array();
-                    foreach ($data[$theme->getId()] as $display_order => $df_data) {
+                    foreach ($data[$theme->getId()] as $display_order => $df_data) {        // TODO - apparently provides wrong theme id here at times?
                         $df_id = $df_data['id'];
                         $df_value = $df_data['value'];
 
@@ -1658,15 +1658,14 @@ exit();
 
 
     /**
-     * Given a user's permission arrays, filter the provided datarecord/datatype arraysso twig doesn't render anything they're not supposed to see.
+     * Given a user's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.
      *
-     * @param integer $datatype_id
      * @param array &$datatype_array        @see self::getDatatypeArray()
      * @param array &$datarecord_array      @see self::getDatarecordArray()
      * @param array $datatype_permissions   @see self::getPermissionsArray()
      * @param array $datafield_permissions  @see self::getDatafieldPermissionsArray()
      */
-    protected function filterByUserPermissions($datatype_id, &$datatype_array, &$datarecord_array, $datatype_permissions, $datafield_permissions)
+    protected function filterByUserPermissions(&$datatype_array, &$datarecord_array, $datatype_permissions, $datafield_permissions)
     {
 $debug = true;
 $debug = false;
@@ -1675,74 +1674,77 @@ if ($debug)
     print '----- datatype permissions -----'."\n";
 
         // Determine relevant permissions...
-        $has_view_permission = false;
-        if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'view' ]) )
-            $has_view_permission = true;
+        $has_view_permission = array();
+        foreach ($datatype_array as $dt_id => $dt) {
+            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'view' ]) )
+                $has_view_permission[$dt_id] = true;
+            else
+                $has_view_permission[$dt_id] = false;
+        }
 
-        // If user is lacking the 'can_view_type' permission...
-        if ( !$has_view_permission ) {
-            // ...remove non-public datarecords
-            foreach ($datarecord_array as $dr_id => $dr) {
-                $public_date = $dr['dataRecordMeta']['publicDate'];
-                if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00') {
+        // For each datarecord in the provided array...
+        foreach ($datarecord_array as $dr_id => $dr) {
+            // Save datatype id of this datarecord
+            $dt_id = $dr['dataType']['id'];
+
+            // ...remove the ones the user isn't allowed to see
+            if ( !$has_view_permission[$dt_id] && $dr['dataRecordMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' ) {
+                unset( $datarecord_array[$dr_id] );
 if ($debug)
     print 'removed non-public datarecord '.$dr_id."\n";
 
-                    unset( $datarecord_array[$dr_id] );
-                }
+                // No sense checking anything else for this datarecord, skip to the next one
+                continue;
             }
 
-            // ...remove non-public files and images
-            foreach ($datarecord_array as $dr_id => $dr) {
-                foreach ($dr['dataRecordFields'] as $df_id => $drf) {
-                    foreach ($drf['files'] as $file_num => $file) {
-                        $public_date = $file['fileMeta']['publicDate'];
-                        if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00') {
-if ($debug)
-    print 'removed non-public file '.$file['id'].' from datarecord '.$dr_id."\n";
+            // The user is allowed to view this datarecord...
+            foreach ($dr['dataRecordFields'] as $df_id => $drf) {
 
-                            unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id][$file_num] );
-                        }
+                // ...remove the files the user isn't allowed to see
+                foreach ($drf['file'] as $file_num => $file) {
+                    if ( !$has_view_permission[$dt_id] && $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' ) {
+                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['file'][$file_num] );
+if ($debug)
+    print 'removed non-public file '.$file['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
                     }
+                }
 
-                    foreach ($drf['images'] as $image_num => $image) {
-                        $public_date = $image['parent']['imageMeta']['publicDate'];
-                        if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00') {
+                // ...remove the images the user isn't allowed to see
+                foreach ($drf['image'] as $image_num => $image) {
+                    if ( !$has_view_permission[$dt_id] && $image['parent']['imageMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' ) {
+                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['image'][$image_num] );
 if ($debug)
-    print 'removed non-public image '.$image['parent']['id'].' from datarecord '.$dr_id."\n";
-
-                            unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id][$image_num] );
-                        }
+    print 'removed non-public image '.$image['parent']['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
                     }
                 }
             }
+        }
 
-            // Remove non-public theme_elements
-            foreach ($datatype_array as $dt_id => $dt) {
-                foreach ($dt['themes'] as $theme_id => $theme) {
-                    foreach ($theme['themeElements'] as $te_num => $te) {
-                        $df_list = array();
+        // For each theme element in the datatype array...
+        foreach ($datatype_array as $dt_id => $dt) {
+            foreach ($dt['themes'] as $theme_id => $theme) {
+                foreach ($theme['themeElements'] as $te_num => $te) {
+                    $df_list = array();
 
-                        $public_date = $te['themeElementMeta']['publicDate'];
-                        if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00') {
+                    // ...remove the ones the user isn't allowed to see
+                    if ( !$has_view_permission[$dt_id] && $te['themeElementMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00') {
+                        if ( isset($te['themeDataFields']) ) {
                             foreach ($te['themeDataFields'] as $tdf_num => $df)
                                 $df_list[] = $df['id'];
-
-if ($debug)
-    print 'removed non-public theme_element '.$te['id'].' from datatype '.$dt_id.' theme '.$theme_id.' ('.$theme['themeType'].')'."\n";
-
-                            unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num] );
                         }
 
-                        // Also need to go and remove datafields that were in this theme_element from the datarecord array...
-                        foreach ($df_list as $num => $df_id) {
-                            foreach ($datarecord_array as $dr_id => $dr) {
-                                if ( isset($dr['dataRecordFields'][$df_id]) ) {
+                        unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num] );
+if ($debug)
+    print 'removed theme_element '.$te['id'].' from datatype '.$dt_id.' theme '.$theme_id.' ('.$theme['themeType'].')'."\n";
+                    }
+
+                    // Also need to go and remove datafields that were in this theme_element from the datarecord array...
+                    foreach ($df_list as $num => $df_id) {
+                        foreach ($datarecord_array as $dr_id => $dr) {
+                            if ( isset($dr['dataRecordFields'][$df_id]) ) {
+                                unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
 if ($debug)
     print ' -- removed datafield '.$df_id.' from datarecord '.$dr_id."\n";
-
-                                    unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
-                                }
                             }
                         }
                     }
@@ -1765,24 +1767,21 @@ if ($debug)
                             // If they don't have the 'can_view_field' permission for that datafield...
                             if ( !(isset($datafield_permissions[$df_id]) && $datafield_permissions[$df_id]['view'] == 1) ) {
                                 // ...remove it from the layout
+                                unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry on purpose
 if ($debug)
     print 'removed datafield '.$df_id.' from theme_element '.$te['id'].' datatype '.$dt_id.' theme '.$theme_id.' ('.$theme['themeType'].')'."\n";
-
-                                unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry
 
                                 // ...also remove it from the datarecord array
                                 foreach ($datarecord_array as $dr_id => $dr) {
                                     if ( isset($dr['dataRecordFields'][$df_id]) ) {
+                                        unset($datarecord_array[$dr_id]['dataRecordFields'][$df_id]);
 if ($debug)
     print ' -- removed datafield '.$df_id.' from datarecord '.$dr_id."\n";
-
-                                        unset($datarecord_array[$dr_id]['dataRecordFields'][$df_id]);
                                     }
                                 }
                             }
                         }
                     }
-
                 }
             }
         }

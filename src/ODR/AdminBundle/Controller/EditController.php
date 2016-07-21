@@ -2602,7 +2602,7 @@ if ($debug)
 
         // ----------------------------------------
         // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-        parent::filterByUserPermissions($datatype->getId(), $datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
+        parent::filterByUserPermissions($datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
 
 
         // ----------------------------------------
