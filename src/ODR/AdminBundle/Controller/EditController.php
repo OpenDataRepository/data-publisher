@@ -131,7 +131,7 @@ class EditController extends ODRCustomController
                 }
 
                 // Save the collection of cached searches back to memcached
-                $redis->set($redis_prefix.'.cached_search_results', gzcompess(serialize($cached_searches)));
+                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
             }
         }
         catch (\Exception $e) {
