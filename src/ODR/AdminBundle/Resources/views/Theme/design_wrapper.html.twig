@@ -1266,6 +1266,7 @@
         });
     }
 
+    var theme_element_ajax = [];
     function ReloadThemeElement(theme_element_id) {
 
         var append = true;
@@ -1283,10 +1284,17 @@
 //alert( url );
 //return;
 
-        // Create a loading div to block off the datafield?
-        insertLoadingDiv("ThemeElement_" + theme_element_id);
+        if ( $("#ThemeElement_" + theme_element_id + "_loading_div").length == 0 ) {
+            // Create a loading div to block off the theme_element
+            insertLoadingDiv("ThemeElement_" + theme_element_id);
+        }
+        else {
+            // A reload request for this theme element is currently in progress...abort the original one so it doesn't also modify page html
+            var xhr = theme_element_ajax[theme_element_id];
+            xhr.abort();
+        }
 
-        $.ajax({
+        theme_element_ajax[theme_element_id] = $.ajax({
             cache: false,
             type: 'GET',
             url: url,
@@ -1303,6 +1311,8 @@
                     $(element).prepend(data.d.html);
 
                 InitDerivativeContent();
+
+                theme_element_ajax[theme_element_id] = null;
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
