@@ -295,6 +295,8 @@ class FlowController extends ODRCustomController
                     // Upload meant for a file/image datafield...finish moving the uploaded file and store it properly
                     $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
                     parent::finishUpload($em, $destination_folder, $original_filename, $user_id, $drf->getId());
+
+                    parent::tmp_updateDatarecordCache($em, $datarecord, $user);
                 }
                 else {
                     // Upload is a file/image meant to be referenced by a later XML/CSV Import

@@ -798,6 +798,11 @@ $ret .= '  Set current to '.$count."\n";
                 // Delete the decrypted version of the file/image off the server after it's completed
                 unlink($filepath);
 
+
+                // Update the datarecord cache so whichever controller is handling the "are you done encrypting yet?" javascript requests can return the correct HTML
+                $datarecord = $base_obj->getDataRecord();
+                parent::tmp_updateDatarecordCache($em, $datarecord, $base_obj->getCreatedBy());
+
                 // TODO - run graph plugin on new file
             }
             else {

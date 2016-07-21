@@ -2466,7 +2466,7 @@ class CSVImportController extends ODRCustomController
                 /** @var User[] $user_list */
                 $user_list = $user_manager->findUsers();
                 foreach ($user_list as $u) {
-                    $memcached->delete($memcached_prefix.'.user_'.$u->getId().'_datafield_permissions');
+                    $redis->del($redis_prefix.'.user_'.$u->getId().'_datafield_permissions');
 
                     // TODO - schedule a permissions recache via beanstalk?
                 }
