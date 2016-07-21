@@ -4097,6 +4097,21 @@ class DisplaytemplateController extends ODRCustomController
             $prevent_fieldtype_change = $ret['prevent_change'];
             $prevent_fieldtype_change_message = $ret['prevent_change_message'];
 
+            // Check whether this datafield is being used by a table theme
+            $query = $em->createQuery(
+                'SELECT tdf.id
+                    FROM ODRAdminBundle:Theme AS t
+                    JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
+                    JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
+                    WHERE t.themeType = :theme_type AND tdf.dataField = :datafield
+                    AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL'
+            )->setParameters( array('theme_type' => 'table', 'datafield' => $datafield->getId()) );
+            $results = $query->getArrayResult();
+
+            $used_by_table_theme = false;
+            if ( count($results) > 0 )
+                $used_by_table_theme = true;
+
 
             // ----------------------------------------
             // Check to see whether the "allow multiple uploads" checkbox for file/image control needs to be disabled
@@ -4321,6 +4336,10 @@ class DisplaytemplateController extends ODRCustomController
                 if ( $current_datafield_meta->getIsUnique() != $submitted_data->getIsUnique() )
                     $force_slideout_reload = true;
 
+                // If the datafield is in use by a Table theme, then don't let it have multiple uploads
+                if ($used_by_table_theme && $submitted_data->getAllowMultipleUploads() == true)
+                    $datafield_form->addError( new FormError("This Datafield is being used by a Table theme...it can't be set to allow multiple uploads") );
+
 //$datafield_form->addError( new FormError("Do not save") );
 
 
@@ -4503,6 +4522,8 @@ class DisplaytemplateController extends ODRCustomController
                             'prevent_fieldtype_change_message' => $prevent_fieldtype_change_message,
                             'prevent_datafield_deletion' => $prevent_datafield_deletion,
                             'prevent_datafield_deletion_message' => $prevent_datafield_deletion_message,
+
+                            'used_by_table_theme' => $used_by_table_theme,
 
                             'datafield' => $datafield,
                             'datafield_form' => $datafield_form->createView(),

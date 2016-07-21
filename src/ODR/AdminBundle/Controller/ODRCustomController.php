@@ -2900,7 +2900,7 @@ if ($debug)
             $new_image_meta->setImage($my_obj);
 
             $new_image_meta->setOriginalFileName($original_filename);
-            $new_image_meta->setDisplayorder(0);
+            $new_image_meta->setDisplayorder(0);    // TODO - actual display order?
             $new_image_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public    TODO - let user decide default status
             $new_image_meta->setCaption(null);
             $new_image_meta->setExternalId('');
@@ -5871,7 +5871,15 @@ if ($timing) {
                     $drf['file'][$file_num]['createdBy'] = self::cleanUserData( $drf['file'][$file_num]['createdBy'] );
                 }
 
-                // Flatten image metadata, get rid of both the thumbnail's and the parent's encrypt keys, and sort by display_order
+                // Flatten image metadata, get rid of both the thumbnail's and the parent's encrypt keys, and sort appropriately
+                $sort_by_image_id = true;
+                foreach ($drf['image'] as $image_num => $image) {
+                    if ($image['parent']['imageMeta'][0]['displayorder'] != 0) {
+                        $sort_by_image_id = false;
+                        break;
+                    }
+                }
+
                 $ordered_images = array();
                 foreach ($drf['image'] as $image_num => $image) {
                     unset( $image['encrypt_key'] );
@@ -5884,8 +5892,14 @@ if ($timing) {
                     // Get rid of all private/non-essential information in the createdBy association
                     $image['parent']['createdBy'] = self::cleanUserData( $image['parent']['createdBy'] );
 
-                    // Store by display_order
-                    $ordered_images[ $image['parent']['imageMeta']['displayorder'] ] = $image;
+                    if ($sort_by_image_id) {
+                        // Store by parent id
+                        $ordered_images[ $image['parent']['id'] ] = $image;
+                    }
+                    else {
+                        // Store by display_order
+                        $ordered_images[ $image['parent']['imageMeta']['displayorder'] ] = $image;
+                    }
                 }
 
                 ksort($ordered_images);
