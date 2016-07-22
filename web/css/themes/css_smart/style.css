@@ -6,13 +6,126 @@
  */
 
 body {
-    background: url("images/background.png");
+    background: url("images/background.png") repeat;
 }
 
+/* Input Decorations */
+input,
+.pure-skin-odr .pure-form input,
+.pure-skin-odr .pure-form input[readonly],
+.pure-skin-odr .pure-form textarea,
+.pure-skin-odr .pure-form textarea[readonly] {
+    background-color: transparent;
+    background-image: none;
+    border: none;
+}
 
+/* Borders around top-level TEDs/Groups */
+.ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
+.ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
+.ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
+.ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox {
+    border: 1px solid #7fb9d8;
+    box-sizing:border-box;
+    -moz-box-sizing:border-box;
+    -webkit-box-sizing:border-box;
+    padding: 0px;
+    border-radius: 2px;
+    /* padding: 0.3em;
+    border: 2px solid rgba(185, 186, 246, 0.25);
+    border-radius: 4px; */
+    /* background-color: rgba(0,0,0,0.045); */
+}
+.ODRShortResult > .ODRShortResults > .DataRecordShort,
+.ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement,
+.ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,
+.ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement  {
+    border: 1px solid #7fb9d8;
+    box-sizing:border-box;
+    -moz-box-sizing:border-box;
+    -webkit-box-sizing:border-box;
+
+    padding: 12px;
+    border-radius: 4px;
+    /* padding-right: 0.4em;
+    /* border: 1px solid rgba(185, 186, 246, 0.8); */
+}
+
+.ODRDataField {
+    padding: 16px;
+}
+
+/* END Input Decorations */
+
+
+/* Graph Plugin Decorations */
+.ODRGraph {
+    background-color: transparent;
+    border: none;
+}
+/* END Graph Plugin Decorations */
+
+
+/* Toolbar and Menu */
 #toolbar {
     background-image: none;
     background-color: #1c81d0;
     box-shadow: none;
     color: white;
+}
+
+.pure-skin-odr .pure-menu a,
+.pure-skin-odr .pure-menu a:hover,
+.pure-skin-odr .pure-menu a:visited,
+.pure-skin-odr .pure-menu a:active,
+.pure-button {
+    background: #1c81d0 none;
+    color: white;
+    border-left: 1px solid white;
+    border-right: 1px solid white;
+}
+/* END Toolbar and Menu */
+
+h1 {
+    padding-left: 10px;
+}
+
+h3.ui-accordion-header,
+h3.ui-accordion-header a:active,
+h3.ui-accordion-header a:visited,
+h3.ui-accordion-header a:hover,
+h3.ui-accordion-header a {
+    background-image: none;
+    background-color: #7fb9d8;
+    box-shadow: none;
+    color: white;
+    text-transform: uppercase;
+}
+
+
+.ODRThemeElement {
+    background-image: none;
+    background-color: rgba(255,255,255,0.8);
+    box-shadow: none;
+    border-radius: 3px;
+    margin-bottom: 20px;
+}
+
+.pure-skin-odr .pure-table,
+.pure-skin-odr .pure-table td,
+.pure-skin-odr .pure-table th,
+.pure-skin-odr .pure-table thead,
+.pure-table,
+.pure-table td,
+.pure-table th,
+.pure-table thead,
+.NotODRTable,
+.NotODRTable th,
+.NotODRTable tr,
+.NotODRTable thead {
+    background: none;
+    background-color: transparent;
+    border: none;
+    color: rgb(85,85,85);
 }
