@@ -12,7 +12,7 @@
     {{ author|raw }}&nbsp;({{ year|raw }})&nbsp;{{ article_title|raw }},&nbsp;{{ journal|raw }},&nbsp;{{ volume|raw }},&nbsp;{{ pages|raw }}
 
     {% for file in mapping.file.datarecordfield.file %}
-        {% if file.fileMeta.publicDate|is_public %}&nbsp;<a href="{{ path('odr_file_download', {'file_id': file.id} ) }}">[view file]</a>{% endif %}    {# TODO #}
+        &nbsp;<a href="{{ path('odr_file_download', {'file_id': file.id} ) }}">[view file]</a>    {# This plugin will only receive files the user is allowed to view #}
     {% endfor %}
 {% endif %}
 </div>

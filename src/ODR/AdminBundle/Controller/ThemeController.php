@@ -293,7 +293,25 @@ class ThemeController extends ODRCustomController
             $em->persist($theme_meta);
 
             // Create a new default Theme Element for the theme
-            parent::ODR_addThemeElement($em, $user, $datatype, $theme);
+            $data = parent::ODR_addThemeElement($em, $user, $datatype, $theme);
+
+            // Ensure the theme element is public if it's for a table theme
+            if ($theme_type == 'table') {
+                /** @var ThemeElement $theme_element */
+                $theme_element = $data['theme_element'];
+                /** @var ThemeElementMeta $theme_element_meta */
+                $theme_element_meta = $data['theme_element_meta'];
+
+                // Ensure $theme_element_meta is in the database
+                $em->flush();
+                $em->refresh($theme_element_meta);
+
+                $properties = array(
+                    'publicDate' => new \DateTime()
+                );
+                parent::ODR_copyThemeElementMeta($em, $user, $theme_element, $properties);
+            }
+
 
             // Ensure that the datatype knows it has this particular theme type available to it
             if ($theme_type == 'search_results' && $datatype->getHasShortresults() == false) {
