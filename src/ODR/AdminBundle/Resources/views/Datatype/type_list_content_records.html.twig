@@ -75,8 +75,7 @@
             {% elseif can_design_datatype == false or datarecord_count == 0 %}
                 <td class="center"></td>
             {% else %}
-                <td class="center"></td>
-                {#<td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>#}
+                <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
             {% endif %}
 
             {# view/edit links for this datatype #}
