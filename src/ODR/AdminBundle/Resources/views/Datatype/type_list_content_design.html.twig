@@ -97,22 +97,10 @@
                 {# If user has design permissions... #}
                 <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a></td>
                 <td class="center"><a class="address" href="#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a></td>
-{#
-                {% if datatype.searchslug == '' %}
-                <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
-                {% elseif datatype.getnamefield == null %}
-                <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Assign Name Field</a></td>
-                {% elseif datatype.hastextresults == false %}
-                <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;TextResults not designed!</a></td>
-                {% else %}
-                <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-cog"></i>&nbsp;Edit Properties</a></td>
-                {% endif %}
-#}
             {% else %}
                 {# Otherwise, print out nothing #}
                 <td class="center"></td>
                 <td class="center"></td>
-                {#<td class="center"></td>#}
             {% endif %}
 
                 <td class="center"><a class="address" href="#{{ path('odr_xsd_generate_datatype', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-download"></i>&nbsp;Download</a></td>
