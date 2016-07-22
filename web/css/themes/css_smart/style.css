@@ -4,3 +4,15 @@
  * Author: Nate Stone
  *
  */
+
+body {
+    background: url("images/background.png");
+}
+
+
+#toolbar {
+    background-image: none;
+    background-color: #1c81d0;
+    box-shadow: none;
+    color: white;
+}
