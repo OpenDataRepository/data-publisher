@@ -94,6 +94,7 @@ input,
 
 
 /* Toolbar and Menu */
+.pure-skin-odr .pure-menu.pure-menu-open,
 #toolbar {
     background-image: none;
     background-color: #1c81d0;
@@ -101,10 +102,21 @@ input,
     color: white;
 }
 
+.pure-skin-odr .pure-menu li a:hover,
+.pure-skin-odr .pure-menu li a:focus {
+    background: #7fb9d8 none;
+}
+
+.pure-skin-odr .pure-menu li a,
+.pure-skin-odr .pure-menu li a:visited,
+.pure-skin-odr .pure-menu li a:active,
 .pure-skin-odr .pure-menu a,
 .pure-skin-odr .pure-menu a:hover,
 .pure-skin-odr .pure-menu a:visited,
 .pure-skin-odr .pure-menu a:active,
+.pure-skin-odr .pure-button:hover,
+.pure-skin-odr .pure-button,
+.pure-button:hover,
 .pure-button {
     background: #1c81d0 none;
     color: white;
@@ -126,13 +138,12 @@ h3.ui-accordion-header a {
     background-color: #7fb9d8;
     box-shadow: none;
     color: white;
-    text-transform: uppercase;
 }
 
 
 .ODRThemeElement {
     background-image: none;
-    background-color: rgba(255,255,255,0.8);
+    background-color: rgba(255,255,255,1.0);
     box-shadow: none;
     border-radius: 3px;
     margin-bottom: 20px;
@@ -172,4 +183,27 @@ h3.ui-accordion-header a {
 .pure-skin-odr .pure-table td i {
     color: #1c81d0;
 }
+
 /* END File list tables */
+
+/* Tab Header */
+.ODRTabButtonHeader {
+    padding: 12px;
+}
+.pure-skin-odr .pure-button {
+    background: none;
+    border: none;
+    background-color: white;
+    padding: 8px;
+    color: #000;
+}
+.pure-skin-odr .pure-button-active {
+    background: none;
+    border: 2px solid #1c81d0;
+    border-radius: 4px;
+    background-color: white;
+    padding: 8px;
+    color: #1c81d0;
+}
+/* END Tab Header */
+

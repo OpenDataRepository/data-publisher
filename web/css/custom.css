@@ -378,7 +378,6 @@ aside:after {
 }
 
 #toolbar {
-    /*height: 38px;*/
     left: 0;
     position: fixed;
     top: 0;
@@ -387,32 +386,6 @@ aside:after {
 
     background: none;
     box-shadow: 0 0 2px rgba(0, 0, 0, 0.52);
-    /* background-image: -webkit-gradient(
-        linear,
-        left bottom,
-        left top,
-        color-stop(0.4, #5DD4FC),
-        color-stop(1, #F2FCFF)
-    );
-    background-image: -o-linear-gradient(top, #5DD4FC 40%, #F2FCFF 100%);
-    background-image: -moz-linear-gradient(top, #5DD4FC 40%, #F2FCFF 100%);
-    background-image: -webkit-linear-gradient(top, #5DD4FC 40%, #F2FCFF 100%);
-    background-image: -ms-linear-gradient(top, #5DD4FC 40%, #F2FCFF 100%);
-    background-image: linear-gradient(to top, #5DD4FC 40%, #F2FCFF 100%); 
-
-    background-image: -webkit-gradient(
-        linear,
-        left bottom,
-        left top,
-        color-stop(0, #D0F2FE),
-        color-stop(1, #F2FCFF)
-    );
-    background-image: -o-linear-gradient(top, #D0F2FE 0%, #F2FCFF 100%);
-    background-image: -moz-linear-gradient(top, #D0F2FE 0%, #F2FCFF 100%);
-    background-image: -webkit-linear-gradient(top, #D0F2FE 0%, #F2FCFF 100%);
-    background-image: -ms-linear-gradient(top, #D0F2FE 0%, #F2FCFF 100%);
-    background-image: linear-gradient(to top, #D0F2FE 0%, #F2FCFF 100%);
-    */ 
 
     background-image: -webkit-gradient(
         linear,
@@ -458,7 +431,6 @@ ul.breadcrumb li a:hover:active:after,
 ul.breadcrumb li a:hover:after {
     background: none;
 }
-
 
 h1:after {
     display: none;
