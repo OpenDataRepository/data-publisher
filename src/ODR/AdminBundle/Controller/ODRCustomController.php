@@ -1687,6 +1687,10 @@ if ($debug)
             // Save datatype id of this datarecord
             $dt_id = $dr['dataType']['id'];
 
+            // If there was no datatype permission entry for this datatype, have it default to false
+            if ( !isset($has_view_permission[$dt_id]) )
+                $has_view_permission[$dt_id] = false;
+
             // ...remove the ones the user isn't allowed to see
             if ( !$has_view_permission[$dt_id] && $dr['dataRecordMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' ) {
                 unset( $datarecord_array[$dr_id] );
@@ -1722,6 +1726,11 @@ if ($debug)
 
         // For each theme element in the datatype array...
         foreach ($datatype_array as $dt_id => $dt) {
+
+            // If there was no datatype permission entry for this datatype, have it default to false
+            if ( !isset($has_view_permission[$dt_id]) )
+                $has_view_permission[$dt_id] = false;
+
             foreach ($dt['themes'] as $theme_id => $theme) {
                 foreach ($theme['themeElements'] as $te_num => $te) {
                     $df_list = array();
@@ -1757,6 +1766,11 @@ if ($debug)
 
         // Check to see if the user doesn't have view permissions for any of the datafields to be displayed
         foreach ($datatype_array as $dt_id => $dt) {
+
+            // If there was no datatype permission entry for this datatype, have it default to false
+            if ( !isset($has_view_permission[$dt_id]) )
+                $has_view_permission[$dt_id] = false;
+
             foreach ($dt['themes'] as $theme_id => $theme) {
                 foreach ($theme['themeElements'] as $te_num => $te) {
 
