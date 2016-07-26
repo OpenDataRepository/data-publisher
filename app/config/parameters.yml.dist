@@ -21,7 +21,7 @@ parameters:
             name: 'Graph Plugin'
             filename: GraphPlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
-       gcms_plugin:
+        gcms_plugin:
             name: 'GCMassSpec Plugin'
             filename: GCMassSpecPlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
