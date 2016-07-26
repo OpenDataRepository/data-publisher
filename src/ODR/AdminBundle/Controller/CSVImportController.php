@@ -393,6 +393,9 @@ class CSVImportController extends ODRCustomController
             $csv_filename = $session->get('csv_file');
             $delimiter = $session->get('csv_delimiter');
 
+            if ( !file_exists($csv_import_path.$csv_filename) )
+                throw new \Exception('Target CSV File does not exist');
+
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
 
@@ -520,6 +523,9 @@ class CSVImportController extends ODRCustomController
         $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user_id.'/';
         $csv_filename = $session->get('csv_file');
         $delimiter = $session->get('csv_delimiter');
+
+        if ( !file_exists($csv_import_path.$csv_filename) )
+            throw new \Exception('Target CSV File does not exist');
 
         // Apparently SplFileObject doesn't do this before opening the file...
         ini_set('auto_detect_line_endings', TRUE);
@@ -1064,6 +1070,9 @@ class CSVImportController extends ODRCustomController
             $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $session->get('csv_file');
             $delimiter = $session->get('csv_delimiter');
+
+            if ( !file_exists($csv_import_path.$csv_filename) )
+                throw new \Exception('Target CSV File does not exist');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -2174,6 +2183,9 @@ class CSVImportController extends ODRCustomController
             $csv_filename = $presets['csv_filename'];
             $delimiter = $presets['delimiter'];
 
+            if ( !file_exists($csv_import_path.$csv_filename) )
+                throw new \Exception('Target CSV File does not exist');
+
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
 
@@ -2314,6 +2326,9 @@ class CSVImportController extends ODRCustomController
             $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $job_data['csv_filename'];
             $delimiter = $job_data['delimiter'];
+
+            if ( !file_exists($csv_import_path.$csv_filename) )
+                throw new \Exception('Target CSV File does not exist');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);
@@ -2484,6 +2499,9 @@ print_r($new_mapping);
             $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $job_data['csv_filename'];
             $delimiter = $job_data['delimiter'];
+
+            if ( !file_exists($csv_import_path.$csv_filename) )
+                throw new \Exception('Target CSV File does not exist');
 
             // Apparently SplFileObject doesn't do this before opening the file...
             ini_set('auto_detect_line_endings', TRUE);

@@ -14,10 +14,8 @@
 {% endif %}
 
 <div class="content" style="margin: 10px;">
-    {% if upload_type == 'csv' %}
     <button class="pure-button" onclick="cancelCSVUpload(false);">Cancel CSV Import...</button>
     </br></br>
-    {% endif %}
 
     <form id="csvUploadForm" class="pure-form pure-form-aligned">
         <fieldset>
@@ -279,6 +277,7 @@
             }
         });
     }
+    {% endif %} {# if upload_type == 'csv' #}
 
     function cancelCSVUpload(force) {
 
@@ -303,7 +302,10 @@
             success: function(data, textStatus, jqXHR) {
                 if (data.r == 0) {
 //                    alert('csv import cancelled');
-                    window.location.reload();
+//                    window.location.reload();
+
+                    var url = '{{ path('odr_csv_import', {'datatype_id': datatype.id}) }}';
+                    UpdateURL(url);
                 }
                 else {
                     alert( data.d );
@@ -324,8 +326,6 @@
             }
         });
     }
-
-    {% endif %} {# if upload_type == 'csv' #}
 
     {% if allow_import == true %}
     function doImport() {
