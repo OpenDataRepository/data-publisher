@@ -73,7 +73,8 @@ class UpdateDataTypeForm extends AbstractType
                 'class' => 'ODR\AdminBundle\Entity\DataFields',
                 'query_builder' => function(EntityRepository $er) use ($datatype_id) {
                     return $er->createQueryBuilder('df')
-                                ->where('df.is_unique = 1 AND df.dataType = ?1')
+                                ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                                ->where('dfm.is_unique = 1 AND df.dataType = ?1')
                                 ->setParameter(1, $datatype_id);
                 },
 
