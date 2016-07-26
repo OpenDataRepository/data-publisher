@@ -1,0 +1,23 @@
+ODR\OpenRepository\GraphBundle\Plugins\GCMassSpec:
+    name: GCMassSpec Plugin
+    datatype: true
+    version: 1.00
+    override_fields: false
+    override_child: true
+    description: The GC Mass Spec plugin will read and extract data from Agilent .MS and .CH files.  Eventually, it will plot them as well.
+    required_fields:
+        ms_file:
+            name: Agilent .MS File
+            description: Agilent .MS file for data extraction.
+            type: File
+        ch_file:
+            name: Agilent .CH File
+            description: Agilent .CH file for data extraction.
+            type: File
+    config_options:
+#        header:
+#            name: Header Type
+#            type: String
+#            default: selector 
+#            choices: selector||Use dropdown selector on pivot field.,tabs||Tabs will display different graph children.,accordion||Different data sets will unfold like an accordion.
+#            description: Choose how multiple data sets will display. 

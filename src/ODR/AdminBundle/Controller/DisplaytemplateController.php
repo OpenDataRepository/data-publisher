@@ -2719,6 +2719,7 @@ class DisplaytemplateController extends ODRCustomController
                     $override_child = $data['override_child'];
 
                     /** @var RenderPlugin $plugin */
+                    // TODO Find out why we can't use the ID here - Names are not valid database ids
                     $plugin = $repo_render_plugin->findOneBy( array('pluginName' => $plugin_name) );
                     $plugin_id = $plugin->getId();
    

@@ -17,6 +17,10 @@ parameters:
             name: 'Graph Plugin'
             filename: GraphPlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
+        gcms_plugin:
+            name: 'GCMassSpec Plugin'
+            filename: GCMassSpecPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
         chemistry_plugin:
             name: 'Chemistry Field'
             filename: ChemistryPlugin
@@ -33,7 +37,6 @@ parameters:
             name: 'URL Field'
             filename: URLPlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
-
         organization_plugin:
             name: 'Organization Plugin'
             filename: OrganizationPlugin
