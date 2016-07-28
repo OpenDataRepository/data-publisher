@@ -31,8 +31,10 @@
 
     <div class="pure-u-1">
         <button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }});">View DataRecord</button>
-        <button type="button" class="pure-button pure-button-primary" onclick="UpdateURL('#{{ path('odr_xml_export', {'datarecord_id': datarecord.id }) }}');">Export DataRecord</button>
-    
+        {#<button type="button" class="pure-button pure-button-primary" onclick="UpdateURL('#{{ path('odr_get_datarecord_xml', {'version': 'v1', 'datarecord_id': datarecord.id }) }}');">Export DataRecord</button>#}
+        <button type="button" class="pure-button pure-button-primary" onclick="exportXML({{ datarecord.id }})">Export DataRecord</button>
+
+
         {% if can_edit_record == 1 %}
             {% if datarecord.ispublic %}
                 <button id="public_button" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make DataRecord Non-Public</button>
@@ -94,32 +96,30 @@
                     // Error occurred
                     alert( data.d );
                 }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
             }
         });
     }
 
 
-    function exportRecords(datarecord_id) {
-        var url = '{{ path('odr_xml_export', { 'datarecord_id': 0 }) }}';
+    function exportXML(datarecord_id) {
+        var url = '{{ path('odr_get_datarecord_xml', {'version': 'v1', 'datarecord_id': 0 }) }}';
         url = url.substring(0, (url.length - 1));
         url += datarecord_id;
 
-        var dataType = "json";
-
-        $.ajax({
-            type: 'GET',
-            url: url,
-            dataType: dataType,
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    $("#content").html( data.d.html );
-                }
-                else {
-                    // Error occurred
-                    alert( data.d );
-                }
-            }
-        });
+        document.location = url;
     }
 
     function deleteRecord(datarecord_id) {

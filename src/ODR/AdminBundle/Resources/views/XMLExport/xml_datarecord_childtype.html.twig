@@ -1,4 +1,4 @@
-{% macro input(datatype_array, datarecord_array, theme_id, target_datatype_id, parent_datarecord_id, is_top_level, is_link, using_metadata, baseurl) %}
+{% macro input(datatype_array, datarecord_array, theme_id, target_datatype_id, parent_datarecord_id, is_top_level, is_link, using_metadata, baseurl, version) %}
 
 {% spaceless %}
 
@@ -6,7 +6,7 @@
 {% set theme = datatype.themes[theme_id] %}
 {% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
 
-{% if is_top_level == false %}
+{% if is_top_level == 0 %}
     <datarecords>
 {% endif %}
 
@@ -30,20 +30,20 @@ is_link: {{ is_link }}</br>
 
         {% if is_link == 0 %}
             {# display metadata and datafields for top-level and child datarecords #}
-            {% if is_top_level == false %}
+            {% if is_top_level == 0 %}
             <datarecord>
             {% endif %}
 
             {% if using_metadata == true %}
                 <_datarecord_metadata>
-                    <_external_id>{{ datarecord.externalIdField_value }}</_external_id>
-                    <_create_date>{{ datarecord.dataRecordMeta.created|date('Y-m-d H:i:s') }}</_create_date>
-                    <_create_auth>{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string }}{% endif %}</_create_auth>
+                    <_external_id>{{ datarecord.externalIdField_value|xml }}</_external_id>
+                    <_create_date>{{ datarecord.created|date('Y-m-d H:i:s') }}</_create_date>
+                    <_create_auth>{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string|xml }}{% endif %}</_create_auth>
                     <_public_date>{{ datarecord.dataRecordMeta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
                 </_datarecord_metadata>
             {% endif %}
 
-            {% include 'ODRAdminBundle:XMLExport:xml_fieldarea.html.twig' with {
+            {% include 'ODRAdminBundle:XMLExport:xml_datarecord_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
                 'datarecord_array': datarecord_array,
 
@@ -57,6 +57,7 @@ is_link: {{ is_link }}</br>
 
                 'using_metadata': using_metadata,
                 'baseurl': baseurl,
+                'version': version,
             } %}
 
             {% if is_top_level == false %}
@@ -65,7 +66,7 @@ is_link: {{ is_link }}</br>
 
         {% else %}
             {# only display external id for linked datarecords #}
-            <datarecord><_external_id>{{ datarecord.externalIdField_value }}</_external_id></datarecord>
+            <datarecord><_external_id>{{ datarecord.externalIdField_value|xml }}</_external_id></datarecord>
         {% endif %}
     {% endif %}
 

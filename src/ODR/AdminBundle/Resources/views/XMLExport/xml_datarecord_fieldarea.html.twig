@@ -10,19 +10,22 @@
     {% if theme_element.themeDataFields is defined %}
 
         {% for theme_datafield in theme_element.themeDataFields %}
-            {% set datafield = theme_datafield.dataField %}
+            {% if theme_datafield.dataField is defined %}
+                {% set datafield = theme_datafield.dataField %}
 
-            {% if datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
-                {% include 'ODRAdminBundle:XMLExport:xml_datafield.html.twig' with {
-                    'datarecord': datarecord,
-                    'datafield': datafield,
+                {% if datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
+                    {% include 'ODRAdminBundle:XMLExport:xml_datarecord_datafield.html.twig' with {
+                        'datarecord': datarecord,
+                        'datafield': datafield,
 
-                    'is_link': is_link,
-                    'using_metadata': using_metadata,
-                    'baseurl': baseurl
-                } %}
+                        'is_link': is_link,
+
+                        'using_metadata': using_metadata,
+                        'baseurl': baseurl,
+                        'version': version,
+                    } %}
+                {% endif %}
             {% endif %}
-
         {% endfor %}
     {% endif %}
 {% endfor %}
@@ -46,12 +49,28 @@
 
                 {% if theme_datatype.is_link == 0 %}
                     {% set is_top_level = 0 %}
-                    {% import "ODRAdminBundle:XMLExport:xml_childtype.html.twig" as mychildform %}
-                    {% set content = mychildform.input(datatype_array, datarecord_array, child_theme_id, child_datatype.id, datarecord.id, is_top_level, theme_datatype.is_link, using_metadata, baseurl) %}
+
+                    {# using macro on purpose #}
+                    {% import "ODRAdminBundle:XMLExport:xml_datarecord_childtype.html.twig" as mychildform %}
+                    {% set content = mychildform.input(datatype_array, datarecord_array, child_theme_id, child_datatype.id, datarecord.id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
 
                     {% if "<" in content|trim %}
                         {% set child_datatype = datatype_array[ child_datatype.id ] %}
-                        <{{ child_datatype.dataTypeMeta.xml_shortName }}>{{ content }}</{{ child_datatype.dataTypeMeta.xml_shortName }}>
+
+                        {% if version == 'v1' %}
+                            <datatype_{{ child_datatype.id }} datatype_name="{{ child_datatype.dataTypeMeta.shortName|xml }}">
+                        {% elseif version == 'v2' %}
+                            <{{ child_datatype.dataTypeMeta.xml_shortName }}>
+                        {% endif %}
+
+                        {{ content }}
+
+                        {% if version == 'v1' %}
+                            </datatype_{{ child_datatype.id }}>
+                        {% elseif version == 'v2' %}
+                            </{{ child_datatype.dataTypeMeta.xml_shortName }}>
+                        {% endif %}
+
                     {% endif %}
                 {% endif %}
 
@@ -79,12 +98,28 @@
 
                     {% if theme_datatype.is_link == 1 %}
                         {% set is_top_level = 0 %}
-                        {% import "ODRAdminBundle:XMLExport:xml_childtype.html.twig" as mychildform %}
-                        {% set content = mychildform.input(datatype_array, datarecord_array, child_theme_id, child_datatype.id, datarecord.id, is_top_level, theme_datatype.is_link, using_metadata, baseurl) %}
+
+                        {# using macro on purpose #}
+                        {% import "ODRAdminBundle:XMLExport:xml_datarecord_childtype.html.twig" as mychildform %}
+                        {% set content = mychildform.input(datatype_array, datarecord_array, child_theme_id, child_datatype.id, datarecord.id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
 
                         {% if "<" in content|trim %}
                             {% set child_datatype = datatype_array[ child_datatype.id ] %}
-                            <{{ child_datatype.dataTypeMeta.xml_shortName }}>{{ content }}</{{ child_datatype.dataTypeMeta.xml_shortName }}>
+
+                            {% if version == 'v1' %}
+                                <datatype_{{ child_datatype.id }} datatype_name="{{ child_datatype.dataTypeMeta.shortName|xml }}">
+                            {% elseif version == 'v2' %}
+                                <{{ child_datatype.dataTypeMeta.xml_shortName }}>
+                            {% endif %}
+
+                            {{ content }}
+
+                            {% if version == 'v1' %}
+                                </datatype_{{ child_datatype.id }}>
+                            {% elseif version == 'v2' %}
+                                </{{ child_datatype.dataTypeMeta.xml_shortName }}>
+                            {% endif %}
+
                         {% endif %}
                     {% endif %}
 

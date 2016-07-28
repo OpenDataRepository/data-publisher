@@ -799,44 +799,54 @@ odr_xsd_download:
 #-----------------------------------------
 
 #-----------------------------------------
-# XML Controller
+# XMLImport Controller
 odr_xml_import:
     path:  /admin/xml_import/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:XML:import }
+    defaults: { _controller: ODRAdminBundle:XMLImport:import }
     requirements:
         datatype_id:  \d+
 
 odr_xml_import_start:
     path: /beanstalk/xml_import/start
-    defaults: { _controller: ODRAdminBundle:XML:importstart }
+    defaults: { _controller: ODRAdminBundle:XMLImport:importstart }
     requirements: { methods: POST }
 
 odr_xml_import_validate:
     path: /beanstalk/xml_import/validate
-    defaults: { _controller: ODRAdminBundle:XML:importvalidate }
+    defaults: { _controller: ODRAdminBundle:XMLImport:importvalidate }
     requirements: { methods: POST }
 
 odr_xml_import_worker:
     path: /beanstalk/xml_import/worker
-    defaults: { _controller: ODRAdminBundle:XML:importworker }
+    defaults: { _controller: ODRAdminBundle:XMLImport:importworker }
     requirements: { methods: POST }
 
 odr_xml_import_file_download:
     path: /beanstalk/xml_import/download_file
-    defaults: { _controller: ODRAdminBundle:XML:importfile }
+    defaults: { _controller: ODRAdminBundle:XMLImport:importfile }
     requirements: { methods: POST }
 
+#-----------------------------------------
 
-odr_xml_export:
-    path:  /admin/xml/export/{datarecord_id}
-    defaults: { _controller: ODRAdminBundle:XML:export }
-    requirements:
-        datarecord_id: \d+
+#-----------------------------------------
+# XMLExport Controller
+#odr_xml_export:
+#    path:  /admin/xml/export/{datarecord_id}
+#    defaults: { _controller: ODRAdminBundle:XMLExport:export }
+#    requirements:
+#        datarecord_id: \d+
 
-odr_xml_download:
-    path:  /admin/xml/download/{datarecord_id}
-    defaults: { _controller: ODRAdminBundle:XML:downloadXML }
+#odr_xml_download:
+#    path:  /admin/xml/download/{datarecord_id}
+#    defaults: { _controller: ODRAdminBundle:XMLExport:downloadXML }
+#    requirements:
+#        datarecord_id: \d+
+
+odr_get_datarecord_xml:
+    path:  /api/datarecord/{version}/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:XMLExport:getDatarecordXML }
     requirements:
+        version: 'v1|v2'
         datarecord_id: \d+
 
 #-----------------------------------------
