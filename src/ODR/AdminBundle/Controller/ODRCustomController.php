@@ -1774,6 +1774,10 @@ if ($debug)
             foreach ($dt['themes'] as $theme_id => $theme) {
                 foreach ($theme['themeElements'] as $te_num => $te) {
 
+                    // Don't apply Datafield permissions to public theme elements, for right now TODO
+                    if ( $te['themeElementMeta']['publicDate']->format('Y-m-d H:i:s') != '2200-01-01 00:00:00')
+                        continue;
+
                     if ( isset($te['themeDataFields']) ) {
                         foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
                             $df_id = $tdf['dataField']['id'];
