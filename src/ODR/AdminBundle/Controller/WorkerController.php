@@ -3532,6 +3532,7 @@ print '</pre>';
                 $em->refresh($theme_element);
             }
 
+            // meta entries for table theme_elements work differently from other types of themes as well
             $theme_element_meta = new ThemeElementMeta();
             $theme_element_meta->setThemeElement($theme_element);
 
@@ -3539,7 +3540,7 @@ print '</pre>';
             $theme_element_meta->setCssWidthMed( '1-1' );
             $theme_element_meta->setCssWidthXL( '1-1' );
 
-            $theme_element_meta->setPublicDate( new \DateTime() );
+            $theme_element_meta->setPublicDate( new \DateTime() );  // Need these to be public at all times
 
             $theme_element_meta->setCreatedBy( $theme_element->getCreatedBy() );
             $theme_element_meta->setCreated( $theme_element->getCreated() );
@@ -3662,7 +3663,11 @@ print '</pre>';
         $theme_element_meta->setCssWidthXL( $theme_element->getCssWidthXLOriginal() );
 
         // ...displayInResults was effectively used for multiple purposes before, so it can't really be used to determine the new "publicDate" property of this theme element...
-        $theme_element_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
+//        $theme_element_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
+
+        // If the theme element was marked as "display in results", make it public to achieve the same effect in the new system
+        if ($theme_element->getDisplayInResults() == 1)
+            $theme_element_meta->setPublicDate( new \DateTime() );
 
         $theme_element_meta->setCreatedBy( $theme_element->getCreatedBy() );
         $theme_element_meta->setCreated( $theme_element->getCreated() );
