@@ -50,13 +50,13 @@
 
     <!-- Symfony Stylesheets -->
     <link href="/css/pure_odr_custom.css" type="text/css" rel="stylesheet"> 
-    <link href="/css/custom.css" type="text/css" rel="stylesheet" />
+    <link href="/css/custom.css" type="text/css" rel="stylesheet" /> 
 
     <!-- NVD3 StyleSheet -->
     <link rel="stylesheet" href="/js/mylibs/nvd3/nv.d3.css">
 
     <!-- Theme CSS -->
-    <!-- <link rel="stylesheet" href="/css/themes/css_smart/style.css" >
+    <link rel="stylesheet" href="/css/themes/css_smart/style.css" >
     <!-- TODO Use Stylsheets block to load theme -->
     {% block stylesheets %}{% endblock %}
 
@@ -191,7 +191,7 @@
     {% if use_navigation_block == true %}
         <!-- The container of the sidebar and content box -->
         <!-- The sidebar -->
-        <aside id="ODRNavWrapper">
+        <aside tabindex="0" id="ODRNavWrapper"><input type="checkbox" class="ODRMenuIcon"></input>
             <div id="ODRNav">
                 <div id="ODRMenuLabel">menu</div>
                 <div class="top">
@@ -231,7 +231,7 @@
     <footer class="pure-u-1">
         <span class="ODRMenuRight pure-menu pure-menu-open pure-menu-horizontal">
             <ul>
-                <li><a style="padding: 0px 4px 0px 4px;" href="http://www.opendatarepository.org"><img src="/images/ODR_Logo_Final.svg" style="height: 32px;" alt="Open Data Repository" /></a></li>
+                <li><a class="ODRLogoImage" href="http://www.opendatarepository.org"><img src="/images/ODR_Logo_Final.svg" alt="Open Data Repository" /></a></li>
                 <li><a href="http://www.opendatarepository.org/about">About</a></li>
                 <li>&nbsp;&nbsp;&nbsp;</li>
                 <li>&copy; 2014&nbsp;&nbsp;</li>

@@ -1845,3 +1845,84 @@ pre .support.value  {
     color: #3b8bba; /* skinbuilder block-mine-text-low with #1f8dd6 as primary */
 }
 
+
+
+/* Search Template Customizations */
+    .ODRAdvSearch_header {
+        font-weight: bold;
+        background: #e3e3e3 url("../../img/external/jquery-ui/ui-bg_flat_65_e3e3e3_40x100.png") repeat-x scroll 50% 50%;
+        padding: 0.5em;
+        cursor: pointer;
+    }
+    .ODRAdvSearch_caret {
+        margin-top: -0.2em;
+        float: right;
+    }
+    .ODRAdvSearch_content {
+        /*background: #eeeeee;*/
+        display: inline;
+    }
+    .ODRAdvSearch_datafield {
+        margin-bottom: 10px;
+    }
+    .ODRRadioSearchDiv {
+        max-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    .ODRRadioLabel {
+        margin: 0.5em 0;
+    }
+
+    .fa {
+        padding: 0px;
+    }
+    .ODRTristateCheckbox > .fa-ban {
+        color: red;
+    }
+    .ODRTristateCheckbox > .fa-check {
+        color: green;
+    }
+    .ODRTristateCheckbox {
+        cursor: pointer;
+        border: 2px solid #666;
+        border-radius: 5px;
+        height: 1.5em;
+        width: 1.5em;
+        display: inline-block;
+    }
+    .ODRTristateCheckbox > .fa {
+        line-height: 1.25em;
+        margin-left: -0.1em;
+    }
+    .ODRTristateCheckbox:hover, .ODRTristateCheckbox:active, .ODRTristateCheckbox:focus {
+        background: #9cd4d4;
+    }
+    .ODRSelectAll,.ODRDeselectAll,.ODRClearAll {
+        cursor: pointer;
+        font-size: 90%;
+    }
+
+/* END Search Template Customizations */
+footer {
+    height: 48px;
+}
+
+footer .ODRLogoImage {
+    height: 48px;
+    background: white;
+}
+
+footer .ODRLogoImage img {
+    height: 48px;
+}
+
+.ODRFormHeader {
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.ODRFormHeader button {
+    padding: 10px;
+    margin: 5px;
+}

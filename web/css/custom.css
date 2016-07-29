@@ -272,6 +272,7 @@ header a {
     box-shadow: 0 0 1px rgba(0, 0, 0, 0.1), 0 1px 8px rgba(0, 0, 0, 0.21);
 }
 
+/* 
 #ODRNav:hover {
     -webkit-transform: translate(200px, 0px);
        -moz-transform: translate(200px, 0px);
@@ -281,7 +282,6 @@ header a {
 }
 
 #ODRNav:hover {    
-    /* width: 500px; */
     opacity: 1;    
     -webkit-transition: all 0.15s ease-out;
        -moz-transition: all 0.15s ease-out;
@@ -289,6 +289,7 @@ header a {
          -o-transition: all 0.15s ease-out;
             transition: all 0.15s ease-out;
 }
+*/
 
 #ODRNavRight .top {
     margin-left: 25px;
@@ -973,9 +974,7 @@ form .row {
 
 .truncate,
 .pure-table td {
-/*
-    white-space: nowrap;
-*/
+    /* white-space: nowrap; */
     overflow: hidden;
     text-overflow: hidden;
 }
