@@ -784,17 +784,24 @@ odr_datatables_state_destroy:
 
 #-----------------------------------------
 # XSD Controller
-odr_xsd_generate_datatype:
-    path:  /admin/xsd/build/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:XSD:builddatatype }
-    requirements:
-        datatype_id:  \d+
+#odr_xsd_generate_datatype:
+#    path:  /admin/xsd/build/{datatype_id}
+#    defaults: { _controller: ODRAdminBundle:XSD:builddatatype }
+#    requirements:
+#        datatype_id:  \d+
 
-odr_xsd_download:
-    path:  /admin/xsd/download/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:XSD:downloadXSD }
+#odr_xsd_download:
+#    path:  /admin/xsd/download/{datatype_id}
+#    defaults: { _controller: ODRAdminBundle:XSD:downloadXSD }
+#    requirements:
+#        datatype_id:  \d+
+
+odr_get_datatype_xsd:
+    path:  /api/schema/datatype/{version}/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:XSD:getDatatypeXSD }
     requirements:
-        datatype_id:  \d+
+        version: 'v1|v2'
+        datatype_id: \d+
 
 #-----------------------------------------
 

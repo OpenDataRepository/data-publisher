@@ -65,8 +65,11 @@ is_link: {{ is_link }}</br>
             {% endif %}
 
         {% else %}
-            {# only display external id for linked datarecords #}
-            <datarecord><_external_id>{{ datarecord.externalIdField_value|xml }}</_external_id></datarecord>
+            {# only display external and internal ids for linked datarecords #}
+            <datarecord>
+                <_external_id>{{ datarecord.externalIdField_value|xml }}</_external_id>
+                <_internal_id>{{ datarecord.id }}</_internal_id>
+            </datarecord>
         {% endif %}
     {% endif %}
 

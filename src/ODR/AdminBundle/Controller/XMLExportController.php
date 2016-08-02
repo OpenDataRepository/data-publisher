@@ -46,6 +46,9 @@ class XMLExportController extends ODRCustomController
         $return['d'] = '';
 
         try {
+
+            throw new \Exception('NOT PERMITTED');
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
@@ -121,6 +124,9 @@ class XMLExportController extends ODRCustomController
         $response = new StreamedResponse();
 
         try {
+
+            throw new \Exception('NOT PERMITTED');
+
             $xml_export_path = dirname(__FILE__).'/../../../../web/uploads/xml_export/';
             $filename = 'DataRecord_'.$datarecord_id.'.xml';
 
@@ -265,7 +271,7 @@ class XMLExportController extends ODRCustomController
      * Renders the XMLExport version of the datarecord.
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param string $version
+     * @param string $version                  "v1" identifies datafields/datatypes by id with names as attributes, "v2" identifies datafields/datatypes by using their XML-safe name
      * @param integer $datarecord_id
      * @param Request $request
      *
@@ -273,7 +279,7 @@ class XMLExportController extends ODRCustomController
      *
      * @return string
      */
-    protected function GetDisplayData($em, $version, $datarecord_id, Request $request)
+    private function GetDisplayData($em, $version, $datarecord_id, Request $request)
     {
         try {
             // ----------------------------------------

@@ -2,14 +2,9 @@
 
 {% set datatype = datatype_array[initial_datatype_id] %}
 
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <datarecords>
-    {% if version == 'v1' %}
-    <datarecord datatype_name="{{ datatype.dataTypeMeta.shortName|xml }}">
-    {% elseif version == 'v2' %}
-    <datarecord datatype_name="{{ datatype.dataTypeMeta.xml_shortName }}">
-    {% endif %}
-
+    <datarecord>
         {% set is_top_level = 1 %}
         {% set is_link = 0 %}
 

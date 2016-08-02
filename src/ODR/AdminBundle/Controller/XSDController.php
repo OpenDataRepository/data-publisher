@@ -49,6 +49,9 @@ class XSDController extends ODRCustomController
         $return['d'] = '';
 
         try {
+
+            throw new \Exception('NOT PERMITTED');
+
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -122,6 +125,9 @@ class XSDController extends ODRCustomController
         $response = new StreamedResponse();
 
         try {
+
+            throw new \Exception('NOT PERMITTED');
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
@@ -175,71 +181,203 @@ class XSDController extends ODRCustomController
 
 
     /**
+     * Renders and returns the XML version of the given DataRecord
+     *
+     * @param string $version
+     * @param integer $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function getDatatypeXSDAction($version, $datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $response = new Response();
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype_id */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // Ensure this is a top-level datatype
+            $top_level_datatypes = parent::getTopLevelDatatypes();
+//print '<pre>'.print_r($top_level_datatypes, true).'</pre>'; exit();
+            if ( !in_array($datatype_id, $top_level_datatypes) )
+                throw new \Exception('Unable to generate an XML Schema Document for a Datatype that is not top level');
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+            // ----------------------------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            if ( $user === 'anon.' ) {
+                if ( !$datatype->isPublic() ) {
+                    // non-public datatype and anonymous user, can't view
+                    return parent::permissionDeniedError('view');
+                }
+                else {
+                    // public datatype, anybody can view
+                }
+            }
+            else {
+                // Grab user's permissions
+                $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+                // If user has view permissions, show non-public sections of the datarecord
+                $has_view_permission = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'view' ]) )
+                    $has_view_permission = true;
+
+                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+                if ( !$datatype->isPublic() && !$has_view_permission )
+                    return parent::permissionDeniedError('view');
+            }
+            // ----------------------------------------
+
+
+            // ----------------------------------------
+            // Render the requested datarecord
+            $xml = self::XSD_GetDisplayData($em, $version, $datatype_id, $request);
+
+            // Set up a response to send the file back
+            $response->setPrivate();
+            $response->headers->set('Content-Type', 'text/xml');
+            //$response->headers->set('Content-Length', filesize($xml_export_path.$filename));
+            $response->headers->set('Content-Disposition', 'attachment; filename="Datatype_'.$datatype_id.'.xsd";');
+
+            $response->setContent($xml);
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x82286253 ' . $e->getMessage();
+        }
+
+        if ($return['r'] !== 0) {
+            // If error encountered, do a json return
+            $response = new Response(json_encode($return));
+            $response->headers->set('Content-Type', 'application/json');
+            return $response;
+        }
+        else {
+            // Return the previously created response
+            return $response;
+        }
+    }
+
+
+    /**
      * Renders and returns the XSD schema definition for a DataType.
      *
      * @param \Doctrine\ORM\EntityManager $em
+     * @param string $version                  "v1" identifies datafields/datatypes by id with names as attributes, "v2" identifies datafields/datatypes by using their XML-safe name
      * @param integer $datatype_id
      * @param Request $request
      *
      * @return string
      */
-    private function XSD_GetDisplayData($em, $datatype_id, Request $request)
+    private function XSD_GetDisplayData($em, $version, $datatype_id, Request $request)
     {
-        // All of these should already exist
-        /** @var DataType $datatype */
-        $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-        /** @var Theme $theme */
-        $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+        try {
+            // All of these should already exist
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy(array('dataType' => $datatype->getId(), 'themeType' => 'master'));
 
-        $redis = $this->container->get('snc_redis.default');;
-        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        // ----------------------------------------
+            // ----------------------------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $datatype_permissions = array();
+            $datafield_permissions = array();
 
-        // Always bypass cache if in dev mode?
-        $bypass_cache = false;
-        if ($this->container->getParameter('kernel.environment') === 'dev')
-            $bypass_cache = true;
+            if ($user === 'anon.') {
+                // public datatype, anybody can view
+            }
+            else {
+                // Grab user's permissions
+                $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
+                $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+            }
+            // ----------------------------------------
 
 
-        // ----------------------------------------
-        // Determine which datatypes/childtypes to load from the cache
-        $include_links = false;
-        $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype_id), $include_links);
+            // ----------------------------------------
+            // Always bypass cache if in dev mode?
+            $bypass_cache = false;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
+
+
+            // ----------------------------------------
+            // Determine which datatypes/childtypes to load from the cache
+            $include_links = true;
+            $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype_id), $include_links);
 
 //print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
 
-        // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
 
 //print '<pre>'.print_r($datatree_array, true).'</pre>'; exit();
 
-        $datatype_array = array();
-        foreach ($associated_datatypes as $num => $dt_id) {
-            $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-            if ($bypass_cache || $datatype_data == null)
-                $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
+            $datatype_array = array();
+            foreach ($associated_datatypes as $num => $dt_id) {
+                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
+                if ($bypass_cache || $datatype_data == null)
+                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
 
-            foreach ($datatype_data as $dt_id => $data)
-                $datatype_array[$dt_id] = $data;
-        }
+                foreach ($datatype_data as $dt_id => $data)
+                    $datatype_array[$dt_id] = $data;
+            }
 
 //print '<pre>'.print_r($datatype_data, true).'</pre>'; exit();
 
-        // ----------------------------------------
-        // Render the schema layout
-        $templating = $this->get('templating');
-        $html = $templating->render(
-            'ODRAdminBundle:XSDCreate:xsd_ajax.html.twig',
-            array(
-                'datatype_array' => $datatype_array,
-                'initial_datatype_id' => $datatype_id,
-                'theme_id' => $theme->getId(),
-            )
-        );
+            // ----------------------------------------
+            // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
+            $datarecord_array = array();
+            parent::filterByUserPermissions($datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
 
-        return $html;
+//print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
+//print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
+
+
+            // ----------------------------------------
+            // Render the schema layout
+            $templating = $this->get('templating');
+            $html = $templating->render(
+                'ODRAdminBundle:XSDCreate:xsd_ajax.html.twig',
+                array(
+                    'datatype_array' => $datatype_array,
+                    'initial_datatype_id' => $datatype_id,
+                    'theme_id' => $theme->getId(),
+
+                    'version' => $version,
+                )
+            );
+
+            return $html;
+        }
+        catch (\Exception $e) {
+            throw new \Exception( $e->getMessage() );
+        }
     }
 
 }

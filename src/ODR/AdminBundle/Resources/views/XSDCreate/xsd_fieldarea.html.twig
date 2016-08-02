@@ -47,8 +47,13 @@
                         {% if theme_datatype.is_link == 0 %}
                             {% set is_top_level = 0 %}
                             {% set child_datatype = datatype_array[ child_datatype.id ] %}
-                            
-                            <xsd:element name="{{ child_datatype.dataTypeMeta.xml_shortName }}" minOccurs="0">
+
+                            {% if version == "v2" %}
+                            <xsd:element name="{{ child_datatype.dataTypeMeta.xml_shortName|xml }}" minOccurs="0">
+                            {% else %}
+                            <xsd:element name="datatype_{{ child_datatype.id }}" minOccurs="0">
+                            {% endif %}
+
                                 <xsd:complexType>
                                     <xsd:sequence>
                                         <xsd:element name="datarecords" minOccurs="0">
@@ -58,9 +63,9 @@
                                                         <xsd:complexType>
                                                             <xsd:all>
                                                                 <xsd:element name="_datarecord_metadata" type="datarecord_metadata_type" minOccurs="0" />
-
+                                                                {# using macro on purpose #}
                                                                 {% import "ODRAdminBundle:XSDCreate:xsd_childtype.html.twig" as mychildform %}
-                                                                {{ mychildform.input(datatype_array, child_datatype.id, child_theme_id, is_top_level) }}
+                                                                {{ mychildform.input(datatype_array, child_datatype.id, child_theme_id, is_top_level, version) }}
                                                             </xsd:all>
                                                         </xsd:complexType>
                                                     </xsd:element>
@@ -68,7 +73,11 @@
                                             </xsd:complexType>
                                         </xsd:element>
                                     </xsd:sequence>
+                                    {% if version == "v1" %}
+                                        <xsd:attribute name="datatype_name" type="xsd:string" fixed="{{ child_datatype.dataTypeMeta.shortName|xml }}" />
+                                    {% endif %}
                                 </xsd:complexType>
+
                             </xsd:element>
 
                         {% endif %}
@@ -98,10 +107,15 @@
                             {% endif %}
                         {% endfor %}
 
-                        {% if theme_datatype.is_link == 0 %}
+                        {% if theme_datatype.is_link == 1 %}
                             {% set child_datatype = datatype_array[ child_datatype.id ] %}
 
-                            <xsd:element name="{{ child_datatype.dataTypeMeta.xml_shortName }}" minOccurs="0">
+                            {% if version == "v2" %}
+                            <xsd:element name="{{ child_datatype.dataTypeMeta.xml_shortName|xml }}" minOccurs="0">
+                            {% else %}
+                            <xsd:element name="datatype_{{ child_datatype.id }}" minOccurs="0">
+                            {% endif %}
+
                                 <xsd:complexType>
                                     <xsd:sequence>
                                         <xsd:element name="datarecords" minOccurs="0">
@@ -111,6 +125,7 @@
                                                         <xsd:complexType>
                                                             <xsd:all>
                                                                 <xsd:element name="_external_id" type="xsd:string" />
+                                                                <xsd:element name="_internal_id" type="xsd:positiveInteger" />
                                                             </xsd:all>
                                                         </xsd:complexType>
                                                     </xsd:element>
@@ -118,7 +133,11 @@
                                             </xsd:complexType>
                                         </xsd:element>
                                     </xsd:sequence>
+                                    {% if version == "v1" %}
+                                        <xsd:attribute name="datatype_name" type="xsd:string" fixed="{{ child_datatype.dataTypeMeta.shortName|xml }}" />
+                                    {% endif %}
                                 </xsd:complexType>
+
                             </xsd:element>
 
                         {% endif %}

@@ -103,7 +103,7 @@
                 <td class="center"></td>
             {% endif %}
 
-                <td class="center"><a class="address" href="#{{ path('odr_xsd_generate_datatype', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-download"></i>&nbsp;Download</a></td>
+                <td class="center"><a class="Pointer" onclick="downloadXSD({{ datatype.id }});"><i class="fa fa-lg fa-download"></i>&nbsp;Download</a></td>
 
             {% if can_design_datatype == true and can_edit_datatype == true %}
                 <td class="center"><a class="address" href="#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-upload"></i>&nbsp;Import</a></td>
@@ -253,5 +253,13 @@
                 }
             });
         }
+    }
+
+    function downloadXSD(datatype_id) {
+        var url = '{{ path('odr_get_datatype_xsd', { 'version': 'v1', 'datatype_id': 0 }) }}';
+        url = url.substring(0, (url.length - 1));
+        url += datatype_id;
+
+        document.location = url;
     }
 </script>
