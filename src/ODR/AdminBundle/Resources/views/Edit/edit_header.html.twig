@@ -47,7 +47,7 @@
             <button type="button" class="pure-button pure-button-primary" onclick="deleteRecord( {{ datarecord.id }} );">Delete DataRecord</button>
         {% endif %}
     
-        {% if can_add_record == 1 %}
+        {% if can_add_record == 1 and is_top_level == 1 %}
             <button type="button" class="pure-button pure-button-primary" onclick="addDataRecord( {{ datatype.id }} );">Add New DataRecord</button>
         {% endif %}
     </div>
@@ -138,6 +138,7 @@
         }
     }
 
+{% if is_top_level == 1 %}
     function addDataRecord(datatype_id) {
         if ( confirm('Are you sure you want to create a new Datarecord?') ) {
             var url = '{{ path('odr_record_add', { 'datatype_id': 0 }) }}';
@@ -182,7 +183,7 @@
             });
         }
     }
-
+{% endif %}
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}

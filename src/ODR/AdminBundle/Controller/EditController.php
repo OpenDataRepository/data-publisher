@@ -90,6 +90,10 @@ class EditController extends ODRCustomController
                 return parent::permissionDeniedError("create new DataRecords for");
             // --------------------
 
+            // Determine whether this is a request to add a datarecord for a top-level datatype or not
+            $top_level_datatypes = parent::getTopLevelDatatypes();
+            if ( !in_array($datatype_id, $top_level_datatypes) )
+                throw new \Exception('EditController::adddatarecordAction() called for child datatype');
 
             // Create a new datarecord
             $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
@@ -196,6 +200,11 @@ class EditController extends ODRCustomController
             if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'add' ])) )
                 return parent::permissionDeniedError("add child DataRecords to");
             // --------------------
+
+            // Determine whether this is a request to add a datarecord for a top-level datatype or not
+            $top_level_datatypes = parent::getTopLevelDatatypes();
+            if ( in_array($datatype_id, $top_level_datatypes) )
+                throw new \Exception('EditController::addchildrecordAction() called for top-level datatype');
 
             // Create new Data Record
             $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
@@ -2794,6 +2803,9 @@ if ($debug)
 
             $dt_id = $dr['dataType']['id'];
 
+            if ( !isset($datatype_array[$dt_id]) )
+                continue;
+
             foreach ($datatype_array[$dt_id]['themes'] as $theme_id => $theme) {
                 if ( $theme['themeType'] !== 'master' )
                     continue;
@@ -2877,9 +2889,6 @@ if ($debug)
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-            // Ensure all objects exist before rendering
-//            parent::verifyExistence($datarecord);
-
 
             // ----------------------------------------
             // If this datarecord is being viewed from a search result list...
@@ -2946,6 +2955,13 @@ if ($debug)
 
 
             // ----------------------------------------
+            // Determine whether this is a top-level datatype...if not, then the "Add new Datarecord" button in edit_header.html.twig needs to be disabled
+            $top_level_datatypes = parent::getTopLevelDatatypes();
+            $is_top_level = 1;
+            if ( !in_array($datatype_id, $top_level_datatypes) )
+                $is_top_level = 0;
+
+
             // Build an array of values to use for navigating the search result list, if it exists
             $search_header = parent::getSearchHeaderValues($datarecord_list, $datarecord->getId(), $request);
 
@@ -2960,6 +2976,8 @@ if ($debug)
                     'datarecord' => $datarecord,
                     'datatype' => $datatype,
 
+                    'is_top_level' => $is_top_level,
+
                     // values used by search_header.html.twig 
                     'search_key' => $encoded_search_key,
                     'offset' => $offset,
@@ -2971,7 +2989,6 @@ if ($debug)
                     'redirect_path' => $redirect_path,
                 )
             );
-
 
             $record_page_html = self::GetDisplayData($encoded_search_key, $datarecord->getId(), 'default', $datarecord->getId(), $request);      // TODO - replace the second $datarecord->getId() with $original_datarecord->getId()?
 
