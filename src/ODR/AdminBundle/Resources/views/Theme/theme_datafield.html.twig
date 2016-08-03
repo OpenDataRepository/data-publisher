@@ -8,6 +8,8 @@
         {% set prevent_datafield_use = 1 %}
     {% elseif field_typename == 'File' and datafield.dataFieldMeta.allow_multiple_uploads == 1 %}
         {% set prevent_datafield_use = 1 %}
+    {% elseif field_typename == 'Image' %}
+        {% set prevent_datafield_use = 1 %}
     {% endif %}
 {% endif %}
 

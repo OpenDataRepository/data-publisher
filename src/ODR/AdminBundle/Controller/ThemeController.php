@@ -326,6 +326,9 @@ class ThemeController extends ODRCustomController
             // Save all changes
             $em->flush();
 
+            // Ensure the datatype is aware of its new theme
+            parent::tmp_updateDatatypeCache($em, $datatype, $user);
+
             // Theme::design_wrapper.html.twig will reload the theme list
         }
         catch (\Exception $e) {
