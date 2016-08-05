@@ -17,6 +17,7 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\OpenRepository\UserBundle\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -116,10 +117,14 @@ class TextResultsController extends ODRCustomController
             // TODO - user permissions?
 
             // Determine whether user is logged in or not
+            /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $logged_in = true;
-            if ( $user === 'anon.' )
-                $logged_in = false;
+            $datatype_permissions = array();
+            $datafield_permissions = array();
+            if ( $user !== 'anon.' ) {
+                $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
+                $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+            }
 
 
             // ----------------------------------------
@@ -134,18 +139,14 @@ class TextResultsController extends ODRCustomController
             }
             else {
                 // Get all datarecords from the search key
-                $data = parent::getSavedSearch($datatype_id, $search_key, $logged_in, $request);
+                $data = parent::getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype->getId(), $search_key, $request);
 //                $encoded_search_key = $data['encoded_search_key'];
                 $datarecord_list = $data['datarecord_list'];
-/*
-                // If the user is attempting to view a datarecord from a search that returned no results...
-                if ($encoded_search_key !== '' && $datarecords === '') {
-                    // ...redirect to "no results found" page
-                    return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
-                }
-*/
+
+                // Don't check for a redirect here, right?  would need to modify datatables.js to deal with it... TODO
+
                 // Convert the comma-separated list into an array
-                if ( $data['error'] == false && trim($datarecord_list) !== '')
+                if ( $data['redirect'] == false && trim($datarecord_list) !== '')
                     $list = explode(',', $datarecord_list);
             }
 

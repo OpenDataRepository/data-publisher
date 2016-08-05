@@ -497,63 +497,112 @@ exit();
      * @param boolean $logged_in Whether the user is logged in or not
      * @param Request $request
      *
+     * @throws \Exception
+     *
      * @return array
      */
-    public function getSavedSearch($datatype_id, $search_key, $logged_in, Request $request)
+    public function getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype_id, $search_key, Request $request)
     {
         // Get necessary objects
         $redis = $this->container->get('snc_redis.default');;
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-        $search_checksum = md5($search_key);
 
-        // Going to need the search controller if a cached search doesn't exist
+        // ----------------------------------------
+        // Going to need the search controller for determining whether $search_key is valid or not
         $search_controller = $this->get('odr_search_controller', $request);
         $search_controller->setContainer($this->container);
 
-        $str = 'logged_in';
-        if (!$logged_in)
-            $str = 'not_logged_in';
+        // Determine whether the search key needs to be filtered based on the user's permissions
+        $datafield_array = $search_controller->getSearchDatafieldsForUser($em, $user, $datatype_id, $datatype_permissions, $datafield_permissions);
+        $search_controller->buildSearchArray($search_key, $datafield_array, $datatype_permissions);
+
+        if ( $search_key !== $datafield_array['filtered_search_key'] )
+            return array('redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key'], 'datarecord_list' => '');
+
+
+        // ----------------------------------------
+        // Otherwise, the search_key is fine...check to see if a cached version exists
+        $search_checksum = md5($search_key);
 
         // Attempt to load the search result for this search_key
         $data = array();
         $cached_searches = self::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
         if ( $cached_searches == false
             || !isset($cached_searches[$datatype_id])
-            || !isset($cached_searches[$datatype_id][$search_checksum])
-            || !isset($cached_searches[$datatype_id][$search_checksum][$str]) ) {
+            || !isset($cached_searches[$datatype_id][$search_checksum]) ) {
 
             // Saved search doesn't exist, redo the search and reload the results
             $ret = $search_controller->performSearch($search_key, $request);
-            if ($ret !== true) {
-                $data['error'] = true;
-                $data['message'] = $ret['message'];
-                $data['encoded_search_key'] = $ret['encoded_search_key'];
-                $data['complete_datarecord_list'] = '';
-                $data['datarecord_list'] = '';
-
-                return $data;
-            }
+            if ($ret['error'] == true)
+                throw new \Exception( $ret['message'] );
+            else if ($ret['redirect'] == true)
+                return array('redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key'], 'datarecord_list' => '');
 
             $cached_searches = self::getRedisData($redis->get($redis_prefix.'.cached_search_results'));
         }
 
+
+        // ----------------------------------------
         // Now that the search result is guaranteed to exist, grab it
         $search_params = $cached_searches[$datatype_id][$search_checksum];
 
         // Pull the individual pieces of info out of the search results
-        $data['error'] = false;
+        $data['redirect'] = false;
         $data['search_checksum'] = $search_checksum;
         $data['datatype_id'] = $datatype_id;
-        $data['logged_in'] = $logged_in;
 
         $data['searched_datafields'] = $search_params['searched_datafields'];
         $data['encoded_search_key'] = $search_params['encoded_search_key'];
 
-        $data['datarecord_list'] = $search_params[$str]['datarecord_list'];                     // ...just top-level datarecords
-        $data['complete_datarecord_list'] = $search_params[$str]['complete_datarecord_list'];   // ...top-level, child, and linked datarecords
+        $data['datarecord_list'] = $search_params['datarecord_list'];                     // ...just top-level datarecords
+        $data['complete_datarecord_list'] = $search_params['complete_datarecord_list'];   // ...top-level, child, and linked datarecords
 
         return $data;
+    }
+
+
+    /**
+     * Utility function to let controllers easily force a redirect to a different search results page
+     *
+     * @param $user
+     * @param $new_url
+     *
+     * @return Response
+     */
+    public function searchPageRedirect($user, $new_url)
+    {
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            //
+            $logged_in = true;
+            if ($user === 'anon.')
+                $logged_in = false;
+
+            //
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODROpenRepositorySearchBundle:Default:searchpage_redirect.html.twig',
+                    array(
+                        'logged_in' => $logged_in,
+                        'url' => $new_url,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x412584345 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
@@ -5711,7 +5760,7 @@ if ($timing)
 //        $sql = $query->getSQL();
 
         $datarecord_data = $query->getArrayResult();
-    
+
 //print '<pre>'.print_r($datarecord_data, true).'</pre>';  exit();
 /*
 if ($timing) {

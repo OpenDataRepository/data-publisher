@@ -105,11 +105,8 @@ class DisplayController extends ODRCustomController
             $datatype_permissions = array();
             $datafield_permissions = array();
             $has_view_permission = false;
-            $logged_in = true;
 
             if ( $user === 'anon.' ) {
-                $logged_in = false;
-
                 if ( !$datatype->isPublic() ) {
                     // non-public datatype and anonymous user, can't view
                     return parent::permissionDeniedError('view');
@@ -140,14 +137,18 @@ class DisplayController extends ODRCustomController
             $encoded_search_key = '';
             if ($search_key !== '') {
                 // ...attempt to grab the list of datarecords from that search result
-                $data = parent::getSavedSearch($datatype->getId(), $search_key, $logged_in, $request);
+                $data = parent::getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype->getId(), $search_key, $request);
                 $encoded_search_key = $data['encoded_search_key'];
                 $datarecord_list = $data['datarecord_list'];
 
-                if ($data['error'] == true || ($encoded_search_key !== '' && $datarecord_list === '') ) {
+                if (!$data['redirect'] && $encoded_search_key !== '' && $datarecord_list === '') {
                     // Some sort of error encounted...bad search query, invalid permissions, or empty datarecord list
                     $search_controller = $this->get('odr_search_controller', $request);
                     return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
+                }
+                else if ($data['redirect']) {
+                    $url = $this->generateUrl('odr_display_view', array('datarecord_id' => $datarecord_id, 'search_key' => $encoded_search_key, 'offset' => 1));
+                    return parent::searchPageRedirect($user, $url);
                 }
             }
 

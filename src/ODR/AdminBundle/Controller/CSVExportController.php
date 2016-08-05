@@ -69,11 +69,11 @@ class CSVExportController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $logged_in = true;
+            $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'edit' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -90,15 +90,15 @@ class CSVExportController extends ODRCustomController
             $encoded_search_key = '';
             if ($search_key !== '') {
                 // 
-                $data = parent::getSavedSearch($datatype_id, $search_key, $logged_in, $request);
+                $data = parent::getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype->getId(), $search_key, $request);
                 $encoded_search_key = $data['encoded_search_key'];
                 $datarecord_list = $data['datarecord_list'];
 
                 // If there is no tab id for some reason, or the user is attempting to view a datarecord from a search that returned no results...
-                if ( $odr_tab_id === '' || $data['error'] == true || ($encoded_search_key !== '' && $datarecord_list === '') ) {
+                if ( $odr_tab_id === '' || $data['redirect'] == true || ($encoded_search_key !== '' && $datarecord_list === '') ) {
                     // ...get the search controller to redirect to "no results found" page
-                    $search_controller = $this->get('odr_search_controller', $request);
-                    return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
+                    $url = $this->generateUrl('odr_search_render', array('search_key' => $data['encoded_search_key'], 'offset' => 1, 'source' => 'searching'));
+                    return parent::searchPageRedirect($user, $url);
                 }
 
                 // Store the datarecord list in the user's session...there is a chance that it could get wiped if it was only stored in memcached

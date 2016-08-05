@@ -44,7 +44,9 @@
             <div class="ODRAdvSearch_default">
             {% if searchable_datafields[ target_datatype.id ] is defined %}
                 {% for datafield in searchable_datafields[ target_datatype.id ] %}
-                    {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with { 'datafield': datafield } %}
+                    {% if datafield.getsearchable == 2 %}
+                        {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with { 'datafield': datafield } %}
+                    {% endif %}
                 {% endfor %}
             {% endif %}
 
@@ -68,7 +70,9 @@
                 <div class="ODRAdvSearch_content {#pure-u-23-24#} pure-u-1">
                 {% if searchable_datafields[child_datatype_id] is defined %}
                     {% for datafield in searchable_datafields[child_datatype_id] %}
-                        {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with { 'datafield': datafield } %}
+                        {% if datafield.getsearchable == 2 %}
+                            {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with { 'datafield': datafield } %}
+                        {% endif %}
                     {% endfor %}
                 {% endif %}
 
@@ -92,7 +96,9 @@
                 {#<div class="pure-u-1-24"></div>#}
                 <div class="ODRAdvSearch_content {#pure-u-23-24#} pure-u-1">
                 {% for datafield in searchable_datafields[ linked_datatype_id ] %}
-                    {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with { 'datafield': datafield } %}
+                    {% if datafield.getsearchable == 2 %}
+                        {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with { 'datafield': datafield } %}
+                    {% endif %}
                 {% endfor %}
 
                 {# created/modified by, created/modified date, public status of datarecord #}
@@ -507,7 +513,7 @@
                 {% endif %}
                 }
                 else {
-                    alert( data.d.html );
+                    alert( data.d );
                 }
             },
             complete: function(jqXHR, textStatus) {
