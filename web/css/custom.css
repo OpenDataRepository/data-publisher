@@ -238,6 +238,7 @@ header a {
     width: 215px;
 }
 
+/*
 #ODRNavWrapper {
     position: fixed;
     width: 230px;
@@ -246,6 +247,11 @@ header a {
     z-index: 1000;
 
     background: none;
+}
+*/
+#ODRNavWrapper {
+    width: 230px;
+    margin-right: 1.3em;
 }
 
 #ODRNav {

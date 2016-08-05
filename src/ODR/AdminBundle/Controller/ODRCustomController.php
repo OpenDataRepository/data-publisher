@@ -5711,13 +5711,9 @@ if ($timing)
 //        $sql = $query->getSQL();
 
         $datarecord_data = $query->getArrayResult();
+    
+//print '<pre>'.print_r($datarecord_data, true).'</pre>';  exit();
 /*
-if ($debug) {
-    print '<pre>';
-    print_r($datarecord_data);
-    print '</pre>';
-    exit();
-}
 if ($timing) {
     $t1 = microtime(true);
     $diff = $t1 - $t0;

@@ -899,6 +899,11 @@ $more_debug = false;
 $timing = true;
 $timing = false;
 
+$user = $this->container->get('security.token_storage')->getToken()->getUser();
+if ($user !== '.anon' && $user->getId() == 2) {
+    $debug = true;
+}
+
 $start_time = microtime(true);
 
 if ($debug || $more_debug || $timing)
@@ -1834,6 +1839,11 @@ if ($debug) {
     print '----------'."\n";
     print '$datarecords: '.$datarecords."\n";
     print '$grandparents: '.$grandparents."\n";
+
+    if ($datarecords == '')
+        print 'count($datarecords): 0'."\n";
+    else
+        print 'count($datarecords): '.(substr_count($datarecords,',')+1)."\n";
 
     if ($grandparents == '')
         print 'count($grandparents): 0'."\n";

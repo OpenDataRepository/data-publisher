@@ -3,7 +3,11 @@
     <div class="box">
     
         <div class="header">
-            <h2>Data Type List</h2>
+            {% if section == "design" %}
+            <h2>Database Management</h2>
+            {% else %}
+            <h2>Record Management</h2>
+            {% endif %}
         </div>
         
         <div class="content">

@@ -13,16 +13,17 @@
 <div class="tabletools">
     {% if level > 1 %}
     <div class="left">
-        <a class="ODRCreateDatatype Pointer"><i class="fa fa-lg fa-plus"></i>New Data Type</a>
+        <a class="ODRCreateDatatype Pointer"><i class="fa fa-lg fa-plus"></i>New Database</a>
     </div>
     {% endif %}
-    {% if level == 7 %}
+    {#% if level == 7 %}
     <div class="left">
         <a class="Pointer" onclick="recacheAll();"><i class="fa fa-lg fa-refresh"></i>Recache All Datatypes</a>
     </div>
-    {% endif %}
+    {% endif #}
 </div>
 
+<div id="ODRDataTypeListWrapper">
 <table id="ODRDatatypeList" class="{#pure-table pure-table-striped#}display dataTable">
     <thead>
         <tr>
@@ -123,6 +124,7 @@
 
     </tbody>
 </table>
+</div>
 
 <style>
     .ODRDatatypeInfoDiv {

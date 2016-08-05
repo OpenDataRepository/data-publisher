@@ -35,7 +35,7 @@
     {% endfor %}
 {% endif %}
 {% if user_role == 'ROLE_ADMIN' and count > 0 %}
-<div class="Cursor" style="margin-top:25px;">
+<div class="ODRExportButtons Cursor">
     <button class="pure-button pure-button-primary" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
     &nbsp;&nbsp;&nbsp;
     <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>

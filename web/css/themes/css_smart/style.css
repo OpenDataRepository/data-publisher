@@ -132,6 +132,16 @@ input,
     height: auto;
 }
 
+#ODRMenuLabel {
+    padding-left: 74px;
+    padding-bottom: 0px;
+    width: 300px;
+    margin-top: ;
+    top: 100px;
+    position: relative;
+    left: 170px;
+}
+
 #ODRNav:focus,
 #ODRNav:hover,
 #ODRNav {
@@ -146,15 +156,17 @@ input,
          -o-transition: none;
             transition: none;
     box-shadow: none;
+    background: white none;
 }
 #ODRNavWrapper {
     /* position: relative; */
-    position: fixed;
+    /* position: fixed;
     top: 5px;
-    left: 0px;
+    left: 0px; */
     width: auto;
     display: inline-block;
     cursor: pointer;
+    margin-left: 1.2em;
 }
 
 #ODRNavWrapper input[type="checkbox"] {
@@ -162,6 +174,7 @@ input,
     cursor: pointer;
 }
 
+/*
 #ODRNavWrapper .ODRMenuIcon:before {
     position: absolute;
     font-family: FontAwesome;
@@ -174,25 +187,28 @@ input,
     margin-top: -0.3em;
     vertical-align: middle;
 }
+*/
 
+#ODRNav:focus,
 #ODRNavWrapper:focus {
     /* clicking on label should toggle the menu */
-    /* pointer-events: none; */
     box-shadow: none;
     outline-width: 0;
 }
+/*
 #ODRNavWrapper:focus #ODRNav {
     /*  opacity is 1 in opened state (see below) */
-    opacity: 1;
+/*    opacity: 1;
     /* visibility: visible; */
-    display: block;
+/*    display: block;
 
     /* don't let pointer-events affect descendant elements */
     /* pointer-events: auto; */
-}
+/* } */
+
 #ODRNav {
-    top: 38px;
-    left: 0px;
+    top: 34px;
+    left: -18px;
     position: absolute;
     z-index: 1;
     color: white;
@@ -354,21 +370,28 @@ h3.ui-accordion-header a {
     padding: 12px;
 }
 
+.pure-skin-odr .ODRExportButtons .pure-button:hover {
+    box-shadow: none;
+    background: #B8E8FA none;
+    /* border: 2px solid #70A6C8; */
+    border-radius: 4px;
+    padding: 8px;
+    margin-right: 12px;
+}
 .pure-skin-odr .ODRTabButtonHeader .pure-button:hover {
     box-shadow: none;
     background: none;
     border: 2px solid #b8e8fa;
     border-radius: 4px;
-    color: #000;
     padding: 8px;
     color: #b8e8fa;
     margin-right: 12px;
 }
 
+.pure-skin-odr .ODRExportButtons .pure-button,
 .pure-skin-odr .ODRTabButtonHeader .pure-button {
     box-shadow: none;
-    background: none;
-    background-color: white;
+    background: white none;
     border: 2px solid white;
     border-radius: 4px;
     padding: 8px;
@@ -376,12 +399,12 @@ h3.ui-accordion-header a {
     margin-right: 12px;
 }
 
+.pure-skin-odr .ODRExportButtons .pure-button-active,
 .pure-skin-odr .ODRTabButtonHeader .pure-button-active {
     box-shadow: none;
-    background: none;
+    background: white none;
     border: 2px solid #1c81d0;
     border-radius: 4px;
-    background-color: white;
     padding: 8px;
     color: #1c81d0;
     margin-right: 12px;
@@ -441,6 +464,7 @@ footer .ODRLogoImage {
 .pure-skin-odr footer .ODRMenuLeft .pure-button-active {
     height: 48px;
     vertical-align: middle;
+    margin-right: -4px;
 }
 
 .pure-skin-odr .ODRMenuRight.pure-menu li a.ODRLogoImage,
@@ -596,3 +620,61 @@ footer .ODRLogoImage img {
     background: white none;
 }
 /* END Search Form */
+
+
+.header {
+    padding: 1em 0 0 0;
+    color: white;
+}
+
+#ODRDataTypeListWrapper {
+    padding: 12px;
+    background: white none;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+#ODRDatatypeList_wrapper {
+    box-sizing: border-box;
+    padding: 8px;
+    background: white none;
+    border-radius: 4px;
+    border: 1px solid #7fb9d8;
+}
+
+#ODRDatatypeList_filter input {
+    margin-left: 0.4em;
+    box-shadow: none;
+}
+
+#ODRDashboardGraphs .pure-u-1-5 > div {
+    box-sizing: border-box;
+    padding: 8px; 
+    background: white none; 
+}
+
+#ODRDashboardGraphs .total {
+    white-space: nowrap
+}
+
+.ODRExportButtons {
+    margin-top: 2em;
+    margin-bottom: 2em;
+}
+
+#ODRPageSelect {
+    background: white none;
+    padding: 10px;
+    border: 2px solid #white;
+    border-radius: 4px;
+    box-shadow: none;
+}
+
+#ODRPagePopup {
+    background: white none;
+    border: 1px solid #7fb9d8;
+    padding: 1em;
+    margin: 1em;
+    box-sizing: border-box;
+    border-radius: 4px;
+}
