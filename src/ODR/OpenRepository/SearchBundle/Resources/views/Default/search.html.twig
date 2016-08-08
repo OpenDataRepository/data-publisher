@@ -51,10 +51,12 @@
             {% endif %}
 
             {# created/modified by, created/modified date, public status of child datarecord #}
-            {% if logged_in == true %}
-                {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with { 'datatype_id': target_datatype.id, 'user_list': user_list } %}
-            {% endif %}
-
+            {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
+                'datatype_id': target_datatype.id,
+                'user_list': user_list,
+                'datatype_permissions': datatype_permissions,
+                'is_top_level': 1
+            } %}
             </div>
         </fieldset>
 
@@ -77,9 +79,12 @@
                 {% endif %}
 
                 {# created/modified by, created/modified date, public status of child datarecord #}
-                {% if logged_in == true %}
-                    {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with { 'datatype_id': child_datatype_id, 'user_list': user_list } %}
-                {% endif %}
+                {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
+                    'datatype_id': child_datatype_id,
+                    'user_list': user_list,
+                    'datatype_permissions': datatype_permissions,
+                    'is_top_level': 0
+                } %}
                 </div>
             </fieldset>
             {% endif %}
@@ -104,9 +109,12 @@
                 {# created/modified by, created/modified date, public status of datarecord #}
                 {# don't display metadata for linked datatypes...for now... #}
 {#
-                {% if logged_in == true %}
-                    {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with { 'datatype_id': linked_datatype_id, 'user_list': user_list } %}
-                {% endif %}
+                {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
+                    'datatype_id': target_datatype.id,
+                    'user_list': user_list,
+                    'datatype_permissions': datatype_permissions,
+                    'is_top_level': 0
+                } %}
 #}
 
                 </div>
@@ -144,8 +152,7 @@
         $(".ODRInput").prop('disabled', true);
 
         // Prevent normal form behavior
-        $("#search_form").unbind('submit');
-        $("#search_form").submit(function(event) {
+        $("#search_form").unbind('submit').submit(function(event) {
             event.preventDefault();
             doSearch();
         });
@@ -157,8 +164,7 @@
 
 
         // Setup accordions
-        $(".ODRAdvSearch_header").unbind('click');
-        $(".ODRAdvSearch_header").click(function() {
+        $(".ODRAdvSearch_header").unbind('click').click(function() {
             var content_div = $(this).next();
 
             if ( $(content_div).hasClass('ODRCollapse') ) {
@@ -180,10 +186,17 @@
 
                 // Datepickers need special treatment...
                 $(content_div).find(".ODRDatePicker[name$='_s']").each(function() {
-                    var rel = $(this).attr('rel');
+                    var id = $(this).attr('id');
+                    var id_data = id.split('_');
+
+                    var end_id = '';
+                    if (id_data.length == 3)
+                        end_id = '#' + id_data[0] + '_' + id_data[1] + '_end';
+                    else if (id_data.length == 4)
+                        end_id = '#' + id_data[0] + '_' + id_data[1] + '_' + id_data[2] + '_end';
 
                     // If nothing in start and nothing in end, hide this datafield
-                    if ( $(this).val() == '' && $('#' + rel + '_end').val() == '' )
+                    if ( $(this).val() == '' && $(end_id).val() == '' )
                         $(this).parent().slideUp(200);
                 });
 
@@ -213,8 +226,7 @@
         $(".ODRAdvSearch_header").parent().hide();
 
         // Tristate checkbox
-        $(".ODRTristateCheckbox").unbind('click');
-        $(".ODRTristateCheckbox").click(function() {
+        $(".ODRTristateCheckbox").unbind('click').click(function() {
             // Grab data about the option being clicked
             var icon = $(this).children('i').first();
             var input = $(this).children('input').first();
@@ -250,8 +262,7 @@
         });
 
         // Shortcut to select all options of a Multiple Radio/Select datafield
-        $(".ODRSelectAll").unbind('click');
-        $(".ODRSelectAll").click(function() {
+        $(".ODRSelectAll").unbind('click').click(function() {
             var datafield_id = $(this).attr('rel');
 
             $("#Input_" + datafield_id).find('i.fa').each(function() {
@@ -264,8 +275,7 @@
         });
 
         // Shortcut to deselect all options of a Radio/Select datafield
-        $(".ODRDeselectAll").unbind('click');
-        $(".ODRDeselectAll").click(function() {
+        $(".ODRDeselectAll").unbind('click').click(function() {
             var datafield_id = $(this).attr('rel');
 
             $("#Input_" + datafield_id).find('i.fa').each(function() {
@@ -278,8 +288,7 @@
         });
 
         // Shortcut to clear all options of a Radio/Select datafield
-        $(".ODRClearAll").unbind('click');
-        $(".ODRClearAll").click(function() {
+        $(".ODRClearAll").unbind('click').click(function() {
             var datafield_id = $(this).attr('rel');
 
             $("#Input_" + datafield_id).find('i.fa').each(function() {
@@ -336,8 +345,7 @@
         });
 
         // Slide out the help menu
-        $(".ODRSearchHelp").unbind('click');
-        $(".ODRSearchHelp").click(function() {
+        $(".ODRSearchHelp").unbind('click').click(function() {
             $("#ODRSearchHelp_div").slideToggle();
         });
     });
@@ -409,6 +417,7 @@
             var name = $(this).attr('name');
             var type = $(this).attr('type');
             var value = $(this).attr('value');
+            var datatype_id = $(this).attr('rel');
 
             // Don't want empty values clogging the string
             if (name == undefined || value == '')
@@ -419,6 +428,8 @@
             if (search_key != '')
                 search_key += divider;
             search_key += name + '=' + value;
+
+            $('#dt_' + datatype_id + '_pub').removeClass('ODRSearchDisabled');
         });
         $(".ODRRadioSearchDiv").each(function() {
 
@@ -452,6 +463,16 @@
 
             if (has_selections)
                 search_key += str;
+        });
+        $(".ODRDatatype_require_public").each(function() {
+            if ( !$(this).hasClass('ODRSearchDisabled') ) {
+                var name = $(this).attr('name');
+                var value = $(this).attr('value');
+
+                if (search_key != '')
+                    search_key += divider;
+                search_key += name + '=' + value;
+            }
         });
 
 //alert( 'search_key: ' + search_key );
