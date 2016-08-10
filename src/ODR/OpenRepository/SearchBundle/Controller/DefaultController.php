@@ -270,48 +270,70 @@ exit();
      * Given a list of datatypes, returns an array of all datafields the requesting user is allowed to search
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param array $related_datatypes         An array returned by @see self::getRelatedDatatypes()
-     * @param array $user_permissions          If set, the current user's permission array
+     * @param array $related_datatypes          An array returned by @see self::getRelatedDatatypes()
+     * @param boolean $logged_in
+     * @param array $datatype_permissions       If set, the current user's datatype permission array
+     * @param array $datafield_permissions      If set, the current user's datafield permission array
      *
      * @return array an array of ODR\AdminBundle\Entity\DataFields objects, grouped by their Datatype id
      */
-    private function getSearchableDatafields($em, $related_datatypes, $user_permissions = array())
+    private function getSearchableDatafields($em, $related_datatypes, $logged_in, $datatype_permissions = array(), $datafield_permissions = array())
     {
-        // Just want a comma separated list of related datatypes...
-        $datatypes = array();
-        foreach ($related_datatypes['child_datatypes'] as $datatype_id => $tmp)
-            $datatypes[] = $datatype_id;
-        foreach ($related_datatypes['linked_datatypes'] as $num => $linked_datatype_id)
-            $datatypes[] = $linked_datatype_id;
-
-//print_r($datatypes);
-
-        // Build a query to get all datafields of these datatypes
-        $query = $em->createQuery(
-           'SELECT dt.id AS dt_id, df AS datafield
-            FROM ODRAdminBundle:DataFields AS df
-            JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-            JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-            WHERE df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND dt.deletedAt IS NULL
-            AND df.dataType IN (:datatypes) AND dfm.searchable > 0'
-        )->setParameters( array('datatypes' => $datatypes) );
-        $results = $query->getResult();
-
-        // Group the datafields by datatype id
         $searchable_datafields = array();
-        foreach ($results as $num => $result) {
-            $datatype_id = $result['dt_id'];
+
+        // Need an array of related datatypes...MUST NOT be a comma-separated string for some reasno
+        $datatype_list = array();
+        foreach ($related_datatypes['child_datatypes'] as $datatype_id => $tmp)
+            $datatype_list[] = $datatype_id;
+        foreach ($related_datatypes['linked_datatypes'] as $num => $linked_datatype_id)
+            $datatype_list[] = $linked_datatype_id;
+
+
+        // Get all searchable datafields of all datatypes that the user is allowed to search on
+        $query = $em->createQuery(
+           'SELECT dt.id AS dt_id, tem.publicDate AS public_date, dfm.user_only_search AS user_only_search, df
+            FROM ODRAdminBundle:DataType AS dt
+            JOIN ODRAdminBundle:Theme AS t WITH t.dataType = dt
+            JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
+            JOIN ODRAdminBundle:ThemeElementMeta AS tem WITH tem.themeElement = te
+            JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
+            JOIN ODRAdminBundle:DataFields AS df WITH tdf.dataField = df
+            JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+            JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
+            WHERE dt.id IN (:datatypes) AND t.themeType = :theme_type AND dfm.searchable > 0
+            AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND dt.deletedAt IS NULL'
+        )->setParameters( array('datatypes' => $datatype_list, 'theme_type' => 'master') );
+        $results = $query->getResult();
+//        $results = $query->getArrayResult();
+
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+        foreach ($results as $result) {
+            $dt_id = $result['dt_id'];
+            $public_date = $result['public_date']->format('Y-m-d H:i:s');
+            $user_only_search = $result['user_only_search'];
+
             /** @var DataFields $datafield */
-            $datafield = $result['datafield'];
-            $user_only_search = $datafield->getUserOnlySearch();
+            $datafield = $result[0];
+            $df_id = $datafield->getId();
 
-            // Only save datafields the user has permissions to view
-            // TODO - actual datafield permissions
-            if ( $user_only_search == 0 || ( isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['view']) ) ) {
-                if ( !isset($searchable_datafields[$datatype_id]) )
-                    $searchable_datafields[$datatype_id] = array();
+            $theme_element_is_public = true;
+            if ($public_date == '2200-01-01 00:00:00')
+                $theme_element_is_public = false;
 
-                $searchable_datafields[$datatype_id][] = $datafield;
+            $has_view_permission = false;
+            if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
+                $has_view_permission = true;
+
+            if ( (!$logged_in && $user_only_search == 1) || !($theme_element_is_public || $has_view_permission) ) {
+                // either the datafield isn't visible to non-logged in users, or the user lacks the view permission for this datafield...either way, don't save in $datafield_array
+            }
+            else {
+                // The user has permissions to view this datafield...save it
+                if ( !isset($searchable_datafields[$dt_id]) )
+                    $searchable_datafields[$dt_id] = array();
+
+                $searchable_datafields[$dt_id][] = $datafield;
             }
         }
 
@@ -330,7 +352,6 @@ exit();
      */
     public function searchpageAction($search_slug, $search_string, Request $request)
     {
-
         $html = '';
 
         try {
@@ -366,7 +387,8 @@ exit();
             // Grab user and their permissions if possible
             /** @var User $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = array();
+            $datatype_permissions = array();
+            $datafield_permissions = array();
 
             // Store if logged in or not
             $logged_in = true;
@@ -376,13 +398,14 @@ exit();
             }
             else {
                 // Grab user permissions
-                $user_permissions = $odrcc->getPermissionsArray($admin_user->getId(), $request);
+                $datatype_permissions = $odrcc->getPermissionsArray($admin_user->getId(), $request);
+                $datafield_permissions = $odrcc->getDatafieldPermissionsArray($admin_user->getId(), $request);
             }
             // ------------------------------
 
             // Check if user has permission to view datatype
             $target_datatype_id = $target_datatype->getId();
-            if ( !$target_datatype->isPublic() && !(isset($user_permissions[ $target_datatype_id ]) && isset($user_permissions[ $target_datatype_id ][ 'view' ])) )
+            if ( !$target_datatype->isPublic() && !(isset($datatype_permissions[ $target_datatype_id ]) && isset($datatype_permissions[ $target_datatype_id ][ 'view' ])) )
                 return self::searchPageError("You don't have permission to access this DataType.", $request);
 
             // Need to grab all searchable datafields for the target_datatype and its descendants
@@ -392,7 +415,7 @@ $debug = false;
 
             // ----------------------------------------
             // Grab ids of all datatypes related to the requested datatype that the user can view
-            $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $user_permissions);
+            $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $datatype_permissions);
 
 if ($debug) {
     print '<pre>';
@@ -401,7 +424,7 @@ if ($debug) {
     print '$related_datatypes: '.print_r($related_datatypes, true)."\n";
 }
             // Grab all searchable datafields 
-            $searchable_datafields = self::getSearchableDatafields($em, $related_datatypes, $user_permissions);
+            $searchable_datafields = self::getSearchableDatafields($em, $related_datatypes, $logged_in, $datatype_permissions, $datafield_permissions);
 
 if ($debug) {
     $print = array();
@@ -453,7 +476,7 @@ if ($debug) {
 
             // Determine if the user has the permissions required to see anybody in the created/modified by search fields
             $admin_permissions = array();
-            foreach ($user_permissions as $datatype_id => $up) {
+            foreach ($datatype_permissions as $datatype_id => $up) {
                 if ( (isset($up['edit']) && $up['edit'] == 1) || (isset($up['delete']) && $up['delete'] == 1) || (isset($up['add']) && $up['add'] == 1) || (isset($up['admin']) && $up['admin'] == 1) ) {
                     $admin_permissions[ $datatype_id ] = $up;
                 }
@@ -504,7 +527,8 @@ if ($debug) {
                 array(
                     // required twig/javascript parameters
                     'user' => $admin_user,
-                    'user_permissions' => $user_permissions,
+                    'datatype_permissions' => $datatype_permissions,
+                    'datafield_permissions' => $datafield_permissions,
 
                     'user_list' => $user_list,
                     'logged_in' => $logged_in,
@@ -576,14 +600,15 @@ if ($debug) {
             // Grab user and their permissions if possible
             /** @var User $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = $odrcc->getPermissionsArray($admin_user->getId(), $request);
+            $datatype_permissions = $odrcc->getPermissionsArray($admin_user->getId(), $request);
+            $datafield_permissions = $odrcc->getDatafieldPermissionsArray($admin_user->getId(), $request);
             $logged_in = true;
 
             // ----------------------------------------
             // Grab ids of all datatypes related to the requested datatype that the user can view
-            $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $user_permissions);
+            $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $datatype_permissions);
             // Grab all searchable datafields 
-            $searchable_datafields = self::getSearchableDatafields($em, $related_datatypes, $user_permissions);
+            $searchable_datafields = self::getSearchableDatafields($em, $related_datatypes, $logged_in, $datatype_permissions, $datafield_permissions);
 
 
             // Grab all the users
@@ -593,7 +618,7 @@ if ($debug) {
 
             // Determine if the user has the permissions required to see anybody in the created/modified by search fields
             $admin_permissions = array();
-            foreach ($user_permissions as $datatype_id => $up) {
+            foreach ($datatype_permissions as $datatype_id => $up) {
                 if ( (isset($up['edit']) && $up['edit'] == 1) || (isset($up['delete']) && $up['delete'] == 1) || (isset($up['add']) && $up['add'] == 1) || (isset($up['admin']) && $up['admin'] == 1) ) {
                     $admin_permissions[ $datatype_id ] = $up;
                 }
@@ -635,11 +660,12 @@ if ($debug) {
             $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
-                  'ODROpenRepositorySearchBundle:Default:search.html.twig',
+                    'ODROpenRepositorySearchBundle:Default:search.html.twig',
                     array(
                         // required twig/javascript parameters
-//                        'user' => $admin_user,
-//                        'user_permissions' => $user_permissions,
+                        'user' => $admin_user,
+                        'datatype_permissions' => $datatype_permissions,
+                        'datafield_permissions' => $datafield_permissions,
 
                         'user_list' => $user_list,
                         'logged_in' => $logged_in,
@@ -1391,9 +1417,9 @@ if (isset($debug['timing'])) {
 
         // ----------------------------------------
         // Parameterize the search values for each datafield that has them, and remove all datafields from the array that aren't being searched on
-        if ($parse_all) {
-            if ( isset($datafield_array['gen']) ) {
+        if ( isset($datafield_array['gen']) ) {
 
+            if ($parse_all) {
                 // All fieldtypes other than Radio use the same set of parameters
                 $general_search_params = self::parseField($datafield_array['gen'], $debug);
 
@@ -1403,7 +1429,7 @@ if (isset($debug['timing'])) {
 
                 // If general_string has quotes around it, strip them
                 $general_string = $datafield_array['gen'];
-                if ( substr($general_string, 0, 1) == "\"" && substr($general_string, -1) == "\"" )
+                if (substr($general_string, 0, 1) == "\"" && substr($general_string, -1) == "\"")
                     $comparision = '=';
 
                 $conditions = array();
@@ -1426,23 +1452,24 @@ if (isset($debug['timing'])) {
                     else
                         $datafield_array['general'][$df_id]['search_params'] = $general_search_params;
                 }
+            }
 
-                // No longer need this value
-                unset( $datafield_array['gen'] );
-            }
-            else {
-                // No general search string specified, so do not search on these datafields
-                unset( $datafield_array['general'] );
-            }
+            // No longer need this value
+            unset( $datafield_array['gen'] );
+        }
+        else {
+            // No general search string specified, so do not search on these datafields
+            unset( $datafield_array['general'] );
         }
 
-        if ($parse_all) {
-            foreach ($datafield_array['advanced'] as $df_id => $tmp) {
-                if ( !isset($tmp['initial_value']) ) {
-                    // No search value specified for this datafield...get rid of it
-                    unset( $datafield_array['advanced'][$df_id] );
-                }
-                else {
+
+        foreach ($datafield_array['advanced'] as $df_id => $tmp) {
+            if ( !isset($tmp['initial_value']) ) {
+                // No search value specified for this datafield...get rid of it
+                unset( $datafield_array['advanced'][$df_id] );
+            }
+            else {
+                if ($parse_all) {
                     // Pull the raw search value from the array
                     $initial_value = $tmp['initial_value'];
                     $typeclass = $tmp['typeclass'];
@@ -1527,12 +1554,13 @@ if (isset($debug['timing'])) {
                         $search_params = self::parseField($initial_value, $debug);
                     }
                     $datafield_array['advanced'][$df_id]['search_params'] = $search_params;
-
-                    // Don't need the initial value of this datafield anymore
-                    unset( $datafield_array['advanced'][$df_id]['initial_value'] );
                 }
+
+                // Don't need the initial value of this datafield anymore
+                unset( $datafield_array['advanced'][$df_id]['initial_value'] );
             }
         }
+
 
         // ----------------------------------------
         // Adjust any dates in the metadata fields
