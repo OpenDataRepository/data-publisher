@@ -1255,39 +1255,54 @@ exit();
             /** @var User $admin_user */
             $admin_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($admin_id);
 
+            // All permissions default to 0 (not allowed)
+            $can_view_type = 0;
+            if ( isset($initial_permissions['can_view_type']) )
+                $can_view_type = $initial_permissions['can_view_type'];
+            $can_edit_record = 0;
+            if ( isset($initial_permissions['can_edit_record']) )
+                $can_edit_record = $initial_permissions['can_edit_record'];
+            $can_add_record = 0;
+            if ( isset($initial_permissions['can_add_record']) )
+                $can_add_record = $initial_permissions['can_add_record'];
+            $can_delete_record = 0;
+            if ( isset($initial_permissions['can_delete_record']) )
+                $can_delete_record = $initial_permissions['can_delete_record'];
+            $can_design_type = 0;
+            if ( isset($initial_permissions['can_design_type']) )
+                $can_design_type = $initial_permissions['can_design_type'];
+            $is_type_admin = 0;
+            if ( isset($initial_permissions['is_type_admin']) )
+                $is_type_admin = $initial_permissions['is_type_admin'];
+
             // Ensure a permissions object doesn't already exist before creating one
             $query =
-               'INSERT INTO odr_user_permissions (user_id, data_type_id)
-                SELECT * FROM (SELECT :user_id AS user_id, :datatype_id AS dt_id) AS tmp
+               'INSERT INTO odr_user_permissions (user_id, data_type_id, created, createdBy, updated, can_view_type, can_edit_record, can_add_record, can_delete_record, can_design_type, is_type_admin)
+                SELECT * FROM (
+                    SELECT :user_id AS user_id, :datatype_id AS data_type_id, NOW() AS created, :created_by AS createdBy, NOW() AS updated,
+                        :can_view_type AS can_view_type, :can_edit_record AS can_edit_record, :can_add_record AS can_add_record, :can_delete_record AS can_delete_record,
+                        :can_design_type AS can_design_type, :is_type_admin AS is_type_admin
+                ) AS tmp
                 WHERE NOT EXISTS (
                     SELECT id FROM odr_user_permissions WHERE user_id = :user_id AND data_type_id = :datatype_id AND deletedAt IS NULL
                 ) LIMIT 1;';
-            $params = array('user_id' => $user_id, 'datatype_id' => $datatype_id);
+            $params = array(
+                'user_id' => $user_id,
+                'datatype_id' => $datatype_id,
+                'created_by' => $admin_user->getId(),
+
+                'can_view_type' => $can_view_type,
+                'can_edit_record' => $can_edit_record,
+                'can_add_record' => $can_add_record,
+                'can_delete_record' => $can_delete_record,
+                'can_design_type' => $can_design_type,
+                'is_type_admin' => $is_type_admin,
+            );
             $conn = $em->getConnection();
             $rowsAffected = $conn->executeUpdate($query, $params);
 
             /** @var UserPermissions $up */
             $up = $repo_user_permissions->findOneBy( array('user' => $user_id, 'dataType' => $datatype_id) );
-            $up->setCreated( new \DateTime() );
-            $up->setCreatedBy($admin_user);
-            $up->setUpdatedBy($admin_user);
-
-            if ( isset($initial_permissions['can_view_type']) )
-                $up->setCanViewType($initial_permissions['can_view_type']);
-            if ( isset($initial_permissions['can_edit_record']) )
-                $up->setCanEditRecord($initial_permissions['can_edit_record']);
-            if ( isset($initial_permissions['can_add_record']) )
-                $up->setCanAddRecord($initial_permissions['can_add_record']);
-            if ( isset($initial_permissions['can_delete_record']) )
-                $up->setCanDeleteRecord($initial_permissions['can_delete_record']);
-            if ( isset($initial_permissions['can_design_type']) )
-                $up->setCanDesignType($initial_permissions['can_design_type']);
-            if ( isset($initial_permissions['is_type_admin']) )
-                $up->setIsTypeAdmin($initial_permissions['is_type_admin']);
-
-            $em->persist($up);
-            $em->flush($up);
-            $em->refresh($up);
         }
 
         return $up;
@@ -1322,33 +1337,29 @@ exit();
             // Load required objects
             /** @var User $admin_user */
             $admin_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($admin_id);
+            $can_view_field = $initial_permissions['can_view_field'];
+            $can_edit_field = $initial_permissions['can_edit_field'];
 
             // Ensure a permissions object doesn't already exist before creating one
             $query =
-               'INSERT INTO odr_user_field_permissions (user_id, data_field_id)
-                SELECT * FROM (SELECT :user_id AS user_id, :datafield_id AS df_id) AS tmp
+               'INSERT INTO odr_user_field_permissions (user_id, data_field_id, data_type_id, created, createdBy, updated, can_view_field, can_edit_field)
+                SELECT * FROM (SELECT :user_id AS user_id, :datafield_id AS data_field_id, :datatype_id AS data_type_id, NOW() AS created, :created_by AS createdBy, NOW() AS updated, :can_view_field AS can_view_field, :can_edit_field AS can_edit_field) AS tmp
                 WHERE NOT EXISTS (
                     SELECT id FROM odr_user_field_permissions WHERE user_id = :user_id AND data_field_id = :datafield_id AND deletedAt IS NULL
                 ) LIMIT 1;';
-            $params = array('user_id' => $user_id, 'datafield_id' => $datafield->getId());
+            $params = array(
+                'user_id' => $user_id,
+                'datafield_id' => $datafield->getId(),
+                'datatype_id' => $datafield->getDataType()->getId(),
+                'created_by' => $admin_user->getId(),
+                'can_view_field' => $can_view_field,
+                'can_edit_field' => $can_edit_field
+            );
             $conn = $em->getConnection();
             $rowsAffected = $conn->executeUpdate($query, $params);
 
             /** @var UserFieldPermissions $ufp */
             $ufp = $repo_user_field_permissions->findOneBy( array('user' => $user_id, 'dataField' => $datafield->getId()) );
-            $ufp->setDataType( $datafield->getDataType() );
-            $ufp->setCreated( new \DateTime() );
-            $ufp->setCreatedBy($admin_user);
-            $ufp->setUpdatedBy($admin_user);
-
-            if ( isset($initial_permissions['can_view_field']) )
-                $ufp->setCanViewField($initial_permissions['can_view_field']);
-            if ( isset($initial_permissions['can_edit_field']) )
-                $ufp->setCanEditField($initial_permissions['can_edit_field']);
-
-            $em->persist($ufp);
-//            $em->flush($up);
-//            $em->refresh($up);
         }
 
         return $ufp;
@@ -1570,16 +1581,16 @@ exit();
             $all_datafields = $query->getArrayResult();
 
             if ( count($all_datafields) !== count($datafield_permissions) ) {
+                // There are fewer datafield permissions objects than datafields...ensure all datatype permission objects exist first
+                $top_level_datatypes = self::getTopLevelDatatypes();
+                foreach ($top_level_datatypes as $num => $datatype_id)
+                    self::permissionsExistence($em, $user_id, $user_id, $datatype_id, null);
+
                 // Need the user's datatype permissions to determine defaults for missing datafield permissions
                 $datatype_permissions = self::getPermissionsArray($user_id, $request, true);
 
                 // Create missing datafield permission objects
                 self::datafieldPermissionsExistence($em, $user_id, $user_id, $datatype_permissions);
-
-                // There are fewer datafield permissions objects than datafields...create missing permissions objects
-                $top_level_datatypes = self::getTopLevelDatatypes();
-                foreach ($top_level_datatypes as $num => $datatype_id)
-                    self::permissionsExistence($em, $user_id, $user_id, $datatype_id, null);
 
                 // Reload datafield permissions for user
                 $query = $em->createQuery(
@@ -2575,24 +2586,21 @@ if ($debug)
         /** @var DataRecordFields $drf */
         $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
         if ($drf == null) {
-            // TODO - better method for doing this?
             $query =
-               'INSERT INTO odr_data_record_fields (data_record_id, data_field_id)
-                SELECT * FROM (SELECT :datarecord AS dr_id, :datafield AS df_id) AS tmp
+               'INSERT INTO odr_data_record_fields (data_record_id, data_field_id, created, createdBy)
+                SELECT * FROM (SELECT :datarecord AS data_record_id, :datafield AS data_field_id, NOW() AS created, :created_by AS createdBy) AS tmp
                 WHERE NOT EXISTS (
                     SELECT id FROM odr_data_record_fields WHERE data_record_id = :datarecord AND data_field_id = :datafield AND deletedAt IS NULL
                 ) LIMIT 1;';
-            $params = array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId());
+            $params = array(
+                'datarecord' => $datarecord->getId(),
+                'datafield' => $datafield->getId(),
+                'created_by' => $user->getId()
+            );
             $conn = $em->getConnection();
             $rowsAffected = $conn->executeUpdate($query, $params);
 
             $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
-            $drf->setCreated( new \DateTime() );
-            $drf->setCreatedBy($user);
-
-            $em->persist($drf);
-            $em->flush($drf);
-            $em->refresh($drf);
         }
 
         return $drf;
@@ -3158,38 +3166,49 @@ if ($debug)
         if ($storage_entity !== null)
             return $storage_entity;
 
-
         // Otherwise, locate/create the datarecordfield entity for this datarecord/datafield pair
         $drf = self::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
 
+        // Determine which value to use for the default value
+        $insert_value = null;
+        if ($initial_value !== null)
+            $insert_value = $initial_value;
+        else
+            $insert_value = $default_value;
 
         // Create a new storage entity
-        // TODO - better method for doing this?
         $query =
-           'INSERT INTO '.$table_name.' (data_record_id, data_field_id, data_record_fields_id)
-            SELECT * FROM (SELECT :datarecord AS dr_id, :datafield AS df_id, :datarecordfield AS drf_id) AS tmp
+           'INSERT INTO '.$table_name.' (`data_record_id`, `data_field_id`, `data_record_fields_id`, `field_type_id`, `value`, `created`, `createdBy`, `updated`, `updatedBy`)
+            SELECT * FROM (
+                SELECT :dr_id AS `data_record_id`, :df_id AS `data_field_id`, :drf_id AS `data_record_fields_id`, :ft_id AS `field_type_id`, :initial_value AS `value`,
+                    NOW() AS `created`, :created_by AS `createdBy`, NOW() AS `updated`, :created_by AS `updated_by`
+            ) AS tmp
             WHERE NOT EXISTS (
-                SELECT id FROM '.$table_name.' WHERE data_record_id = :datarecord AND data_field_id = :datafield AND data_record_fields_id = :datarecordfield AND deletedAt IS NULL
+                SELECT id FROM '.$table_name.' WHERE data_record_id = :dr_id AND data_field_id = :df_id AND data_record_fields_id = :drf_id AND deletedAt IS NULL
             ) LIMIT 1;';
-        $params = array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId(), 'datarecordfield' => $drf->getId());
+        $params = array(
+            'dr_id' => $datarecord->getId(),
+            'df_id' => $datafield->getId(),
+            'drf_id' => $drf->getId(),
+            'ft_id' => $datafield->getFieldType()->getId(),
+            'initial_value' => $insert_value,
+
+            'created_by' => $user->getId(),
+        );
         $conn = $em->getConnection();
         $rowsAffected = $conn->executeUpdate($query, $params);
 
         // Reload the storage entity
         $storage_entity = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
-        $storage_entity->setFieldType( $datafield->getFieldType() );
 
-        if ($initial_value !== null)
-            $storage_entity->setValue( $initial_value );
-        else
-            $storage_entity->setValue( $default_value );
+        // Decimal values need to run setValue() because there's php logic involved
+        if ($typeclass == 'DecimalValue') {
+            $storage_entity->setValue($insert_value);
 
-        $storage_entity->setCreated( new \DateTime() );
-        $storage_entity->setCreatedBy($user);
-        $storage_entity->setUpdatedBy($user);
-
-        $em->persist($storage_entity);
-        $em->flush();
+            $em->persist($storage_entity);
+            $em->flush($storage_entity);
+            $em->refresh($storage_entity);
+        }
 
         return $storage_entity;
     }
@@ -3505,37 +3524,36 @@ if ($debug)
             // See if a RadioOption entity for this datafield with this name already exists
             $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('optionName' => $option_name, 'dataField' => $datafield->getId()) );
             if ($radio_option == null) {
-                // TODO - CURRENTLY WORKS, BUT MIGHT WANT TO LOOK INTO AN OFFICIAL MUTEX...
-
+                // TODO - most of these properties have been moved to the meta table for radio options, but are still currently required to make this insert work...
                 // Define and execute a query to manually create the absolute minimum required for a RadioOption entity...
                 $query =
-                    'INSERT INTO odr_radio_options (option_name, data_fields_id)
-                     SELECT * FROM (SELECT :name AS option_name, :df_id AS df_id) AS tmp
+                    'INSERT INTO odr_radio_options (option_name, data_fields_id, display_order, is_default, xml_option_name, created, createdBy, updated, updatedBy)
+                     SELECT * FROM (
+                         SELECT :option_name AS option_name, :df_id AS data_fields_id, :display_order AS display_order, :is_default AS is_default, :xml_option_name AS xml_option_name,
+                             NOW() AS created, :created_by AS createdBy, NOW() AS updated, :updated_by AS updatedBy
+                     ) AS tmp
                      WHERE NOT EXISTS (
-                         SELECT option_name FROM odr_radio_options WHERE option_name = :name AND data_fields_id = :df_id AND deletedAt IS NULL
+                         SELECT option_name FROM odr_radio_options WHERE option_name = :option_name AND data_fields_id = :df_id AND deletedAt IS NULL
                      ) LIMIT 1;';
-                $params = array('name' => $option_name, 'df_id' => $datafield->getId());
+                $params = array(
+                    'option_name' => $option_name,
+                    'df_id' => $datafield->getId(),
+
+                    // TODO - delete these three properties
+                    'display_order' => 0,
+                    'is_default' => 0,
+                    'xml_option_name' => '',
+
+                    'created_by' => $user->getId(),
+                    'updated_by' => $user->getId(),
+                );
                 $conn = $em->getConnection();
                 $rowsAffected = $conn->executeUpdate($query, $params);
 
                 // Now that it exists, fill out the properties of a RadioOption entity that were skipped during the manual creation...
                 /** @var RadioOptions $radio_option */
                 $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(array('optionName' => $option_name, 'dataField' => $datafield->getId()));
-//            $radio_option->setOptionName($option_name);
-                $radio_option->setCreatedBy($user);
-                $radio_option->setCreated(new \DateTime());
 
-                // TODO - delete these five properties
-                $radio_option->setXmlOptionName('');
-                $radio_option->setDisplayOrder(0);
-                $radio_option->setIsDefault(false);
-                $radio_option->setUpdatedBy($user);
-                $radio_option->setUpdated(new \DateTime());
-
-                // Save and reload the RadioOption so the associated meta entry can access it
-                $em->persist($radio_option);
-                $em->flush($radio_option);
-                $em->refresh($radio_option);
 
                 // See if a RadioOptionMeta entity exists for this RadioOption...
                 /** @var RadioOptionsMeta $radio_option_meta */
@@ -3543,27 +3561,30 @@ if ($debug)
                 if ($radio_option_meta == null) {
                     // Define and execute a query to manually create the absolute minimum required for a RadioOption entity...
                     $query =
-                       'INSERT INTO odr_radio_options_meta (radio_option_id)
-                        SELECT * FROM (SELECT :ro_id AS ro_id) AS tmp
+                       'INSERT INTO odr_radio_options_meta (radio_option_id, option_name, display_order, is_default, xml_option_name, created, createdBy, updated, updatedBy)
+                        SELECT * FROM (
+                            SELECT :ro_id AS radio_option_id, :option_name AS option_name, :display_order AS display_order, :is_default AS is_default, :xml_option_name AS xml_option_name,
+                                NOW() AS created, :created_by AS createdBy, NOW() AS updated, :updated_by AS updatedBy
+                        ) AS tmp
                         WHERE NOT EXISTS (
                             SELECT radio_option_id FROM odr_radio_options_meta WHERE radio_option_id = :ro_id AND deletedAt IS NULL
                         ) LIMIT 1;';
-                    $params = array('ro_id' => $radio_option->getId());
+                    $params = array(
+                        'ro_id' => $radio_option->getId(),
+                        'option_name' => $option_name,
+
+                        'display_order' => 0,
+                        'is_default' => 0,
+                        'xml_option_name' => '',
+
+                        'created_by' => $user->getId(),
+                        'updated_by' => $user->getId(),
+                    );
                     $conn = $em->getConnection();
                     $rowsAffected = $conn->executeUpdate($query, $params);
 
                     // Now that it exists, fill out the properties of a RadioOptionMeta entity that were skipped during the manual creation...
                     $radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOption' => $radio_option->getId()) );
-                    $radio_option_meta->setOptionName($option_name);
-                    $radio_option_meta->setXmlOptionName('');
-                    $radio_option_meta->setDisplayOrder(0);
-                    $radio_option_meta->setIsDefault(false);
-
-                    $radio_option_meta->setCreated( new \DateTime() );
-                    $radio_option_meta->setCreatedBy($user);
-
-                    $em->persist($radio_option_meta);
-                    $em->flush($radio_option_meta);
                 }
             }
 
@@ -3675,26 +3696,25 @@ if ($debug)
         if ($radio_selection == null) {
             // TODO - better method for doing this?
             $query =
-               'INSERT INTO odr_radio_selection (data_record_fields_id, radio_option_id)
-                SELECT * FROM (SELECT :dataRecordFields AS drf_id, :radioOption AS ro_id) AS tmp
+               'INSERT INTO odr_radio_selection (data_record_fields_id, radio_option_id, selected, created, createdBy, updated, updatedBy)
+                SELECT * FROM (
+                    SELECT :drf_id AS data_record_fields_id, :ro_id AS radio_option_id, :selected AS selected,
+                        NOW() AS created, :created_by AS createdBy, NOW() AS updated, :created_by AS updatedBy
+                ) AS tmp
                 WHERE NOT EXISTS (
-                    SELECT id FROM odr_radio_selection WHERE data_record_fields_id = :dataRecordFields AND radio_option_id = :radioOption AND deletedAt IS NULL
+                    SELECT id FROM odr_radio_selection WHERE data_record_fields_id = :drf_id AND radio_option_id = :ro_id AND deletedAt IS NULL
                 ) LIMIT 1;';
-            $params = array('dataRecordFields' => $drf->getId(), 'radioOption' => $radio_option->getId());
+            $params = array(
+                'drf_id' => $drf->getId(),
+                'ro_id' => $radio_option->getId(),
+                'selected' => 0,
+                'created_by' => $user->getId(),
+            );
             $conn = $em->getConnection();
             $rowsAffected = $conn->executeUpdate($query, $params);
 
+            // Reload the radio selection entity
             $radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy( array('dataRecordFields' => $drf->getId(), 'radioOption' => $radio_option->getId()) );
-            $radio_selection->setCreated( new \DateTime() );
-            $radio_selection->setCreatedBy($user);
-            $radio_selection->setUpdated( new \DateTime() );
-            $radio_selection->setUpdatedBy($user);
-
-            $radio_selection->setSelected(0);
-
-            $em->persist($radio_selection);
-            $em->flush($radio_selection);
-            $em->refresh($radio_selection);
         }
 
         return $radio_selection;

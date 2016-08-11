@@ -725,12 +725,12 @@ print_r($line);
                 // TODO - CURRENTLY WORKS, BUT MIGHT WANT TO LOOK INTO AN OFFICIAL MUTEX...
 
                 $query =
-                   'INSERT INTO odr_tracked_csv_export (random_key, tracked_job_id)
-                    SELECT * FROM (SELECT :random_key AS random_key, :tj_id AS tj_id) AS tmp
+                   'INSERT INTO odr_tracked_csv_export (random_key, tracked_job_id, finalize)
+                    SELECT * FROM (SELECT :random_key AS random_key, :tj_id AS tj_id, :finalize AS finalize) AS tmp
                     WHERE NOT EXISTS (
                         SELECT random_key FROM odr_tracked_csv_export WHERE random_key = :random_key AND tracked_job_id = :tj_id
                     ) LIMIT 1;';
-                $params = array('random_key' => $random_key, 'tj_id' => $tracked_job_id);
+                $params = array('random_key' => $random_key, 'tj_id' => $tracked_job_id, 'finalize' => false);
                 $conn = $em->getConnection();
                 $rowsAffected = $conn->executeUpdate($query, $params);
 
