@@ -101,15 +101,17 @@ class URLPlugin
 
 
             // Grab baseurl for the link
-            if ( isset($options['base_url']) && $options['base_url'] !== 'auto' )
+            if ( isset($options['base_url']) && $options['base_url'] !== 'auto' )   // TODO - figure out what 'auto' should mean
                 $baseurl = $options['base_url'];
             else
                 throw new \Exception('base_url not set');
 
-
             // Escape the datafield's value 
             $encoded_value = urlencode($value);
-            $str = '<a target="_blank" href="'.$baseurl.$encoded_value.'">'.$value.'</a>';
+            $str = '';
+            if ($value !== '')
+                $str = '<a target="_blank" href="'.$baseurl.$encoded_value.'">'.$value.'</a>';
+
 
             $output = "";
             switch ($themeType) {

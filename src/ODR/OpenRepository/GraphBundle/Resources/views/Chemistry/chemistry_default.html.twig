@@ -2,7 +2,7 @@
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
         <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
-            <input type="text" value="{{ value }}" readonly="readonly" />
+            <div class="ODRRenderPluginField">{{ value|raw }}</div>
         </div>
     </fieldset>
 {% endspaceless %}
