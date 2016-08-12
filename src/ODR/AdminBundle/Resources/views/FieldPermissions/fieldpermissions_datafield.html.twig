@@ -12,18 +12,27 @@
     {% set can_edit_datafield = true %}
 {% endif %}
 
-    
-{% if can_view_datafield == true and can_edit_datafield == true %}
-    <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODREditableDatafield Pointer" title="The datafield is both viewable and editable by the user" rel="{{ datafield.id }}"></div>
-{% elseif can_view_datafield == true %}
-    {% if can_edit_datatype == true %}
-        <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODRVisibleDatafield Pointer" title="This datafield can be viewed, but not edited by the user" rel="{{ datafield.id }}"></div>
+
+{% if theme_element_public or can_view_datatype %}
+    {% if can_edit_datatype %}
+        {% if can_view_datafield and can_edit_datafield %}
+            <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODREditableDatafield Pointer" title="The datafield is both viewable and editable by the user" rel="{{ datafield.id }}"></div>
+        {% elseif can_view_datafield %}
+            <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODRVisibleDatafield Pointer" title="This datafield can be viewed, but not edited by the user" rel="{{ datafield.id }}"></div>
+        {% else %}
+            <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODRBlockedDatafield Pointer" title="This datafield is neither viewable nor editable by the user" rel="{{ datafield.id }}"></div>
+        {% endif %}
     {% else %}
-        <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODRVisibleDatafield" title="The user is not permitted to edit this Datatype, and therefore can only view this Datafield" rel="{{ datafield.id }}"></div>
+        {% if can_view_datafield %}
+            <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODRVisibleDatafield Pointer" title="This datafield can be viewed, but not edited by the user" rel="{{ datafield.id }}"></div>
+        {% else %}
+            <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODRBlockedDatafield Pointer" title="This datafield is neither viewable nor editable by the user" rel="{{ datafield.id }}"></div>
+        {% endif %}
     {% endif %}
 {% else %}
-    <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODRBlockedDatafield Pointer" title="This datafield is neither viewable nor editable by the user" rel="{{ datafield.id }}"></div>
+    <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODRBlockedDatafield fa-muted" title="This datafield is neither viewable nor editable by the user" rel="{{ datafield.id }}"></div>
 {% endif %}
+
 
 <form id="Form_DataField_{{ datafield.id }}" class="pure-u-1">
 

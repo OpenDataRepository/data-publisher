@@ -33,16 +33,6 @@ function setDatatypeIcons(id, icons) {
                 $(icon).attr('title', "Datatype is not visible to public");
             }
         }
-        else if (key == "ODREditPermission") {
-            if (value == 1) {
-                $(icon).addClass('fa-unlock').removeClass('fa-lock');
-                $(icon).attr('title', "User is permitted to edit this Datatype");
-            }
-            else if (value == 0) {
-                $(icon).addClass('fa-lock').removeClass('fa-unlock');
-                $(icon).attr('title', "User is not permitted to edit this Datatype");
-            }
-        }
     });
 }
 

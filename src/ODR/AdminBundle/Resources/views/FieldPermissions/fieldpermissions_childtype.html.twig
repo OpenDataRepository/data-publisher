@@ -3,6 +3,13 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = datatype.themes[theme_id] %}
 
+{% set can_view_datatype = false %}
+{% if datatype_permissions[ datatype.id ] is defined %}
+    {% if datatype_permissions[ datatype.id ][ 'view' ] is defined %}
+        {% set can_view_datatype = true %}
+    {% endif %}
+{% endif %}
+
 {% set can_edit_datatype = false %}
 {% if datatype_permissions[ datatype.id ] is defined %}
     {% if datatype_permissions[ datatype.id ][ 'edit' ] is defined %}
@@ -19,7 +26,8 @@
             <a id="Datatype_{{ datatype.id }}_ShortName">{{ datatype.dataTypeMeta.shortName }}</a>
 
             <span id="DataTypeTools_{{ datatype.id }}" class="DataTypeTools" style="float:right;" rel="{{ datatype.id }}">
-                <i class="Pointer tooltip fa {% if can_edit_datatype == true %}fa-unlock{% else %}fa-lock{% endif %} ODREditPermission" title="User is {% if can_edit_datatype == false %}not {% endif %}permitted to edit this Datatype" rel="{{ user.id }}"></i>
+                <i class="Pointer tooltip fa {% if can_view_datatype %}fa-eye{% else %}fa-eye-slash{% endif %} ODRViewPermission" title="User is {% if not can_view_datatype %}not {% endif %}permitted to view this Datatype" rel="{{ user.id }}"></i>
+                <i class="Pointer tooltip fa {% if not can_view_datatype %}fa-muted{% endif %} {% if can_edit_datatype %}fa-unlock{% else %}fa-lock{% endif %} ODREditPermission" title="User is {% if not can_edit_datatype %}not {% endif %}permitted to edit this Datatype" rel="{{ user.id }}"></i>
             </span>
 
         </h3>
@@ -40,15 +48,12 @@
 
     {% else %}
         {# current datatype is top-level #}
-        <span id="DataTypeTools_{{ datatype.id }}" class="DataTypeTools" style="float:right;" rel="{{ datatype.id }}">
-            <i class="Pointer tooltip fa {% if can_edit_datatype == true %}fa-unlock{% else %}fa-lock{% endif %} ODREditPermission" title="User is {% if can_edit_datatype == false %}not {% endif %}permitted to edit this Datatype" rel="{{ user.id }}"></i>
-        </span>
-{#
-        <div class="header">
-            <h3 id="Datatype_{{ datatype.id }}_ShortName">{{ datatype.dataTypeMeta.shortName }}</h3>
-        </div>
-#}
         <div class="ODRFieldArea pure-u-1" id="FieldArea_{{ datatype.id }}">
+            <span id="DataTypeTools_{{ datatype.id }}" class="DataTypeTools" style="float:right;" rel="{{ datatype.id }}">
+                <i class="Pointer tooltip fa {% if can_view_datatype %}fa-eye{% else %}fa-eye-slash{% endif %} ODRViewPermission" title="User is {% if not can_view_datatype %}not {% endif %}permitted to view this Datatype" rel="{{ user.id }}"></i>
+                <i class="Pointer tooltip fa {% if not can_view_datatype %}fa-muted{% endif %} {% if can_edit_datatype %}fa-unlock{% else %}fa-lock{% endif %} ODREditPermission" title="User is {% if not can_edit_datatype %}not {% endif %}permitted to edit this Datatype" rel="{{ user.id }}"></i>
+            </span>
+
             {% include 'ODRAdminBundle:FieldPermissions:fieldpermissions_fieldarea.html.twig' with {
                 'user': user,
                 'datatype_permissions': datatype_permissions,

@@ -26,6 +26,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\UserFieldPermissions;
 use ODR\AdminBundle\Entity\UserPermissions;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -1120,9 +1121,10 @@ class ODRUserController extends ODRCustomController
             // ----------------------------------------
             // Need to load and categorize all datatypes into top-level and child datatype groups
             $query = $em->createQuery(
-               'SELECT dt
+               'SELECT dt, dtm
                 FROM ODRAdminBundle:DataType AS dt
-                WHERE dt.deletedAt IS NULL');
+                JOIN dt.dataTypeMeta AS dtm
+                WHERE dt.deletedAt IS NULL AND dtm.deletedAt IS NULL');
             /** @var DataType[] $all_datatypes */
             $all_datatypes = $query->getArrayResult();
 
@@ -1130,6 +1132,7 @@ class ODRUserController extends ODRCustomController
             $childtypes = array();
             foreach ($all_datatypes as $num => $datatype) {
                 $dt_id = $datatype['id'];
+                $datatype['dataTypeMeta'] = $datatype['dataTypeMeta'][0];
 
                 if ( in_array($dt_id, $top_level_datatypes) ) {
                     // Store the datatype info
@@ -1736,9 +1739,6 @@ class ODRUserController extends ODRCustomController
             // Grab the user from their id
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
@@ -1756,24 +1756,7 @@ class ODRUserController extends ODRCustomController
 
                 // Grab permissions of both target user and admin
                 $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
-/*
-                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
-                $allow = false;
-                foreach ($admin_permissions as $dt_id => $permission) {
-                    if ( isset($permission['admin']) && $permission['admin'] == 1 ) {
-                        // allow this permissions change if the admin user has an "is_type_admin" permission and the target user has a "can_view_type" for the same datatype
-                        if ( isset($user_permissions[$dt_id]) && isset($user_permissions[$dt_id]['view']) && $user_permissions[$dt_id]['view'] == 1 ) {
-                            $allow = true;
-                            break;
-                        }
-                    }
-                }
-
-                // If not allowed, block access
-                if (!$allow)
-                    return parent::permissionDeniedError();
-*/
                 // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
                 if ( !isset($admin_permissions[$datatype_id]) || !isset($admin_permissions[$datatype_id]['admin']) )
                     return parent::permissionDeniedError();
@@ -1793,62 +1776,15 @@ class ODRUserController extends ODRCustomController
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
             if ($theme == null)
                 return parent::deletedEntityError('Theme');
+            if ($theme->getThemeType() !== 'master')
+                throw new \Exception("Not allowed to render Datafield Permissions UI on a non-master Theme");
 
 
-            // Grab datatype-level permissions for the specified user
-            $datatype_permissions = parent::getPermissionsArray($user_id, $request);
-            // Grab the datafield-level permissions for the specified user
-            $datafield_permissions = parent::getDatafieldPermissionsArray($user_id, $request);
-
-
-            // Always bypass cache if in dev mode?
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
-
-
-            // ----------------------------------------
-            //
-            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-
-            // Determine which datatypes/childtypes to load from the cache
-            $include_links = false;
-            $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype_id), $include_links);
-
-//print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
-
-            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            $datatype_array = array();
-            foreach ($associated_datatypes as $num => $dt_id) {
-                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-                if ($bypass_cache || $datatype_data == false)
-                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
-
-                foreach ($datatype_data as $dt_id => $data)
-                    $datatype_array[$dt_id] = $data;
-            }
-
-
-            // ----------------------------------------
-            // No need to filter by user permissions...the only people who can currently access this functionality already have permissions to view/edit everything
-
-
-            // Render the html for assigning datafield permissions
-            $templating = $this->get('templating');
+            // Get the html for assigning datafield permissions
             $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:FieldPermissions:fieldpermissions_ajax.html.twig',
-                    array(
-                        'user' => $user,
-                        'datatype_permissions' => $datatype_permissions,
-                        'datafield_permissions' => $datafield_permissions,
-
-                        'datatype_array' => $datatype_array,
-                        'initial_datatype_id' => $datatype_id,
-                        'theme_id' => $theme->getId(),
-                    )
-                )
+                'html' => self::GetDisplayData($user, $datatype_id, 'default', $datatype_id, $request)
             );
+
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1859,6 +1795,391 @@ class ODRUserController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Triggers a re-render and reload of a child DataType div in the design.
+     *
+     * @param integer $user_id             The user having his permissions modified
+     * @param integer $source_datatype_id  The database id of the top-level Datatype
+     * @param integer $childtype_id        The database id of the child DataType that needs to be re-rendered.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function reloaddatafieldpermissionschildtypeAction($user_id, $source_datatype_id, $childtype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $source_datatype */
+            $source_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($source_datatype_id);
+            if ($source_datatype == null)
+                return parent::deletedEntityError('Source Datatype');
+
+            /** @var DataType $childtype */
+            $childtype = $em->getRepository('ODRAdminBundle:DataType')->find($childtype_id);
+            if ($childtype == null)
+                return parent::deletedEntityError('Datatype');
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $childtype->getId(), 'themeType' => 'master') );
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+            if ($theme->getThemeType() !== 'master')
+                throw new \Exception("Not allowed to re-render a Child Datatype that doesn't belong to the master Theme");
+
+
+            // --------------------
+            /** @var ODRUser $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+
+            // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Require admin user to have at least admin role to do this...
+            if ( $admin_user->hasRole('ROLE_ADMIN') ) {
+
+                // If target user is super admin, not allowed to do this
+                if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+                    return parent::permissionDeniedError();
+
+                // Grab permissions of both target user and admin
+                $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
+
+                // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
+                if ( !isset($admin_permissions[$source_datatype_id]) || !isset($admin_permissions[$source_datatype_id]['admin']) )
+                    return parent::permissionDeniedError();
+            }
+            else {
+                return parent::permissionDeniedError();
+            }
+            // --------------------
+
+            $return['d'] = array(
+                'datatype_id' => $childtype_id,
+                'html' => self::GetDisplayData($user, $source_datatype_id, 'child_datatype', $childtype_id, $request),
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x79163252' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Triggers a re-render and reload of a ThemeElement in the design.
+     *
+     * @param integer $user_id             The user having his permissions modified
+     * @param integer $source_datatype_id  The database id of the top-level datatype being rendered?
+     * @param integer $theme_element_id    The database id of the ThemeElement that needs to be re-rendered.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function reloaddatafieldpermissionsthemeelementAction($user_id, $source_datatype_id, $theme_element_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            throw new \Exception('not needed right this moment...');
+
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $source_datatype */
+            $source_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($source_datatype_id);
+            if ($source_datatype == null)
+                return parent::deletedEntityError('Source Datatype');
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ($theme_element == null)
+                return parent::deletedEntityError('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+            if ($theme->getThemeType() !== 'master')
+                throw new \Exception("Not allowed to re-render a ThemeElement that doesn't belong to the master Theme");
+/*
+            $datatype = $theme->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+*/
+
+            // --------------------
+            /** @var ODRUser $user */
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+
+            // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Require admin user to have at least admin role to do this...
+            if ( $admin_user->hasRole('ROLE_ADMIN') ) {
+
+                // If target user is super admin, not allowed to do this
+                if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+                    return parent::permissionDeniedError();
+
+                // Grab permissions of both target user and admin
+                $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
+
+                // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
+                if ( !isset($admin_permissions[$source_datatype_id]) || !isset($admin_permissions[$source_datatype_id]['admin']) )
+                    return parent::permissionDeniedError();
+            }
+            else {
+                return parent::permissionDeniedError();
+            }
+            // --------------------
+
+            $datatype_id = null;
+            $return['d'] = array(
+                'theme_element_id' => $theme_element_id,
+                'html' => self::GetDisplayData($user, $source_datatype_id, 'theme_element', $theme_element_id, $request),
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x792133260' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Renders the HTML required to display/reload a portion of the Datafield Permissions changer UI
+     *
+     * @param ODRUser $user                The user having their permissions modified
+     * @param integer $source_datatype_id  The top-level datatype that $user is having permissions modified for
+     * @param string $template_name        One of 'default', 'child_datatype', 'theme_element'
+     * @param integer $target_id           If $template_name == 'default', then $target_id should be a top-level datatype id
+     *                                     If $template_name == 'child_datatype', then $target_id should be a child/linked datatype id
+     *                                     If $template_name == 'theme_element', then $target_id should be a theme_element id
+     * @param Request $request
+     *
+     * @return string
+     */
+    private function GetDisplayData($user, $source_datatype_id, $template_name, $target_id, $request)
+    {
+        // Required objects
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+        $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+        // Grab datatype-level permissions for the specified user
+        $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
+        // Grab the datafield-level permissions for the specified user
+        $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+
+
+        // Always bypass cache if in dev mode?
+        $bypass_cache = false;
+        if ($this->container->getParameter('kernel.environment') === 'dev')
+            $bypass_cache = true;
+
+        // Going to need this a lot...
+        $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+
+
+        // ----------------------------------------
+        // Load required objects based on parameters
+        /** @var DataType $datatype */
+        $datatype = null;
+        /** @var Theme $theme */
+        $theme = null;
+
+        /** @var DataType|null $child_datatype */
+        $child_datatype = null;
+        /** @var ThemeElement|null $theme_element */
+        $theme_element = null;
+
+
+        // Don't need to check whether these entities are deleted or not
+        if ($template_name == 'default') {
+            $datatype = $repo_datatype->find($target_id);
+            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+        }
+        else if ($template_name == 'child_datatype') {
+            $child_datatype = $repo_datatype->find($target_id);
+            $theme = $repo_theme->findOneBy( array('dataType' => $child_datatype->getId(), 'themeType' => 'master') );
+
+            // Need to determine the top-level datatype to be able to load all necessary data for rendering this child datatype
+            if ( isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) && $datatree_array['descendant_of'][ $child_datatype->getId() ] !== '' ) {
+                $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $child_datatype->getId());
+
+                $datatype = $repo_datatype->find($grandparent_datatype_id);
+            }
+            else if ( !isset($datatree_array['descendant_of'][ $child_datatype->getId() ]) || $datatree_array['descendant_of'][ $child_datatype->getId() ] == '' ) {
+                // Was actually a re-render request for a top-level datatype...re-rendering should still work properly if various flags are set right
+                $datatype = $child_datatype;
+            }
+        }
+        else if ($template_name == 'theme_element') {
+/*
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($target_id);
+            $theme = $theme_element->getTheme();
+
+            // This could be a theme element from a child datatype...make sure objects get set properly if it is
+            $datatype = $theme->getDataType();
+            if ( isset($datatree_array['descendant_of'][ $datatype->getId() ]) && $datatree_array['descendant_of'][ $datatype->getId() ] !== '' ) {
+                $child_datatype = $theme->getDataType();
+                $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $child_datatype->getId());
+
+                $datatype = $repo_datatype->find($grandparent_datatype_id);
+            }
+*/
+        }
+
+
+        // ----------------------------------------
+        // Determine which datatypes/childtypes to load from the cache
+        $include_links = false;
+        $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype->getId()), $include_links);
+
+//print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
+
+        // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+        $datatype_array = array();
+        foreach ($associated_datatypes as $num => $dt_id) {
+            $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
+            if ($bypass_cache || $datatype_data == null)
+                $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
+
+            foreach ($datatype_data as $dt_id => $data)
+                $datatype_array[$dt_id] = $data;
+        }
+
+//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
+
+
+        // ----------------------------------------
+        // No need to filter by user permissions...the only people who can currently access this functionality already have permissions to view/edit everything
+
+
+        // ----------------------------------------
+        // Render the required version of the page
+        $templating = $this->get('templating');
+
+        $html = '';
+        if ($template_name == 'default') {
+            $html = $templating->render(
+                'ODRAdminBundle:FieldPermissions:fieldpermissions_ajax.html.twig',
+                array(
+                    'user' => $user,
+                    'datatype_permissions' => $datatype_permissions,
+                    'datafield_permissions' => $datafield_permissions,
+
+                    'datatype_array' => $datatype_array,
+                    'initial_datatype_id' => $source_datatype_id,
+                    'theme_id' => $theme->getId(),
+                )
+            );
+        }
+        else if ($template_name == 'child_datatype') {
+            // Set variables properly incase this was a theme_element for a child/linked datatype
+            $target_datatype_id = $child_datatype->getId();
+            $is_top_level = 1;
+            if ($child_datatype->getId() !== $datatype->getId())
+                $is_top_level = 0;
+
+
+            // TODO - not really preventing this earlier i think...
+            // If the top-level datatype id found doesn't match the original datatype id of the design page, then this is a request for a linked datatype
+            $is_link = 0;
+            if ($source_datatype_id != $datatype->getId()) {
+                $is_top_level = 0;
+                $is_link = 1;
+            }
+
+            $html = $templating->render(
+                'ODRAdminBundle:FieldPermissions:fieldpermissions_childtype.html.twig',
+                array(
+                    'datatype_array' => $datatype_array,
+                    'target_datatype_id' => $target_datatype_id,
+                    'theme_id' => $theme->getId(),
+
+                    'user' => $user,
+                    'datatype_permissions' => $datatype_permissions,
+                    'datafield_permissions' => $datafield_permissions,
+
+                    'is_top_level' => $is_top_level,
+                )
+            );
+        }
+        else if ($template_name == 'theme_element') {
+/*
+            // Set variables properly incase this was a theme_element for a child/linked datatype
+            $target_datatype_id = $datatype->getId();
+            $is_top_level = 1;
+            if ($child_datatype !== null) {
+                $target_datatype_id = $child_datatype->getId();
+                $is_top_level = 0;
+            }
+
+            // TODO - not really preventing this earlier i think...
+            // If the top-level datatype id found doesn't match the original datatype id of the design page, then this is a request for a linked datatype
+            $is_link = 0;
+            if ($source_datatype_id != $datatype->getId())
+                $is_link = 1;
+
+            // design_fieldarea.html.twig attempts to render all theme_elements in the given theme...
+            // Since this is a request to only re-render one of them, unset all theme_elements in the theme other than the one the user wants to re-render
+            foreach ($datatype_array[ $datatype->getId() ]['themes'][ $theme->getId() ]['themeElements'] as $te_num => $te) {
+                if ( $te['id'] != $target_id )
+                    unset( $datatype_array[ $datatype->getId() ]['themes'][ $theme->getId() ]['themeElements'][$te_num] );
+            }
+
+//            print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
+
+            $html = $templating->render(
+                'ODRAdminBundle:FieldPermissions:fieldpermissions_fieldarea.html.twig',
+                array(
+                    'user' => $user,
+                    'datatype_permissions' => $datatype_permissions,
+                    'datafield_permissions' => $datafield_permissions,
+
+                    'datatype_array' => $datatype_array,
+                    'target_datatype_id' => $target_datatype_id,
+                    'theme_id' => $theme->getId(),
+
+                    'is_top_level' => $is_top_level,
+                )
+            );
+*/
+        }
+
+        return $html;
     }
 
 

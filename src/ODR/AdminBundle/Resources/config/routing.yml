@@ -96,12 +96,30 @@ odr_toggle_quick_permission:
         value:  0|1
         permission:  'edit|add|delete|view|design|admin|'
 
+
 odr_edit_datafield_permissions:
     path:  /admin/user/datafieldpermissions/{user_id}/{datatype_id}
     defaults: { _controller: ODRAdminBundle:ODRUser:datafieldpermissions }
     requirements:
         user_id:  \d+
         datatype_id:  \d+
+
+odr_datafield_permissions_reload_childtype:
+    path:  /admin/user/datafieldpermissions/reload/childtype/{user_id}/{source_datatype_id}/{childtype_id}
+    defaults: { _controller: ODRAdminBundle:ODRUser:reloaddatafieldpermissionschildtype }
+    requirements:
+        user_id:  \d+
+        source_datatype_id:  \d+
+        childtype_id:  \d+
+
+#odr_datafield_permissions_reload_theme_element:
+#    path:  /admin/user/datafieldpermissions/reload/theme_element/{user_id}/{source_datatype_id}/{theme_element_id}
+#    defaults: { _controller: ODRAdminBundle:ODRUser:reloaddatafieldpermissionsthemeelement }
+#    requirements:
+#        user_id:  \d+
+#        source_datatype_id:  \d+
+#        theme_element_id:  \d+
+
 
 odr_save_datafield_permission:
     path:  /admin/user/savedatafieldpermission/{user_id}/{datafield_id}/{permission}

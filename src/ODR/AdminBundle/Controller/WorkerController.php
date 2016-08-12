@@ -3662,12 +3662,11 @@ print '</pre>';
         $theme_element_meta->setCssWidthMed( $theme_element->getCssWidthMedOriginal() );
         $theme_element_meta->setCssWidthXL( $theme_element->getCssWidthXLOriginal() );
 
-        // ...displayInResults was effectively used for multiple purposes before, so it can't really be used to determine the new "publicDate" property of this theme element...
-//        $theme_element_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
-
         // If the theme element was marked as "display in results", make it public to achieve the same effect in the new system
         if ($theme_element->getDisplayInResults() == 1)
             $theme_element_meta->setPublicDate( new \DateTime() );
+        else
+            $theme_element_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 
         $theme_element_meta->setCreatedBy( $theme_element->getCreatedBy() );
         $theme_element_meta->setCreated( $theme_element->getCreated() );

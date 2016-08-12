@@ -6,12 +6,6 @@
     <span>Datafield Permissions &raquo; {{ datatype.dataTypeMeta.shortName }}</span>&nbsp;<span>...for {{ user.getuserstring }}</span>
 </h1>
 
-{#
-{% for datafield_id, permission in datafield_permissions %}
-datafield {{ datafield_id }} -- {% if permission[ 'view' ] is defined %}(view){% endif %} {% if permission[ 'edit' ] is defined %}(edit){% endif %}</br>
-{% endfor %}
-#}
-
 {% include 'ODRAdminBundle:FieldPermissions:fieldpermissions_area.html.twig' with {
     'user': user,
     'datatype_permissions': datatype_permissions,
@@ -24,8 +18,8 @@ datafield {{ datafield_id }} -- {% if permission[ 'view' ] is defined %}(view){%
 
 <style>
     .ODRBlockedDatafield {
-        background-color: #ff0000;
-        opacity: 0.4;
+        background-color: #000000;
+        opacity: 0.3;
     }
     .ODRVisibleDatafield {
         background-color: #ffff00;
@@ -69,65 +63,8 @@ function initPage() {
         $(this).css({"height": height, "line-height": height, "width": width});
     });
 
-    $(".ODRFieldPermission").unbind('click');
-    $(".ODRFieldPermission").click(function() {
 
-        if ( $(this).hasClass('fa-muted') )
-            return;
-
-        // Determine if datatype is editable
-        var can_edit_datatype = true;
-        var datatype_id_data = $(this).parent().parent().parent().attr('id').split(/_/);
-        var datatype_id = datatype_id_data[1];
-        if ( $("#DataTypeTools_" + datatype_id).children('.ODREditPermission').first().hasClass('fa-lock') )
-            can_edit_datatype = false;
-
-        // Determine if theme element is editable
-        var theme_element_visible = true;
-        var theme_element_id_data = $(this).parent().parent().attr('id').split(/_/);
-        var theme_element_id = theme_element_id_data[1];
-        if ( $("#ThemeElementTools_" + theme_element_id).find('.ODRThemeElementVisible').first().hasClass('fa-eye-slash') )
-            theme_element_visible = false;
-
-//alert( $(this).attr('id') + ' ' + can_edit_datatype + ' ' + theme_element_visible );
-
-        if ( $(this).hasClass('ODREditableDatafield') ) {
-            // switch from view/edit to view/non-edit
-            updateDatafieldPermissions( $(this).attr('id'), 'ODRVisibleDatafield' );
-        }
-        else if ( $(this).hasClass('ODRVisibleDatafield') ) {
-            if (theme_element_visible) {
-                if (can_edit_datatype) {
-                    // switch from view/non-edit to view/edit
-                    updateDatafieldPermissions( $(this).attr('id'), 'ODREditableDatafield' );        
-                }
-                else {
-                    /* can't change from view/non-edit to a different state if theme element is visible and user can't edit datatype */
-                }
-            }
-            else {
-                // switch from view/non-edit to no-view/non-edit
-                updateDatafieldPermissions( $(this).attr('id'), 'ODRBlockedDatafield' );
-            }
-        }
-        else if ( $(this).hasClass('ODRBlockedDatafield') ) {
-            if (can_edit_datatype) {
-                // switch from no-view/non-edit to view/edit
-                updateDatafieldPermissions( $(this).attr('id'), 'ODREditableDatafield' );
-            }
-            else {
-                // switch from no-view/non-edit to view/non-edit
-                updateDatafieldPermissions( $(this).attr('id'), 'ODRVisibleDatafield' );
-            }
-        }
-
-    });
-
-    $(".ODREditPermission").unbind('click');
-    $(".ODREditPermission").click(function() {
-
-alert('blocked');
-return;
+    $(".ODRViewPermission").unbind('click').click(function() {
 
         // Grab ids
         var user_id = $(this).attr('rel');
@@ -135,13 +72,13 @@ return;
 
         // Determine which value should be saved
         var value = 1;
-        if ( $(this).hasClass('fa-unlock') )    // has edit permissions, change so no edit permission
+        if ( $(this).hasClass('fa-eye') )    // has view permissions, change so no-view permission
             value = 0;
 
         var element = $(this);
         var url  = '{{ path('odr_toggle_user_permission', {'user_id': 0, 'datatype_id': 0, 'value': 0, 'permission': ''} ) }}';
         url = url.substring(0,(url.length-6));
-        url += user_id + '/' + datatype_id + '/' + value + '/' + 'edit';
+        url += user_id + '/' + datatype_id + '/' + value + '/' + 'view';
 
 //alert(url);
 //return;
@@ -153,34 +90,8 @@ return;
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
-                    var icons = {};
-                    if ( $(element).hasClass('fa-unlock') ) {
-                        // Set to not editable
-                        icons = {"ODREditPermission": 0};
-                        setDatatypeIcons(datatype_id, icons);   // icons need to be updated before updateDatafieldPermissions()
-
-                        // Need to set all viewable/editable datafields of this datatype to viewable/non-editable
-                        $("#FieldArea_" + datatype_id).children(".ODRThemeElement").children(".ODRDataField").each(function() {
-                            var datafield_overlay_id = $(this).attr('id') + "_overlay";
-                            if ( $("#" + datafield_overlay_id).hasClass('ODREditableDatafield') ) {
-                                updateDatafieldPermissions( datafield_overlay_id, 'ODRVisibleDatafield' );
-                            }
-                        });
-                    }
-                    else {
-                        // Set to editable
-                        icons = {"ODREditPermission": 1};
-                        setDatatypeIcons(datatype_id, icons);   // icons need to be updated before updateDatafieldPermissions()
-
-                        // Need to set all viewable/non-editable datafields to viewable/editable
-                        $("#FieldArea_" + datatype_id).children(".ODRThemeElement").children(".ODRDataField").each(function() {
-                            var datafield_overlay_id = $(this).attr('id') + "_overlay";
-                            if ( $("#" + datafield_overlay_id).hasClass('ODRVisibleDatafield') ) {
-                                updateDatafieldPermissions( datafield_overlay_id, 'ODREditableDatafield' );
-                            }
-                        });
-                    }
-
+                    // Reload the entire child datatype so all datafields display the proper overlays
+                    ReloadChild(datatype_id);
                 }
                 else {
                     // An error has occurred.
@@ -204,12 +115,115 @@ return;
         });
 
     });
+
+
+    $(".ODREditPermission").unbind('click').click(function() {
+
+        if ( $(this).hasClass('fa-muted') )
+            return;
+
+        // Grab ids
+        var user_id = $(this).attr('rel');
+        var datatype_id = $(this).parent().attr('rel');
+
+        // Determine which value should be saved
+        var value = 1;
+        if ( $(this).hasClass('fa-unlock') )    // has edit permissions, change so no-edit permission
+            value = 0;
+
+        var element = $(this);
+        var url  = '{{ path('odr_toggle_user_permission', {'user_id': 0, 'datatype_id': 0, 'value': 0, 'permission': ''} ) }}';
+        url = url.substring(0,(url.length-6));
+        url += user_id + '/' + datatype_id + '/' + value + '/' + 'edit';
+
+//alert(url);
+//return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    // Reload the entire child datatype so all datafields display the proper overlays
+                    ReloadChild(datatype_id);
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    });
+
+    $(".ODRFieldPermission").unbind('click').click(function() {
+
+        if ( $(this).hasClass('fa-muted') )
+            return;
+
+        var datatype_id_data = $(this).parent().parent().parent().attr('id').split(/_/);
+        var datatype_id = datatype_id_data[1];
+
+        // Determine if user can view datatype
+        var can_view_datatype = true;
+        if ( $("#DataTypeTools_" + datatype_id).children('.ODRViewPermission').first().hasClass('fa-eye-slash') )
+            can_view_datatype = false;
+
+        // Determine if datatype is editable
+        var can_edit_datatype = true;
+        if ( $("#DataTypeTools_" + datatype_id).children('.ODREditPermission').first().hasClass('fa-lock') )
+            can_edit_datatype = false;
+
+        // Determine if theme_element is editable
+        var theme_element_public = true;
+        var theme_element_id_data = $(this).parent().parent().attr('id').split(/_/);
+        var theme_element_id = theme_element_id_data[1];
+        if ( $("#ThemeElementTools_" + theme_element_id).find('.ODRThemeElementPublic').first().hasClass('IconRed') )
+            theme_element_public = false;
+
+//alert( "datafield " + $(this).attr('id') + "\ncan_view_datatype: " + can_view_datatype + "\ncan_edit_datatype: " + can_edit_datatype + "\ntheme_element_public: " + theme_element_public );
+//return;
+
+        if ( $(this).hasClass('ODREditableDatafield') ) {
+            // switch from view/edit to view/no-edit
+            updateDatafieldPermissions( $(this).attr('id'), 'ODRVisibleDatafield' );
+        }
+        else if ( $(this).hasClass('ODRVisibleDatafield') ) {
+            // switch from view/no-edit to no-view/no-edit
+            updateDatafieldPermissions( $(this).attr('id'), 'ODRBlockedDatafield' );
+        }
+        else if ( $(this).hasClass('ODRBlockedDatafield') ) {
+            if (can_edit_datatype) {
+                // switch fro no-view/no-edit to view/edit
+                updateDatafieldPermissions( $(this).attr('id'), 'ODREditableDatafield' );
+            }
+            else if (theme_element_public || can_view_datatype) {
+                // switch from no-view/no-edit to view/no-edit
+                updateDatafieldPermissions( $(this).attr('id'), 'ODRVisibleDatafield' );
+            }
+            else {
+                // Can't switch away from no-view/no-edit...user doesn't have permissions to view or edit stuff
+            }
+        }
+    });
 }
 
 function updateDatafieldPermissions(datafield_overlay_id, desired_state) {
-
-    alert('blocked');
-    return;
 
     // Grab datafield_id
     var id_data = datafield_overlay_id.split(/_/);
@@ -274,71 +288,178 @@ function updateDatafieldPermissions(datafield_overlay_id, desired_state) {
 
 function updateOverlayProperties(datafield_overlay_id, desired_state) {
 
-    alert('blocked');
-    return;
-
     var datafield_overlay = $("#" + datafield_overlay_id);
+
+    var datatype_id_data = $(datafield_overlay).parent().parent().parent().attr('id').split(/_/);
+    var datatype_id = datatype_id_data[1];
+
+    // Determine if datatype is visible
+    var can_view_datatype = true;
+    if ( $("#DataTypeTools_" + datatype_id).children('.ODRViewPermission').first().hasClass('fa-eye-slash') )
+        can_view_datatype = false;
 
     // Determine if datatype is editable
     var can_edit_datatype = true;
-    var datatype_id_data = $(datafield_overlay).parent().parent().parent().attr('id').split(/_/);
-    var datatype_id = datatype_id_data[1];
     if ( $("#DataTypeTools_" + datatype_id).children('.ODREditPermission').first().hasClass('fa-lock') )
         can_edit_datatype = false;
 
     // Determine if theme element is editable
-    var theme_element_visible = true;
+    var theme_element_public = true;
     var theme_element_id_data = $(datafield_overlay).parent().parent().attr('id').split(/_/);
     var theme_element_id = theme_element_id_data[1];
     if ( $("#ThemeElementTools_" + theme_element_id).find('.ODRThemeElementVisible').first().hasClass('fa-eye-slash') )
-        theme_element_visible = false;
+        theme_element_public = false;
 
-//alert( datafield_overlay_id + ' ' + can_edit_datatype + ' ' + theme_element_visible );
+//alert( "datafield " + $(this).attr('id') + "\ncan_view_datatype: " + can_view_datatype + "\ncan_edit_datatype: " + can_edit_datatype + "\ntheme_element_public: " + theme_element_public );
+//return;
 
     // Change overlay to the desired state
     $(datafield_overlay).removeClass('ODREditableDatafield ODRVisibleDatafield ODRBlockedDatafield Pointer fa-muted').addClass(desired_state);
 
-    // Change title attribute of overlay
-    if ( $(datafield_overlay).hasClass('ODREditableDatafield') ) {
-        // Can always change to the viewable/editable state from here
+    if (desired_state == 'ODREditableDatafield') {
         $(datafield_overlay).addClass('Pointer');
         $(datafield_overlay).attr('title', 'This datafield is both viewable and editable by the user');
     }
-    else if ( $(datafield_overlay).hasClass('ODRVisibleDatafield') ) {
-        if (theme_element_visible) {
-            if (can_edit_datatype) {
-                // Can switch to viewable/editable state from here
-                $(datafield_overlay).addClass('Pointer');
-                $(datafield_overlay).attr('title', 'This datafield can be viewed, but not edited by the user');
-            }
-            else {
-                // Stuck in viewable/not-editable state
-                $(datafield_overlay).addClass('fa-muted');
-                $(datafield_overlay).attr('title', 'The user is not permitted to edit this Datatype, and therefore can only view this Datafield');
-            }
-        }
-        else {
-            if (can_edit_datatype) {
-                // Can switch to not-viewable/not-editable state from here
-                $(datafield_overlay).addClass('Pointer');
-                $(datafield_overlay).attr('title', 'This datafield can be viewed, but not edited by the user');
-            }
-            else {
-                // Can switch to not-viewable/not-editable state from here
-                $(datafield_overlay).addClass('Pointer');
-                $(datafield_overlay).attr('title', 'The user is not permitted to edit this Datatype, and therefore can only view this Datafield');
-            }
-        }
-    }
-    else if ( $(datafield_overlay).hasClass('ODRBlockedDatafield') ) {
-        // Can always change to the viewable/editable or viewable/non-editable state from here
+    else if (desired_state == 'ODRVisibleDatafield') {
         $(datafield_overlay).addClass('Pointer');
+        $(datafield_overlay).attr('title', 'This datafield can be viewed, but not edited by the user');
+    }
+    else if (desired_state == 'ODRBlockedDatafield') {
         $(datafield_overlay).attr('title', 'This datafield is neither viewable nor editable by the user');
+
+        if (!theme_element_public && !can_edit_datatype)
+            $(datafield_overlay).addClass('fa-muted');
+        else
+            $(datafield_overlay).addClass('Pointer');
+    }
+}
+
+
+function ReloadChild(datatype_id) {
+    var url = '{{ path('odr_datafield_permissions_reload_childtype', { 'user_id': 0, 'source_datatype_id': 0, 'childtype_id': 0 }) }}';
+    url = url.substring(0, url.length-5);
+    url += {{ user.id }} + '/' + {{ datatype.id }} + '/' + datatype_id;
+
+//alert( url );
+//return;
+
+    var append = true;
+    var datatype_div = $("#DataType_" + datatype_id);
+    var element = $(datatype_div).prev();
+    if ( $(element).attr('class') === undefined ) {
+        append = false;
+        element = $(datatype_div).parent();
     }
 
-}
-</script>
+    // Create a loading div to block off the datafield?
+    insertLoadingDiv("DataType_" + datatype_id);
 
-{% include 'ODRAdminBundle:Displaytemplate:icon_functions.html.twig' %}
+
+    $.ajax({
+        cache: false,
+        type: 'GET',
+        url: url,
+        dataType: 'json',
+        success: function(data, textStatus, jqXHR) {
+            // remove old datatype
+            $(datatype_div).fadeOut();
+            $(datatype_div).remove();
+
+            // insert new html
+            if (append)
+                $(element).after(data.d.html);
+            else
+                $(element).prepend(data.d.html);
+
+            initPage();
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
+    });
+}
+
+{#
+function ReloadThemeElement(theme_element_id) {
+    var url = '{{ path('odr_datafield_permissions_reload_theme_element', { 'user_id': 0, 'source_datatype_id': 0, 'theme_element_id': 0 }) }}';
+    url = url.substring(0, url.length-5);
+    url += {{ user.id }} + '/' + {{ datatype.id }} + '/' + theme_element_id;
+
+//alert( url );
+//return;
+
+    var append = true;
+    var theme_element = $("#ThemeElement_" + theme_element_id);
+    var element = $(theme_element).prev();
+    if ( $(element).attr('class') === undefined ) {
+        append = false;
+        element = $(theme_element).parent();
+    }
+
+    // Create a loading div to block off the datafield?
+    insertLoadingDiv("ThemeElement_" + theme_element_id);
+
+    $.ajax({
+        cache: false,
+        type: 'GET',
+        url: url,
+        dataType: 'json',
+        success: function(data, textStatus, jqXHR) {
+            // Remove old theme element
+            $(theme_element).fadeOut();
+            $(theme_element).remove();
+
+            // Insert new html
+            if (append)
+                $(element).after(data.d.html);
+            else
+                $(element).prepend(data.d.html);
+
+            initPage();
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
+    });
+}
+#}
+
+function insertLoadingDiv(parent_div_id) {
+
+    // Need dimensions of parent div...
+    var element = $("#" + parent_div_id);
+    var height = $(element).css('height');
+    var width = $(element).css('width');
+
+    // Create a loading div
+    $(element).prepend("<div id=\"" + parent_div_id + "_loading_div\" class=\"ODROverlayDiv ODRReloadDiv\"><strong>Loading...</strong></div>");
+
+    // Apply dimensions of parent div to loading div
+    $("#" + parent_div_id + "_loading_div").css({"height": height, "line-height": height, "width": width});
+}
+
+</script>
 
 {% endspaceless %}

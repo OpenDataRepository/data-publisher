@@ -3311,6 +3311,8 @@ class DisplaytemplateController extends ODRCustomController
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
             if ($theme == null)
                 return parent::deletedEntityError('Theme');
+            if ($theme->getThemeType() !== 'master')
+                throw new \Exception("Not allowed to re-render something that doesn't belong to the master Theme");
 
 
             // --------------------
@@ -3344,7 +3346,8 @@ class DisplaytemplateController extends ODRCustomController
     /**
      * Triggers a re-render and reload of a ThemeElement in the design.
      *
-     * @param integer $theme_element_id The database id of the ThemeElement that needs to be re-rendered.
+     * @param integer $source_datatype_id  The database id of the top-level datatype being rendered?
+     * @param integer $theme_element_id    The database id of the ThemeElement that needs to be re-rendered.
      * @param Request $request
      *
      * @return Response
@@ -3374,6 +3377,8 @@ class DisplaytemplateController extends ODRCustomController
             $theme = $theme_element->getTheme();
             if ($theme == null)
                 return parent::deletedEntityError('Theme');
+            if ($theme->getThemeType() !== 'master')
+                throw new \Exception("Not allowed to re-render something that doesn't belong to the master Theme");
 
             $datatype = $theme->getDataType();
             if ($datatype == null)
@@ -3446,7 +3451,9 @@ class DisplaytemplateController extends ODRCustomController
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
             if ($theme == null)
                 return parent::deletedEntityError('Theme');
-            
+            if ($theme->getThemeType() !== 'master')
+                throw new \Exception("Not allowed to re-render something that doesn't belong to the master Theme");
+
 
             // --------------------
             // Determine user privileges
