@@ -67,30 +67,37 @@ class URLPlugin
 
 
             // Grab value of datafield
-            $drf = $datarecord['dataRecordFields'][ $datafield['id'] ];
-            $entity = '';
-            switch ($datafield['dataFieldMeta']['fieldType']['typeClass']) {
-                case 'IntegerValue':
-                    $entity = $drf['integerValue'];
-                    break;
-                case 'ShortVarchar':
-                    $entity = $drf['shortVarchar'];
-                    break;
-                case 'MediumVarchar':
-                    $entity = $drf['mediumVarchar'];
-                    break;
-                case 'LongVarchar':
-                    $entity = $drf['longVarchar'];
-                    break;
-                case 'LongText':
-                    $entity = $drf['longText'];
-                    break;
+            $value = '';
+            if ( isset($datarecord['dataRecordFields'][ $datafield['id'] ]) ) {
+                $drf = $datarecord['dataRecordFields'][ $datafield['id'] ];
+                $entity = '';
+                switch ( $datafield['dataFieldMeta']['fieldType']['typeClass'] ) {
+                    case 'IntegerValue':
+                        $entity = $drf['integerValue'];
+                        break;
+                    case 'ShortVarchar':
+                        $entity = $drf['shortVarchar'];
+                        break;
+                    case 'MediumVarchar':
+                        $entity = $drf['mediumVarchar'];
+                        break;
+                    case 'LongVarchar':
+                        $entity = $drf['longVarchar'];
+                        break;
+                    case 'LongText':
+                        $entity = $drf['longText'];
+                        break;
 
-                default:
-                    throw new \Exception('Invalid Fieldtype');
-                    break;
+                    default:
+                        throw new \Exception('Invalid Fieldtype');
+                        break;
+                }
+                $value = trim( $entity[0]['value'] );
             }
-            $value = trim($entity[0]['value']);
+            else {
+                // No datarecordfield entry for this datarecord/datafield pair...because of the allowed fieldtypes, the plugin can just use the empty string in this case
+                $value = '';
+            }
 
 
             // Grab baseurl for the link

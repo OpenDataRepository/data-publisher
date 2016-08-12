@@ -93,7 +93,13 @@ class ReferencesPlugin
                 // Grab the fieldname specified in the plugin's config file to use as an array key
                 $key = strtolower( str_replace(' ', '_', $rpf['fieldName']) );
 
-                $datafield_mapping[$key] = array('datafield' => $df, 'render_plugin' => $df['dataFieldMeta']['renderPlugin'], 'datarecordfield' => $datarecord['dataRecordFields'][$df_id]);
+                if ( isset($datarecord['dataRecordFields'][$df_id]) ) {
+                    $datafield_mapping[$key] = array('datafield' => $df, 'render_plugin' => $df['dataFieldMeta']['renderPlugin'], 'datarecordfield' => $datarecord['dataRecordFields'][$df_id]);
+                }
+                else {
+                    // As far as the reference plugin is concerned, empty strings are acceptable values when datarecordfield entries don't exist
+                    $datafield_mapping[$key] = '';
+                }
             }
 
 //            return '<pre>'.print_r($mapping['file'], true).'</pre>';

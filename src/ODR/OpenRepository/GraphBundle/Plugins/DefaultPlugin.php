@@ -52,46 +52,54 @@ class DefaultPlugin
 //            return $str;
 
             // Grab value of datafield
-            $drf = $datarecord['dataRecordFields'][ $datafield['id'] ];
             $typeclass = $datafield['dataFieldMeta']['fieldType']['typeClass'];
 
-            $entity = '';
-            switch ($typeclass) {
-                case 'IntegerValue':
-                    $entity = $drf['integerValue'];
-                    break;
-                case 'DecimalValue':
-                    $entity = $drf['decimalValue'];
-                    break;
-                case 'ShortVarchar':
-                    $entity = $drf['shortVarchar'];
-                    break;
-                case 'MediumVarchar':
-                    $entity = $drf['mediumVarchar'];
-                    break;
-                case 'LongVarchar':
-                    $entity = $drf['longVarchar'];
-                    break;
-                case 'LongText':
-                    $entity = $drf['longText'];
-                    break;
-                case 'DateTimeValue':
-                    $entity = $drf['dateTimeValue'];
-                    break;
-
-                default:
-                    throw new \Exception('Invalid Fieldtype');
-                    break;
-            }
-
             $value = '';
-            if ($typeclass == 'DateTimeValue') {
-                $value = $entity[0]['value']->format('Y-m-d');
-                if ($value == '-0001-11-30')
-                    $value = '';
+            if ( isset($datarecord['dataRecordFields'][ $datafield['id'] ]) ) {
+                $drf = $datarecord['dataRecordFields'][ $datafield['id'] ];
+                $entity = array();
+                switch ($typeclass) {
+                    case 'IntegerValue':
+                        $entity = $drf['integerValue'];
+                        break;
+                    case 'DecimalValue':
+                        $entity = $drf['decimalValue'];
+                        break;
+                    case 'ShortVarchar':
+                        $entity = $drf['shortVarchar'];
+                        break;
+                    case 'MediumVarchar':
+                        $entity = $drf['mediumVarchar'];
+                        break;
+                    case 'LongVarchar':
+                        $entity = $drf['longVarchar'];
+                        break;
+                    case 'LongText':
+                        $entity = $drf['longText'];
+                        break;
+                    case 'DateTimeValue':
+                        $entity = $drf['dateTimeValue'];
+                        break;
+
+                    default:
+                        throw new \Exception('Invalid Fieldtype');
+                        break;
+                }
+
+                // Datetime field values need to be turned into a string...
+                if ($typeclass == 'DateTimeValue') {
+                    $value = $entity[0]['value']->format('Y-m-d');
+                    if ($value == '-0001-11-30')
+                        $value = '';
+                }
+                else {
+                    $value = trim($entity[0]['value']);
+                }
             }
             else {
-                $value = trim($entity[0]['value']);
+                // No datarecordfield entry for this datarecord/datafield pair...because of the allowed fieldtypes, the plugin can just use the empty string in this case
+                // Don't need special handling if this is a Datetime field due to default_default.html.twig just printing out a string instead of searching for the value
+                $value = '';
             }
 
 

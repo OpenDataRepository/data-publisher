@@ -112,24 +112,26 @@ class CommentPlugin
                 $comment_datafield_id = $datafield_mapping['comment']['datafield']['id'];
                 $comment_datafield_typeclass = $datafield_mapping['comment']['datafield']['dataFieldMeta']['fieldType']['typeClass'];
 
-                $entity = array();
-                $drf = $dr['dataRecordFields'][$comment_datafield_id];
-                switch ($comment_datafield_typeclass) {
-                    case 'LongText':
-                        $entity = $drf['longText'];
-                        break;
+                if ( isset($dr['dataRecordFields'][$comment_datafield_id]) ) {
+                    $entity = array();
+                    $drf = $dr['dataRecordFields'][$comment_datafield_id];
+                    switch ($comment_datafield_typeclass) {
+                        case 'LongText':
+                            $entity = $drf['longText'];
+                            break;
 
-                    default:
-                        throw new \Exception('Invalid Fieldtype for comment');
-                        break;
+                        default:
+                            throw new \Exception('Invalid Fieldtype for comment');
+                            break;
+                    }
+
+                    // Grab the comment text and when it was made
+                    $date = $entity[0]['created'];
+                    $date = $date->format('Y-m-d H:i:s');
+
+                    $count++;
+                    $comments[$date.'_'.$count] = array('datarecord' => $dr, 'entity' => $entity[0]);
                 }
-
-                // Grab the comment text and when it was made
-                $date = $entity[0]['created'];
-                $date = $date->format('Y-m-d');
-
-                $count++;
-                $comments[$date.'_'.$count] = array('datarecord' => $dr, 'entity' => $entity[0]);
             }
 
             // Sort by date, most recent to least recent
