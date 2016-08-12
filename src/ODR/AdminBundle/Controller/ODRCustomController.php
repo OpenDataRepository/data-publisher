@@ -5155,6 +5155,9 @@ if ($debug)
                 $data[$theme_id] = array();
 
                 $theme_element = $theme['themeElements'][0];    // only ever one theme element for a table theme
+                if ( !isset($theme_element['themeDataFields']) )
+                    continue;
+
                 foreach ($theme_element['themeDataFields'] as $display_order => $tdf) {
 
                     $df = $tdf['dataField'];
@@ -5506,9 +5509,9 @@ if ($debug)
      */
     protected function getDatatypeData($em, $datatree_array, $datatype_id, $force_rebuild = false)
     {
-/*
 $debug = true;
 $debug = false;
+/*
 $timing = true;
 $timing = false;
 
@@ -5604,8 +5607,9 @@ if ($timing) {
         // The entity -> entity_metadata relationships have to be one -> many from a database perspective, even though there's only supposed to be a single non-deleted entity_metadata object for each entity
         // Therefore, the preceeding query generates an array that needs to be slightly flattened in a few places
         foreach ($datatype_data as $dt_num => $dt) {
+if ($debug)
+    print 'dt_id: '.$dt['id']."\n";
 
-//print 'dt_id: '.$dt['id']."\n";
             // Flatten datatype meta
             $dtm = $dt['dataTypeMeta'][0];
             $datatype_data[$dt_num]['dataTypeMeta'] = $dtm;
@@ -5613,8 +5617,9 @@ if ($timing) {
             // Flatten theme_meta of each theme, and organize by theme id instead of a random number
             $new_theme_array = array();
             foreach ($dt['themes'] as $t_num => $theme) {
+if ($debug)
+    print ' -- t_id: '.$theme['id']."\n";
 
-//print ' -- t_id: '.$theme['id']."\n";
                 $theme_id = $theme['id'];
 
                 $tm = $theme['themeMeta'][0];
@@ -5622,22 +5627,27 @@ if ($timing) {
 
                 // Flatten theme_element_meta of each theme_element
                 foreach ($theme['themeElements'] as $te_num => $te) {
+if ($debug)
+    print '    -- te_id: '.$te['id']."\n";
 
-//print '    -- te_id: '.$te['id']."\n";
                     $tem = $te['themeElementMeta'][0];
                     $theme['themeElements'][$te_num]['themeElementMeta'] = $tem;
 
                     // Flatten datafield_meta of each datafield
                     foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+if ($debug)
+    print '       -- tdf_id: '.$tdf['id']."\n";
+if ($debug)
+    print '          -- df_id: '.$tdf['dataField']['id']."\n";
 
-//print '       -- tdf_id: '.$tdf['id']."\n";
                         $dfm = $tdf['dataField']['dataFieldMeta'][0];
                         $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['dataFieldMeta'] = $dfm;
 
                         // Flatten radio options if it exists
                         foreach ($tdf['dataField']['radioOptions'] as $ro_num => $ro) {
+if ($debug)
+    print '             -- ro_id: '.$ro['id']."\n";
 
-//print '          -- ro_id: '.$ro['id']."\n";
                             $rom = $ro['radioOptionMeta'][0];
                             $theme['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField']['radioOptions'][$ro_num]['radioOptionMeta'] = $rom;
                         }
@@ -5647,9 +5657,13 @@ if ($timing) {
 
                     // Attach the is_link property to each of the theme_datatype entries
                     foreach ($te['themeDataType'] as $tdt_num => $tdt) {
+if ($debug)
+    print '       -- tdt_id: '.$tdt['id']."\n";
+if ($debug)
+    print '          -- cdt_id: '.$tdt['dataType']['id']."\n";
 
-//print '       -- tdt_id: '.$tdt['id']."\n";
                         $child_datatype_id = $tdt['dataType']['id'];
+
                         if ( isset($datatree_array['linked_from'][$child_datatype_id]) && in_array($datatype_id, $datatree_array['linked_from'][$child_datatype_id]) )
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 1;
                         else
