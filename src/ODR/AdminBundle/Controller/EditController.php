@@ -381,14 +381,7 @@ class EditController extends ODRCustomController
             if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                 // Delete all cached search results for this datatype that contained this now-deleted datarecord
                 foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
-
-                    $datarecord_list = '';
-                    if ( isset($search_data['logged_in']) )
-                        $datarecord_list = $search_data['logged_in']['datarecord_list'];
-                    else
-                        $datarecord_list = $search_data['not_logged_in']['datarecord_list'];
-
-                    $datarecord_list = explode(',', $datarecord_list);
+                    $datarecord_list = explode(',', $search_data['datarecord_list']);
                     if ( in_array($datarecord_id, $datarecord_list) )
                         unset ( $cached_searches[$datatype_id][$search_checksum] );
                 }

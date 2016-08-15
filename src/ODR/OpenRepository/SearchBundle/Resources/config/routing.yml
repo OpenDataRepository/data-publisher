@@ -11,13 +11,6 @@ odr_search_results:
     requirements:
         search_key: .*
 
-odr_alt_search_results:
-    path: /search/alt/results/{search_key}
-    defaults: { _controller:ODROpenRepositorySearchBundle:DefaultTest:search }
-#    requirements: { _method: POST, search_key: '[a-zA-Z0-9\-\_]{15}|' }
-    requirements:
-        search_key: .*
-
 odr_search_render:
     path: /search/render/{search_key}/{offset}/{source}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:render, offset: 1, source: 'searching' }
