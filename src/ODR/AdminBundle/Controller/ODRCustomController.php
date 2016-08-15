@@ -2362,7 +2362,7 @@ if ($debug)
         // Get Entity Manager and setup objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-//        $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+
         $redis = $this->container->get('snc_redis.default');;
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -2370,81 +2370,81 @@ if ($debug)
         // Attempt to grab the list of datarecords for this datatype from the cache
         $datarecords = array();
         $datarecord_str = self::getRedisData(($redis->get($redis_prefix.'.data_type_'.$datatype->getId().'_record_order')));
+//print 'loaded record_order: '.$datarecord_str."\n";
 
         // No caching in dev environment
         $bypass_cache = false;
         if ($this->container->getParameter('kernel.environment') === 'dev')
             $bypass_cache = true;
-//print 'loaded record_order: '.$datarecord_str."\n";
 
 
         if ( !$bypass_cache && $datarecord_str != false && trim($datarecord_str) !== '' ) {
             // List exists in cache, load datarecords
             $datarecord_str = explode(',', trim($datarecord_str));
+//print '$datarecord_str: <pre>'.print_r($datarecord_str, true).'</pre>';
 
             foreach ($datarecord_str as $dr_id)
                 $datarecords[$dr_id] = 1;
         }
         else {
+            // Create a query to return the ids of all datarecords belonging to this datatype
+            $query = $em->createQuery(
+               'SELECT dr.id
+                FROM ODRAdminBundle:DataRecord AS dr
+                WHERE dr.dataType = :datatype AND dr.provisioned = false
+                AND dr.deletedAt IS NULL
+                ORDER BY dr.id'
+            )->setParameters( array('datatype' => $datatype) );
+            $results = $query->getArrayResult();
+
+            // Flatten the array
+            $datarecords = array();
+            foreach ($results as $id => $data)
+                $datarecords[ $data['id'] ] = '';
+//print 'all datarecords: <pre>'.print_r($datarecords, true).'</pre>';
+
+
             // Need to get the DataField used to sort the DataType
             $sortfield = $datatype->getSortField();
-            if ($sortfield === null) {
+            if ($sortfield == null) {
                 // ...no sort order defined, use database id order
-
-                // Create a query to return the ids of all datarecords belonging to this datatype
-                $query = $em->createQuery(
-                   'SELECT dr.id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.dataType = :datatype AND dr.provisioned = false
-                    AND dr.deletedAt IS NULL
-                    ORDER BY dr.id'
-                )->setParameters( array('datatype' => $datatype) );
-
-                $results = $query->getArrayResult();
-//print_r($results);
-
-                // Flatten the array
-                $datarecords = array();
-                foreach ($results as $id => $data)
-                    $datarecords[ $data['id'] ] = 1;
+                foreach ($datarecords as $dr_id => $value)
+                    $datarecords[$dr_id] = $dr_id;
             }
             else {
-                $field_typename = $sortfield->getFieldType()->getTypeName();
-                $field_typeclass = $sortfield->getFieldType()->getTypeClass();
-
                 // Create a query to return a collection of datarecord ids, sorted by the sortfield of the datatype
+                $field_typeclass = $sortfield->getFieldType()->getTypeClass();
                 $query = $em->createQuery(
-                    'SELECT dr.id, e.value
+                    'SELECT dr.id AS dr_id, e.value AS sort_value
                      FROM ODRAdminBundle:DataRecord AS dr
                      JOIN ODRAdminBundle:'.$field_typeclass.' AS e WITH e.dataRecord = dr
                      WHERE dr.dataType = :datatype AND dr.provisioned = false AND e.dataField = :datafield
                      AND dr.deletedAt IS NULL AND e.deletedAt IS NULL
                      ORDER BY e.value'
                 )->setParameters( array('datatype' => $datatype, 'datafield' => $sortfield) );
-
                 $results = $query->getArrayResult();
-//print_r($results);
-
+//print 'sort field results: <pre>'.print_r($results, true).'</pre>';
 
                 // Flatten the array
-                $datarecords = array();
                 foreach ($results as $num => $data) {
-                    if ( isset($data['value']) ) {
-                        if ($field_typename == "DateTime")
-                            $datarecords[ $data['id'] ] = $data['value']->format('Y-m-d H:i:s');
-                        else
-                            $datarecords[ $data['id'] ] = $data['value'];
+                    $dr_id = $data['dr_id'];
+                    $sort_value = $data['sort_value'];
+
+                    if ($field_typeclass == "DatetimeValue") {
+                        $sort_value = $sort_value->format('Y-m-d H:i:s');
+                        if ($sort_value == '9999-12-31 00:00:00')
+                            $sort_value = '';
                     }
-                    else  {
-                        $datarecords[ $data['id'] ] = $data['id'];
-                    }
+
+                    $datarecords[ $dr_id ] = $sort_value;
                 }
+
                 asort($datarecords);
+//print 'sorted datarecords: <pre>'.print_r($datarecords, true).'</pre>';
             }
 
             // Turn the sorted datarecords into a string to store in memcached
             $str = '';
-//print_r($datarecords);
             foreach ($datarecords as $id => $key)
                 $str .= $id.',';
             $datarecord_str = substr($str, 0, strlen($str)-1);

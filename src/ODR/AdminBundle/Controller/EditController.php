@@ -1747,6 +1747,10 @@ class EditController extends ODRCustomController
 
 
                         // ----------------------------------------
+                        // If the datafield that got changed was the datatype's sort datafield, delete the cached datarecord order
+                        if ( $datatype->getSortField() != null && $datatype->getSortField()->getId() == $datafield->getId() )
+                            $redis->del($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
+
                         // See if any cached search results need to be deleted...
                         $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
                         if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
