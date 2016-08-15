@@ -150,7 +150,7 @@
 
 {% elseif field_typename == "DateTime" %}
 
-    {{ tag_start|raw }}{% if valuefield_value|date('Y-m-d') == '-0001-11-30' %}0000-00-00{% else %}{{ valuefield_value|date('Y-m-d') }}{% endif %}{{ tag_end|raw }}
+    {{ tag_start|raw }}{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != '9999-12-31' %}{{ valuefield_value|date('Y-m-d') }}{% endif %}{{ tag_end|raw }}
 
 {% endif %}
 

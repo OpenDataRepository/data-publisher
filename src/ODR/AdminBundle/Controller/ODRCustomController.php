@@ -3129,7 +3129,7 @@ if ($debug)
                 break;
             case 'DatetimeValue':
                 $table_name = 'odr_datetime_value';
-                $default_value = new \DateTime('0000-00-00 00:00:00');
+                $default_value = new \DateTime('9999-12-31 00:00:00');
                 break;
             case 'DecimalValue':
                 $table_name = 'odr_decimal_value';
@@ -5214,8 +5214,8 @@ if ($debug)
                                 break;
                             case 'DatetimeValue':
                                 $df_value = $drf['datetimeValue'][0]['value']->format('Y-m-d');
-                                if ($df_value == '-0001-11-30')
-                                    $df_value = '0000-00-00';
+                                if ($df_value == '9999-12-31')
+                                    $df_value = '';
                                 break;
 
                             case 'File':

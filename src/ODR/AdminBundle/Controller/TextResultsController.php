@@ -251,8 +251,8 @@ class TextResultsController extends ODRCustomController
                         }
                         else if ($typeclass == 'DatetimeValue') {
                             $value = $value->format('Y-m-d');
-                            if ($value == '-0001-11-30')
-                                $value = '0000-00-00';
+                            if ($value == '9999-12-31')
+                                $value = '';
                         }
 
                         $query_results[$dr_id] = $value;

@@ -34,7 +34,7 @@
                             <td class="center">{{ historical_value.created|date("Y-m-d H:i:s") }}</td>
                             <td class="center">{{ historical_value.user }}</td>
                         {% if historical_value.typeclass == "DatetimeValue" %}
-                            <td id="version_{{ historical_value.version }}" class="center">{% if historical_value.value|date('Y-m-d') == '-0001-11-30' %}{% else %}{{ historical_value.value|date('Y-m-d') }}{% endif %}</td>
+                            <td id="version_{{ historical_value.version }}" class="center">{% if historical_value.value|date('Y-m-d') != '9999-12-31' %}{{ historical_value.value|date('Y-m-d') }}{% endif %}</td>
                         {% else %}
                             <td id="version_{{ historical_value.version }}" class="center">{{ historical_value.value }}</td>
                         {% endif %}

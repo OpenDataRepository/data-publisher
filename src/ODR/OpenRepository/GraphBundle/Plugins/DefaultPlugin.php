@@ -89,7 +89,7 @@ class DefaultPlugin
                 // Datetime field values need to be turned into a string...
                 if ($typeclass == 'DateTimeValue') {
                     $value = $entity[0]['value']->format('Y-m-d');
-                    if ($value == '-0001-11-30')
+                    if ($value == '9999-12-31')
                         $value = '';
                 }
                 else {

@@ -1715,7 +1715,7 @@ class EditController extends ODRCustomController
                         // If saving to a datetime field, ensure it's a datetime object?
                         if ($typeclass == 'DatetimeValue') {
                             if ($new_value == '')
-                                $new_value = new \DateTime('0000-00-00 00:00:00');
+                                $new_value = new \DateTime('9999-12-31 00:00:00');
                             else
                                 $new_value = new \DateTime($new_value);
                         }
@@ -1770,7 +1770,7 @@ class EditController extends ODRCustomController
                         if ($typeclass == 'DatetimeValue') {
                             // Need to convert datetime values into strings...
                             $old_value = $old_value->format('Y-m-d');
-                            if ($old_value == '-0001-11-30')
+                            if ($old_value == '9999-12-31')
                                 $old_value = '';
 
                             $return['old_value'] = $old_value;

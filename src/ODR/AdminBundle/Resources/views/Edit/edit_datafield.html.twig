@@ -295,7 +295,7 @@
         <fieldset>
             <label for="{{ new_id }}" class="ODRFieldLabel ODRDatafieldHistory" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
-                <input type="text" id="{{ new_id }}" class="Pointer pure-u-1 ODRDatePicker" name="{{ input_name }}" readonly="readonly" value="{% if valuefield_value|date('Y-m-d') != "-0001-11-30" %}{{ valuefield_value|date('Y-m-d') }}{% endif %}" data-error-type="inline" />
+                <input type="text" id="{{ new_id }}" class="Pointer pure-u-1 ODRDatePicker" name="{{ input_name }}" readonly="readonly" value="{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != "9999-12-31" %}{{ valuefield_value|date('Y-m-d') }}{% endif %}" data-error-type="inline" />
             </div>
             <div style="margin-bottom:5px;"><label class="Pointer ODRDatePicker_clear"><u>Clear Date</u></label></div>
         </fieldset>

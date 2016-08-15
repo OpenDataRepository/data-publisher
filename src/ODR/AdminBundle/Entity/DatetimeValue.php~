@@ -117,10 +117,9 @@ class DatetimeValue
     public function getStringValue()
     {
         $date = $this->value;
-//        $value = $date->format('Y-m-d H:i:s');
         $value = $date->format('Y-m-d');
-        if ( strpos($value, '-0001-11-30') !== false )
-            $value = '0000-00-00';
+        if ($value == '9999-12-31')
+            $value = '';
 
         return $value;
     }

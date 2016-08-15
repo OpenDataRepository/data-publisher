@@ -405,7 +405,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                     }
                     else if ( $new_typeclass == 'DatetimeValue' ) {
                         // anything -> date
-                        $value = new \DateTime('0000-00-00 00:00:00');
+                        $value = new \DateTime('9999-12-31 00:00:00');
                     }
 
                     // Save changes
@@ -1125,9 +1125,9 @@ print '<pre>';
                                 else
                                     print '-- -- values are identical'."\n";
 
-                                if ( $old_value == '-0001-11-30' && $new_value != '-0001-11-30' )
+                                if ( $old_value == '9999-12-31' && $new_value != '9999-12-31' )
                                     $delete_new_drf = false;
-                                else if ( $old_value != '-0001-11-30' && $new_value != '-0001-11-30' )
+                                else if ( $old_value != '9999-12-31' && $new_value != '9999-12-31' )
                                     $skip = true;
                             }
 

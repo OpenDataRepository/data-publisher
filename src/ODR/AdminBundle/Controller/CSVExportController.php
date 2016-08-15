@@ -595,8 +595,8 @@ return;
 
                         if ($typeclass == 'DatetimeValue') {
                             $date = $value->format('Y-m-d');
-                            if ( strpos($date, '-0001-11-30') !== false )
-                                $date = '0000-00-00';
+                            if ($date == '9999-12-31')
+                                $date = '';
 
                             $datarecord_data[$df_id] = $date;
                         }
