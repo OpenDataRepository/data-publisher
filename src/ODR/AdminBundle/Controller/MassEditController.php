@@ -475,7 +475,7 @@ return;
 
 
     /**
-     * Called by the mass update worker processes to update a datarecord-datafield pair to a new value.
+     * Called by the mass update worker processes to update the public status of a datarecord
      *
      * @param Request $request
      *
