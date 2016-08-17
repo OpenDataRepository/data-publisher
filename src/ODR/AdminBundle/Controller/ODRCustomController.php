@@ -226,8 +226,8 @@ class ODRCustomController extends Controller
 
             // Always bypass cache if in dev mode?
             $bypass_cache = false;
-            // if ($this->container->getParameter('kernel.environment') === 'dev')
-                // $bypass_cache = true;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
 
 
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
@@ -240,7 +240,6 @@ class ODRCustomController extends Controller
             // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
             $datarecord_array = array();
             foreach ($datarecord_list as $num => $dr_id) {
-                // print 'CCCCCCCCCCCCCCCCCCCC' . $redis_prefix.'.cached_datarecord_'.$dr_id;
                 $datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
                 if ($bypass_cache || $datarecord_data == false)
                     $datarecord_data = self::getDatarecordData($em, $dr_id, $bypass_cache);
@@ -377,8 +376,8 @@ exit();
 
             // Always bypass cache if in dev mode?
             $bypass_cache = false;
-            // if ($this->container->getParameter('kernel.environment') === 'dev')
-                // $bypass_cache = true;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
 
 
             // ----------------------------------------
@@ -387,7 +386,6 @@ exit();
             $rows = array();
             foreach ($datarecord_list as $num => $datarecord_id) {
                 // Get the table version for this datarecord from memcached if possible
-                // print $redis_prefix.'.datarecord_table_data_'.$datarecord_id;
                 $data = self::getRedisData(($redis->get($redis_prefix.'.datarecord_table_data_'.$datarecord_id)));
                 if ($bypass_cache || $data == false)
                     $data = self::Text_GetDisplayData($em, $datarecord_id, $request);
@@ -531,7 +529,6 @@ exit();
 
         // Attempt to load the search result for this search_key
         $data = array();
-        // print $redis_prefix.'.cached_search_results';
         $cached_searches = self::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
         if ( $cached_searches == false
             || !isset($cached_searches[$datatype_id])
@@ -544,7 +541,6 @@ exit();
             else if ($ret['redirect'] == true)
                 return array('redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key'], 'datarecord_list' => '');
 
-            // print $redis_prefix.'.cached_search_results';
             $cached_searches = self::getRedisData($redis->get($redis_prefix.'.cached_search_results'));
         }
 
@@ -931,14 +927,10 @@ exit();
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        // print $redis_prefix.'.cached_datatree_array';
-        $datatree_array = false;
-        // $datatree_array = self::getRedisData(($redis->get($redis_prefix.'.cached_datatree_array')));
+        $datatree_array = self::getRedisData(($redis->get($redis_prefix.'.cached_datatree_array')));
         if ( !($force_rebuild || $datatree_array == false) ) {
-            print "jkl";
-	    print "Returning array";exit();
             return $datatree_array;
-	}
+        }
 
         $query = $em->createQuery(
            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed
@@ -1038,7 +1030,6 @@ exit();
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-            // print $redis_prefix.'.user_'.$user_id.'_datatype_permissions';
             $datatype_permissions = self::getRedisData(($redis->get($redis_prefix.'.user_'.$user_id.'_datatype_permissions')));
             if ( !($force_rebuild || $datatype_permissions == false) )
                 return $datatype_permissions;
@@ -1559,7 +1550,6 @@ exit();
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-            // print $redis_prefix.'.user_'.$user_id.'_datafield_permissions';
             $datafield_permissions = self::getRedisData(($redis->get($redis_prefix.'.user_'.$user_id.'_datafield_permissions')));
             if ( !($force_rebuild || $datafield_permissions == false) )
                 return $datafield_permissions;
@@ -2383,14 +2373,13 @@ if ($debug)
 
         // Attempt to grab the list of datarecords for this datatype from the cache
         $datarecords = array();
-        // print $redis_prefix.'.data_type_'.$datatype->getId().'_record_order';
         $datarecord_str = self::getRedisData(($redis->get($redis_prefix.'.data_type_'.$datatype->getId().'_record_order')));
 //print 'loaded record_order: '.$datarecord_str."\n";
 
         // No caching in dev environment
         $bypass_cache = false;
-        // if ($this->container->getParameter('kernel.environment') === 'dev')
-            // $bypass_cache = true;
+        if ($this->container->getParameter('kernel.environment') === 'dev')
+            $bypass_cache = true;
 
 
         if ( !$bypass_cache && $datarecord_str != false && trim($datarecord_str) !== '' ) {
@@ -2657,33 +2646,6 @@ if ($debug)
         $datarecord_meta->setUpdatedBy($user);
 
         $em->persist($datarecord_meta);
-/*
-        // Create initial objects
-        foreach ($datatype->getDataFields() as $datafield) {
-            // Create a datarecordfield entry for every datafield of the datatype
-            $datarecordfield = self::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
-            // Need to flush/refresh so ODR_addStorageEntity() doesn't create a new drf entry
-            $em->flush();
-            $em->refresh($datarecordfield);
-
-            // Create initial storage entity if necessary
-            self::ODR_addStorageEntity($em, $user, $datarecord, $datafield);
-
-            // Create radio_selection entities so searching works immediately
-            $typename = $datafield->getFieldType()->getTypeName();
-            if ($typename == 'Single Select' || $typename == 'Multiple Select' || $typename == 'Single Radio' || $typename == 'Multiple Radio') {
-                // Need to create radio selection entities for the new datarecord...
-
-                $radio_options = $em->getRepository('ODRAdminBundle:RadioOptions')->findBy( array('dataField' => $datafield->getId()) );
-                foreach ($radio_options as $radio_option) {
-                    self::ODR_addRadioSelection($em, $user, $radio_option, $datarecordfield);   // use default of radio_option for selected status
-                }
-            }
-        }
-
-        // Need to flush because of possibility of having creating new storage entity/radio selection objects
-        $em->flush();
-*/
 
         return $datarecord;
     }
@@ -3148,9 +3110,11 @@ if ($debug)
                 break;
             case 'DecimalValue':
                 $table_name = 'odr_decimal_value';
+                $default_value = 0;
                 break;
             case 'IntegerValue':
                 $table_name = 'odr_integer_value';
+                $default_value = 0;
                 break;
             case 'LongText':    // paragraph text
                 $table_name = 'odr_long_text';
@@ -5139,11 +5103,10 @@ if ($debug)
         // ----------------------------------------
         // Always bypass cache in dev mode
         $bypass_cache = false;
-        // if ($this->container->getParameter('kernel.environment') === 'dev')
-            // $bypass_cache = true;
+        if ($this->container->getParameter('kernel.environment') === 'dev')
+            $bypass_cache = true;
 
         // Grab the cached version of the requested datarecord
-        // print 'AAAAAAAAAAA' . $redis_prefix.'.cached_datarecord_'.$datarecord_id;
         $datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$datarecord_id)));
         if ($bypass_cache || $datarecord_data == false)
             $datarecord_data = self::getDatarecordData($em, $datarecord_id, $bypass_cache);
@@ -5154,7 +5117,6 @@ if ($debug)
         // print $redis_prefix.'.cached_datatype_'.$datatype_id;
         $datatype_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype_id)));
         if ($bypass_cache || $datatype_data == false) {
-            print "asdklfjasldfkj";
             $datatype_data = self::getDatatypeData($em, self::getDatatreeArray($em, $bypass_cache), $datatype_id, $bypass_cache);
         }
 
@@ -5547,9 +5509,8 @@ if ($timing)
 
         if (!$force_rebuild) {
             $cached_datatype_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype_id)));
-            if ( $cached_datatype_data != false && count($cached_datatype_data) > 0 ) {
+            if ( $cached_datatype_data != false && count($cached_datatype_data) > 0 )
                 return $cached_datatype_data;
-            }
         }
 
 
@@ -5754,10 +5715,11 @@ if ($timing)
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        // print 'BBBBBBBBBBBBBBB' . $redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id;
-        $cached_datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id)));
-        if ( !($force_rebuild || $cached_datarecord_data == false || count($cached_datarecord_data) > 0) )
-            return $cached_datarecord_data;
+        if (!$force_rebuild) {
+            $cached_datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id)));
+            if ( $cached_datarecord_data != false && count($cached_datarecord_data) > 0 )
+                return $cached_datarecord_data;
+        }
 
 
         // Otherwise...get all non-layout data for a given grandparent datarecord
@@ -5976,26 +5938,6 @@ if ($timing) {
             $formatted_datarecord_data[$dr_id] = $dr_data;
         }
 
-//print '<pre>'.print_r($formatted_datarecord_data, true).'</pre>'; //exit();
-//$tmp = serialize($formatted_datarecord_data);
-//print '<pre>'.print_r($tmp, true).'</pre>';
-//$tmp = unserialize($tmp);
-//print '<pre>'.print_r($tmp, true).'</pre>';
-/*
-$tmp = serialize($formatted_datarecord_data);
-print '<pre>'.print_r($tmp, true).'</pre>';
-$tmp = gzcompress($tmp);
-print '<pre>'.print_r($tmp, true).'</pre>';
-$redis->set($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id, $tmp);
-
-$tmp = $redis->get($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
-$tmp = gzuncompress($tmp);
-print '<pre>'.print_r($tmp, true).'</pre>';
-$tmp = unserialize($tmp);
-print '<pre>'.print_r($tmp, true).'</pre>';
-
-exit();
-*/
         $redis->set($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id, gzcompress(serialize($formatted_datarecord_data)));
         return $formatted_datarecord_data;
     }
