@@ -2,18 +2,21 @@
 
 <div class="header">
     <h2>Permissions List 
+    </h2>
+</div>
+
+<div class="content">
+
         <select id="datatypes" onchange="datatypeChanged();">
         {% for datatype in datatypes %}
             <option value="{{ datatype.id }}">{{ datatype.shortName }}</option>
         {% endfor %}
         </select>
         <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
-    </h2>
-</div>
 
-<div class="content">
-
-    <table id="permissions_table" class="pure-table pure-table-striped">
+<div class="ODRTableOuterWrap">
+<div class="ODRTableWrap">
+    <table id="permissions_table" class="pure-table pure-table-striped ODRTableStretch">
         <thead>
             <tr id="header">
                 <th>Type Name</th>
@@ -84,12 +87,14 @@
             {% set first = false %}
         {% else %}
             <tr>
-                <td colspan="5">No Data Types Found</td>
+                <td colspan="5">No Databases Found</td>
             </tr>
         {% endfor %}
 
         </tbody>
     </table>
+</div>
+</div>
 
 </div><!-- End of .content -->
             

@@ -28,10 +28,10 @@ class ResettingController extends BaseController
      * Override to default FoSBundle:requestAction(), where logged in users are redirected to their profile
      * instead of performing the requested action
      */
-    public function requestAction(Request $request)
+    public function requestAction()
     {
         // Determine if user is logged in
-        $user = $this->container->get('security.context')->getToken()->getUser();
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
         if ($user == 'anon.')
             $user = null;
 
@@ -53,7 +53,7 @@ class ResettingController extends BaseController
     public function sendEmailAction(Request $request)
     {
         // Determine if user is logged in
-        $user = $this->container->get('security.context')->getToken()->getUser();
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
         if ($user == 'anon.')
             $user = null;
 
@@ -99,7 +99,7 @@ class ResettingController extends BaseController
     public function checkEmailAction(Request $request)
     {
         // Determine if user is logged in
-        $user = $this->container->get('security.context')->getToken()->getUser();
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
         if ($user == 'anon.')
             $user = null;
 
@@ -121,7 +121,7 @@ class ResettingController extends BaseController
     public function resetAction(Request $request, $token)
     {
         // Determine if user is logged in
-        $user = $this->container->get('security.context')->getToken()->getUser();
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
         if ($user == 'anon.')
             $user = null;
 
@@ -142,7 +142,7 @@ class ResettingController extends BaseController
     public function resendAction(Request $request)
     {
        // Determine if user is logged in
-        $user = $this->container->get('security.context')->getToken()->getUser();
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
         if ($user == 'anon.')
             $user = null;
 

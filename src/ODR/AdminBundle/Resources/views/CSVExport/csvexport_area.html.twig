@@ -1,8 +1,7 @@
+{% spaceless %}
+<div class="ODRFormWrap ODRDesign pure-u-1">
 
-<div class="ODRFormWrap ODRDesign pure-u-1"> 
-
-    {% import "ODRAdminBundle:CSVExport:csvexport_childtype.html.twig" as mychildform %}
-    {{ mychildform.input(datatype_tree) }}
+    {% include 'ODRAdminBundle:CSVExport:csvexport_childtype.html.twig' with {'datatype_array': datatype_array, 'target_datatype_id': initial_datatype_id, 'theme_id': theme_id, 'is_top_level': 1} %}
 
 </div><!-- End of .ODRFormWrap -->
-
+{% endspaceless %}

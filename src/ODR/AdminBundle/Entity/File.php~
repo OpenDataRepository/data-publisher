@@ -9,12 +9,13 @@
  *
  * The File Entity is automatically generated from
  * ./Resources/config/doctrine/File.orm.yml
+ *
  */
 
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\HttpFoundation\File\UploadedFile as UploadedFile;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 /**
  * File
@@ -29,17 +30,7 @@ class File
     /**
      * @var string
      */
-    private $caption;
-
-    /**
-     * @var string
-     */
     private $ext;
-
-    /**
-     * @var string
-     */
-    private $originalFileName;
 
     /**
      * @var string
@@ -47,34 +38,9 @@ class File
     private $localFileName;
 
     /**
-     * @var \DateTime
-     */
-    private $deletedAt;
-
-    /**
-     * @var \DateTime
-     */
-    private $created;
-
-    /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
-     * @var \DateTime
-     */
-    private $publicDate;
-
-    /**
      * @var string
      */
     private $encrypt_key;
-
-    /**
-     * @var string
-     */
-    private $external_id;
 
     /**
      * @var string
@@ -87,14 +53,49 @@ class File
     private $filesize;
 
     /**
-     * @var \Doctrine\Common\Collections\Collection
+     * @var \DateTime
      */
-    private $FileChecksum;
+    private $created;
 
     /**
-     * @var \ODR\AdminBundle\Entity\DataFields
+     * @var \DateTime
      */
-    private $dataField;
+    private $deletedAt;
+
+    /**
+     * @var string
+     */
+    private $caption;
+
+    /**
+     * @var string
+     */
+    private $originalFileName;
+
+    /**
+     * @var string
+     */
+    private $external_id;
+
+    /**
+     * @var \DateTime
+     */
+    private $publicDate;
+
+    /**
+     * @var \DateTime
+     */
+    private $updated;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $fileChecksum;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $fileMeta;
 
     /**
      * @var \ODR\AdminBundle\Entity\FieldType
@@ -102,9 +103,19 @@ class File
     private $fieldType;
 
     /**
+     * @var \ODR\AdminBundle\Entity\DataFields
+     */
+    private $dataField;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataRecord
      */
     private $dataRecord;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataRecordFields
+     */
+    private $dataRecordFields;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -114,19 +125,20 @@ class File
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
-    private $updatedBy;
+    private $deletedBy;
 
     /**
-     * @var \ODR\AdminBundle\Entity\DataRecordFields
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
-    private $dataRecordFields;
+    private $updatedBy;
 
     /**
      * Constructor
      */
     public function __construct()
     {
-        $this->FileChecksum = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->fileChecksum = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->fileMeta = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -137,29 +149,6 @@ class File
     public function getId()
     {
         return $this->id;
-    }
-
-    /**
-     * Set caption
-     *
-     * @param string $caption
-     * @return File
-     */
-    public function setCaption($caption)
-    {
-        $this->caption = $caption;
-
-        return $this;
-    }
-
-    /**
-     * Get caption
-     *
-     * @return string 
-     */
-    public function getCaption()
-    {
-        return $this->caption;
     }
 
     /**
@@ -186,29 +175,6 @@ class File
     }
 
     /**
-     * Set originalFileName
-     *
-     * @param string $originalFileName
-     * @return File
-     */
-    public function setOriginalFileName($originalFileName)
-    {
-        $this->originalFileName = $originalFileName;
-
-        return $this;
-    }
-
-    /**
-     * Get originalFileName
-     *
-     * @return string 
-     */
-    public function getOriginalFileName()
-    {
-        return $this->originalFileName;
-    }
-
-    /**
      * Set localFileName
      *
      * @param string $localFileName
@@ -232,111 +198,6 @@ class File
     }
 
     /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return File
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
-    }
-
-    /**
-     * Set created
-     *
-     * @param \DateTime $created
-     * @return File
-     */
-    public function setCreated($created)
-    {
-        $this->created = $created;
-
-        return $this;
-    }
-
-    /**
-     * Get created
-     *
-     * @return \DateTime 
-     */
-    public function getCreated()
-    {
-        return $this->created;
-    }
-
-    /**
-     * Set updated
-     *
-     * @param \DateTime $updated
-     * @return File
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
-    }
-
-    /**
-     * Set publicDate
-     *
-     * @param \DateTime $publicDate
-     * @return File
-     */
-    public function setPublicDate($publicDate)
-    {
-        $this->publicDate = $publicDate;
-
-        return $this;
-    }
-
-    /**
-     * Get publicDate
-     *
-     * @return \DateTime 
-     */
-    public function getPublicDate()
-    {
-        return $this->publicDate;
-    }
-
-    /**
-     * Is public
-     *
-     * @return boolean
-     */
-    public function isPublic()
-    {
-        if ($this->publicDate->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-            return false;
-        else
-            return true;
-    }
-
-    /**
      * Set encrypt_key
      *
      * @param string $encryptKey
@@ -357,29 +218,6 @@ class File
     public function getEncryptKey()
     {
         return $this->encrypt_key;
-    }
-
-    /**
-     * Set external_id
-     *
-     * @param string $externalId
-     * @return File
-     */
-    public function setExternalId($externalId)
-    {
-        $this->external_id = $externalId;
-
-        return $this;
-    }
-
-    /**
-     * Get external_id
-     *
-     * @return string 
-     */
-    public function getExternalId()
-    {
-        return $this->external_id;
     }
 
     /**
@@ -421,7 +259,7 @@ class File
     /**
      * Get filesize
      *
-     * @return integer
+     * @return integer 
      */
     public function getFilesize()
     {
@@ -429,59 +267,236 @@ class File
     }
 
     /**
-     * Add FileChecksum
+     * Set created
+     *
+     * @param \DateTime $created
+     * @return File
+     */
+    public function setCreated($created)
+    {
+        $this->created = $created;
+
+        return $this;
+    }
+
+    /**
+     * Get created
+     *
+     * @return \DateTime 
+     */
+    public function getCreated()
+    {
+        return $this->created;
+    }
+
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return File
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+
+    /**
+     * Set caption
+     * @deprecated
+     *
+     * @param string $caption
+     * @return File
+     */
+    public function setCaption($caption)
+    {
+        $this->caption = $caption;
+
+        return $this;
+    }
+
+    /**
+     * Get caption
+     *
+     * @return string 
+     */
+    public function getCaption()
+    {
+        return $this->getFileMeta()->getDescription();
+    }
+
+    /**
+     * Set originalFileName
+     * @deprecated
+     *
+     * @param string $originalFileName
+     * @return File
+     */
+    public function setOriginalFileName($originalFileName)
+    {
+        $this->originalFileName = $originalFileName;
+
+        return $this;
+    }
+
+    /**
+     * Get originalFileName
+     *
+     * @return string 
+     */
+    public function getOriginalFileName()
+    {
+        return $this->getFileMeta()->getOriginalFileName();
+    }
+
+    /**
+     * Set external_id
+     * @deprecated
+     *
+     * @param string $externalId
+     * @return File
+     */
+    public function setExternalId($externalId)
+    {
+        $this->external_id = $externalId;
+
+        return $this;
+    }
+
+    /**
+     * Get external_id
+     *
+     * @return string 
+     */
+    public function getExternalId()
+    {
+        return $this->getFileMeta()->getExternalId();
+    }
+
+    /**
+     * Set publicDate
+     * @deprecated
+     *
+     * @param \DateTime $publicDate
+     * @return File
+     */
+    public function setPublicDate($publicDate)
+    {
+        $this->publicDate = $publicDate;
+
+        return $this;
+    }
+
+    /**
+     * Get publicDate
+     *
+     * @return \DateTime 
+     */
+    public function getPublicDate()
+    {
+        return $this->getFileMeta()->getPublicDate();
+    }
+
+    /**
+     * Set updated
+     * @deprecated
+     *
+     * @param \DateTime $updated
+     * @return File
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     * @deprecated
+     *
+     * @return \DateTime 
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
+    }
+
+    /**
+     * Add fileChecksum
      *
      * @param \ODR\AdminBundle\Entity\FileChecksum $fileChecksum
      * @return File
      */
     public function addFileChecksum(\ODR\AdminBundle\Entity\FileChecksum $fileChecksum)
     {
-        $this->FileChecksum[] = $fileChecksum;
+        $this->fileChecksum[] = $fileChecksum;
 
         return $this;
     }
 
     /**
-     * Remove FileChecksum
+     * Remove fileChecksum
      *
      * @param \ODR\AdminBundle\Entity\FileChecksum $fileChecksum
      */
     public function removeFileChecksum(\ODR\AdminBundle\Entity\FileChecksum $fileChecksum)
     {
-        $this->FileChecksum->removeElement($fileChecksum);
+        $this->fileChecksum->removeElement($fileChecksum);
     }
 
     /**
-     * Get FileChecksum
+     * Get fileChecksum
      *
      * @return \Doctrine\Common\Collections\Collection 
      */
     public function getFileChecksum()
     {
-        return $this->FileChecksum;
+        return $this->fileChecksum;
     }
 
     /**
-     * Set dataField
+     * Add fileMeta
      *
-     * @param \ODR\AdminBundle\Entity\DataFields $dataField
+     * @param \ODR\AdminBundle\Entity\FileMeta $fileMeta
      * @return File
      */
-    public function setDataField(\ODR\AdminBundle\Entity\DataFields $dataField = null)
+    public function addFileMetum(\ODR\AdminBundle\Entity\FileMeta $fileMeta)
     {
-        $this->dataField = $dataField;
+        $this->fileMeta[] = $fileMeta;
 
         return $this;
     }
 
     /**
-     * Get dataField
+     * Remove fileMeta
      *
-     * @return \ODR\AdminBundle\Entity\DataFields 
+     * @param \ODR\AdminBundle\Entity\FileMeta $fileMeta
      */
-    public function getDataField()
+    public function removeFileMetum(\ODR\AdminBundle\Entity\FileMeta $fileMeta)
     {
-        return $this->dataField;
+        $this->fileMeta->removeElement($fileMeta);
+    }
+
+    /**
+     * Get fileMeta
+     *
+     * @return \ODR\AdminBundle\Entity\FileMeta
+     */
+    public function getFileMeta()
+    {
+        return $this->fileMeta->first();
     }
 
     /**
@@ -508,6 +523,29 @@ class File
     }
 
     /**
+     * Set dataField
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $dataField
+     * @return File
+     */
+    public function setDataField(\ODR\AdminBundle\Entity\DataFields $dataField = null)
+    {
+        $this->dataField = $dataField;
+
+        return $this;
+    }
+
+    /**
+     * Get dataField
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields 
+     */
+    public function getDataField()
+    {
+        return $this->dataField;
+    }
+
+    /**
      * Set dataRecord
      *
      * @param \ODR\AdminBundle\Entity\DataRecord $dataRecord
@@ -528,6 +566,29 @@ class File
     public function getDataRecord()
     {
         return $this->dataRecord;
+    }
+
+    /**
+     * Set dataRecordFields
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
+     * @return File
+     */
+    public function setDataRecordFields(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields = null)
+    {
+        $this->dataRecordFields = $dataRecordFields;
+
+        return $this;
+    }
+
+    /**
+     * Get dataRecordFields
+     *
+     * @return \ODR\AdminBundle\Entity\DataRecordFields 
+     */
+    public function getDataRecordFields()
+    {
+        return $this->dataRecordFields;
     }
 
     /**
@@ -554,7 +615,31 @@ class File
     }
 
     /**
+     * Set deletedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $deletedBy
+     * @return File
+     */
+    public function setDeletedBy(\ODR\OpenRepository\UserBundle\Entity\User $deletedBy = null)
+    {
+        $this->deletedBy = $deletedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getDeletedBy()
+    {
+        return $this->deletedBy;
+    }
+
+    /**
      * Set updatedBy
+     * @deprecated
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
      * @return File
@@ -568,6 +653,7 @@ class File
 
     /**
      * Get updatedBy
+     * @deprecated
      *
      * @return \ODR\OpenRepository\UserBundle\Entity\User 
      */
@@ -577,26 +663,16 @@ class File
     }
 
     /**
-     * Set dataRecordFields
+     * Is public
      *
-     * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
-     * @return File
+     * @return boolean
      */
-    public function setDataRecordFields(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields = null)
+    public function isPublic()
     {
-        $this->dataRecordFields = $dataRecordFields;
-
-        return $this;
-    }
-
-    /**
-     * Get dataRecordFields
-     *
-     * @return \ODR\AdminBundle\Entity\DataRecordFields 
-     */
-    public function getDataRecordFields()
-    {
-        return $this->dataRecordFields;
+        if ($this->getPublicDate()->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+            return false;
+        else
+            return true;
     }
 
     /*
@@ -746,5 +822,47 @@ class File
         // get rid of the __DIR__ so it doesn't screw up
         // when displaying uploaded doc/image in the view.
         return 'uploads/files';
+    }
+
+    // ----------------------------------------
+    // TODO - delete these four functions
+    /**
+     * Get description original
+     *
+     * @return string
+     */
+    public function getDescriptionOriginal()
+    {
+        return $this->caption;
+    }
+
+    /**
+     * Get originalFileName original
+     *
+     * @return string
+     */
+    public function getOriginalFileNameOriginal()
+    {
+        return $this->originalFileName;
+    }
+
+    /**
+     * Get external_id original
+     *
+     * @return string
+     */
+    public function getExternalIdOriginal()
+    {
+        return $this->external_id;
+    }
+
+    /**
+     * Get publicDate original
+     *
+     * @return \DateTime
+     */
+    public function getPublicDateOriginal()
+    {
+        return $this->publicDate;
     }
 }

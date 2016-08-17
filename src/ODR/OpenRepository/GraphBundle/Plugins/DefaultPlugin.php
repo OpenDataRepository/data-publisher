@@ -1,142 +1,121 @@
 <?php 
 
 /**
-* Open Data Repository Data Publisher
-* Default Plugin
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* TODO - why does this exist again?
-*
-*/
+ * Open Data Repository Data Publisher
+ * Default Plugin
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * Allows datafields without a render plugin to render/display values from
+ * the same format that would execute other datafield plugins.
+ *
+ */
 
-//  ODR/AdminBundle/Twig/GraphExtension.php;
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
-// use Symfony\Component\DependencyInjection\ContainerInterface as Container;
-use Doctrine\ORM\EntityManger;
-use Symfony\Component\Templating\EngineInterface;
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeElementField;
-use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RenderPluginInstance;
-use ODR\AdminBundle\Entity\RenderPluginMap;
-use ODR\AdminBundle\Entity\RenderPluginOptions;
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 
-/**
- * TODO: short description.
- * 
- * TODO: long description.
- * 
- */
 class DefaultPlugin
 {
     /**
-     * TODO: description.
-     * 
      * @var mixed
      */
-    private $container;
+    private $templating;
+
 
     /**
-     * TODO: description.
-     * 
-     * @var mixed
+     * URLPlugin constructor.
+     *
+     * @param $templating
      */
-    private $entityManager;
+    public function __construct($templating) {
+        $this->templating = $templating;
+    }
+
 
     /**
-     * TODO: short description.
-     * 
-     * @param Container $container 
-     * 
-     * @return TODO
+     * Executes the URL Plugin on the provided datafield
+     *
+     * @param array $datafield
+     * @param array $datarecord
+     * @param array $render_plugin
+     * @param string $themeType     One of 'master', 'search_results', 'table', TODO?
+     *
+     * @return string
+     * @throws \Exception
      */
-    //public function __construct($entityManager, $templating) {
-        //$this->em = $entityManager;
-        //$this->templating = $templating;
-    //}
-
-    public function execute($obj, $render_plugin, $mytheme = "", $render_type = "default")
+    public function execute($datafield, $datarecord, $render_plugin, $themeType = 'master')
     {
 
         try {
-            //$em = $this->em;
-            //$repo_render_plugin_instance = $em->getRepository('ODRAdminBundle:RenderPluginInstance');
-            //$repo_render_plugin_map = $em->getRepository('ODRAdminBundle:RenderPluginMap');
-            //$repo_render_plugin_fields = $em->getRepository('ODRAdminBundle:RenderPluginFields');
-            //$repo_render_plugin_options = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginOptions');
-    
-            //$render_plugin_fields = $repo_render_plugin_fields->findBy( array('renderPlugin' => $render_plugin) );
-            //$render_plugin_instance = $repo_render_plugin_instance->findOneBy( array('renderPlugin' => $render_plugin, 'dataField' => $obj->getDataField()) );
-            //$render_plugin_map = $repo_render_plugin_map->findBy( array('renderPluginInstance' => $render_plugin_instance, 'dataField' => $obj->getDataField()) );
-            //$render_plugin_options = $repo_render_plugin_options->findBy( array('renderPluginInstance' => $render_plugin_instance) );
+//            $str = '<pre>'.print_r($datafield, true)."\n".print_r($datarecord, true)."\n".print_r($render_plugin, true)."\n".'</pre>';
+//            return $str;
 
-            // Remap Options
-            //$options = array(); 
-            //foreach($render_plugin_options as $option) {
-                //if($option->getActive()) {
-                    //$options[$option->getOptionName()] = $option->getOptionValue();
-                //}
-            //}
+            // Grab value of datafield
+            $typeclass = $datafield['dataFieldMeta']['fieldType']['typeClass'];
 
-            // if(!is_object($obj) || !method_exists($obj->getDataField())) {
-            // Map Field
-            switch($obj->getDataField()->getFieldType()->getTypeName()) {
+            $value = '';
+            if ( isset($datarecord['dataRecordFields'][ $datafield['id'] ]) ) {
+                $drf = $datarecord['dataRecordFields'][ $datafield['id'] ];
+                $entity = array();
+                switch ($typeclass) {
+                    case 'IntegerValue':
+                        $entity = $drf['integerValue'];
+                        break;
+                    case 'DecimalValue':
+                        $entity = $drf['decimalValue'];
+                        break;
+                    case 'ShortVarchar':
+                        $entity = $drf['shortVarchar'];
+                        break;
+                    case 'MediumVarchar':
+                        $entity = $drf['mediumVarchar'];
+                        break;
+                    case 'LongVarchar':
+                        $entity = $drf['longVarchar'];
+                        break;
+                    case 'LongText':
+                        $entity = $drf['longText'];
+                        break;
+                    case 'DateTimeValue':
+                        $entity = $drf['dateTimeValue'];
+                        break;
 
-                case 'Integer':
-                    $str = $obj->getIntegerValue()->getValue();
-                break;
+                    default:
+                        throw new \Exception('Invalid Fieldtype');
+                        break;
+                }
 
-                case 'Short Text':
-                    $str = $obj->getShortVarChar()->getValue();
-                break;
-
-                case 'Long Text':
-                    $str = $obj->getLongVarChar()->getValue();
-                break;
-
-                case 'Medium Text':
-                    $str = $obj->getMediumVarChar()->getValue();
-                break;
-
-                case 'Paragraph Text':
-                    $str = $obj->getLongText()->getValue();
-                break;
-
-                default:
-                    $str = '';
-                break;
+                // Datetime field values need to be turned into a string...
+                if ($typeclass == 'DateTimeValue') {
+                    $value = $entity[0]['value']->format('Y-m-d');
+                    if ($value == '9999-12-31')
+                        $value = '';
+                }
+                else {
+                    $value = trim($entity[0]['value']);
+                }
+            }
+            else {
+                // No datarecordfield entry for this datarecord/datafield pair...because of the allowed fieldtypes, the plugin can just use the empty string in this case
+                // Don't need special handling if this is a Datetime field due to default_default.html.twig just printing out a string instead of searching for the value
+                $value = '';
             }
 
-            $output = "";
-            switch ($render_type) {
 
-                case 'TextResults':
-                    $output = $str;
+            $output = "";
+            switch ($themeType) {
+                case 'text':
+                case 'table':
+                    $output = $value;
                 break;
 
                 default:
                     $output = $this->templating->render(
                         'ODROpenRepositoryGraphBundle:Default:default_default.html.twig', 
                         array(
-                            'mytheme' => $mytheme,
-                            'field' => $obj->getDataField(),
-                            'str' => $str,
-                            'options' => $options
+                            'datafield' => $datafield,
+                            'value' => $value,
                         )
                     );
                 break;
@@ -145,7 +124,7 @@ class DefaultPlugin
             return $output;
         }
         catch (\Exception $e) {
-            return "<h2>An Exception Occurred</h2><p>" . $e->getMessage() . "</p>";
+            throw new \Exception( $e->getMessage() );
         }
     }
 

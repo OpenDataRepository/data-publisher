@@ -91,7 +91,7 @@
                 {% endif %}
 
             <tr>
-                <td>{{ datatype.shortName }}</td>
+                <td>{{ datatype.dataTypeMeta.shortName }}</td>
                 <td class="center">
                     <input id="view_{{ datatype.id }}" onclick="togglePermission('view_{{ datatype.id }}');" type="checkbox" {% if force_permissions_enabled or can_view_type %}checked{% endif %} {% if force_permissions_enabled or is_type_admin %}disabled title="User has admin permissions for this datatype"{% endif %} />
                 </td>
@@ -140,7 +140,7 @@
                     {% endif %}
 
                     <tr class="datatype_{{ datatype.id }}_child" rel="{{ childtype.id }}">
-                        <td>-- {{ childtype.shortName }}</td>
+                        <td>-- {{ childtype.dataTypeMeta.shortName }}</td>
                         <td class="center">
                             <input id="view_{{ childtype.id }}" onclick="togglePermission('view_{{ childtype.id }}');" type="checkbox" {% if force_permissions_enabled or can_view_type %}checked{% endif %} {% if force_permissions_enabled %}disabled{% endif %} />
                         </td>

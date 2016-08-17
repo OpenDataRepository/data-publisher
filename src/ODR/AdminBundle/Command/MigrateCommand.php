@@ -59,10 +59,10 @@ class MigrateCommand extends ContainerAwareCommand
                 $data = json_decode($job->getData()); 
 
                 // 
-                $logger->info('MigrateCommand.php: Migrate request for DataRecord '.$data->datarecord_id.', DataField '.$data->datafield_id.' from '.$data->memcached_prefix.'...');
+                $logger->info('MigrateCommand.php: Migrate request for DataRecord '.$data->datarecord_id.', DataField '.$data->datafield_id.' from '.$data->redis_prefix.'...');
                 $current_time = new \DateTime();
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
-                $output->writeln('Migrate request for DataRecord '.$data->datarecord_id.', DataField '.$data->datafield_id.' from '.$data->memcached_prefix.'...');
+                $output->writeln('Migrate request for DataRecord '.$data->datarecord_id.', DataField '.$data->datafield_id.' from '.$data->redis_prefix.'...');
 
                 // Need to use cURL to send a POST request...thanks symfony
                 $ch = curl_init();

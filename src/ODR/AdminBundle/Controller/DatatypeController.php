@@ -1,33 +1,39 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* DataType Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The DataType controller handles creation and editing (most)
-* properties of datatypes.  Deletion is handled in DisplayTemplate.
-* It also handles rendering the pages that allow the user to design
-* datatypes, or modify datarecords of each datatype.
-*
-*/
+ * Open Data Repository Data Publisher
+ * DataType Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The DataType controller handles creation and editing (most)
+ * properties of datatypes.  Deletion is handled in DisplayTemplate.
+ * It also handles rendering the pages that allow the user to design
+ * datatypes, or modify datarecords of each datatype.
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\OpenRepository\UserBundle\ODROpenRepositoryUserBundle;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\UserPermissions;
+use ODR\AdminBundle\Entity\DataTypeMeta;
+use ODR\AdminBundle\Entity\RenderPlugin;
+use ODR\AdminBundle\Entity\Theme;
+use ODR\AdminBundle\Entity\ThemeMeta;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 use ODR\AdminBundle\Form\CreateDatatypeForm;
+use ODR\AdminBundle\Form\UpdateDataTypeForm;
 // Symfony
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+
 
 class DatatypeController extends ODRCustomController
 {
@@ -38,7 +44,7 @@ class DatatypeController extends ODRCustomController
      * @param string $section  Either "records" or "design", dictating which set of options the user will see for each datatype
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function listAction($section, Request $request)
     {
@@ -49,12 +55,14 @@ class DatatypeController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $templating = $this->get('templating');
 
             // --------------------
             // Grab user privileges to determine what they can do
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             // --------------------
 
@@ -65,29 +73,32 @@ class DatatypeController extends ODRCustomController
 
             // Grab each top-level datatype from the repository
             $query = $em->createQuery(
-               'SELECT dt AS datatype
-                FROM ODRAdminBundle:DataType dt
-                WHERE dt IN (:datatypes)'
+               'SELECT dt
+                FROM ODRAdminBundle:DataType AS dt
+                WHERE dt IN (:datatypes)
+                AND dt.deletedAt IS NULL'
             )->setParameters( array('datatypes' => $top_level_datatypes) );
             $results = $query->getResult();
 
             $datatypes = array();
             $metadata = array();
-            foreach ($results as $result) {
-                $datatype = $result['datatype'];
-                $datatype_id = $datatype->getId();
+            foreach ($results as $dt) {
+                /** @var DataType $dt */
+                $datatypes[] = $dt;
 
-                $datatypes[] = $datatype;
-                $metadata[$datatype_id] = array();
-                $metadata[$datatype_id]['count'] = 0;
+                $dt_id = $dt->getId();
+                $metadata[$dt_id] = array();
+                $metadata[$dt_id]['count'] = 0;
             }
+            /** @var DataType[] $datatypes */
 
             // Do a second query to grab which datatypes have datarecords, and how many
             $query = $em->createQuery(
                'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
-                FROM ODRAdminBundle:DataType dt
+                FROM ODRAdminBundle:DataType AS dt
                 JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                WHERE dt IN (:datatypes) AND dr.deletedAt IS NULL AND dr.provisioned = false
+                WHERE dt IN (:datatypes) AND dr.provisioned = false
+                AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL
                 GROUP BY dt.id'
             )->setParameters( array('datatypes' => $top_level_datatypes) );
             $results = $query->getArrayResult();
@@ -101,9 +112,9 @@ class DatatypeController extends ODRCustomController
             }
 //print_r($metadata);
 
-            // Create new DataType form
-            $datatype = new DataType();
-            $form = $this->createForm(new CreateDatatypeForm($datatype), $datatype);
+            // Build a form for creating a new datatype, if needed
+            $new_datatype_data = new DataTypeMeta();
+            $form = $this->createForm(CreateDatatypeForm::class, $new_datatype_data);
 
             // Render and return the html
             $return['d'] = array(
@@ -130,12 +141,11 @@ class DatatypeController extends ODRCustomController
             $return['d'] = 'Error 0x884775820 ' . $e->getMessage();
         }
 
-
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
+
 
     /**
      * TODO - sitemap function
@@ -147,6 +157,7 @@ class DatatypeController extends ODRCustomController
      */
     public function getlistAction(Request $request)
     {
+/*
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'json';
@@ -154,7 +165,7 @@ class DatatypeController extends ODRCustomController
 
         try {
             // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $repo_user_permissions = $this->getDoctrine()->getRepository('ODRAdminBundle:UserPermissions');
             $user_permissions = $repo_user_permissions->findBy( array('user_id' => $user) );
 
@@ -232,7 +243,7 @@ class DatatypeController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
+*/
     }
 
 
@@ -241,11 +252,10 @@ class DatatypeController extends ODRCustomController
      * 
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function addAction(Request $request)
     {
-
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'html';
@@ -253,84 +263,137 @@ class DatatypeController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-//            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $templating = $this->get('templating');
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
-            $admin = $this->container->get('security.context')->getToken()->getUser();
+            /** @var User $admin */
+            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Create new DataType form
-            $datatype = new DataType();
-            $form = $this->createForm(new CreateDatatypeForm($datatype), $datatype);
+            $submitted_data = new DataTypeMeta();
+            $form = $this->createForm(CreateDatatypeForm::class, $submitted_data);
 
-            // Verify 
-            if ($request->getMethod() == 'POST') {
-                $form->bind($request, $datatype);
+            $form->handleRequest($request);
 
-                // Can't seem to figure out why it occassionally attempts to create an empty datatype, so...
-//print_r($request->request);
-                $normal_fields = $request->request->get('CreateDatatypeForm');
-                $short_name = trim( $normal_fields['shortName'] );
-                $long_name = trim( $normal_fields['longName'] );
+            if ($form->isSubmitted()) {
+                // This was a POST request
 
+                // Can't seem to figure out why it occassionally attempts to create an empty datatype, so...guessing here
+                if ($form->isEmpty())
+                    $form->addError( new FormError('Form is empty?') );
+
+                $short_name = $submitted_data->getShortName();
+                $long_name = $submitted_data->getLongName();
                 if ($short_name == '' || $long_name == '')
                     $form->addError( new FormError('New Datatypes require both a short name and a long name') );
 
+//$form->addError( new FormError('do not save') );
+
                 if ($form->isValid()) {
                     // ----------------------------------------
-                    // Set stuff that the form doesn't take care of
-                    $datatype->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
-                    $datatype->setCreatedBy($admin);
-                    $datatype->setUpdatedBy($admin);
-
-                    $render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
-                    $datatype->setRenderPlugin($render_plugin);
-
-                    // Set defaults for other stuff...
-                    $datatype->setXmlShortName('');
-                    $datatype->setUseShortResults(1);
-                    $datatype->setExternalIdField(null);
-                    $datatype->setNameField(null);
-                    $datatype->setSortField(null);
-                    $datatype->setDisplayType(0);
+                    // Create a new Datatype entity
+                    $datatype = new DataType();
                     $datatype->setRevision(0);
                     $datatype->setHasShortresults(false);
                     $datatype->setHasTextresults(false);
 
+                    $datatype->setCreatedBy($admin);
+                    $datatype->setUpdatedBy($admin);
+
+                    // TODO - delete these eleven properties
+                    $datatype->setShortName('');
+                    $datatype->setLongName('');
+                    $datatype->setDescription('');
+                    $datatype->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
+                    /** @var RenderPlugin $default_render_plugin */
+                    $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
+                    $datatype->setRenderPlugin($default_render_plugin);
+
+                    // Set defaults for other stuff...
+                    $datatype->setXmlShortName('');
+                    $datatype->setUseShortResults(true);
+                    $datatype->setExternalIdField(null);
+                    $datatype->setNameField(null);
+                    $datatype->setSortField(null);
+                    $datatype->setDisplayType(0);
+
                     // Save all changes made
                     $em->persist($datatype);
                     $em->flush();
+                    $em->refresh($datatype);
+
+
+                    // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name
+                    $submitted_data->setDataType($datatype);
+                    $submitted_data->setRenderPlugin($default_render_plugin);
+
+                    $submitted_data->setDescription('');
+                    $submitted_data->setSearchSlug(null);
+                    $submitted_data->setXmlShortName('');
+
+                    $submitted_data->setDisplayType(0);
+                    $submitted_data->setUseShortResults(true);
+                    $submitted_data->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
+
+                    $submitted_data->setExternalIdField(null);
+                    $submitted_data->setNameField(null);
+                    $submitted_data->setSortField(null);
+                    $submitted_data->setBackgroundImageField(null);
+
+                    $submitted_data->setCreatedBy($admin);
+                    $submitted_data->setUpdatedBy($admin);
+                    $em->persist($submitted_data);
 
                     // ----------------------------------------
                     // Ensure the user that created this datatype has permissions to do everything to it
-                    $user_permission = new UserPermissions();
-                    $user_permission->setDataType($datatype);
-                    $user_permission->setUserId($admin);
-                    $user_permission->setCreatedBy($admin);
+                    $initial_permissions = array(
+                        'can_view_type' => 1,
+                        'can_add_record' => 1,
+                        'can_edit_record' => 1,
+                        'can_delete_record' => 1,
+                        'can_design_type' => 1,
+                        'is_type_admin' => 1
+                    );
+                    parent::ODR_addUserPermission($em, $admin->getId(), $admin->getId(), $datatype->getId(), $initial_permissions);
 
-                    $user_permission->setCanEditRecord(1);
-                    $user_permission->setCanAddRecord(1);
-                    $user_permission->setCanDeleteRecord(1);
-                    $user_permission->setCanViewType(1);
-                    $user_permission->setCanDesignType(1);
-                    $user_permission->setIsTypeAdmin(1);
 
-                    $em->persist($user_permission);
+                    // Create a new master theme for this new datatype
+                    $theme = new Theme();
+                    $theme->setDataType($datatype);
+                    $theme->setThemeType('master');
+                    $theme->setCreatedBy($admin);
+                    $theme->setUpdatedBy($admin);
+
+                    $em->persist($theme);
+                    $em->flush();
+                    $em->refresh($theme);
+
+                    // ...and its associated meta entry
+                    $theme_meta = new ThemeMeta();
+                    $theme_meta->setTheme($theme);
+                    $theme_meta->setTemplateName('');
+                    $theme_meta->setTemplateDescription('');
+                    $theme_meta->setIsDefault(true);
+                    $theme_meta->setCreatedBy($admin);
+                    $theme_meta->setUpdatedBy($admin);
+
+                    $em->persist($theme_meta);
                     $em->flush();
 
 
                     // ----------------------------------------
                     // Clear memcached of all datatype permissions for all users...the entries will get rebuilt the next time they do something
-                    $memcached = $this->get('memcached');
-                    $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-                    $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+                    $redis = $this->container->get('snc_redis.default');;
+                    // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+                    $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
                     $user_manager = $this->container->get('fos_user.user_manager');
+                    /** @var User[] $users */
                     $users = $user_manager->findUsers();
                     foreach ($users as $user)
-                        $memcached->delete($memcached_prefix.'.user_'.$user->getId().'_datatype_permissions');
-
+                        $redis->del($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
                 }
                 else {
                     // Return any errors encountered
@@ -339,6 +402,7 @@ class DatatypeController extends ODRCustomController
                 }
             }
             else {
+                // Otherwise, this was a GET request
                 $return['d'] = $templating->render(
                     'ODRAdminBundle:Datatype:add_type_dialog_form.html.twig', 
                     array(
@@ -360,412 +424,12 @@ class DatatypeController extends ODRCustomController
 
 
     /**
-     * Recursively builds a tree version of the Datatree table...TODO
-     *
-     * @param \Doctrine\ORM\Entitymanager $em
-     * @param array $datatree_array
-     * @param integer $parent_datatype_id
-     *
-     * @return array
-     */
-    private function getAllDatatypes($em, $datatree_array, $parent_datatype_id)
-    {
-        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-        $datatypes = array();
-
-        $tmp = array_keys($datatree_array['descendant_of'], $parent_datatype_id);
-        foreach ($tmp as $num => $child_datatype_id) {
-            $datatypes[$child_datatype_id] = array('datatype' => $repo_datatype->find($child_datatype_id), 'children' => array() );
-
-            $datatypes[$child_datatype_id]['children'] = self::getAllDatatypes($em, $datatree_array, $child_datatype_id);
-        }
-
-        return $datatypes;
-    }
-
-
-    /**
-     * Loads a form used to edit DataType Properties.
-     * 
-     * @param integer $datatype_id Which datatype is having its properties changed.
-     * @param Request $request
-     * 
-     * @return Response TODO
-     */
-    public function editAction($datatype_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = 'html';
-        $return['d'] = '';
-
-        try {
-            // Get Entity Manager and setup objects
-            $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-//            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
-            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
-            $site_baseurl = $this->container->getParameter('site_baseurl');
-
-            // Grab necessary objects
-            $datatype = $repo_datatype->find($datatype_id);
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
-
-            // --------------------
-            // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['design'])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-
-            // ----------------------------------------
-            // Determine whether user can view permissions of other users
-            $can_view_permissions = false;
-            if ($user->hasRole('ROLE_SUPER_ADMIN') || (isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['admin'])) )
-                $can_view_permissions = true;
-
-            $all_datatypes = array();
-            $all_permissions = array();
-            if ($can_view_permissions) {
-                // Recursively locate all childtypes of this datatype
-                $datatree_array = parent::getDatatreeArray($em);
-                $all_datatypes = array($datatype_id => array('datatype' => $datatype, 'children' => array()));
-                $all_datatypes[$datatype_id]['children'] = self::getAllDatatypes($em, $datatree_array, $datatype_id);
-
-                // Easier to look through $datatree_array directly to find all relevant datatype ids...
-                $all_datatype_ids = array($datatype_id);
-                $parent_datatype_ids = array($datatype_id);
-                while (count($parent_datatype_ids) > 0) {
-
-                    $tmp_datatype_ids = array();
-                    foreach ($parent_datatype_ids as $num => $dt_id) {
-                        $tmp = array_keys($datatree_array['descendant_of'], $dt_id);
-
-                        foreach ($tmp as $child_datatype_id) {
-                            $tmp_datatype_ids[] = $child_datatype_id;
-                            $all_datatype_ids[] = $child_datatype_id;
-                        }
-                    }
-
-                    $parent_datatype_ids = $tmp_datatype_ids;
-                }
-
-                // Locate all users that can access this datatype
-                $query = $em->createQuery(
-                   'SELECT DISTINCT(up.user_id)
-                    FROM ODRAdminBundle:UserPermissions AS up
-                    WHERE up.dataType IN (:datatypes)
-                    AND (up.can_view_type = 1 OR up.can_edit_record = 1 OR up.can_add_record = 1 OR up.can_delete_record = 1 OR up.can_design_type = 1 OR up.is_type_admin = 1)'
-                )->setParameters(array('datatypes' => $all_datatype_ids));
-                $results = $query->getArrayResult();
-
-                // Store all relevant permissions in an array for twig...
-                $all_permissions = array();
-                foreach ($results as $num => $data) {
-                    $user_id = $data[1];
-
-                    if (!isset($all_permissions[$user_id])) {
-                        $site_user = $repo_user->find($user_id);
-                        if ($site_user->isEnabled() == 1 && !$site_user->hasRole('ROLE_SUPER_ADMIN'))   // only display this user's permissions for this datatype if they're not deleted and aren't super admin
-                            $all_permissions[$user_id] = array('user' => $site_user, 'permissions' => parent::getPermissionsArray($user_id, $request, false));
-                    }
-                }
-                ksort($all_permissions);
-            }
-
-            // ----------------------------------------
-            // Grab datafields that this page needs
-            $query = $em->createQuery(
-               'SELECT df AS datafield, df.is_unique AS is_unique, ft.typeName AS typename, ft.canBeSortField AS can_be_sortfield
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:FieldType AS ft WITH df.fieldType = ft
-                WHERE df.dataType = :datatype
-                AND df.deletedAt IS NULL AND ft.deletedAt IS NULL'
-            )->setParameters( array('datatype' => $datatype_id) );
-            $results = $query->getResult();
-//$results = $query->getArrayResult();
-//print_r($results);
-
-            $unique_datafields = array();
-            $sort_datafields = array();
-
-            $image_datafields = array();
-            $textresults_datafields = array();
-            foreach ($results as $num => $result) {
-                $datafield = $result['datafield'];
-                $typename = $result['typename'];
-                $is_unique = $result['is_unique'];
-                $can_be_sortfield = $result['can_be_sortfield'];
-
-                // Classify various datafields...
-                if ($is_unique == '1')
-                    $unique_datafields[] = $datafield;
-                if ($can_be_sortfield == '1')
-                    $sort_datafields[] = $datafield;
-                if ($typename == 'Image')
-                    $image_datafields[] = $datafield;
-
-                // Build a list of fields which can be displayed in TextResults
-                switch ($typename) {
-                    case 'DateTime':
-                    case 'Integer':
-                    case 'Short Text':
-                    case 'Medium Text':
-                    case 'Long Text':
-                    case 'Boolean':
-                    case 'Paragraph Text':
-                    case 'Single Radio':
-                    case 'Single Select':
-                    case 'Decimal':
-                        $textresults_datafields[] = $datafield;
-                        break;
-
-                    case 'File':
-                        if ($datafield->getAllowMultipleUploads() == "0")
-//                        if ($datafield['allow_multiple_uploads'] == "0")
-                            $textresults_datafields[] = $datafield;
-                        break;
-
-                    default:
-                        break;
-                }
-            }
-
-
-            // ----------------------------------------
-            // Render the edit page
-            $templating = $this->get('templating');
-            $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:Datatype:edit_datatype_properties.html.twig',
-                    array(
-                        'can_view_permissions' => $can_view_permissions,
-                        'all_datatypes' => $all_datatypes,
-                        'all_permissions' => $all_permissions,
-
-                        'site_baseurl' => $site_baseurl,
-                        'datatype' => $datatype,
-
-                        'unique_datafields' => $unique_datafields,
-                        'sort_datafields' => $sort_datafields,
-                        'image_datafields' => $image_datafields,
-                        'textresults_datafields' => $textresults_datafields,
-                    )
-                )
-            );
-
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x7803293: '.$e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Saves changes made to the DataType Properties form.
-     * TODO - change this to use a Symfony Form object...
-     * 
-     * @param Request $request
-     * 
-     * @return Response TODO
-     */
-    public function saveAction(Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Get Entity Manager and setup objects
-            $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
-
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-
-            $post = $_POST;
-//print_r($post);   exit();
-
-            $datatype_id = $post['datatype_id'];
-            $shortdisplay = $post['shortdisplay'];
-            $old_search_slug = $post['old_search_slug'];
-            $search_slug = $post['search_slug'];
-
-            $external_datafield_id = $post['external_id_datafield'];
-            $name_datafield_id = $post['name_datafield'];
-            $sort_datafield_id = $post['sort_datafield'];
-            $image_datafield_id = $post['image_datafield'];
-
-            $datatype = $repo_datatype->find($datatype_id);
-            if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
-
-            // --------------------
-            // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'design' ])) ) 
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-
-            $need_recache = false;
-
-            // ----------------------------------------
-            // Deal with external id datafield...
-            if ($external_datafield_id == '-1')
-                $external_datafield_id = null;
-
-            $old_external_datafield_id = null;
-            if ($datatype->getExternalIdField() !== null)
-                $old_external_datafield_id = strval( $datatype->getExternalIdField()->getId() );
-
-            if ($old_external_datafield_id !== $external_datafield_id) {
-                $need_recache = true;
-
-                if ($external_datafield_id == null)
-                    $datatype->setExternalIdField(null);
-                else
-                    $datatype->setExternalIdField( $repo_datafield->find($external_datafield_id) );
-
-                // Not caching this value currently?
-//                $query = $em->createQuery('UPDATE ODRAdminBundle:DataRecord AS dr SET dr.external_id = NULL WHERE dr.dataType = :datatype')->setParameters( array('datatype' => $datatype_id) );
-//                $num_updated = $query->execute();
-            }
-
-            // ----------------------------------------
-            // Deal with name datafield...
-            if ($name_datafield_id == '-1')
-                $name_datafield_id = null;
-
-            $old_name_datafield_id = null;
-            if ($datatype->getNameField() !== null) 
-                $old_name_datafield_id = strval( $datatype->getNameField()->getId() );
-
-            if ($old_name_datafield_id !== $name_datafield_id) {
-                $need_recache = true;
-
-                if ($name_datafield_id == null)
-                    $datatype->setNameField(null);
-                else
-                    $datatype->setNameField( $repo_datafield->find($name_datafield_id) );
-
-                // Not caching this value currently?
-//                $query = $em->createQuery('UPDATE ODRAdminBundle:DataRecord AS dr SET dr.namefield_value = NULL WHERE dr.dataType = :datatype')->setParameters( array('datatype' => $datatype_id) );
-//                $num_updated = $query->execute();
-            }
-
-            // ----------------------------------------
-            // Deal with sort datafield...
-            if ($sort_datafield_id == '-1')
-                $sort_datafield_id = null;
-
-            $old_sort_datafield_id = null;
-            if ($datatype->getSortField() !== null) 
-                $old_sort_datafield_id = strval( $datatype->getSortField()->getId() );
-
-            if ($old_sort_datafield_id !== $sort_datafield_id) {
-                // Sort order for the datatype got changed, delete the cached string with the old order
-                $need_recache = true;
-                $memcached->delete($memcached_prefix.'.data_type_'.$datatype->getId().'_record_order');
-
-                if ($sort_datafield_id == null)
-                    $datatype->setSortField(null);
-                else
-                    $datatype->setSortField( $repo_datafield->find($sort_datafield_id) );
-
-                // Not caching this value currently?
-//                $query = $em->createQuery('UPDATE ODRAdminBundle:DataRecord AS dr SET dr.sortfield_value = NULL WHERE dr.dataType = :datatype')->setParameters( array('datatype' => $datatype_id) );
-//                $num_updated = $query->execute();
-            }
-
-            // ----------------------------------------
-            // Deal with background image datafield...
-            $image_datafield = null;
-            if ($image_datafield_id !== '-1')
-                $image_datafield = $repo_datafield->find($image_datafield_id);
-            $datatype->setBackgroundImageField($image_datafield);
-
-
-            // ----------------------------------------
-            // Ensure the search slug provided doesn't match one already in the database
-            if ($old_search_slug !== $search_slug) {
-                $query = $em->createQuery(
-                   'SELECT dt.id, dt.searchSlug AS dt_search_slug
-                    FROM ODRAdminBundle:DataType AS dt
-                    WHERE dt.searchSlug != :empty
-                    AND dt.deletedAt IS NULL'
-                )->setParameters( array( 'empty' => '') );
-                $results = $query->getArrayResult();
-//print_r($results);
-
-                $unique = true;
-                foreach ($results as $num => $result) {
-                    $dt_search_slug = $result['dt_search_slug'];
-
-                    if ($search_slug == $dt_search_slug) {
-                        $unique = false;
-                        break;
-                    }
-                }
-
-                if ($unique) {
-                    // If no other datatype has this search slug, save it
-                    $datatype->setSearchSlug($search_slug);
-                }
-                else {
-                    // Otherwise, notify the page that it needs to alert the user to this error
-                    // Don't stop the rest of the page from saving, though...
-                    $return['r'] = 2;
-                }
-            }
-
-            // Save changes
-            $datatype->setUseShortResults($shortdisplay);
-            $em->persist($datatype);
-            $em->flush();
-
-            // Schedule the cache for an update if needed
-            if ($need_recache) {
-                parent::updateDatatypeCache($datatype->getId());
-            }
-
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x7036729: '.$e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
      * Triggers a recache of all datarecords of all datatypes.
-     * 
+     * TODO - using old recaching system.
+     *
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function recacheallAction(Request $request)
     {
@@ -776,17 +440,19 @@ class DatatypeController extends ODRCustomController
 
         try {
             // Permissions check
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 return parent::permissionDeniedError("rebuild the cache for");  // TODO - really should say everything
 
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
+//            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
             $pheanstalk = $this->get('pheanstalk');
             $router = $this->container->get('router');
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
@@ -802,6 +468,7 @@ class DatatypeController extends ODRCustomController
             $current_time = new \DateTime();
             foreach ($top_level_datatypes as $num => $datatype_id) {
                 // ----------------------------------------
+                /** @var DataType $datatype */
                 $datatype = $repo_datatype->find($datatype_id);
 
                 // Increment the datatype revision number so the worker processes will recache the datarecords
@@ -813,7 +480,7 @@ class DatatypeController extends ODRCustomController
                 // Grab all non-deleted datarecords of each datatype
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord dr
+                    FROM ODRAdminBundle:DataRecord AS dr
                     WHERE dr.dataType = :dataType AND dr.provisioned = false
                     AND dr.deletedAt IS NULL'
                 )->setParameters( array('dataType' => $datatype_id) );
@@ -844,7 +511,7 @@ class DatatypeController extends ODRCustomController
                                 "tracked_job_id" => $tracked_job_id,
                                 "datarecord_id" => $datarecord_id,
                                 "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                                "memcached_prefix" => $memcached_prefix,    // debug purposes only
+                                "redis_prefix" => $redis_prefix,    // debug purposes only
                                 "url" => $url,
                                 "api_key" => $api_key,
                             )

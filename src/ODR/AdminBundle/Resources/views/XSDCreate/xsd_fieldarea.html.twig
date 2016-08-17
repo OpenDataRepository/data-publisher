@@ -1,0 +1,152 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = datatype.themes[theme_id] %}
+
+{# describe datafields first #}
+<xsd:element name="datafields" minOccurs="0">
+    <xsd:complexType>
+        <xsd:all>
+        {% for theme_element in theme.themeElements %}
+            {% if theme_element.themeDataFields is defined %}
+
+                {% for theme_datafield in theme_element.themeDataFields %}
+                    {% set datafield = theme_datafield.dataField %}
+
+                    {% if datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
+                        {% include 'ODRAdminBundle:XSDCreate:xsd_datafield.html.twig' with {
+                            'datafield': datafield,
+                        } %}
+                    {% endif %}
+
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+        </xsd:all>
+    </xsd:complexType>
+</xsd:element>
+
+{# describe child datatypes second #}
+<xsd:element name="child_datarecords" minOccurs="0">
+    <xsd:complexType>
+        <xsd:all>
+        {% for theme_element in theme.themeElements %}
+            {% if theme_element.themeDataType is defined %}
+
+                {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
+                    {% set child_datatype = theme_datatype.dataType %}
+
+                    {% if datatype_array[ child_datatype.id ] is defined %}
+                        {% set child_theme_id = 0 %}
+                        {% for theme in datatype_array[ child_datatype.id ].themes %}
+                            {% if theme.themeType == 'master' %}
+                                {% set child_theme_id = theme.id %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if theme_datatype.is_link == 0 %}
+                            {% set is_top_level = 0 %}
+                            {% set child_datatype = datatype_array[ child_datatype.id ] %}
+
+                            {% if version == "v2" %}
+                            <xsd:element name="{{ child_datatype.dataTypeMeta.xml_shortName|xml }}" minOccurs="0">
+                            {% else %}
+                            <xsd:element name="datatype_{{ child_datatype.id }}" minOccurs="0">
+                            {% endif %}
+
+                                <xsd:complexType>
+                                    <xsd:sequence>
+                                        <xsd:element name="datarecords" minOccurs="0">
+                                            <xsd:complexType>
+                                                <xsd:sequence>
+                                                    <xsd:element name="datarecord" minOccurs="0" maxOccurs="{% if theme_datatype.multiple_allowed == 1 %}unbounded{% else %}1{% endif %}">
+                                                        <xsd:complexType>
+                                                            <xsd:all>
+                                                                <xsd:element name="_datarecord_metadata" type="datarecord_metadata_type" minOccurs="0" />
+                                                                {# using macro on purpose #}
+                                                                {% import "ODRAdminBundle:XSDCreate:xsd_childtype.html.twig" as mychildform %}
+                                                                {{ mychildform.input(datatype_array, child_datatype.id, child_theme_id, is_top_level, version) }}
+                                                            </xsd:all>
+                                                        </xsd:complexType>
+                                                    </xsd:element>
+                                                </xsd:sequence>
+                                            </xsd:complexType>
+                                        </xsd:element>
+                                    </xsd:sequence>
+                                    {% if version == "v1" %}
+                                        <xsd:attribute name="datatype_name" type="xsd:string" fixed="{{ child_datatype.dataTypeMeta.shortName|xml }}" />
+                                    {% endif %}
+                                </xsd:complexType>
+
+                            </xsd:element>
+
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+        </xsd:all>
+    </xsd:complexType>
+</xsd:element>
+
+{# describe linked datatypes third #}
+<xsd:element name="linked_datarecords" minOccurs="0">
+    <xsd:complexType>
+        <xsd:all>
+        {% for theme_element in theme.themeElements %}
+            {% if theme_element.themeDataType is defined %}
+
+                {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
+                    {% set child_datatype = theme_datatype.dataType %}
+
+                    {% if datatype_array[ child_datatype.id ] is defined %}
+                        {% set child_theme_id = 0 %}
+                        {% for theme in datatype_array[ child_datatype.id ].themes %}
+                            {% if theme.themeType == 'master' %}
+                                {% set child_theme_id = theme.id %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if theme_datatype.is_link == 1 %}
+                            {% set child_datatype = datatype_array[ child_datatype.id ] %}
+
+                            {% if version == "v2" %}
+                            <xsd:element name="{{ child_datatype.dataTypeMeta.xml_shortName|xml }}" minOccurs="0">
+                            {% else %}
+                            <xsd:element name="datatype_{{ child_datatype.id }}" minOccurs="0">
+                            {% endif %}
+
+                                <xsd:complexType>
+                                    <xsd:sequence>
+                                        <xsd:element name="datarecords" minOccurs="0">
+                                            <xsd:complexType>
+                                                <xsd:sequence>
+                                                    <xsd:element name="datarecord" minOccurs="0" maxOccurs="{% if theme_datatype.multiple_allowed == 1 %}unbounded{% else %}1{% endif %}">
+                                                        <xsd:complexType>
+                                                            <xsd:all>
+                                                                <xsd:element name="_external_id" type="xsd:string" />
+                                                                <xsd:element name="_internal_id" type="xsd:positiveInteger" />
+                                                            </xsd:all>
+                                                        </xsd:complexType>
+                                                    </xsd:element>
+                                                </xsd:sequence>
+                                            </xsd:complexType>
+                                        </xsd:element>
+                                    </xsd:sequence>
+                                    {% if version == "v1" %}
+                                        <xsd:attribute name="datatype_name" type="xsd:string" fixed="{{ child_datatype.dataTypeMeta.shortName|xml }}" />
+                                    {% endif %}
+                                </xsd:complexType>
+
+                            </xsd:element>
+
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+        </xsd:all>
+    </xsd:complexType>
+</xsd:element>
+
+{% endspaceless %}

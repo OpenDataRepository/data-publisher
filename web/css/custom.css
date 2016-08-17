@@ -238,6 +238,7 @@ header a {
     width: 215px;
 }
 
+/*
 #ODRNavWrapper {
     position: fixed;
     width: 230px;
@@ -246,6 +247,11 @@ header a {
     z-index: 1000;
 
     background: none;
+}
+*/
+#ODRNavWrapper {
+    width: 230px;
+    margin-right: 1.3em;
 }
 
 #ODRNav {
@@ -272,6 +278,7 @@ header a {
     box-shadow: 0 0 1px rgba(0, 0, 0, 0.1), 0 1px 8px rgba(0, 0, 0, 0.21);
 }
 
+/* 
 #ODRNav:hover {
     -webkit-transform: translate(200px, 0px);
        -moz-transform: translate(200px, 0px);
@@ -281,7 +288,6 @@ header a {
 }
 
 #ODRNav:hover {    
-    /* width: 500px; */
     opacity: 1;    
     -webkit-transition: all 0.15s ease-out;
        -moz-transition: all 0.15s ease-out;
@@ -289,6 +295,7 @@ header a {
          -o-transition: all 0.15s ease-out;
             transition: all 0.15s ease-out;
 }
+*/
 
 #ODRNavRight .top {
     margin-left: 25px;
@@ -378,7 +385,6 @@ aside:after {
 }
 
 #toolbar {
-    /*height: 38px;*/
     left: 0;
     position: fixed;
     top: 0;
@@ -387,32 +393,6 @@ aside:after {
 
     background: none;
     box-shadow: 0 0 2px rgba(0, 0, 0, 0.52);
-    /* background-image: -webkit-gradient(
-        linear,
-        left bottom,
-        left top,
-        color-stop(0.4, #5DD4FC),
-        color-stop(1, #F2FCFF)
-    );
-    background-image: -o-linear-gradient(top, #5DD4FC 40%, #F2FCFF 100%);
-    background-image: -moz-linear-gradient(top, #5DD4FC 40%, #F2FCFF 100%);
-    background-image: -webkit-linear-gradient(top, #5DD4FC 40%, #F2FCFF 100%);
-    background-image: -ms-linear-gradient(top, #5DD4FC 40%, #F2FCFF 100%);
-    background-image: linear-gradient(to top, #5DD4FC 40%, #F2FCFF 100%); 
-
-    background-image: -webkit-gradient(
-        linear,
-        left bottom,
-        left top,
-        color-stop(0, #D0F2FE),
-        color-stop(1, #F2FCFF)
-    );
-    background-image: -o-linear-gradient(top, #D0F2FE 0%, #F2FCFF 100%);
-    background-image: -moz-linear-gradient(top, #D0F2FE 0%, #F2FCFF 100%);
-    background-image: -webkit-linear-gradient(top, #D0F2FE 0%, #F2FCFF 100%);
-    background-image: -ms-linear-gradient(top, #D0F2FE 0%, #F2FCFF 100%);
-    background-image: linear-gradient(to top, #D0F2FE 0%, #F2FCFF 100%);
-    */ 
 
     background-image: -webkit-gradient(
         linear,
@@ -458,7 +438,6 @@ ul.breadcrumb li a:hover:active:after,
 ul.breadcrumb li a:hover:after {
     background: none;
 }
-
 
 h1:after {
     display: none;
@@ -760,9 +739,9 @@ form .row {
 }
 
 .ODRPseudoField {
-    border: 1px solid #ddd; 
+    border: 1px solid #ddd;
     padding: 0.48em 0.3em;
-    /* min-height: 18px; */ 
+    /* min-height: 18px; */
     min-height: 1em;
     line-height: normal;
     margin-right: 0.4em;
@@ -788,11 +767,14 @@ form .row {
 } */ 
 
 .ODRRenderPluginField {
-    background: none; /* repeat scroll 0 0 rgb(238, 238, 238); */
-    /* border: 1px solid #ccc; */
+    border: medium none;
     border-radius: 2px;
-    /* box-shadow: 0 1px 3px #e6e6e6 inset; */
+    box-shadow: none;
+    box-sizing: border-box;
+    display: inline-block;
     font-size: 0.8em;
+    padding: 0.2em;
+    transition: border 0.3s linear 0s;
 }
 .ODRPad {
     padding-left: 10px;
@@ -1001,9 +983,7 @@ form .row {
 
 .truncate,
 .pure-table td {
-/*
-    white-space: nowrap;
-*/
+    /* white-space: nowrap; */
     overflow: hidden;
     text-overflow: hidden;
 }

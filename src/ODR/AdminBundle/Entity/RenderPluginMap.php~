@@ -1,36 +1,28 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* RenderPluginMap Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The RenderPluginMap Entity is automatically generated from 
-* ./Resources/config/doctrine/RenderPluginMap.orm.yml
-*
-*/
-
+ * Open Data Repository Data Publisher
+ * RenderPluginMap Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The RenderPluginMap Entity is automatically generated from
+ * ./Resources/config/doctrine/RenderPluginMap.orm.yml
+ *
+ */
 
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 
-/**
- * RenderPluginMap
- */
+
 class RenderPluginMap
 {
     /**
      * @var integer
      */
     private $id;
-
-    /**
-     * @var \DateTime
-     */
-    private $deletedAt;
 
     /**
      * @var \DateTime
@@ -43,14 +35,19 @@ class RenderPluginMap
     private $updated;
 
     /**
+     * @var \DateTime
+     */
+    private $deletedAt;
+
+    /**
      * @var \ODR\AdminBundle\Entity\RenderPluginFields
      */
     private $renderPluginFields;
 
     /**
-     * @var \ODR\AdminBundle\Entity\RenderPlugin
+     * @var \ODR\AdminBundle\Entity\RenderPluginInstance
      */
-    private $renderPlugin;
+    private $renderPluginInstance;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataType
@@ -84,29 +81,6 @@ class RenderPluginMap
     }
 
     /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return RenderPluginMap
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-    
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
-    }
-
-    /**
      * Set created
      *
      * @param \DateTime $created
@@ -115,7 +89,7 @@ class RenderPluginMap
     public function setCreated($created)
     {
         $this->created = $created;
-    
+
         return $this;
     }
 
@@ -138,7 +112,7 @@ class RenderPluginMap
     public function setUpdated($updated)
     {
         $this->updated = $updated;
-    
+
         return $this;
     }
 
@@ -153,6 +127,29 @@ class RenderPluginMap
     }
 
     /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return RenderPluginMap
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+
+    /**
      * Set renderPluginFields
      *
      * @param \ODR\AdminBundle\Entity\RenderPluginFields $renderPluginFields
@@ -161,7 +158,7 @@ class RenderPluginMap
     public function setRenderPluginFields(\ODR\AdminBundle\Entity\RenderPluginFields $renderPluginFields = null)
     {
         $this->renderPluginFields = $renderPluginFields;
-    
+
         return $this;
     }
 
@@ -176,26 +173,26 @@ class RenderPluginMap
     }
 
     /**
-     * Set renderPlugin
+     * Set renderPluginInstance
      *
-     * @param \ODR\AdminBundle\Entity\RenderPlugin $renderPlugin
+     * @param \ODR\AdminBundle\Entity\RenderPluginInstance $renderPluginInstance
      * @return RenderPluginMap
      */
-    public function setRenderPlugin(\ODR\AdminBundle\Entity\RenderPlugin $renderPlugin = null)
+    public function setRenderPluginInstance(\ODR\AdminBundle\Entity\RenderPluginInstance $renderPluginInstance = null)
     {
-        $this->renderPlugin = $renderPlugin;
-    
+        $this->renderPluginInstance = $renderPluginInstance;
+
         return $this;
     }
 
     /**
-     * Get renderPlugin
+     * Get renderPluginInstance
      *
-     * @return \ODR\AdminBundle\Entity\RenderPlugin 
+     * @return \ODR\AdminBundle\Entity\RenderPluginInstance 
      */
-    public function getRenderPlugin()
+    public function getRenderPluginInstance()
     {
-        return $this->renderPlugin;
+        return $this->renderPluginInstance;
     }
 
     /**
@@ -207,7 +204,7 @@ class RenderPluginMap
     public function setDataType(\ODR\AdminBundle\Entity\DataType $dataType = null)
     {
         $this->dataType = $dataType;
-    
+
         return $this;
     }
 
@@ -230,7 +227,7 @@ class RenderPluginMap
     public function setDataField(\ODR\AdminBundle\Entity\DataFields $dataField = null)
     {
         $this->dataField = $dataField;
-    
+
         return $this;
     }
 
@@ -253,7 +250,7 @@ class RenderPluginMap
     public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
     {
         $this->createdBy = $createdBy;
-    
+
         return $this;
     }
 
@@ -276,7 +273,7 @@ class RenderPluginMap
     public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
     {
         $this->updatedBy = $updatedBy;
-    
+
         return $this;
     }
 
@@ -288,33 +285,5 @@ class RenderPluginMap
     public function getUpdatedBy()
     {
         return $this->updatedBy;
-    }
-    /**
-     * @var \ODR\AdminBundle\Entity\RenderPluginInstance
-     */
-    private $renderPluginInstance;
-
-
-    /**
-     * Set renderPluginInstance
-     *
-     * @param \ODR\AdminBundle\Entity\RenderPluginInstance $renderPluginInstance
-     * @return RenderPluginMap
-     */
-    public function setRenderPluginInstance(\ODR\AdminBundle\Entity\RenderPluginInstance $renderPluginInstance = null)
-    {
-        $this->renderPluginInstance = $renderPluginInstance;
-    
-        return $this;
-    }
-
-    /**
-     * Get renderPluginInstance
-     *
-     * @return \ODR\AdminBundle\Entity\RenderPluginInstance 
-     */
-    public function getRenderPluginInstance()
-    {
-        return $this->renderPluginInstance;
     }
 }

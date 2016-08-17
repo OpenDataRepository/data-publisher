@@ -1,0 +1,56 @@
+{% spaceless %}
+
+{% set childtype = datatype_array[target_datatype_id] %}
+{#{% set parent_datarecord = datarecord_array[parent_datarecord_id] %}#}
+
+{% set grandparent_datarecord = null %}
+{% set child_datarecord_count = 0 %}
+{% for dr_id, dr in datarecord_array %}
+    {% if grandparent_datarecord == null %}
+        {% set grandparent_datarecord = dr.grandparent %}
+    {% endif %}
+
+    {% if dr.parent.id == parent_datarecord_id and dr.dataType.id == childtype.id %}
+        {% set child_datarecord_count = child_datarecord_count + 1 %}
+    {% endif %}
+{% endfor %}
+
+{#
+--------------------</br>
+child_datarecord_count: {{ child_datarecord_count }}</br>
+--------------------</br>
+#}
+
+<div class="ODRChildDatatype" id="ChildTypeWrapper_{{ childtype.id }}_{{ parent_datarecord_id }}">
+
+    {% include 'ODRAdminBundle:Edit:edit_childtype.html.twig' with {
+        'datatype_array': datatype_array,
+        'datarecord_array': datarecord_array,
+        'theme_id': theme_id,
+
+        'target_datatype_id': target_datatype_id,
+        'parent_datarecord_id': parent_datarecord_id,
+
+        'datatype_permissions': datatype_permissions,
+        'datafield_permissions': datafield_permissions,
+
+        'is_top_level': 0,
+        'is_link': is_link,
+        'display_type': display_type,
+
+        'token_list': token_list,
+    } %}
+
+    <div>
+    {% if is_link == 1 %}
+        {% if can_edit_record == 1 %}
+        <button class="pure-button pure-button-primary" type="button" onclick="LinkRecord({{ datatype.id }},{{ childtype.id }},{{ parent_datarecord_id }});">Link {{ childtype.dataTypeMeta.shortName }} record.</button>
+        {% endif %}
+    {% elseif can_add_record == 1 and (multiple_allowed == 1 or child_datarecord_count < 1) %}
+        <button class="pure-button pure-button-primary" type="button" onclick="AddChildRecord({{ childtype.id }},{{ parent_datarecord_id }},{{ grandparent_datarecord.id }});">Add {{ childtype.dataTypeMeta.shortName }} record.</button>
+    {% endif %}
+    </div>
+
+</div><!-- End of #ChildTypeWrapper_{{ childtype.id }}_{{ parent_datarecord_id }} -->
+
+{% endspaceless %}

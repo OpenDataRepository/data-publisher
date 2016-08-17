@@ -20,8 +20,10 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\File;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -32,12 +34,153 @@ class ReportsController extends ODRCustomController
 {
 
     /**
+     * Recursively locates and loads all Datatype entities that have the Datatype pointed to by $parent_datatype_id as an ancestor
+     *
+     * @param \Doctrine\ORM\Entitymanager $em
+     * @param array $datatree_array            @see ODRCustomController::getDatatreeArray()
+     * @param integer $parent_datatype_id
+     *
+     * @return array
+     */
+    private function getAllDatatypes($em, $datatree_array, $parent_datatype_id)
+    {
+        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+        $datatypes = array();
+
+        $tmp = array_keys($datatree_array['descendant_of'], $parent_datatype_id);
+        foreach ($tmp as $num => $child_datatype_id) {
+            $datatypes[$child_datatype_id] = array('datatype' => $repo_datatype->find($child_datatype_id), 'children' => array() );
+
+            $datatypes[$child_datatype_id]['children'] = self::getAllDatatypes($em, $datatree_array, $child_datatype_id);
+        }
+
+        return $datatypes;
+    }
+
+
+    /**
+     * Generates a list of all permissions for all users for the specified datatype
+     *
+     * @param string $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function datatypepermissionslistAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
+
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['admin'])) )
+                return parent::permissionDeniedError();
+            // --------------------
+
+
+            // ----------------------------------------
+            // Ensure this isn't called on a child datatype
+            $datatree_array = parent::getDatatreeArray($em);
+            if ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '' )
+                throw new \Exception('This action is only permitted on top-level datatypes.');
+
+
+            // Recursively locate all childtypes of this datatype
+            $all_datatypes = array($datatype_id => array('datatype' => $datatype, 'children' => array()));
+            $all_datatypes[$datatype_id]['children'] = self::getAllDatatypes($em, $datatree_array, $datatype_id);
+
+            // Easier to look through $datatree_array directly to find all relevant datatype ids...
+            $all_datatype_ids = array($datatype_id);
+            $parent_datatype_ids = array($datatype_id);
+            while (count($parent_datatype_ids) > 0) {
+
+                $tmp_datatype_ids = array();
+                foreach ($parent_datatype_ids as $num => $dt_id) {
+                    $tmp = array_keys($datatree_array['descendant_of'], $dt_id);
+
+                    foreach ($tmp as $child_datatype_id) {
+                        $tmp_datatype_ids[] = $child_datatype_id;
+                        $all_datatype_ids[] = $child_datatype_id;
+                    }
+                }
+
+                $parent_datatype_ids = $tmp_datatype_ids;
+            }
+
+            // Locate all users that can access this datatype
+            $query = $em->createQuery(
+               'SELECT DISTINCT(u.id)
+                FROM ODRAdminBundle:UserPermissions AS up
+                JOIN ODROpenRepositoryUserBundle:User AS u WITH up.user = u
+                WHERE up.dataType IN (:datatypes)
+                AND (up.can_view_type = 1 OR up.can_edit_record = 1 OR up.can_add_record = 1 OR up.can_delete_record = 1 OR up.can_design_type = 1 OR up.is_type_admin = 1)'
+            )->setParameters(array('datatypes' => $all_datatype_ids));
+            $results = $query->getArrayResult();
+
+            // Store all relevant permissions in an array for twig...
+            $all_permissions = array();
+            foreach ($results as $num => $data) {
+                $user_id = $data[1];
+
+                if (!isset($all_permissions[$user_id])) {
+                    /** @var User $site_user */
+                    $site_user = $repo_user->find($user_id);
+                    if ($site_user->isEnabled() == 1 && !$site_user->hasRole('ROLE_SUPER_ADMIN'))   // only display this user's permissions for this datatype if they're not deleted and aren't super admin
+                        $all_permissions[$user_id] = array('user' => $site_user, 'permissions' => parent::getPermissionsArray($user_id, $request));
+                }
+            }
+            ksort($all_permissions);
+
+
+            // Render and return the report
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Reports:datatype_permissions_list.html.twig',
+                    array(
+                        'all_datatypes' => $all_datatypes,
+                        'all_permissions' => $all_permissions,
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x23267635 '. $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Given a Datafield, build a list of Datarecords (if any) that have identical values in that Datafield.
      *
      * @param integer $datafield_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function analyzedatafielduniqueAction($datafield_id, Request $request)
     {
@@ -48,11 +191,11 @@ class ReportsController extends ODRCustomController
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
-            $datafield = $repo_datafield->find($datafield_id);
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
 
@@ -69,7 +212,8 @@ class ReportsController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -92,11 +236,10 @@ class ReportsController extends ODRCustomController
             }
             else {
                 // Locate the top-level datatype
-                $top_level_datatype_id = $datatype_id;
-                while ( isset($datatree_array['descendant_of'][$top_level_datatype_id]) && $datatree_array['descendant_of'][$top_level_datatype_id] !== '')
-                    $top_level_datatype_id = $datatree_array['descendant_of'][$top_level_datatype_id];
+                $top_level_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datatype_id);
 
-                $top_level_datatype = $repo_datatype->find($top_level_datatype_id);
+                /** @var DataType $top_level_datatype */
+                $top_level_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($top_level_datatype_id);
 
                 // Build the report
                 $return['d'] = array(
@@ -275,7 +418,7 @@ print_r($grandparent_list);
      * @param integer $datafield_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function analyzefileuploadsAction($datafield_id, Request $request)
     {
@@ -286,11 +429,12 @@ print_r($grandparent_list);
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $templating = $this->get('templating');
 
-            $datafield = $repo_datafield->find($datafield_id);
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
 
@@ -305,7 +449,8 @@ print_r($grandparent_list);
 
             // --------------------
             // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -394,7 +539,7 @@ print_r($grandparent_list);
      * @param integer $datatree_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function analyzedatarecordnumberAction($datatree_id, Request $request)
     {
@@ -405,23 +550,31 @@ print_r($grandparent_list);
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($datatree_id);
             $templating = $this->get('templating');
 
+            /** @var DataTree $datatree */
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($datatree_id);
             if ($datatree == null)
                 return parent::deletedEntityError('Datatree');
 
-            $parent_datatype_id = $datatree->getAncestor()->getId();
-            $child_datatype_id = $datatree->getDescendant()->getId();
+            $parent_datatype = $datatree->getAncestor();
+            if ($parent_datatype == null)
+                return parent::deletedEntityError('parent Datatype');
+            $child_datatype = $datatree->getDescendant();
+            if ($child_datatype == null)
+                return parent::deletedEntityError('child Datatype');
+
 
             // --------------------
             // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $parent_datatype_id ]) && isset($user_permissions[ $parent_datatype_id ][ 'design' ])) )
+            if ( !(isset($user_permissions[ $parent_datatype->getId() ]) && isset($user_permissions[ $parent_datatype->getId() ][ 'design' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -434,7 +587,7 @@ print_r($grandparent_list);
                     JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
                     WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
                     AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
-                )->setParameters( array('parent_datatype' => $parent_datatype_id, 'child_datatype' => $child_datatype_id) );
+                )->setParameters( array('parent_datatype' => $parent_datatype->getId(), 'child_datatype' => $child_datatype->getId()) );
                 $results = $query->getArrayResult();
             }
             else {
@@ -446,7 +599,7 @@ print_r($grandparent_list);
                     JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
                     WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
                     AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-                )->setParameters( array('ancestor_datatype' => $parent_datatype_id, 'descendant_datatype' => $child_datatype_id) );
+                )->setParameters( array('ancestor_datatype' => $parent_datatype->getId(), 'descendant_datatype' => $child_datatype->getId()) );
                 $results = $query->getArrayResult();
             }
 
@@ -490,12 +643,115 @@ print_r($grandparent_list);
 
 
     /**
+     * Given a Datatype, build a list of Datarecords that have children/are linked to multiple Datarecords through this Datatree.
+     *
+     * @param integer $local_datatype_id
+     * @param integer $remote_datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function analyzedatarecordlinksAction($local_datatype_id, $remote_datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $templating = $this->get('templating');
+
+            /** @var DataType $local_datatype */
+            $local_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($local_datatype_id);
+            if ($local_datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            /** @var DataType $remote_datatype */
+            $remote_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($remote_datatype_id);
+            if ($remote_datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($user_permissions[ $local_datatype_id ]) && isset($user_permissions[ $local_datatype_id ][ 'design' ])) )
+                return parent::permissionDeniedError("edit");
+
+            $can_edit_local = false;
+            if ( isset($user_permissions[ $local_datatype_id ]) && isset($user_permissions[ $local_datatype_id ][ 'edit' ]) )
+                $can_edit_local = true;
+
+            $can_edit_remote = false;
+            if ( isset($user_permissions[ $remote_datatype_id ]) && isset($user_permissions[ $remote_datatype_id ][ 'edit' ]) )
+                $can_edit_remote = true;
+            // --------------------
+
+
+            // Locate any datarecords of the local datatype that link to datarecords of the remote datatype
+            $query = $em->createQuery(
+               'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+                FROM ODRAdminBundle:DataRecord AS ancestor
+                JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                WHERE ancestor.dataType = :local_datatype_id AND descendant.dataType = :remote_datatype_id
+                AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+            )->setParameters( array('local_datatype_id' => $local_datatype->getId(), 'remote_datatype_id' => $remote_datatype->getId()) );
+            $results = $query->getArrayResult();
+
+            $linked_datarecords = array();
+            foreach ($results as $result) {
+                $ancestor_id = $result['ancestor_id'];
+                $descendant_id = $result['descendant_id'];
+
+                if ( !isset($linked_datarecords[$ancestor_id]) )
+                    $linked_datarecords[$ancestor_id] = array();
+
+                $linked_datarecords[$ancestor_id][] = $descendant_id;
+            }
+
+            // Render and return a page detailing which datarecords have multiple child/linked datarecords...
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Reports:datarecord_links_report.html.twig',
+                    array(
+                        'local_datatype' => $local_datatype,
+                        'remote_datatype' => $remote_datatype,
+                        'linked_datarecords' => $linked_datarecords,
+
+                        'can_edit_local' => $can_edit_local,
+                        'can_edit_remote' => $can_edit_remote,
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x17662658 '. $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Given a datafield, build a list of all values stored in that datafield
      *
      * @param integer $datafield_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function analyzedatafieldcontentAction($datafield_id, Request $request)
     {
@@ -506,11 +762,12 @@ print_r($grandparent_list);
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $templating = $this->get('templating');
 
-            $datafield = $repo_datafield->find($datafield_id);
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
 
@@ -521,7 +778,8 @@ print_r($grandparent_list);
 
             // --------------------
             // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -622,7 +880,7 @@ print_r($grandparent_list);
      * @param integer $datafield_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function analyzeradioselectionsAction($datafield_id, Request $request)
     {
@@ -633,11 +891,12 @@ print_r($grandparent_list);
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
             $templating = $this->get('templating');
 
-            $datafield = $repo_datafield->find($datafield_id);
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
 
@@ -649,7 +908,8 @@ print_r($grandparent_list);
 
             // --------------------
             // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -665,13 +925,14 @@ print_r($grandparent_list);
 
             // Find all selected radio options for this datafield
             $query = $em->createQuery(
-               'SELECT dr.id AS dr_id, ro.optionName
+               'SELECT dr.id AS dr_id, rom.optionName
                 FROM ODRAdminBundle:DataRecord AS dr
                 JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
                 JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.dataRecordFields = drf
                 JOIN ODRAdminBundle:RadioOptions AS ro WITH rs.radioOption = ro
+                JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
                 WHERE drf.dataField = :datafield AND rs.selected = 1
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL'
+                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
             )->setParameters( array('datafield' => $datafield_id) );
             $results = $query->getArrayResult();
 
@@ -724,7 +985,7 @@ print_r($grandparent_list);
      * @param integer $file_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function getfiledecryptprogressAction($file_id, Request $request)
     {
@@ -735,10 +996,11 @@ print_r($grandparent_list);
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_file = $em->getRepository('ODRAdminBundle:File');
 
-            $file = $repo_file->find($file_id);
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
                 return parent::deletedEntityError('File');
             $datarecord = $file->getDataRecord();
@@ -754,12 +1016,28 @@ print_r($grandparent_list);
 
             // --------------------
             // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            if ( $file->isPublic() ) {
+                // public file, anybody can view
+            }
+            else if ( $user === 'anon.' ) {
+                // non-public file and anonymous user, can't view
+                return parent::permissionDeniedError('view');
+            }
+            else {
+                // Grab user's permissions
+                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
-                return parent::permissionDeniedError();
+                // If user has view permissions, show non-public sections of the datarecord
+                $has_view_permission = false;
+                if ( isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ]) )
+                    $has_view_permission = true;
+
+                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+                if ( !$file->isPublic() && !$has_view_permission )
+                    return parent::permissionDeniedError('view');
+            }
             // --------------------
 
             $progress = array('current_value' => 0, 'max_value' => 100);
@@ -818,7 +1096,7 @@ print_r($grandparent_list);
      * @param integer $file_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function getfileencryptprogressAction($file_id, Request $request)
     {
@@ -829,10 +1107,11 @@ print_r($grandparent_list);
 
         try {
             // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_file = $em->getRepository('ODRAdminBundle:File');
 
-            $file = $repo_file->find($file_id);
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
                 return parent::deletedEntityError('File');
             $datarecord = $file->getDataRecord();
@@ -847,12 +1126,28 @@ print_r($grandparent_list);
 
             // --------------------
             // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            if ( $file->isPublic() ) {
+                // public file, anybody can view
+            }
+            else if ( $user === 'anon.' ) {
+                // non-public file and anonymous user, can't view
+                return parent::permissionDeniedError('view');
+            }
+            else {
+                // Grab user's permissions
+                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
-                return parent::permissionDeniedError();
+                // If user has view permissions, show non-public sections of the datarecord
+                $has_view_permission = false;
+                if ( isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ]) )
+                    $has_view_permission = true;
+
+                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+                if ( !$file->isPublic() && !$has_view_permission )
+                    return parent::permissionDeniedError('view');
+            }
             // --------------------
 
             $progress = array('current_value' => 100, 'max_value' => 100);

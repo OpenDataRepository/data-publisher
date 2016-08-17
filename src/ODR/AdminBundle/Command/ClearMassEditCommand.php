@@ -37,7 +37,7 @@ class ClearMassEditCommand extends ContainerAwareCommand
         $this
             ->setName('odr_record:clear_mass_edit')
             ->setDescription('Deletes all jobs from the mass_edit tube')
-            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the memcached_prefix to the tube name for deleting jobs');
+            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the redis_prefix to the tube name for deleting jobs');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -46,26 +46,31 @@ class ClearMassEditCommand extends ContainerAwareCommand
         $container = $this->getContainer();
         $pheanstalk = $container->get('pheanstalk');
 
-        $memcached_prefix = $container->getParameter('memcached_key_prefix');
+        $redis_prefix = $container->getParameter('memcached_key_prefix');
 
         while (true) {
             // Wait for a job?
             if ($input->getOption('old'))
-                $job = $pheanstalk->watch($memcached_prefix.'_mass_edit')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch($redis_prefix.'_mass_edit')->ignore('default')->reserve();
             else
                 $job = $pheanstalk->watch('mass_edit')->ignore('default')->reserve(); 
 
             $data = json_decode($job->getData());
-            $datarecordfield_id = $data->datarecordfield_id;
-            $job_source = $data->memcached_prefix;
+            $job_source = $data->redis_prefix;
+
+            $str = '';
+            if ($data->job_type == 'public_status_change')
+                $str = 'deleted public status change job for datarecord '.$data->datarecord_id;
+            else if ($data->job_type == 'value_change')
+                $str = 'deleted value change for datarecord '.$data->datarecord_id.' datafield '.$data->datafield_id;
 
             // Dealt with the job
             $pheanstalk->delete($job);
 
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted job for datarecordfield '.$datarecordfield_id.' from '.$memcached_prefix.'_mass_edit');
+    $output->writeln( date('H:i:s').'  '.$str.' from '.$redis_prefix.'_mass_edit');
 else
-    $output->writeln( date('H:i:s').'  deleted job for datarecordfield '.$datarecordfield_id.' ('.$job_source.') from mass_edit');
+    $output->writeln( date('H:i:s').'  '.$str.' ('.$job_source.') from mass_edit');
 
             // Sleep for a bit
             usleep(100000); // sleep for 0.1 seconds

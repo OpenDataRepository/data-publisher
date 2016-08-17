@@ -1,0 +1,5 @@
+{% spaceless %}
+<fieldset>
+    <div title="{{ datafield.dataFieldMeta.description }}">{% if datafield.dataFieldMeta.markdownText != null %}{{ datafield.dataFieldMeta.markdownText|markdown }}{% endif %}</div>
+</fieldset>
+{% endspaceless %}

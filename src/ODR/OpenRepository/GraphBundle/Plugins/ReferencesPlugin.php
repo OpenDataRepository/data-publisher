@@ -1,137 +1,127 @@
 <?php 
 
 /**
-* Open Data Repository Data Publisher
-* References Plugin
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The references plugin renders data describing an academic
-* reference in a single line, instead of scattered across a
-* number of datafields.
-*
-*/
+ * Open Data Repository Data Publisher
+ * References Plugin
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The references plugin renders data describing an academic
+ * reference in a single line, instead of scattered across a
+ * number of datafields.
+ *
+ */
 
-//  ODR/AdminBundle/Twig/GraphExtension.php;
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
-// use Symfony\Component\DependencyInjection\ContainerInterface as Container;
-use Doctrine\ORM\EntityManger;
-use Symfony\Component\Templating\EngineInterface;
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeElementField;
-use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RenderPluginInstance;
-use ODR\AdminBundle\Entity\RenderPluginMap;
-use ODR\AdminBundle\Entity\RenderPluginOptions;
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 
-/**
- * TODO: short description.
- * 
- * TODO: long description.
- * 
- */
 class ReferencesPlugin
 {
     /**
-     * TODO: description.
-     * 
      * @var mixed
      */
-    private $container;
+    private $templating;
+
 
     /**
-     * TODO: description.
-     * 
-     * @var mixed
+     * URLPlugin constructor.
+     *
+     * @param $templating
      */
-    private $entityManager;
-
-    /**
-     * TODO: short description.
-     * 
-     * @param Container $container 
-     * 
-     * @return TODO
-     */
-    public function __construct($entityManager, $templating) {
-        $this->em = $entityManager;
+    public function __construct($templating) {
         $this->templating = $templating;
     }
 
+
     /**
-     * TODO - 
+     * Executes the References Plugin on the provided datarecord
      *
-     * @param mixed $obj
-     * @param RenderPlugin $render_plugin
-     * @param boolean $public_only If true, don't render non-public items...if false, render everything
+     * @param array $datarecords
+     * @param array $datatype
+     * @param array $render_plugin
+     * @param array $theme
+     * @param array $rendering_options
      *
+     * @return string
+     * @throws \Exception
      */
-    public function execute($obj, $render_plugin, $public_only = false)
+    public function execute($datarecords, $datatype, $render_plugin, $theme, $rendering_options)
     {
 
         try {
-            $em = $this->em;
-            // $repo_plugin = $em->getRepository('ODR\AdminBundle\Entity\RenderPlugin');
-            $repo_render_plugin_instance = $em->getRepository('ODRAdminBundle:RenderPluginInstance');
-            $repo_render_plugin_map = $em->getRepository('ODRAdminBundle:RenderPluginMap');
-            $repo_render_plugin_fields = $em->getRepository('ODRAdminBundle:RenderPluginFields');
-//            $repo_render_plugin_options = $em->getRepository('ODRAdminBundle:RenderPluginOptions');
-    
-            $render_plugin_fields = $repo_render_plugin_fields->findBy( array('renderPlugin' => $render_plugin) );
 
-            $render_plugin_instance = $repo_render_plugin_instance->findOneBy( array('renderPlugin' => $render_plugin, 'dataType' => $obj->getDataType()) );
-            $render_plugin_map = $repo_render_plugin_map->findBy( array('renderPluginInstance' => $render_plugin_instance, 'dataType' => $obj->getDataType()) );
+//            $str = '<pre>'.print_r($datarecords, true)."\n".print_r($datatype, true)."\n".print_r($render_plugin, true)."\n".print_r($theme, true).'</pre>';
+//            throw new \Exception($str);
 
-/*
-            // Remap Options
-            $plugin_options = array(); 
-            foreach($render_plugin_options as $option) {
-                if($option->getActive()) {
-                    $plugin_options[$option->getOptionName()] = $option->getOptionValue();
-                }
-            }
-*/
+            // Grab various properties from the render plugin array
+            $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
+            $render_plugin_map = $render_plugin_instance['renderPluginMap'];
 
-            // Map Fields
-            $reference = array();
+            // There *should* only be a single datarecord in $datarecords...
+            $datarecord = array();
+            foreach ($datarecords as $dr_id => $dr)
+                $datarecord = $dr;
+
+            // Retrieve mapping between datafields and render plugin fields
+            $datafield_mapping = array();
             foreach ($render_plugin_map as $rpm) {
-                // Grab the fieldname specified in the plugin's config file to use as an array key
-                $key = strtolower( str_replace(' ', '_', $rpm->getRenderPluginFields()->getFieldName()) );
+                // Get the entities connected by the render_plugin_map entity??
+                $rpf = $rpm['renderPluginFields'];
+                $df_id = $rpm['dataField']['id'];
 
-                // Locate the correct DataRecordField entities for each of the required RenderPluginField entries
-                foreach ($obj->getDataRecordFields() as $drf) {
-                    if ($drf->getDataField()->getId() == $rpm->getDataField()->getId()) {
-                        $reference[$key] = $drf;
+                // Want the full-fledged datafield entry...the one in $rpm['dataField'] has no render plugin or meta data
+                // Unfortunately, the desired one is buried inside the $theme array somewhere...
+                $df = null;
+                foreach ($theme['themeElements'] as $te) {
+                    if ( isset($te['themeDataFields']) ) {
+                        foreach ($te['themeDataFields'] as $tdf) {
+                            if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $df_id ) {
+                                $df = $tdf['dataField'];
+                                break;
+                            }
+                        }
                     }
+
+                    if ($df !== null)
+                        break;
+                }
+
+                if ($df == null)
+                    throw new \Exception('Unable to locate array entry for the field "'.$rpf['fieldName'].'", mapped to df_id '.$df_id);
+
+                // Grab the fieldname specified in the plugin's config file to use as an array key
+                $key = strtolower( str_replace(' ', '_', $rpf['fieldName']) );
+
+                if ( isset($datarecord['dataRecordFields'][$df_id]) ) {
+                    $datafield_mapping[$key] = array('datafield' => $df, 'render_plugin' => $df['dataFieldMeta']['renderPlugin'], 'datarecordfield' => $datarecord['dataRecordFields'][$df_id]);
+                }
+                else {
+                    // As far as the reference plugin is concerned, empty strings are acceptable values when datarecordfield entries don't exist
+                    $datafield_mapping[$key] = '';
                 }
             }
+
+//            return '<pre>'.print_r($mapping['file'], true).'</pre>';
 
             $output = $this->templating->render(
                 'ODROpenRepositoryGraphBundle:References:references.html.twig', 
                 array(
-                    'ref' => $reference,
-                    'public_only' => $public_only,
+                    'datarecord' => $datarecord,
+                    'mapping' => $datafield_mapping,
                 )
             );
 
             return $output;
         }
         catch (\Exception $e) {
-            return "<h2>An Exception Occurred</h2><p>" . $e->getMessage() . "</p>";
+            $output = $this->templating->render(
+                'ODROpenRepositoryGraphBundle:Default:default_error.html.twig',
+                array(
+                    'message' => $e->getMessage()
+                )
+            );
+            throw new \Exception( $output );
         }
     }
 

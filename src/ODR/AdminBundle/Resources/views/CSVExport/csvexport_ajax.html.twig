@@ -1,8 +1,9 @@
 {% spaceless %}
 
-{% set datatype = datatype_tree.datatype %}
+{% set datatype = datatype_array[initial_datatype_id] %}
+
 <h1 class="grid_12 no-margin-top-phone">
-    <span>CSV Export &raquo; {{ datatype.shortname }}</span>
+    <span>CSV Export &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
 </h1>
 
 <form id="csvexport_form" style="margin:10px;{#display:none;#}" action="{{ path('odr_csv_export_start') }}">
@@ -51,7 +52,7 @@
     <button class="pure-button" type="button" onclick="deselectAll();">Deselect All</button>
 </div>
 
-{% include 'ODRAdminBundle:CSVExport:csvexport_area.html.twig' with {'datatype_tree': datatype_tree} %}
+{% include 'ODRAdminBundle:CSVExport:csvexport_area.html.twig' with {'datatype_array': datatype_array, 'initial_datatype_id': initial_datatype_id, 'theme_id': theme_id} %}
 
 <div style="margin: 10px;">
     <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Export</button>
@@ -85,7 +86,7 @@ function initPage() {
         var found = false;
         $(this).find("input").each(function() {
             found = true;
-            return;
+            return false;
         });
 
         if (!found)

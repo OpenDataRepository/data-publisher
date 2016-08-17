@@ -38,7 +38,7 @@ class ClearTypeCommand extends ContainerAwareCommand
         $this
             ->setName('odr_cache:clear_type')
             ->setDescription('Deletes all jobs from the recache_type tube')
-            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the memcached_prefix to the tube name for deleting jobs');
+            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the redis_prefix to the tube name for deleting jobs');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -47,25 +47,25 @@ class ClearTypeCommand extends ContainerAwareCommand
         $container = $this->getContainer();
         $pheanstalk = $container->get('pheanstalk');
 
-        $memcached_prefix = $container->getParameter('memcached_key_prefix');
+        $redis_prefix = $container->getParameter('memcached_key_prefix');
 
 
         while (true) {
             // Wait for a job?
             if ($input->getOption('old'))
-                $job = $pheanstalk->watch($memcached_prefix.'_recache_type')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch($redis_prefix.'_recache_type')->ignore('default')->reserve();
             else
                 $job = $pheanstalk->watch('recache_type')->ignore('default')->reserve(); 
 
             $data = json_decode($job->getData());
             $datarecord_id = $data->datarecord_id;
-            $job_source = $data->memcached_prefix;
+            $job_source = $data->redis_prefix;
 
             // Dealt with the job
             $pheanstalk->delete($job);
 
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted recache_all job for datarecord '.$datarecord_id.' from '.$memcached_prefix.'_recache_type');
+    $output->writeln( date('H:i:s').'  deleted recache_all job for datarecord '.$datarecord_id.' from '.$redis_prefix.'_recache_type');
 else
     $output->writeln( date('H:i:s').'  deleted recache_all job for datarecord '.$datarecord_id.' ('.$job_source.') from recache_type');
 

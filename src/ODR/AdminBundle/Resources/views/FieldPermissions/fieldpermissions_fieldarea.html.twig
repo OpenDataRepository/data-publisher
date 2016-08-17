@@ -1,0 +1,87 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = datatype.themes[theme_id] %}
+
+{% set can_view_datatype = false %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ]['view'] is defined %}
+    {% set can_view_datatype = true %}
+{% endif %}
+
+{% set can_edit_datatype = false %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ]['edit'] is defined %}
+    {% set can_edit_datatype = true %}
+{% endif %}
+
+{% for theme_element in theme.themeElements %}
+
+    <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
+
+    {% if theme_element.themeDataFields is defined %}
+
+        {% set theme_element_public = false %}
+        {% if theme_element.themeElementMeta.publicDate|is_public %}
+            {% set theme_element_public = true %}
+        {% endif %}
+
+        <div id="ThemeElementTools_{{ theme_element.id }}" class="DataTypeTools pure-u-1"><span style="float:right;">
+            <i class="Cursor tooltip fa fa-globe ODRThemeElementPublic{% if not theme_element_public %} IconRed{% endif %}" title="ThemeElement{% if not theme_element_public %} not{% endif %} visible to public" rel="{{ theme_element.id }}"></i>
+        </span></div>
+
+        {% for theme_datafield in theme_element.themeDataFields %}
+            {# Output via results_datafield or markdown #}
+            {% set datafield = theme_datafield.dataField %}
+
+            <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datafield.id }}" >
+
+                {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
+                    {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
+                {% else %}
+                    {% include 'ODRAdminBundle:FieldPermissions:fieldpermissions_datafield.html.twig' with {
+                        'theme_datafield': theme_datafield,
+                        'datafield': datafield,
+
+                        'can_view_datatype': can_view_datatype,
+                        'can_edit_datatype': can_edit_datatype,
+                        'theme_element_public': theme_element_public,
+                        'datafield_permissions': datafield_permissions,
+                    } %}
+                {% endif %}
+
+            </div>
+        {% endfor %}
+
+    {% elseif theme_element.themeDataType is defined %}
+
+        {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
+            {% set child_datatype = theme_datatype.dataType %}
+
+            {% if datatype_array[ child_datatype.id ] is defined %}
+                {% set child_theme_id = 0 %}
+                {% for theme in datatype_array[ child_datatype.id ].themes %}
+                    {% if theme.themeType == 'master' %}
+                        {% set child_theme_id = theme.id %}
+                    {% endif %}
+                {% endfor %}
+
+                {% include 'ODRAdminBundle:FieldPermissions:fieldpermissions_childtype.html.twig' with {
+                    'datatype_array': datatype_array,
+                    'target_datatype_id': child_datatype.id,
+                    'theme_id': child_theme_id,
+
+                    'user': user,
+                    'datatype_permissions': datatype_permissions,
+                    'datafield_permissions': datafield_permissions,
+
+                    'is_top_level': 0
+                } %}
+            {% endif %}
+        {% endfor %}
+
+    {% endif %}
+
+    </div><!-- End of .ThemeElement -->
+
+{% endfor %}
+
+{% endspaceless %}

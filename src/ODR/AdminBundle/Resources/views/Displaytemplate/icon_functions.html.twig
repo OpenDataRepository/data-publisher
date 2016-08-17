@@ -33,16 +33,6 @@ function setDatatypeIcons(id, icons) {
                 $(icon).attr('title', "Datatype is not visible to public");
             }
         }
-        else if (key == "ODREditPermission") {
-            if (value == 1) {
-                $(icon).addClass('fa-unlock').removeClass('fa-lock');
-                $(icon).attr('title', "User is permitted to edit this Datatype");
-            }
-            else if (value == 0) {
-                $(icon).addClass('fa-lock').removeClass('fa-unlock');
-                $(icon).attr('title', "User is not permitted to edit this Datatype");
-            }
-        }
     });
 }
 
@@ -51,13 +41,13 @@ function setThemeElementIcons(id, icons) {
         var icon = $("#ThemeElementTools_" + id).find("." + key);
 
         //
-        if (key == "ODRThemeElementVisible") {
+        if (key == "ODRPublicThemeElement") {
             if (value == 1) {
-                $(icon).removeClass('fa-eye-slash').addClass('fa-eye');
+                $(icon).addClass('ODRActiveIcon');
                 $(icon).attr('title', "ThemeElement is visible to public");
             }
             else if (value == 0) {
-                $(icon).removeClass('fa-eye').addClass('fa-eye-slash');
+                $(icon).removeClass('ODRActiveIcon');
                 $(icon).attr('title', "ThemeElement is not visible to public");
             }
         }

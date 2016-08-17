@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\LongText:
     type: entity
     table: odr_long_text
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -16,13 +16,9 @@ ODR\AdminBundle\Entity\LongText:
         value:
             type: text
             nullable: false
-            gedmo:
-                - versioned
-        deletedAt:
-            type: date
-            nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
+
         created:
             type: datetime
             gedmo:
@@ -33,6 +29,12 @@ ODR\AdminBundle\Entity\LongText:
             gedmo:
                 timestampable:
                     on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
+
     manyToOne:
         dataField:
             targetEntity: DataFields
@@ -43,8 +45,8 @@ ODR\AdminBundle\Entity\LongText:
                 data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         fieldType:
             targetEntity: FieldType
             cascade: {  }
@@ -54,8 +56,8 @@ ODR\AdminBundle\Entity\LongText:
                 field_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         dataRecord:
             targetEntity: DataRecord
             cascade: {  }
@@ -65,8 +67,19 @@ ODR\AdminBundle\Entity\LongText:
                 data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
+        dataRecordFields:
+            targetEntity: DataRecordFields
+            cascade: {  }
+            inversedBy: longText
+            joinColumns:
+                data_record_fields_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -76,9 +89,6 @@ ODR\AdminBundle\Entity\LongText:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -88,20 +98,5 @@ ODR\AdminBundle\Entity\LongText:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
-#            gedmo:
-#                blameable:
-#                    on: update
-    oneToOne:
-        dataRecordFields:
-            targetEntity: DataRecordFields
-            cascade: {  }
-            inversedBy: longText
-            joinColumns:
-                data_record_fields_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-            gedmo:
-                - versioned
+
     lifecycleCallbacks: {  }

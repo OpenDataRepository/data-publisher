@@ -1,6 +1,6 @@
 {% spaceless %}
 	<!-- Link DataType Dialog -->
-	<div class="pure-form pure-g" style="display: none;" id="dialog_link_datatype" title="Link Data Type">
+	<div class="pure-form pure-g" style="display: none;" id="dialog_link_datatype" title="Link to a remote Datatype...">
         <div class="form_contents pure-u-1">
         </div>
 	</div><!-- End of #dialog_link_datatype -->
@@ -10,19 +10,10 @@
 
     function LinkDataTypeFormInit() {
         // Initialize the form
-/*
-        $("#dialog_link_datatype .submit").unbind('click');
-        $("#dialog_link_datatype .submit").click(function() {
-            $("#LinkDatatypeForm").submit();
-        });
-*/
-//        $("#LinkDatatypeForm").validationOptions({
         $("#LinkDatatypeForm").validate({
             submitHandler: function(form) {
                 var data = $(form).serialize();
                 var url = $(form).attr('action');
-//alert( url );
-//return;
 
                 var dataType = "json";
                 $.ajax({
@@ -35,12 +26,9 @@
                             // Reload ThemeElement
                             var linked_datatype_id = data.d.linked_datatype_id;
                             var theme_element_id = data.d.element_id;
-//                            ReloadThemeElement(theme_element_id);
 
-//                            var icons = {};
                             if (data.d.using_linked_type == 1) {  // there is now a linked datatype in this theme element
-//                                icons = {"ODRAddDatafield": 0, "ODRAddChildtype": 0, "ODRDeleteThemeElement": 0};   // mute the other icons
-                                ReloadThemeElement(theme_element_id);   // need the entire linked type in there, this'll mute icons too
+                                ReloadThemeElement(theme_element_id);   // need the entire linked type in there...this will also cause icons to be muted
                             }
                             else {
                                 // Delete the removed linked datatype html

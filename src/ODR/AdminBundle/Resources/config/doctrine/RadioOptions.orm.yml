@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\RadioOptions:
     type: entity
     table: odr_radio_options
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -13,71 +13,51 @@ ODR\AdminBundle\Entity\RadioOptions:
             nullable: false
             generator:
                 strategy: IDENTITY
-        value:
-            type: integer
-            unsigned: false
-            nullable: false
-            gedmo:
-                - versioned
+
+        # This property MUST exist and be kept up to date, otherwise CSV/XML importing are unable to concurrently check whether a RadioOption exists
         optionName:
             type: string
             length: 64
             fixed: false
             nullable: false
             column: option_name
+#            gedmo:
+#                - versioned
+
+        created:
+            type: datetime
             gedmo:
-                - versioned
+                timestampable:
+                    on: create
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
+
+        # TODO - delete these four properties
         xml_optionName:
             type: string
             length: 64
             fixed: false
             nullable: false
             column: xml_option_name
-            gedmo:
-                - versioned
-
+#            gedmo:
+#                - versioned
         displayOrder:
             type: integer
             unsigned: false
             nullable: false
             column: display_order
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         isDefault:
             type: boolean
             nullable: false
             default: false
             column: is_default
-            gedmo:
-                - versioned
-
-        external_id:
-            type: string
-            length: 64
-            fixed: false
-            nullable: false
-            column: external_id
-            gedmo:
-                - versioned
-
-#        external_id:
-#            type: integer
-#            unsigned: false
-#            nullable: false
-#            column: external_id
 #            gedmo:
 #                - versioned
-
-        deletedAt:
-            type: date
-            nullable: true
-            gedmo:
-                - versioned
-        created:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: create
         updated:
             type: datetime
             gedmo:
@@ -85,30 +65,40 @@ ODR\AdminBundle\Entity\RadioOptions:
                     on: update
 
     oneToMany:
-        children:
-            targetEntity: RadioOptions
-            mappedBy: parent
-            fetch: EXTRA_LAZY
+        radioOptionMeta:
+            targetEntity: RadioOptionsMeta
+            cascade: {  }
+            mappedBy: radioOption
+            inversedBy: null
+            joinColumns:
+                radio_meta_id:
+                    referencedColumnName: id
+#            gedmo:
+#                - versioned
+
+        radioSelections:
+            targetEntity: RadioSelection
+            cascade: {  }
+            mappedBy: radioOption
+            inversedBy: null
+            joinColumns:
+                radio_selection_id:
+                    referencedColumnName: id
+#            gedmo:
+#                - versioned
 
     manyToOne:
-        parent:
-            targetEntity: RadioOptions
-            inversedBy: children
-            fetch: EXTRA_LAZY
-            gedmo:
-                - versioned
-
-        dataFields:
+        dataField:
             targetEntity: DataFields
             cascade: {  }
-#            mappedBy: dataFields
             inversedBy: radioOptions
             joinColumns:
                 data_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -121,6 +111,20 @@ ODR\AdminBundle\Entity\RadioOptions:
 #            gedmo:
 #                blameable:
 #                    on: create
+        deletedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                deletedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+
+        # TODO - delete this property
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -130,8 +134,8 @@ ODR\AdminBundle\Entity\RadioOptions:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 #            gedmo:
 #                blameable:
 #                    on: update

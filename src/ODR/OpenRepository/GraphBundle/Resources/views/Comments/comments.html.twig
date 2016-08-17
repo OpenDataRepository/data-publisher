@@ -1,29 +1,31 @@
 {% spaceless %}
 
-{% if comments is defined %}
+{% set datatype = datatype_array[target_datatype_id] %}
+
+{% if mapping is defined %}
 <fieldset>
     <div class="pure-u-1">
         <table class="pure-u-1 ODRTable ODRDataField">
             <thead class="pure-u-1">
                 <tr class="pure-u-1">
                     <th class="pure-u-1-4">Date</th>
-                    <th class="pure-u-1-2">{{ shortname }}</th>
+                    <th class="pure-u-1-2">{{ datatype.shortName }}</th>
                     <th class="pure-u-1-4">Author</th>
                 </tr>
             </thead>
             <tbody class="pure-u-1">
-            {% for sort_value, drf in comments %}
-                {% if public_only == false or drf.getdatarecord.ispublic == true %}
-                <tr id="datarecordchild_{{ drf.id }}" class="pure-u-1">
-                    <td class="pure-u-1-4">{{ drf.getAssociatedEntity.getUpdated|date("Y-m-d") }}</td>
-                    <td class="pure-u-1-2">{{ drf|plug(drf.getdatafield.getrenderplugin,'', 'TextResults')|raw }}</td>
-                    <td class="pure-u-1-4">{{ drf.getAssociatedEntity.getUpdatedBy.getUserString }}</td>
+            {% for sort_value, comment_data in comments %}
+                <tr id="datarecordchild_{{ sort_value }}" class="pure-u-1">
+                    {% set comment_text = mapping.comment.datafield|datafield_plugin(comment_data.datarecord, mapping.comment.render_plugin, 'text')|raw %}
+
+                    <td class="pure-u-1-4">{{ comment_data.entity.created|date("Y-m-d") }}</td>
+                    <td class="pure-u-1-2">{{ comment_text|raw }}</td>
+                    <td class="pure-u-1-4">{{ comment_data.entity.createdBy|user_string }}</td>
                 </tr>
-                {% endif %}
             {% endfor %}
             </tbody>
         </table>
-    <div>
+    </div>
 </fieldset>
 {% endif %}
 

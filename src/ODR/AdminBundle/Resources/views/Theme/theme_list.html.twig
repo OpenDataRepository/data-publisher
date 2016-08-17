@@ -1,0 +1,150 @@
+{% spaceless %}
+
+    <div id="ODRThemeList" class="pure-u-1-4">
+{#
+        <div class="pure-u-1" style="padding-top:15px">
+            <div class="pure-u-1">
+                <span style="float:left">
+                    <b>Derivative Themes</b>
+                </span>
+                <span style="float:right">
+                    <i class="Pointer tooltip fa fa-plus-square ODRAddTheme" title="Create new derivative Theme" rel="derivative"></i>
+                </span>
+            </div>
+            <div class="pure-u-1-12"></div>
+            <div class="pure-u-11-12">
+                {% set count = 0 %}
+                {% for theme in theme_list %}
+                    {% set theme_name = theme.themeMeta.templateName %}
+                    {% if theme_name == '' %}
+                        {% set theme_name = 'theme_' ~ theme.id %}
+                    {% endif %}
+
+                    {% if theme.themeType == 'derivative' %}
+                        {% set count = count = 1 %}
+                        <div class="pure-u-1">
+                            <span style="float:left;">
+                                <i class="fa fa-lg fa-info-circle Pointer ODRThemeProperties" title="Theme Properties" rel="{{ theme.id }}"></i>
+                                <i class="fa fa-lg fa-edit Pointer ODREditTheme" title="Edit Theme" rel="{{ theme.id }}"></i>
+                                {% if theme.themeMeta.isDefault == 1 %}
+                                    <i class="fa fa-lg fa-check-square-o Cursor" title="Default Derivative Theme"></i>
+                                {% else %}
+                                    <i class="fa fa-lg fa-square-o Cursor"></i>
+                                {% endif %}
+                            </span>
+                            <span id="ODRTheme_{{ theme.id }}_name" class="Cursor" style="padding-left:15px;">
+                                {{ theme_name }}
+                            </span>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+
+                {% if count == 0 %}
+                        <div class="pure-u-1">
+                            <span class="Cursor" style="padding-left:15px; color: red;">
+                                No Search Results Themes exist!
+                            </span>
+                        </div>
+                {% endif %}
+            </div>
+        </div>
+#}
+        <div class="pure-u-1" style="padding-top:15px">
+            <div class="pure-u-1">
+                <span style="float:left">
+                    <b>Search Result Themes</b>
+                </span>
+                <span style="float:right">
+                    <i class="Pointer tooltip fa fa-plus-square ODRAddTheme" title="Create new search results Theme" rel="search_results"></i>
+                </span>
+            </div>
+            <div class="pure-u-1-12"></div>
+            <div class="pure-u-11-12">
+                {% set count = 0 %}
+                {% for theme in theme_list %}
+                    {% set theme_name = theme.themeMeta.templateName %}
+                    {% if theme_name == '' %}
+                        {% set theme_name = 'theme_' ~ theme.id %}
+                    {% endif %}
+
+                    {% if theme.themeType == 'search_results' %}
+                        {% set count = count + 1 %}
+                        <div class="pure-u-1">
+                            <span style="float:left;">
+                                <i class="fa fa-lg fa-info-circle Pointer ODRThemeProperties" title="Theme Properties" rel="{{ theme.id }}"></i>
+                                <i class="fa fa-lg fa-edit Pointer ODREditTheme" title="Edit Theme" rel="{{ theme.id }}"></i>
+                                {% if theme.themeMeta.isDefault == 1 %}
+                                    <i class="fa fa-lg fa-check-square-o Cursor" title="Default Search Results Theme"></i>
+                                {% else %}
+                                    <i class="fa fa-lg fa-square-o Cursor"></i>
+                                {% endif %}
+                            </span>
+                            <span id="ODRTheme_{{ theme.id }}_name" class="Cursor" style="padding-left:15px;">
+                                {{ theme_name }}
+                            </span>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+
+                {% if count == 0 %}
+                        <div class="pure-u-1">
+                            <span class="Cursor" style="padding-left:15px; color: red;">
+                                No Search Results Themes exist!
+                            </span>
+                        </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="pure-u-1" style="padding-top:15px">
+            <div class="pure-u-1">
+                <span style="float:left">
+                    <b>Table Themes</b>
+                </span>
+                <span style="float:right">
+                    <i class="Pointer tooltip fa fa-plus-square ODRAddTheme" title="Create new table Theme" rel="table"></i>
+                </span>
+            </div>
+            <div class="pure-u-1-12"></div>
+            <div class="pure-u-11-12">
+                {% set count = 0 %}
+                {% for theme in theme_list %}
+                    {% set theme_name = theme.themeMeta.templateName %}
+                    {% if theme_name == '' %}
+                        {% set theme_name = 'theme_' ~ theme.id %}
+                    {% endif %}
+
+                    {% if theme.themeType == 'table' %}
+                        {% set count = count + 1 %}
+                        <div class="pure-u-1">
+                            <span style="float:left;">
+                                <i class="fa fa-lg fa-info-circle Pointer ODRThemeProperties" title="Theme Properties" rel="{{ theme.id }}"></i>
+                                <i class="fa fa-lg fa-edit Pointer ODREditTheme" title="Edit Theme" rel="{{ theme.id }}"></i>
+                                {% if theme.themeMeta.isDefault == 1 %}
+                                    <i class="fa fa-lg fa-check-square-o Cursor" title="Default Table Theme"></i>
+                                {% else %}
+                                    <i class="fa fa-lg fa-square-o Cursor"></i>
+                                {% endif %}
+                            </span>
+                            <span id="ODRTheme_{{ theme.id }}_name" class="Cursor" style="padding-left:15px;">
+                                {{ theme_name }}
+                            </span>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+
+                {% if count == 0 %}
+                        <div class="pure-u-1">
+                            <span class="Cursor" style="padding-left:15px; color: red;">
+                                No Table Themes exist!
+                            </span>
+                        </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="pure-u-1-24"></div>
+
+    <div id="ODRThemePropertiesFormDiv" class="pure-u-1-4"></div>
+
+{% endspaceless %}

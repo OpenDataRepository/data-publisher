@@ -1,13 +1,12 @@
 /**
-* Open Data Repository Data Publisher
-* app.js
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* This sets up the jQuery validate plugin?
-*
-*/
+ * Open Data Repository Data Publisher
+ * app.js
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * This sets up the jQuery validate plugin?
+ */
 
 // ! Your application
 var SaveTimeout = 2000;
@@ -15,6 +14,10 @@ var SaveTimeout = 2000;
 (function($, window, document, undefined){
 
     // Custom validation methods: http://jqueryvalidation.org/jQuery.validator.addMethod
+    jQuery.validator.addMethod('ODRInteger', function(value, element) {
+        return this.optional(element) || /^-{0,1}[0-9]+$/.test(value);
+    }, "Please enter a valid Integer value.");
+
     jQuery.validator.setDefaults({
         // Specify a custom html class for displaying errors...this is also applied to the error label
         errorClass: "ODRInputError",
@@ -46,7 +49,7 @@ var SaveTimeout = 2000;
             if (options.submitHandler) {
                 // Store original submitHandler and given submitHandler
                 var _submitHandler = validator.settings.submitHandler,
-                submitHandler = options.submitHandler;
+                    submitHandler = options.submitHandler;
 
                 // Set submitHandler
                 validator.settings.submitHandler = function(){
@@ -70,4 +73,3 @@ var SaveTimeout = 2000;
     }; // End of '$.fn.setValidationOptions = ...'
 
 })(jQuery, this, document);
-

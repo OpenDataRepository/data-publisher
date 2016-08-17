@@ -1,0 +1,107 @@
+{% spaceless %}
+
+<h2>List of Datarecords of the Datatype "{{ local_datatype.getshortname }}" linked to Datarecords of the Datatype "{{ remote_datatype.getshortname }}"</h2>
+
+{% if linked_datarecords | length == 0 %}
+    <div class="ODRDatarecordListHeader">No linked Datarecords</div>
+{% else %}
+<div class="pure-u-1-2">
+    <table id="ODRReportList" class="display dataTable">
+        <thead>
+            <tr>
+                <th>Local Datarecord</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set row_num = 1 %}
+            {% for ancestor_id, descendants in linked_datarecords %}
+            <tr>
+                <td>
+                    {% if can_edit_local %}
+                    <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': ancestor_id}) }}">{{ ancestor_id }}</a>
+                    {% else %}
+                    <a target="_blank" class="address" href="#{{ path('odr_display_view', {'datarecord_id': ancestor_id}) }}">{{ ancestor_id }}</a>
+                    {% endif %}
+                </td>
+                <td class="Pointer ODRListExpand"><i class="fa fa-lg fa-caret-down ODRGrayIcon" rel="{{ row_num }}"></i></td>
+            </tr>
+            {% set row_num = row_num + 1 %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="pure-u-1-24"></div>
+
+{% set row_num = 1 %}
+{% for ancestor_id, descendants in linked_datarecords %}
+<div id="datarecord_list_{{ row_num }}" class="ODRDatarecordList pure-u-11-24">
+    <div class="pure-u-1 ODRDatarecordListHeader">...is linked to these Remote Datarecords</div>
+    {% for descendant_id in descendants %}
+    <div class="pure-u-1-5">
+        {% if can_edit_remote %}
+        <a target="_blank" class="address" href="#{{ path('odr_record_edit', {'datarecord_id': descendant_id}) }}">{{ descendant_id }}</a>
+        {% else %}
+        <a target="_blank" class="address" href="#{{ path('odr_display_view', {'datarecord_id': descendant_id}) }}">{{ descendant_id }}</a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% set row_num = row_num + 1 %}
+{% endfor %}
+
+{% endif %}
+
+<style>
+    .ODRDatarecordListHeader {
+        border-bottom: 1px solid #111111;
+        font-weight: bold;
+        padding: 10px 18px;
+    }
+    .ODRGrayIcon {
+        opacity: 0.4;
+    }
+</style>
+
+<script>
+    $(function() {
+        $("#ODRReportList").dataTable({
+            "searching": false,
+            "ordering": false,
+            "paging": false,
+            "info": false
+        });
+
+        $("#ODRReportList").removeAttr('style');
+
+        $(".ODRDatarecordList").hide();
+
+        $(".ODRListExpand").unbind('click');
+        $(".ODRListExpand").click(function() {
+            // If clicking an already open datarecord list, don't run the block that will open it again
+            var self_click = false;
+            if ( $(this).children("i").hasClass('fa-caret-right') )
+                self_click = true;
+
+            // Reset any open datarecord lists
+            $(".ODRListExpand").children(".fa-caret-right").each(function() {   // should only return one
+                var row_num = $(this).attr('rel');
+                $("#datarecord_list_" + row_num).hide();
+
+                $(this).removeClass('fa-caret-right').addClass('fa-caret-down ODRGrayIcon');
+            });
+
+            if ( !self_click ) {
+                // Open the selected datarecord list
+                $(this).children("i").each(function() {     // should only return one
+                    var row_num = $(this).attr('rel');
+
+                    $("#datarecord_list_" + row_num).show();
+                    $(this).removeClass('fa-caret-down ODRGrayIcon').addClass('fa-caret-right');
+                });
+            }
+        });
+    });
+
+</script>
+{% endspaceless %}

@@ -33,17 +33,17 @@ class RadioSelection
     /**
      * @var \DateTime
      */
-    private $deletedAt;
-
-    /**
-     * @var \DateTime
-     */
     private $created;
 
     /**
      * @var \DateTime
      */
     private $updated;
+    
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
 
     /**
      * @var \ODR\AdminBundle\Entity\RadioOptions
@@ -100,29 +100,6 @@ class RadioSelection
     }
 
     /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return RadioSelection
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
-    }
-
-    /**
      * Set created
      *
      * @param \DateTime $created
@@ -138,7 +115,7 @@ class RadioSelection
     /**
      * Get created
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getCreated()
     {
@@ -161,11 +138,34 @@ class RadioSelection
     /**
      * Get updated
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getUpdated()
     {
         return $this->updated;
+    }
+    
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return RadioSelection
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
     }
 
     /**
@@ -230,13 +230,13 @@ class RadioSelection
     /**
      * Get updatedBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getUpdatedBy()
     {
         return $this->updatedBy;
     }
-
+    
     /**
      * Set dataRecordFields
      *

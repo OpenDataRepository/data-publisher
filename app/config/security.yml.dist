@@ -23,7 +23,10 @@ security:
             pattern: ^/
             form_login:
                 provider: fos_userbundle
-                csrf_provider: form.csrf_provider
+                # Symfony2 < 2.8
+                #csrf_provider: form.csrf_provider
+                # Symfony >= 2.8
+                csrf_token_generator: security.csrf.token_manager
             remember_me:
                 key:      [[ ENTER RANDOM KEY HERE - Text String ]]
                 lifetime: 1209600

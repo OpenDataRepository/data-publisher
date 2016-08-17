@@ -2,7 +2,9 @@ ODR\AdminBundle\Entity\UserPermissions:
     type: entity
     table: odr_user_permissions
     gedmo:
-        loggable: true
+#        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
     fields:
         id:
             id: true
@@ -11,11 +13,6 @@ ODR\AdminBundle\Entity\UserPermissions:
             nullable: false
             generator:
                 strategy: IDENTITY
-        created:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: create
 
         can_view_type:
             type: integer
@@ -50,9 +47,24 @@ ODR\AdminBundle\Entity\UserPermissions:
             nullable: false
             default: 0
 
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
 
     manyToOne:
-        user_id:
+        user:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
             mappedBy: null
@@ -70,6 +82,7 @@ ODR\AdminBundle\Entity\UserPermissions:
                 data_type_id:
                     referencedColumnName: id
             orphanRemoval: false
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -79,4 +92,14 @@ ODR\AdminBundle\Entity\UserPermissions:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
     lifecycleCallbacks: {  }

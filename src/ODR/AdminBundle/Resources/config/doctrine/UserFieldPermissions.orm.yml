@@ -2,7 +2,9 @@ ODR\AdminBundle\Entity\UserFieldPermissions:
     type: entity
     table: odr_user_field_permissions
     gedmo:
-        loggable: true
+#        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
     fields:
         id:
             id: true
@@ -11,11 +13,6 @@ ODR\AdminBundle\Entity\UserFieldPermissions:
             nullable: false
             generator:
                 strategy: IDENTITY
-        created:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: create
 
         can_view_field:
             type: integer
@@ -29,8 +26,24 @@ ODR\AdminBundle\Entity\UserFieldPermissions:
             nullable: false
             default: 0
 
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
+
     manyToOne:
-        user_id:
+        user:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
             mappedBy: null
@@ -39,13 +52,14 @@ ODR\AdminBundle\Entity\UserFieldPermissions:
                 user_id:
                     referencedColumnName: id
             orphanRemoval: false
-        dataFields:
+
+        dataField:
             targetEntity: DataFields
             cascade: {  }
             mappedBy: null
             inversedBy: null
             joinColumns:
-                data_fields_id:
+                data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
         dataType:
@@ -57,6 +71,7 @@ ODR\AdminBundle\Entity\UserFieldPermissions:
                 data_type_id:
                     referencedColumnName: id
             orphanRemoval: false
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -66,4 +81,14 @@ ODR\AdminBundle\Entity\UserFieldPermissions:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
     lifecycleCallbacks: {  }

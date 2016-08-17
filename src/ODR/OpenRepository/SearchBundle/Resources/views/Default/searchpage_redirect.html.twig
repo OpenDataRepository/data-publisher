@@ -1,0 +1,38 @@
+{% spaceless %}
+
+    <h2>You don't have permission to view the results of this search query</h2>
+{% if logged_in == false %}
+    <div>
+        You may be able to see the results of this query if you <button class="pure-button pure-button-primary" onclick="ODRLogin();">Login</button>
+    </div>
+{% endif %}
+
+    <div>
+        You will be redirected to "{{ url }}" in <span id="time_left">10</span> seconds...
+    </div>
+
+<script>
+
+    var interval = null;
+    $(function() {
+        interval = window.clearInterval(interval);
+        interval = window.setInterval("adjustTimeLeft()", 1000);    // 1 second
+
+        setTimeout("performRedirect();", 10000);    // 10 seconds
+    });
+
+    function adjustTimeLeft() {
+        var number = parseInt( $("#time_left").html() );
+        if (number > 0)
+            $("#time_left").html(number - 1);
+        else
+            window.clearInterval(interval);
+    }
+
+    function performRedirect() {
+        window.clearInterval(interval);
+
+        UpdateURL("{{ url }}");
+    }
+</script>
+{% endspaceless %}

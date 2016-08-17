@@ -1,129 +1,130 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* Plugin Extension
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* Custom Twig extensions required for the project...
-*/
+ * Open Data Repository Data Publisher
+ * Twig Plugin Extension
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * Defines several custom twig filters required by ODR.
+ *
+ */
 
-//  ODR/AdminBundle/Twig/Extension.php;
 namespace ODR\AdminBundle\Twig;
 
 class PlugExtension extends \Twig_Extension
 {
 
     /**
-     * TODO: short description.
-     * 
-     * @param mixed $container 
+     * @var \Symfony\Component\DependencyInjection\Container
+     */
+    private $container;
+
+
+    /**
+     * PlugExtension constructor.
+     *
+     * @param \Symfony\Component\DependencyInjection\Container $container
      */
     public function __construct($container)
     {
         $this->container = $container;
-/*
-        if ($this->container->isScopeActive('request')) {
-            $this->request = $this->container->get('request');
-        }
-*/
     }
 
+
     /**
-     * TODO: short description.
-     * 
-     * @return TODO
+     * Returns a list of filters to add to the existing list.
+     *
+     * @return array An array of filters
      */
     public function getFilters()
     {  
         return array(
-            new \Twig_SimpleFilter('plug', array($this, 'plugFilter')),
+            new \Twig_SimpleFilter('datafield_plugin', array($this, 'datafieldPluginFilter')),
+            new \Twig_SimpleFilter('datatype_plugin', array($this, 'datatypePluginFilter')),
+
             new \Twig_SimpleFilter('xml', array($this, 'xmlFilter')),
-        );
-    }
-
-    /**
-     * TODO 
-     * 
-     * @return TODO
-     */
-    public function getFunctions()
-    {
-        return array(
-//            new \Twig_SimpleFunction('radiooptionlist', 'buildRadioOptionArrayFunction'),
-//            new \Twig_SimpleFunction('radiooptionlist', 'PlugExtension::buildRadioOptionArrayFunction'),
-            new \Twig_SimpleFunction('radiooptionlist', function($radio_options, $radio_selections)
-                {
-                    // For some reason, this function has to be declared in-line...I couldn't get it to work otherwise
-                    $option_list = array();
-
-                    //
-                    try {
-                        // No point if there's no radio options
-                        if ($radio_options == null)
-                            return $option_list;
-
-                        // 
-                        foreach ($radio_options as $radio_option)
-                            $option_list[ $radio_option->getId() ] = 0;
-
-                        // Ensure there are actually radio selections prior to attempting to determine if an option is selected or not
-                        if ( $radio_selections !== null ) {
-                            foreach ($radio_selections as $radio_selection) {
-                                if ($radio_selection->getSelected() == true)
-                                    $option_list[ $radio_selection->getRadioOption()->getId() ] = 1;
-                            }
-                        }
-                    }
-                    catch (\Exception $e) {
-                        throw new \Exception("error in Twig function: radiooptionlist");
-                    }
-    
-                    return $option_list;
-                }
-            ),
+            new \Twig_SimpleFilter('is_public', array($this, 'isPublicFilter')),
+            new \Twig_SimpleFilter('user_string', array($this, 'userStringFilter')),
         );
     }
 
 
     /**
-     * TODO: short description.
-     * TODO - I believe $mytheme is unused...
+     * Loads and executes a RenderPlugin for a datatype.
      *
-     * @param DataRecordFields $obj   
-     * @param RenderPlugin $render_plugin 
-     * @param string? $mytheme 
-     * @param string $render_type
-     * 
-     * @return TODO
+     * @param array $datarecords
+     * @param array $datatype
+     * @param array $render_plugin
+     * @param array $theme
+     * @param array $rendering_options
+     *
+     * @return string
+     * @throws \Exception
      */
-    public function plugFilter($obj, $render_plugin, $mytheme = "", $render_type = "default") 
+    public function datatypePluginFilter($datarecords, $datatype, $render_plugin, $theme, $rendering_options)
     {
         try {
-            if(is_object($render_plugin)) {
-                $svc = $this->container->get($render_plugin->getPluginClassName());
-                return $svc->execute($obj, $render_plugin, $mytheme, $render_type);
-            }
-            else if(is_object($obj)) {
-                return $obj->getDataFields()->getFieldName();
-            }
-            else {
-                return "";
-            }    
+            // Re-organize list of datarecords into
+            $datarecord_array = array();
+            foreach ($datarecords as $num => $dr)
+                $datarecord_array[ $dr['id'] ] = $dr;
+
+            // Load and execute the render plugin
+            $svc = $this->container->get($render_plugin['pluginClassName']);
+            return $svc->execute($datarecord_array, $datatype, $render_plugin, $theme, $rendering_options);
         }
         catch (\Exception $e) {
-            throw new \Exception("Error loading RenderPlugin \'".$render_plugin->getPluginName()."\' for obj ".$obj->getId().'...'.$e->getMessage());
+            return 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage();
         }
     }
 
+
     /**
-     * Converts invalid XML characters to their XML-safe forms.
+     * Loads and executes a RenderPlugin for a datafield.
+     *
+     * @param array $datafield
+     * @param array $datarecord
+     * @param array $render_plugin
+     *
+     * @return string
+     * @throws \Exception
+     */
+    public function datafieldPluginFilter($datafield, $datarecord, $render_plugin, $themeType = 'master')
+    {
+        try {
+            // Prune $datarecord so the render plugin service can't get values of other datafields
+            foreach ($datarecord['dataRecordFields'] as $df_id => $drf) {
+                if ( $datafield['id'] !== $df_id )
+                    unset( $datarecord['dataRecordFields'][$df_id] );
+            }
+
+            // Several other parts of the arrays should be pruned to avoid duplicate/exccessive data
+            if ( isset($datafield['dataFieldMeta']) && isset($datafield['dataFieldMeta']['renderPlugin']) )
+                unset( $datafield['dataFieldMeta']['renderPlugin'] );
+
+            if ( isset($datarecord['dataType']) )
+                unset( $datarecord['dataType'] );
+
+
+            // Load and execute the render plugin
+            $svc = $this->container->get($render_plugin['pluginClassName']);
+            return $svc->execute($datafield, $datarecord, $render_plugin, $themeType);
+        }
+        catch (\Exception $e) {
+            return 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datafield '.$datafield['id'].' Datarecord '.$datarecord['id'].': '.$e->getMessage();
+        }
+    }
+
+
+    /**
+     * Converts invalid XML characters to their XML-safe format.
      * 
      * @param string $str
      * 
      * @return string
+     * @throws \Exception
      */
     public function xmlFilter($str)
     {
@@ -140,44 +141,62 @@ class PlugExtension extends \Twig_Extension
 
 
     /**
-     * TODO: delete this function?
-     * 
-     * @param array $radio_options
-     * @param array $radio_selections
-     * 
-     * @return TODO
+     * Returns whether the given DateTime object is considered by ODR to represent a "public" date or not
+     *
+     * @param \DateTime $obj
+     *
+     * @return bool
+     * @throws \Exception
      */
-/*
-    public function buildRadioOptionArrayFunction($radio_options, $radio_selections, $selected_only = true)
+    public function isPublicFilter($obj)
     {
-
-        $option_list = array();
-
-        //
         try {
-            if (!$selected_only) {
-                foreach ($radio_options as $radio_option) 
-                    $option_list[ $radio_option->getId() ] = 0;
+            if ( $obj instanceof \DateTime ) {
+                if ($obj->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+                    return false;
+                else
+                    return true;
             }
-
-            foreach ($radio_selections as $radio_selection) {
-                if ($radio_selection->getSelected() == true)
-                    $option_list[ $radio_selection->getRadioOption()->getId() ] = 1;
+            else {
+                throw new \Exception();
             }
         }
         catch (\Exception $e) {
-            throw new \Exception("error in Twig function: buildRadioOptionArrayFunction()");
+            throw new \Exception("Error executing is_public filter");
         }
-
-        return $option_list;
-
     }
-*/
+
 
     /**
-     * TODO: short description.
-     * 
-     * @return TODO
+     * Given an array representation of ODR's user object, return a string representation of that user's name
+     *
+     * @param array $obj
+     *
+     * @return string
+     * @throws \Exception
+     */
+    public function userStringFilter($obj)
+    {
+        try {
+            if ( !is_array($obj) || !isset($obj['firstName']) || !isset($obj['lastName']) || !isset($obj['email']) )
+//                throw new \Exception();
+                return '&lt;unknown&gt;';
+
+            if ( $obj['firstName'] !== '')
+                return $obj['firstName'].' '.$obj['lastName'];
+            else
+                return $obj['email'];
+        }
+        catch (\Exception $e) {
+            throw new \Exception("Error executing user_string filter");
+        }
+    }
+
+
+    /**
+     * Returns the name of the extension.
+     *
+     * @return string The extension name
      */
     public function getName()
     {  

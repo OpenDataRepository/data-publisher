@@ -1,18 +1,18 @@
 odr_search_box:
-    pattern:  /edit/search_box/{target_datatype_id}
+    path:  /edit/search_box/{target_datatype_id}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchbox }
     requirements:
         target_datatype_id: \d+
 
 odr_search_results:
-    pattern: /search/results/{search_key}
+    path: /search/results/{search_key}
     defaults: { _controller:ODROpenRepositorySearchBundle:Default:search }
 #    requirements: { _method: POST, search_key: '[a-zA-Z0-9\-\_]{15}|' }
     requirements:
         search_key: .*
 
 odr_search_render:
-    pattern: /search/render/{search_key}/{offset}/{source}
+    path: /search/render/{search_key}/{offset}/{source}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:render, offset: 1, source: 'searching' }
     requirements:
 #        search_key: '[a-zA-Z0-9\-\_]{15}|'
@@ -22,13 +22,13 @@ odr_search_render:
         source: searching|linking
 
 odr_search_immediate:
-    pattern:  /{search_slug}/{search_string}
+    path:  /{search_slug}/{search_string}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage }
     requirements:
         search_slug: '[a-zA-Z0-9_]{0,32}'
 
 odr_search:
-    pattern:  /{search_slug}
+    path:  /{search_slug}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage, search_slug: '', search_string: '' }
     requirements:
         search_slug: '[a-zA-Z0-9_]{0,32}'

@@ -1,20 +1,47 @@
 {% spaceless %}
+
 <div class="ODRReference">
-{% if ref is defined %}
-    {% set author = ref.authors|plug(ref.authors.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
-    {% set year = ref.year|plug(ref.year.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
-    {% set article_title = ref.article_title|plug(ref.article_title.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
-    {% set journal = ref.journal|plug(ref.journal.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
-    {% set volume = ref.volume|plug(ref.volume.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
-    {% set pages = ref.pages|plug(ref.pages.getdatafield.getrenderplugin,'', 'TextResults')|raw %}
+{% if mapping is defined %}
+    {% set author = '' %}
+    {% if mapping.authors|length > 0 %}
+        {% set author = mapping.authors.datafield|datafield_plugin(datarecord, mapping.authors.render_plugin, 'text')|raw %}
+    {% endif %}
 
+    {% set year = '' %}
+    {% if mapping.year|length > 0 %}
+        {% set year = mapping.year.datafield|datafield_plugin(datarecord, mapping.year.render_plugin, 'text')|raw %}
+    {% endif %}
 
-{{ author|raw }}&nbsp;({{ year|raw }})&nbsp;{{ article_title|raw }},&nbsp;{{ journal|raw }},&nbsp;{{ volume|raw }},&nbsp;{{ pages|raw }}
+    {% set article_title = '' %}
+    {% if mapping.article_title|length > 0 %}
+        {% set article_title = mapping.article_title.datafield|datafield_plugin(datarecord, mapping.article_title.render_plugin, 'text')|raw %}
+    {% endif %}
 
+    {% set journal = '' %}
+    {% if mapping.journal|length > 0 %}
+        {% set journal = mapping.journal.datafield|datafield_plugin(datarecord, mapping.journal.render_plugin, 'text')|raw %}
+    {% endif %}
 
-{% for file in ref.file.getassociatedentity %}
-    {% if file.ispublic == true or public_only == false %}&nbsp;<a href="{{ path('odr_file_download', {'file_id': file.id} ) }}">[view file]</a>{% endif %}
-{% endfor %}
+    {% set volume = '' %}
+    {% if mapping.volume|length > 0 %}
+        {% set volume = mapping.volume.datafield|datafield_plugin(datarecord, mapping.volume.render_plugin, 'text')|raw %}
+    {% endif %}
+
+    {% set pages = '' %}
+    {% if mapping.pages|length > 0 %}
+        {% set pages = mapping.pages.datafield|datafield_plugin(datarecord, mapping.pages.render_plugin, 'text')|raw %}
+    {% endif %}
+
+    {% if not (author == '' and year == '' and article_title == '' and journal == '' and volume == '' and pages == '') %}
+        {{ author|raw }}&nbsp;({{ year|raw }})&nbsp;{{ article_title|raw }},&nbsp;{{ journal|raw }},&nbsp;{{ volume|raw }},&nbsp;{{ pages|raw }}
+    {% endif %}
+
+    {% if mapping.file|length > 0 %}
+        {% for file in mapping.file.datarecordfield.file %}
+            &nbsp;<a href="{{ path('odr_file_download', {'file_id': file.id} ) }}">[view file]</a>    {# This plugin will only receive files the user is allowed to view #}
+        {% endfor %}
+    {% endif %}
 {% endif %}
 </div>
+
 {% endspaceless %}

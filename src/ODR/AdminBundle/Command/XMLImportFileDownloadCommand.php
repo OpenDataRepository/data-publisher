@@ -58,7 +58,7 @@ class XMLImportFileDownloadCommand extends ContainerAwareCommand
                 $data = json_decode($job->getData());
 
                 // 
-                $str = 'XMLImportFileDownloadCommand.php: Attempting to import the '.$data->object_type.' "'.$data->original_name.'" into drf '.$data->drf_id.' from '.$data->memcached_prefix.'...';
+                $str = 'XMLImportFileDownloadCommand.php: Attempting to import the '.$data->object_type.' "'.$data->original_name.'" into drf '.$data->drf_id.' from '.$data->redis_prefix.'...';
 
                 $current_time = new \DateTime();
                 $output->writeln( "\n".$current_time->format('Y-m-d H:i:s').' (UTC-5)' );

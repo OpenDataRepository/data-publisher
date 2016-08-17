@@ -25,8 +25,8 @@ class ODRAdminExtension extends Extension
         $loader = new Loader\YamlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('services.yml');
         // $loader->load('validation.yml');
-        $yamlMappingFiles = $container->getParameter('validator.mapping.loader.yaml_files_loader.mapping_files');
-        $yamlMappingFiles[] = __DIR__.'/../Resources/config/validation.yml';
-        $container->setParameter('validator.mapping.loader.yaml_files_loader.mapping_files', $yamlMappingFiles);
+        #$yamlMappingFiles = $container->getParameter('validator.mapping.loader.yaml_files_loader.mapping_files');
+        #$yamlMappingFiles[] = __DIR__.'/../Resources/config/validation.yml';
+        #$container->setParameter('validator.mapping.loader.yaml_files_loader.mapping_files', $yamlMappingFiles);
     }
 }

@@ -33,17 +33,17 @@ class ShortVarchar
     /**
      * @var \DateTime
      */
-    private $deletedAt;
-
-    /**
-     * @var \DateTime
-     */
     private $created;
 
     /**
      * @var \DateTime
      */
     private $updated;
+    
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataRecordFields
@@ -110,29 +110,6 @@ class ShortVarchar
     }
 
     /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return ShortVarchar
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
-    }
-
-    /**
      * Set created
      *
      * @param \DateTime $created
@@ -148,7 +125,7 @@ class ShortVarchar
     /**
      * Get created
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getCreated()
     {
@@ -171,11 +148,34 @@ class ShortVarchar
     /**
      * Get updated
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getUpdated()
     {
         return $this->updated;
+    }
+    
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return ShortVarchar
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
     }
 
     /**
@@ -309,7 +309,7 @@ class ShortVarchar
     /**
      * Get updatedBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getUpdatedBy()
     {

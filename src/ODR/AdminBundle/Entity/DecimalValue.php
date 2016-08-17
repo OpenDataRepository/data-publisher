@@ -38,17 +38,17 @@ class DecimalValue
     /**
      * @var \DateTime
      */
-    private $deletedAt;
-
-    /**
-     * @var \DateTime
-     */
     private $created;
 
     /**
      * @var \DateTime
      */
     private $updated;
+    
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataRecordFields
@@ -79,7 +79,7 @@ class DecimalValue
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $updatedBy;
-
+    
 
     /**
      * Get id
@@ -263,7 +263,7 @@ class DecimalValue
     /**
      * Get updated
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getUpdated()
     {
@@ -401,7 +401,7 @@ class DecimalValue
     /**
      * Get updatedBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getUpdatedBy()
     {

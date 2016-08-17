@@ -1,17 +1,16 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* ImageChecksum Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The ImageChecksum Entity is automatically generated from 
-* ./Resources/config/doctrine/ImageChecksum.orm.yml
-*
-*/
-
+ * Open Data Repository Data Publisher
+ * ImageChecksum Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The ImageChecksum Entity is automatically generated from
+ * ./Resources/config/doctrine/ImageChecksum.orm.yml
+ *
+ */
 
 namespace ODR\AdminBundle\Entity;
 
@@ -40,7 +39,7 @@ class ImageChecksum
     /**
      * @var \ODR\AdminBundle\Entity\Image
      */
-    private $Image;
+    private $image;
 
 
     /**
@@ -100,25 +99,25 @@ class ImageChecksum
     }
 
     /**
-     * Set Image
+     * Set image
      *
      * @param \ODR\AdminBundle\Entity\Image $image
      * @return ImageChecksum
      */
     public function setImage(\ODR\AdminBundle\Entity\Image $image = null)
     {
-        $this->Image = $image;
+        $this->image = $image;
 
         return $this;
     }
 
     /**
-     * Get Image
+     * Get image
      *
      * @return \ODR\AdminBundle\Entity\Image 
      */
     public function getImage()
     {
-        return $this->Image;
+        return $this->image;
     }
 }

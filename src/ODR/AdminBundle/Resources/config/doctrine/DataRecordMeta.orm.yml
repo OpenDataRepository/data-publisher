@@ -1,0 +1,75 @@
+ODR\AdminBundle\Entity\DataRecordMeta:
+    type: entity
+    table: odr_data_record_meta
+    gedmo:
+#        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        publicDate:
+            type: datetime
+            nullable: false
+            column: public_date
+#            gedmo:
+#                - versioned
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
+    manyToOne:
+        dataRecord:
+            targetEntity: DataRecord
+            cascade: {  }
+            mappedBy: null
+            inversedBy: dataRecordMeta
+            joinColumns:
+                data_record_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            fetch: EXTRA_LAZY
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            fetch: EXTRA_LAZY
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }

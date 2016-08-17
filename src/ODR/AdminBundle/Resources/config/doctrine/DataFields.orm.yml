@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\DataFields:
     type: entity
     table: odr_data_fields
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -13,138 +13,139 @@ ODR\AdminBundle\Entity\DataFields:
             nullable: false
             generator:
                 strategy: IDENTITY
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
+
+        # TODO - delete the following 17 properties
         fieldName:
             type: string
             length: 64
             fixed: false
             nullable: false
             column: field_name
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         description:
             type: text
             nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         xml_fieldName:
             type: string
             length: 64
             fixed: false
             nullable: false
             column: xml_field_name
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 
         markdownText:
             type: text
             default: ''
             nullable: true
-            gedmo:
-                - versioned
-        meta:
-            type: text
-            nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
+
         regexValidator:
             type: string
             length: 255
             fixed: false
             nullable: true
             column: regex_validator
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         phpValidator:
             type: text
             nullable: true
             column: php_validator
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         required:
             type: boolean
             nullable: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         is_unique:
             type: boolean
             nullable: false
             default: false
             column: is_unique
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 
         allow_multiple_uploads:
             type: boolean
             nullable: false
             default: false
             column: allow_multiple_uploads
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         shorten_filename:
             type: boolean
             nullable: false
             default: true
             column: shorten_filename
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 
         displayOrder:
             type: integer
             nullable: false
             column: display_order
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         children_per_row:
             type: integer
             nullable: false
             default: 1
             column: children_per_row
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 
         radio_option_name_sort:
             type: boolean
             nullable: false
             default: true
             column: radio_option_name_sort
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         radio_option_display_unselected:
             type: boolean
             nullable: false
             default: false
             column: radio_option_display_unselected
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 
         searchable:
             type: integer
             unsigned: false
             default: 0
             nullable: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         user_only_search:
             type: boolean
             default: false
             nullable: false
-            gedmo:
-                - versioned
-        deletedAt:
-            type: date
-            nullable: true
-            gedmo:
-                - versioned
-        created:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: create
+#            gedmo:
+#                - versioned
+
         updated:
             type: datetime
             gedmo:
                 timestampable:
                     on: update
+
     oneToMany:
         dataRecordFields:
             targetEntity: DataRecordFields
@@ -154,52 +155,39 @@ ODR\AdminBundle\Entity\DataFields:
             joinColumns:
                 data_field_id:
                     referencedColumnName: id
+            orphanRemoval: false
 
-        themeDataField:
+        themeDataFields:
             targetEntity: ThemeDataField
             cascade: {  }
-            mappedBy: dataFields
-            gedmo:
-                - versioned
+            mappedBy: dataField
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
         radioOptions:
             targetEntity: RadioOptions
             cascade: {  }
-            mappedBy: dataFields
+            mappedBy: dataField
+            orphanRemoval: false
 #            inversedBy: radioOptions
-            orderBy:
-                displayOrder: ASC
-                id: ASC
-            gedmo:
-                - versioned
+#            orderBy:
+#                displayOrder: ASC
+#                id: ASC
+#            gedmo:
+#                - versioned
+
+        dataFieldMeta:
+            targetEntity: DataFieldsMeta
+            cascade: { }
+            mappedBy: dataField
+            inversedBy: null
+            joinColumns:
+                data_field_meta_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
     manyToOne:
-        createdBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                createdBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-        renderPlugin:
-            targetEntity: RenderPlugin
-            cascade: {  }
-            inversedBy: dataFields
-            joinColumns:
-                render_plugin_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-            gedmo:
-                - versioned
         dataType:
             targetEntity: DataType
             cascade: {  }
@@ -209,8 +197,30 @@ ODR\AdminBundle\Entity\DataFields:
                 data_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        deletedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                deletedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+
+        # TODO - delete the following three properties
         fieldType:
             targetEntity: FieldType
             cascade: {  }
@@ -220,6 +230,27 @@ ODR\AdminBundle\Entity\DataFields:
                 field_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
+        renderPlugin:
+            targetEntity: RenderPlugin
+            cascade: {  }
+            inversedBy: dataFields
+            joinColumns:
+                render_plugin_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
     lifecycleCallbacks: {  }

@@ -37,7 +37,7 @@ class ClearMigrateCommand extends ContainerAwareCommand
         $this
             ->setName('odr_record:clear_migrate')
             ->setDescription('Deletes all jobs from the migrate_datafields tube')
-            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the memcached_prefix to the tube name for deleting jobs');
+            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the redis_prefix to the tube name for deleting jobs');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -46,25 +46,25 @@ class ClearMigrateCommand extends ContainerAwareCommand
         $container = $this->getContainer();
         $pheanstalk = $container->get('pheanstalk');
 
-        $memcached_prefix = $container->getParameter('memcached_key_prefix');
+        $redis_prefix = $container->getParameter('memcached_key_prefix');
 
         while (true) {
             // Wait for a job?
             if ($input->getOption('old'))
-                $job = $pheanstalk->watch($memcached_prefix.'_migrate_datafields')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch($redis_prefix.'_migrate_datafields')->ignore('default')->reserve();
             else
                 $job = $pheanstalk->watch('migrate_datafields')->ignore('default')->reserve(); 
 
             $data = json_decode($job->getData());
             $datafield_id = $data->datafield_id;
             $datarecord_id = $data->datarecord_id;
-            $job_source = $data->memcached_prefix;
+            $job_source = $data->redis_prefix;
 
             // Dealt with the job
             $pheanstalk->delete($job);
 
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted job for datarecord '.$datarecord_id.', datafield '.$datafield_id.' from '.$memcached_prefix.'_migrate_datafields');
+    $output->writeln( date('H:i:s').'  deleted job for datarecord '.$datarecord_id.', datafield '.$datafield_id.' from '.$redis_prefix.'_migrate_datafields');
 else
     $output->writeln( date('H:i:s').'  deleted job for datarecord '.$datarecord_id.', datafield '.$datafield_id.' ('.$job_source.') from migrate_datafields');
 

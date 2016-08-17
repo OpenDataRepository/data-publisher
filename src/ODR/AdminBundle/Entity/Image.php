@@ -9,12 +9,13 @@
  *
  * The Image Entity is automatically generated from
  * ./Resources/config/doctrine/Image.orm.yml
+ *
  */
 
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\HttpFoundation\File\UploadedFile as UploadedFile;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 /**
  * Image
@@ -32,16 +33,6 @@ class Image
     private $original;
 
     /**
-     * @var integer
-     */
-    private $displayorder;
-
-    /**
-     * @var string
-     */
-    private $caption;
-
-    /**
      * @var string
      */
     private $ext;
@@ -49,42 +40,12 @@ class Image
     /**
      * @var string
      */
-    private $originalFileName;
-
-    /**
-     * @var string
-     */
     private $localFileName;
-
-    /**
-     * @var \DateTime
-     */
-    private $deletedAt;
-
-    /**
-     * @var \DateTime
-     */
-    private $created;
-
-    /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
-     * @var \DateTime
-     */
-    private $publicDate;
 
     /**
      * @var string
      */
     private $encrypt_key;
-
-    /**
-     * @var string
-     */
-    private $external_id;
 
     /**
      * @var string
@@ -102,6 +63,46 @@ class Image
     private $imageHeight;
 
     /**
+     * @var \DateTime
+     */
+    private $created;
+
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
+
+    /**
+     * @var integer
+     */
+    private $displayorder;
+
+    /**
+     * @var string
+     */
+    private $caption;
+
+    /**
+     * @var string
+     */
+    private $originalFileName;
+
+    /**
+     * @var string
+     */
+    private $external_id;
+
+    /**
+     * @var \DateTime
+     */
+    private $publicDate;
+
+    /**
+     * @var \DateTime
+     */
+    private $updated;
+
+    /**
      * @var \Doctrine\Common\Collections\Collection
      */
     private $children;
@@ -109,7 +110,12 @@ class Image
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
-    private $ImageChecksum;
+    private $imageChecksum;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $imageMeta;
 
     /**
      * @var \ODR\AdminBundle\Entity\Image
@@ -117,19 +123,24 @@ class Image
     private $parent;
 
     /**
-     * @var \ODR\AdminBundle\Entity\DataFields
-     */
-    private $dataField;
-
-    /**
      * @var \ODR\AdminBundle\Entity\FieldType
      */
     private $fieldType;
 
     /**
+     * @var \ODR\AdminBundle\Entity\DataFields
+     */
+    private $dataField;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataRecord
      */
     private $dataRecord;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataRecordFields
+     */
+    private $dataRecordFields;
 
     /**
      * @var \ODR\AdminBundle\Entity\ImageSizes
@@ -144,12 +155,12 @@ class Image
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
-    private $updatedBy;
+    private $deletedBy;
 
     /**
-     * @var \ODR\AdminBundle\Entity\DataRecordFields
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
-    private $dataRecordFields;
+    private $updatedBy;
 
     /**
      * Constructor
@@ -157,7 +168,8 @@ class Image
     public function __construct()
     {
         $this->children = new \Doctrine\Common\Collections\ArrayCollection();
-        $this->ImageChecksum = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->imageChecksum = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->imageMeta = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -194,52 +206,6 @@ class Image
     }
 
     /**
-     * Set displayorder
-     *
-     * @param integer $displayorder
-     * @return Image
-     */
-    public function setDisplayorder($displayorder)
-    {
-        $this->displayorder = $displayorder;
-
-        return $this;
-    }
-
-    /**
-     * Get displayorder
-     *
-     * @return integer 
-     */
-    public function getDisplayorder()
-    {
-        return $this->displayorder;
-    }
-
-    /**
-     * Set caption
-     *
-     * @param string $caption
-     * @return Image
-     */
-    public function setCaption($caption)
-    {
-        $this->caption = $caption;
-
-        return $this;
-    }
-
-    /**
-     * Get caption
-     *
-     * @return string 
-     */
-    public function getCaption()
-    {
-        return $this->caption;
-    }
-
-    /**
      * Set ext
      *
      * @param string $ext
@@ -260,29 +226,6 @@ class Image
     public function getExt()
     {
         return $this->ext;
-    }
-
-    /**
-     * Set originalFileName
-     *
-     * @param string $originalFileName
-     * @return Image
-     */
-    public function setOriginalFileName($originalFileName)
-    {
-        $this->originalFileName = $originalFileName;
-
-        return $this;
-    }
-
-    /**
-     * Get originalFileName
-     *
-     * @return string 
-     */
-    public function getOriginalFileName()
-    {
-        return $this->originalFileName;
     }
 
     /**
@@ -309,111 +252,6 @@ class Image
     }
 
     /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return Image
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
-    }
-
-    /**
-     * Set created
-     *
-     * @param \DateTime $created
-     * @return Image
-     */
-    public function setCreated($created)
-    {
-        $this->created = $created;
-
-        return $this;
-    }
-
-    /**
-     * Get created
-     *
-     * @return \DateTime 
-     */
-    public function getCreated()
-    {
-        return $this->created;
-    }
-
-    /**
-     * Set updated
-     *
-     * @param \DateTime $updated
-     * @return Image
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
-    }
-
-    /**
-     * Set publicDate
-     *
-     * @param \DateTime $publicDate
-     * @return Image
-     */
-    public function setPublicDate($publicDate)
-    {
-        $this->publicDate = $publicDate;
-
-        return $this;
-    }
-
-    /**
-     * Get publicDate
-     *
-     * @return \DateTime 
-     */
-    public function getPublicDate()
-    {
-        return $this->publicDate;
-    }
-
-    /**
-     * Is public
-     *
-     * @return boolean
-     */
-    public function isPublic()
-    {
-        if ($this->publicDate->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-            return false;
-        else
-            return true;
-    }
-
-    /**
      * Set encrypt_key
      *
      * @param string $encryptKey
@@ -434,29 +272,6 @@ class Image
     public function getEncryptKey()
     {
         return $this->encrypt_key;
-    }
-
-    /**
-     * Set external_id
-     *
-     * @param string $externalId
-     * @return Image
-     */
-    public function setExternalId($externalId)
-    {
-        $this->external_id = $externalId;
-
-        return $this;
-    }
-
-    /**
-     * Get external_id
-     *
-     * @return string 
-     */
-    public function getExternalId()
-    {
-        return $this->external_id;
     }
 
     /**
@@ -529,6 +344,212 @@ class Image
     }
 
     /**
+     * Set created
+     *
+     * @param \DateTime $created
+     * @return Image
+     */
+    public function setCreated($created)
+    {
+        $this->created = $created;
+
+        return $this;
+    }
+
+    /**
+     * Get created
+     *
+     * @return \DateTime 
+     */
+    public function getCreated()
+    {
+        return $this->created;
+    }
+
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return Image
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+
+    /**
+     * Set displayorder
+     * @deprecated
+     *
+     * @param integer $displayorder
+     * @return Image
+     */
+    public function setDisplayorder($displayorder)
+    {
+        $this->displayorder = $displayorder;
+
+        return $this;
+    }
+
+    /**
+     * Get displayorder
+     *
+     * @return integer 
+     */
+    public function getDisplayorder()
+    {
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getDisplayorder();
+        else
+            return $this->getParent()->getImageMeta()->getDisplayorder();
+    }
+
+    /**
+     * Set caption
+     * @deprecated
+     *
+     * @param string $caption
+     * @return Image
+     */
+    public function setCaption($caption)
+    {
+        $this->caption = $caption;
+
+        return $this;
+    }
+
+    /**
+     * Get caption
+     *
+     * @return string 
+     */
+    public function getCaption()
+    {
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getCaption();
+        else
+            return $this->getParent()->getImageMeta()->getCaption();
+    }
+
+    /**
+     * Set originalFileName
+     * @deprecated
+     *
+     * @param string $originalFileName
+     * @return Image
+     */
+    public function setOriginalFileName($originalFileName)
+    {
+        $this->originalFileName = $originalFileName;
+
+        return $this;
+    }
+
+    /**
+     * Get originalFileName
+     *
+     * @return string 
+     */
+    public function getOriginalFileName()
+    {
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getOriginalFileName();
+        else
+            return $this->getParent()->getImageMeta()->getOriginalFileName();
+    }
+
+    /**
+     * Set external_id
+     * @deprecated
+     *
+     * @param string $externalId
+     * @return Image
+     */
+    public function setExternalId($externalId)
+    {
+        $this->external_id = $externalId;
+
+        return $this;
+    }
+
+    /**
+     * Get external_id
+     *
+     * @return string 
+     */
+    public function getExternalId()
+    {
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getExternalId();
+        else
+            return $this->getParent()->getImageMeta()->getExternalId();
+    }
+
+    /**
+     * Set publicDate
+     * @deprecated
+     *
+     * @param \DateTime $publicDate
+     * @return Image
+     */
+    public function setPublicDate($publicDate)
+    {
+        $this->publicDate = $publicDate;
+
+        return $this;
+    }
+
+    /**
+     * Get publicDate
+     *
+     * @return \DateTime 
+     */
+    public function getPublicDate()
+    {
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getPublicDate();
+        else
+            return $this->getParent()->getImageMeta()->getPublicDate();
+    }
+
+    /**
+     * Set updated
+     * @deprecated
+     *
+     * @param \DateTime $updated
+     * @return Image
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     * @deprecated
+     *
+     * @return \DateTime 
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
+    }
+
+    /**
      * Add children
      *
      * @param \ODR\AdminBundle\Entity\Image $children
@@ -562,36 +583,69 @@ class Image
     }
 
     /**
-     * Add ImageChecksum
+     * Add imageChecksum
      *
      * @param \ODR\AdminBundle\Entity\ImageChecksum $imageChecksum
      * @return Image
      */
     public function addImageChecksum(\ODR\AdminBundle\Entity\ImageChecksum $imageChecksum)
     {
-        $this->ImageChecksum[] = $imageChecksum;
+        $this->imageChecksum[] = $imageChecksum;
 
         return $this;
     }
 
     /**
-     * Remove ImageChecksum
+     * Remove imageChecksum
      *
      * @param \ODR\AdminBundle\Entity\ImageChecksum $imageChecksum
      */
     public function removeImageChecksum(\ODR\AdminBundle\Entity\ImageChecksum $imageChecksum)
     {
-        $this->ImageChecksum->removeElement($imageChecksum);
+        $this->imageChecksum->removeElement($imageChecksum);
     }
 
     /**
-     * Get ImageChecksum
+     * Get imageChecksum
      *
      * @return \Doctrine\Common\Collections\Collection 
      */
     public function getImageChecksum()
     {
-        return $this->ImageChecksum;
+        return $this->imageChecksum;
+    }
+
+    /**
+     * Add imageMeta
+     *
+     * @param \ODR\AdminBundle\Entity\ImageMeta $imageMeta
+     * @return Image
+     */
+    public function addImageMetum(\ODR\AdminBundle\Entity\ImageMeta $imageMeta)
+    {
+        $this->imageMeta[] = $imageMeta;
+
+        return $this;
+    }
+
+    /**
+     * Remove imageMeta
+     *
+     * @param \ODR\AdminBundle\Entity\ImageMeta $imageMeta
+     */
+    public function removeImageMetum(\ODR\AdminBundle\Entity\ImageMeta $imageMeta)
+    {
+        $this->imageMeta->removeElement($imageMeta);
+    }
+
+    /**
+     * Get imageMeta
+     *
+     * @return \ODR\AdminBundle\Entity\ImageMeta
+     */
+    public function getImageMeta()
+    {
+        return $this->imageMeta->first();
     }
 
     /**
@@ -618,29 +672,6 @@ class Image
     }
 
     /**
-     * Set dataField
-     *
-     * @param \ODR\AdminBundle\Entity\DataFields $dataField
-     * @return Image
-     */
-    public function setDataField(\ODR\AdminBundle\Entity\DataFields $dataField = null)
-    {
-        $this->dataField = $dataField;
-
-        return $this;
-    }
-
-    /**
-     * Get dataField
-     *
-     * @return \ODR\AdminBundle\Entity\DataFields 
-     */
-    public function getDataField()
-    {
-        return $this->dataField;
-    }
-
-    /**
      * Set fieldType
      *
      * @param \ODR\AdminBundle\Entity\FieldType $fieldType
@@ -664,6 +695,29 @@ class Image
     }
 
     /**
+     * Set dataField
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $dataField
+     * @return Image
+     */
+    public function setDataField(\ODR\AdminBundle\Entity\DataFields $dataField = null)
+    {
+        $this->dataField = $dataField;
+
+        return $this;
+    }
+
+    /**
+     * Get dataField
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields 
+     */
+    public function getDataField()
+    {
+        return $this->dataField;
+    }
+
+    /**
      * Set dataRecord
      *
      * @param \ODR\AdminBundle\Entity\DataRecord $dataRecord
@@ -684,6 +738,29 @@ class Image
     public function getDataRecord()
     {
         return $this->dataRecord;
+    }
+
+    /**
+     * Set dataRecordFields
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
+     * @return Image
+     */
+    public function setDataRecordFields(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields = null)
+    {
+        $this->dataRecordFields = $dataRecordFields;
+
+        return $this;
+    }
+
+    /**
+     * Get dataRecordFields
+     *
+     * @return \ODR\AdminBundle\Entity\DataRecordFields 
+     */
+    public function getDataRecordFields()
+    {
+        return $this->dataRecordFields;
     }
 
     /**
@@ -733,7 +810,31 @@ class Image
     }
 
     /**
+     * Set deletedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $deletedBy
+     * @return Image
+     */
+    public function setDeletedBy(\ODR\OpenRepository\UserBundle\Entity\User $deletedBy = null)
+    {
+        $this->deletedBy = $deletedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getDeletedBy()
+    {
+        return $this->deletedBy;
+    }
+
+    /**
      * Set updatedBy
+     * @deprecated 
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
      * @return Image
@@ -747,6 +848,7 @@ class Image
 
     /**
      * Get updatedBy
+     * @deprecated
      *
      * @return \ODR\OpenRepository\UserBundle\Entity\User 
      */
@@ -756,26 +858,17 @@ class Image
     }
 
     /**
-     * Set dataRecordFields
+     * Is public
      *
-     * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
-     * @return Image
+     * @return boolean
      */
-    public function setDataRecordFields(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields = null)
+    public function isPublic()
     {
-        $this->dataRecordFields = $dataRecordFields;
-
-        return $this;
-    }
-
-    /**
-     * Get dataRecordFields
-     *
-     * @return \ODR\AdminBundle\Entity\DataRecordFields 
-     */
-    public function getDataRecordFields()
-    {
-        return $this->dataRecordFields;
+        // Return whether the original image is public or not
+        if ( $this->getPublicDate()->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' )
+            return false;
+        else
+            return true;
     }
 
     /*
@@ -925,5 +1018,57 @@ class Image
         // get rid of the __DIR__ so it doesn't screw up
         // when displaying uploaded doc/image in the view.
         return 'uploads/images';
+    }
+
+    // ----------------------------------------
+    // TODO - delete these five functions
+    /**
+     * Get displayorder original
+     *
+     * @return integer
+     */
+    public function getDisplayorderOriginal()
+    {
+        return $this->displayorder;
+    }
+
+    /**
+     * Get caption original
+     *
+     * @return string
+     */
+    public function getCaptionOriginal()
+    {
+        return $this->caption;
+    }
+
+    /**
+     * Get originalFileName original
+     *
+     * @return string
+     */
+    public function getOriginalFileNameOriginal()
+    {
+        return $this->originalFileName;
+    }
+
+    /**
+     * Get external_id original
+     *
+     * @return string
+     */
+    public function getExternalIdOriginal()
+    {
+        return $this->external_id;
+    }
+
+    /**
+     * Get publicDate original
+     *
+     * @return \DateTime
+     */
+    public function getPublicDateOriginal()
+    {
+        return $this->publicDate;
     }
 }

@@ -9,6 +9,7 @@
  *
  * The Theme Entity is automatically generated from
  * ./Resources/config/doctrine/Theme.orm.yml
+ *
  */
 
 namespace ODR\AdminBundle\Entity;
@@ -28,32 +29,7 @@ class Theme
     /**
      * @var string
      */
-    private $templateName;
-
-    /**
-     * @var string
-     */
-    private $templateDescription;
-
-    /**
-     * @var string
-     */
-    private $templateType;
-
-    /**
-     * @var string
-     */
-    private $templatePreview;
-
-    /**
-     * @var boolean
-     */
-    private $isDefault;
-
-    /**
-     * @var \DateTime
-     */
-    private $deletedAt;
+    private $themeType;
 
     /**
      * @var \DateTime
@@ -66,6 +42,26 @@ class Theme
     private $updated;
 
     /**
+     * @var \DateTime
+     */
+    private $deletedAt;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $themeMeta;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $themeElements;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $dataType;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
@@ -75,6 +71,19 @@ class Theme
      */
     private $updatedBy;
 
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $deletedBy;
+
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->themeMeta = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->themeElements = new \Doctrine\Common\Collections\ArrayCollection();
+    }
 
     /**
      * Get id
@@ -87,141 +96,56 @@ class Theme
     }
 
     /**
-     * Set templateName
+     * Set themeType
      *
-     * @param string $templateName
+     * @param string $themeType
      * @return Theme
      */
-    public function setTemplateName($templateName)
+    public function setThemeType($themeType)
     {
-        $this->templateName = $templateName;
+        $this->themeType = $themeType;
 
         return $this;
+    }
+
+    /**
+     * Get themeType
+     *
+     * @return string 
+     */
+    public function getThemeType()
+    {
+        return $this->themeType;
     }
 
     /**
      * Get templateName
      *
-     * @return string 
+     * @return string
      */
     public function getTemplateName()
     {
-        return $this->templateName;
-    }
-
-    /**
-     * Set templateDescription
-     *
-     * @param string $templateDescription
-     * @return Theme
-     */
-    public function setTemplateDescription($templateDescription)
-    {
-        $this->templateDescription = $templateDescription;
-
-        return $this;
+        return $this->getThemeMeta()->getTemplateName();
     }
 
     /**
      * Get templateDescription
      *
-     * @return string 
+     * @return string
      */
     public function getTemplateDescription()
     {
-        return $this->templateDescription;
-    }
-
-    /**
-     * Set templateType
-     *
-     * @param string $templateType
-     * @return Theme
-     */
-    public function setTemplateType($templateType)
-    {
-        $this->templateType = $templateType;
-
-        return $this;
-    }
-
-    /**
-     * Get templateType
-     *
-     * @return string 
-     */
-    public function getTemplateType()
-    {
-        return $this->templateType;
-    }
-
-    /**
-     * Set templatePreview
-     *
-     * @param string $templatePreview
-     * @return Theme
-     */
-    public function setTemplatePreview($templatePreview)
-    {
-        $this->templatePreview = $templatePreview;
-
-        return $this;
-    }
-
-    /**
-     * Get templatePreview
-     *
-     * @return string 
-     */
-    public function getTemplatePreview()
-    {
-        return $this->templatePreview;
-    }
-
-    /**
-     * Set isDefault
-     *
-     * @param boolean $isDefault
-     * @return Theme
-     */
-    public function setIsDefault($isDefault)
-    {
-        $this->isDefault = $isDefault;
-
-        return $this;
+        return $this->getThemeMeta()->getTemplateDescription();
     }
 
     /**
      * Get isDefault
      *
-     * @return boolean 
+     * @return boolean
      */
     public function getIsDefault()
     {
-        return $this->isDefault;
-    }
-
-    /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return Theme
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
+        return $this->getThemeMeta()->getIsDefault();
     }
 
     /**
@@ -263,11 +187,123 @@ class Theme
     /**
      * Get updated
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getUpdated()
     {
         return $this->updated;
+    }
+    
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return Theme
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+
+    /**
+     * Add themeMeta
+     *
+     * @param \ODR\AdminBundle\Entity\ThemeMeta $themeMeta
+     * @return Theme
+     */
+    public function addThemeMetum(\ODR\AdminBundle\Entity\ThemeMeta $themeMeta)
+    {
+        $this->themeMeta[] = $themeMeta;
+
+        return $this;
+    }
+
+    /**
+     * Remove themeMeta
+     *
+     * @param \ODR\AdminBundle\Entity\ThemeMeta $themeMeta
+     */
+    public function removeThemeMetum(\ODR\AdminBundle\Entity\ThemeMeta $themeMeta)
+    {
+        $this->themeMeta->removeElement($themeMeta);
+    }
+
+    /**
+     * Get themeMeta
+     *
+     * @return \ODR\AdminBundle\Entity\ThemeMeta
+     */
+    public function getThemeMeta()
+    {
+        return $this->themeMeta->first();
+    }
+
+    /**
+     * Add themeElements
+     *
+     * @param \ODR\AdminBundle\Entity\ThemeElement $themeElements
+     * @return Theme
+     */
+    public function addThemeElement(\ODR\AdminBundle\Entity\ThemeElement $themeElements)
+    {
+        $this->themeElements[] = $themeElements;
+
+        return $this;
+    }
+
+    /**
+     * Remove themeElements
+     *
+     * @param \ODR\AdminBundle\Entity\ThemeElement $themeElements
+     */
+    public function removeThemeElement(\ODR\AdminBundle\Entity\ThemeElement $themeElements)
+    {
+        $this->themeElements->removeElement($themeElements);
+    }
+
+    /**
+     * Get themeElements
+     *
+     * @return \Doctrine\Common\Collections\Collection 
+     */
+    public function getThemeElements()
+    {
+        return $this->themeElements;
+    }
+
+    /**
+     * Set dataType
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $dataType
+     * @return Theme
+     */
+    public function setDataType(\ODR\AdminBundle\Entity\DataType $dataType = null)
+    {
+        $this->dataType = $dataType;
+
+        return $this;
+    }
+
+    /**
+     * Get dataType
+     *
+     * @return \ODR\AdminBundle\Entity\DataType 
+     */
+    public function getDataType()
+    {
+        return $this->dataType;
     }
 
     /**
@@ -309,10 +345,33 @@ class Theme
     /**
      * Get updatedBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getUpdatedBy()
     {
         return $this->updatedBy;
+    }
+
+    /**
+     * Set deletedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $deletedBy
+     * @return Theme
+     */
+    public function setDeletedBy(\ODR\OpenRepository\UserBundle\Entity\User $deletedBy = null)
+    {
+        $this->deletedBy = $deletedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getDeletedBy()
+    {
+        return $this->deletedBy;
     }
 }

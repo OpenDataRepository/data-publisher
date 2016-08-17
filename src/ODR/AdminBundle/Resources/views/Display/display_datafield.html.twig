@@ -1,0 +1,207 @@
+{% spaceless %}
+
+{% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
+{% set field_typeclass = datafield.dataFieldMeta.fieldType.typeClass %}
+
+{% set valuefield = '' %}
+{% set valuefield_value = '' %}
+{% if datarecord.dataRecordFields[ datafield.id ] is defined %}
+    {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
+
+    {% if field_typename == "Boolean" %}
+        {% set valuefield = datarecordfield.boolean[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "File" %}
+        {% set valuefield = datarecordfield.file %}
+    {% elseif field_typename == "Image" %}
+        {% set valuefield = datarecordfield.image %}
+    {% elseif field_typename == "Decimal" %}
+        {% set valuefield = datarecordfield.decimalValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Integer" %}
+        {% set valuefield = datarecordfield.integerValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Paragraph Text" %}
+        {% set valuefield = datarecordfield.longText[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Long Text" %}
+        {% set valuefield = datarecordfield.longVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Medium Text" %}
+        {% set valuefield = datarecordfield.mediumVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typeclass == "Radio" %}
+        {% set valuefield = datarecordfield.radioSelection %}
+    {% elseif field_typename == "Short Text" %}
+        {% set valuefield = datarecordfield.shortVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "DateTime" %}
+        {% set valuefield = datarecordfield.datetimeValue[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Markdown" %}
+        {% set valuefield = '' %}
+    {% endif %}
+
+{% endif %}
+
+{% if valuefield == '' and (field_typename == 'File' or field_typename == 'Image' or field_typeclass == 'Radio') %}
+    {% set valuefield = [] %}
+{% endif %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+
+    <form class="pure-u-1" id="ViewForm_{{ unique_id }}">
+
+    {% set render_plugin = datafield.dataFieldMeta.renderPlugin %}
+    {% if render_plugin.id != 1 %}
+        {{ datafield|datafield_plugin(datarecord, render_plugin)|raw }}
+
+    {% elseif field_typename == "Boolean" %}
+        <fieldset>
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;" title="{{ datafield.dataFieldMeta.description }}">
+                <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                    <input type="checkbox" value="1" {% if valuefield_value == 1 %}checked{% endif %} disabled />
+                    {{ datafield.dataFieldMeta.fieldName }}
+                </div>
+            </label>
+        </fieldset>
+
+    {% elseif field_typename == "File" %}
+        <fieldset class="pure-u-1">
+            <div class="pure-u-1">
+                <table class="NotODRTable pure-table pure-u-1">
+                    <thead class="pure-u-1">
+                        <tr class="pure-u-1">
+                            <th class="pure-u-20-24" style="cursor:default;">{{ datafield.dataFieldMeta.fieldName }}</th>
+                            <th class="pure-u-1-24"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="pure-u-1">
+                    {% for file in valuefield %}
+                        <tr id="File_{{ file.id }}" class="pure-u-1">
+                            <td class="pure-u-20-24" {% if file.fileMeta.originalFileName != null and datafield.dataFieldMeta.shorten_filename == 1 and file.fileMeta.originalFileName|length > 35 %}title="{{ file.fileMeta.originalFileName }}"{% endif %}>
+                                {% if file.original_checksum != '' %}
+                                    <a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="truncate ODRFileDownload" rel="{{ file.id }}">
+                                        {% if file.fileMeta.originalFileName == null %}File_{{ file.id }}.{{ file.getext }}{% else %}{{ file.fileMeta.originalFileName }}{% endif %}
+                                    </a>
+                                    <span id="ODRFileDownload_{{ file.id }}" class="ODRFileDownloadProgress" style="cursor:default; margin-left:10px;">
+                                        <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRProgressBar" style="margin-left:15px; display:inline-block;">
+                                            <span class="ODRProgressBarLabel" style="left:35%;">Decrypting...</span>
+                                        </span>
+                                        <span id="ODRFileDownload_{{ file.id }}_cancel" class="ODRFileDownloadCancel pure-button pure-button-primary" rel="{{ file.id }}" style="vertical-align: top; margin-left: 10px;">Cancel</span>
+                                    </span>
+                                {% else %}
+                                    <span class="Cursor">
+                                        {% if file.fileMeta.originalFileName == null %}File_{{ file.id }}.{{ file.getext }}{% else %}{{ file.fileMeta.originalFileName }}{% endif %}
+                                    </span>
+                                    <span id="ODRFileEncrypt_{{ file.id }}_progress" class="ODRProgressBar" style="margin-left:15px; display:inline-block;">
+                                        <span class="ODRProgressBarLabel" style="left:35%;">Encrypting...</span>
+                                    </span>
+                                    <script>
+                                        $(function() {
+                                            createFileEncryptProgressCheck({{ file.id }}, {{ datarecord.id }}, {{ datafield.id }});
+                                            $("#ODRFileEncrypt_{{ file.id }}_progress").progressbar({
+                                                value: false
+                                            });
+                                        });
+                                    </script>
+                                {% endif %}
+                            </td>
+                            
+                            <td class="pure-u-4-24">
+                                {% if file.original_checksum != '' %}
+                                    <i class="Cursor FRight tooltip fa fa-globe fa-lg ODRPublicFile {% if not file.fileMeta.publicDate|is_public %}IconRed{% endif %}" title="{% if not file.fileMeta.publicDate|is_public %}File is not public{% else %}Public since {{ file.fileMeta.publicDate|date('Y-m-d') }}{% endif %}" rel="{{ file.id }}"></i>
+                                    <i class="Cursor FRight tooltip fa fa-calendar fa-lg" title="Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy|user_string }}"></i>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </fieldset>
+
+    {% elseif field_typename == "Image" %}
+        {#<fieldset>#}
+            <div id="imagegallery_{{ datafield.id }}_{{ datarecord.id }}" class="ODRImageGallery pure-u-1">
+                <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+                <i id="ODRImageLeft_{{ datafield.id }}_{{ datarecord.id }}" class="ODRGalleryLeftArrow Pointer fa fa-3x fa-chevron-left" rel="{{ datafield.id }}_{{ datarecord.id }}"></i>
+                <i id="ODRImageRight_{{ datafield.id }}_{{ datarecord.id }}" class="ODRGalleryRightArrow Pointer fa fa-3x fa-chevron-right" rel="{{ datafield.id }}_{{ datarecord.id }}"></i>
+                <div class="ODRImageGalleryImage pure-u-1"></div>
+            </div>
+            <div id="imagestorage_{{ datafield.id }}_{{ datarecord.id }}" style="display: none;" rel="{{ datafield.dataFieldMeta.children_per_row }}">
+
+                {% for image in valuefield %}
+                    {% set oimage = image.parent %}
+                    {% set image_ext = oimage.ext %}
+                    {% set image_caption = oimage.imageMeta.caption %}
+                    {% set image_filename = oimage.imageMeta.originalFileName %}
+
+                    <div id="Image_{{ oimage.id }}" class="ODRImage pure-u-1-{{ datafield.dataFieldMeta.children_per_row }}"  rel="{{ image.id }}">    {# rel is the id of the thumbnail, id attr is the id of the full-size image #}
+                    {% if image_thumbnails_only == false %}
+                        <a target="_blank" href="{{ path('odr_image_download', {'image_id': oimage.id}) }}" title="{{ image_caption }}">
+                            <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
+                        </a>
+                    {% else %}
+                        <img class="pure-img" src="{{ path('odr_image_download', {'image_id': image.id}) }}" title="{% if image_filename != null %}{{ image_filename }}{% else %}Image_{{ image.id }}.{{ image_ext }}{% endif %}" />
+                    {% endif %}
+                    </div>
+            {% endfor %}
+            </div>
+        {#</fieldset>#}
+
+    {% elseif field_typename == "Paragraph Text" %}
+        <fieldset>
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <textarea class="pure-u-1 Cursor" readonly="readonly">{{ valuefield_value }}</textarea>
+            </div>
+        </fieldset>
+
+    {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
+        <fieldset>
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <input class="pure-u-1 Cursor" type="text" value="{{ valuefield_value }}" readonly="readonly"/>
+            </div>
+        </fieldset>
+
+    {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
+        <fieldset>
+            <label class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+
+            {% if datafield.radioOptions is defined %}
+                {% for radio_option in datafield.radioOptions %}
+                    {% set is_selected = 0 %}
+                    {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
+                        {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
+                    {% endif %}
+
+                    {% if datafield.dataFieldMeta.radio_option_display_unselected == 1 or is_selected == 1 %}
+                        <label for="Input_{{ unique_id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
+
+                        {% if field_typename == "Single Radio" or field_typename == "Single Select" %}
+                            <input id="Input_{{ unique_id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ unique_id }}" {% if is_selected == 1 %}checked{% endif %} disabled class="SingleRadioGroup" />
+                        {% else %}
+                            <input id="Input_{{ unique_id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ unique_id }}" {% if is_selected == 1 %}checked{% endif %} disabled class="MultipleRadioGroup" />
+                        {% endif %}
+
+                        {{ radio_option.radioOptionMeta.optionName }}
+                        </label>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </fieldset>
+
+    {% elseif field_typename == "DateTime" %}
+        <fieldset>
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <input type="text" class="pure-u-1 Cursor" value="{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != "9999-12-31" %}{{ valuefield_value|date('Y-m-d') }}{% endif %}" readonly="readonly" />
+            </div>
+        </fieldset>
+
+    {% endif %}
+
+</form>
+{% endspaceless %}

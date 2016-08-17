@@ -17,6 +17,9 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
@@ -96,7 +99,8 @@ class JobController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ($user !== 'anon.')
                 $return['d'] = self::refreshJob($user, $job_type, intval($job_id), $request);
         }
@@ -120,11 +124,12 @@ class JobController extends ODRCustomController
      * @param integer $job_id   Which TrackedJob to look at, or 0 to return all TrackedJobs
      * @param Request $request
      *
-     * @return Response TODO
+     * @return array
      */
     private function refreshJob($user, $job_type, $job_id, Request $request)
     {
         // Get necessary objects
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
         $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
@@ -136,6 +141,7 @@ class JobController extends ODRCustomController
 
         if ( $job_type !== '' )
             $parameters['job_type'] = $job_type;
+        /** @var TrackedJob[] $tracked_jobs */
         $tracked_jobs = $repo_tracked_jobs->findBy( $parameters );
 
         $jobs = array();
@@ -178,10 +184,9 @@ class JobController extends ODRCustomController
                 $job['description'] = $additional_data['description'];
                 $job['can_delete'] = false;
 
-                $top_level_datatype_id = $datatype_id;
-                while ( isset($datatree_array['descendant_of'][$top_level_datatype_id]) && $datatree_array['descendant_of'][$top_level_datatype_id] !== '')
-                    $top_level_datatype_id = $datatree_array['descendant_of'][$top_level_datatype_id];
+                $top_level_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datatype_id);
                 $job['top_level_datatype_id'] = $top_level_datatype_id;
+
 
                 // ----------------------------------------
                 if ( $tracked_job->getCompleted() == null || $tracked_job->getStarted() == null ) {
@@ -235,6 +240,7 @@ class JobController extends ODRCustomController
                     $tmp = explode('_', $tracked_job->getTargetEntity());
                     $datatype_id = $tmp[1];
 
+                    /** @var DataType $datatype */
                     $datatype = $repo_datatype->find($datatype_id);
                     if ($datatype == null)
                         continue;
@@ -246,6 +252,7 @@ class JobController extends ODRCustomController
                     $tmp = explode('_', $tracked_job->getTargetEntity());
                     $datatype_id = $tmp[1];
 
+                    /** @var DataType $datatype */
                     $datatype = $repo_datatype->find($datatype_id);
                     if ($datatype == null)
                         continue;
@@ -261,6 +268,7 @@ class JobController extends ODRCustomController
                     $tmp = explode('_', $tracked_job->getTargetEntity());
                     $datatype_id = $tmp[1];
 
+                    /** @var DataType $datatype */
                     $datatype = $repo_datatype->find($datatype_id);
                     if ($datatype == null)
                         continue;
@@ -274,6 +282,7 @@ class JobController extends ODRCustomController
                     $tmp = explode('_', $tracked_job->getTargetEntity());
                     $datatype_id = $tmp[1];
 
+                    /** @var DataType $datatype */
                     $datatype = $repo_datatype->find($datatype_id);
                     if ($datatype == null)
                         continue;
@@ -287,6 +296,7 @@ class JobController extends ODRCustomController
                     $tmp = explode('_', $tracked_job->getTargetEntity());
                     $datatype_id = $tmp[1];
 
+                    /** @var DataType $datatype */
                     $datatype = $repo_datatype->find($datatype_id);
                     if ($datatype == null)
                         continue;
@@ -306,6 +316,7 @@ class JobController extends ODRCustomController
                     if ( isset($additional_data['new_fieldtype']) )
                         $new_fieldtype = $additional_data['new_fieldtype'];
 
+                    /** @var DataFields $datafield */
                     $datafield = $repo_datafield->find($datafield_id);
                     if ($datafield == null)
                         continue;
@@ -414,7 +425,7 @@ class JobController extends ODRCustomController
 
             // --------------------
             // Determine user privileges
-            $user = $this->container->get('security.context')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Ensure user has permissions to be doing this
@@ -481,7 +492,7 @@ class JobController extends ODRCustomController
 
                 // --------------------
                 // Determine user privileges
-                $user = $this->container->get('security.context')->getToken()->getUser();
+                $user = $this->container->get('security.token_storage')->getToken()->getUser();
                 $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
                 // Ensure user has permissions to be doing this
@@ -522,12 +533,14 @@ class JobController extends ODRCustomController
 
         try {
             // Get necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
 
             // --------------------
             // Get datatype_id from tracked job data
+            /** @var TrackedJob $tracked_job */
             $tracked_job = $repo_tracked_job->find($job_id);
             if ($tracked_job !== null) {
 
@@ -544,20 +557,20 @@ class JobController extends ODRCustomController
                 // TODO - let child types have is_admin permission?
                 // Load the top-level parent, since the is_admin permission is used
                 $datatree_array = parent::getDatatreeArray($em);
-                while ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '')
-                    $datatype_id = $datatree_array['descendant_of'][$datatype_id];
+                $datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datatype_id);
 
 
                 // If the Datatype is deleted, there's no point to this job...skip the permissions check and delete it
+                /** @var DataType $datatype */
                 $datatype = $repo_datatype->find($datatype_id);
                 if ($datatype == null) {
-                    /* do nothing */
                     return parent::deletedEntityError('DataType');
                 }
                 else {
                     // --------------------
                     // Determine user privileges
-                    $user = $this->container->get('security.context')->getToken()->getUser();
+                    /** @var User $user */
+                    $user = $this->container->get('security.token_storage')->getToken()->getUser();
                     $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
                     // Ensure user has permissions to be doing this
@@ -588,5 +601,4 @@ class JobController extends ODRCustomController
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
-
 }

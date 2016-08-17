@@ -9,6 +9,7 @@
  *
  * The DataTree Entity is automatically generated from
  * ./Resources/config/doctrine/DataTree.orm.yml
+ *
  */
 
 namespace ODR\AdminBundle\Entity;
@@ -28,17 +29,12 @@ class DataTree
     /**
      * @var \DateTime
      */
-    private $deletedAt;
-
-    /**
-     * @var \DateTime
-     */
     private $created;
 
     /**
      * @var \DateTime
      */
-    private $updated;
+    private $deletedAt;
 
     /**
      * @var boolean
@@ -51,14 +47,14 @@ class DataTree
     private $multiple_allowed;
 
     /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     * @var \DateTime
      */
-    private $createdBy;
+    private $updated;
 
     /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     * @var \Doctrine\Common\Collections\Collection
      */
-    private $updatedBy;
+    private $dataTreeMeta;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataType
@@ -70,6 +66,28 @@ class DataTree
      */
     private $descendant;
 
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $createdBy;
+
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $deletedBy;
+
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $updatedBy;
+
+    /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        $this->dataTreeMeta = new \Doctrine\Common\Collections\ArrayCollection();
+    }
 
     /**
      * Get id
@@ -79,29 +97,6 @@ class DataTree
     public function getId()
     {
         return $this->id;
-    }
-
-    /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return DataTree
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
     }
 
     /**
@@ -128,30 +123,31 @@ class DataTree
     }
 
     /**
-     * Set updated
+     * Set deletedAt
      *
-     * @param \DateTime $updated
+     * @param \DateTime $deletedAt
      * @return DataTree
      */
-    public function setUpdated($updated)
+    public function setDeletedAt($deletedAt)
     {
-        $this->updated = $updated;
+        $this->deletedAt = $deletedAt;
 
         return $this;
     }
 
     /**
-     * Get updated
+     * Get deletedAt
      *
      * @return \DateTime 
      */
-    public function getUpdated()
+    public function getDeletedAt()
     {
-        return $this->updated;
+        return $this->deletedAt;
     }
 
     /**
      * Set is_link
+     * @deprecated
      *
      * @param boolean $isLink
      * @return DataTree
@@ -170,11 +166,12 @@ class DataTree
      */
     public function getIsLink()
     {
-        return $this->is_link;
+        return $this->getDataTreeMeta()->getIsLink();
     }
 
     /**
      * Set multiple_allowed
+     * @deprecated
      *
      * @param boolean $multipleAllowed
      * @return DataTree
@@ -193,53 +190,65 @@ class DataTree
      */
     public function getMultipleAllowed()
     {
-        return $this->multiple_allowed;
+        return $this->getDataTreeMeta()->getMultipleAllowed();
     }
 
     /**
-     * Set createdBy
+     * Set updated
+     * @deprecated
      *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
+     * @param \DateTime $updated
      * @return DataTree
      */
-    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
+    public function setUpdated($updated)
     {
-        $this->createdBy = $createdBy;
+        $this->updated = $updated;
 
         return $this;
     }
 
     /**
-     * Get createdBy
+     * Get updated
+     * @deprecated
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \DateTime 
      */
-    public function getCreatedBy()
+    public function getUpdated()
     {
-        return $this->createdBy;
+        return $this->updated;
     }
 
     /**
-     * Set updatedBy
+     * Add dataTreeMeta
      *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @param \ODR\AdminBundle\Entity\DataTreeMeta $dataTreeMeta
      * @return DataTree
      */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    public function addDataTreeMetum(\ODR\AdminBundle\Entity\DataTreeMeta $dataTreeMeta)
     {
-        $this->updatedBy = $updatedBy;
+        $this->dataTreeMeta[] = $dataTreeMeta;
 
         return $this;
     }
 
     /**
-     * Get updatedBy
+     * Remove dataTreeMeta
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @param \ODR\AdminBundle\Entity\DataTreeMeta $dataTreeMeta
      */
-    public function getUpdatedBy()
+    public function removeDataTreeMetum(\ODR\AdminBundle\Entity\DataTreeMeta $dataTreeMeta)
     {
-        return $this->updatedBy;
+        $this->dataTreeMeta->removeElement($dataTreeMeta);
+    }
+
+    /**
+     * Get dataTreeMeta
+     *
+     * @return \ODR\AdminBundle\Entity\DataTreeMeta
+     */
+    public function getDataTreeMeta()
+    {
+        return $this->dataTreeMeta->first();
     }
 
     /**
@@ -286,5 +295,98 @@ class DataTree
     public function getDescendant()
     {
         return $this->descendant;
+    }
+
+    /**
+     * Set createdBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
+     * @return DataTree
+     */
+    public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
+    {
+        $this->createdBy = $createdBy;
+
+        return $this;
+    }
+
+    /**
+     * Get createdBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getCreatedBy()
+    {
+        return $this->createdBy;
+    }
+
+    /**
+     * Set deletedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $deletedBy
+     * @return DataTree
+     */
+    public function setDeletedBy(\ODR\OpenRepository\UserBundle\Entity\User $deletedBy = null)
+    {
+        $this->deletedBy = $deletedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getDeletedBy()
+    {
+        return $this->deletedBy;
+    }
+
+    /**
+     * Set updatedBy
+     * @deprecated
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return DataTree
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     * @deprecated 
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
+    }
+
+    // ----------------------------------------
+    // TODO - delete these two functions
+    /**
+     * Get is_link original
+     *
+     * @return bool
+     */
+    public function getIsLinkOriginal()
+    {
+        return $this->is_link;
+    }
+
+    /**
+     * Get multiple_allowed original
+     *
+     * @return bool
+     */
+    public function getMultipleAllowedOriginal()
+    {
+        return $this->multiple_allowed;
     }
 }

@@ -9,5 +9,5 @@
     rewriteRule ^(.*)$ app.php [QSA,L]
 </IfModule>
 
-php_flag xdebug.profiler_enable 0 
+#php_flag xdebug.profiler_enable 0 
 #php_flag apc.stat 0 

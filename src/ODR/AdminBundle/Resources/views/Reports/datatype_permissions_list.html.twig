@@ -1,0 +1,64 @@
+{% spaceless %}
+
+<div class="ODRFormWrap">
+
+{% if all_permissions|length == 0 %}
+    <h1>
+        Only Super-Admins currently have permissions for this Datatype
+    </h1>
+{% else %}
+    <h1>
+        Permissions of all users able to view this Datatype
+    </h1>
+    <div id="ODRUserList">
+        <label for="user_select">User: </label>
+        <select id="user_select">
+            {% for user_id,data in all_permissions %}
+                <option id="user_{{ user_id }}">{{ data.user.getuserstring }}</option>
+            {% endfor %}
+        </select>
+        <span class="pure-button" style="margin-left:15px" onclick="editPermissions();">
+            Edit user permissions
+        </span>
+    </div>
+
+    {% for user_id,data in all_permissions %}
+        {% set user_permissions = data.permissions %}
+        {% include 'ODRAdminBundle:Reports:datatype_permissions_user.html.twig' with {'all_datatypes': all_datatypes, 'user_id': user_id, 'user_permissions': user_permissions} %}
+    {% endfor %}
+{% endif %}
+</div>
+
+<style type="text/css">
+    .ODRFormWrap {
+        padding-top: 25px;
+    }
+</style>
+
+<script>
+    $(function() {
+        $(".ODRUserPermissionDiv").hide().first().show();
+
+        $("#user_select").unbind('change').change(function() {
+            var data = $(this).children('option:selected').attr('id').split('_');
+            var user_id = data[1];
+
+            $(".ODRUserPermissionDiv").hide();
+            $("#ODRUser_" + user_id + "_div").show();
+        });
+    });
+
+    function editPermissions() {
+        var selected_user = $("#user_select").children('option:selected').attr('id').split('_');
+        var selected_user_id = selected_user[1];
+
+        var url  = '{{ path('odr_manage_user_permissions', {'user_id': 0} ) }}';
+        url = url.substring(0,(url.length - 1)) + selected_user_id;
+
+//alert(url);
+//return;
+
+        UpdateURL(url);
+    }
+</script>
+{% endspaceless %}

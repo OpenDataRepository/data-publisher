@@ -19,6 +19,8 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataType;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -33,13 +35,15 @@ class DefaultController extends ODRCustomController
     * 
     * @param Request $request
     * 
-    * @return a Symfony HTML response TODO
+    * @return Response
     */
     public function indexAction(Request $request)
     {
         // Grab the current user
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $user = $this->container->get('security.context')->getToken()->getUser();
+        /** @var User $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
         $user_permissions = array();
         if ($user !== 'anon.') {
@@ -67,18 +71,18 @@ class DefaultController extends ODRCustomController
 
             $top_level_datatypes = parent::getTopLevelDatatypes();
 
-            $em = $this->getDoctrine()->getManager();
             $query = $em->createQuery(
                'SELECT dt, up.can_view_type AS can_view_type
                 FROM ODRAdminBundle:DataType AS dt
                 JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
-                WHERE up.user_id = :user AND dt IN (:datatypes)'
-            )->setParameters( array('user' => $user->getId(), 'datatypes' => $top_level_datatypes) );
+                WHERE up.user = :user_id AND dt IN (:datatypes)
+                AND dt.deletedAt IS NULL'
+            )->setParameters( array('user_id' => $user->getId(), 'datatypes' => $top_level_datatypes) );
             $results = $query->getResult();
 
             foreach ($results as $num => $result) {
+                /** @var DataType $datatype */
                 $datatype = $result[0];
-                $datatype_id = $datatype->getId();
                 $can_view_type = $result['can_view_type'];
 
                 // Locate first top-level datatype that either is public or viewable by the user logging in
@@ -89,7 +93,6 @@ class DefaultController extends ODRCustomController
             }
         }
 
-
         $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
@@ -99,7 +102,7 @@ class DefaultController extends ODRCustomController
     * 
     * @param Request $request
     * 
-    * @return TODO
+    * @return Response
     */
     public function dashboardAction(Request $request)
     {
@@ -110,14 +113,17 @@ class DefaultController extends ODRCustomController
 
         try {
             // Ensure user has correct set of permissions, since this is immediately called after login...
+            /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $user = $this->container->get('security.context')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
             // Grab the cached graph data
-            $memcached = $this->get('memcached');
-            $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-            $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Only want to create dashboard html graphs for top-level datatypes...
             $datatypes = parent::getTopLevelDatatypes();
@@ -128,19 +134,19 @@ class DefaultController extends ODRCustomController
             $dashboard_graphs = array();
             foreach ($datatypes as $num => $datatype_id) {
                 // Don't display dashboard stuff that the user doesn't have permission to see
-               if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'view' ])) ) {
+                if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'view' ])) ) {
 //print 'no permissions for datatype '.$datatype_id."\n";
                     continue;
                 }
 
-                $data = $memcached->get($memcached_prefix.'.dashboard_'.$datatype_id);
-
                 // No caching in dev environment
+                $bypass_cache = false;
                 if ($this->container->getParameter('kernel.environment') === 'dev')
-                    $data = null;
+                    $bypass_cache = true;
 
-                if ($data == null)
-                    $data = self::getDashboardHTML($datatype_id);
+                $data = parent::getRedisData(($redis->get($redis_prefix.'.dashboard_'.$datatype_id)));
+                if ($data == false || $bypass_cache)
+                    $data = self::getDashboardHTML($em, $datatype_id);
 
                 $total = $data['total'];
                 $header = $data['header'];
@@ -192,20 +198,23 @@ class DefaultController extends ODRCustomController
 
 
     /**
-    * Recalculates the dashboard blurb for a specified datatype.
-    * 
-    * @param integer $datatype_id Which datatype is having its dashboard blurb rebuilt.
-    * 
-    * @return array TODO
-    */
-    private function getDashboardHTML($datatype_id)
+     * Recalculates the dashboard blurb for a specified datatype.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $datatype_id             Which datatype is having its dashboard blurb rebuilt.
+     *
+     * @return array
+     */
+    private function getDashboardHTML($em, $datatype_id)
     {
-        // Grab necessary objects...
-        $em = $this->getDoctrine()->getManager();
+        /** @var DataType $datatype */
+        $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+        $datatype_name = $datatype->getShortName();
 
-        $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted rows
+        // Temporarily disable the code that prevents the following query from returning deleted rows
+        $em->getFilters()->disable('softdeleteable');
         $query = $em->createQuery(
-           'SELECT dt.shortName AS datatype_name, dr.id AS datarecord_id, dr.created AS created, dr.deletedAt AS deleted, dr.updated AS updated
+           'SELECT dr.id AS datarecord_id, dr.created AS created, dr.deletedAt AS deleted, dr.updated AS updated
             FROM ODRAdminBundle:DataRecord AS dr
             JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
             WHERE dr.dataType = :datatype AND dr.provisioned = false'
@@ -213,10 +222,9 @@ class DefaultController extends ODRCustomController
         $results = $query->getArrayResult();
         $em->getFilters()->enable('softdeleteable');    // Re-enable it
 
-//print_r($results);
 
         // Build the array of date objects so datarecords created/deleted in the past 6 weeks can be counted
-        $current_date = new \DateTime();
+//        $current_date = new \DateTime();
         $cutoff_dates = array();
         for ($i = 1; $i < 7; $i++) {
             $tmp_date = new \DateTime();
@@ -225,12 +233,8 @@ class DefaultController extends ODRCustomController
             $cutoff_dates[($i-1)] = $tmp_date->sub(new \DateInterval($str));
         }
 
-        $datatype_name = '';
         $total_datarecords = 0;
         $values = array();
-        $created_str = '';
-        $updated_str = '';
-        $value_str = '';
 
         //
         $values['created'] = array();
@@ -242,9 +246,7 @@ class DefaultController extends ODRCustomController
 
         // 
         foreach ($results as $num => $result) {
-            $datatype_name = $result['datatype_name'];
-
-            $datarecord_id = $result['datarecord_id'];
+//            $datarecord_id = $result['datarecord_id'];
             $create_date = $result['created'];
             $delete_date = $result['deleted'];
             if ($delete_date == '')
@@ -306,6 +308,7 @@ class DefaultController extends ODRCustomController
             $value_str .= ','.$created[$i].':'.$updated[$i];
         }
 
+        $created_str = '';
         if ( $total_created < 0 )
             $created_str = abs($total_created).' deleted';
         else
@@ -313,11 +316,6 @@ class DefaultController extends ODRCustomController
 
         $updated_str = $total_updated.' modified';
 
-        // Ensure a dataype with no datarecords still has a name
-        if ( count($results) == 0 ) {
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            $datatype_name = $datatype->getShortName();
-        }
 
         // Render the actual html
         $templating = $this->get('templating');
@@ -346,12 +344,15 @@ class DefaultController extends ODRCustomController
         );
 
         // Grab memcached stuff
-        $memcached = $this->get('memcached');
-        $memcached->setOption(\Memcached::OPT_COMPRESSION, true);
-        $memcached_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         // Store the dashboard data in memcached
-        $memcached->set($memcached_prefix.'.dashboard_'.$datatype_id, $data, 1*24*60*60); // Cache this dashboard entry for upwards of one day
+        // TODO Figure out how to set an lifetime using PREDIS
+        $redis->set($redis_prefix.'.dashboard_'.$datatype_id, gzcompress(serialize($data))); // Cache this dashboard entry for upwards of one day
+        $redis->expire($redis_prefix.'.dashboard_'.$datatype_id, 1*24*60*60); // Cache this dashboard entry for upwards of one day
+        // $redis->set($redis_prefix.'.dashboard_'.$datatype_id, gzcompress(serialize($data)), 1*24*60*60); // Cache this dashboard entry for upwards of one day
 
         // 
         return $data;
@@ -363,10 +364,11 @@ class DefaultController extends ODRCustomController
     * 
     * @param Request $request
     * 
-    * @return TODO
+    * @return Response TODO
     */
     public function buildsitemapAction(Request $request)
     {
+/*
         $return = array();
         $return['r'] = 0;
         $return['t'] = '';
@@ -515,7 +517,7 @@ class DefaultController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
+*/
     }
 
 }

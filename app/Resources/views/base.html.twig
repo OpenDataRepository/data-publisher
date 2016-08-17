@@ -9,12 +9,11 @@
 <head>
     <meta charset="utf-8">
 
+    <!-- <link rel="dns-prefetch" href="http://cdnjs.cloudflare.com" />
     <link rel="dns-prefetch" href="http://fonts.googleapis.com" />
     <link rel="dns-prefetch" href="http://themes.googleusercontent.com" />
-    
     <link rel="dns-prefetch" href="http://ajax.googleapis.com" />
-    <link rel="dns-prefetch" href="http://cdnjs.cloudflare.com" />
-    <link rel="dns-prefetch" href="http://agorbatchev.typepad.com" />
+    <link rel="dns-prefetch" href="http://agorbatchev.typepad.com" /> -->
     
     <!-- Use the .htaccess and remove these lines to avoid edge case issues.  More info: h5bp.com/b/378 -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
@@ -47,16 +46,20 @@
     <!-- External Styles -->
     <link rel="stylesheet" href="/css/external/jquery-ui-1.8.21.custom.css">
     <link rel="stylesheet" href="/css/external/jquery.jgrowl.css">
-    <link rel="stylesheet" href="/css/external/jquery.dataTables.css">
+    <!-- <link rel="stylesheet" href="/css/external/jquery.dataTables.css"> -->
+    <link rel="stylesheet" href="/js/mylibs/jquery_datatables/datatables.min.css">
 
     <!-- Symfony Stylesheets -->
     <link href="/css/pure_odr_custom.css" type="text/css" rel="stylesheet"> 
-    <link href="/css/custom.css" type="text/css" rel="stylesheet" />
-    {% block stylesheets %}{% endblock %}
-    
+    <link href="/css/custom.css" type="text/css" rel="stylesheet" /> 
+
     <!-- NVD3 StyleSheet -->
     <link rel="stylesheet" href="/js/mylibs/nvd3/nv.d3.css">
-    
+
+    <!-- Theme CSS -->
+    <link rel="stylesheet" href="/css/themes/css_smart/style.css" >
+    <!-- TODO Use Stylsheets block to load theme -->
+    {% block stylesheets %}{% endblock %}
 
     <!-- Scripts -->
     <script defer async src="https://ajax.googleapis.com/ajax/libs/webfont/1.0.28/webfont.js"></script>
@@ -79,10 +82,10 @@
     <script>window.jQuery.ui || document.write('<script src="/js/libs/jquery-ui-1.8.21.js"><\/script>')</script>
     
     <!-- Do the same with Lo-Dash.js -->
-    <!--[if gt IE 8]><!-->
+    <!--[if gt IE 8]>
         <script src="http://cdnjs.cloudflare.com/ajax/libs/lodash.js/0.4.2/lodash.js"></script>
         <script>window._ || document.write('<script src="/js/libs/lo-dash.js"><\/script>')</script>
-    <!--<![endif]-->
+    <![endif]-->
     <!-- IE8 doesn't like lodash -->
     <!--[if lt IE 9]><script src="http://documentcloud.github.com/underscore/underscore.js"></script><![endif]-->
     
@@ -122,9 +125,10 @@
     <script src="/js/mylibs/fullstats/jquery.sparkline.js"></script>
     
     <!-- Dynamic Tables -->
-    <script src="/js/mylibs/dynamic-tables/jquery.dataTables.js"></script>
+    <!-- <script src="/js/mylibs/dynamic-tables/jquery.dataTables.js"></script>
     <script src="/js/mylibs/dynamic-tables/jquery.dataTables.tableTools.zeroClipboard.js"></script>
-    <script src="/js/mylibs/dynamic-tables/jquery.dataTables.tableTools.js"></script>
+    <script src="/js/mylibs/dynamic-tables/jquery.dataTables.tableTools.js"></script> -->
+    <script src="/js/mylibs/jquery_datatables/datatables.min.js"></script>
 
     <!-- Tooltips -->
     <script src="/js/mylibs/tooltips/jquery.tipsy.js"></script>
@@ -159,10 +163,28 @@
     <!-- The toolbar at the top -->
     <section id="toolbar" class="pure-form pure-g">
 
-        <div class="pure-u-md-1-24"></div>
-        <div class="pure-u-1 pure-u-md-22-24">
+        <div class="pure-u-1 pure-u-md-23-24">
             <span class="ODRMenuLeft pure-menu pure-menu-open pure-menu-horizontal">
                 <ul>
+    {% if use_navigation_block == true %}
+        <!-- The container of the sidebar and content box -->
+        <!-- The sidebar -->
+        <li tabindex="0" id="ODRNavWrapper"><i title="menu" class="fa fa-bars Pointer" onclick="jQuery('#ODRNav').toggle()"></i>
+            <div id="ODRNav">
+                <div id="ODRMenuLabel">tap an option or the <i class="fa fa-bars"></i>&nbsp; icon to close</div>
+                <div class="top">
+                    <!-- Navigation -->
+                    {% block navigation_top %}
+                    {% endblock %}
+                </div><!-- End of .top -->
+{#
+                {% block navigation_bottom %}
+                {% endblock %}
+#}
+            </div>
+        
+        </li><!-- End of sidebar -->
+    {% endif %}
                 {% if header_left_title != '' %}
                     <li><a class="pure-button" href="{{ header_left_path }}">{{ header_left_title }}</a></li>
                 {% endif %}
@@ -188,22 +210,6 @@
     
     {% if use_navigation_block == true %}
         <!-- The container of the sidebar and content box -->
-        <!-- The sidebar -->
-        <aside id="ODRNavWrapper">
-            <div id="ODRNav">
-                <div id="ODRMenuLabel">menu</div>
-                <div class="top">
-                    <!-- Navigation -->
-                    {% block navigation_top %}
-                    {% endblock %}
-                </div><!-- End of .top -->
-{#
-                {% block navigation_bottom %}
-                {% endblock %}
-#}
-            </div>
-        
-        </aside><!-- End of sidebar -->
         <!-- The Properties sidebar -->
         <aside id="ODRNavRightWrapper">
             <div id="ODRNavRight" class="NavSlideOut">
@@ -229,7 +235,7 @@
     <footer class="pure-u-1">
         <span class="ODRMenuRight pure-menu pure-menu-open pure-menu-horizontal">
             <ul>
-                <li><a style="padding: 0px 4px 0px 4px;" href="http://www.opendatarepository.org"><img src="/images/ODR_Logo_Final.svg" style="height: 32px;" alt="Open Data Repository" /></a></li>
+                <li><a class="ODRLogoImage" href="http://www.opendatarepository.org"><img src="/images/ODR_Logo_Final.svg" alt="Open Data Repository" /></a></li>
                 <li><a href="http://www.opendatarepository.org/about">About</a></li>
                 <li>&nbsp;&nbsp;&nbsp;</li>
                 <li>&copy; 2014&nbsp;&nbsp;</li>

@@ -1,0 +1,47 @@
+{% spaceless %}
+
+{% set derivative_theme = datatype_array[initial_datatype_id]['themes'][target_theme_id] %}
+{% set derivative_themetype = 'Derivative' %}
+{% if derivative_theme.themeType == 'search_results' %}
+    {% set derivative_themetype = 'Search Results' %}
+{% elseif derivative_theme.themeType == 'table' %}
+    {% set derivative_themetype = 'Table' %}
+{% endif %}
+
+<input type="hidden" id="master_theme_id" value="{{ master_theme_id }}" />
+<input type="hidden" id="target_theme_id" value="{{ target_theme_id }}" />
+<input type="hidden" id="target_theme_type" value="{{ derivative_themetype }}" />
+
+<div class="ODRAccordionWrapper ODRFormAccordion ODRThemeListContentHeader Pointer pure-u-23-24">
+    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <span style="float: right;"><i class="fa fa-lg fa-caret-up"></i></span>
+        <a>Master Theme Layout</a>
+    </h3>
+</div>
+<div id="ODRThemeListDesign_master" class="pure-u-23-24" style="padding-bottom:30px;">
+    {% include 'ODRAdminBundle:Theme:theme_area.html.twig' with {
+        'datatype_array': datatype_array,
+        'initial_datatype_id': initial_datatype_id,
+
+        'theme_id': master_theme_id,
+        'target_themetype': derivative_theme.themeType,
+    } %}
+</div>
+
+<div class="ODRAccordionWrapper ODRFormAccordion ODRThemeListContentHeader Pointer pure-u-23-24">
+    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <span style="float: right;"><i class="fa fa-lg fa-caret-down"></i></span>
+        <a>{{ derivative_themetype }} Theme Layout</a>
+    </h3>
+</div>
+<div id="ODRThemeListDesign_derivative" class="pure-u-23-24" style="padding-bottom:30px;">
+    {% include 'ODRAdminBundle:Theme:theme_area.html.twig' with {
+        'datatype_array': datatype_array,
+        'initial_datatype_id': initial_datatype_id,
+
+        'theme_id': target_theme_id,
+        'target_themetype': derivative_theme.themeType,
+    } %}
+</div>
+
+{% endspaceless %}

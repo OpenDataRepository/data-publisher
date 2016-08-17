@@ -1,150 +1,136 @@
 <?php 
 
 /**
-* Open Data Repository Data Publisher
-* Comments Plugin
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The comments plugin takes a specially designed child datatypes
-* and collapses multiple datarecords of this child datatype into
-* an html table, sorted by the date each child datarecord was
-* created.
-*
-*/
+ * Open Data Repository Data Publisher
+ * Comments Plugin
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The comments plugin takes a specially designed child datatypes
+ * and collapses multiple datarecords of this child datatype into
+ * an html table, sorted by the date each child datarecord was
+ * created.
+ *
+ */
 
-//  ODR/AdminBundle/Twig/GraphExtension.php;
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
-// use Symfony\Component\DependencyInjection\ContainerInterface as Container;
-use Doctrine\ORM\EntityManger;
-use Symfony\Component\Templating\EngineInterface;
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeElementField;
-use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RenderPluginInstance;
-use ODR\AdminBundle\Entity\RenderPluginMap;
-use ODR\AdminBundle\Entity\RenderPluginOptions;
-use ODR\AdminBundle\Form\DatafieldsForm;
-use ODR\AdminBundle\Form\DatatypeForm;
-use ODR\AdminBundle\Form\UpdateDataFieldsForm;
-use ODR\AdminBundle\Form\UpdateDataTypeForm;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 
-/**
- * TODO: short description.
- * 
- * TODO: long description.
- * 
- */
 class CommentPlugin
 {
     /**
-     * TODO: description.
-     * 
      * @var mixed
      */
-    private $container;
+    private $templating;
+
 
     /**
-     * TODO: description.
+     * CommentPlugin constructor.
      *
-     * @var mixed
+     * @param $templating
      */
-    private $session;
-
-    /**
-     * TODO: description.
-     * 
-     * @var mixed
-     */
-    private $entityManager;
-
-    /**
-     * TODO: short description.
-     * 
-     * @param Container $container 
-     * 
-     * @return TODO
-     */
-    public function __construct($entityManager, $templating, $session) {
-        $this->em = $entityManager;
+    public function __construct($templating) {
         $this->templating = $templating;
-        $this->session = $session;
     }
 
+
     /**
-     * TODO - 
+     * Executes the Graph Plugin on the provided datarecords
      *
-     * @param mixed $obj
-     * @param RenderPlugin $render_plugin
-     * @param boolean $public_only If true, don't render non-public items...if false, render everything
+     * @param array $datarecords
+     * @param array $datatype
+     * @param array $render_plugin
+     * @param array $theme
+     * @param array $rendering_options
      *
+     * @return string
+     * @throws \Exception
      */
-    public function execute($obj, $render_plugin, $public_only = false)
+    public function execute($datarecords, $datatype, $render_plugin, $theme, $rendering_options)
     {
 
         try {
-            $em = $this->em;
-            $repo_render_plugin_instance = $em->getRepository('ODRAdminBundle:RenderPluginInstance');
-            $repo_render_plugin_map = $em->getRepository('ODRAdminBundle:RenderPluginMap');
-            $repo_render_plugin_fields = $em->getRepository('ODRAdminBundle:RenderPluginFields');
-            $repo_render_plugin_options = $em->getRepository('ODRAdminBundle:RenderPluginOptions');
 
-            $render_plugin_fields = $repo_render_plugin_fields->findBy( array('renderPlugin' => $render_plugin) );
+//            $str = '<pre>'.print_r($datarecords, true)."\n".print_r($datatype, true)."\n".print_r($render_plugin, true)."\n".print_r($theme, true).'</pre>';
+//            throw new \Exception($str);
 
-            // If an array is passed, use the first element.
-            // This is a "child override" plugin instance
-            $drc_group = array();
-            if(is_array($obj)) {
-                $drc_group = $obj;
-                $obj = $obj[0];
-            }
 
-            $render_plugin_instance = $repo_render_plugin_instance->findOneBy( array('renderPlugin' => $render_plugin, 'dataType' => $obj->getDataType()) );
-            $render_plugin_map = $repo_render_plugin_map->findBy( array('renderPluginInstance' => $render_plugin_instance, 'dataType' => $obj->getDataType()) );
-            $render_plugin_options = $repo_render_plugin_options->findBy( array('renderPluginInstance' => $render_plugin_instance) );
+            // ----------------------------------------
+            // Grab various properties from the render plugin array
+            $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
+            $render_plugin_map = $render_plugin_instance['renderPluginMap'];
+            $render_plugin_options = $render_plugin_instance['renderPluginOptions'];
 
-            // Remap Options
-            $plugin_options = array();
+            // Remap render plugin by name => value
+            $options = array();
             foreach($render_plugin_options as $option) {
-                if($option->getActive()) {
-                    $plugin_options[$option->getOptionName()] = $option->getOptionValue();
-                }
+                if ( $option['active'] == 1 )
+                    $options[ $option['optionName'] ] = $option['optionValue'];
             }
 
-            // ...more 'child override' stuff...
-            $childtype_id = "";
-            if(count($drc_group) == 0) {
-                array_push($drc_group, $obj);
-            }
+            // Retrieve mapping between datafields and render plugin fields
+            $datafield_mapping = array();
+            foreach ($render_plugin_map as $rpm) {
+                // Get the entities connected by the render_plugin_map entity??
+                $rpf = $rpm['renderPluginFields'];
+                $df_id = $rpm['dataField']['id'];
 
-            // Map Fields
-            $count = 0;
-            $comments = array();
-            $datatype = null;
-            foreach ($drc_group as $datarecordchild) {
-                if ($datatype == null)
-                    $datatype = $datarecordchild->getDataType();
-                // 
-                foreach ($render_plugin_map as $rpm) {
-                    // Locate the correct DataRecordField entities for each of the required RenderPluginField entries
-                    foreach ($datarecordchild->getDataRecordFields() as $drf) {
-                        if ($drf->getDataField()->getId() == $rpm->getDataField()->getId()) {
-                            // Use the date the entity was last modified as a sorting key
-                            $count++;
-                            $date = $drf->getAssociatedEntity()->getUpdated()->format('Y-m-d');
-                            $comments[$date.'_'.$count] = $drf;
+                // Want the full-fledged datafield entry...the one in $rpm['dataField'] has no render plugin or meta data
+                // Unfortunately, the desired one is buried inside the $theme array somewhere...
+                $df = null;
+                foreach ($theme['themeElements'] as $te) {
+                    if ( isset($te['themeDataFields']) ) {
+                        foreach ($te['themeDataFields'] as $tdf) {
+                            if ( isset($tdf['dataField']) && $tdf['dataField']['id'] == $df_id ) {
+                                $df = $tdf['dataField'];
+                                break;
+                            }
                         }
                     }
+
+                    if ($df !== null)
+                        break;
+                }
+
+                if ($df == null)
+                    throw new \Exception('Unable to locate array entry for the field "'.$rpf['fieldName'].'", mapped to df_id '.$df_id);
+
+                // Grab the fieldname specified in the plugin's config file to use as an array key
+                $key = strtolower( str_replace(' ', '_', $rpf['fieldName']) );
+
+                $datafield_mapping[$key] = array('datafield' => $df, 'render_plugin' => $df['dataFieldMeta']['renderPlugin']);
+            }
+
+//            throw new \Exception( '<pre>'.print_r($datafield_mapping, true).'</pre>' );
+
+            // ----------------------------------------
+            // For each datarecord that has been passed to this plugin, locate the associated comments field
+            $comments = array();
+            $count = 0;
+            foreach ($datarecords as $dr_id => $dr) {
+                $comment_datafield_id = $datafield_mapping['comment']['datafield']['id'];
+                $comment_datafield_typeclass = $datafield_mapping['comment']['datafield']['dataFieldMeta']['fieldType']['typeClass'];
+
+                if ( isset($dr['dataRecordFields'][$comment_datafield_id]) ) {
+                    $entity = array();
+                    $drf = $dr['dataRecordFields'][$comment_datafield_id];
+                    switch ($comment_datafield_typeclass) {
+                        case 'LongText':
+                            $entity = $drf['longText'];
+                            break;
+
+                        default:
+                            throw new \Exception('Invalid Fieldtype for comment');
+                            break;
+                    }
+
+                    // Grab the comment text and when it was made
+                    $date = $entity[0]['created'];
+                    $date = $date->format('Y-m-d H:i:s');
+
+                    $count++;
+                    $comments[$date.'_'.$count] = array('datarecord' => $dr, 'entity' => $entity[0]);
                 }
             }
 
@@ -152,26 +138,32 @@ class CommentPlugin
             if ( count($comments) > 1 )
                 krsort($comments);
 
-            // Attempt to get whether somebody is logged in...
-            $public_only = false;
-
-            $user_permissions = $this->session->get('permissions');
-            if ( $user_permissions == '' )  // when user not logged in, getting permissions results in an empty string it seems
-                $public_only = true;
-
             $output = $this->templating->render(
                 'ODROpenRepositoryGraphBundle:Comments:comments.html.twig', 
                 array(
+                    'datatype_array' => $datatype,
+                    'datarecord_array' => $datarecords,
+                    'mapping' => $datafield_mapping,
+
+                    'target_datatype_id' => $datatype['id'],
+/*
                     'shortname' => $datatype->getShortName(),
                     'comments' => $comments,
                     'public_only' => $public_only,
+*/
                 )
             );
 
             return $output;
         }
         catch (\Exception $e) {
-            return "<h2>An Exception Occurred</h2><p>" . $e->getMessage() . "</p>";
+            $output = $this->templating->render(
+                'ODROpenRepositoryGraphBundle:Default:default_error.html.twig',
+                array(
+                    'message' => $e->getMessage()
+                )
+            );
+            throw new \Exception( $output );
         }
     }
 

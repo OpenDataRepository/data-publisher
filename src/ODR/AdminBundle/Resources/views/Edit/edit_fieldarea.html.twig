@@ -1,0 +1,123 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = datatype.themes[theme_id] %}
+{% set datarecord = datarecord_array[target_datarecord_id] %}
+
+{% set can_edit_record = 0 %}
+{% set can_add_record = 0 %}
+{% set can_delete_record = 0 %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'edit' ] is defined %}
+    {% set can_edit_record = 1 %}
+{% endif %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'add' ] is defined %}
+    {% set can_add_record = 1 %}
+{% endif %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'delete' ] is defined %}
+    {% set can_delete_record = 1 %}
+{% endif %}
+
+
+{% if is_top_level == 0 and (display_type == 1 or display_type == 2) %}    {# tabbed or dropdown display_type #}
+    <div id="DataTypeTools_{{ datarecord.id }}" class="DataTypeTools pure-u-1">
+        <span style="float: right;" rel="{{ datatype.id }}">
+            <i id="datarecord_{{ datarecord.id }}_public" class="fa fa-globe {% if not datarecord.dataRecordMeta.publicDate|is_public %}IconRed{% endif %} {% if is_link == 0 and can_edit_record == 1 %}Pointer tooltip ODRPublicChildRecord{% endif %}" title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}"></i>
+
+        {% if is_link == 0 and can_delete_record == 1 %}
+            <i class="Pointer tooltip fa fa-times ODRDeleteChildRecord" title="Delete Child Record" rel="{{ datarecord.id }}"></i>
+        {% endif %}
+        </span>
+    </div>
+{% endif %}
+
+
+{% for theme_element in theme.themeElements %}
+
+    <div class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
+    <div class="ODRInnerBox">
+
+    {% if theme_element.themeDataFields is defined %}
+        {% for theme_datafield in theme_element.themeDataFields %}
+            {% if theme_datafield.dataField is not defined %}
+                <div class="pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"></div>    {# user doesn't have permissions to see this datafield #}
+            {% else %}
+
+                {% set datafield = theme_datafield.dataField %}
+
+                {% set can_edit_datafield = 0 %}
+                {% if datafield_permissions[ datafield.id ] is defined and datafield_permissions[ datafield.id ][ 'edit' ] is defined %}
+                    {% set can_edit_datafield = 1 %}
+                {% endif %}
+
+                <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}">
+
+                {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
+                    {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
+                {% elseif is_link == 0 and can_edit_datafield == 1 %}
+                    {% include 'ODRAdminBundle:Edit:edit_datafield.html.twig' with {
+                        'datatype': datatype,
+                        'datarecord': datarecord,
+                        'datafield': datafield,
+
+                        'force_image_reload' : false,
+
+                        'token_list': token_list,
+                    } %}
+                {% else %}
+                    {# datafield from a linked datatype, or user isn't allowed to edit datafield#}
+                    {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
+                        'datarecord': datarecord,
+                        'datafield': datafield,
+
+                        'image_thumbnails_only': false,
+                    } %}
+                {% endif %}
+
+                </div><!-- End of #Field_{{ datarecord.id }}_{{ datafield.id }} -->
+            {% endif %}
+        {% endfor %}
+
+    {% elseif theme_element.themeDataType is defined %}
+        {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
+            {% set child_datatype = theme_datatype.dataType %}
+
+            {% if datatype_array[ child_datatype.id ] is defined %}
+                {% set child_theme_id = 0 %}
+                {% for theme in datatype_array[ child_datatype.id ].themes %}
+                    {% if theme.themeType == 'master' %}
+                        {% set child_theme_id = theme.id %}
+                    {% endif %}
+                {% endfor %}
+
+                {% include 'ODRAdminBundle:Edit:edit_fieldarea_childtype.html.twig' with {
+                    'datatype_array': datatype_array,
+                    'datarecord_array': datarecord_array,
+                    'theme_id': child_theme_id,
+
+                    'target_datatype_id': child_datatype.id,
+                    'parent_datarecord_id': datarecord.id,
+
+                    'datatype_permissions': datatype_permissions,
+                    'datafield_permissions': datafield_permissions,
+
+                    'can_add_record': can_add_record,
+                    'can_edit_record': can_edit_record,
+
+                    'is_top_level': 0,
+                    'is_link': theme_datatype.is_link,
+                    'display_type': theme_datatype.display_type,
+                    'multiple_allowed': theme_datatype.multiple_allowed,
+
+                    'token_list': token_list,
+                } %}
+            {% endif %}
+        {% endfor %}
+
+    {% endif %}
+
+    </div><!-- End of .ODRInnerBox -->
+    </div><!-- End of .ThemeElement -->
+
+{% endfor %}
+
+{% endspaceless %}

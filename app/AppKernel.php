@@ -31,6 +31,7 @@ class AppKernel extends Kernel
 //            new ODR\OpenRepository\jpGraphBundle\jpGraphBundle(),
             new dterranova\Bundle\CryptoBundle\dterranovaCryptoBundle(),
             new Knp\Bundle\MarkdownBundle\KnpMarkdownBundle(),
+            new Snc\RedisBundle\SncRedisBundle(),
         );
 
         if (in_array($this->getEnvironment(), array('dev', 'test'))) {

@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\ThemeDataField:
     type: entity
     table: odr_theme_data_field
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -13,43 +13,39 @@ ODR\AdminBundle\Entity\ThemeDataField:
             nullable: false
             generator:
                 strategy: IDENTITY
-        templateType:
-            type: string
-            length: 45
-            fixed: false
-            nullable: false
-            column: template_type
-            gedmo:
-                - versioned
-        css:
-            type: text
-            nullable: true
-            gedmo:
-                - versioned
-        active:
-            type: boolean
-            nullable: false
-            default: true
-            column: active
-            gedmo:
-                - versioned
 
-        cssWidthXL:
-            type: string
-            length: 32
-            gedmo:
-                - versioned
+#        templateType:
+#            type: string
+#            length: 45
+#            fixed: false
+#            nullable: false
+#            column: template_type
+#            gedmo:
+#                - versioned
+#        css:
+#            type: text
+#            nullable: true
+#            gedmo:
+#                - versioned
+
+        displayOrder:
+            type: integer
+            nullable: false
+            column: display_order
+#            gedmo:
+#                - versioned
+
         cssWidthMed:
             type: string
             length: 32
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
+        cssWidthXL:
+            type: string
+            length: 32
+#            gedmo:
+#                - versioned
 
-        deletedAt:
-            type: date
-            nullable: true
-            gedmo:
-                - versioned
         created:
             type: datetime
             gedmo:
@@ -60,31 +56,48 @@ ODR\AdminBundle\Entity\ThemeDataField:
             gedmo:
                 timestampable:
                     on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
+
+
+        #TODO - delete the following property
+        active:
+            type: boolean
+            nullable: false
+            default: true
+            column: active
+#            gedmo:
+#                - versioned
+
     manyToOne:
-        dataFields:
+        dataField:
             targetEntity: DataFields
             cascade: {  }
             mappedBy: null
-            inversedBy: themeDataField
+            inversedBy: themeDataFields
             joinColumns:
-                data_fields_id:
+                data_field_id:
                     nullable: false
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
-        theme:
-            targetEntity: Theme
+#            gedmo:
+#                - versioned
+
+        themeElement:
+            targetEntity: ThemeElement
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: themeDataFields
             joinColumns:
-                theme_id:
-                    nullable: false
+                theme_element_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -106,9 +119,36 @@ ODR\AdminBundle\Entity\ThemeDataField:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#               - versioned
 #            gedmo:
 #                blameable:
 #                    on: update
+        deletedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                deletedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+
+        #TODO - delete the following property
+        theme:
+            targetEntity: Theme
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                theme_id:
+                    nullable: false
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
     lifecycleCallbacks: {  }

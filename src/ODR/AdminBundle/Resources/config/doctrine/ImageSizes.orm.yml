@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\ImageSizes:
     type: entity
     table: odr_image_sizes
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -17,65 +17,65 @@ ODR\AdminBundle\Entity\ImageSizes:
             type: integer
             unsigned: false
             nullable: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         height:
             type: integer
             unsigned: false
             nullable: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         minWidth:
             type: integer
             unsigned: false
             nullable: true
             column: min_width
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         minHeight:
             type: integer
             unsigned: false
             nullable: true
             column: min_height
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         maxWidth:
             type: integer
             unsigned: false
             nullable: true
             column: max_width
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         maxHeight:
             type: integer
             unsigned: false
             nullable: true
             column: max_height
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         size_constraint:
             type: string
             length: 24
             nullable: true
             column: size_constraint
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         original:
             type: boolean
             nullable: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         imagetype:
             type: string
             length: 24 
             nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         deletedAt:
             type: date
             nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         created:
             type: datetime
             gedmo:
@@ -96,8 +96,8 @@ ODR\AdminBundle\Entity\ImageSizes:
                 field_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         dataFields:
             targetEntity: DataFields
             cascade: {  }
@@ -107,8 +107,8 @@ ODR\AdminBundle\Entity\ImageSizes:
                 data_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -130,8 +130,8 @@ ODR\AdminBundle\Entity\ImageSizes:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 #            gedmo:
 #                blameable:
 #                    on: update

@@ -9,6 +9,7 @@
  *
  * The UserFieldPermissions Entity is automatically generated from
  * ./Resources/config/doctrine/UserFieldPermissions.orm.yml
+ * 
  */
 
 namespace ODR\AdminBundle\Entity;
@@ -26,11 +27,6 @@ class UserFieldPermissions
     private $id;
 
     /**
-     * @var \DateTime
-     */
-    private $created;
-
-    /**
      * @var integer
      */
     private $can_view_field;
@@ -41,14 +37,29 @@ class UserFieldPermissions
     private $can_edit_field;
 
     /**
+     * @var \DateTime
+     */
+    private $created;
+
+    /**
+     * @var \DateTime
+     */
+    private $updated;
+
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
-    private $user_id;
+    private $user;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataFields
      */
-    private $dataFields;
+    private $dataField;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataType
@@ -60,6 +71,11 @@ class UserFieldPermissions
      */
     private $createdBy;
 
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    private $updatedBy;
+    
 
     /**
      * Get id
@@ -69,29 +85,6 @@ class UserFieldPermissions
     public function getId()
     {
         return $this->id;
-    }
-
-    /**
-     * Set created
-     *
-     * @param \DateTime $created
-     * @return UserFieldPermissions
-     */
-    public function setCreated($created)
-    {
-        $this->created = $created;
-
-        return $this;
-    }
-
-    /**
-     * Get created
-     *
-     * @return \DateTime 
-     */
-    public function getCreated()
-    {
-        return $this->created;
     }
 
     /**
@@ -141,49 +134,118 @@ class UserFieldPermissions
     }
 
     /**
-     * Set user_id
+     * Set created
      *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $userId
+     * @param \DateTime $created
      * @return UserFieldPermissions
      */
-    public function setUserId(\ODR\OpenRepository\UserBundle\Entity\User $userId = null)
+    public function setCreated($created)
     {
-        $this->user_id = $userId;
+        $this->created = $created;
 
         return $this;
     }
 
     /**
-     * Get user_id
+     * Get created
+     *
+     * @return \DateTime 
+     */
+    public function getCreated()
+    {
+        return $this->created;
+    }
+
+    /**
+     * Set updated
+     *
+     * @param \DateTime $updated
+     * @return UserFieldPermissions
+     */
+    public function setUpdated($updated)
+    {
+        $this->updated = $updated;
+
+        return $this;
+    }
+
+    /**
+     * Get updated
+     *
+     * @return \DateTime
+     */
+    public function getUpdated()
+    {
+        return $this->updated;
+    }
+
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return UserFieldPermissions
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+
+    /**
+     * Set user
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $user
+     * @return UserFieldPermissions
+     */
+    public function setUser(\ODR\OpenRepository\UserBundle\Entity\User $user = null)
+    {
+        $this->user = $user;
+
+        return $this;
+    }
+
+    /**
+     * Get user
      *
      * @return \ODR\OpenRepository\UserBundle\Entity\User 
      */
-    public function getUserId()
+    public function getUser()
     {
-        return $this->user_id;
+        return $this->user;
     }
 
     /**
-     * Set dataFields
+     * Set dataField
      *
-     * @param \ODR\AdminBundle\Entity\DataFields $dataFields
+     * @param \ODR\AdminBundle\Entity\DataFields $dataField
      * @return UserFieldPermissions
      */
-    public function setDataFields(\ODR\AdminBundle\Entity\DataFields $dataFields = null)
+    public function setDataField(\ODR\AdminBundle\Entity\DataFields $dataField = null)
     {
-        $this->dataFields = $dataFields;
+        $this->dataField = $dataField;
 
         return $this;
     }
 
     /**
-     * Get dataFields
+     * Get dataField
      *
      * @return \ODR\AdminBundle\Entity\DataFields 
      */
-    public function getDataFields()
+    public function getDataField()
     {
-        return $this->dataFields;
+        return $this->dataField;
     }
 
     /**
@@ -230,5 +292,28 @@ class UserFieldPermissions
     public function getCreatedBy()
     {
         return $this->createdBy;
+    }
+
+    /**
+     * Set updatedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return UserFieldPermissions
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
     }
 }

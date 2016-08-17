@@ -29,10 +29,8 @@
                                     var datatype_id = data.d.datatype_id;
                                     $("#ElementData").html('');
                                     if (datafield_id != 0) {
-                                        // This is a render plugin for a datatype
-//                                        ReloadDatafield(datafield_id);
-
-                                        /* do nothing */
+                                        // This is a render plugin for a datatype...don't need to reload technically, but reloading indicates saving is done
+                                        ReloadDatafield(datafield_id);
                                     }
                                     else {
                                         // This is a render plugin for a datatype

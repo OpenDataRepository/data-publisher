@@ -1,0 +1,192 @@
+{% spaceless %}
+
+{% set can_edit_record = 0 %}
+{% set can_delete_record = 0 %}
+{% set can_add_record = 0 %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'edit' ] is defined %}
+    {# Edit page for a datarecord can be accessed if user has permissions for a childtype, need to verify that user has permissions to edit the parent datatype #}
+    {% set can_edit_record = 1 %}
+{% endif %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'delete' ] is defined %}
+    {% set can_delete_record = 1 %}
+{% endif %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'add' ] is defined %}
+    {% set can_add_record = 1 %}
+{% endif %}
+
+
+{% if can_edit_record == 1 %}
+<div class="ODRCreatedBy pure-u-1 PadRight">
+    <strong>Created by: </strong>{{ datarecord.createdBy.getuserstring }} <strong>on</strong> {{ datarecord.created|date('Y-m-d h:m:s') }} (UTC-5)
+    <strong>Last Modified by: </strong>{{ datarecord.updatedBy.getuserstring }} <strong>on</strong> {{ datarecord.updated|date('Y-m-d h:m:s') }} (UTC-5)
+</div>
+{% endif %}
+
+<div class="pure-u-1 clearfix">
+    {% if search_key != '' %}
+        <div class="pure-u-1" style="text-align: right">
+            {% include 'ODRAdminBundle:Default:search_header.html.twig' with { 'search_key': search_key, 'page_length': page_length, 'offset': offset, 'prev_datarecord': prev_datarecord, 'next_datarecord': next_datarecord, 'redirect_path': redirect_path, 'search_result_current': search_result_current, 'search_result_count': search_result_count } %}
+        </div>
+    {% endif %}
+
+    <div class="pure-u-1">
+        <button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }});">View DataRecord</button>
+        {#<button type="button" class="pure-button pure-button-primary" onclick="UpdateURL('#{{ path('odr_get_datarecord_xml', {'version': 'v1', 'datarecord_id': datarecord.id }) }}');">Export DataRecord</button>#}
+        <button type="button" class="pure-button pure-button-primary" onclick="exportXML({{ datarecord.id }})">Export DataRecord</button>
+
+
+        {% if can_edit_record == 1 %}
+            {% if datarecord.ispublic %}
+                <button id="public_button" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make DataRecord Non-Public</button>
+            {% else %}
+                <button id="public_button" type="button" class="pure-button pure-button-primary" onclick="publicRecord( {{ datarecord.id }} );">Make DataRecord Public</button>
+            {% endif %}
+        {% endif %}
+    
+        {% if can_delete_record == 1 %}
+            <button type="button" class="pure-button pure-button-primary" onclick="deleteRecord( {{ datarecord.id }} );">Delete DataRecord</button>
+        {% endif %}
+    
+        {% if can_add_record == 1 and is_top_level == 1 %}
+            <button type="button" class="pure-button pure-button-primary" onclick="addDataRecord( {{ datatype.id }} );">Add New DataRecord</button>
+        {% endif %}
+    </div>
+ 
+</div>
+
+<script type="text/javascript">
+    $(function() {
+        $(".MenuDesignArea").remove();
+    });
+
+    function publicRecord(datarecord_id) {
+        var url = '{{ path('odr_record_public', { 'datarecord_id': 0 }) }}';
+        url = url.substring(0, (url.length - 1));
+        url += datarecord_id;
+
+        var dataType = "json";
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: dataType,
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    var html = $("#public_button").html();
+                    if ( html.indexOf('Non') !== -1 )
+                        $("#public_button").html('Make DataRecord Public');
+                    else
+                        $("#public_button").html('Make DataRecord Non-Public');
+                    
+                }
+                else {
+                    // Error occurred
+                    alert( data.d );
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+
+    function exportXML(datarecord_id) {
+        var url = '{{ path('odr_get_datarecord_xml', {'version': 'v1', 'datarecord_id': 0 }) }}';
+        url = url.substring(0, (url.length - 1));
+        url += datarecord_id;
+
+        document.location = url;
+    }
+
+    function deleteRecord(datarecord_id) {
+
+        if ( confirm("Are you sure you want to delete this DataRecord?") ) {
+            var url = '{{ path('odr_record_delete', { 'datarecord_id': 0, 'search_key': '' }) }}';
+            url = url.substring(0, (url.length - 2));
+            url += datarecord_id + '/' + '{{ search_key }}';
+
+            var dataType = "json";
+
+            $.ajax({
+                type: 'GET',
+                url: url,
+                dataType: dataType,
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+                        // Refresh child wrapper area
+                        var url = data.d;
+                        UpdateURL(url);
+                    }
+                    else {
+                        // Error occurred
+                        alert( data.d );
+                    }
+                }
+            });
+        }
+    }
+
+{% if is_top_level == 1 %}
+    function addDataRecord(datatype_id) {
+        if ( confirm('Are you sure you want to create a new Datarecord?') ) {
+            var url = '{{ path('odr_record_add', { 'datatype_id': 0 }) }}';
+            url = url.substring(0, (url.length - 1));
+            url += datatype_id;
+
+            var dataType = "json";
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: dataType,
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+                        // Reload this area of the page
+                        var datarecord_id = data.d.datarecord_id;
+
+                        var url = '{{ path('odr_record_edit', { 'datarecord_id': 0 }) }}';
+                        url = url.substring(0, (url.length-1));
+                        url += datarecord_id;
+
+                        UpdateURL(url);
+                    }
+                    else {
+                        // Error occurred
+                        alert( data.d );
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        }
+    }
+{% endif %}
+</script>
+
+{% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
+{{ js.write('results', search_key, offset) }}
+
+{% endspaceless %}

@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\DataRecordFields:
     type: entity
     table: odr_data_record_fields
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -14,20 +14,20 @@ ODR\AdminBundle\Entity\DataRecordFields:
             generator:
                 strategy: IDENTITY
         deletedAt:
-            type: date
+            type: datetime
             nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         created:
             type: datetime
             gedmo:
                 timestampable:
                     on: create
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
+#        updated:
+#            type: datetime
+#            gedmo:
+#                timestampable:
+#                    on: update
     manyToOne:
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -39,16 +39,16 @@ ODR\AdminBundle\Entity\DataRecordFields:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            fetch: LAZY
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
+#        updatedBy:
+#            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+#            cascade: {  }
+#            mappedBy: null
+#            inversedBy: null
+#            fetch: LAZY
+#            joinColumns:
+#                updatedBy:
+#                    referencedColumnName: id
+#            orphanRemoval: false
         dataRecord:
             targetEntity: DataRecord
             cascade: {  }
@@ -59,23 +59,22 @@ ODR\AdminBundle\Entity\DataRecordFields:
                 data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         dataField:
             targetEntity: DataFields
             cascade: {  }
-#            mappedBy: null
             mappedBy: dataField
-#            inversedBy: null
             inversedBy: dataRecordFields
             fetch: LAZY
             joinColumns:
                 data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
-    oneToOne:
+#            gedmo:
+#                - versioned
+#    oneToOne:
+    oneToMany:
         boolean:
             targetEntity: Boolean
             cascade: {  }
@@ -140,15 +139,15 @@ ODR\AdminBundle\Entity\DataRecordFields:
             joinColumns:
                 data_record_fields_id:
                     referencedColumnName: id
-    oneToMany:
+#    oneToMany:
         image:
             targetEntity: Image
             cascade: {  }
             mappedBy: dataRecordFields
             fetch: LAZY
-            orderBy:
-                displayorder: ASC
-                id: ASC
+#            orderBy:
+#                displayorder: ASC
+#                id: ASC
             joinColumns:
                 data_record_fields_id:
                     referencedColumnName: id

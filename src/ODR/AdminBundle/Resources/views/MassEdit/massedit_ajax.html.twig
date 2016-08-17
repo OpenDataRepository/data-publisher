@@ -1,9 +1,9 @@
 {% spaceless %}
 
-{% set datatype = datatype_tree.datatype %}
+{% set datatype = datatype_array[initial_datatype_id] %}
 <div class="grid_12 no-margin-top-phone">
     <h1 style="display: inline;">
-        <span>Mass Update &raquo; {{ datatype.shortname }}</span>
+        <span>Mass Update &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
     </h1>
     <span>
         <select class="ODRPublicSelect" style="margin-left: 15px;" rel="{{ datatype.id }}">
@@ -25,7 +25,13 @@
 
 </br></br>
 
-{% include 'ODRAdminBundle:MassEdit:massedit_area.html.twig' with {'datatype_tree': datatype_tree, 'datafield_permissions': datafield_permissions} %}
+{% include 'ODRAdminBundle:MassEdit:massedit_area.html.twig' with {
+    'datatype_array': datatype_array,
+    'initial_datatype_id': initial_datatype_id,
+    'theme_id': theme_id,
+
+    'datafield_permissions': datafield_permissions,
+} %}
 
 {% endspaceless %}
 
@@ -351,14 +357,16 @@ function doMassUpdate() {
         dataType: 'json',
         success: function(data, textStatus, jqXHR) {
             if ( data.r == 0 ) {
-                if (redirect) {
+//                if (redirect) {
                     alert( 'Mass Update in progress' );
                     var url = '{{ path('odr_job_list') }}';
                     UpdateURL(url);
+/*
                 }
                 else {
                     alert( 'Public status of Datarecords updated' );
                 }
+*/
             }
             else {
                 alert( data.d );

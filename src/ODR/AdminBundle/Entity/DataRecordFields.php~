@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Open Data Repository Data Publisher
  * DataRecordFields Entity
@@ -15,6 +16,7 @@
 
 namespace ODR\AdminBundle\Entity;
 
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -38,47 +40,42 @@ class DataRecordFields
     private $created;
 
     /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
-     * @var \ODR\AdminBundle\Entity\Boolean
+     * @var \Doctrine\Common\Collections\Collection
      */
     private $boolean;
 
     /**
-     * @var \ODR\AdminBundle\Entity\IntegerValue
+     * @var \Doctrine\Common\Collections\Collection
      */
     private $integerValue;
 
     /**
-     * @var \ODR\AdminBundle\Entity\DecimalValue
+     * @var \Doctrine\Common\Collections\Collection
      */
     private $decimalValue;
 
     /**
-     * @var \ODR\AdminBundle\Entity\LongText
+     * @var \Doctrine\Common\Collections\Collection
      */
     private $longText;
 
     /**
-     * @var \ODR\AdminBundle\Entity\LongVarchar
+     * @var \Doctrine\Common\Collections\Collection
      */
     private $longVarchar;
 
     /**
-     * @var \ODR\AdminBundle\Entity\MediumVarchar
+     * @var \Doctrine\Common\Collections\Collection
      */
     private $mediumVarchar;
 
     /**
-     * @var \ODR\AdminBundle\Entity\ShortVarchar
+     * @var \Doctrine\Common\Collections\Collection
      */
     private $shortVarchar;
 
     /**
-     * @var \ODR\AdminBundle\Entity\DatetimeValue
+     * @var \Doctrine\Common\Collections\Collection
      */
     private $datetimeValue;
 
@@ -103,11 +100,6 @@ class DataRecordFields
     private $createdBy;
 
     /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
-
-    /**
      * @var \ODR\AdminBundle\Entity\DataRecord
      */
     private $dataRecord;
@@ -122,6 +114,14 @@ class DataRecordFields
      */
     public function __construct()
     {
+        $this->boolean = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->integerValue = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->decimalValue = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->longText = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->longVarchar = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->mediumVarchar = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->shortVarchar = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->datetimeValue = new \Doctrine\Common\Collections\ArrayCollection();
         $this->image = new \Doctrine\Common\Collections\ArrayCollection();
         $this->file = new \Doctrine\Common\Collections\ArrayCollection();
         $this->radioSelection = new \Doctrine\Common\Collections\ArrayCollection();
@@ -184,210 +184,267 @@ class DataRecordFields
     }
 
     /**
-     * Set updated
-     *
-     * @param \DateTime $updated
-     * @return DataRecordFields
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
-    }
-
-    /**
-     * Set boolean
+     * Add boolean
      *
      * @param \ODR\AdminBundle\Entity\Boolean $boolean
      * @return DataRecordFields
      */
-    public function setBoolean(\ODR\AdminBundle\Entity\Boolean $boolean = null)
+    public function addBoolean(\ODR\AdminBundle\Entity\Boolean $boolean)
     {
-        $this->boolean = $boolean;
+        $this->boolean[] = $boolean;
 
         return $this;
+    }
+
+    /**
+     * Remove boolean
+     *
+     * @param \ODR\AdminBundle\Entity\Boolean $boolean
+     */
+    public function removeBoolean(\ODR\AdminBundle\Entity\Boolean $boolean)
+    {
+        $this->boolean->removeElement($boolean);
     }
 
     /**
      * Get boolean
      *
-     * @return \ODR\AdminBundle\Entity\Boolean 
+     * @return \ODR\AdminBundle\Entity\Boolean
      */
     public function getBoolean()
     {
-        return $this->boolean;
+        return $this->boolean->first();
     }
 
     /**
-     * Set integerValue
+     * Add integerValue
      *
      * @param \ODR\AdminBundle\Entity\IntegerValue $integerValue
      * @return DataRecordFields
      */
-    public function setIntegerValue(\ODR\AdminBundle\Entity\IntegerValue $integerValue = null)
+    public function addIntegerValue(\ODR\AdminBundle\Entity\IntegerValue $integerValue)
     {
-        $this->integerValue = $integerValue;
+        $this->integerValue[] = $integerValue;
 
         return $this;
+    }
+
+    /**
+     * Remove integerValue
+     *
+     * @param \ODR\AdminBundle\Entity\IntegerValue $integerValue
+     */
+    public function removeIntegerValue(\ODR\AdminBundle\Entity\IntegerValue $integerValue)
+    {
+        $this->integerValue->removeElement($integerValue);
     }
 
     /**
      * Get integerValue
      *
-     * @return \ODR\AdminBundle\Entity\IntegerValue 
+     * @return \ODR\AdminBundle\Entity\IntegerValue
      */
     public function getIntegerValue()
     {
-        return $this->integerValue;
+        return $this->integerValue->first();
     }
 
     /**
-     * Set decimalValue
+     * Add decimalValue
      *
      * @param \ODR\AdminBundle\Entity\DecimalValue $decimalValue
      * @return DataRecordFields
      */
-    public function setDecimalValue(\ODR\AdminBundle\Entity\DecimalValue $decimalValue = null)
+    public function addDecimalValue(\ODR\AdminBundle\Entity\DecimalValue $decimalValue)
     {
-        $this->decimalValue = $decimalValue;
+        $this->decimalValue[] = $decimalValue;
 
         return $this;
+    }
+
+    /**
+     * Remove decimalValue
+     *
+     * @param \ODR\AdminBundle\Entity\DecimalValue $decimalValue
+     */
+    public function removeDecimalValue(\ODR\AdminBundle\Entity\DecimalValue $decimalValue)
+    {
+        $this->decimalValue->removeElement($decimalValue);
     }
 
     /**
      * Get decimalValue
      *
-     * @return \ODR\AdminBundle\Entity\DecimalValue 
+     * @return \ODR\AdminBundle\Entity\DecimalValue
      */
     public function getDecimalValue()
     {
-        return $this->decimalValue;
+        return $this->decimalValue->first();
     }
 
     /**
-     * Set longText
+     * Add longText
      *
      * @param \ODR\AdminBundle\Entity\LongText $longText
      * @return DataRecordFields
      */
-    public function setLongText(\ODR\AdminBundle\Entity\LongText $longText = null)
+    public function addLongText(\ODR\AdminBundle\Entity\LongText $longText)
     {
-        $this->longText = $longText;
+        $this->longText[] = $longText;
 
         return $this;
+    }
+
+    /**
+     * Remove longText
+     *
+     * @param \ODR\AdminBundle\Entity\LongText $longText
+     */
+    public function removeLongText(\ODR\AdminBundle\Entity\LongText $longText)
+    {
+        $this->longText->removeElement($longText);
     }
 
     /**
      * Get longText
      *
-     * @return \ODR\AdminBundle\Entity\LongText 
+     * @return \ODR\AdminBundle\Entity\LongText
      */
     public function getLongText()
     {
-        return $this->longText;
+        return $this->longText->first();
     }
 
     /**
-     * Set longVarchar
+     * Add longVarchar
      *
      * @param \ODR\AdminBundle\Entity\LongVarchar $longVarchar
      * @return DataRecordFields
      */
-    public function setLongVarchar(\ODR\AdminBundle\Entity\LongVarchar $longVarchar = null)
+    public function addLongVarchar(\ODR\AdminBundle\Entity\LongVarchar $longVarchar)
     {
-        $this->longVarchar = $longVarchar;
+        $this->longVarchar[] = $longVarchar;
 
         return $this;
+    }
+
+    /**
+     * Remove longVarchar
+     *
+     * @param \ODR\AdminBundle\Entity\LongVarchar $longVarchar
+     */
+    public function removeLongVarchar(\ODR\AdminBundle\Entity\LongVarchar $longVarchar)
+    {
+        $this->longVarchar->removeElement($longVarchar);
     }
 
     /**
      * Get longVarchar
      *
-     * @return \ODR\AdminBundle\Entity\LongVarchar 
+     * @return \ODR\AdminBundle\Entity\LongVarchar
      */
     public function getLongVarchar()
     {
-        return $this->longVarchar;
+        return $this->longVarchar->first();
     }
 
     /**
-     * Set mediumVarchar
+     * Add mediumVarchar
      *
      * @param \ODR\AdminBundle\Entity\MediumVarchar $mediumVarchar
      * @return DataRecordFields
      */
-    public function setMediumVarchar(\ODR\AdminBundle\Entity\MediumVarchar $mediumVarchar = null)
+    public function addMediumVarchar(\ODR\AdminBundle\Entity\MediumVarchar $mediumVarchar)
     {
-        $this->mediumVarchar = $mediumVarchar;
+        $this->mediumVarchar[] = $mediumVarchar;
 
         return $this;
+    }
+
+    /**
+     * Remove mediumVarchar
+     *
+     * @param \ODR\AdminBundle\Entity\MediumVarchar $mediumVarchar
+     */
+    public function removeMediumVarchar(\ODR\AdminBundle\Entity\MediumVarchar $mediumVarchar)
+    {
+        $this->mediumVarchar->removeElement($mediumVarchar);
     }
 
     /**
      * Get mediumVarchar
      *
-     * @return \ODR\AdminBundle\Entity\MediumVarchar 
+     * @return \ODR\AdminBundle\Entity\MediumVarchar
      */
     public function getMediumVarchar()
     {
-        return $this->mediumVarchar;
+        return $this->mediumVarchar->first();
     }
 
     /**
-     * Set shortVarchar
+     * Add shortVarchar
      *
      * @param \ODR\AdminBundle\Entity\ShortVarchar $shortVarchar
      * @return DataRecordFields
      */
-    public function setShortVarchar(\ODR\AdminBundle\Entity\ShortVarchar $shortVarchar = null)
+    public function addShortVarchar(\ODR\AdminBundle\Entity\ShortVarchar $shortVarchar)
     {
-        $this->shortVarchar = $shortVarchar;
+        $this->shortVarchar[] = $shortVarchar;
 
         return $this;
+    }
+
+    /**
+     * Remove shortVarchar
+     *
+     * @param \ODR\AdminBundle\Entity\ShortVarchar $shortVarchar
+     */
+    public function removeShortVarchar(\ODR\AdminBundle\Entity\ShortVarchar $shortVarchar)
+    {
+        $this->shortVarchar->removeElement($shortVarchar);
     }
 
     /**
      * Get shortVarchar
      *
-     * @return \ODR\AdminBundle\Entity\ShortVarchar 
+     * @return \ODR\AdminBundle\Entity\ShortVarchar
      */
     public function getShortVarchar()
     {
-        return $this->shortVarchar;
+        return $this->shortVarchar->first();
     }
 
     /**
-     * Set datetimeValue
+     * Add datetimeValue
      *
      * @param \ODR\AdminBundle\Entity\DatetimeValue $datetimeValue
      * @return DataRecordFields
      */
-    public function setDatetimeValue(\ODR\AdminBundle\Entity\DatetimeValue $datetimeValue = null)
+    public function addDatetimeValue(\ODR\AdminBundle\Entity\DatetimeValue $datetimeValue)
     {
-        $this->datetimeValue = $datetimeValue;
+        $this->datetimeValue[] = $datetimeValue;
 
         return $this;
     }
 
     /**
+     * Remove datetimeValue
+     *
+     * @param \ODR\AdminBundle\Entity\DatetimeValue $datetimeValue
+     */
+    public function removeDatetimeValue(\ODR\AdminBundle\Entity\DatetimeValue $datetimeValue)
+    {
+        $this->datetimeValue->removeElement($datetimeValue);
+    }
+
+    /**
      * Get datetimeValue
      *
-     * @return \ODR\AdminBundle\Entity\DatetimeValue 
+     * @return \ODR\AdminBundle\Entity\DatetimeValue
      */
     public function getDatetimeValue()
     {
-        return $this->datetimeValue;
+        return $this->datetimeValue->first();
     }
 
     /**
@@ -420,7 +477,23 @@ class DataRecordFields
      */
     public function getImage()
     {
-        return $this->image;
+//        return $this->image;
+
+        // Adapted from http://stackoverflow.com/a/16707694
+        $iterator = $this->image->getIterator();
+        $iterator->uasort(function ($a, $b) {
+            // Sort by display order first if possible
+            $a_display_order = $a->getDisplayOrder();
+            $b_display_order = $b->getDisplayOrder();
+            if ($a_display_order < $b_display_order)
+                return -1;
+            else if ($a_display_order > $b_display_order)
+                return 1;
+            else
+                // otherwise, sort by image_id
+                return ($a->getId() < $b->getId()) ? -1 : 1;
+        });
+        return new ArrayCollection(iterator_to_array($iterator));
     }
 
     /**
@@ -510,29 +583,6 @@ class DataRecordFields
     public function getCreatedBy()
     {
         return $this->createdBy;
-    }
-
-    /**
-     * Set updatedBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return DataRecordFields
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
     }
 
     /**

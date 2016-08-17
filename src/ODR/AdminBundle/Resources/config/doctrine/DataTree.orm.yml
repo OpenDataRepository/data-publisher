@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\DataTree:
     type: entity
     table: odr_data_tree
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -13,38 +13,76 @@ ODR\AdminBundle\Entity\DataTree:
             nullable: false
             generator:
                 strategy: IDENTITY
-        deletedAt:
-            type: date
-            nullable: true
-            gedmo:
-                - versioned
+
         created:
             type: datetime
             gedmo:
                 timestampable:
                     on: create
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
+
+        # TODO - delete the following three properties
+        is_link:
+            type: boolean
+            nullable: false
+            default: false
+            column: is_link
+#            gedmo:
+#                - versioned
+        multiple_allowed:
+            type: boolean
+            nullable: false
+            default: true
+            column: multiple_allowed
+#            gedmo:
+#                - versioned
         updated:
             type: datetime
             gedmo:
                 timestampable:
                     on: update
 
-        is_link:
-            type: boolean
-            nullable: false
-            default: false
-            column: is_link
-            gedmo:
-                - versioned
-        multiple_allowed:
-            type: boolean
-            nullable: false
-            default: true
-            column: multiple_allowed
-            gedmo:
-                - versioned
+    oneToMany:
+        dataTreeMeta:
+            targetEntity: DataTreeMeta
+            cascade: { }
+            mappedBy: dataTree
+            inversedBy: null
+            joinColumns:
+                data_tree_meta_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
 
     manyToOne:
+        ancestor:
+            targetEntity: DataType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                ancestor_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+        descendant:
+            targetEntity: DataType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                descendant_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -57,6 +95,20 @@ ODR\AdminBundle\Entity\DataTree:
 #            gedmo:
 #                blameable:
 #                    on: create
+        deletedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                deletedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+
+        # TODO - delete this property
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -66,31 +118,10 @@ ODR\AdminBundle\Entity\DataTree:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 #            gedmo:
 #                blameable:
 #                    on: update
-        ancestor:
-            targetEntity: DataType
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                ancestor_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-            gedmo:
-                - versioned
-        descendant:
-            targetEntity: DataType
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                descendant_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-            gedmo:
-                - versioned
+
     lifecycleCallbacks: {  }

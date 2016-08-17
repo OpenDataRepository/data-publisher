@@ -1,0 +1,21 @@
+ODR\OpenRepository\GraphBundle\Plugins\Person:
+    name: Person Plugin
+    datatype: true
+    version: 1.00
+    override_fields: false
+    override_child: false
+    description: The Person plugin provides the basic framework for storing metadata about a person.
+    required_fields:
+        first_name:
+            name: First Name
+            description: The first name of the person.
+            type: LongVarchar
+        last_name:
+            name: Last Name
+            description: The last name of the person.
+            type: LongVarchar
+        contact_email:
+            name: Contact Email
+            description: The contact email of the person.
+            type: MediumVarchar
+    config_options:

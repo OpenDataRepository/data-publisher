@@ -1,0 +1,38 @@
+{% spaceless %}
+{% set can_edit_record = 0 %}
+{% if user_permissions[ datatype.id ] is defined and (user_permissions[ datatype.id ][ 'edit' ] is defined or user_permissions[ datatype.id ][ 'child_edit' ] is defined) %}
+    {% set can_edit_record = 1 %}
+{% endif %}
+
+{% if can_edit_record == 1 %}
+<div class="ODRCreatedBy pure-u-1 PadRight">
+    <strong>Created by: </strong>{{ datarecord.createdBy.getuserstring }} <strong>on</strong> {{ datarecord.created|date('Y-m-d h:m:s') }} (UTC-5)
+    <strong>Last Modified by: </strong>{{ datarecord.updatedBy.getuserstring }} <strong>on</strong> {{ datarecord.updated|date('Y-m-d h:m:s') }} (UTC-5)
+</div>
+{% endif %}
+
+<div class="pure-u-1 clearfix">
+    {% if can_edit_record == 1 %}
+    <div class="pure-u-1 pure-u-md-1-3 pure-u-xl-1-3">
+        <button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }},'edit');">Edit DataRecord</button>
+    </div>
+    {% endif %}
+
+    {% if search_key != '' %}
+        <div class="pure-u-1 pure-u-md-2-3 pure-u-xl-2-3" style="text-align: right">
+            {% include 'ODRAdminBundle:Default:search_header.html.twig' with { 'search_key': search_key, 'offset': offset, 'page_length': page_length, 'prev_datarecord': prev_datarecord, 'next_datarecord': next_datarecord, 'redirect_path': redirect_path, 'search_result_current': search_result_current, 'search_result_count': search_result_count } %}
+        </div>
+    {% endif %}
+
+</div>
+
+<script>
+    $(function() {
+        $(".MenuDesignArea").remove();
+    });
+</script>
+
+{% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
+{{ js.write('record', search_key, offset) }}
+
+{% endspaceless %}

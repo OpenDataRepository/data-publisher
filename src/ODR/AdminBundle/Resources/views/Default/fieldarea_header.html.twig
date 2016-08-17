@@ -1,0 +1,62 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+
+{% set has_children = false %}
+{% for dr_id, datarecord in datarecord_array %}
+    {% if datarecord.dataType.id == target_datatype_id %}
+        {% if datarecord.id != parent_datarecord_id and (is_link == 1 or datarecord.parent.id == parent_datarecord_id) %}
+            {% set has_children = true %}
+        {% endif %}
+    {% endif %}
+{% endfor %}
+
+{% if is_top_level or display_type == 0 %}  {# accordion display_type #}
+    <div class="ODRAccordionWrapper ODRFormAccordion">
+{% elseif display_type == 1 %}  {# tabbed display_type #}
+    <div class="ODRAccordionWrapper ODRTabAccordion">
+    {% if has_children == true %}
+        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+            <span class="ui-icon ui-icon-triangle-1-s"></span>
+            <a>{{ datatype.dataTypeMeta.shortName }}</a>
+        </h3>
+
+        <div class="pure-u-1 ODRTabButtonHeader">
+        {% for dr_id, datarecord in datarecord_array %}
+            {% if (is_link == 1 or datarecord.parent.id == parent_datarecord_id) and datarecord.dataType.id == target_datatype_id %}
+                <button class="pure-button ODRTabButton" rel="{{ datarecord.id }}">{{ datarecord.nameField_value }}</button>
+            {% endif %}
+        {% endfor %}
+        </div>
+
+    {% endif %}
+
+{% elseif display_type == 2 %}  {# dropdown display_type #}
+    <div class="ODRAccordionWrapper ODRDropdownAccordion">
+    {% if has_children == true %}
+        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+            <span class="ui-icon ui-icon-triangle-1-s"></span>
+            <a>{{ datatype.dataTypeMeta.shortName }}</a>
+
+            <span style="float:right;">
+                <select id="DataType_{{ datatype.id }}_dropdown" class="accordion" style="padding: 0.6em 0.78em;">
+                {% for dr_id, datarecord in datarecord_array %}
+                    {% if (is_link == 1 or datarecord.parent.id == parent_datarecord_id) and datarecord.dataType.id == target_datatype_id %}
+                        <option value="{{ datarecord.id }}">{{ datarecord.nameField_value }}</option>
+                    {% endif %}
+                {% endfor %}
+                </select>
+            </span>
+        </h3>
+    {% endif %}
+
+{% elseif display_type == 3 %}  {# list display_type #}
+    {# just a header here...accordion_footer.html.twig doesn't need a closing tag #}
+    <h3 class="ODRListDisplayHeader ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <a>{{ datatype.dataTypeMeta.shortName }}</a>
+    </h3>
+
+{% endif %}
+
+{# closing div tag for all of these is in fieldarea_footer.html.twig #}
+{% endspaceless %}

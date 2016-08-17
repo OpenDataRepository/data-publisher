@@ -1,8 +1,14 @@
+{% spaceless %}
+<div class="ODRFormWrap ODRDesign pure-u-1">
 
-<div class="ODRFormWrap ODRDesign pure-u-1"> 
+    {% include 'ODRAdminBundle:Displaytemplate:design_childtype.html.twig' with {
+        'datatype_array': datatype_array,
+        'target_datatype_id': initial_datatype_id,
+        'theme_id': theme_id,
 
-    {% import "ODRAdminBundle:Displaytemplate:design_area_childtype.html.twig" as mychildform %}
-    {{ mychildform.input(datatype_tree) }}
+        'is_link': 0,
+        'is_top_level': 1,
+    } %}
 
 </div><!-- End of .ODRFormWrap -->
-
+{% endspaceless %}

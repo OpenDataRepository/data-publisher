@@ -1,8 +1,17 @@
+{% spaceless %}
+<div class="ODRFormWrap pure-u-1">
 
-<div class="ODRFormWrap pure-u-1"> 
+    {% include 'ODRAdminBundle:FieldPermissions:fieldpermissions_childtype.html.twig' with {
+        'user': user,
+        'datatype_permissions': datatype_permissions,
+        'datafield_permissions': datafield_permissions,
 
-    {% import "ODRAdminBundle:FieldPermissions:fieldpermissions_area_childtype.html.twig" as mychildform %}
-    {{ mychildform.input(user, datatype_tree, datatype_permissions, datafield_permissions) }}
+        'datatype_array': datatype_array,
+        'target_datatype_id': initial_datatype_id,
+        'theme_id': theme_id,
+
+        'is_top_level': 1
+    } %}
 
 </div><!-- End of .ODRFormWrap -->
-
+{% endspaceless %}

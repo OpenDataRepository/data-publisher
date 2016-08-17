@@ -19,7 +19,7 @@ framework:
     templating:      { engines: ['twig'] } #assets_version: SomeVersionScheme
     default_locale:  %locale%
     session:
-        handler_id:     session.handler.memcached
+        handler_id: ~  #  session.handler.memcached
         cookie_lifetime:  1209600   # 2 weeks
     #trusted_hosts:   ~
 
@@ -27,6 +27,8 @@ framework:
 twig:
     debug:            %kernel.debug%
     strict_variables: %kernel.debug%
+    #cache: memcached
+    #cache: false
 
 # Assetic Configuration
 assetic:
@@ -111,6 +113,15 @@ fos_user:
     change_password:
         form:
             type: odr_user_change_password
+
+snc_redis:
+    clients:
+        default:
+            type: predis
+            alias: default
+            dsn: redis://localhost
+            # TODO: https://github.com/snc/SncRedisBundle/pull/199/files
+            #serialization: php
 
 drymek_pheanstalk: ~
 

@@ -198,7 +198,7 @@ console.log(file_decrypt_timeouts);
                     else if (current_value == 100) {
                         // Reload the datafield
                         file_encrypt_timeouts[ file_id ] = null;
-                        ReloadDatafield(datarecord_id, datafield_id);
+                        ReloadDatafield(datarecord_id, datafield_id);   // defined in Display::display_ajax.html.twig or Record::record_ajax.html.twig or ShortResults::shortresults_ajax.html.twig
                     }
                     else if (file_encrypt_timeouts[ file_id ] != null) {
                         // Update the progressbar

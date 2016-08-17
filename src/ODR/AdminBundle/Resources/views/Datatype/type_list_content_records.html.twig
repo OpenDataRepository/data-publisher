@@ -1,3 +1,4 @@
+<div id="ODRDataTypeListWrapper">
 <table id="ODRDatatypeList" class="{#pure-table pure-table-striped#}display dataTable">
     <thead>
         <tr>
@@ -75,7 +76,7 @@
             {% elseif can_design_datatype == false or datarecord_count == 0 %}
                 <td class="center"></td>
             {% else %}
-                <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
+                <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
             {% endif %}
 
             {# view/edit links for this datatype #}
@@ -86,9 +87,9 @@
             {% elseif can_design_datatype == false %}
                 <td class="center"></td>
             {% elseif datatype.useshortresults == 1 and datatype.hasshortresults == false %}    {# user has design permission at this point #}
-                <td class="center"><a class="address" href="#{{ path('odr_search_template_edit', { 'datatype_id': datatype.id, 'theme_id': 2 }) }}" title="Edit {{ datatype.shortname }} Search Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;ShortResults not designed!</a></td>
+                <td class="center"><a class="address" href="#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Search Results Theme not designed!</a></td>
             {% elseif datatype.useshortresults == 0 and datatype.hastextresults == false %}     {# user has design permission at this point #}
-                <td class="center"><a class="address" href="#{{ path('odr_edit_type', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Options"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;TextResults not designed!</a></td>
+                <td class="center"><a class="address" href="#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Table Theme not designed!</a></td>
             {% endif %}
 
             {# add/import links for this datatype #}
@@ -104,6 +105,7 @@
     {% endfor %}
     </tbody>
 </table>
+</div>
 
 <style>
     .ODRDatatypeInfoDiv {
@@ -143,6 +145,9 @@
             "order": [[ 2, "asc" ]],
             "autoWidth": true,
             "paging": false,
+            "fixedHeader": {
+                headerOffset: 42
+            },
             "info": false,
             "language": {
                 "emptyTable": "No Datatypes found"

@@ -1,0 +1,167 @@
+{% spaceless %}
+
+    {% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
+
+    {% if field_typename == "Boolean" %}
+        {% if version == "v2" %}
+            <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName|xml }}" type="xsd:boolean" />
+        {% else %}
+            <xsd:element name="datafield_{{ datafield.id }}">
+                <xsd:complexType>
+                    <xsd:simpleContent>
+                        <xsd:extension base="xsd:boolean">
+                            <xsd:attribute name="datafield_name" type="xsd:string" fixed="{{ datafield.dataFieldMeta.fieldName|xml }}"/>
+                        </xsd:extension>
+                    </xsd:simpleContent>
+                </xsd:complexType>
+            </xsd:element>
+        {% endif %}
+
+    {% elseif field_typename == "File" %}
+        {% if version == "v2" %}
+            <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName|xml }}">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="file" type="file_type" minOccurs="0" {% if datafield.dataFieldMeta.allow_multiple_uploads == 1 %}maxOccurs="unbounded"{% endif %} />
+                    </xsd:sequence>
+                    <xsd:attribute name="_delete_unlisted" use="optional" type="xsd:boolean" fixed="false" />
+                </xsd:complexType>
+            </xsd:element>
+        {% else %}
+            <xsd:element name="datafield_{{ datafield.id }}">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="file" type="file_type" minOccurs="0" {% if datafield.dataFieldMeta.allow_multiple_uploads == 1 %}maxOccurs="unbounded"{% endif %} />
+                    </xsd:sequence>
+                    <xsd:attribute name="datafield_name" type="xsd:string" fixed="{{ datafield.dataFieldMeta.fieldName|xml }}"/>
+                    <xsd:attribute name="_delete_unlisted" use="optional" type="xsd:boolean" fixed="false" />
+                </xsd:complexType>
+            </xsd:element>
+        {% endif %}
+
+    {% elseif field_typename == "Image" %}
+        {% if version == "v2" %}
+            <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName|xml }}">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="image" type="image_type" minOccurs="0" {% if datafield.dataFieldMeta.allow_multiple_uploads == 1 %}maxOccurs="unbounded"{% endif %} />
+                    </xsd:sequence>
+                    <xsd:attribute name="_delete_unlisted" use="optional" type="xsd:boolean" fixed="false" />
+                </xsd:complexType>
+            </xsd:element>
+        {% else %}
+            <xsd:element name="datafield_{{ datafield.id }}">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="image" type="image_type" minOccurs="0" {% if datafield.dataFieldMeta.allow_multiple_uploads == 1 %}maxOccurs="unbounded"{% endif %} />
+                    </xsd:sequence>
+                    <xsd:attribute name="datafield_name" type="xsd:string" fixed="{{ datafield.dataFieldMeta.fieldName|xml }}"/>
+                    <xsd:attribute name="_delete_unlisted" use="optional" type="xsd:boolean" fixed="false" />
+                </xsd:complexType>
+            </xsd:element>
+        {% endif %}
+
+
+    {% elseif field_typename == "Integer" %}
+        {% if version == "v2" %}
+            <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName|xml }}" type="xsd:integer" />
+        {% else %}
+            <xsd:element name="datafield_{{ datafield.id }}">
+                <xsd:complexType>
+                    <xsd:simpleContent>
+                        <xsd:extension base="xsd:integer">
+                            <xsd:attribute name="datafield_name" type="xsd:string" fixed="{{ datafield.dataFieldMeta.fieldName|xml }}"/>
+                        </xsd:extension>
+                    </xsd:simpleContent>
+                </xsd:complexType>
+            </xsd:element>
+        {% endif %}
+
+    {% elseif field_typename == "Decimal" %}
+        {% if version == "v2" %}
+            <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName|xml }}" type="xsd:decimal" />
+        {% else %}
+            <xsd:element name="datafield_{{ datafield.id }}">
+                <xsd:complexType>
+                    <xsd:simpleContent>
+                        <xsd:extension base="xsd:decimal">
+                            <xsd:attribute name="datafield_name" type="xsd:string" fixed="{{ datafield.dataFieldMeta.fieldName|xml }}"/>
+                        </xsd:extension>
+                    </xsd:simpleContent>
+                </xsd:complexType>
+            </xsd:element>
+        {% endif %}
+
+    {% elseif field_typename == "Short Text" or field_typename == "Medium Text" or field_typename == "Long Text" or field_typename == "Paragraph Text" %}
+        {% if version == "v2" %}
+            <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName|xml }}" type="xsd:string" />
+        {% else %}
+            <xsd:element name="datafield_{{ datafield.id }}">
+                <xsd:complexType>
+                    <xsd:simpleContent>
+                        <xsd:extension base="xsd:string">
+                            <xsd:attribute name="datafield_name" type="xsd:string" fixed="{{ datafield.dataFieldMeta.fieldName|xml }}"/>
+                        </xsd:extension>
+                    </xsd:simpleContent>
+                </xsd:complexType>
+            </xsd:element>
+        {% endif %}
+
+    {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
+
+        {% if version == "v2" %}
+        <xsd:element name="{{ datafield.dataFieldMeta.fieldName|xml }}">
+        {% else %}
+        <xsd:element name="datafield_{{ datafield.id }}">
+        {% endif %}
+
+            <xsd:complexType>
+                <xsd:all>
+                {% if datafield.radioOptions is defined %}
+                    {% for radio_option in datafield.radioOptions %}
+                        {% if version == "v2" %}
+                            <xsd:element name="{{ radio_option.radioOptionMeta.xml_optionName|xml }}" type="xsd:boolean" minOccurs="0" />
+                        {% else %}
+                            <xsd:element name="radio_option_{{ radio_option.id }}" minOccurs="0">
+                                <xsd:complexType>
+                                    <xsd:simpleContent>
+                                        <xsd:extension base="xsd:boolean">
+                                            <xsd:attribute name="radio_option_name" type="xsd:string" fixed="{{ radio_option.radioOptionMeta.optionName|xml }}" />
+                                        </xsd:extension>
+                                    </xsd:simpleContent>
+                                </xsd:complexType>
+                            </xsd:element>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                </xsd:all>
+
+                {% if version == "v1" %}
+                    <xsd:attribute name="datafield_name" type="xsd:string" fixed="{{ datafield.dataFieldMeta.fieldName|xml }}"/>
+                {% endif %}
+
+                {% if field_typename == "Multiple Radio" or field_typename == "Multiple Select" %}
+                    <xsd:attribute name="_deselect_unlisted" use="optional" type="xsd:boolean" fixed="false" />
+                {% endif %}
+            </xsd:complexType>
+
+        </xsd:element>
+
+    {% elseif field_typename == "DateTime" %}
+        {% if version == "v2" %}
+            <xsd:element name="{{ datafield.dataFieldMeta.xml_fieldName|xml }}" type="normal_date" />
+        {% else %}
+            <xsd:element name="datafield_{{ datafield.id }}">
+                <xsd:complexType>
+                    <xsd:simpleContent>
+                        <xsd:extension base="normal_date">
+                            <xsd:attribute name="datafield_name" type="xsd:string" fixed="{{ datafield.dataFieldMeta.fieldName|xml }}"/>
+                        </xsd:extension>
+                    </xsd:simpleContent>
+                </xsd:complexType>
+            </xsd:element>
+        {% endif %}
+
+    {% endif %}
+
+{% endspaceless %}

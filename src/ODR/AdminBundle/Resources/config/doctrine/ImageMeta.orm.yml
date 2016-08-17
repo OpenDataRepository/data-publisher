@@ -1,0 +1,113 @@
+ODR\AdminBundle\Entity\ImageMeta:
+    type: entity
+    table: odr_image_meta
+    gedmo:
+#        loggable: true
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        displayorder:
+            type: integer
+            column: display_order
+            unsigned: false
+#            gedmo:
+#                - versioned
+
+        caption:
+            type: string
+            length: 96
+            fixed: false
+            nullable: true
+#            gedmo:
+#                - versioned
+
+        originalFileName:
+            type: string
+            length: 128
+            fixed: false
+            nullable: true
+            column: original_file_name
+#            gedmo:
+#                - versioned
+
+        external_id:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: external_id
+#            gedmo:
+#                - versioned
+
+        publicDate:
+            type: datetime
+            nullable: false
+            column: public_date
+#            gedmo:
+#                - versioned
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
+
+    manyToOne:
+        image:
+            targetEntity: Image
+            cascade: {  }
+            mappedBy: null
+            inversedBy: imageMeta
+            joinColumns:
+                image_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                blameable:
+#                    on: create
+
+    lifecycleCallbacks: {  }

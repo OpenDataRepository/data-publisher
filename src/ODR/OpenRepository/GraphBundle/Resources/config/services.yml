@@ -5,30 +5,48 @@ services:
     graph.graphplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\GraphPlugin
         arguments:
-            entityManager: "@doctrine.orm.entity_manager"
+            templating: "@templating"
+            logger: "@logger"
+    graph.gcmsplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\GCMassSpecPlugin
+        arguments:
             templating: "@templating"
             logger: "@logger"
     graph.referencesplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\ReferencesPlugin
         arguments:
-            entityManager: "@doctrine.orm.entity_manager"
             templating: "@templating"
     graph.commentplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\CommentPlugin
         arguments:
-            entityManager: "@doctrine.orm.entity_manager"
             templating: "@templating"
-            session: "@session"
     graph.chemistryplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\ChemistryPlugin
         arguments:
-            entityManager: "@doctrine.orm.entity_manager"
             templating: "@templating"
     graph.urlplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\URLPlugin
         arguments:
-            entityManager: "@doctrine.orm.entity_manager"
+            templating: "@templating"
+
+    graph.organizationplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\OrganizationPlugin
+        arguments:
+            templating: "@templating"
+    graph.personplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\PersonPlugin
+        arguments:
+            templating: "@templating"
+    graph.sampleplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\SamplePlugin
+        arguments:
+            templating: "@templating"
+    graph.siteplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\SitePlugin
+        arguments:
             templating: "@templating"
 
     graph.defaultplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\DefaultPlugin
+        arguments:
+            templating: "@templating"

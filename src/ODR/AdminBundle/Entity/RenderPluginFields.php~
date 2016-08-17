@@ -9,15 +9,14 @@
  *
  * The RenderPluginFields Entity is automatically generated from
  * ./Resources/config/doctrine/RenderPluginFields.orm.yml
+ * 
  */
 
 namespace ODR\AdminBundle\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 
-/**
- * RenderPluginFields
- */
+
 class RenderPluginFields
 {
     /**

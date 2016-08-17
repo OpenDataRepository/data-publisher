@@ -1,17 +1,16 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* FieldType Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The FieldType Entity is automatically generated from
-* ./Resources/config/doctrine/FieldType.orm.yml
-*
-*/
-
+ * Open Data Repository Data Publisher
+ * FieldType Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The FieldType Entity is automatically generated from
+ * ./Resources/config/doctrine/FieldType.orm.yml
+ *
+ */
 
 namespace ODR\AdminBundle\Entity;
 
@@ -30,12 +29,12 @@ class FieldType
     /**
      * @var string
      */
-    private $typeName;
+    private $typeClass;
 
     /**
      * @var string
      */
-    private $position;
+    private $typeName;
 
     /**
      * @var string
@@ -45,22 +44,7 @@ class FieldType
     /**
      * @var boolean
      */
-    private $isImage;
-
-    /**
-     * @var boolean
-     */
-    private $isFile;
-
-    /**
-     * @var boolean
-     */
     private $allowMultiple;
-
-    /**
-     * @var boolean
-     */
-    private $hasBlob;
 
     /**
      * @var boolean
@@ -78,11 +62,6 @@ class FieldType
     private $canBeSortField;
 
     /**
-     * @var string
-     */
-    private $typeClass;
-
-    /**
      * @var \DateTime
      */
     private $deletedAt;
@@ -93,19 +72,9 @@ class FieldType
     private $created;
 
     /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
-
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
 
 
     /**
@@ -116,6 +85,29 @@ class FieldType
     public function getId()
     {
         return $this->id;
+    }
+
+    /**
+     * Set typeClass
+     *
+     * @param string $typeClass
+     * @return FieldType
+     */
+    public function setTypeClass($typeClass)
+    {
+        $this->typeClass = $typeClass;
+
+        return $this;
+    }
+
+    /**
+     * Get typeClass
+     *
+     * @return string 
+     */
+    public function getTypeClass()
+    {
+        return $this->typeClass;
     }
 
     /**
@@ -142,29 +134,6 @@ class FieldType
     }
 
     /**
-     * Set position
-     *
-     * @param string $position
-     * @return FieldType
-     */
-    public function setPosition($position)
-    {
-        $this->position = $position;
-
-        return $this;
-    }
-
-    /**
-     * Get position
-     *
-     * @return string 
-     */
-    public function getPosition()
-    {
-        return $this->position;
-    }
-
-    /**
      * Set description
      *
      * @param string $description
@@ -188,52 +157,6 @@ class FieldType
     }
 
     /**
-     * Set isImage
-     *
-     * @param boolean $isImage
-     * @return FieldType
-     */
-    public function setIsImage($isImage)
-    {
-        $this->isImage = $isImage;
-
-        return $this;
-    }
-
-    /**
-     * Get isImage
-     *
-     * @return boolean 
-     */
-    public function getIsImage()
-    {
-        return $this->isImage;
-    }
-
-    /**
-     * Set isFile
-     *
-     * @param boolean $isFile
-     * @return FieldType
-     */
-    public function setIsFile($isFile)
-    {
-        $this->isFile = $isFile;
-
-        return $this;
-    }
-
-    /**
-     * Get isFile
-     *
-     * @return boolean 
-     */
-    public function getIsFile()
-    {
-        return $this->isFile;
-    }
-
-    /**
      * Set allowMultiple
      *
      * @param boolean $allowMultiple
@@ -254,29 +177,6 @@ class FieldType
     public function getAllowMultiple()
     {
         return $this->allowMultiple;
-    }
-
-    /**
-     * Set hasBlob
-     *
-     * @param boolean $hasBlob
-     * @return FieldType
-     */
-    public function setHasBlob($hasBlob)
-    {
-        $this->hasBlob = $hasBlob;
-
-        return $this;
-    }
-
-    /**
-     * Get hasBlob
-     *
-     * @return boolean 
-     */
-    public function getHasBlob()
-    {
-        return $this->hasBlob;
     }
 
     /**
@@ -349,29 +249,6 @@ class FieldType
     }
 
     /**
-     * Set typeClass
-     *
-     * @param string $typeClass
-     * @return FieldType
-     */
-    public function setTypeClass($typeClass)
-    {
-        $this->typeClass = $typeClass;
-
-        return $this;
-    }
-
-    /**
-     * Get typeClass
-     *
-     * @return string 
-     */
-    public function getTypeClass()
-    {
-        return $this->typeClass;
-    }
-
-    /**
      * Set deletedAt
      *
      * @param \DateTime $deletedAt
@@ -418,29 +295,6 @@ class FieldType
     }
 
     /**
-     * Set updated
-     *
-     * @param \DateTime $updated
-     * @return FieldType
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
-    }
-
-    /**
      * Set createdBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
@@ -461,28 +315,5 @@ class FieldType
     public function getCreatedBy()
     {
         return $this->createdBy;
-    }
-
-    /**
-     * Set updatedBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return FieldType
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
     }
 }

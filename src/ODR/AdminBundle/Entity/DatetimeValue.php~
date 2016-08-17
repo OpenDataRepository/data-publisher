@@ -9,9 +9,7 @@
 *
 * The DatetimeValue Entity is automatically generated from 
 * ./Resources/config/doctrine/DatetimeValue.orm.yml
-*
 */
-
 
 namespace ODR\AdminBundle\Entity;
 
@@ -35,11 +33,6 @@ class DatetimeValue
     /**
      * @var \DateTime
      */
-    private $deletedAt;
-
-    /**
-     * @var \DateTime
-     */
     private $created;
 
     /**
@@ -47,6 +40,11 @@ class DatetimeValue
      */
     private $updated;
 
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
+    
     /**
      * @var \ODR\AdminBundle\Entity\DataFields
      */
@@ -63,6 +61,11 @@ class DatetimeValue
     private $dataRecord;
 
     /**
+     * @var \ODR\AdminBundle\Entity\DataRecordFields
+     */
+    private $dataRecordFields;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
@@ -71,11 +74,6 @@ class DatetimeValue
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $updatedBy;
-
-    /**
-     * @var \ODR\AdminBundle\Entity\DataRecordFields
-     */
-    private $dataRecordFields;
 
 
     /**
@@ -119,35 +117,11 @@ class DatetimeValue
     public function getStringValue()
     {
         $date = $this->value;
-//        $value = $date->format('Y-m-d H:i:s');
         $value = $date->format('Y-m-d');
-        if ( strpos($value, '-0001-11-30') !== false )
-            $value = '0000-00-00';
+        if ($value == '9999-12-31')
+            $value = '';
 
         return $value;
-    }
-
-    /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return DatetimeValue
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-    
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
     }
 
     /**
@@ -182,20 +156,43 @@ class DatetimeValue
     public function setUpdated($updated)
     {
         $this->updated = $updated;
-    
+
         return $this;
     }
 
     /**
      * Get updated
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getUpdated()
     {
         return $this->updated;
     }
 
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return DatetimeValue
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+    
     /**
      * Set dataField
      *
@@ -266,6 +263,29 @@ class DatetimeValue
     }
 
     /**
+     * Set dataRecordFields
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
+     * @return DatetimeValue
+     */
+    public function setDataRecordFields(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields = null)
+    {
+        $this->dataRecordFields = $dataRecordFields;
+
+        return $this;
+    }
+
+    /**
+     * Get dataRecordFields
+     *
+     * @return \ODR\AdminBundle\Entity\DataRecordFields
+     */
+    public function getDataRecordFields()
+    {
+        return $this->dataRecordFields;
+    }
+
+    /**
      * Set createdBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
@@ -297,40 +317,17 @@ class DatetimeValue
     public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
     {
         $this->updatedBy = $updatedBy;
-    
+
         return $this;
     }
 
     /**
      * Get updatedBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getUpdatedBy()
     {
         return $this->updatedBy;
-    }
-
-    /**
-     * Set dataRecordFields
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields
-     * @return DatetimeValue
-     */
-    public function setDataRecordFields(\ODR\AdminBundle\Entity\DataRecordFields $dataRecordFields = null)
-    {
-        $this->dataRecordFields = $dataRecordFields;
-    
-        return $this;
-    }
-
-    /**
-     * Get dataRecordFields
-     *
-     * @return \ODR\AdminBundle\Entity\DataRecordFields 
-     */
-    public function getDataRecordFields()
-    {
-        return $this->dataRecordFields;
     }
 }

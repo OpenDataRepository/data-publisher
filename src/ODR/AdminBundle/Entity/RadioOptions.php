@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Open Data Repository Data Publisher
  * RadioOptions Entity
@@ -25,14 +26,20 @@ class RadioOptions
     private $id;
 
     /**
-     * @var integer
-     */
-    private $value;
-
-    /**
+     * NOTE - this needs to remain in synch with the option name in the associated metadata entity...if it doesn't, CSV/XML importing can't check concurrently that a RadioOption exists
      * @var string
      */
     private $optionName;
+
+    /**
+     * @var \DateTime
+     */
+    private $created;
+
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
 
     /**
      * @var string
@@ -50,21 +57,6 @@ class RadioOptions
     private $isDefault;
 
     /**
-     * @var string
-     */
-    private $external_id;
-
-    /**
-     * @var \DateTime
-     */
-    private $deletedAt;
-
-    /**
-     * @var \DateTime
-     */
-    private $created;
-
-    /**
      * @var \DateTime
      */
     private $updated;
@@ -72,17 +64,17 @@ class RadioOptions
     /**
      * @var \Doctrine\Common\Collections\Collection
      */
-    private $children;
+    private $radioOptionMeta;
 
     /**
-     * @var \ODR\AdminBundle\Entity\RadioOptions
+     * @var \Doctrine\Common\Collections\Collection
      */
-    private $parent;
+    private $radioSelections;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataFields
      */
-    private $dataFields;
+    private $dataField;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -92,14 +84,21 @@ class RadioOptions
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
+    private $deletedBy;
+
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
     private $updatedBy;
 
+    
     /**
      * Constructor
      */
     public function __construct()
     {
-        $this->children = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->radioOptionMeta = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->radioSelections = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -113,30 +112,8 @@ class RadioOptions
     }
 
     /**
-     * Set value
-     *
-     * @param integer $value
-     * @return RadioOptions
-     */
-    public function setValue($value)
-    {
-        $this->value = $value;
-
-        return $this;
-    }
-
-    /**
-     * Get value
-     *
-     * @return integer 
-     */
-    public function getValue()
-    {
-        return $this->value;
-    }
-
-    /**
      * Set optionName
+     * NOTE - this needs to remain in synch with the option name in the associated metadata entity...if it doesn't, CSV/XML importing can't check concurrently that a RadioOption exists
      *
      * @param string $optionName
      * @return RadioOptions
@@ -155,132 +132,7 @@ class RadioOptions
      */
     public function getOptionName()
     {
-        return $this->optionName;
-    }
-
-    /**
-     * Set xml_optionName
-     *
-     * @param string $xmlOptionName
-     * @return RadioOptions
-     */
-    public function setXmlOptionName($xmlOptionName)
-    {
-        $this->xml_optionName = $xmlOptionName;
-
-        return $this;
-    }
-
-    /**
-     * Get xml_optionName
-     *
-     * @return string
-     */
-    public function getXmlOptionName()
-    {
-        if ($this->xml_optionName !== '') {
-            // Use whatever is specified for this radio option's XML name if it exists...
-            return $this->xml_optionName;
-        }
-        else {
-            // ...otherwise, perform character substitutions on the radio option's name that should work in most cases
-            $searches = array(" ", "!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "/", ":", ";", "<", "=", ">", "?", "@", "[", "\\", "]", "^", "`", "{", "|", "}", "~");
-            $replacements = array("_", "");
-
-            return str_replace($searches, $replacements, $this->optionName);
-        }
-    }
-
-    /**
-     * Set displayOrder
-     *
-     * @param integer $displayOrder
-     * @return RadioOptions
-     */
-    public function setDisplayOrder($displayOrder)
-    {
-        $this->displayOrder = $displayOrder;
-
-        return $this;
-    }
-
-    /**
-     * Get displayOrder
-     *
-     * @return integer 
-     */
-    public function getDisplayOrder()
-    {
-        return $this->displayOrder;
-    }
-
-    /**
-     * Set isDefault
-     *
-     * @param boolean $isDefault
-     * @return RadioOptions
-     */
-    public function setIsDefault($isDefault)
-    {
-        $this->isDefault = $isDefault;
-
-        return $this;
-    }
-
-    /**
-     * Get isDefault
-     *
-     * @return boolean 
-     */
-    public function getIsDefault()
-    {
-        return $this->isDefault;
-    }
-
-    /**
-     * Set external_id
-     *
-     * @param string $externalId
-     * @return RadioOptions
-     */
-    public function setExternalId($externalId)
-    {
-        $this->external_id = $externalId;
-
-        return $this;
-    }
-
-    /**
-     * Get external_id
-     *
-     * @return string 
-     */
-    public function getExternalId()
-    {
-        return $this->external_id;
-    }
-
-    /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return RadioOptions
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
+        return $this->getRadioOptionMeta()->getOptionName();
     }
 
     /**
@@ -307,7 +159,103 @@ class RadioOptions
     }
 
     /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return RadioOptions
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime 
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
+    }
+
+    /**
+     * Set xml_optionName
+     * @deprecated
+     *
+     * @param string $xmlOptionName
+     * @return RadioOptions
+     */
+    public function setXmlOptionName($xmlOptionName)
+    {
+        $this->xml_optionName = $xmlOptionName;
+
+        return $this;
+    }
+
+    /**
+     * Get xml_optionName
+     *
+     * @return string 
+     */
+    public function getXmlOptionName()
+    {
+        return $this->getRadioOptionMeta()->getXmlOptionName();
+    }
+
+    /**
+     * Set displayOrder
+     * @deprecated
+     *
+     * @param integer $displayOrder
+     * @return RadioOptions
+     */
+    public function setDisplayOrder($displayOrder)
+    {
+        $this->displayOrder = $displayOrder;
+
+        return $this;
+    }
+
+    /**
+     * Get displayOrder
+     *
+     * @return integer 
+     */
+    public function getDisplayOrder()
+    {
+        return $this->getRadioOptionMeta()->getDisplayOrder();
+    }
+
+    /**
+     * Set isDefault
+     * @deprecated
+     *
+     * @param boolean $isDefault
+     * @return RadioOptions
+     */
+    public function setIsDefault($isDefault)
+    {
+        $this->isDefault = $isDefault;
+
+        return $this;
+    }
+
+    /**
+     * Get isDefault
+     *
+     * @return boolean 
+     */
+    public function getIsDefault()
+    {
+        return $this->getRadioOptionMeta()->getIsDefault();
+    }
+
+    /**
      * Set updated
+     * @deprecated
      *
      * @param \DateTime $updated
      * @return RadioOptions
@@ -321,6 +269,7 @@ class RadioOptions
 
     /**
      * Get updated
+     * @deprecated
      *
      * @return \DateTime 
      */
@@ -330,82 +279,92 @@ class RadioOptions
     }
 
     /**
-     * Add children
+     * Add radioOptionMeta
      *
-     * @param \ODR\AdminBundle\Entity\RadioOptions $children
+     * @param \ODR\AdminBundle\Entity\RadioOptionsMeta $radioOptionMeta
      * @return RadioOptions
      */
-    public function addChild(\ODR\AdminBundle\Entity\RadioOptions $children)
+    public function addRadioOptionMetum(\ODR\AdminBundle\Entity\RadioOptionsMeta $radioOptionMeta)
     {
-        $this->children[] = $children;
+        $this->radioOptionMeta[] = $radioOptionMeta;
 
         return $this;
     }
 
     /**
-     * Remove children
+     * Remove radioOptionMeta
      *
-     * @param \ODR\AdminBundle\Entity\RadioOptions $children
+     * @param \ODR\AdminBundle\Entity\RadioOptionsMeta $radioOptionMeta
      */
-    public function removeChild(\ODR\AdminBundle\Entity\RadioOptions $children)
+    public function removeRadioOptionMetum(\ODR\AdminBundle\Entity\RadioOptionsMeta $radioOptionMeta)
     {
-        $this->children->removeElement($children);
+        $this->radioOptionMeta->removeElement($radioOptionMeta);
     }
 
     /**
-     * Get children
+     * Get radioOptionMeta
      *
-     * @return \Doctrine\Common\Collections\Collection 
+     * @return \ODR\AdminBundle\Entity\RadioOptionsMeta
      */
-    public function getChildren()
+    public function getRadioOptionMeta()
     {
-        return $this->children;
+        return $this->radioOptionMeta->first();
     }
 
     /**
-     * Set parent
+     * Add radioSelections
      *
-     * @param \ODR\AdminBundle\Entity\RadioOptions $parent
+     * @param \ODR\AdminBundle\Entity\RadioSelection $radioSelections
      * @return RadioOptions
      */
-    public function setParent(\ODR\AdminBundle\Entity\RadioOptions $parent = null)
+    public function addRadioSelection(\ODR\AdminBundle\Entity\RadioSelection $radioSelections)
     {
-        $this->parent = $parent;
+        $this->radioSelections[] = $radioSelections;
 
         return $this;
     }
 
     /**
-     * Get parent
+     * Remove radioSelections
      *
-     * @return \ODR\AdminBundle\Entity\RadioOptions 
+     * @param \ODR\AdminBundle\Entity\RadioSelection $radioSelections
      */
-    public function getParent()
+    public function removeRadioSelection(\ODR\AdminBundle\Entity\RadioSelection $radioSelections)
     {
-        return $this->parent;
+        $this->radioSelections->removeElement($radioSelections);
     }
 
     /**
-     * Set dataFields
+     * Get radioSelections
      *
-     * @param \ODR\AdminBundle\Entity\DataFields $dataFields
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRadioSelections()
+    {
+        return $this->radioSelections;
+    }
+    
+    /**
+     * Set dataField
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $dataField
      * @return RadioOptions
      */
-    public function setDataFields(\ODR\AdminBundle\Entity\DataFields $dataFields = null)
+    public function setDataField(\ODR\AdminBundle\Entity\DataFields $dataField = null)
     {
-        $this->dataFields = $dataFields;
+        $this->dataField = $dataField;
 
         return $this;
     }
 
     /**
-     * Get dataFields
+     * Get dataField
      *
-     * @return \ODR\AdminBundle\Entity\DataFields 
+     * @return \ODR\AdminBundle\Entity\DataFields
      */
-    public function getDataFields()
+    public function getDataField()
     {
-        return $this->dataFields;
+        return $this->dataField;
     }
 
     /**
@@ -432,7 +391,31 @@ class RadioOptions
     }
 
     /**
+     * Set deletedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $deletedBy
+     * @return RadioOptions
+     */
+    public function setDeletedBy(\ODR\OpenRepository\UserBundle\Entity\User $deletedBy = null)
+    {
+        $this->deletedBy = $deletedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     */
+    public function getDeletedBy()
+    {
+        return $this->deletedBy;
+    }
+
+    /**
      * Set updatedBy
+     * @deprecated
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
      * @return RadioOptions
@@ -446,11 +429,54 @@ class RadioOptions
 
     /**
      * Get updatedBy
+     * @deprecated 
      *
      * @return \ODR\OpenRepository\UserBundle\Entity\User 
      */
     public function getUpdatedBy()
     {
         return $this->updatedBy;
+    }
+
+    // ----------------------------------------
+    // TODO - delete these four functions
+    /**
+     * Get original optionName
+     *
+     * @return string
+     */
+    public function getOptionNameOriginal()
+    {
+        return $this->optionName;
+    }
+
+    /**
+     * Get original xml_optionName
+     *
+     * @return string
+     */
+    public function getXmlOptionNameOriginal()
+    {
+        return $this->xml_optionName;
+    }
+
+    /**
+     * Get original displayOrder
+     *
+     * @return integer
+     */
+    public function getDisplayOrderOriginal()
+    {
+        return $this->displayOrder;
+    }
+
+    /**
+     * Get original isDefault
+     *
+     * @return boolean
+     */
+    public function getIsDefaultOriginal()
+    {
+        return $this->isDefault;
     }
 }

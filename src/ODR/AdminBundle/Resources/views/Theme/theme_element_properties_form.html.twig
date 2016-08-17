@@ -1,0 +1,39 @@
+{% spaceless %}
+
+<div class="pure-u-3-4" style="visibility: hidden;">
+    <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
+</div>
+
+{{ form_start(theme_element_form, {
+    'method': 'POST',
+    'attr': {
+        'id': 'ThemeElementPropertiesForm_' ~ theme_element.id,
+        'class': 'ODRThemeElementPropertiesForm pure-form pure-form-aligned'
+    }
+}) }}
+
+    <fieldset>
+        <div class="pure-control-group">
+            <label for="{{ theme_element_form.cssWidthMed.vars.id }}">
+                <strong>{{ theme_element_form.cssWidthMed.vars.label }}</strong>
+            </label>
+            {{ form_errors(theme_element_form.cssWidthMed) }}
+            {{ form_widget(theme_element_form.cssWidthMed, { 'attr': {'style': 'width:auto'} }) }}
+        </div>
+
+        <div class="pure-control-group">
+            <label for="{{ theme_element_form.cssWidthXL.vars.id }}">
+                <strong>{{ theme_element_form.cssWidthXL.vars.label }}</strong>
+            </label>
+            {{ form_errors(theme_element_form.cssWidthXL) }}
+            {{ form_widget(theme_element_form.cssWidthXL, { 'attr': {'style': 'width:auto'} }) }}
+        </div>
+
+        <div style="display: none">
+        {{ form_rest(theme_element_form) }}
+        </div>
+    </fieldset>
+
+{{ form_end(theme_element_form) }}
+
+{% endspaceless %}

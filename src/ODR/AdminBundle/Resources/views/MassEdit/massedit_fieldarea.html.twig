@@ -1,68 +1,71 @@
 {% spaceless %}
 
-{% set datatype = datatype_tree.datatype %}
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = datatype.themes[theme_id] %}
 
-{% for data in datatype_tree.theme_elements %}
+{% for theme_element in theme.themeElements %}
 
-    {% set element = data.theme_element %}
-    {# inverse of "if datatype_tree.is_link == 1 and element.displayinresults == 0" #}
-    {#{% if datatype_tree.is_link == 0 or element.displayinresults == 1 %}#}
-    {% if datatype_tree.is_link == 0 %}
-        <div id="ThemeElement_{{ element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ element.getcsswidthmed }} pure-u-xl-{{ element.getcsswidthxl }}">
-            <div class="ODRInnerBox">
-    {% endif %}
+    <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
+    <div class="ODRInnerBox">
 
 
-    {#{% if datatype_tree.is_link == 1 and element.displayinresults == 0 %}#}
-    {% if datatype_tree.is_link == 1 %}
-        {# don't render theme_elements off linked types #}
-    {% elseif data.datafields != null %}
-        {# render all datafields in this theme element #}
-        {% for datafield in data.datafields %}
+    {% if theme_element.themeDataFields is defined %}
 
-            {% set theme_datafield = datafield.theme_datafield %}
-            {% set datafield = datafield.datafield %}
-
-            {% set can_view_datafield = 0 %}
-            {% set can_edit_datafield = 0 %}
-            {% if datafield_permissions[ datafield.id ] is defined and datafield_permissions[ datafield.id ][ 'view' ] is defined %}
-                {% set can_view_datafield = 1 %}
-            {% endif %}
-            {% if datafield_permissions[ datafield.id ] is defined and datafield_permissions[ datafield.id ][ 'edit' ] is defined %}
-                {% set can_edit_datafield = 1 %}
-            {% endif %}
-
-
-            {% set field_typename = datafield.fieldtype.typename %}
-
-            <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.getcsswidthmed }} pure-u-xl-{{ theme_datafield.getcsswidthxl }}" id="Field_{{ datafield.id }}" >
-    
-            {% if field_typename == "Markdown" %}
-                {% include 'ODRAdminBundle:Results:results_markdown.html.twig' with {'field': datafield} %}
-            {% elseif can_view_datafield == 1 %}
-                {% include 'ODRAdminBundle:MassEdit:massedit_datafield.html.twig' with {'fieldtheme': theme_datafield, 'field': datafield, 'can_edit_datafield': can_edit_datafield} %}
+        {% for theme_datafield in theme_element.themeDataFields %}
+            {% if theme_datafield.dataField is not defined %}
+                <div class="pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}"></div>    {# user doesn't have permissions to see this datafield #}
             {% else %}
-                {# user can't view or edit datafield, don't display anything #}
+                {% set datafield = theme_datafield.dataField %}
+
+                {% set can_edit_datafield = false %}
+                {% if datafield_permissions[ datafield.id ] is defined and datafield_permissions[ datafield.id ][ 'edit' ] is defined %}
+                    {% set can_edit_datafield = true %}
+                {% endif %}
+
+                <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datafield.id }}" >
+
+                {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
+                    {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
+                {% else %}
+                    {% include 'ODRAdminBundle:MassEdit:massedit_datafield.html.twig' with {
+                        'datafield': datafield,
+                        'can_edit_datafield': can_edit_datafield
+                    } %}
+                {% endif %}
+
+                </div><!-- end of #Field_{{ datafield.id }} -->
             {% endif %}
-
-            </div><!-- end of #Field_{{ datafield.id }} -->
-
         {% endfor %}
-    {% elseif data.datatype != null %}
-        {# render the child/linked datatype in this theme element #}
 
-        {% import "ODRAdminBundle:MassEdit:massedit_childtype.html.twig" as mychildform %}
-        {{ mychildform.input(data.datatype, datafield_permissions) }}
+    {% elseif theme_element.themeDataType is defined %}
+
+        {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
+            {% set child_datatype = theme_datatype.dataType %}
+
+            {% if datatype_array[ child_datatype.id ] is defined %}
+                {% set child_theme_id = 0 %}
+                {% for theme in datatype_array[ child_datatype.id ].themes %}
+                    {% if theme.themeType == 'master' %}
+                        {% set child_theme_id = theme.id %}
+                    {% endif %}
+                {% endfor %}
+
+                {% include 'ODRAdminBundle:MassEdit:massedit_childtype.html.twig' with {
+                    'datatype_array': datatype_array,
+                    'target_datatype_id': child_datatype.id,
+                    'theme_id': child_theme_id,
+
+                    'datafield_permissions': datafield_permissions,
+
+                    'is_top_level': 0
+                } %}
+            {% endif %}
+        {% endfor %}
 
     {% endif %}
 
-
-    {# inverse of "if datatype_tree.is_link == 1 and element.displayinresults == 0" #}
-    {#{% if datatype_tree.is_link == 0 or element.displayinresults == 1 %}#}
-    {% if datatype_tree.is_link == 0 %}
-            </div><!-- End of .ODRInnerBox -->
-        </div><!-- End of #ThemeElement_{{ element.id }} -->
-    {% endif %}
+    </div><!-- End of .ODRInnerBox -->
+    </div><!-- End of #ThemeElement_{{ theme_element.id }} -->
 
 {% endfor %}
 

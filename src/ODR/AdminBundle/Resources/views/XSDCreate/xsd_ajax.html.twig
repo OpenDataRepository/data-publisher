@@ -10,6 +10,11 @@
     </xsd:annotation>
 
     <!-- more normal datetime string definition... -->
+    <xsd:simpleType name="normal_date">
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="([0-9]{4})-(0[0-9]|1[0-2])-(0[0-9]|1[0-9]|2[0-9]|3[0-1])" />
+        </xsd:restriction>
+    </xsd:simpleType>
     <xsd:simpleType name="normal_datetime">
         <xsd:restriction base="xsd:string">
             <xsd:pattern value="([0-9]{4})-(0[0-9]|1[0-2])-(0[0-9]|1[0-9]|2[0-9]|3[0-1]) (0[0-9]|1[0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])" />
@@ -35,22 +40,6 @@
         </xsd:all>
     </xsd:complexType>
 
-    <!-- definition of a file control -->
-    <xsd:complexType name="datafield_file_type">
-        <xsd:sequence>
-            <xsd:element name="file" type="file_type" minOccurs="0" maxOccurs="unbounded" />
-        </xsd:sequence>
-        <xsd:attribute name="_delete_unlisted" use="optional" type="xsd:boolean" fixed="false" />
-    </xsd:complexType>
-
-    <!-- definition of a file control permitting just one file upload -->
-    <xsd:complexType name="datafield_file_type_single">
-        <xsd:sequence>
-            <xsd:element name="file" type="file_type" minOccurs="0" />
-        </xsd:sequence>
-        <xsd:attribute name="_delete_unlisted" use="optional" type="xsd:boolean" fixed="false" />
-    </xsd:complexType>
-
     <!-- definition of an image -->
     <xsd:complexType name="image_type">
         <xsd:all>
@@ -72,22 +61,6 @@
         </xsd:all>
     </xsd:complexType>
 
-    <!-- definition of an image control -->
-    <xsd:complexType name="datafield_image_type">
-        <xsd:sequence>
-            <xsd:element name="image" type="image_type" minOccurs="0" maxOccurs="unbounded" />
-        </xsd:sequence>
-        <xsd:attribute name="_delete_unlisted" use="optional" type="xsd:boolean" fixed="false" />
-    </xsd:complexType>
-
-    <!-- definition of an image control permitting just one image upload -->
-    <xsd:complexType name="datafield_image_type_single">
-        <xsd:sequence>
-            <xsd:element name="image" type="image_type" minOccurs="0" />
-        </xsd:sequence>
-        <xsd:attribute name="_delete_unlisted" use="optional" type="xsd:boolean" fixed="false" />
-    </xsd:complexType>
-
     <!-- metadata definition for datarecord -->
     <xsd:complexType name="datarecord_metadata_type">
         <xsd:all>
@@ -101,13 +74,13 @@
     <!-- actual definition of the datarecord -->
     <xsd:complexType name="datarecord_type">
         <xsd:all>
-            {% import "ODRAdminBundle:XSDCreate:xsd_area_childtype.html.twig" as mychildform %}
-            {{ mychildform.input(datatype_tree) }}
+            {# using macro on purpose #}
+            {% set is_top_level = 1 %}
+            {% import "ODRAdminBundle:XSDCreate:xsd_childtype.html.twig" as mychildform %}
+            {{ mychildform.input(datatype_array, initial_datatype_id, theme_id, is_top_level, version) }}
 
             <xsd:element name="_datarecord_metadata" type="datarecord_metadata_type" minOccurs="0" />
-
         </xsd:all>
-        <xsd:attribute name="datatype_name" type="xsd:string" use="required" />
     </xsd:complexType>
 
     <!-- allow for multiple datarecords -->

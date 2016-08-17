@@ -54,3 +54,4 @@ ODR\AdminBundle\Entity\TrackedCSVExport:
 #                    referencedColumnName: id
 #            orphanRemoval: false
 
+    lifecycleCallbacks: {  }

@@ -1,0 +1,88 @@
+{% spaceless %}
+    
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = datatype.themes[theme_id] %}
+
+{% for theme_element in theme.themeElements %}
+
+    {% set has_datafields = false %}
+    {% set has_childtype = false %}
+    {% set child_is_link = false %}
+    {% if theme_element.themeDataFields is defined %}
+        {% set has_datafields = true %}
+    {% elseif theme_element.themeDataType is defined %}
+        {% set has_childtype = true %}
+
+        {% if theme_element.themeDataType[0].is_link == 1 %}
+            {% set child_is_link = true %}
+        {% endif %}
+    {% endif %}
+
+    <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
+        <div class="ODRInnerBox">
+
+        {% if is_link == 0 %}
+            <div id="ThemeElementTools_{{ theme_element.id }}" class="DataTypeTools pure-u-1"><span style="float:right;">
+                <i class="Pointer tooltip fa fa-info-circle ODRThemeElementProperties" title="ThemeElement Properties"></i>
+                <i class="Pointer tooltip fa fa-globe{% if theme_element.themeElementMeta.publicDate|is_public %} ODRActiveIcon{% endif %} ODRPublicThemeElement" title="ThemeElement{% if not theme_element.themeElementMeta.publicDate|is_public %} not{% endif %} visible to public"></i>
+
+                <i class="Pointer tooltip fa fa-plus-square {% if has_childtype %}fa-muted{% endif %} ODRAddDatafield" title="Add DataField" rel="{{ datatype.id }}"></i>
+                <i class="Pointer tooltip fa fa-list-alt {% if has_childtype or has_datafields %}fa-muted{% endif %} ODRAddChildtype" title="Add Child Type" rel="{{ datatype.id }}"></i>
+
+                {% if has_datafields or (has_childtype and not child_is_link) %}
+                    <i class="Pointer tooltip fa fa-link fa-muted ODRLinkDatatype" title="Link DataType" rel="{{ datatype.id }}"></i>
+                {% elseif has_childtype and child_is_link %}
+                    <i class="Pointer tooltip fa fa-link ODRActiveIcon ODRLinkDatatype" title="Link DataType" rel="{{ datatype.id }}"></i>
+                {% else %}
+                    <i class="Pointer tooltip fa fa-link ODRLinkDatatype" title="Link DataType" rel="{{ datatype.id }}"></i>
+                {% endif %}
+
+                <i class="Pointer tooltip fa fa-trash-o {% if has_datafields or has_childtype %}fa-muted{% endif %} ODRDeleteThemeElement" title="Delete ThemeElement"></i>
+            </span></div>
+
+        {% endif %}
+
+
+        {% if theme_element.themeDataFields is defined %}
+            {# render all datafields in this theme element #}
+            {% for theme_datafield in theme_element.themeDataFields %}
+                {% set datafield = theme_datafield.dataField %}
+
+                {% include 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig' with {
+                    'theme_datafield': theme_datafield,
+                    'datafield': datafield,
+                } %}
+
+            {% endfor %}
+        {% elseif theme_element.themeDataType is defined %}
+
+            {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
+                {% set child_datatype = theme_datatype.dataType %}
+
+                {% if datatype_array[ child_datatype.id ] is defined %}
+                    {% set child_theme_id = 0 %}
+                    {% for theme in datatype_array[ child_datatype.id ].themes %}
+                        {% if theme.themeType == 'master' %}
+                            {% set child_theme_id = theme.id %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% include 'ODRAdminBundle:Displaytemplate:design_childtype.html.twig' with {
+                        'datatype_array': datatype_array,
+                        'target_datatype_id': child_datatype.id,
+                        'theme_id': child_theme_id,
+
+                        'is_top_level': 0,
+                        'is_link': theme_datatype.is_link,
+                    } %}
+                {% endif %}
+            {% endfor %}
+
+        {% endif %}
+
+        </div><!-- End of .ODRInnerBox -->
+    </div><!-- End of #ThemeElement_{{ theme_element.id }} -->
+
+{% endfor %}
+
+{% endspaceless %}

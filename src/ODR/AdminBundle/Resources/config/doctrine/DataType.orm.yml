@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\DataType:
     type: entity
     table: odr_data_type
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -13,61 +13,7 @@ ODR\AdminBundle\Entity\DataType:
             nullable: false
             generator:
                 strategy: IDENTITY
-        searchSlug:
-            type: string
-            length: 32
-            fixed: false
-            nullable: true
-            column: search_slug
-            gedmo:
-                - versioned
-        shortName:
-            type: string
-            length: 32
-            fixed: false
-            nullable: false
-            column: short_name
-            gedmo:
-                - versioned
-        longName:
-            type: string
-            length: 128
-            fixed: false
-            nullable: false
-            column: long_name
-            gedmo:
-                - versioned
-        description:
-            type: text
-            fixed: false
-            nullable: true
-            column: description
-            gedmo:
-                - versioned
-        xml_shortName:
-            type: string
-            length: 32
-            fixed: false
-            nullable: false
-            column: xml_short_name
-            gedmo:
-                - versioned
 
-        useShortResults:
-            type: boolean
-            nullable: false
-            default: true
-            column: use_short_results
-            gedmo:
-                - versioned
-
-        display_type:
-            type: integer
-            nullable: false
-            default: 0
-            column: display_type
-            gedmo:
-                - versioned
         revision:
             type: integer
             unsigned: true
@@ -86,17 +32,6 @@ ODR\AdminBundle\Entity\DataType:
             default: false
             column: has_textresults
 
-        publicDate: 
-            type: datetime
-            nullable: false
-            column: public_date
-            gedmo:
-                - versioned
-        deletedAt:
-            type: date
-            nullable: true
-            gedmo:
-                - versioned
         created:
             type: datetime
             gedmo:
@@ -107,7 +42,78 @@ ODR\AdminBundle\Entity\DataType:
             gedmo:
                 timestampable:
                     on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+#            gedmo:
+#                - versioned
+
+        # TODO - delete the following 8 properties
+        searchSlug:
+            type: string
+            length: 32
+            fixed: false
+            nullable: true
+            column: search_slug
+#            gedmo:
+#                - versioned
+        shortName:
+            type: string
+            length: 32
+            fixed: false
+            nullable: false
+            column: short_name
+#            gedmo:
+#                - versioned
+        longName:
+            type: string
+            length: 128
+            fixed: false
+            nullable: false
+            column: long_name
+#            gedmo:
+#                - versioned
+        description:
+            type: text
+            fixed: false
+            nullable: true
+            column: description
+#            gedmo:
+#                - versioned
+        xml_shortName:
+            type: string
+            length: 32
+            fixed: false
+            nullable: false
+            column: xml_short_name
+ #           gedmo:
+ #               - versioned
+
+        useShortResults:
+            type: boolean
+            nullable: false
+            default: true
+            column: use_short_results
+#            gedmo:
+#                - versioned
+
+        display_type:
+            type: integer
+            nullable: false
+            default: 0
+            column: display_type
+#            gedmo:
+#                - versioned
+
+        publicDate:
+            type: datetime
+            nullable: false
+            column: public_date
+#            gedmo:
+#                - versioned
+
     oneToOne:
+        # TODO - delete the following four properties
         externalIdField:
             targetEntity: DataFields
             cascade: {  }
@@ -120,8 +126,8 @@ ODR\AdminBundle\Entity\DataType:
                     referencedColumnName: id
             orphanRemoval: false
             fetch: EXTRA_LAZY
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         nameField:
             targetEntity: DataFields
             cascade: {  }
@@ -133,8 +139,8 @@ ODR\AdminBundle\Entity\DataType:
                     referencedColumnName: id
             orphanRemoval: false
             fetch: EXTRA_LAZY
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         sortField:
             targetEntity: DataFields
             cascade: {  }
@@ -146,8 +152,8 @@ ODR\AdminBundle\Entity\DataType:
                     referencedColumnName: id
             orphanRemoval: false
             fetch: EXTRA_LAZY
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         backgroundImageField:
             targetEntity: DataFields
             cascade: {  }
@@ -159,8 +165,8 @@ ODR\AdminBundle\Entity\DataType:
                     referencedColumnName: id
             orphanRemoval: false
             fetch: EXTRA_LAZY
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
     manyToOne:
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -172,7 +178,7 @@ ODR\AdminBundle\Entity\DataType:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
+#            gedmo:
 #                blameable:
 #                    on: create
         updatedBy:
@@ -185,9 +191,21 @@ ODR\AdminBundle\Entity\DataType:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
+#            gedmo:
 #                blameable:
 #                    on: update
+        deletedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            fetch: EXTRA_LAZY
+            joinColumns:
+                deletedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        # TODO - delete the following property
         renderPlugin:
             targetEntity: RenderPlugin
             cascade: {  }
@@ -197,9 +215,22 @@ ODR\AdminBundle\Entity\DataType:
                     referencedColumnName: id
             orphanRemoval: false
             fetch: EXTRA_LAZY
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
+
     oneToMany:
+        dataTypeMeta:
+            targetEntity: DataTypeMeta
+            cascade: { }
+            mappedBy: dataType
+            inversedBy: null
+            joinColumns:
+                data_type_meta_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
         themeDataType:
             targetEntity: ThemeDataType
             cascade: {  }
@@ -209,22 +240,36 @@ ODR\AdminBundle\Entity\DataType:
             joinColumns:
                 theme_data_type_id:
                     referencedColumnName: id
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         dataFields:
             targetEntity: DataFields
             cascade: {  }
             mappedBy: dataType
             inversedBy: null
             fetch: EXTRA_LAZY
-            orderBy:
-                displayOrder: ASC
-                id: ASC
+#            orderBy:
+#                displayOrder: ASC
+#                id: ASC
             joinColumns:
                 data_fields_id:
                     referencedColumnName: id
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
+
+        themes:
+            targetEntity: Theme
+            cascade: { }
+            mappedBy: dataType
+            inversedBy: null
+            joinColumns:
+                theme_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+#            gedmo:
+#                - versioned
+
+        #TODO - delete the following property
         themeElement:
             targetEntity: ThemeElement
             cascade: {  }
@@ -237,6 +282,6 @@ ODR\AdminBundle\Entity\DataType:
             joinColumns:
                 theme_data_type_id:
                     referencedColumnName: id
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
     lifecycleCallbacks: {  }

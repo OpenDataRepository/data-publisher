@@ -37,7 +37,7 @@ class ClearXMLImportValidateCommand extends ContainerAwareCommand
         $this
             ->setName('odr_xml_import:clear_validate')
             ->setDescription('Deletes all jobs from the validate_import tube')
-            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the memcached_prefix to the tube name for deleting jobs');
+            ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the redis_prefix to the tube name for deleting jobs');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -45,12 +45,12 @@ class ClearXMLImportValidateCommand extends ContainerAwareCommand
         // Only need to load these once...
         $container = $this->getContainer();
         $pheanstalk = $container->get('pheanstalk');
-        $memcached_prefix = $container->getParameter('memcached_key_prefix');
+        $redis_prefix = $container->getParameter('memcached_key_prefix');
 
         while (true) {
             // Wait for a job?
             if ($input->getOption('old'))
-                $job = $pheanstalk->watch($memcached_prefix.'_validate_import')->ignore('default')->reserve(); 
+                $job = $pheanstalk->watch($redis_prefix.'_validate_import')->ignore('default')->reserve();
             else
                 $job = $pheanstalk->watch('validate_import')->ignore('default')->reserve(); 
 
@@ -61,7 +61,7 @@ class ClearXMLImportValidateCommand extends ContainerAwareCommand
             $pheanstalk->delete($job);
 
 if ($input->getOption('old'))
-    $output->writeln( date('H:i:s').'  deleted job for xml file "'.$data->xml_filename.'" of datatype '.$datatype_id.' from '.$memcached_prefix.'_validate_import');
+    $output->writeln( date('H:i:s').'  deleted job for xml file "'.$data->xml_filename.'" of datatype '.$datatype_id.' from '.$redis_prefix.'_validate_import');
 else
     $output->writeln( date('H:i:s').'  deleted job for xml file "'.$data->xml_filename.'" of datatype '.$datatype_id.' from validate_import');
 

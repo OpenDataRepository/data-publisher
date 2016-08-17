@@ -12,42 +12,46 @@
     <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
 </div>
 
-{% include 'ODRAdminBundle:Displaytemplate:theme_datafield_properties_form.html.twig' with {'theme_datafield': theme_datafield, 'theme_datafield_form': theme_datafield_form} %}
+{% include 'ODRAdminBundle:Theme:theme_datafield_properties_form.html.twig' with {'theme_datafield': theme_datafield, 'theme_datafield_form': theme_datafield_form} %}
 
-<form class="ODRDatafieldPropertiesForm pure-form pure-form-aligned" {{ form_enctype(datafield_form) }} id="DatafieldPropertiesForm_{{ datafield.id }}">
-    {{ form_errors(datafield_form._token) }}
-    {{ form_widget(datafield_form._token) }}
+{{ form_start(datafield_form, {
+    'method': 'POST',
+    'attr': {
+        'id': 'DatafieldPropertiesForm_' ~ datafield.id,
+        'class': 'ODRDatafieldPropertiesForm pure-form pure-form-aligned'
+    }
+}) }}
 
     <fieldset>
     {% if typename != "Markdown" %}
         <div class="pure-control-group">
-            <label for="{{datafield_form.field_name.vars.id}}">
-                <strong>{{datafield_form.field_name.vars.label}}</strong>
+            <label for="{{ datafield_form.field_name.vars.id }}">
+                <strong>{{ datafield_form.field_name.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.field_name) }}
             {{ form_widget(datafield_form.field_name, { 'attr': {'class': 'required ODRDatafieldName', 'data-error-type': 'inline' } }) }}
-            {{ form_widget(datafield_form.data_type, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+            {#{{ form_widget(datafield_form.data_type, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}#}
         </div>
     {% endif %}
 
         <div class="pure-control-group">
-            <label for="{{datafield_form.description.vars.id}}">
-                <strong>{{datafield_form.description.vars.label}}</strong>
+            <label for="{{ datafield_form.description.vars.id }}">
+                <strong>{{ datafield_form.description.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.description) }}
             {{ form_widget(datafield_form.description, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
         </div>
 {#
         <div class="pure-control-group">
-            <label for="{{datafield_form.regex_validator.vars.id}}">
-                <strong>{{datafield_form.regex_validator.vars.label}}</strong>
+            <label for="{{ datafield_form.regex_validator.vars.id }}">
+                <strong>{{ datafield_form.regex_validator.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.regex_validator) }}
             {{ form_widget(datafield_form.regex_validator, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
         </div>
         <div class="pure-control-group">
-            <label for="{{datafield_form.php_validator.vars.id}}">
-                <strong>{{datafield_form.php_validator.vars.label}}</strong>
+            <label for="{{ datafield_form.php_validator.vars.id }}">
+                <strong>{{ datafield_form.php_validator.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.php_validator) }}
             {{ form_widget(datafield_form.php_validator, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
@@ -55,10 +59,10 @@
 #}
 
         <div class="pure-control-group">
-            <label for="{{datafield_form.field_type.vars.id}}">
-                <strong>{{datafield_form.field_type.vars.label}}</strong>
+            <label for="{{ datafield_form.field_type.vars.id }}">
+                <strong>{{ datafield_form.field_type.vars.label }}</strong>
             </label>
-            <input type="hidden" id="previous_fieldtype" name="DataFieldsForm[previous_field_type]" value="{{ datafield.getfieldtype.id }}" />
+            <input type="hidden" id="previous_fieldtype" {#name="DataFieldsForm[previous_field_type]"#} value="{{ datafield.getfieldtype.id }}" disabled="disabled" />
 
             <span {% if prevent_fieldtype_change == true %}title="{{ prevent_fieldtype_change_message }}"{% endif %} >
                 {{ form_errors(datafield_form.field_type) }}
@@ -85,8 +89,8 @@
 
         {% if typename == "Markdown" %}
         <div class="pure-control-group">
-            <label for="{{datafield_form.markdown_text.vars.id}}">
-                <strong>{{datafield_form.markdown_text.vars.label}}</strong>
+            <label for="{{ datafield_form.markdown_text.vars.id }}">
+                <strong>{{ datafield_form.markdown_text.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.markdown_text) }}
             {{ form_widget(datafield_form.markdown_text, { 'attr': {'class': 'ODRDatafieldMarkdown', 'style': 'width:400px; min-height:300px;'} }) }}
@@ -96,8 +100,8 @@
         {% if typename != "Markdown" %}
         <div class="pure-control-group">
 {#
-            <label for="{{datafield_form.render_plugin.vars.id}}">
-                <strong>{{datafield_form.render_plugin.vars.label}}</strong>
+            <label for="{{ datafield_form.render_plugin.vars.id }}">
+                <strong>{{ datafield_form.render_plugin.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.render_plugin) }}
             {{ form_widget(datafield_form.render_plugin, { 'attr': {'style': 'width:auto'} }) }}
@@ -112,8 +116,8 @@
         </div>
 
         <div class="pure-control-group">
-            <label for="{{datafield_form.required.vars.id}}">
-                <strong>{{datafield_form.required.vars.label}}</strong>
+            <label for="{{ datafield_form.required.vars.id }}">
+                <strong>{{ datafield_form.required.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.required) }}
             {{ form_widget(datafield_form.required, { 'attr': {'style': 'width:auto'} }) }}
@@ -122,8 +126,8 @@
 
         {% if fieldtype.getcanbeunique == 1 %}
         <div class="pure-control-group">
-            <label for="{{datafield_form.is_unique.vars.id}}">
-                <strong>{{datafield_form.is_unique.vars.label}}</strong>
+            <label for="{{ datafield_form.is_unique.vars.id }}">
+                <strong>{{ datafield_form.is_unique.vars.label }}</strong>
             </label>
 
             <span {% if is_external_id_field == true %}title="This datafield is currently being used as the Datatype's External ID field, and must remain unique."{% endif %} >
@@ -143,7 +147,7 @@
 
         {% if typename == 'Image' or typename == 'Single Radio' or typename == 'Multiple Radio' %}
         <div class="pure-control-group">
-            <label for="{{datafield_form.children_per_row.vars.id}}">
+            <label for="{{ datafield_form.children_per_row.vars.id }}">
                 <strong>
                 {% if typename == 'Image' %}
                     Images per row:&nbsp;
@@ -159,15 +163,15 @@
 
         {% if typename == 'Single Radio' or typename == 'Multiple Radio' or typename == 'Single Select' or typename == 'Multiple Select' %}
         <div class="pure-control-group">
-            <label for="{{datafield_form.radio_option_name_sort.vars.id}}">
-                <strong>{{datafield_form.radio_option_name_sort.vars.label}}</strong>
+            <label for="{{ datafield_form.radio_option_name_sort.vars.id }}">
+                <strong>{{ datafield_form.radio_option_name_sort.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.radio_option_name_sort) }}
             {{ form_widget(datafield_form.radio_option_name_sort, { 'attr': {'class': 'ODRDatafieldNameSort', 'style': 'width:auto'} }) }}
         </div>
         <div class="pure-control-group">
-            <label for="{{datafield_form.radio_option_display_unselected.vars.id}}">
-                <strong>{{datafield_form.radio_option_display_unselected.vars.label}}</strong>
+            <label for="{{ datafield_form.radio_option_display_unselected.vars.id }}">
+                <strong>{{ datafield_form.radio_option_display_unselected.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.radio_option_display_unselected) }}
             {{ form_widget(datafield_form.radio_option_display_unselected, { 'attr': {'style': 'width:auto'} }) }}
@@ -176,16 +180,16 @@
 
         {% if typename != 'Markdown' %}   {# all fields except markdown are searchable to some degree #}
         <div class="pure-control-group">
-            <label for="{{datafield_form.searchable.vars.id}}">
-                <strong>{{datafield_form.searchable.vars.label}}</strong>
+            <label for="{{ datafield_form.searchable.vars.id }}">
+                <strong>{{ datafield_form.searchable.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.searchable) }}
             {{ form_widget(datafield_form.searchable, { 'attr': {'style': 'width:auto'} }) }}
         </div>
 
         <div class="pure-control-group">
-            <label for="{{datafield_form.user_only_search.vars.id}}">
-                <strong>{{datafield_form.user_only_search.vars.label}}</strong>
+            <label for="{{ datafield_form.user_only_search.vars.id }}">
+                <strong>{{ datafield_form.user_only_search.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.user_only_search) }}
             {{ form_widget(datafield_form.user_only_search, { 'attr': {'style': 'width:auto'} }) }}
@@ -194,18 +198,18 @@
 
         {% if typename == 'File' or typename == 'Image' %}
         <div class="pure-control-group">
-            <label for="{{datafield_form.allow_multiple_uploads.vars.id}}">
-                <strong>{{datafield_form.allow_multiple_uploads.vars.label}}</strong>
+            <label for="{{ datafield_form.allow_multiple_uploads.vars.id }}">
+                <strong>{{ datafield_form.allow_multiple_uploads.vars.label }}</strong>
             </label>
             <span
                 {% if has_multiple_uploads == 1 %}
                     title="This DataField can't be set to only accept a single file, because at least one DataRecord already has multiple files attached to this DataField"
-                {% elseif has_multiple_uploads == 0 and datafield.displayOrder > 0 %}
+                {% elseif has_multiple_uploads == 0 and used_by_table_theme == true %}
                     title="This DataField is currently being used in this DataType's TextResults display, which can only handle one file per DataField"
                 {% endif %}>
 
             {{ form_errors(datafield_form.allow_multiple_uploads) }}
-            {% if has_multiple_uploads == 1 or (has_multiple_uploads == 0 and datafield.displayOrder > 0) %}
+            {% if has_multiple_uploads == 1 or (has_multiple_uploads == 0 and used_by_table_theme == true) %}
                 <input type="hidden" name="{{ datafield_form.allow_multiple_uploads.vars.full_name }}" value="1" />
                 {{ form_widget(datafield_form.allow_multiple_uploads, { 'attr': {'disabled': 'disabled', 'style': 'width:auto'} }) }}
             {% else %}
@@ -222,8 +226,8 @@
 
         {% if typename == 'File' %}
         <div class="pure-control-group">
-            <label for="{{datafield_form.shorten_filename.vars.id}}">
-                <strong>{{datafield_form.shorten_filename.vars.label}}</strong>
+            <label for="{{ datafield_form.shorten_filename.vars.id }}">
+                <strong>{{ datafield_form.shorten_filename.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.shorten_filename) }}
             {{ form_widget(datafield_form.shorten_filename, { 'attr': {'style': 'width:auto'} }) }}
@@ -235,9 +239,10 @@
         </div>
 
     </fieldset>
-</form>
 
-<button type="button" id="DeleteField_{{ datafield.id }}" class="pure-button pure-button-primary{% if prevent_fieldtype_change == true %} pure-button-disabled{% endif %} ODRDeleteField"><i class="fa fa-trash-o"></i>&nbsp;Delete Field</button>
+{{ form_end(datafield_form) }}
+
+<button type="button" id="DeleteField_{{ datafield.id }}" class="pure-button pure-button-primary{% if prevent_datafield_deletion %} pure-button-disabled{% endif %} ODRDeleteField" {% if prevent_datafield_deletion %}title="{{ prevent_datafield_deletion_message }}"{% endif %}><i class="fa fa-trash-o"></i>&nbsp;Delete Field</button>
 &nbsp;&nbsp;&nbsp;
 <button type="button" id="CopyField_{{ datafield.id }}" class="pure-button pure-button-primary ODRCopyField"><i class="fa fa-repeat"></i>&nbsp;Copy Field</button>
 

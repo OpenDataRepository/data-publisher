@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\TrackedJob:
     type: entity
     table: odr_tracked_job
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -67,8 +67,8 @@ ODR\AdminBundle\Entity\TrackedJob:
         deletedAt:
             type: date
             nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
 
     oneToMany:
         trackedCSVExport:
@@ -107,3 +107,4 @@ ODR\AdminBundle\Entity\TrackedJob:
 #                blameable:
 #                    on: create
 
+    lifecycleCallbacks: {  }

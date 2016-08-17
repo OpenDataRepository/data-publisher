@@ -1,0 +1,33 @@
+{% spaceless %}
+
+    {% if is_top_level == 0 and (display_type == 0 or display_type == 3) %}     {# accordion or list display_type #}
+        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+            <span class="ui-icon ui-icon-triangle-1-s"></span>
+
+        {% if datarecord.nameField_value != datarecord.id %}
+            <a>{{ datarecord.nameField_value }}</a>
+        {% else %}
+            <a>{{ datatype.dataTypeMeta.shortName }}</a>
+        {% endif %}
+
+        {% if datarecord.id != datarecord.grandparent.id %}
+            <span style="float: right;" rel="{{ datatype.id }}">
+                <i id="datarecord_{{ datarecord.id }}_public" class="tooltip fa fa-lg fa-globe {% if not datarecord.dataRecordMeta.publicDate|is_public %}IconRed{% endif %} {% if is_link == 0 and can_edit_record == 1 %}Pointer ODRPublicChildRecord{% endif %}" title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}"></i>
+
+            {% if is_link == 0 and can_delete_record == 1 %}
+                <i class="Pointer tooltip fa fa-times fa-lg ODRDeleteChildRecord" title="Delete Child Record" rel="{{ datarecord.id }}"></i>
+            {% endif %}
+
+            {% if is_link == 1 and can_edit_record == 1 %}
+                <a target="_blank" class="Pointer" onclick="UpdateURL('#{{ path('odr_record_edit', {'datarecord_id': datarecord.id}) }}');" style="margin-left: 5px;"><strong>Edit</strong></a>
+                <!--<a target="_blank" class="Pointer ODROpenLinkedRecord" style="margin-left: 5px;" rel="{{ datarecord.id }}"><strong>Edit</strong></a>-->
+            {% endif %}
+            </span>
+        {% endif %}
+
+        </h3>
+    {% endif %}
+
+    {# tabbed and dropdown display_type have already been handled in Default::fieldarea_header.html.twig #}
+
+{% endspaceless %}

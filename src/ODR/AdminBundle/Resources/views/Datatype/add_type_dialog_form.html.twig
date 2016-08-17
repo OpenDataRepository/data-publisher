@@ -1,22 +1,26 @@
 {% spaceless %}
 
     <!-- Add DataType Dialog Form -->
-    <form class="ODRAddDatatypeForm pure-form pure-form-aligned full validate" id="AddDatatypeForm" action="{{ path('odr_add_types') }}" method="post">
-
-        {{ form_errors(form._token) }}
-        {{ form_widget(form._token) }}
+    {{ form_start(form, {
+        'action': path('odr_add_types'),
+        'method': 'POST',
+        'attr': {
+            'id': 'AddDatatypeForm',
+            'class': 'ODRAddDatatypeForm pure-form pure-form-aligned full validate'
+        }
+    }) }}
 
         <fieldset>
             <div class="pure-control-group">
-                <label for="{{form.shortName.vars.id}}">
-                    <strong>{{form.shortName.vars.label}}</strong>
+                <label for="{{ form.shortName.vars.id }}">
+                    <strong>{{ form.shortName.vars.label }}</strong>
                 </label>
                 {{ form_errors(form.shortName) }}
                 {{ form_widget(form.shortName, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
             </div>
             <div class="pure-control-group">
-                <label for="{{form.longName.vars.id}}">
-                    <strong>{{form.longName.vars.label}}</strong>
+                <label for="{{ form.longName.vars.id }}">
+                    <strong>{{ form.longName.vars.label }}</strong>
                 </label>
                 {{ form_errors(form.longName) }}
                 {{ form_widget(form.longName, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
@@ -28,7 +32,7 @@
 
         </fieldset>
 
-    </form>
+    {{ form_end(form) }}
 
     <button type="button" class="pure-button ODRCancelButton">Cancel</button>
     <button type="button" class="pure-button pure-button-primary ODRSubmitButton">Create DataType</button>
@@ -36,15 +40,17 @@
     <script>
         $(function() {
 
-            $("#dialog_add_datatype").dialog({
+            var dialog_form = $("#dialog_add_datatype");
+
+            $(dialog_form).dialog({
                 autoOpen: false,
                 modal: true,
                 width: 400,
                 open: function() {
                     $(this).parent().css('overflow', 'visible');
-                },
+                }
             });
-            $("#dialog_add_datatype").find('.ODRSubmitButton').click(function() {
+            $(dialog_form).find('.ODRSubmitButton').click(function() {
                 var $el = $(this).parents('.ui-dialog-content');
 //                if ($el.validate().form()) {
                 if ( $("#AddDatatypeForm").valid() ) {
@@ -54,7 +60,7 @@
                     $el.dialog('close');
                 }
             });
-            $("#dialog_add_datatype").find('.ODRCancelButton').click(function() {
+            $(dialog_form).find('.ODRCancelButton').click(function() {
                 var $el = $(this).parents('.ui-dialog-content');
 
                 $el.find('form')[0].reset();

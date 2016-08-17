@@ -2,7 +2,7 @@ ODR\AdminBundle\Entity\RenderPluginOptions:
     type: entity
     table: odr_render_plugin_options
     gedmo:
-        loggable: true
+#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -13,32 +13,29 @@ ODR\AdminBundle\Entity\RenderPluginOptions:
             nullable: false
             generator:
                 strategy: IDENTITY
+
         optionName:
             type: string
             length: 32
             fixed: false
             nullable: false
             column: option_name
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         optionValue:
             type: text
             fixed: false
             nullable: true
             column: option_value
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
         active:
             type: boolean
             nullable: false
             column: active
-            gedmo:
-                - versioned
-        deletedAt:
-            type: date
-            nullable: true
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
+
         created:
             type: datetime
             gedmo:
@@ -49,6 +46,12 @@ ODR\AdminBundle\Entity\RenderPluginOptions:
             gedmo:
                 timestampable:
                     on: update
+        deletedAt:
+            type: date
+            nullable: true
+#            gedmo:
+#                - versioned
+
     manyToOne:
         renderPluginInstance:
             targetEntity: RenderPluginInstance
@@ -59,8 +62,9 @@ ODR\AdminBundle\Entity\RenderPluginOptions:
                 render_plugin_instance_id:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
-                - versioned
+#            gedmo:
+#                - versioned
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -70,7 +74,7 @@ ODR\AdminBundle\Entity\RenderPluginOptions:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
+#            gedmo:
 #                blameable:
 #                    on: create
         updatedBy:
@@ -82,7 +86,8 @@ ODR\AdminBundle\Entity\RenderPluginOptions:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-            gedmo:
+#            gedmo:
 #                blameable:
 #                    on: update
+
     lifecycleCallbacks: {  }

@@ -1,15 +1,18 @@
 {% spaceless %}
 
-{% set datatype = datatype_tree.datatype %}
+{% for dr_id, datarecord in datarecord_array %}
+    {% if datarecord.dataType.id == initial_datatype_id %}
+    <div class="ODRShortResults pure-u-1">
+        {% include 'ODRAdminBundle:ShortResults:shortresults_childtype.html.twig' with {
+            'datatype_array': datatype_array,
+            'datarecord_array': datarecord_array,
+            'theme_id': theme_id,
 
-{% include 'ODRAdminBundle:ShortResults:shortresults_area.html.twig' with {'datatype_tree': datatype_tree, 'datarecord_tree': datarecord_tree} %}
-
-<script>
-
-$(function() {
-    $(".MenuDesignArea").remove();
-});
-
-</script>
+            'target_datatype_id': initial_datatype_id,
+            'target_datarecord_id': datarecord.id,
+        } %}
+    </div>
+    {% endif %}
+{% endfor %}
 
 {% endspaceless %}

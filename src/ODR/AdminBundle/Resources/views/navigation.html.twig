@@ -35,13 +35,8 @@
         <li class="pure-menu-separator"></li>
 
         <li class="ODRMenuExpand Pointer">
-            <a><i class="fa fa-lg fa-tasks fa-fw"></i>Data Management</a>
-            <ul>
-                <li><a class="address" href="#{{ path('odr_list_types', { 'section': 'records' } ) }}" title="List DataRecords"><i class="fa fa-lg fa-fw fa-list"></i>List Records</a></li>
-                <li><a class="address" href="#{{ path('odr_list_types', { 'section': 'design' } ) }}" title="List DataTypes"><i class="fa fa-lg fa-fw fa-cog"></i>List Types</a></li>
-                {#<li><a class="address" href="#{{ path('admin_manage_plugins') }}" title="Manage Plugins"><span class="fa fa-lg fa-fw fa-cog"></span>Manage Plugins</a></li>#}
-                {#<li><a class="address" href="#{{ path('admin_plugin_test') }}" title="Plugin TEST"><span class="fa fa-lg fa-fw fa-cog"></span>Plugin TEST</a></li>#}
-            </ul>
+            <a class="address" href="#{{ path('odr_list_types', { 'section': 'records' } ) }}" title="List Records"><i class="fa fa-lg fa-fw fa-list"></i>List Records</a>
+            <a class="address" href="#{{ path('odr_list_types', { 'section': 'design' } ) }}" title="List Databases"><i class="fa fa-lg fa-fw fa-cog"></i>List Databases</a>
         </li>
 
 {% if has_datatype_admin == true %}

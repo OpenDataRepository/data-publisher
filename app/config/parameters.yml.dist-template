@@ -17,6 +17,10 @@ parameters:
             name: 'Graph Plugin'
             filename: GraphPlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
+        gcms_plugin:
+            name: 'GCMassSpec Plugin'
+            filename: GCMassSpecPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
         chemistry_plugin:
             name: 'Chemistry Field'
             filename: ChemistryPlugin
@@ -32,6 +36,22 @@ parameters:
         url_plugin:
             name: 'URL Field'
             filename: URLPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        organization_plugin:
+            name: 'Organization Plugin'
+            filename: OrganizationPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        person_plugin:
+            name: 'Person Plugin'
+            filename: PersonPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        sample_plugin:
+            name: 'Sample Plugin'
+            filename: SamplePlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        site_plugin:
+            name: 'Site Identifier Plugin'
+            filename: SitePlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
     memcached.servers:
         -
