@@ -136,6 +136,11 @@
 
     var xhr = null;
     function LoadContentFullAjax(url) {
+        // TODO Determine if this HACK is needed
+        // Delete the DataTables fixed headers and bindings.
+ 	jQuery(window).unbind('scroll');
+ 	jQuery('.fixedHeader-floating').remove();
+
         // Hide the properties menu
         $("#ODRNavRightWrapper").fadeOut('fast');
         $("#content").fadeTo(300, 0.15, function() {

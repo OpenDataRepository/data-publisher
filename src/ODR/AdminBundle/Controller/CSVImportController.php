@@ -1705,7 +1705,7 @@ class CSVImportController extends ODRCustomController
                                     $validation_params = $validation_params[ strtolower($typeclass) ];
 
                                     $uploaded_file = new SymfonyFile($upload_dir.$filename);
-                                    if ( !in_array($uploaded_file->getMimeType(), $validation_params['mimeTypes']) ) {
+                                    if ( count($validation_params['mimeTypes']) > 0 && !in_array($uploaded_file->getMimeType(), $validation_params['mimeTypes']) ) {
                                         $errors[] = array(
                                             'level' => 'Error',
                                             'body' => array(

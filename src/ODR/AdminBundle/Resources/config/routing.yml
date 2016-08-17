@@ -1204,9 +1204,13 @@ odr_drf_check:
     defaults: { _controller: ODRAdminBundle:Worker:drfcheck }
     requirements:
         datatype_id: \d+
+
 odr_entity_check:
-    path: /admin/entity_check
+    path: /admin/entity_check/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Worker:entitycheck }
+    requirements:
+        datatype_id: \d+
+
 odr_permission_check:
     path: /admin/permission_check
     defaults: { _controller: ODRAdminBundle:ODRUser:permissioncheck }

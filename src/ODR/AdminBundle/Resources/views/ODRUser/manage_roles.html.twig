@@ -8,13 +8,15 @@
 
 <div class="content">
 
-    <table class="pure-table pure-table-striped">
+<div class="ODRTableOuterWrap">
+<div class="ODRTableWrap">
+    <table class="pure-table pure-table-striped" style="width: 100%">
         <thead>
             <tr>
                 <th>User Name</th>
-                <th class="Pointer" title="Restricted to datatypes they have permissions for">User</th>
-                <th class="Pointer" title="Able to create new datatypes and delete datatypes they are admin of, but still restricted by datatype permissions">Admin</th>
-                <th class="Pointer" title="Able to create new users, change user roles, and perform any action to any datatype">Super Admin</th>
+                <th class="Pointer ODRCenterText" title="Restricted to datatypes they have permissions for">User</th>
+                <th class="Pointer ODRCenterText" title="Able to create new datatypes and delete datatypes they are admin of, but still restricted by datatype permissions">Admin</th>
+                <th class="Pointer ODRCenterText" title="Able to create new users, change user roles, and perform any action to any datatype">Super Admin</th>
             </tr>
         </thead>
         <tbody>
@@ -35,13 +37,13 @@
                     {% endif %}
                 {% endfor %}
 
-                <td class="center">
+                <td class="ODRCenterText">
                     <input id="user_{{ user.id }}" onclick="setRole('user_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 1 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
                 </td>
-                <td class="center">
+                <td class="ODRCenterText">
                     <input id="admin_{{ user.id }}" onclick="setRole('admin_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 3 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
                 </td>
-                <td class="center">
+                <td class="ODRCenterText">
                     <input id="sadmin_{{ user.id }}" onclick="setRole('sadmin_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 7 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
                 </td>
             </tr>
@@ -55,6 +57,9 @@
 
         </tbody>
     </table>
+
+</div>
+</div>
 
 </div><!-- End of .content -->
             

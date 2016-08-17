@@ -199,8 +199,9 @@ class FlowController extends ODRCustomController
                     $validation_params = array(
                         'maxSize' => $maxsize,
                         'maxSizeErrorMessage' => 'The uploaded file is too large.  Allowed maximum size is '.$maxsize.' MB.',
-                        'mimeTypes' => array_unique( array_merge($validation_params['file']['mimeTypes'], $validation_params['image']['mimeTypes']) ),
-                        'mimeTypesErrorMessage' => 'Please upload a valid file.',   // TODO
+//                        'mimeTypes' => array_unique( array_merge($validation_params['file']['mimeTypes'], $validation_params['image']['mimeTypes']) ),
+                        'mimeTypes' => array(),
+                        'mimeTypesErrorMessage' => 'Please upload a valid file for later importing.',   // TODO
                     );
                     break;
             }

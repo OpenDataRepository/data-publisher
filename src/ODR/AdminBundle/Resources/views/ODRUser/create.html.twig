@@ -6,6 +6,8 @@
     </h2>
 </div>
 
+<div class="ODRTableOuterWrap pure-g pure-u-1 pure-u-sm-2-3">
+<div class="ODRTableWrap">
 
 {{ form_start(profile_form, {
     'method': 'POST',
@@ -25,25 +27,27 @@
 
     <fieldset>
 
-        <div class="pure-control-group">
+        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
             <label for="{{ profile_form.email.vars.id }}">
                 <strong>{{ profile_form.email.vars.label }}</strong>
             </label>
             {{ form_errors(profile_form.email) }}
             {{ form_widget(profile_form.email, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+        </div>
+        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
             <span style="margin: 5px;">
                 <button id="emailCheckButton" type="button" class="pure-button pure-button-primary" onclick="checkEmail();">Check Availability</button>
             </span>
             <span id="email_errors" style="margin: 5px;"></span>
         </div>
-        <div class="pure-control-group">
+        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
             <label for="{{ profile_form.plainPassword.first.vars.id }}">
                 <strong>{{ profile_form.plainPassword.first.vars.label }}</strong>
             </label>
             {{ form_errors(profile_form.plainPassword.first) }}
             {{ form_widget(profile_form.plainPassword.first, { 'attr': {'class': '', 'data-error-type': 'inline', 'required': 'required' } }) }}
         </div>
-        <div class="pure-control-group">
+        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
             <label for="{{ profile_form.plainPassword.second.vars.id }}">
                 <strong>{{ profile_form.plainPassword.second.vars.label }}</strong>
             </label>
@@ -51,16 +55,14 @@
             {{ form_widget(profile_form.plainPassword.second, { 'attr': {'class': '', 'data-error-type': 'inline', 'required': 'required' } }) }}
         </div>
 
-        <div>&nbsp;</div>
-
-        <div class="pure-control-group">
+        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
             <label for="{{ profile_form.firstName.vars.id }}">
                 <strong>{{ profile_form.firstName.vars.label }}</strong>
             </label>
             {{ form_errors(profile_form.firstName) }}
             {{ form_widget(profile_form.firstName, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
         </div>
-        <div class="pure-control-group">
+        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
             <label for="{{ profile_form.lastName.vars.id }}">
                 <strong>{{ profile_form.lastName.vars.label }}</strong>
             </label>           
@@ -68,23 +70,21 @@
             {{ form_widget(profile_form.lastName, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
         </div>
 
-        <div>&nbsp;</div>
-
-        <div class="pure-control-group">
+        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
             <label for="{{ profile_form.institution.vars.id }}">
                 <strong>{{ profile_form.institution.vars.label }}</strong>
             </label>
             {{ form_errors(profile_form.institution) }}
             {{ form_widget(profile_form.institution, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
         </div>
-        <div class="pure-control-group">
+        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
             <label for="{{ profile_form.position.vars.id }}">
                 <strong>{{ profile_form.position.vars.label }}</strong>
             </label>
             {{ form_errors(profile_form.position) }}
             {{ form_widget(profile_form.position, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
         </div>
-        <div class="pure-control-group">
+        <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
             <label for="{{ profile_form.phoneNumber.vars.id }}">
                 <strong>{{ profile_form.phoneNumber.vars.label }}</strong>
             </label>
@@ -102,6 +102,9 @@
 {{ form_end(profile_form) }}
 
 {% include 'ODRAdminBundle:ODRUser:password_rules.html.twig' with {'form': profile_form} %}
+
+</div>
+</div>
 
 <script>
     $(function() {

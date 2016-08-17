@@ -230,8 +230,8 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Always bypass cache if in dev mode?
             $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
+            // if ($this->container->getParameter('kernel.environment') === 'dev')
+                // $bypass_cache = true;
 
 
             // Grab all datarecords "associated" with the desired datarecord...
@@ -248,9 +248,20 @@ class DisplayController extends ODRCustomController
             // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
             $datarecord_array = array();
             foreach ($associated_datarecords as $num => $dr_id) {
+/*
+print $dr_id."\n";
+$tmp = $redis->get($redis_prefix.'.cached_datarecord_'.$dr_id);
+print '<pre>'.print_r($tmp, true).'</pre>';
+$tmp = gzuncompress($tmp);
+print '<pre>'.print_r($tmp, true).'</pre>';
+*/
+//$datarecord_data = false;
+                // print $redis_prefix.'.cached_datarecord_'.$dr_id;
                 $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
-                if ($bypass_cache || $datarecord_data == false)
+
+                if ($bypass_cache || $datarecord_data == false) {
                     $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
+		}
 
                 foreach ($datarecord_data as $dr_id => $data)
                     $datarecord_array[$dr_id] = $data;
@@ -284,12 +295,24 @@ class DisplayController extends ODRCustomController
                     $associated_datatypes[] = $dt_id;
             }
 
+
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
             $datatype_array = array();
             foreach ($associated_datatypes as $num => $dt_id) {
+                // print $redis_prefix.'.cached_datatype_'.$dt_id;
                 $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-                if ($bypass_cache || $datatype_data == false)
+/*
+print $dt_id."\n";
+$tmp = $redis->get($redis_prefix.'.cached_datatype_'.$dt_id);
+print '<pre>'.print_r($tmp, true).'</pre>';
+$tmp = gzuncompress($tmp);
+print '<pre>'.print_r($tmp, true).'</pre>';
+*/
+//$datatype_data = false;
+
+                if ($bypass_cache || $datatype_data == false) {
                     $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
+                }
 
                 foreach ($datatype_data as $dt_id => $data)
                     $datatype_array[$dt_id] = $data;
@@ -433,8 +456,8 @@ class DisplayController extends ODRCustomController
 
             // Always bypass cache if in dev mode?
             $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
+            // if ($this->container->getParameter('kernel.environment') === 'dev')
+                // $bypass_cache = true;
 
 
             // ----------------------------------------

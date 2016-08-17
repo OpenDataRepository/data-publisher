@@ -1222,57 +1222,137 @@ print '</pre>';
      * 
      * @return string
      */
-    public function entitycheckAction(Request $request)
+    public function entitycheckAction($datatype_id, Request $request)
     {
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
 print '<pre>';
-        $entities = array('Boolean', /*'File', 'Image',*/ 'IntegerValue', 'LongText', 'LongVarchar', 'MediumVarchar', /*'Radio',*/ 'ShortVarchar', 'DatetimeValue', 'DecimalValue');
-        foreach ($entities as $entity) {
-            $em->getFilters()->disable('softdeleteable');
+
+        $all_entities = array('boolean', 'file', 'image', 'integerValue', 'longText', 'longVarchar', 'mediumVarchar', 'radioSelection', 'shortVarchar', 'datetimeValue', 'decimalValue');
+        $single_entities = array('boolean', /*'file', 'image',*/ 'integerValue', 'longText', 'longVarchar', 'mediumVarchar', /*'radioSelection',*/ 'shortVarchar', 'datetimeValue', 'decimalValue');
+
+        $table_names = array(
+            'shortVarchar' => 'odr_short_varchar',
+            'mediumVarchar' => 'odr_medium_varchar',
+            'longVarchar' => 'odr_long_varchar',
+            'longText' => 'odr_long_text',
+
+            'integerValue' => 'odr_integer_value',
+            'decimalValue' => 'odr_decimal_value',
+            'datetimeValue' => 'odr_datetime_value',
+
+            'boolean' => 'odr_boolean',
+
+            'file' => 'odr_file',
+            'image' => 'odr_image',
+
+            'radioSelection' => 'DO NOT RUN',
+        );
+
+        $query = $em->createQuery(
+           'SELECT dr.id AS dr_id
+            FROM ODRAdminBundle:DataRecord AS dr
+            WHERE dr.dataType = :datatype_id
+            AND dr.deletedAt IS NULL'
+        )->setParameters( array('datatype_id' => $datatype_id) );
+        $results = $query->getArrayResult();
+
+        $datarecord_ids = array();
+        foreach ($results as $result)
+            $datarecord_ids[] = $result['dr_id'];
+
+        $queries = array();
+
+        $step = 50;
+        $count = 0;
+        while (true) {
+            $dr_ids = array();
+            for ($i = $count; $i < ($count + $step); $i++) {
+                if ( !isset($datarecord_ids[$i]) )
+                    break;
+
+                $dr_ids[] = $datarecord_ids[$i];
+            }
+print '-- '.$count."\n";
+            if ( count($dr_ids) == 0 )
+                break;
+
+            $count += $step;
+
             $query = $em->createQuery(
-               'SELECT e.id AS e_id, dr.id AS dr_id, df.id AS df_id, e.value AS value, drf.id AS drf_id, drf.deletedAt AS drf_deletedAt
-                FROM ODRAdminBundle:'.$entity.' e
-                JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
-                JOIN ODRAdminBundle:DataFields AS df WITH e.dataField = df
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                WHERE e.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.deletedAt IS NULL AND drf.deletedAt IS NOT NULL
-                ORDER BY dr.id, df_id, e.id');
-            $iterableResult = $query->iterate();
-print $entity."\n";
+               'SELECT dr, drf, e_f, e_i, e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv, rs, df, dfm, ft
+                FROM ODRAdminBundle:DataRecord AS dr
+                LEFT JOIN dr.dataRecordFields AS drf
+                LEFT JOIN drf.file AS e_f
+                LEFT JOIN drf.image AS e_i
+                LEFT JOIN drf.boolean AS e_b
+                LEFT JOIN drf.integerValue AS e_iv
+                LEFT JOIN drf.decimalValue AS e_dv
+                LEFT JOIN drf.longText AS e_lt
+                LEFT JOIN drf.longVarchar AS e_lvc
+                LEFT JOIN drf.mediumVarchar AS e_mvc
+                LEFT JOIN drf.shortVarchar AS e_svc
+                LEFT JOIN drf.datetimeValue AS e_dtv
+                LEFT JOIN drf.radioSelection AS rs
+                    
+                LEFT JOIN drf.dataField AS df
+                LEFT JOIN df.dataFieldMeta AS dfm
+                LEFT JOIN dfm.fieldType AS ft
+                
+                WHERE dr.id IN (:datarecord_ids)
+                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL'
+            )->setParameters(array('datarecord_ids' => $dr_ids));
+            $results = $query->getArrayResult();
 
-            $prev_dr = $prev_df = $prev_e = $prev_value = null;
-            $i = 0;
-            foreach ($iterableResult as $result) {
-//print_r($result);
-                $row = $result[$i];
-                $e_id = $row['e_id'];
-                $dr_id = $row['dr_id'];
-                $df_id = $row['df_id'];
-                $drf_id = $row['drf_id'];
+            foreach ($results as $num => $dr) {
+                foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
+                    //
+                    $entity = '';
+                    foreach ($all_entities as $typeclass) {
+                        if ( count($drf[$typeclass]) > 0 ) {
+                            if ($entity == '')
+                                $entity = $typeclass;
+                            else {
+                                $dr_id = $dr['id'];
+                                $df_id = $drf['dataField']['id'];
+                                $fieldtype = lcfirst( $drf['dataField']['dataFieldMeta'][0]['fieldType']['typeClass'] );
 
-                $drf_deletedAt = $row['drf_deletedAt'];
-                $drf_deletedAt = $drf_deletedAt->format('Y-m-d');
+                                print 'datarecord '.$dr_id.' df '.$df_id.' has both a "'.$entity.'" and a "'.$typeclass.'" entry...current fieldtype is "'.$fieldtype.'"'."\n";
 
-                $value = '';
-                if ($entity == 'DatetimeValue') {
-                    $e = $row['value'];
-                    $value = $e->format('Y-m-d');
+                                $old_fieldtype = '';
+                                if ($fieldtype == 'radio') {
+                                    if ($entity == 'radioSelection')
+                                        $old_fieldtype = $typeclass;
+                                    else
+                                        $old_fieldtype = $entity;
+                                }
+                                else if ($fieldtype == $entity) {
+                                    $old_fieldtype = $typeclass;
+                                }
+                                else {
+                                    $old_fieldtype = $entity;
+                                }
+
+                                if ( !isset($queries[$df_id]) )
+                                    $queries[$df_id] = 'UPDATE '.$table_names[$old_fieldtype].' SET deletedAt = NOW() WHERE deletedAt IS NULL AND data_field_id = '.$df_id.';';
+                            }
+                        }
+                    }
+
+                    foreach ($single_entities as $typeclass) {
+                        if ( count($drf[$typeclass]) > 1 )
+                            print 'datarecord '.$dr['id'].' drf '.$drf['dataField']['id'].' has multiples entries for the "'.$typeclass.'" typeclass'."\n";
+                    }
                 }
-                else {
-                    $value = $row['value'];
-                }
-
-                print 'Datarecord '.$dr_id.' Datafield '.$df_id."\n";
-                print '-- entity '.$e_id.' points to deleted drf '.$drf_id."\n";
-
-                $i++;
             }
 
-            $em->getFilters()->enable('softdeleteable');
-print "\n\n";
+//break;
         }
+
+print "\n\n\n";
+foreach ($queries as $df_id => $query)
+    print $query."\n";
 print '</pre>';
     }
 

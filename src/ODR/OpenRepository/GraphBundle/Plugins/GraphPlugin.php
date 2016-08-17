@@ -228,25 +228,30 @@ class GraphPlugin
                 $pivot_datafield_id = $datafield_mapping['pivot_field']['datafield']['id'];
                 $pivot_datafield_typeclass = $datafield_mapping['pivot_field']['datafield']['dataFieldMeta']['fieldType']['typeClass'];
 
-                $entity = array();
-                $drf = $dr['dataRecordFields'][$pivot_datafield_id];
-                switch ($pivot_datafield_typeclass) {
-                    case 'IntegerValue':
-                        $entity = $drf['integerValue'];
-                        break;
-                    case 'ShortVarchar':
-                        $entity = $drf['shortVarchar'];
-                        break;
-                    case 'MediumVarchar':
-                        $entity = $drf['mediumVarchar'];
-                        break;
-                    case 'LongVarchar':
-                        $entity = $drf['longVarchar'];
-                        break;
+                $pivot_value = '';
+                if ( isset($dr['dataRecordFields'][$pivot_datafield_id]) ) {
+                    $entity = array();
+                    $drf = $dr['dataRecordFields'][$pivot_datafield_id];
+                    switch ($pivot_datafield_typeclass) {
+                        case 'IntegerValue':
+                            $entity = $drf['integerValue'];
+                            break;
+                        case 'ShortVarchar':
+                            $entity = $drf['shortVarchar'];
+                            break;
+                        case 'MediumVarchar':
+                            $entity = $drf['mediumVarchar'];
+                            break;
+                        case 'LongVarchar':
+                            $entity = $drf['longVarchar'];
+                            break;
 
-                    default:
-                        throw new \Exception('Invalid Fieldtype for pivot_field');
-                        break;
+                        default:
+                            throw new \Exception('Invalid Fieldtype for pivot_field');
+                            break;
+                    }
+
+                    $pivot_value = $entity[0]['value'];
                 }
 
                 $pivot_values[$dr_id] = $entity[0]['value'];

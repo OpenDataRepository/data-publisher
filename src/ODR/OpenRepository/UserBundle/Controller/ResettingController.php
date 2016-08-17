@@ -28,7 +28,7 @@ class ResettingController extends BaseController
      * Override to default FoSBundle:requestAction(), where logged in users are redirected to their profile
      * instead of performing the requested action
      */
-    public function requestAction(Request $request)
+    public function requestAction()
     {
         // Determine if user is logged in
         $user = $this->container->get('security.token_storage')->getToken()->getUser();

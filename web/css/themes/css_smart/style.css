@@ -26,8 +26,7 @@
 }
 
 body {
-    background: url("images/background.png");
-    background-repeat: no-repeat;
+    background: url("images/background.png") repeat-y;
     background-size: 100% auto;
     background-position: center top;
     background-attachment: fixed;
@@ -128,6 +127,21 @@ input,
 }
 
 /* Toolbar and Menu */
+
+
+/* Hide elements in top bar at certain widths */
+@media only screen {
+    .ODR-show {
+        display: none;
+    }
+}
+@media only screen and (max-width: 35.5em) {
+    .ODR-show-sm {
+        display: none;
+    }
+}
+
+
 .pure-skin-odr #ODRNav .pure-menu.pure-menu-open {
     height: auto;
 }
@@ -627,13 +641,31 @@ footer .ODRLogoImage img {
     color: white;
 }
 
+.ODRCenterText {
+    text-align: center;
+} 
+
+.ODRTableStretch {
+    width: 100%;
+}
+
+.dataTables_filter {
+    margin-bottom: 8px;
+    line-height: 1.8em;
+}
+
+/* jQuery(window).unbind('.FixedHeader'); */
+.ODRTableOuterWrap,
 #ODRDataTypeListWrapper {
+    margin-top: 1.2em;
+    margin-bottom: 2.2em;
     padding: 12px;
     background: white none;
     border-radius: 4px;
     box-sizing: border-box;
 }
 
+.ODRTableWrap,
 #ODRDatatypeList_wrapper {
     box-sizing: border-box;
     padding: 8px;
@@ -677,4 +709,8 @@ footer .ODRLogoImage img {
     margin: 1em;
     box-sizing: border-box;
     border-radius: 4px;
+}
+
+.sf-toolbar-icon svg {
+    width: auto;
 }

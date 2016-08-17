@@ -1,16 +1,19 @@
 {% spaceless %}
-<div class="pure-u-1-5">
+<div class="ODRTableOuterWrap pure-u-7-24">
+<div class="pure-u-1 ODRTableWrap">
     <div>
         <div class="pure-u-1 title">{{ datatype_name }}</div>
         <div class="pure-u-1-2" style="text-align: center;">
-            <div class="title">{{ datatype_name }}</div>
             <div class="total green">{{ created_str }}</div>
             <div class="total red">{{ updated_str }}</div>
         </div>
         <div class="pure-u-1-2">
-            <div class="sparkline" values="{{ value_str }}"></div>
+            <div class="pure-u-1 sparkline" values="{{ value_str }}"></div>
             {#<div class="change {% if datatype.change > 0 %}green{% elseif datatype.change < 0 %}red{% endif %}">{% if datatype.change > 0 %}+{% endif %}{{ datatype.change }}%</div>#}
         </div>
     </div>
+</div>
+</div>
+<div class="pure-u-1-24">
 </div>
 {% endspaceless %}
