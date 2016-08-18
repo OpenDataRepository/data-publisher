@@ -245,6 +245,7 @@
                 $(input).val('');
             }
             else {
+{#
                 // If only a single radio/select, uncheck all other options
                 if ( $(this).attr('rel') == 'single') {
                     $(this).parent().parent().find('.fa-check').each(function() {
@@ -253,7 +254,7 @@
                         $(this).next().val('');
                     });
                 }
-
+#}
                 // Currently blank, change to selected
                 $(this).attr('title', 'Search for Datarecords where this option is selected');
                 $(icon).addClass('fa-check');

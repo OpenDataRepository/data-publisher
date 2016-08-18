@@ -23,6 +23,7 @@ use ODR\AdminBundle\Controller\ODRCustomController;
 // Entites
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
@@ -376,7 +377,9 @@ exit();
                 }
             }
             else {
-                $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy( array('searchSlug' => $search_slug) );
+                /** @var DataTypeMeta $meta_entry */
+                $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('searchSlug' => $search_slug) );
+                $target_datatype = $meta_entry->getDataType();
                 if ($target_datatype == null)
                     return self::searchPageError("Page not found", $request);
             }
