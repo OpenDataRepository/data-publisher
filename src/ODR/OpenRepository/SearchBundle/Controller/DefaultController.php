@@ -2198,12 +2198,22 @@ if ( isset($debug['show_queries']) )
         if ($typeclass == 'Radio') {
             // TODO - this won't really return correct results when searching on an unselected radioselection...both missing datarecordfield and missing radioselection entities will mess this query up
             $query = $query_start.$drf_join;
-            $query .= '
-                INNER JOIN odr_radio_selection AS rs ON rs.data_record_fields_id = drf.id
-                INNER JOIN odr_radio_options AS ro ON rs.radio_option_id = ro.id
-                WHERE drf.data_field_id = '.$datafield_id.' AND ('.$search_params['str'].')
-                '.$deleted_at.'
-                AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL ';
+            if (!$searching_linked_datatype) {
+                $query .= '
+                    INNER JOIN odr_radio_selection AS rs ON rs.data_record_fields_id = drf.id
+                    INNER JOIN odr_radio_options AS ro ON rs.radio_option_id = ro.id
+                    WHERE dr.data_type_id = '.$datatype_id.' AND ro.data_fields_id = '.$datafield_id.' AND ('.$search_params['str'].')
+                    '.$deleted_at.' AND drf.deletedAt IS NULL
+                    AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL ';
+            }
+            else {
+                $query .= '
+                    INNER JOIN odr_radio_selection AS rs ON rs.data_record_fields_id = drf.id
+                    INNER JOIN odr_radio_options AS ro ON rs.radio_option_id = ro.id
+                    WHERE ldr.data_type_id = '.$datatype_id.' AND ro.data_fields_id = '.$datafield_id.' AND ('.$search_params['str'].')
+                    '.$deleted_at.' AND drf.deletedAt IS NULL
+                    AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL ';
+            }
 
             $query .= $metadata_str;
         }
