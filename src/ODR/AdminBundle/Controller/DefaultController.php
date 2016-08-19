@@ -322,6 +322,7 @@ class DefaultController extends ODRCustomController
         $header = $templating->render(
             'ODRAdminBundle:Default:dashboard_header.html.twig',
             array(
+		'search_slug' => $datatype->getSearchSlug(),
                 'datatype_id' => $datatype_id,
                 'total_datarecords' => $total_datarecords,
                 'datatype_name' => $datatype_name,
