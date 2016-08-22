@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\Boolean:
     type: entity
     table: odr_boolean
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -16,8 +15,6 @@ ODR\AdminBundle\Entity\Boolean:
         value:
             type: boolean
             nullable: false
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -32,8 +29,6 @@ ODR\AdminBundle\Entity\Boolean:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
 
     manyToOne:
         dataField:
@@ -45,8 +40,7 @@ ODR\AdminBundle\Entity\Boolean:
                 data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         fieldType:
             targetEntity: FieldType
             cascade: {  }
@@ -56,8 +50,7 @@ ODR\AdminBundle\Entity\Boolean:
                 field_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataRecord:
             targetEntity: DataRecord
             cascade: {  }
@@ -67,8 +60,7 @@ ODR\AdminBundle\Entity\Boolean:
                 data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
@@ -78,8 +70,6 @@ ODR\AdminBundle\Entity\Boolean:
                 data_record_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User

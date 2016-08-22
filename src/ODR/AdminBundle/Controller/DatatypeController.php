@@ -302,23 +302,6 @@ class DatatypeController extends ODRCustomController
                     $datatype->setCreatedBy($admin);
                     $datatype->setUpdatedBy($admin);
 
-                    // TODO - delete these eleven properties
-                    $datatype->setShortName('');
-                    $datatype->setLongName('');
-                    $datatype->setDescription('');
-                    $datatype->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
-                    /** @var RenderPlugin $default_render_plugin */
-                    $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
-                    $datatype->setRenderPlugin($default_render_plugin);
-
-                    // Set defaults for other stuff...
-                    $datatype->setXmlShortName('');
-                    $datatype->setUseShortResults(true);
-                    $datatype->setExternalIdField(null);
-                    $datatype->setNameField(null);
-                    $datatype->setSortField(null);
-                    $datatype->setDisplayType(0);
-
                     // Save all changes made
                     $em->persist($datatype);
                     $em->flush();
@@ -327,13 +310,14 @@ class DatatypeController extends ODRCustomController
 
                     // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name
                     $submitted_data->setDataType($datatype);
+
+                    $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);    // default render plugin
                     $submitted_data->setRenderPlugin($default_render_plugin);
 
                     $submitted_data->setDescription('');
                     $submitted_data->setSearchSlug(null);
                     $submitted_data->setXmlShortName('');
 
-                    $submitted_data->setDisplayType(0);
                     $submitted_data->setUseShortResults(true);
                     $submitted_data->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
 

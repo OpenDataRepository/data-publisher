@@ -119,36 +119,6 @@ class Theme
     }
 
     /**
-     * Get templateName
-     *
-     * @return string
-     */
-    public function getTemplateName()
-    {
-        return $this->getThemeMeta()->getTemplateName();
-    }
-
-    /**
-     * Get templateDescription
-     *
-     * @return string
-     */
-    public function getTemplateDescription()
-    {
-        return $this->getThemeMeta()->getTemplateDescription();
-    }
-
-    /**
-     * Get isDefault
-     *
-     * @return boolean
-     */
-    public function getIsDefault()
-    {
-        return $this->getThemeMeta()->getIsDefault();
-    }
-
-    /**
      * Set created
      *
      * @param \DateTime $created
@@ -373,5 +343,36 @@ class Theme
     public function getDeletedBy()
     {
         return $this->deletedBy;
+    }
+
+
+    /**
+     * Get templateName
+     *
+     * @return string
+     */
+    public function getTemplateName()
+    {
+        return $this->getThemeMeta()->getTemplateName();
+    }
+
+    /**
+     * Get templateDescription
+     *
+     * @return string
+     */
+    public function getTemplateDescription()
+    {
+        return $this->getThemeMeta()->getTemplateDescription();
+    }
+
+    /**
+     * Get isDefault
+     *
+     * @return boolean
+     */
+    public function getIsDefault()
+    {
+        return $this->getThemeMeta()->getIsDefault();
     }
 }

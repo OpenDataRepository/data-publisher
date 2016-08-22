@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\DataRecord:
     type: entity
     table: odr_data_record
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -47,11 +46,6 @@ ODR\AdminBundle\Entity\DataRecord:
 #            gedmo:
 #                - versioned
 
-        deletedAt:
-            type: datetime
-            nullable: true
-#            gedmo:
-#                - versioned
         created:
             type: datetime
             gedmo:
@@ -62,14 +56,9 @@ ODR\AdminBundle\Entity\DataRecord:
             gedmo:
                 timestampable:
                     on: update
-
-        #TODO - delete the following property
-        publicDate:
+        deletedAt:
             type: datetime
-            nullable: false
-            column: public_date
-#            gedmo:
-#                - versioned
+            nullable: true
 
     oneToMany:
         dataRecordFields:
@@ -80,6 +69,7 @@ ODR\AdminBundle\Entity\DataRecord:
             joinColumns:
                 data_record_id:
                     referencedColumnName: id
+
         grandchildren:
             targetEntity: DataRecord
             mappedBy: grandparent
@@ -98,22 +88,17 @@ ODR\AdminBundle\Entity\DataRecord:
                 data_record_meta_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
     manyToOne:
         parent:
             targetEntity: DataRecord
             inversedBy: children
             fetch: EXTRA_LAZY
-#            gedmo:
-#                - versioned
         grandparent:
             targetEntity: DataRecord
             fetch: EXTRA_LAZY
             inversedBy: grandchildren
-#            gedmo:
-#                - versioned
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -134,8 +119,6 @@ ODR\AdminBundle\Entity\DataRecord:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
         deletedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -146,8 +129,7 @@ ODR\AdminBundle\Entity\DataRecord:
                 deletedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataType:
             targetEntity: DataType
             cascade: {  }
@@ -158,7 +140,5 @@ ODR\AdminBundle\Entity\DataRecord:
                 data_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
     lifecycleCallbacks: {  }

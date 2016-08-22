@@ -1,15 +1,16 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* TrackedError Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The TrackedError Entity is automatically generated from 
-* ./Resources/config/doctrine/TrackedError.orm.yml
-*/
+ * Open Data Repository Data Publisher
+ * TrackedError Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The TrackedError Entity is automatically generated from
+ * ./Resources/config/doctrine/TrackedError.orm.yml
+ *
+ */
 
 namespace ODR\AdminBundle\Entity;
 
@@ -31,6 +32,16 @@ class TrackedError
     private $error_body;
 
     /**
+     * @var string
+     */
+    private $error_level;
+
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -45,15 +56,6 @@ class TrackedError
      */
     private $createdBy;
 
-    /**
-     * @var string
-     */
-    private $error_level;
-
-    /**
-     * @var \DateTime
-     */
-    private $deletedAt;
 
     /**
      * Get id
@@ -89,6 +91,29 @@ class TrackedError
     }
 
     /**
+     * Set error_level
+     *
+     * @param string $errorLevel
+     * @return TrackedError
+     */
+    public function setErrorLevel($errorLevel)
+    {
+        $this->error_level = $errorLevel;
+
+        return $this;
+    }
+
+    /**
+     * Get error_level
+     *
+     * @return string
+     */
+    public function getErrorLevel()
+    {
+        return $this->error_level;
+    }
+
+    /**
      * Set created
      *
      * @param \DateTime $created
@@ -109,6 +134,29 @@ class TrackedError
     public function getCreated()
     {
         return $this->created;
+    }
+
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return TrackedError
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
     }
 
     /**
@@ -155,51 +203,5 @@ class TrackedError
     public function getCreatedBy()
     {
         return $this->createdBy;
-    }
-
-    /**
-     * Set error_level
-     *
-     * @param string $errorLevel
-     * @return TrackedError
-     */
-    public function setErrorLevel($errorLevel)
-    {
-        $this->error_level = $errorLevel;
-
-        return $this;
-    }
-
-    /**
-     * Get error_level
-     *
-     * @return string 
-     */
-    public function getErrorLevel()
-    {
-        return $this->error_level;
-    }
-
-    /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return TrackedError
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
     }
 }

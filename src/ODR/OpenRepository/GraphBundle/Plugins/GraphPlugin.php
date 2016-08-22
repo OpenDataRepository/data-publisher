@@ -254,10 +254,8 @@ class GraphPlugin
                     $pivot_value = $entity[0]['value'];
                 }
 
-                $pivot_values[$dr_id] = $entity[0]['value'];
+                $pivot_values[$dr_id] = $pivot_value;   // TODO - better default pivot value?
             }
-
-
 
 //            throw new \Exception( '<pre>'.print_r($pivot_values, true).'</pre>' );
 
@@ -268,11 +266,15 @@ class GraphPlugin
             $nv_files = array();
             foreach ($datarecords as $dr_id => $dr) {
                 $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
-                foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
-                    $jp_files[$dr_id] = $file['localFileName'];
-                    $nv_files[$dr_id] = $file['id'];
+
+                if ( isset($dr['dataRecordFields'][$graph_datafield_id]) ) {
+                    foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
+                        $jp_files[$dr_id] = $file['localFileName'];
+                        $nv_files[$dr_id] = $file['id'];
+                    }
                 }
 
+                // Technically this line would only need to be run once, but all datarecords will return the same value
                 $unique_id = $datatype['id'].'_'.$dr['parent']['id'];
             }
 

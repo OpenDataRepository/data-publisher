@@ -37,11 +37,6 @@ class LinkedDataTree
     private $deletedAt;
 
     /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
      * @var \ODR\AdminBundle\Entity\DataRecord
      */
     private $ancestor;
@@ -60,11 +55,6 @@ class LinkedDataTree
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $deletedBy;
-
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
 
 
     /**
@@ -121,29 +111,6 @@ class LinkedDataTree
     public function getDeletedAt()
     {
         return $this->deletedAt;
-    }
-
-    /**
-     * Set updated
-     *
-     * @param \DateTime $updated
-     * @return LinkedDataTree
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
     }
 
     /**
@@ -236,28 +203,5 @@ class LinkedDataTree
     public function getDeletedBy()
     {
         return $this->deletedBy;
-    }
-
-    /**
-     * Set updatedBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return LinkedDataTree
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
     }
 }

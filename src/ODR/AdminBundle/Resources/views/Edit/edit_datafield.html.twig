@@ -244,13 +244,13 @@
 
                     {% if print_null_option == true %}
                         {% set print_null_option = false %}
-                        <label for="{{ input_id }}_0" class="pure-u-1 pure-u-md-1-{{ datafield.children_per_row }}" style="margin: 0.5em 0;">
+                        <label for="{{ input_id }}_0" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
                             <input id="{{ input_id }}_0" type="radio" name="RadioGroup_{{ unique_id }}" {% if has_selection == false %}checked{% endif %} class="SingleRadioGroup {% if has_selection == false %}ODRRadioOptionChecked{% endif %}" />
                             No Option Selected
                         </label>
                     {% endif %}
 
-                    <label for="{{ input_id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.children_per_row }}" style="margin: 0.5em 0;">
+                    <label for="{{ input_id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
 
                     {% if field_typename == "Single Radio" %}
                         <input id="{{ input_id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ unique_id }}" {% if is_selected == 1 %}checked{% endif %} class="SingleRadioGroup {% if is_selected == 1 %}ODRRadioOptionChecked{%endif %}" />

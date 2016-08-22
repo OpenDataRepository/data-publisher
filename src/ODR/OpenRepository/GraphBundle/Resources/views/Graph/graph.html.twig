@@ -10,7 +10,7 @@
         <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             {#<a>{{ datarecordchild.getdatatype.shortname }}</a>#}
-            <a>{{ datatype.shortName }}</a>
+            <a>{{ datatype.dataTypeMeta.shortName }}</a>
             {#{% if datarecordchild.grandparent != null %}#}
             {% if is_top_level == 0 %}
                 <span style="float: right;">

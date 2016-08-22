@@ -73,36 +73,6 @@ class Image
     private $deletedAt;
 
     /**
-     * @var integer
-     */
-    private $displayorder;
-
-    /**
-     * @var string
-     */
-    private $caption;
-
-    /**
-     * @var string
-     */
-    private $originalFileName;
-
-    /**
-     * @var string
-     */
-    private $external_id;
-
-    /**
-     * @var \DateTime
-     */
-    private $publicDate;
-
-    /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
      * @var \Doctrine\Common\Collections\Collection
      */
     private $children;
@@ -157,10 +127,6 @@ class Image
      */
     private $deletedBy;
 
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
 
     /**
      * Constructor
@@ -387,166 +353,6 @@ class Image
     public function getDeletedAt()
     {
         return $this->deletedAt;
-    }
-
-    /**
-     * Set displayorder
-     * @deprecated
-     *
-     * @param integer $displayorder
-     * @return Image
-     */
-    public function setDisplayorder($displayorder)
-    {
-        $this->displayorder = $displayorder;
-
-        return $this;
-    }
-
-    /**
-     * Get displayorder
-     *
-     * @return integer 
-     */
-    public function getDisplayorder()
-    {
-        if ( $this->getOriginal() )
-            return $this->getImageMeta()->getDisplayorder();
-        else
-            return $this->getParent()->getImageMeta()->getDisplayorder();
-    }
-
-    /**
-     * Set caption
-     * @deprecated
-     *
-     * @param string $caption
-     * @return Image
-     */
-    public function setCaption($caption)
-    {
-        $this->caption = $caption;
-
-        return $this;
-    }
-
-    /**
-     * Get caption
-     *
-     * @return string 
-     */
-    public function getCaption()
-    {
-        if ( $this->getOriginal() )
-            return $this->getImageMeta()->getCaption();
-        else
-            return $this->getParent()->getImageMeta()->getCaption();
-    }
-
-    /**
-     * Set originalFileName
-     * @deprecated
-     *
-     * @param string $originalFileName
-     * @return Image
-     */
-    public function setOriginalFileName($originalFileName)
-    {
-        $this->originalFileName = $originalFileName;
-
-        return $this;
-    }
-
-    /**
-     * Get originalFileName
-     *
-     * @return string 
-     */
-    public function getOriginalFileName()
-    {
-        if ( $this->getOriginal() )
-            return $this->getImageMeta()->getOriginalFileName();
-        else
-            return $this->getParent()->getImageMeta()->getOriginalFileName();
-    }
-
-    /**
-     * Set external_id
-     * @deprecated
-     *
-     * @param string $externalId
-     * @return Image
-     */
-    public function setExternalId($externalId)
-    {
-        $this->external_id = $externalId;
-
-        return $this;
-    }
-
-    /**
-     * Get external_id
-     *
-     * @return string 
-     */
-    public function getExternalId()
-    {
-        if ( $this->getOriginal() )
-            return $this->getImageMeta()->getExternalId();
-        else
-            return $this->getParent()->getImageMeta()->getExternalId();
-    }
-
-    /**
-     * Set publicDate
-     * @deprecated
-     *
-     * @param \DateTime $publicDate
-     * @return Image
-     */
-    public function setPublicDate($publicDate)
-    {
-        $this->publicDate = $publicDate;
-
-        return $this;
-    }
-
-    /**
-     * Get publicDate
-     *
-     * @return \DateTime 
-     */
-    public function getPublicDate()
-    {
-        if ( $this->getOriginal() )
-            return $this->getImageMeta()->getPublicDate();
-        else
-            return $this->getParent()->getImageMeta()->getPublicDate();
-    }
-
-    /**
-     * Set updated
-     * @deprecated
-     *
-     * @param \DateTime $updated
-     * @return Image
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     * @deprecated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
     }
 
     /**
@@ -833,31 +639,6 @@ class Image
     }
 
     /**
-     * Set updatedBy
-     * @deprecated 
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return Image
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     * @deprecated
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
-    }
-
-    /**
      * Is public
      *
      * @return boolean
@@ -1020,55 +801,74 @@ class Image
         return 'uploads/images';
     }
 
-    // ----------------------------------------
-    // TODO - delete these five functions
+
+    /*
+     * ----------------------------------------
+     * ----------------------------------------
+     */
+
     /**
-     * Get displayorder original
+     * Get displayorder
      *
      * @return integer
      */
-    public function getDisplayorderOriginal()
+    public function getDisplayorder()
     {
-        return $this->displayorder;
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getDisplayorder();
+        else
+            return $this->getParent()->getImageMeta()->getDisplayorder();
     }
 
     /**
-     * Get caption original
+     * Get caption
      *
      * @return string
      */
-    public function getCaptionOriginal()
+    public function getCaption()
     {
-        return $this->caption;
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getCaption();
+        else
+            return $this->getParent()->getImageMeta()->getCaption();
     }
 
     /**
-     * Get originalFileName original
+     * Get originalFileName
      *
      * @return string
      */
-    public function getOriginalFileNameOriginal()
+    public function getOriginalFileName()
     {
-        return $this->originalFileName;
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getOriginalFileName();
+        else
+            return $this->getParent()->getImageMeta()->getOriginalFileName();
     }
 
     /**
-     * Get external_id original
+     * Get external_id
      *
      * @return string
      */
-    public function getExternalIdOriginal()
+    public function getExternalId()
     {
-        return $this->external_id;
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getExternalId();
+        else
+            return $this->getParent()->getImageMeta()->getExternalId();
     }
 
     /**
-     * Get publicDate original
+     * Get publicDate
      *
      * @return \DateTime
      */
-    public function getPublicDateOriginal()
+    public function getPublicDate()
     {
-        return $this->publicDate;
+        if ( $this->getOriginal() )
+            return $this->getImageMeta()->getPublicDate();
+        else
+            return $this->getParent()->getImageMeta()->getPublicDate();
     }
 }

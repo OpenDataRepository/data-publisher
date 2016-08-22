@@ -32,12 +32,12 @@ class DataRecordFields
     /**
      * @var \DateTime
      */
-    private $deletedAt;
+    private $created;
 
     /**
      * @var \DateTime
      */
-    private $created;
+    private $deletedAt;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
@@ -138,6 +138,29 @@ class DataRecordFields
     }
 
     /**
+     * Set created
+     *
+     * @param \DateTime $created
+     * @return DataRecordFields
+     */
+    public function setCreated($created)
+    {
+        $this->created = $created;
+
+        return $this;
+    }
+
+    /**
+     * Get created
+     *
+     * @return \DateTime
+     */
+    public function getCreated()
+    {
+        return $this->created;
+    }
+
+    /**
      * Set deletedAt
      *
      * @param \DateTime $deletedAt
@@ -158,29 +181,6 @@ class DataRecordFields
     public function getDeletedAt()
     {
         return $this->deletedAt;
-    }
-
-    /**
-     * Set created
-     *
-     * @param \DateTime $created
-     * @return DataRecordFields
-     */
-    public function setCreated($created)
-    {
-        $this->created = $created;
-
-        return $this;
-    }
-
-    /**
-     * Get created
-     *
-     * @return \DateTime 
-     */
-    public function getCreated()
-    {
-        return $this->created;
     }
 
     /**
@@ -483,8 +483,10 @@ class DataRecordFields
         $iterator = $this->image->getIterator();
         $iterator->uasort(function ($a, $b) {
             // Sort by display order first if possible
-            $a_display_order = $a->getDisplayOrder();
-            $b_display_order = $b->getDisplayOrder();
+            /** @var Image $a */
+            /** @var Image $b */
+            $a_display_order = $a->getDisplayorder();
+            $b_display_order = $b->getDisplayorder();
             if ($a_display_order < $b_display_order)
                 return -1;
             else if ($a_display_order > $b_display_order)

@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\DecimalValue:
     type: entity
     table: odr_decimal_value
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -20,15 +19,11 @@ ODR\AdminBundle\Entity\DecimalValue:
             fixed: false
             nullable: true
             default: 0
-#            gedmo:
-#                - versioned
         value:
             type: float
             unsigned: false
             nullable: true
             default: 0
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -43,8 +38,7 @@ ODR\AdminBundle\Entity\DecimalValue:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
+
     manyToOne:
         dataField:
             targetEntity: DataFields
@@ -55,8 +49,7 @@ ODR\AdminBundle\Entity\DecimalValue:
                 data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         fieldType:
             targetEntity: FieldType
             cascade: {  }
@@ -66,8 +59,7 @@ ODR\AdminBundle\Entity\DecimalValue:
                 field_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataRecord:
             targetEntity: DataRecord
             cascade: {  }
@@ -77,18 +69,16 @@ ODR\AdminBundle\Entity\DecimalValue:
                 data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
+#            mappedBy: null
             inversedBy: decimalValue
             joinColumns:
                 data_record_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User

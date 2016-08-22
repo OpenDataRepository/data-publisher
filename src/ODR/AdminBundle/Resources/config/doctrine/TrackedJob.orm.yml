@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\TrackedJob:
     type: entity
     table: odr_tracked_job
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -41,13 +40,16 @@ ODR\AdminBundle\Entity\TrackedJob:
             unsigned: false
             nullable: false
             default: 0
-
         total:
             type: integer
             unsigned: false
             nullable: false
             default: 0
 
+        started:
+            type: datetime
+            default: null
+            nullable: true
         completed:
             type: datetime
             default: null
@@ -58,17 +60,9 @@ ODR\AdminBundle\Entity\TrackedJob:
             gedmo:
                 timestampable:
                     on: create
-
-        started:
-            type: datetime
-            default: null
-            nullable: true
-
         deletedAt:
-            type: date
+            type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
 
     oneToMany:
         trackedCSVExport:
@@ -79,8 +73,6 @@ ODR\AdminBundle\Entity\TrackedJob:
             joinColumns:
                 tracked_job_id:
                     referencedColumnName: id
-#            gedmo:
-#                - versioned
 
         trackedError:
             targetEntity: TrackedError
@@ -90,8 +82,6 @@ ODR\AdminBundle\Entity\TrackedJob:
             joinColumns:
                 tracked_job_id:
                     referencedColumnName: id
-#            gedmo:
-#                - versioned
 
     manyToOne:
         createdBy:
@@ -103,8 +93,5 @@ ODR\AdminBundle\Entity\TrackedJob:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
 
     lifecycleCallbacks: {  }

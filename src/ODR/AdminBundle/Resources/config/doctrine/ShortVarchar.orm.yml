@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\ShortVarchar:
     type: entity
     table: odr_short_varchar
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -18,8 +17,6 @@ ODR\AdminBundle\Entity\ShortVarchar:
             length: 32
             fixed: false
             nullable: false
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -34,8 +31,6 @@ ODR\AdminBundle\Entity\ShortVarchar:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
 
     manyToOne:
         dataField:
@@ -47,8 +42,7 @@ ODR\AdminBundle\Entity\ShortVarchar:
                 data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         fieldType:
             targetEntity: FieldType
             cascade: {  }
@@ -58,8 +52,7 @@ ODR\AdminBundle\Entity\ShortVarchar:
                 field_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataRecord:
             targetEntity: DataRecord
             cascade: {  }
@@ -69,18 +62,16 @@ ODR\AdminBundle\Entity\ShortVarchar:
                 data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
+#            mappedBy: null
             inversedBy: shortVarchar
             joinColumns:
                 data_record_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User

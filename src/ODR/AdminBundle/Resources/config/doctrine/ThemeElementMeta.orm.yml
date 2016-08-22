@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\ThemeElementMeta:
     type: entity
     table: odr_theme_element_meta
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -18,26 +17,18 @@ ODR\AdminBundle\Entity\ThemeElementMeta:
             type: integer
             nullable: false
             column: display_order
-#            gedmo:
-#                - versioned
 
         cssWidthMed:
             type: string
             length: 32
-#            gedmo:
-#                - versioned
         cssWidthXL:
             type: string
             length: 32
-#            gedmo:
-#                - versioned
 
         publicDate:
             type: datetime
             nullable: false
             column: public_date
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -52,8 +43,6 @@ ODR\AdminBundle\Entity\ThemeElementMeta:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
 
     manyToOne:
         themeElement:
@@ -65,8 +54,6 @@ ODR\AdminBundle\Entity\ThemeElementMeta:
                 theme_element_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -77,9 +64,6 @@ ODR\AdminBundle\Entity\ThemeElementMeta:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -89,8 +73,5 @@ ODR\AdminBundle\Entity\ThemeElementMeta:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
 
     lifecycleCallbacks: {  }

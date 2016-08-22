@@ -1,18 +1,18 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* Reports Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The reports controller is meant to be used as a storage spot
-* for handling various metadata requests, such as determining which
-* datarecords have duplicated values in a specific datafield, or which
-* datarecords have multiple files/images uploaded to a specific datafield.
-*
-*/
+ * Open Data Repository Data Publisher
+ * Reports Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The reports controller is meant to be used as a storage spot
+ * for handling various metadata requests, such as determining which
+ * datarecords have duplicated values in a specific datafield, or which
+ * datarecords have multiple files/images uploaded to a specific datafield.
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 

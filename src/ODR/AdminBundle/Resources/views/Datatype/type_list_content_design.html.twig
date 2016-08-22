@@ -75,12 +75,12 @@
                             <b>Created By: </b>{{ datatype.createdBy.getuserstring }}<b> on </b>{{ datatype.created|date('Y-m-d') }}
                         </div>
                         <div>
-                            <b>Description: </b>{{ datatype.description }}
+                            <b>Description: </b>{{ datatype.dataTypeMeta.description }}
                         </div>
                     </span>
                 </span>
             </td>
-            <td id="datatype_{{ datatype.id }}_name">{{ datatype.shortname }}</td>
+            <td id="datatype_{{ datatype.id }}_name">{{ datatype.dataTypeMeta.shortName }}</td>
 
             {% set found = false %}
             {% for datatype_id, data in metadata %}
@@ -96,12 +96,12 @@
 
             {% if can_design_datatype == true %}
                 {# If user has design permissions... #}
-		{% if datatype.searchslug == '' %}
-                    <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a></td>
-                    <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
-		{% else %}
-                    <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.searchslug } ) }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a></td>
-                    <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.searchslug } ) }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a></td>
+                {% if datatype.dataTypeMeta.searchslug == '' %}
+                    <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a></td>
+                    <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
+                {% else %}
+                    <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchslug } ) }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a></td>
+                    <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchslug } ) }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a></td>
                 {% endif %}
             {% else %}
                 {# Otherwise, print out nothing #}
@@ -112,10 +112,10 @@
                 <td class="center"><a class="Pointer" onclick="downloadXSD({{ datatype.id }});"><i class="fa fa-lg fa-download"></i>&nbsp;Download</a></td>
 
             {% if can_design_datatype == true and can_edit_datatype == true %}
-		{% if datatype.searchslug == '' %}
-                    <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.shortname }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
+                {% if datatype.dataTypeMeta.searchSlug == '' %}
+                    <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
                 {% else %}
-                    <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.searchslug } ) }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-upload"></i>&nbsp;Import</a></td>
+                    <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-upload"></i>&nbsp;Import</a></td>
                 {% endif %}
             {% else %}
                 <td class="center"></td>

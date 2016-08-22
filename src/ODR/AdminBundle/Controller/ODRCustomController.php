@@ -57,7 +57,6 @@ use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeElementField;
 use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\TrackedError;
@@ -494,9 +493,12 @@ exit();
     /**
      * Get (or create) a list of datarecords returned by searching on the given search key
      *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param array $datatype_permissions
+     * @param array $datafield_permissions
      * @param integer $datatype_id
      * @param string $search_key
-     * @param boolean $logged_in Whether the user is logged in or not
      * @param Request $request
      *
      * @throws \Exception
@@ -566,8 +568,8 @@ exit();
     /**
      * Utility function to let controllers easily force a redirect to a different search results page
      *
-     * @param $user
-     * @param $new_url
+     * @param User $user
+     * @param string $new_url
      *
      * @return Response
      */
@@ -680,6 +682,28 @@ exit();
 
 
     /**
+     * Since calling mkdir() when a directory already exists apparently causes a warning, and because the
+     * dterranova Crypto bundle doesn't automatically handle it...this function deletes the specified directory
+     * and all its contents off the server
+     *
+     * @param string $basedir
+     */
+    private function deleteEncryptionDir($basedir)
+    {
+        if ( !file_exists($basedir) )
+            return;
+
+        $filelist = scandir($basedir);
+        foreach ($filelist as $file) {
+            if ($file != '.' && $file !== '..')
+                unlink($basedir.$file);
+        }
+
+        rmdir($basedir);
+    }
+
+
+    /**
      * Utility function that does the work of encrypting a given File/Image entity.
      *
      * @throws \Exception
@@ -743,11 +767,6 @@ exit();
             $base_obj->setEncryptKey($hexEncoded_num);
             $em->persist($base_obj);
 
-            // TODO - delete the directory with the encrypted chunks prior to encryptFile()?  the crypto bundle still works properly (in linux at least), but the error log does mention "directory already exists"
-
-            // Encrypt the file
-            $crypto->encryptFile($absolute_path, $bytes);
-
 
             // Locate the directory where the encrypted files exist
             $encrypted_basedir = $this->container->getParameter('dterranova_crypto.temp_folder');
@@ -755,6 +774,14 @@ exit();
                 $encrypted_basedir .= '/File_'.$object_id.'/';
             else if ($object_type == 'image')
                 $encrypted_basedir .= '/Image_'.$object_id.'/';
+
+            // Remove all previously encrypted chunks of this object if the directory exists
+            if ( file_exists($encrypted_basedir) )
+                self::deleteEncryptionDir($encrypted_basedir);
+
+
+            // Encrypt the file
+            $crypto->encryptFile($absolute_path, $bytes);
 
             // Create an md5 checksum of all the pieces of that encrypted file
             $chunk_id = 0;
@@ -2631,9 +2658,6 @@ if ($debug)
 
         $datarecord->setProvisioned(true);  // Prevent most areas of the site from doing anything with this datarecord...whatever created this datarecord needs to eventually set this to false
 
-        // TODO - delete this property
-        $datarecord->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
-
         $em->persist($datarecord);
         $em->flush();
         $em->refresh($datarecord);
@@ -2813,7 +2837,8 @@ if ($debug)
         $query = $em->createQuery(
            'SELECT ldt
             FROM ODRAdminBundle:LinkedDataTree AS ldt
-            WHERE ldt.ancestor = :ancestor AND ldt.descendant = :descendant'
+            WHERE ldt.ancestor = :ancestor AND ldt.descendant = :descendant
+            AND ldt.deletedAt IS NULL'
         )->setParameters( array('ancestor' => $ancestor_datarecord, 'descendant' => $descendant_datarecord) );
         /** @var LinkedDataTree[] $results */
         $results = $query->getResult();
@@ -2827,11 +2852,10 @@ if ($debug)
         else {
             // ...otherwise, create a new linked_datatree entry
             $linked_datatree = new LinkedDataTree();
-            $linked_datatree->setCreatedBy($user);
-            $linked_datatree->setUpdatedBy($user);
-
             $linked_datatree->setAncestor($ancestor_datarecord);
             $linked_datatree->setDescendant($descendant_datarecord);
+
+            $linked_datatree->setCreatedBy($user);
 
             $em->persist($linked_datatree);
             $em->flush();
@@ -2915,29 +2939,13 @@ if ($debug)
         $my_obj->setOriginalChecksum('');
         // encrypt_key set by self::encryptObject() somewhat later
 
-        // TODO - delete this property
-        $my_obj->setUpdatedBy($user);
-
         if ($typeclass == 'Image') {
             /** @var Image $my_obj */
             $my_obj->setOriginal('1');
-
-            // TODO - delete these five properties
-            $my_obj->setOriginalFileName($original_filename);
-            $my_obj->setDisplayorder(0);
-            $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public    TODO - let user decide default status
-            $my_obj->setCaption(null);
-            $my_obj->setExternalId('');
         }
         else if ($typeclass == 'File') {
             /** @var File $my_obj */
             $my_obj->setFilesize(0);
-
-            // TODO - delete these four properties
-            $my_obj->setOriginalFileName($original_filename);
-            $my_obj->setPublicDate(new \DateTime('2200-01-01 00:00:00'));   // default to not public
-            $my_obj->setCaption(null);
-            $my_obj->setExternalId('');
         }
 
         // Save changes
@@ -3471,13 +3479,6 @@ if ($debug)
             $radio_option->setCreatedBy($user);
             $radio_option->setCreated(new \DateTime());
 
-            // TODO - delete these five properties
-            $radio_option->setXmlOptionName('');
-            $radio_option->setDisplayOrder(0);
-            $radio_option->setIsDefault(false);
-            $radio_option->setUpdatedBy($user);
-            $radio_option->setUpdated(new \DateTime());
-
             // Save and reload the RadioOption so the associated meta entry can access it
             $em->persist($radio_option);
             $em->flush($radio_option);
@@ -3503,13 +3504,11 @@ if ($debug)
             // See if a RadioOption entity for this datafield with this name already exists
             $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy( array('optionName' => $option_name, 'dataField' => $datafield->getId()) );
             if ($radio_option == null) {
-                // TODO - most of these properties have been moved to the meta table for radio options, but are still currently required to make this insert work...
                 // Define and execute a query to manually create the absolute minimum required for a RadioOption entity...
                 $query =
-                    'INSERT INTO odr_radio_options (option_name, data_fields_id, display_order, is_default, xml_option_name, created, createdBy, updated, updatedBy)
+                    'INSERT INTO odr_radio_options (option_name, data_fields_id, created, createdBy)
                      SELECT * FROM (
-                         SELECT :option_name AS option_name, :df_id AS data_fields_id, :display_order AS display_order, :is_default AS is_default, :xml_option_name AS xml_option_name,
-                             NOW() AS created, :created_by AS createdBy, NOW() AS updated, :updated_by AS updatedBy
+                         SELECT :option_name AS option_name, :df_id AS data_fields_id, NOW() AS created, :created_by AS createdBy
                      ) AS tmp
                      WHERE NOT EXISTS (
                          SELECT option_name FROM odr_radio_options WHERE option_name = :option_name AND data_fields_id = :df_id AND deletedAt IS NULL
@@ -3517,14 +3516,7 @@ if ($debug)
                 $params = array(
                     'option_name' => $option_name,
                     'df_id' => $datafield->getId(),
-
-                    // TODO - delete these three properties
-                    'display_order' => 0,
-                    'is_default' => 0,
-                    'xml_option_name' => '',
-
                     'created_by' => $user->getId(),
-                    'updated_by' => $user->getId(),
                 );
                 $conn = $em->getConnection();
                 $rowsAffected = $conn->executeUpdate($query, $params);
@@ -3800,7 +3792,6 @@ if ($debug)
             'xml_shortName' => $old_meta_entry->getXmlShortName(),
 
             'useShortResults' => $old_meta_entry->getUseShortResults(),
-            'display_type' => $old_meta_entry->getDisplayType(),
             'publicDate' => $old_meta_entry->getPublicDate(),
         );
 
@@ -3857,7 +3848,6 @@ if ($debug)
             $new_datatype_meta->setXmlShortName( $old_meta_entry->getXmlShortName() );
 
             $new_datatype_meta->setUseShortResults( $old_meta_entry->getUseShortResults() );
-            $new_datatype_meta->setDisplayType( $old_meta_entry->getDisplayType() );
             $new_datatype_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
             $new_datatype_meta->setCreatedBy($user);
@@ -3910,8 +3900,6 @@ if ($debug)
 
         if ( isset($properties['useShortResults']) )
             $new_datatype_meta->setUseShortResults( $properties['useShortResults'] );
-        if ( isset($properties['display_type']) )
-            $new_datatype_meta->setDisplayType( $properties['display_type'] );
         if ( isset($properties['publicDate']) )
             $new_datatype_meta->setPublicDate( $properties['publicDate'] );
 
@@ -3950,34 +3938,10 @@ if ($debug)
 
         $datafield->setCreatedBy($user);
 
-        // TODO - delete these properties
-        $datafield->setFieldName('New Field');
-        $datafield->setDescription('Field description.');
-        $datafield->setXmlFieldName('');
-        $datafield->setMarkdownText('');
-        $datafield->setUpdatedBy($user);
-        $datafield->setFieldType($fieldtype);
-        $datafield->setIsUnique(false);
-        $datafield->setRequired(false);
-        $datafield->setSearchable(0);
-        $datafield->setUserOnlySearch(false);
-        $datafield->setRenderPlugin($renderplugin);
-        $datafield->setDisplayOrder(-1);
-        $datafield->setChildrenPerRow(1);
-        $datafield->setRadioOptionNameSort(0);
-        $datafield->setRadioOptionDisplayUnselected(0);
-        if ( $fieldtype->getTypeClass() === 'File' || $fieldtype->getTypeClass() === 'Image' ) {
-            $datafield->setAllowMultipleUploads(1);
-            $datafield->setShortenFilename(1);
-        }
-        else {
-            $datafield->setAllowMultipleUploads(0);
-            $datafield->setShortenFilename(0);
-        }
-
         $em->persist($datafield);
         $em->flush();
         $em->refresh($datafield);
+
 
         $datafield_meta = new DataFieldsMeta();
         $datafield_meta->setDataField($datafield);
@@ -3996,7 +3960,6 @@ if ($debug)
         $datafield_meta->setSearchable(0);
         $datafield_meta->setUserOnlySearch(false);
 
-        $datafield_meta->setDisplayOrder(-1);
         $datafield_meta->setChildrenPerRow(1);
         $datafield_meta->setRadioOptionNameSort(0);
         $datafield_meta->setRadioOptionDisplayUnselected(0);
@@ -4053,7 +4016,6 @@ if ($debug)
             'is_unique' => $old_meta_entry->getIsUnique(),
             'allow_multiple_uploads' => $old_meta_entry->getAllowMultipleUploads(),
             'shorten_filename' => $old_meta_entry->getShortenFilename(),
-            'displayOrder' => $old_meta_entry->getDisplayOrder(),
             'children_per_row' => $old_meta_entry->getChildrenPerRow(),
             'radio_option_name_sort' => $old_meta_entry->getRadioOptionNameSort(),
             'radio_option_display_unselected' => $old_meta_entry->getRadioOptionDisplayUnselected(),
@@ -4092,7 +4054,6 @@ if ($debug)
             $new_datafield_meta->setIsUnique( $old_meta_entry->getIsUnique() );
             $new_datafield_meta->setAllowMultipleUploads( $old_meta_entry->getAllowMultipleUploads() );
             $new_datafield_meta->setShortenFilename( $old_meta_entry->getShortenFilename() );
-            $new_datafield_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
             $new_datafield_meta->setChildrenPerRow( $old_meta_entry->getChildrenPerRow() );
             $new_datafield_meta->setRadioOptionNameSort( $old_meta_entry->getRadioOptionNameSort() );
             $new_datafield_meta->setRadioOptionDisplayUnselected( $old_meta_entry->getRadioOptionDisplayUnselected() );
@@ -4132,8 +4093,6 @@ if ($debug)
             $new_datafield_meta->setAllowMultipleUploads( $properties['allow_multiple_uploads'] );
         if ( isset($properties['shorten_filename']) )
             $new_datafield_meta->setShortenFilename( $properties['shorten_filename'] );
-        if ( isset($properties['displayOrder']) )
-            $new_datafield_meta->setDisplayOrder( $properties['displayOrder'] );
         if ( isset($properties['children_per_row']) )
             $new_datafield_meta->setChildrenPerRow( $properties['children_per_row'] );
         if ( isset($properties['radio_option_name_sort']) )
@@ -4247,29 +4206,21 @@ if ($debug)
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                       The user requesting the creation of this entity
-     * @param DataType $datatype
      * @param Theme $theme
      *
      * @return array
      */
-    protected function ODR_addThemeElement($em, $user, $datatype, $theme)
+    protected function ODR_addThemeElement($em, $user, $theme)
     {
         $theme_element = new ThemeElement();
         $theme_element->setTheme($theme);
 
         $theme_element->setCreatedBy($user);
 
-        // TODO - delete these six properties
-        $theme_element->setDataType($datatype);
-        $theme_element->setUpdatedBy($user);
-        $theme_element->setDisplayOrder(-1);
-        $theme_element->setDisplayInResults(1);
-        $theme_element->setCssWidthXL('1-1');
-        $theme_element->setCssWidthMed('1-1');
-
         $em->persist($theme_element);
         $em->flush();
         $em->refresh($theme_element);
+
 
         $theme_element_meta = new ThemeElementMeta();
         $theme_element_meta->setThemeElement($theme_element);
@@ -4398,10 +4349,6 @@ if ($debug)
         $theme_datafield->setCreatedBy($user);
         $theme_datafield->setUpdatedBy($user);
 
-        // TODO - remove these two properties
-        $theme_datafield->setTheme($theme_element->getTheme());
-        $theme_datafield->setActive(true);
-
         $em->persist($theme_datafield);
         return $theme_datafield;
     }
@@ -4456,10 +4403,6 @@ if ($debug)
             $new_theme_datafield->setCssWidthXL( $theme_datafield->getCssWidthXL() );
 
             $new_theme_datafield->setCreatedBy($user);
-
-            // TODO - remove these two properties
-            $new_theme_datafield->setTheme( $theme_datafield->getTheme() );
-            $new_theme_datafield->setActive(true);
         }
         else {
             // Update the existing meta entry
@@ -4516,9 +4459,6 @@ if ($debug)
         $theme_datatype->setCreatedBy($user);
         $theme_datatype->setUpdatedBy($user);
 
-        // TODO - remove this property
-        $theme_datatype->setTheme( $theme_element->getTheme() );
-
         $em->persist($theme_datatype);
         return $theme_datatype;
     }
@@ -4567,9 +4507,6 @@ if ($debug)
             $new_theme_datatype->setDisplayType( $theme_datatype->getDisplayType() );
 
             $new_theme_datatype->setCreatedBy($user);
-
-            // TODO - remove this property
-            $new_theme_datatype->setTheme($theme_datatype->getTheme());
         }
         else {
             // Update the existing meta entry
@@ -4907,21 +4844,7 @@ if ($debug)
 
                     $image->setCreatedBy($user);
 
-                    // TODO - delete these six properties
-                    $image->setOriginalFileName( $my_obj->getOriginalFileName() );
-                    $image->setDisplayorder(0);
-                    $image->setPublicDate( $my_obj->getPublicDate() );
-                    $image->setCaption( $my_obj->getCaption() );
-                    $image->setExternalId('');
-
-                    $image->setUpdatedBy($user);
-
                     /* DO NOT create a new metadata entry for the thumbnail...all of its metadata properties are slaved to the parent image */
-                }
-                else {
-                    // Ensure that thumbnail has same public date as original image
-                    // TODO - delete this property
-                    $image->setPublicDate( $my_obj->getPublicDate() );
                 }
 
                 $em->persist($image);

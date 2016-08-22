@@ -1,16 +1,16 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* TrackedCSVExport Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The TrackedCSVExport Entity is automatically generated from 
-* ./Resources/config/doctrine/TrackedCSVExport.orm.yml
-*
-*/
+ * Open Data Repository Data Publisher
+ * TrackedCSVExport Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The TrackedCSVExport Entity is automatically generated from
+ * ./Resources/config/doctrine/TrackedCSVExport.orm.yml
+ *
+ */
 
 
 namespace ODR\AdminBundle\Entity;

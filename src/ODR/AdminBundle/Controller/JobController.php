@@ -1,16 +1,16 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* Job Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The Job controller handles displaying progress of ongoing jobs
-* (and notifying users?) to users.
-*
-*/
+ * Open Data Repository Data Publisher
+ * Job Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The Job controller handles displaying progress of ongoing jobs
+ * (and notifying users?) to users.
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 

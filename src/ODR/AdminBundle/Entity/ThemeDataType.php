@@ -70,11 +70,6 @@ class ThemeDataType
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $deletedBy;
-
-    /**
-     * @var \ODR\AdminBundle\Entity\Theme
-     */
-    private $theme;
     
 
     /**
@@ -292,30 +287,5 @@ class ThemeDataType
     public function getDeletedBy()
     {
         return $this->deletedBy;
-    }
-
-    /**
-     * Set theme
-     * @deprecated
-     *
-     * @param \ODR\AdminBundle\Entity\Theme $theme
-     * @return ThemeDataType
-     */
-    public function setTheme(\ODR\AdminBundle\Entity\Theme $theme = null)
-    {
-        $this->theme = $theme;
-
-        return $this;
-    }
-
-    /**
-     * Get theme
-     * @deprecated
-     *
-     * @return \ODR\AdminBundle\Entity\Theme 
-     */
-    public function getTheme()
-    {
-        return $this->theme;
     }
 }

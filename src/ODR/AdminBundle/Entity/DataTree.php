@@ -37,21 +37,6 @@ class DataTree
     private $deletedAt;
 
     /**
-     * @var boolean
-     */
-    private $is_link;
-
-    /**
-     * @var boolean
-     */
-    private $multiple_allowed;
-
-    /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
      * @var \Doctrine\Common\Collections\Collection
      */
     private $dataTreeMeta;
@@ -76,10 +61,6 @@ class DataTree
      */
     private $deletedBy;
 
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
 
     /**
      * Constructor
@@ -143,79 +124,6 @@ class DataTree
     public function getDeletedAt()
     {
         return $this->deletedAt;
-    }
-
-    /**
-     * Set is_link
-     * @deprecated
-     *
-     * @param boolean $isLink
-     * @return DataTree
-     */
-    public function setIsLink($isLink)
-    {
-        $this->is_link = $isLink;
-
-        return $this;
-    }
-
-    /**
-     * Get is_link
-     *
-     * @return boolean 
-     */
-    public function getIsLink()
-    {
-        return $this->getDataTreeMeta()->getIsLink();
-    }
-
-    /**
-     * Set multiple_allowed
-     * @deprecated
-     *
-     * @param boolean $multipleAllowed
-     * @return DataTree
-     */
-    public function setMultipleAllowed($multipleAllowed)
-    {
-        $this->multiple_allowed = $multipleAllowed;
-
-        return $this;
-    }
-
-    /**
-     * Get multiple_allowed
-     *
-     * @return boolean 
-     */
-    public function getMultipleAllowed()
-    {
-        return $this->getDataTreeMeta()->getMultipleAllowed();
-    }
-
-    /**
-     * Set updated
-     * @deprecated
-     *
-     * @param \DateTime $updated
-     * @return DataTree
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     * @deprecated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
     }
 
     /**
@@ -343,50 +251,24 @@ class DataTree
         return $this->deletedBy;
     }
 
-    /**
-     * Set updatedBy
-     * @deprecated
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return DataTree
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
 
-        return $this;
+    /**
+     * Get is_link
+     *
+     * @return boolean
+     */
+    public function getIsLink()
+    {
+        return $this->getDataTreeMeta()->getIsLink();
     }
 
     /**
-     * Get updatedBy
-     * @deprecated 
+     * Get multiple_allowed
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return boolean
      */
-    public function getUpdatedBy()
+    public function getMultipleAllowed()
     {
-        return $this->updatedBy;
-    }
-
-    // ----------------------------------------
-    // TODO - delete these two functions
-    /**
-     * Get is_link original
-     *
-     * @return bool
-     */
-    public function getIsLinkOriginal()
-    {
-        return $this->is_link;
-    }
-
-    /**
-     * Get multiple_allowed original
-     *
-     * @return bool
-     */
-    public function getMultipleAllowedOriginal()
-    {
-        return $this->multiple_allowed;
+        return $this->getDataTreeMeta()->getMultipleAllowed();
     }
 }

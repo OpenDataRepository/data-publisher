@@ -249,6 +249,29 @@ class FieldType
     }
 
     /**
+     * Set created
+     *
+     * @param \DateTime $created
+     * @return FieldType
+     */
+    public function setCreated($created)
+    {
+        $this->created = $created;
+
+        return $this;
+    }
+
+    /**
+     * Get created
+     *
+     * @return \DateTime
+     */
+    public function getCreated()
+    {
+        return $this->created;
+    }
+
+    /**
      * Set deletedAt
      *
      * @param \DateTime $deletedAt
@@ -269,29 +292,6 @@ class FieldType
     public function getDeletedAt()
     {
         return $this->deletedAt;
-    }
-
-    /**
-     * Set created
-     *
-     * @param \DateTime $created
-     * @return FieldType
-     */
-    public function setCreated($created)
-    {
-        $this->created = $created;
-
-        return $this;
-    }
-
-    /**
-     * Get created
-     *
-     * @return \DateTime 
-     */
-    public function getCreated()
-    {
-        return $this->created;
     }
 
     /**

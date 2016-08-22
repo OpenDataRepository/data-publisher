@@ -57,11 +57,6 @@ class ThemeDataField
     private $deletedAt;
 
     /**
-     * @var boolean
-     */
-    private $active;
-
-    /**
      * @var \ODR\AdminBundle\Entity\DataFields
      */
     private $dataField;
@@ -75,11 +70,6 @@ class ThemeDataField
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
-
-    /**
-     * @var \ODR\AdminBundle\Entity\Theme
-     */
-    private $theme;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -241,31 +231,6 @@ class ThemeDataField
     }
 
     /**
-     * Set active
-     * @deprecated
-     *
-     * @param boolean $active
-     * @return ThemeDataField
-     */
-    public function setActive($active)
-    {
-        $this->active = $active;
-
-        return $this;
-    }
-
-    /**
-     * Get active
-     * @deprecated
-     *
-     * @return boolean 
-     */
-    public function getActive()
-    {
-        return $this->active;
-    }
-
-    /**
      * Set dataField
      *
      * @param \ODR\AdminBundle\Entity\DataFields $dataField
@@ -332,31 +297,6 @@ class ThemeDataField
     public function getCreatedBy()
     {
         return $this->createdBy;
-    }
-
-    /**
-     * Set theme
-     * @deprecated
-     *
-     * @param \ODR\AdminBundle\Entity\Theme $theme
-     * @return ThemeDataField
-     */
-    public function setTheme(\ODR\AdminBundle\Entity\Theme $theme)
-    {
-        $this->theme = $theme;
-
-        return $this;
-    }
-
-    /**
-     * Get theme
-     * @deprecated
-     *
-     * @return \ODR\AdminBundle\Entity\Theme 
-     */
-    public function getTheme()
-    {
-        return $this->theme;
     }
 
     /**

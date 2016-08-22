@@ -379,6 +379,8 @@ exit();
             else {
                 /** @var DataTypeMeta $meta_entry */
                 $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('searchSlug' => $search_slug) );
+                if ($meta_entry == null)
+                    return self::searchPageError("Page not found", $request);
                 $target_datatype = $meta_entry->getDataType();
                 if ($target_datatype == null)
                     return self::searchPageError("Page not found", $request);
@@ -1184,7 +1186,6 @@ if (isset($debug['timing'])) {
      * @param integer $target_datatype_id
      * @param array $datatype_permissions
      * @param array $datafield_permissions
-     * @param array $debug
      *
      * @return array
      */
@@ -2954,4 +2955,3 @@ if ( isset($debug['search_string_parsing']) ) {
     }
 
 }
-

@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\ThemeElement:
     type: entity
     table: odr_theme_element
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -14,28 +13,6 @@ ODR\AdminBundle\Entity\ThemeElement:
             generator:
                 strategy: IDENTITY
 
-#        templateType:
-#            type: string
-#            length: 45
-#            fixed: false
-#            nullable: false
-#            column: template_type
-#            gedmo:
-#                - versioned
-#        elementType:
-#            type: string
-#            length: 45
-#            fixed: false
-#            nullable: false
-#            column: element_type
-#            gedmo:
-#                - versioned
-#        css:
-#            type: text
-#            nullable: true
-#            gedmo:
-#                - versioned
-
         created:
             type: datetime
             gedmo:
@@ -44,40 +21,6 @@ ODR\AdminBundle\Entity\ThemeElement:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
-
-        #TODO - delete the following 5 properties
-        displayOrder:
-            type: integer
-            nullable: false
-            column: display_order
-#            gedmo:
-#                - versioned
-        displayInResults:
-            type: boolean
-            nullable: false
-            default: true
-            column: display_in_results
-#            gedmo:
-#                - versioned
-
-        cssWidthXL:
-            type: string
-            length: 32
-#            gedmo:
-#                - versioned
-        cssWidthMed:
-            type: string
-            length: 32
-#            gedmo:
-#                - versioned
-
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
 
     oneToMany:
         themeDataFields:
@@ -89,8 +32,7 @@ ODR\AdminBundle\Entity\ThemeElement:
                 theme_data_field_meta_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         themeDataType:
             targetEntity: ThemeDataType
             cascade: { }
@@ -100,8 +42,6 @@ ODR\AdminBundle\Entity\ThemeElement:
                 theme_data_type_meta_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         themeElementMeta:
             targetEntity: ThemeElementMeta
@@ -112,24 +52,6 @@ ODR\AdminBundle\Entity\ThemeElement:
                 theme_element_meta_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
-
-        #TODO - delete the following property
-        themeElementField:
-            targetEntity: ThemeElementField
-            cascade: {  }
-            mappedBy: themeElement
-            inversedBy: null
-            fetch: LAZY
-            joinColumns:
-                theme_data_type_id:
-                    referencedColumnName: id
-#            orderBy:
-#                displayOrder: ASC
-#                id: ASC
-#            gedmo:
-#                - versioned
 
     manyToOne:
         theme:
@@ -142,8 +64,6 @@ ODR\AdminBundle\Entity\ThemeElement:
                     nullable: false
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -154,9 +74,6 @@ ODR\AdminBundle\Entity\ThemeElement:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
         deletedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -166,38 +83,5 @@ ODR\AdminBundle\Entity\ThemeElement:
                 deletedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
-
-
-        #TODO - delete the following two properties
-        dataType:
-            targetEntity: DataType
-            cascade: {  }
-            mappedBy: null
-            inversedBy: themeElement
-            joinColumns:
-                data_type_id:
-                    nullable: false
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
-
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
-#            gedmo:
-#                blameable:
-#                    on: update
 
     lifecycleCallbacks: {  }

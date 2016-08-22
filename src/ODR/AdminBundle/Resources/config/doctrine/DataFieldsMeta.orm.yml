@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
     type: entity
     table: odr_data_fields_meta
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -20,28 +19,22 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             fixed: false
             nullable: false
             column: field_name
-#            gedmo:
-#                - versioned
+
         description:
             type: text
             nullable: true
-#            gedmo:
-#                - versioned
+
         xml_fieldName:
             type: string
             length: 64
             fixed: false
             nullable: false
             column: xml_field_name
-#            gedmo:
-#                - versioned
 
         markdownText:
             type: text
             default: ''
             nullable: true
-#            gedmo:
-#                - versioned
 
         regexValidator:
             type: string
@@ -49,78 +42,62 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             fixed: false
             nullable: true
             column: regex_validator
-#            gedmo:
-#                - versioned
+
         phpValidator:
             type: text
             nullable: true
             column: php_validator
-#            gedmo:
-#                - versioned
+
         required:
             type: boolean
             nullable: false
-#            gedmo:
-#                - versioned
+
         is_unique:
             type: boolean
             nullable: false
             default: false
             column: is_unique
-#            gedmo:
-#                - versioned
 
         allow_multiple_uploads:
             type: boolean
             nullable: false
             default: false
             column: allow_multiple_uploads
-#            gedmo:
-#                - versioned
+
         shorten_filename:
             type: boolean
             nullable: false
             default: true
             column: shorten_filename
-#            gedmo:
-#                - versioned
 
         children_per_row:
             type: integer
             nullable: false
             default: 1
             column: children_per_row
-#            gedmo:
-#                - versioned
 
         radio_option_name_sort:
             type: boolean
             nullable: false
             default: true
             column: radio_option_name_sort
-#            gedmo:
-#                - versioned
+
         radio_option_display_unselected:
             type: boolean
             nullable: false
             default: false
             column: radio_option_display_unselected
-#            gedmo:
-#                - versioned
 
         searchable:
             type: integer
             unsigned: false
             default: 0
             nullable: false
-#            gedmo:
-#                - versioned
+
         user_only_search:
             type: boolean
             default: false
             nullable: false
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -135,16 +112,6 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
-
-        #TODO - delete the following property
-        displayOrder:
-            type: integer
-            nullable: false
-            column: display_order
-#            gedmo:
-#                - versioned
 
     manyToOne:
         dataField:
@@ -156,8 +123,6 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
                 data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         fieldType:
             targetEntity: FieldType
@@ -168,8 +133,7 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
                 field_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         renderPlugin:
             targetEntity: RenderPlugin
             cascade: {  }
@@ -178,8 +142,6 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
                 render_plugin_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -190,8 +152,6 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -201,7 +161,5 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
     lifecycleCallbacks: {  }

@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\DatetimeValue:
     type: entity
     table: odr_datetime_value
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -17,8 +16,6 @@ ODR\AdminBundle\Entity\DatetimeValue:
             type: datetime
             nullable: false
             column: value
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -33,8 +30,7 @@ ODR\AdminBundle\Entity\DatetimeValue:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
+
     manyToOne:
         dataField:
             targetEntity: DataFields
@@ -45,8 +41,7 @@ ODR\AdminBundle\Entity\DatetimeValue:
                 data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         fieldType:
             targetEntity: FieldType
             cascade: {  }
@@ -56,8 +51,7 @@ ODR\AdminBundle\Entity\DatetimeValue:
                 field_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataRecord:
             targetEntity: DataRecord
             cascade: {  }
@@ -67,8 +61,7 @@ ODR\AdminBundle\Entity\DatetimeValue:
                 data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
@@ -77,8 +70,6 @@ ODR\AdminBundle\Entity\DatetimeValue:
                 data_record_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User

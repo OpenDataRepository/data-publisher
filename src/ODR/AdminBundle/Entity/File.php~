@@ -63,31 +63,6 @@ class File
     private $deletedAt;
 
     /**
-     * @var string
-     */
-    private $caption;
-
-    /**
-     * @var string
-     */
-    private $originalFileName;
-
-    /**
-     * @var string
-     */
-    private $external_id;
-
-    /**
-     * @var \DateTime
-     */
-    private $publicDate;
-
-    /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
      * @var \Doctrine\Common\Collections\Collection
      */
     private $fileChecksum;
@@ -127,10 +102,6 @@ class File
      */
     private $deletedBy;
 
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
 
     /**
      * Constructor
@@ -310,127 +281,6 @@ class File
     public function getDeletedAt()
     {
         return $this->deletedAt;
-    }
-
-    /**
-     * Set caption
-     * @deprecated
-     *
-     * @param string $caption
-     * @return File
-     */
-    public function setCaption($caption)
-    {
-        $this->caption = $caption;
-
-        return $this;
-    }
-
-    /**
-     * Get caption
-     *
-     * @return string 
-     */
-    public function getCaption()
-    {
-        return $this->getFileMeta()->getDescription();
-    }
-
-    /**
-     * Set originalFileName
-     * @deprecated
-     *
-     * @param string $originalFileName
-     * @return File
-     */
-    public function setOriginalFileName($originalFileName)
-    {
-        $this->originalFileName = $originalFileName;
-
-        return $this;
-    }
-
-    /**
-     * Get originalFileName
-     *
-     * @return string 
-     */
-    public function getOriginalFileName()
-    {
-        return $this->getFileMeta()->getOriginalFileName();
-    }
-
-    /**
-     * Set external_id
-     * @deprecated
-     *
-     * @param string $externalId
-     * @return File
-     */
-    public function setExternalId($externalId)
-    {
-        $this->external_id = $externalId;
-
-        return $this;
-    }
-
-    /**
-     * Get external_id
-     *
-     * @return string 
-     */
-    public function getExternalId()
-    {
-        return $this->getFileMeta()->getExternalId();
-    }
-
-    /**
-     * Set publicDate
-     * @deprecated
-     *
-     * @param \DateTime $publicDate
-     * @return File
-     */
-    public function setPublicDate($publicDate)
-    {
-        $this->publicDate = $publicDate;
-
-        return $this;
-    }
-
-    /**
-     * Get publicDate
-     *
-     * @return \DateTime 
-     */
-    public function getPublicDate()
-    {
-        return $this->getFileMeta()->getPublicDate();
-    }
-
-    /**
-     * Set updated
-     * @deprecated
-     *
-     * @param \DateTime $updated
-     * @return File
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     * @deprecated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
     }
 
     /**
@@ -638,31 +488,6 @@ class File
     }
 
     /**
-     * Set updatedBy
-     * @deprecated
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return File
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     * @deprecated
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
-    }
-
-    /**
      * Is public
      *
      * @return boolean
@@ -824,45 +649,49 @@ class File
         return 'uploads/files';
     }
 
-    // ----------------------------------------
-    // TODO - delete these four functions
+
+    /*
+     * ----------------------------------------
+     * ----------------------------------------
+     */
+
     /**
-     * Get description original
+     * Get caption
      *
      * @return string
      */
-    public function getDescriptionOriginal()
+    public function getCaption()
     {
-        return $this->caption;
+        return $this->getFileMeta()->getDescription();
     }
 
     /**
-     * Get originalFileName original
+     * Get originalFileName
      *
      * @return string
      */
-    public function getOriginalFileNameOriginal()
+    public function getOriginalFileName()
     {
-        return $this->originalFileName;
+        return $this->getFileMeta()->getOriginalFileName();
     }
 
     /**
-     * Get external_id original
+     * Get external_id
      *
      * @return string
      */
-    public function getExternalIdOriginal()
+    public function getExternalId()
     {
-        return $this->external_id;
+        return $this->getFileMeta()->getExternalId();
     }
 
     /**
-     * Get publicDate original
+     * Get publicDate
      *
      * @return \DateTime
      */
-    public function getPublicDateOriginal()
+    public function getPublicDate()
     {
-        return $this->publicDate;
+        return $this->getFileMeta()->getPublicDate();
     }
 }

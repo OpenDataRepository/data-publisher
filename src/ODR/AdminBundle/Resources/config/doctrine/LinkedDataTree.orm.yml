@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\LinkedDataTree:
     type: entity
     table: odr_linked_data_tree
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -22,15 +21,6 @@ ODR\AdminBundle\Entity\LinkedDataTree:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
-
-        # TODO - delete this property
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
 
     manyToOne:
         ancestor:
@@ -42,8 +32,6 @@ ODR\AdminBundle\Entity\LinkedDataTree:
                 ancestor_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
         descendant:
             targetEntity: DataRecord
             cascade: {  }
@@ -53,8 +41,6 @@ ODR\AdminBundle\Entity\LinkedDataTree:
                 descendant_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -65,9 +51,6 @@ ODR\AdminBundle\Entity\LinkedDataTree:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
         deletedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -77,24 +60,5 @@ ODR\AdminBundle\Entity\LinkedDataTree:
                 deletedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
-
-        # TODO - delete this property
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
-#            gedmo:
-#                blameable:
-#                    on: update
 
     lifecycleCallbacks: {  }

@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\ThemeMeta:
     type: entity
     table: odr_theme_meta
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -20,20 +19,15 @@ ODR\AdminBundle\Entity\ThemeMeta:
             fixed: false
             nullable: false
             column: template_name
-#            gedmo:
-#                - versioned
         templateDescription:
             type: text
             nullable: true
             column: template_description
-#            gedmo:
-#                - versioned
+
         isDefault:
             type: boolean
             nullable: false
             column: is_default
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -48,8 +42,6 @@ ODR\AdminBundle\Entity\ThemeMeta:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
 
     manyToOne:
         theme:
@@ -61,8 +53,6 @@ ODR\AdminBundle\Entity\ThemeMeta:
                 theme_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -73,9 +63,6 @@ ODR\AdminBundle\Entity\ThemeMeta:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -85,8 +72,5 @@ ODR\AdminBundle\Entity\ThemeMeta:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: update
 
     lifecycleCallbacks: {  }

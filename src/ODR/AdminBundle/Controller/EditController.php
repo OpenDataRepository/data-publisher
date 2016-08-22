@@ -20,7 +20,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
@@ -244,6 +243,7 @@ class EditController extends ODRCustomController
      * Deletes a top-level DataRecord.
      * 
      * @param integer $datarecord_id The database id of the datarecord to delete.
+     * @param string $search_key
      * @param Request $request
      * 
      * @return Response
@@ -1231,7 +1231,7 @@ class EditController extends ODRCustomController
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
-            $return['d'] = 'Error 0x2078485256 '. $e->getMessage();
+            $return['d'] = 'Error 0x784825462 '. $e->getMessage();
         }
 
         $response = new Response(json_encode($return));
@@ -2141,7 +2141,7 @@ exit();
             $local_datarecord_id = $post['local_datarecord_id'];
             $ancestor_datatype_id = $post['ancestor_datatype_id'];
             $descendant_datatype_id = $post['descendant_datatype_id'];
-            $allow_multiple_links = $post['allow_multiple_links'];      // TODO - not used when it should be?
+//            $allow_multiple_links = $post['allow_multiple_links'];      // TODO - not used when it should be?
             $datarecords = array();
             if ( isset($post['datarecords']) )
                 $datarecords = $post['datarecords'];
@@ -2635,10 +2635,11 @@ if ($debug)
                 FROM ODRAdminBundle:DataTypeMeta AS ancestor_meta
                 JOIN ODRAdminBundle:DataType AS ancestor WITH ancestor_meta.dataType = ancestor
                 JOIN ODRAdminBundle:DataTree AS dt WITH dt.ancestor = ancestor
+                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
                 JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
                 JOIN ODRAdminBundle:DataTypeMeta AS descendant_meta WITH descendant_meta.dataType = descendant
-                WHERE dt.is_link = 1 AND (ancestor.id = :datatype_id OR descendant.id = :datatype_id)
-                AND ancestor_meta.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND descendant.deletedAt IS NULL AND descendant_meta.deletedAt IS NULL'
+                WHERE dtm.is_link = 1 AND (ancestor.id = :datatype_id OR descendant.id = :datatype_id)
+                AND ancestor_meta.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND descendant.deletedAt IS NULL AND descendant_meta.deletedAt IS NULL'
             )->setParameters( array('datatype_id' => $datatype->getId()) );
             $results = $query->getArrayResult();
 

@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\DataTree:
     type: entity
     table: odr_data_tree
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -22,29 +21,6 @@ ODR\AdminBundle\Entity\DataTree:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
-
-        # TODO - delete the following three properties
-        is_link:
-            type: boolean
-            nullable: false
-            default: false
-            column: is_link
-#            gedmo:
-#                - versioned
-        multiple_allowed:
-            type: boolean
-            nullable: false
-            default: true
-            column: multiple_allowed
-#            gedmo:
-#                - versioned
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
 
     oneToMany:
         dataTreeMeta:
@@ -56,8 +32,6 @@ ODR\AdminBundle\Entity\DataTree:
                 data_tree_meta_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
     manyToOne:
         ancestor:
@@ -69,8 +43,6 @@ ODR\AdminBundle\Entity\DataTree:
                 ancestor_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
         descendant:
             targetEntity: DataType
             cascade: {  }
@@ -80,8 +52,6 @@ ODR\AdminBundle\Entity\DataTree:
                 descendant_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -92,9 +62,6 @@ ODR\AdminBundle\Entity\DataTree:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
         deletedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -104,24 +71,5 @@ ODR\AdminBundle\Entity\DataTree:
                 deletedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
-
-        # TODO - delete this property
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
-#            gedmo:
-#                blameable:
-#                    on: update
 
     lifecycleCallbacks: {  }

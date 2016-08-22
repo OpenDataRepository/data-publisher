@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\ImageChecksum:
     type: entity
     table: odr_image_checksum
     gedmo:
-#        loggable: true
 #        soft_deleteable:
 #            field_name: deletedAt
     fields:
@@ -19,15 +18,12 @@ ODR\AdminBundle\Entity\ImageChecksum:
             unsigned: false
             nullable: false
             default: 0
-
         checksum:
             type: string
             nullable: true
             length: 32
             fixed: false
             column: checksum
-#            gedmo:
-#                - versioned
 
     manyToOne:
         image:
@@ -39,7 +35,5 @@ ODR\AdminBundle\Entity\ImageChecksum:
                 image_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
     lifecycleCallbacks: {  }

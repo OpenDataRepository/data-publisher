@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\TrackedCSVExport:
     type: entity
     table: odr_tracked_csv_export
 #    gedmo:
-#        loggable: true
 #        soft_deleteable:
 #            field_name: deletedAt
     fields:
@@ -25,12 +24,6 @@ ODR\AdminBundle\Entity\TrackedCSVExport:
             nullable: false
             default: false
 
-#        created:
-#            type: datetime
-#            gedmo:
-#                timestampable:
-#                    on: create
-
     manyToOne:
         trackedJob:
             targetEntity: TrackedJob
@@ -41,17 +34,5 @@ ODR\AdminBundle\Entity\TrackedCSVExport:
                 tracked_job_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
-
-#        createdBy:
-#            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-#            cascade: {  }
-#            mappedBy: null
-#            inversedBy: null
-#            joinColumns:
-#                createdBy:
-#                    referencedColumnName: id
-#            orphanRemoval: false
 
     lifecycleCallbacks: {  }

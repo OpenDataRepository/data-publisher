@@ -42,26 +42,6 @@ class RadioOptions
     private $deletedAt;
 
     /**
-     * @var string
-     */
-    private $xml_optionName;
-
-    /**
-     * @var integer
-     */
-    private $displayOrder;
-
-    /**
-     * @var boolean
-     */
-    private $isDefault;
-
-    /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
      * @var \Doctrine\Common\Collections\Collection
      */
     private $radioOptionMeta;
@@ -85,11 +65,6 @@ class RadioOptions
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $deletedBy;
-
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
 
     
     /**
@@ -179,103 +154,6 @@ class RadioOptions
     public function getDeletedAt()
     {
         return $this->deletedAt;
-    }
-
-    /**
-     * Set xml_optionName
-     * @deprecated
-     *
-     * @param string $xmlOptionName
-     * @return RadioOptions
-     */
-    public function setXmlOptionName($xmlOptionName)
-    {
-        $this->xml_optionName = $xmlOptionName;
-
-        return $this;
-    }
-
-    /**
-     * Get xml_optionName
-     *
-     * @return string 
-     */
-    public function getXmlOptionName()
-    {
-        return $this->getRadioOptionMeta()->getXmlOptionName();
-    }
-
-    /**
-     * Set displayOrder
-     * @deprecated
-     *
-     * @param integer $displayOrder
-     * @return RadioOptions
-     */
-    public function setDisplayOrder($displayOrder)
-    {
-        $this->displayOrder = $displayOrder;
-
-        return $this;
-    }
-
-    /**
-     * Get displayOrder
-     *
-     * @return integer 
-     */
-    public function getDisplayOrder()
-    {
-        return $this->getRadioOptionMeta()->getDisplayOrder();
-    }
-
-    /**
-     * Set isDefault
-     * @deprecated
-     *
-     * @param boolean $isDefault
-     * @return RadioOptions
-     */
-    public function setIsDefault($isDefault)
-    {
-        $this->isDefault = $isDefault;
-
-        return $this;
-    }
-
-    /**
-     * Get isDefault
-     *
-     * @return boolean 
-     */
-    public function getIsDefault()
-    {
-        return $this->getRadioOptionMeta()->getIsDefault();
-    }
-
-    /**
-     * Set updated
-     * @deprecated
-     *
-     * @param \DateTime $updated
-     * @return RadioOptions
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     * @deprecated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
     }
 
     /**
@@ -413,70 +291,34 @@ class RadioOptions
         return $this->deletedBy;
     }
 
-    /**
-     * Set updatedBy
-     * @deprecated
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return RadioOptions
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-
-        return $this;
-    }
 
     /**
-     * Get updatedBy
-     * @deprecated 
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
-    }
-
-    // ----------------------------------------
-    // TODO - delete these four functions
-    /**
-     * Get original optionName
+     * Get xml_optionName
      *
      * @return string
      */
-    public function getOptionNameOriginal()
+    public function getXmlOptionName()
     {
-        return $this->optionName;
+        return $this->getRadioOptionMeta()->getXmlOptionName();
     }
 
     /**
-     * Get original xml_optionName
-     *
-     * @return string
-     */
-    public function getXmlOptionNameOriginal()
-    {
-        return $this->xml_optionName;
-    }
-
-    /**
-     * Get original displayOrder
+     * Get displayOrder
      *
      * @return integer
      */
-    public function getDisplayOrderOriginal()
+    public function getDisplayOrder()
     {
-        return $this->displayOrder;
+        return $this->getRadioOptionMeta()->getDisplayOrder();
     }
 
     /**
-     * Get original isDefault
+     * Get isDefault
      *
      * @return boolean
      */
-    public function getIsDefaultOriginal()
+    public function getIsDefault()
     {
-        return $this->isDefault;
+        return $this->getRadioOptionMeta()->getIsDefault();
     }
 }

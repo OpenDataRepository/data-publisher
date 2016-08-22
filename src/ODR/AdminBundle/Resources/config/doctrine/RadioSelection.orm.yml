@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\RadioSelection:
     type: entity
     table: odr_radio_selection
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -13,13 +12,12 @@ ODR\AdminBundle\Entity\RadioSelection:
             nullable: false
             generator:
                 strategy: IDENTITY
+
         selected:
             type: integer
             unsigned: false
             nullable: false
             default: 0
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -34,8 +32,6 @@ ODR\AdminBundle\Entity\RadioSelection:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
 
     manyToOne:
         radioOption:
@@ -47,8 +43,7 @@ ODR\AdminBundle\Entity\RadioSelection:
                 radio_option_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -68,7 +63,6 @@ ODR\AdminBundle\Entity\RadioSelection:
                     referencedColumnName: id
             orphanRemoval: false
 
-#    oneToOne:
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
@@ -77,6 +71,5 @@ ODR\AdminBundle\Entity\RadioSelection:
                 data_record_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
     lifecycleCallbacks: {  }

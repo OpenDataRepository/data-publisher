@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\RadioOptionsMeta:
     type: entity
     table: odr_radio_options_meta
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -20,36 +19,25 @@ ODR\AdminBundle\Entity\RadioOptionsMeta:
             fixed: false
             nullable: false
             column: option_name
-#            gedmo:
-#                - versioned
         xml_optionName:
             type: string
             length: 64
             fixed: false
             nullable: false
             column: xml_option_name
-#            gedmo:
-#                - versioned
+
         displayOrder:
             type: integer
             unsigned: false
             nullable: false
             column: display_order
-#            gedmo:
-#                - versioned
+
         isDefault:
             type: boolean
             nullable: false
             default: false
             column: is_default
-#            gedmo:
-#                - versioned
 
-        deletedAt:
-            type: datetime
-            nullable: true
-#            gedmo:
-#                - versioned
         created:
             type: datetime
             gedmo:
@@ -60,6 +48,9 @@ ODR\AdminBundle\Entity\RadioOptionsMeta:
             gedmo:
                 timestampable:
                     on: update
+        deletedAt:
+            type: datetime
+            nullable: true
 
     manyToOne:
         radioOption:
@@ -71,8 +62,6 @@ ODR\AdminBundle\Entity\RadioOptionsMeta:
                 radio_option_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -83,9 +72,6 @@ ODR\AdminBundle\Entity\RadioOptionsMeta:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -95,8 +81,5 @@ ODR\AdminBundle\Entity\RadioOptionsMeta:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
 
     lifecycleCallbacks: {  }

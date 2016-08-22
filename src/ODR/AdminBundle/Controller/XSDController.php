@@ -286,6 +286,8 @@ class XSDController extends ODRCustomController
      * @param integer $datatype_id
      * @param Request $request
      *
+     * @throws \Exception
+     *
      * @return string
      */
     private function XSD_GetDisplayData($em, $version, $datatype_id, Request $request)

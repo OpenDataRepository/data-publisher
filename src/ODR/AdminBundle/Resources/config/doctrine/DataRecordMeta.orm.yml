@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\DataRecordMeta:
     type: entity
     table: odr_data_record_meta
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -18,8 +17,6 @@ ODR\AdminBundle\Entity\DataRecordMeta:
             type: datetime
             nullable: false
             column: public_date
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -31,12 +28,10 @@ ODR\AdminBundle\Entity\DataRecordMeta:
             gedmo:
                 timestampable:
                     on: update
-
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
+
     manyToOne:
         dataRecord:
             targetEntity: DataRecord
@@ -47,8 +42,6 @@ ODR\AdminBundle\Entity\DataRecordMeta:
                 data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -60,7 +53,6 @@ ODR\AdminBundle\Entity\DataRecordMeta:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }

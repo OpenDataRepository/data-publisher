@@ -80,11 +80,6 @@ class DataFieldsMeta
     /**
      * @var integer
      */
-    private $displayOrder;
-
-    /**
-     * @var integer
-     */
     private $children_per_row;
 
     /**
@@ -386,31 +381,6 @@ class DataFieldsMeta
     public function getShortenFilename()
     {
         return $this->shorten_filename;
-    }
-
-    /**
-     * Set displayOrder
-     * @deprecated
-     *
-     * @param integer $displayOrder
-     * @return DataFieldsMeta
-     */
-    public function setDisplayOrder($displayOrder)
-    {
-        $this->displayOrder = $displayOrder;
-
-        return $this;
-    }
-
-    /**
-     * Get displayOrder
-     * @deprecated
-     *
-     * @return integer 
-     */
-    public function getDisplayOrder()
-    {
-        return $this->displayOrder;
     }
 
     /**

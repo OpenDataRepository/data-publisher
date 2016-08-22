@@ -1,27 +1,25 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* MassEdit Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The massedit controller handles rendering and processing a
-* form that allows the user to change the data content for a
-* collection of datarecords simultaneously.
-*
-*/
+ * Open Data Repository Data Publisher
+ * MassEdit Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The massedit controller handles rendering and processing a
+ * form that allows the user to change the data content for a
+ * collection of datarecords simultaneously.
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
-use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;

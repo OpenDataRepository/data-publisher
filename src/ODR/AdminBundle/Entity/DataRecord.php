@@ -37,22 +37,17 @@ class DataRecord
     /**
      * @var \DateTime
      */
-    private $deletedAt;
-
-    /**
-     * @var \DateTime
-     */
     private $created;
 
     /**
      * @var \DateTime
      */
-    private $publicDate;
+    private $updated;
 
     /**
      * @var \DateTime
      */
-    private $updated;
+    private $deletedAt;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
@@ -92,6 +87,11 @@ class DataRecord
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
+    private $updatedBy;
+
+    /**
+     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     */
     private $deletedBy;
 
     /**
@@ -99,10 +99,6 @@ class DataRecord
      */
     private $dataType;
 
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
 
     /**
      * Constructor
@@ -149,29 +145,6 @@ class DataRecord
     }
 
     /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return DataRecord
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
-    }
-
-    /**
      * Set created
      *
      * @param \DateTime $created
@@ -187,35 +160,11 @@ class DataRecord
     /**
      * Get created
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getCreated()
     {
         return $this->created;
-    }
-
-    /**
-     * Set publicDate
-     * @deprecated
-     *
-     * @param \DateTime $publicDate
-     * @return DataRecord
-     */
-    public function setPublicDate($publicDate)
-    {
-        $this->publicDate = $publicDate;
-
-        return $this;
-    }
-
-    /**
-     * Get publicDate
-     *
-     * @return \DateTime 
-     */
-    public function getPublicDate()
-    {
-        return $this->getDataRecordMeta()->getPublicDate();
     }
 
     /**
@@ -239,6 +188,29 @@ class DataRecord
     public function getUpdated()
     {
         return $this->updated;
+    }
+
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return DataRecord
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
     }
 
     /**
@@ -443,6 +415,29 @@ class DataRecord
     }
 
     /**
+     * Set updatedBy
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
+     * @return DataRecord
+     */
+    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
+    {
+        $this->updatedBy = $updatedBy;
+
+        return $this;
+    }
+
+    /**
+     * Get updatedBy
+     *
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
+     */
+    public function getUpdatedBy()
+    {
+        return $this->updatedBy;
+    }
+
+    /**
      * Set deletedBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $deletedBy
@@ -486,29 +481,6 @@ class DataRecord
     public function getDataType()
     {
         return $this->dataType;
-    }
-
-    /**
-     * Set updatedBy
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return DataRecord
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
     }
 
     /**
@@ -609,15 +581,13 @@ class DataRecord
     }
 
 
-    // ----------------------------------------
-    // TODO - delete these following functions
     /**
-     * Get publicDate original
+     * Get publicDate
      *
      * @return \DateTime
      */
-    public function getPublicDateOriginal()
+    public function getPublicDate()
     {
-        return $this->publicDate;
+        return $this->getDataRecordMeta()->getPublicDate();
     }
 }

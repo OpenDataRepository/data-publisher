@@ -38,91 +38,6 @@ class DataFields
     private $deletedAt;
 
     /**
-     * @var string
-     */
-    private $fieldName;
-
-    /**
-     * @var string
-     */
-    private $description;
-
-    /**
-     * @var string
-     */
-    private $xml_fieldName;
-
-    /**
-     * @var string
-     */
-    private $markdownText;
-
-    /**
-     * @var string
-     */
-    private $regexValidator;
-
-    /**
-     * @var string
-     */
-    private $phpValidator;
-
-    /**
-     * @var boolean
-     */
-    private $required;
-
-    /**
-     * @var boolean
-     */
-    private $is_unique;
-
-    /**
-     * @var boolean
-     */
-    private $allow_multiple_uploads;
-
-    /**
-     * @var boolean
-     */
-    private $shorten_filename;
-
-    /**
-     * @var integer
-     */
-    private $displayOrder;
-
-    /**
-     * @var integer
-     */
-    private $children_per_row;
-
-    /**
-     * @var boolean
-     */
-    private $radio_option_name_sort;
-
-    /**
-     * @var boolean
-     */
-    private $radio_option_display_unselected;
-
-    /**
-     * @var integer
-     */
-    private $searchable;
-
-    /**
-     * @var boolean
-     */
-    private $user_only_search;
-
-    /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
      * @var \Doctrine\Common\Collections\Collection
      */
     private $dataRecordFields;
@@ -141,11 +56,6 @@ class DataFields
      * @var \Doctrine\Common\Collections\Collection
      */
     private $dataFieldMeta;
-
-    /**
-     * @var \ODR\AdminBundle\Entity\FieldType
-     */
-    private $fieldType;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataType
@@ -167,10 +77,6 @@ class DataFields
      */
     private $deletedBy;
 
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
 
     /**
      * Constructor
@@ -237,416 +143,6 @@ class DataFields
     public function getDeletedAt()
     {
         return $this->deletedAt;
-    }
-
-    /**
-     * Set fieldName
-     * @deprecated
-     *
-     * @param string $fieldName
-     * @return DataFields
-     */
-    public function setFieldName($fieldName)
-    {
-        $this->fieldName = $fieldName;
-
-        return $this;
-    }
-
-    /**
-     * Get fieldName
-     *
-     * @return string
-     */
-    public function getFieldName()
-    {
-        return $this->getDataFieldMeta()->getFieldName();
-    }
-
-    /**
-     * Set description
-     * @deprecated
-     *
-     * @param string $description
-     * @return DataFields
-     */
-    public function setDescription($description)
-    {
-        $this->description = $description;
-
-        return $this;
-    }
-
-    /**
-     * Get description
-     *
-     * @return string
-     */
-    public function getDescription()
-    {
-        return $this->getDataFieldMeta()->getDescription();
-    }
-
-    /**
-     * Set xml_fieldName
-     * @deprecated
-     *
-     * @param string $xmlFieldName
-     * @return DataFields
-     */
-    public function setXmlFieldName($xmlFieldName)
-    {
-        $this->xml_fieldName = $xmlFieldName;
-
-        return $this;
-    }
-
-    /**
-     * Get xml_fieldName
-     *
-     * @return string
-     */
-    public function getXmlFieldName()
-    {
-        return $this->getDataFieldMeta()->getXmlFieldName();
-    }
-
-    /**
-     * Set markdownText
-     * @deprecated
-     *
-     * @param string $markdownText
-     * @return DataFields
-     */
-    public function setMarkdownText($markdownText)
-    {
-        $this->markdownText = $markdownText;
-
-        return $this;
-    }
-
-    /**
-     * Get markdownText
-     *
-     * @return string
-     */
-    public function getMarkdownText()
-    {
-        return $this->getDataFieldMeta()->getMarkdownText();
-    }
-
-    /**
-     * Set regexValidator
-     * @deprecated
-     *
-     * @param string $regexValidator
-     * @return DataFields
-     */
-    public function setRegexValidator($regexValidator)
-    {
-        $this->regexValidator = $regexValidator;
-
-        return $this;
-    }
-
-    /**
-     * Get regexValidator
-     *
-     * @return string
-     */
-    public function getRegexValidator()
-    {
-        return $this->getDataFieldMeta()->getRegexValidator();
-    }
-
-    /**
-     * Set phpValidator
-     * @deprecated
-     *
-     * @param string $phpValidator
-     * @return DataFields
-     */
-    public function setPhpValidator($phpValidator)
-    {
-        $this->phpValidator = $phpValidator;
-
-        return $this;
-    }
-
-    /**
-     * Get phpValidator
-     *
-     * @return string
-     */
-    public function getPhpValidator()
-    {
-        return $this->getDataFieldMeta()->getPhpValidator();
-    }
-
-    /**
-     * Set required
-     * @deprecated
-     *
-     * @param boolean $required
-     * @return DataFields
-     */
-    public function setRequired($required)
-    {
-        $this->required = $required;
-
-        return $this;
-    }
-
-    /**
-     * Get required
-     *
-     * @return boolean
-     */
-    public function getRequired()
-    {
-        return $this->getDataFieldMeta()->getRequired();
-    }
-
-    /**
-     * Set is_unique
-     * @deprecated
-     *
-     * @param boolean $isUnique
-     * @return DataFields
-     */
-    public function setIsUnique($isUnique)
-    {
-        $this->is_unique = $isUnique;
-
-        return $this;
-    }
-
-    /**
-     * Get is_unique
-     *
-     * @return boolean
-     */
-    public function getIsUnique()
-    {
-        return $this->getDataFieldMeta()->getIsUnique();
-    }
-
-    /**
-     * Set allow_multiple_uploads
-     * @deprecated
-     *
-     * @param boolean $allowMultipleUploads
-     * @return DataFields
-     */
-    public function setAllowMultipleUploads($allowMultipleUploads)
-    {
-        $this->allow_multiple_uploads = $allowMultipleUploads;
-
-        return $this;
-    }
-
-    /**
-     * Get allow_multiple_uploads
-     *
-     * @return boolean
-     */
-    public function getAllowMultipleUploads()
-    {
-        return $this->getDataFieldMeta()->getAllowMultipleUploads();
-    }
-
-    /**
-     * Set shorten_filename
-     * @deprecated
-     *
-     * @param boolean $shortenFilename
-     * @return DataFields
-     */
-    public function setShortenFilename($shortenFilename)
-    {
-        $this->shorten_filename = $shortenFilename;
-
-        return $this;
-    }
-
-    /**
-     * Get shorten_filename
-     *
-     * @return boolean
-     */
-    public function getShortenFilename()
-    {
-        return $this->getDataFieldMeta()->getShortenFilename();
-    }
-
-    /**
-     * Set displayOrder
-     * @deprecated
-     *
-     * @param integer $displayOrder
-     * @return DataFields
-     */
-    public function setDisplayOrder($displayOrder)
-    {
-        $this->displayOrder = $displayOrder;
-
-        return $this;
-    }
-
-    /**
-     * Get displayOrder
-     * @deprecated 
-     *
-     * @return integer
-     */
-    public function getDisplayOrder()
-    {
-        return $this->getDataFieldMeta()->getDisplayOrder();
-    }
-
-    /**
-     * Set children_per_row
-     * @deprecated
-     *
-     * @param integer $childrenPerRow
-     * @return DataFields
-     */
-    public function setChildrenPerRow($childrenPerRow)
-    {
-        $this->children_per_row = $childrenPerRow;
-
-        return $this;
-    }
-
-    /**
-     * Get children_per_row
-     *
-     * @return integer
-     */
-    public function getChildrenPerRow()
-    {
-        return $this->getDataFieldMeta()->getChildrenPerRow();
-    }
-
-    /**
-     * Set radio_option_name_sort
-     * @deprecated
-     *
-     * @param boolean $radioOptionNameSort
-     * @return DataFields
-     */
-    public function setRadioOptionNameSort($radioOptionNameSort)
-    {
-        $this->radio_option_name_sort = $radioOptionNameSort;
-
-        return $this;
-    }
-
-    /**
-     * Get radio_option_name_sort
-     *
-     * @return boolean
-     */
-    public function getRadioOptionNameSort()
-    {
-        return $this->getDataFieldMeta()->getRadioOptionNameSort();
-    }
-
-    /**
-     * Set radio_option_display_unselected
-     * @deprecated
-     *
-     * @param boolean $radioOptionDisplayUnselected
-     * @return DataFields
-     */
-    public function setRadioOptionDisplayUnselected($radioOptionDisplayUnselected)
-    {
-        $this->radio_option_display_unselected = $radioOptionDisplayUnselected;
-
-        return $this;
-    }
-
-    /**
-     * Get radio_option_display_unselected
-     *
-     * @return boolean
-     */
-    public function getRadioOptionDisplayUnselected()
-    {
-        return $this->getDataFieldMeta()->getRadioOptionDisplayUnselected();
-    }
-
-    /**
-     * Set searchable
-     * @deprecated
-     *
-     * @param integer $searchable
-     * @return DataFields
-     */
-    public function setSearchable($searchable)
-    {
-        $this->searchable = $searchable;
-
-        return $this;
-    }
-
-    /**
-     * Get searchable
-     *
-     * @return integer
-     */
-    public function getSearchable()
-    {
-        return $this->getDataFieldMeta()->getSearchable();
-    }
-
-    /**
-     * Set user_only_search
-     * @deprecated
-     *
-     * @param boolean $userOnlySearch
-     * @return DataFields
-     */
-    public function setUserOnlySearch($userOnlySearch)
-    {
-        $this->user_only_search = $userOnlySearch;
-
-        return $this;
-    }
-
-    /**
-     * Get user_only_search
-     *
-     * @return boolean
-     */
-    public function getUserOnlySearch()
-    {
-        return $this->getDataFieldMeta()->getUserOnlySearch();
-    }
-
-    /**
-     * Set updated
-     * @deprecated
-     *
-     * @param \DateTime $updated
-     * @return DataFields
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     * @deprecated
-     *
-     * @return \DateTime
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
     }
 
     /**
@@ -800,30 +296,6 @@ class DataFields
     }
 
     /**
-     * Set fieldType
-     * @deprecated
-     *
-     * @param \ODR\AdminBundle\Entity\FieldType $fieldType
-     * @return DataFields
-     */
-    public function setFieldType(\ODR\AdminBundle\Entity\FieldType $fieldType = null)
-    {
-        $this->fieldType = $fieldType;
-
-        return $this;
-    }
-
-    /**
-     * Get fieldType
-     *
-     * @return \ODR\AdminBundle\Entity\FieldType
-     */
-    public function getFieldType()
-    {
-        return $this->getDataFieldMeta()->getFieldType();
-    }
-
-    /**
      * Set dataType
      *
      * @param \ODR\AdminBundle\Entity\DataType $dataType
@@ -848,7 +320,7 @@ class DataFields
 
     /**
      * Set renderPlugin
-     * @deprecated
+     * @internal Requred by Doctrine, but should not be used...this value should be saved in the associated datafieldMeta entry.
      *
      * @param \ODR\AdminBundle\Entity\RenderPlugin $renderPlugin
      * @return DataFields
@@ -856,18 +328,7 @@ class DataFields
     public function setRenderPlugin(\ODR\AdminBundle\Entity\RenderPlugin $renderPlugin = null)
     {
         $this->renderPlugin = $renderPlugin;
-
         return $this;
-    }
-
-    /**
-     * Get renderPlugin
-     *
-     * @return \ODR\AdminBundle\Entity\RenderPlugin
-     */
-    public function getRenderPlugin()
-    {
-        return $this->getDataFieldMeta()->getRenderPlugin();
     }
 
     /**
@@ -916,210 +377,174 @@ class DataFields
         return $this->deletedBy;
     }
 
-    /**
-     * Set updatedBy
-     * @deprecated
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return DataFields
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-
-        return $this;
-    }
 
     /**
-     * Get updatedBy
-     * @deprecated
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
-    }
-
-    // ----------------------------------------
-    // TODO - delete these following functions
-    /**
-     * Get fieldName original
+     * Get fieldName
      *
      * @return string
      */
-    public function getFieldNameOriginal()
+    public function getFieldName()
     {
-        return $this->fieldName;
+        return $this->getDataFieldMeta()->getFieldName();
     }
 
     /**
-     * Get description original
+     * Get description
      *
      * @return string
      */
-    public function getDescriptionOriginal()
+    public function getDescription()
     {
-        return $this->description;
+        return $this->getDataFieldMeta()->getDescription();
     }
 
     /**
-     * Get xml_fieldName original
+     * Get xml_fieldName
      *
      * @return string
      */
-    public function getXmlFieldNameOriginal()
+    public function getXmlFieldName()
     {
-        return $this->xml_fieldName;
+        return $this->getDataFieldMeta()->getXmlFieldName();
     }
 
     /**
-     * Get markdownText original
+     * Get markdownText
      *
      * @return string
      */
-    public function getMarkdownTextOriginal()
+    public function getMarkdownText()
     {
-        return $this->markdownText;
+        return $this->getDataFieldMeta()->getMarkdownText();
     }
 
     /**
-     * Get regexValidator original
+     * Get regexValidator
      *
      * @return string
      */
-    public function getRegexValidatorOriginal()
+    public function getRegexValidator()
     {
-        return $this->regexValidator;
+        return $this->getDataFieldMeta()->getRegexValidator();
     }
 
     /**
-     * Get phpValidator original
+     * Get phpValidator
      *
      * @return string
      */
-    public function getPhpValidatorOriginal()
+    public function getPhpValidator()
     {
-        return $this->phpValidator;
+        return $this->getDataFieldMeta()->getPhpValidator();
     }
 
     /**
-     * Get required original
+     * Get required
      *
      * @return boolean
      */
-    public function getRequiredOriginal()
+    public function getRequired()
     {
-        return $this->required;
+        return $this->getDataFieldMeta()->getRequired();
     }
 
     /**
-     * Get is_unique original
+     * Get is_unique
      *
      * @return boolean
      */
-    public function getIsUniqueOriginal()
+    public function getIsUnique()
     {
-        return $this->is_unique;
+        return $this->getDataFieldMeta()->getIsUnique();
     }
 
     /**
-     * Get allow_multiple_uploads original
+     * Get allow_multiple_uploads
      *
      * @return boolean
      */
-    public function getAllowMultipleUploadsOriginal()
+    public function getAllowMultipleUploads()
     {
-        return $this->allow_multiple_uploads;
+        return $this->getDataFieldMeta()->getAllowMultipleUploads();
     }
 
     /**
-     * Get shorten_filename original
+     * Get shorten_filename
      *
      * @return boolean
      */
-    public function getShortenFilenameOriginal()
+    public function getShortenFilename()
     {
-        return $this->shorten_filename;
+        return $this->getDataFieldMeta()->getShortenFilename();
     }
 
     /**
-     * Get displayOrder original
+     * Get children_per_row
      *
      * @return integer
      */
-    public function getDisplayOrderOriginal()
+    public function getChildrenPerRow()
     {
-        return $this->displayOrder;
+        return $this->getDataFieldMeta()->getChildrenPerRow();
     }
 
     /**
-     * Get children_per_row original
+     * Get radio_option_name_sort
+     *
+     * @return boolean
+     */
+    public function getRadioOptionNameSort()
+    {
+        return $this->getDataFieldMeta()->getRadioOptionNameSort();
+    }
+
+    /**
+     * Get radio_option_display_unselected
+     *
+     * @return boolean
+     */
+    public function getRadioOptionDisplayUnselected()
+    {
+        return $this->getDataFieldMeta()->getRadioOptionDisplayUnselected();
+    }
+
+    /**
+     * Get searchable
      *
      * @return integer
      */
-    public function getChildrenPerRowOriginal()
+    public function getSearchable()
     {
-        return $this->children_per_row;
+        return $this->getDataFieldMeta()->getSearchable();
     }
 
     /**
-     * Get radio_option_name_sort original
+     * Get user_only_search
      *
      * @return boolean
      */
-    public function getRadioOptionNameSortOriginal()
+    public function getUserOnlySearch()
     {
-        return $this->radio_option_name_sort;
+        return $this->getDataFieldMeta()->getUserOnlySearch();
     }
 
     /**
-     * Get radio_option_display_unselected original
-     *
-     * @return boolean
-     */
-    public function getRadioOptionDisplayUnselectedOriginal()
-    {
-        return $this->radio_option_display_unselected;
-    }
-
-    /**
-     * Get searchable original
-     *
-     * @return integer
-     */
-    public function getSearchableOriginal()
-    {
-        return $this->searchable;
-    }
-
-    /**
-     * Get user_only_search original
-     *
-     * @return boolean
-     */
-    public function getUserOnlySearchOriginal()
-    {
-        return $this->user_only_search;
-    }
-
-    /**
-     * Get fieldType original
+     * Get fieldType
      *
      * @return \ODR\AdminBundle\Entity\FieldType
      */
-    public function getFieldTypeOriginal()
+    public function getFieldType()
     {
-        return $this->fieldType;
+        return $this->getDataFieldMeta()->getFieldType();
     }
 
     /**
-     * Get renderPlugin original
+     * Get renderPlugin
      *
      * @return \ODR\AdminBundle\Entity\RenderPlugin
      */
-    public function getRenderPluginOriginal()
+    public function getRenderPlugin()
     {
-        return $this->renderPlugin;
+        return $this->getDataFieldMeta()->getRenderPlugin();
     }
 }

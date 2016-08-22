@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\RadioOptions:
     type: entity
     table: odr_radio_options
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -21,8 +20,6 @@ ODR\AdminBundle\Entity\RadioOptions:
             fixed: false
             nullable: false
             column: option_name
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -32,37 +29,6 @@ ODR\AdminBundle\Entity\RadioOptions:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
-
-        # TODO - delete these four properties
-        xml_optionName:
-            type: string
-            length: 64
-            fixed: false
-            nullable: false
-            column: xml_option_name
-#            gedmo:
-#                - versioned
-        displayOrder:
-            type: integer
-            unsigned: false
-            nullable: false
-            column: display_order
-#            gedmo:
-#                - versioned
-        isDefault:
-            type: boolean
-            nullable: false
-            default: false
-            column: is_default
-#            gedmo:
-#                - versioned
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
 
     oneToMany:
         radioOptionMeta:
@@ -73,8 +39,6 @@ ODR\AdminBundle\Entity\RadioOptions:
             joinColumns:
                 radio_meta_id:
                     referencedColumnName: id
-#            gedmo:
-#                - versioned
 
         radioSelections:
             targetEntity: RadioSelection
@@ -84,8 +48,6 @@ ODR\AdminBundle\Entity\RadioOptions:
             joinColumns:
                 radio_selection_id:
                     referencedColumnName: id
-#            gedmo:
-#                - versioned
 
     manyToOne:
         dataField:
@@ -96,8 +58,6 @@ ODR\AdminBundle\Entity\RadioOptions:
                 data_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -108,9 +68,6 @@ ODR\AdminBundle\Entity\RadioOptions:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
         deletedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -120,24 +77,5 @@ ODR\AdminBundle\Entity\RadioOptions:
                 deletedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
-
-        # TODO - delete this property
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
-#            gedmo:
-#                blameable:
-#                    on: update
 
     lifecycleCallbacks: {  }

@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\ImageMeta:
     type: entity
     table: odr_image_meta
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -18,16 +17,11 @@ ODR\AdminBundle\Entity\ImageMeta:
             type: integer
             column: display_order
             unsigned: false
-#            gedmo:
-#                - versioned
-
         caption:
             type: string
             length: 96
             fixed: false
             nullable: true
-#            gedmo:
-#                - versioned
 
         originalFileName:
             type: string
@@ -35,8 +29,6 @@ ODR\AdminBundle\Entity\ImageMeta:
             fixed: false
             nullable: true
             column: original_file_name
-#            gedmo:
-#                - versioned
 
         external_id:
             type: string
@@ -44,15 +36,11 @@ ODR\AdminBundle\Entity\ImageMeta:
             fixed: false
             nullable: false
             column: external_id
-#            gedmo:
-#                - versioned
 
         publicDate:
             type: datetime
             nullable: false
             column: public_date
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -64,12 +52,9 @@ ODR\AdminBundle\Entity\ImageMeta:
             gedmo:
                 timestampable:
                     on: update
-
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
 
     manyToOne:
         image:
@@ -81,8 +66,6 @@ ODR\AdminBundle\Entity\ImageMeta:
                 image_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -93,10 +76,6 @@ ODR\AdminBundle\Entity\ImageMeta:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
-
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -106,8 +85,5 @@ ODR\AdminBundle\Entity\ImageMeta:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
 
     lifecycleCallbacks: {  }

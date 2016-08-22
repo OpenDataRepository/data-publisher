@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\TrackedError:
     type: entity
     table: odr_tracked_error
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -30,10 +29,8 @@ ODR\AdminBundle\Entity\TrackedError:
                 timestampable:
                     on: create
         deletedAt:
-            type: date
+            type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
 
     manyToOne:
         trackedJob:
@@ -45,8 +42,6 @@ ODR\AdminBundle\Entity\TrackedError:
                 tracked_job_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User

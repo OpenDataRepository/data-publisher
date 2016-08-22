@@ -58,11 +58,6 @@ class DataTypeMeta
     private $useShortResults;
 
     /**
-     * @var integer
-     */
-    private $display_type;
-
-    /**
      * @var \DateTime
      */
     private $publicDate;
@@ -272,31 +267,6 @@ class DataTypeMeta
     }
 
     /**
-     * Set display_type
-     * @deprecated
-     *
-     * @param integer $displayType
-     * @return DataTypeMeta
-     */
-    public function setDisplayType($displayType)
-    {
-        $this->display_type = $displayType;
-
-        return $this;
-    }
-
-    /**
-     * Get display_type
-     * @deprecated
-     *
-     * @return integer 
-     */
-    public function getDisplayType()
-    {
-        return $this->display_type;
-    }
-
-    /**
      * Set publicDate
      *
      * @param \DateTime $publicDate
@@ -346,7 +316,7 @@ class DataTypeMeta
      * Set updated
      *
      * @param \DateTime $updated
-     * @return DataFieldsMeta
+     * @return DataTypeMeta
      */
     public function setUpdated($updated)
     {
@@ -530,7 +500,7 @@ class DataTypeMeta
      * Set updatedBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return DataFieldsMeta
+     * @return DataTypeMeta
      */
     public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
     {

@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\Image:
     type: entity
     table: odr_image
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -17,8 +16,6 @@ ODR\AdminBundle\Entity\Image:
         original:
             type: boolean
             nullable: false
-#            gedmo:
-#                - versioned
 
         ext:
             type: string
@@ -26,16 +23,12 @@ ODR\AdminBundle\Entity\Image:
             fixed: false
             nullable: true
             column: ext
-#            gedmo:
-#                - versioned
         localFileName:
             type: string
             length: 128
             fixed: false
             nullable: true
             column: local_file_name
-#            gedmo:
-#                - versioned
 
         encrypt_key:
             type: string
@@ -49,23 +42,17 @@ ODR\AdminBundle\Entity\Image:
             length: 32
             fixed: false
             column: checksum
-#            gedmo:
-#                - versioned
 
         imageWidth:
             type: integer
             column: image_width
             nullable: true
             unsigned: true
-#            gedmo:
-#                - versioned
         imageHeight:
             type: integer
             column: image_height
             nullable: true
             unsigned: true
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -75,50 +62,6 @@ ODR\AdminBundle\Entity\Image:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
-
-        # TODO - delete the following six properties
-        displayorder:
-            type: integer
-            column: display_order
-            unsigned: false
-#            gedmo:
-#                - versioned
-        caption:
-            type: string
-            length: 96
-            fixed: false
-            nullable: true
-#            gedmo:
-#                - versioned
-        originalFileName:
-            type: string
-            length: 128
-            fixed: false
-            nullable: true
-            column: original_file_name
-#            gedmo:
-#                - versioned
-        external_id:
-            type: string
-            length: 64
-            fixed: false
-            nullable: false
-            column: external_id
-#            gedmo:
-#                - versioned
-        publicDate:
-            type: datetime
-            nullable: false
-            column: public_date
-#            gedmo:
-#                - versioned
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
 
     oneToMany:
         children:
@@ -134,8 +77,7 @@ ODR\AdminBundle\Entity\Image:
                 image_checksum_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         imageMeta:
             targetEntity: ImageMeta
             cascade: { }
@@ -145,8 +87,6 @@ ODR\AdminBundle\Entity\Image:
                 image_meta_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
     manyToOne:
         parent:
@@ -162,8 +102,7 @@ ODR\AdminBundle\Entity\Image:
                 field_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataField:
             targetEntity: DataFields
             cascade: {  }
@@ -173,8 +112,7 @@ ODR\AdminBundle\Entity\Image:
                 data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataRecord:
             targetEntity: DataRecord
             cascade: {  }
@@ -184,18 +122,16 @@ ODR\AdminBundle\Entity\Image:
                 data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
+#            mappedBy: null
             inversedBy: image
             joinColumns:
                 data_record_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         imageSize:
             targetEntity: ImageSizes
@@ -206,8 +142,6 @@ ODR\AdminBundle\Entity\Image:
                 image_size_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -218,9 +152,6 @@ ODR\AdminBundle\Entity\Image:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
         deletedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -230,27 +161,6 @@ ODR\AdminBundle\Entity\Image:
                 deletedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
-#            gedmo:
-#                blameable:
-#                    on: update
-
-        # TODO - delete the following property
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
-#            gedmo:
-#                blameable:
-#                    on: update
 
     lifecycleCallbacks: 
         prePersist: [ preUpload ]

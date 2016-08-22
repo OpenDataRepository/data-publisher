@@ -293,7 +293,7 @@ class ThemeController extends ODRCustomController
             $em->persist($theme_meta);
 
             // Create a new default Theme Element for the theme
-            $data = parent::ODR_addThemeElement($em, $user, $datatype, $theme);
+            $data = parent::ODR_addThemeElement($em, $user, $theme);
 
             // Ensure the theme element is public if it's for a table theme
             if ($theme_type == 'table') {
@@ -701,7 +701,7 @@ class ThemeController extends ODRCustomController
 
             // Create a new theme element entity
             /** @var Theme $theme */
-            $data = parent::ODR_addThemeElement($em, $user, $datatype, $theme);
+            $data = parent::ODR_addThemeElement($em, $user, $theme);
             /** @var ThemeElement $theme_element */
             $theme_element = $data['theme_element'];
             /** @var ThemeElementMeta $theme_element_meta */
@@ -1988,7 +1988,8 @@ class ThemeController extends ODRCustomController
     /**
      * Triggers a re-render and reload of a ThemeElement in the design.
      *
-     * @param integer $theme_element_id The database id of the ThemeElement that needs to be re-rendered.
+     * @param integer $source_datatype_id
+     * @param integer $theme_element_id    The database id of the ThemeElement that needs to be re-rendered.
      * @param Request $request
      *
      * @return Response
@@ -2246,12 +2247,12 @@ class ThemeController extends ODRCustomController
 
             // design_fieldarea.html.twig attempts to render all theme_elements in the given theme...
             // Since this is a request to only re-render one of them, unset all theme_elements in the theme other than the one the user wants to re-render
-            foreach ($datatype_array[ $datatype->getId() ]['themes'][ $theme->getId() ]['themeElements'] as $te_num => $te) {
+            foreach ($datatype_array[ $target_datatype_id ]['themes'][ $theme->getId() ]['themeElements'] as $te_num => $te) {
                 if ( $te['id'] != $target_id )
-                    unset( $datatype_array[ $datatype->getId() ]['themes'][ $theme->getId() ]['themeElements'][$te_num] );
+                    unset( $datatype_array[ $target_datatype_id ]['themes'][ $theme->getId() ]['themeElements'][$te_num] );
             }
 
-//            print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
+//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
             $html = $templating->render(
                 'ODRAdminBundle:Theme:theme_fieldarea.html.twig',

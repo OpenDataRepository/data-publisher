@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\FileMeta:
     type: entity
     table: odr_file_meta
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -19,8 +18,6 @@ ODR\AdminBundle\Entity\FileMeta:
             length: 255
             fixed: false
             nullable: true
-#            gedmo:
-#                - versioned
 
         originalFileName:
             type: string
@@ -28,8 +25,6 @@ ODR\AdminBundle\Entity\FileMeta:
             fixed: false
             nullable: true
             column: original_file_name
-#            gedmo:
-#                - versioned
 
         external_id:
             type: string
@@ -37,15 +32,11 @@ ODR\AdminBundle\Entity\FileMeta:
             fixed: false
             nullable: false
             column: external_id
-#            gedmo:
-#                - versioned
 
         publicDate:
             type: datetime
             nullable: false
             column: public_date
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -57,12 +48,9 @@ ODR\AdminBundle\Entity\FileMeta:
             gedmo:
                 timestampable:
                     on: update
-
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
 
     manyToOne:
         file:
@@ -74,8 +62,6 @@ ODR\AdminBundle\Entity\FileMeta:
                 file_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -85,9 +71,6 @@ ODR\AdminBundle\Entity\FileMeta:
             joinColumns:
                 createdBy:
                     referencedColumnName: id
-#            orphanRemoval: false
-#                - versioned
-
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -97,8 +80,5 @@ ODR\AdminBundle\Entity\FileMeta:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
 
     lifecycleCallbacks: {  }

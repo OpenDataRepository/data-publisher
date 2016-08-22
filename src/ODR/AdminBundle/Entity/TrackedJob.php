@@ -1,16 +1,16 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* TrackedJob Entity
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The TrackedJob Entity is automatically generated from 
-* ./Resources/config/doctrine/TrackedJob.orm.yml
-*
-*/
+ * Open Data Repository Data Publisher
+ * TrackedJob Entity
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The TrackedJob Entity is automatically generated from
+ * ./Resources/config/doctrine/TrackedJob.orm.yml
+ *
+ */
 
 
 namespace ODR\AdminBundle\Entity;
@@ -40,6 +40,11 @@ class TrackedJob
     /**
      * @var string
      */
+    private $additional_data;
+
+    /**
+     * @var string
+     */
     private $restrictions;
 
     /**
@@ -55,12 +60,22 @@ class TrackedJob
     /**
      * @var \DateTime
      */
+    private $started;
+
+    /**
+     * @var \DateTime
+     */
     private $completed;
 
     /**
      * @var \DateTime
      */
     private $created;
+
+    /**
+     * @var \DateTime
+     */
+    private $deletedAt;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
@@ -143,6 +158,29 @@ class TrackedJob
     }
 
     /**
+     * Set additional_data
+     *
+     * @param string $additionalData
+     * @return TrackedJob
+     */
+    public function setAdditionalData($additionalData)
+    {
+        $this->additional_data = $additionalData;
+
+        return $this;
+    }
+
+    /**
+     * Get additional_data
+     *
+     * @return string
+     */
+    public function getAdditionalData()
+    {
+        return $this->additional_data;
+    }
+
+    /**
      * Set restrictions
      *
      * @param string $restrictions
@@ -212,6 +250,29 @@ class TrackedJob
     }
 
     /**
+     * Set started
+     *
+     * @param \DateTime $started
+     * @return TrackedJob
+     */
+    public function setStarted($started)
+    {
+        $this->started = $started;
+
+        return $this;
+    }
+
+    /**
+     * Get started
+     *
+     * @return \DateTime
+     */
+    public function getStarted()
+    {
+        return $this->started;
+    }
+
+    /**
      * Set completed
      *
      * @param \DateTime $completed
@@ -255,6 +316,29 @@ class TrackedJob
     public function getCreated()
     {
         return $this->created;
+    }
+
+    /**
+     * Set deletedAt
+     *
+     * @param \DateTime $deletedAt
+     * @return TrackedJob
+     */
+    public function setDeletedAt($deletedAt)
+    {
+        $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    /**
+     * Get deletedAt
+     *
+     * @return \DateTime
+     */
+    public function getDeletedAt()
+    {
+        return $this->deletedAt;
     }
 
     /**
@@ -388,90 +472,5 @@ class TrackedJob
         }
 
         return $curr_value;
-    }
-
-    /**
-     * @var \DateTime
-     */
-    private $started;
-
-
-    /**
-     * Set started
-     *
-     * @param \DateTime $started
-     * @return TrackedJob
-     */
-    public function setStarted($started)
-    {
-        $this->started = $started;
-
-        return $this;
-    }
-
-    /**
-     * Get started
-     *
-     * @return \DateTime 
-     */
-    public function getStarted()
-    {
-        return $this->started;
-    }
-    /**
-     * @var string
-     */
-    private $additional_data;
-
-
-    /**
-     * Set additional_data
-     *
-     * @param string $additionalData
-     * @return TrackedJob
-     */
-    public function setAdditionalData($additionalData)
-    {
-        $this->additional_data = $additionalData;
-
-        return $this;
-    }
-
-    /**
-     * Get additional_data
-     *
-     * @return string 
-     */
-    public function getAdditionalData()
-    {
-        return $this->additional_data;
-    }
-    /**
-     * @var \DateTime
-     */
-    private $deletedAt;
-
-
-    /**
-     * Set deletedAt
-     *
-     * @param \DateTime $deletedAt
-     * @return TrackedJob
-     */
-    public function setDeletedAt($deletedAt)
-    {
-        $this->deletedAt = $deletedAt;
-
-        return $this;
-    }
-
-    /**
-     * Get deletedAt
-     *
-     * @return \DateTime 
-     */
-    public function getDeletedAt()
-    {
-        return $this->deletedAt;
     }
 }

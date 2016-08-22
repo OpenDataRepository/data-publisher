@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\DataTreeMeta:
     type: entity
     table: odr_data_tree_meta
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -19,15 +18,11 @@ ODR\AdminBundle\Entity\DataTreeMeta:
             nullable: false
             default: false
             column: is_link
-#            gedmo:
-#                - versioned
         multiple_allowed:
             type: boolean
             nullable: false
             default: true
             column: multiple_allowed
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -39,12 +34,9 @@ ODR\AdminBundle\Entity\DataTreeMeta:
             gedmo:
                 timestampable:
                     on: update
-
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
 
     manyToOne:
         dataTree:
@@ -56,8 +48,6 @@ ODR\AdminBundle\Entity\DataTreeMeta:
                 data_tree_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -68,10 +58,6 @@ ODR\AdminBundle\Entity\DataTreeMeta:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
-
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -81,8 +67,5 @@ ODR\AdminBundle\Entity\DataTreeMeta:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
 
     lifecycleCallbacks: {  }

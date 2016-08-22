@@ -38,31 +38,6 @@ class ThemeElement
     private $deletedAt;
 
     /**
-     * @var integer
-     */
-    private $displayOrder;
-
-    /**
-     * @var boolean
-     */
-    private $displayInResults;
-
-    /**
-     * @var string
-     */
-    private $cssWidthXL;
-
-    /**
-     * @var string
-     */
-    private $cssWidthMed;
-
-    /**
-     * @var \DateTime
-     */
-    private $updated;
-
-    /**
      * @var \Doctrine\Common\Collections\Collection
      */
     private $themeDataFields;
@@ -76,11 +51,6 @@ class ThemeElement
      * @var \Doctrine\Common\Collections\Collection
      */
     private $themeElementMeta;
-
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $themeElementField;
 
     /**
      * @var \ODR\AdminBundle\Entity\Theme
@@ -97,15 +67,6 @@ class ThemeElement
      */
     private $deletedBy;
 
-    /**
-     * @var \ODR\AdminBundle\Entity\DataType
-     */
-    private $dataType;
-
-    /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
-     */
-    private $updatedBy;
 
     /**
      * Constructor
@@ -115,7 +76,6 @@ class ThemeElement
         $this->themeDataFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeDataType = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeElementMeta = new \Doctrine\Common\Collections\ArrayCollection();
-        $this->themeElementField = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -152,16 +112,6 @@ class ThemeElement
     }
 
     /**
-     * Get publicDate
-     *
-     * @return \DateTime
-     */
-    public function getPublicDate()
-    {
-        return $this->getThemeElementMeta()->getPublicDate();
-    }
-
-    /**
      * Set deletedAt
      *
      * @param \DateTime $deletedAt
@@ -182,128 +132,6 @@ class ThemeElement
     public function getDeletedAt()
     {
         return $this->deletedAt;
-    }
-
-    /**
-     * Set displayOrder
-     * @deprecated
-     *
-     * @param integer $displayOrder
-     * @return ThemeElement
-     */
-    public function setDisplayOrder($displayOrder)
-    {
-        $this->displayOrder = $displayOrder;
-
-        return $this;
-    }
-
-    /**
-     * Get displayOrder
-     *
-     * @return integer 
-     */
-    public function getDisplayOrder()
-    {
-        return $this->getThemeElementMeta()->getDisplayOrder();
-    }
-
-    /**
-     * Set displayInResults
-     * @deprecated
-     *
-     * @param boolean $displayInResults
-     * @return ThemeElement
-     */
-    public function setDisplayInResults($displayInResults)
-    {
-        $this->displayInResults = $displayInResults;
-
-        return $this;
-    }
-
-    /**
-     * Get displayInResults
-     * @deprecated
-     *
-     * @return boolean 
-     */
-    public function getDisplayInResults()
-    {
-        return $this->displayInResults;
-    }
-
-    /**
-     * Set cssWidthXL
-     * @deprecated
-     *
-     * @param string $cssWidthXL
-     * @return ThemeElement
-     */
-    public function setCssWidthXL($cssWidthXL)
-    {
-        $this->cssWidthXL = $cssWidthXL;
-
-        return $this;
-    }
-
-    /**
-     * Get cssWidthXL
-     *
-     * @return string 
-     */
-    public function getCssWidthXL()
-    {
-        return $this->getThemeElementMeta()->getCssWidthXL();
-    }
-
-    /**
-     * Set cssWidthMed
-     * @deprecated
-     *
-     * @param string $cssWidthMed
-     * @return ThemeElement
-     */
-    public function setCssWidthMed($cssWidthMed)
-    {
-        $this->cssWidthMed = $cssWidthMed;
-
-        return $this;
-    }
-
-    /**
-     * Get cssWidthMed
-     *
-     * @return string 
-     */
-    public function getCssWidthMed()
-    {
-        return $this->getThemeElementMeta()->getCssWidthMed();
-    }
-
-    /**
-     * Set updated
-     * @deprecated
-     *
-     * @param \DateTime $updated
-     * @return ThemeElement
-     */
-    public function setUpdated($updated)
-    {
-        $this->updated = $updated;
-
-        return $this;
-    }
-
-    /**
-     * Get updated
-     * @deprecated
-     *
-     * @return \DateTime 
-     */
-    public function getUpdated()
-    {
-        return $this->updated;
     }
 
     /**
@@ -342,6 +170,8 @@ class ThemeElement
         $iterator = $this->themeDataFields->getIterator();
         $iterator->uasort(function ($a, $b) {
             // Sort by display order first if possible
+            /** @var ThemeDataField $a */
+            /** @var ThemeDataField $b */
             $a_display_order = $a->getDisplayOrder();
             $b_display_order = $b->getDisplayOrder();
             if ($a_display_order < $b_display_order)
@@ -422,42 +252,6 @@ class ThemeElement
     }
 
     /**
-     * Add themeElementField
-     * @deprecated
-     *
-     * @param \ODR\AdminBundle\Entity\ThemeElementField $themeElementField
-     * @return ThemeElement
-     */
-    public function addThemeElementField(\ODR\AdminBundle\Entity\ThemeElementField $themeElementField)
-    {
-        $this->themeElementField[] = $themeElementField;
-
-        return $this;
-    }
-
-    /**
-     * Remove themeElementField
-     * @deprecated
-     *
-     * @param \ODR\AdminBundle\Entity\ThemeElementField $themeElementField
-     */
-    public function removeThemeElementField(\ODR\AdminBundle\Entity\ThemeElementField $themeElementField)
-    {
-        $this->themeElementField->removeElement($themeElementField);
-    }
-
-    /**
-     * Get themeElementField
-     * @deprecated 
-     *
-     * @return \Doctrine\Common\Collections\Collection 
-     */
-    public function getThemeElementField()
-    {
-        return $this->themeElementField;
-    }
-
-    /**
      * Set theme
      *
      * @param \ODR\AdminBundle\Entity\Theme $theme
@@ -527,56 +321,6 @@ class ThemeElement
     }
 
     /**
-     * Set dataType
-     * @deprecated 
-     *
-     * @param \ODR\AdminBundle\Entity\DataType $dataType
-     * @return ThemeElement
-     */
-    public function setDataType(\ODR\AdminBundle\Entity\DataType $dataType)
-    {
-        $this->dataType = $dataType;
-
-        return $this;
-    }
-
-    /**
-     * Get dataType
-     * @deprecated
-     *
-     * @return \ODR\AdminBundle\Entity\DataType 
-     */
-    public function getDataType()
-    {
-        return $this->dataType;
-    }
-
-    /**
-     * Set updatedBy
-     * @deprecated
-     *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return ThemeElement
-     */
-    public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
-    {
-        $this->updatedBy = $updatedBy;
-
-        return $this;
-    }
-
-    /**
-     * Get updatedBy
-     * @deprecated
-     *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
-     */
-    public function getUpdatedBy()
-    {
-        return $this->updatedBy;
-    }
-
-    /**
      * Is public
      * 
      * @return bool
@@ -590,46 +334,43 @@ class ThemeElement
     }
 
 
-    // ----------------------------------------
-    // TODO - delete these following functions
-
     /**
-     * Get display_order original
+     * Get publicDate
      *
-     * @return string
+     * @return \DateTime
      */
-    public function getDisplayOrderOriginal()
+    public function getPublicDate()
     {
-        return $this->displayOrder;
+        return $this->getThemeElementMeta()->getPublicDate();
     }
 
     /**
-     * Get display_in_results original
+     * Get displayOrder
      *
-     * @return string
+     * @return integer
      */
-    public function getDisplayInResultsOriginal()
+    public function getDisplayOrder()
     {
-        return $this->displayInResults;
+        return $this->getThemeElementMeta()->getDisplayOrder();
     }
 
     /**
-     * Get cssWidthXL original
+     * Get cssWidthXL
      *
      * @return string
      */
-    public function getCssWidthXLOriginal()
+    public function getCssWidthXL()
     {
-        return $this->cssWidthXL;
+        return $this->getThemeElementMeta()->getCssWidthXL();
     }
 
     /**
-     * Get cssWidthMed original
+     * Get cssWidthMed
      *
      * @return string
      */
-    public function getCssWidthMedOriginal()
+    public function getCssWidthMed()
     {
-        return $this->cssWidthMed;
+        return $this->getThemeElementMeta()->getCssWidthMed();
     }
 }

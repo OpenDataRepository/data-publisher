@@ -1,16 +1,16 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* CSV Import Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The CSV controller handles the creation, initialization, and 
-* execution of an import from a CSV file.
-*
-*/
+ * Open Data Repository Data Publisher
+ * CSV Import Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The CSV controller handles the creation, initialization, and
+ * execution of an import from a CSV file.
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 
@@ -2455,7 +2455,7 @@ class CSVImportController extends ODRCustomController
                 // Since datafields were created for this import, create a new theme element and attach the new datafields to it
                 /** @var Theme $theme */
                 $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
-                $objects = parent::ODR_addThemeElement($em, $user, $datatype, $theme);
+                $objects = parent::ODR_addThemeElement($em, $user, $theme);
                 /** @var ThemeElement $theme_element */
                 $theme_element = $objects['theme_element'];
                 /** @var ThemeElementMeta $theme_element_meta */
@@ -2763,7 +2763,6 @@ print_r($new_mapping);
 
                     $typename = $datafield->getFieldType()->getTypeName();
                     $typeclass = $datafield->getFieldType()->getTypeClass();
-                    $classname = "ODR\\AdminBundle\\Entity\\".$typeclass;
 
                     $column_data = trim($column_data);
 

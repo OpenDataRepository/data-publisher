@@ -2,9 +2,9 @@ ODR\AdminBundle\Entity\Theme:
     type: entity
     table: odr_theme
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
+
     fields:
         id:
             id: true
@@ -14,47 +14,11 @@ ODR\AdminBundle\Entity\Theme:
             generator:
                 strategy: IDENTITY
 
-#        templateName:
-#            type: string
-#            length: 64
-#            fixed: false
-#            nullable: false
-#            column: template_name
-#            gedmo:
-#                - versioned
-#        templateDescription:
-#            type: text
-#            nullable: true
-#            column: template_description
-#            gedmo:
-#                - versioned
-#        templateType:
-#            type: string
-#            length: 32
-#            default: 'form'
-#            column: template_type
-#            gedmo:
-#                - versioned
-#        templatePreview:
-#            type: blob
-#            nullable: true
-#            column: template_preview
-#            gedmo:
-#                - versioned
-#        isDefault:
-#            type: boolean
-#            nullable: false
-#            column: is_default
-#            gedmo:
-#                - versioned
-
         themeType:
             type: text
             length: 32
             nullable: false
             column: theme_type
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -69,10 +33,6 @@ ODR\AdminBundle\Entity\Theme:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
-
-
 
     oneToMany:
         themeMeta:
@@ -84,8 +44,6 @@ ODR\AdminBundle\Entity\Theme:
                 theme_meta_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         themeElements:
             targetEntity: ThemeElement
@@ -96,8 +54,6 @@ ODR\AdminBundle\Entity\Theme:
                 theme_element_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
     manyToOne:
         dataType:
@@ -109,8 +65,6 @@ ODR\AdminBundle\Entity\Theme:
                 data_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -121,9 +75,6 @@ ODR\AdminBundle\Entity\Theme:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -133,9 +84,6 @@ ODR\AdminBundle\Entity\Theme:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: update
         deletedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -145,8 +93,5 @@ ODR\AdminBundle\Entity\Theme:
                 deletedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                blameable:
-#                    on: create
 
     lifecycleCallbacks: {  }

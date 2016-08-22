@@ -2,7 +2,6 @@ ODR\AdminBundle\Entity\File:
     type: entity
     table: odr_file
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -20,16 +19,12 @@ ODR\AdminBundle\Entity\File:
             fixed: false
             nullable: true
             column: ext
-#            gedmo:
-#                - versioned
         localFileName:
             type: string
             length: 128
             fixed: false
             nullable: true
             column: local_file_name
-#            gedmo:
-#                - versioned
 
         encrypt_key:
             type: string
@@ -43,14 +38,10 @@ ODR\AdminBundle\Entity\File:
             length: 32
             fixed: false
             column: checksum
-#            gedmo:
-#                - versioned
         filesize:
             type: integer
             unsigned: true
             nullable: false
-#            gedmo:
-#                - versioned
 
         created:
             type: datetime
@@ -60,44 +51,6 @@ ODR\AdminBundle\Entity\File:
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
-
-        # TODO - Delete the following five properties
-        caption:
-            type: string
-            length: 96
-            fixed: false
-            nullable: true
-#            gedmo:
-#                - versioned
-        originalFileName:
-            type: string
-            length: 128
-            fixed: false
-            nullable: true
-            column: original_file_name
-#            gedmo:
-#                - versioned
-        external_id:
-            type: string
-            length: 64
-            fixed: false
-            nullable: false
-            column: external_id
-#            gedmo:
-#                - versioned
-        publicDate:
-            type: datetime
-            nullable: false
-            column: public_date
-#            gedmo:
-#                - versioned
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
 
     oneToMany:
         fileChecksum:
@@ -109,8 +62,7 @@ ODR\AdminBundle\Entity\File:
                 file_checksum_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         fileMeta:
             targetEntity: FileMeta
             cascade: { }
@@ -120,8 +72,6 @@ ODR\AdminBundle\Entity\File:
                 file_meta_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
     manyToOne:
         fieldType:
@@ -133,8 +83,6 @@ ODR\AdminBundle\Entity\File:
                 field_type_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         dataField:
             targetEntity: DataFields
@@ -145,8 +93,7 @@ ODR\AdminBundle\Entity\File:
                 data_field_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataRecord:
             targetEntity: DataRecord
             cascade: {  }
@@ -156,18 +103,16 @@ ODR\AdminBundle\Entity\File:
                 data_record_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
+
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
+#            mappedBy: null
             inversedBy: file
             joinColumns:
                 data_record_fields_id:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
 
         createdBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
@@ -187,21 +132,6 @@ ODR\AdminBundle\Entity\File:
                 deletedBy:
                     referencedColumnName: id
             orphanRemoval: false
-#            gedmo:
-#                - versioned
-
-        # TODO - delete the following property
-        updatedBy:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                updatedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-#            gedmo:
-#                - versioned
 
     lifecycleCallbacks:
         prePersist: [ preUpload ]

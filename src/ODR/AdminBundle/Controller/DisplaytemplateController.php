@@ -22,14 +22,12 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataFieldsMeta;
-use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataTree;
 use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\FieldType;
-use ODR\AdminBundle\Entity\LinkedDataTree;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioOptionsMeta;
 use ODR\AdminBundle\Entity\RenderPlugin;
@@ -41,17 +39,13 @@ use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeElementField;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\AdminBundle\Entity\UserFieldPermissions;
-use ODR\AdminBundle\Entity\UserPermissions;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 use ODR\AdminBundle\Form\UpdateDataFieldsForm;
 use ODR\AdminBundle\Form\UpdateDataTypeForm;
 use ODR\AdminBundle\Form\UpdateDataTreeForm;
-use ODR\AdminBundle\Form\UpdateThemeElementForm;
 use ODR\AdminBundle\Form\UpdateThemeDatafieldForm;
 use ODR\AdminBundle\Form\UpdateThemeDatatypeForm;
 // Symfony
@@ -382,17 +376,9 @@ class DisplaytemplateController extends ODRCustomController
             $em->remove($radio_option_meta);
             $em->flush();
 
-/*
+
             // Schedule the cache for an update
             // TODO - how to update all datarecords of this datatype?
-            $options = array();
-            $options['mark_as_updated'] = true;
-            $search_theme_data_field = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield, 'theme' => 2) );
-            if ($search_theme_data_field !== null && $search_theme_data_field->getActive() == true)
-                $options['force_shortresults_recache'] = true;
-
-            parent::updateDatatypeCache($datatype->getId(), $options);
-*/
             $update_datatype = true;
             foreach ($all_datafield_themes as $theme) {
                 parent::tmp_updateThemeCache($em, $theme, $user, $update_datatype);
@@ -579,7 +565,6 @@ class DisplaytemplateController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
 
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
@@ -1479,17 +1464,9 @@ class DisplaytemplateController extends ODRCustomController
                 parent::ODR_copyRadioOptionsMeta($em, $user, $radio_option, $properties);
             }
 
-/*
+
             // Schedule the cache for an update
             // TODO - how to update all datarecords of this datatype?
-            $options = array();
-            $options['mark_as_updated'] = true;
-            $search_theme_data_field = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield, 'theme' => 2) );   // TODO
-            if ($search_theme_data_field !== null && $search_theme_data_field->getActive() == true)
-                $options['force_shortresults_recache'] = true;
-
-            parent::updateDatatypeCache($datatype->getId(), $options);
-*/
             $update_datatype = true;
             parent::tmp_updateThemeCache($em, $theme, $user, $update_datatype);
         }
@@ -1692,17 +1669,8 @@ class DisplaytemplateController extends ODRCustomController
             $em->flush();
 //            $em->refresh($radio_option);
 
-/*
-            // Schedule the cache for an update
-            $options = array();
-            $options['mark_as_updated'] = true;
-            // NOTE - strictly speaking, this should force a shortresults recache, but the user is almost certainly going to rename the new option, so don't do it here
-//            $search_theme_data_field = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield, 'theme' => 2) );
-//            if ($search_theme_data_field !== null && $search_theme_data_field->getActive() == true)
-//                $options['force_shortresults_recache'] = true;
 
-            parent::updateDatatypeCache($datatype->getId(), $options);
-*/
+            // Schedule the cache for an update
             $update_datatype = true;
             parent::tmp_updateThemeCache($em, $theme, $user, $update_datatype);
         }
@@ -1779,21 +1747,6 @@ class DisplaytemplateController extends ODRCustomController
 
             $child_datatype->setCreatedBy($user);
             $child_datatype->setUpdatedBy($user);
-            $em->persist($child_datatype);
-
-            // TODO - delete these 10 properties
-            $child_datatype->setShortName("New Child");
-            $child_datatype->setLongName("New Child");
-            $child_datatype->setDescription("New Child Type");
-            $child_datatype->setXmlShortName('');
-            $child_datatype->setRenderPlugin($default_render_plugin);
-
-            $child_datatype->setUseShortResults('1');
-            $child_datatype->setExternalIdField(null);
-            $child_datatype->setNameField(null);
-            $child_datatype->setSortField(null);
-            $child_datatype->setDisplayType(0);
-            $child_datatype->setPublicDate(new \DateTime('1980-01-01 00:00:00'));
 
             // Save all changes made
             $em->persist($child_datatype);
@@ -1811,7 +1764,6 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_meta->setDescription("New Child Type");
             $datatype_meta->setXmlShortName('');
 
-            $datatype_meta->setDisplayType(0);
             $datatype_meta->setUseShortResults(true);
             $datatype_meta->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
 
@@ -1830,10 +1782,6 @@ class DisplaytemplateController extends ODRCustomController
             $datatree->setAncestor($parent_datatype);
             $datatree->setDescendant($child_datatype);
             $datatree->setCreatedBy($user);
-
-            // TODO - delete these two properties
-            $datatree->setIsLink(false);
-            $datatree->setMultipleAllowed(true);
             $em->persist($datatree);
 
 
@@ -2308,11 +2256,6 @@ class DisplaytemplateController extends ODRCustomController
                 $datatree->setAncestor($local_datatype);
                 $datatree->setDescendant($remote_datatype);
                 $datatree->setCreatedBy($user);
-
-                // TODO - delete these two properties
-                $datatree->setIsLink(true);
-                $datatree->setMultipleAllowed(true);
-
                 $em->persist($datatree);
                 $em->flush($datatree);
                 $em->refresh($datatree);
@@ -3055,7 +2998,7 @@ class DisplaytemplateController extends ODRCustomController
 
                 // Create a single new ThemeElement to store the new datafields in, if necessary
                 if ($theme_element == null) {
-                    $data = parent::ODR_addThemeElement($em, $user, $associated_datatype, $theme);
+                    $data = parent::ODR_addThemeElement($em, $user, $theme);
                     $theme_element = $data['theme_element'];
                     //$theme_element_meta = $data['theme_element_meta'];
                 }
@@ -3416,7 +3359,8 @@ class DisplaytemplateController extends ODRCustomController
     /**
      * Triggers a re-render and reload of a DataField in the design.
      *
-     * @param integer $datafield_id THe database id of the DataField that needs to be re-rendered.
+     * @param integer $source_datatype_id
+     * @param integer $datafield_id       The database id of the DataField that needs to be re-rendered.
      * @param Request $request
      *
      * @return Response
@@ -3520,7 +3464,6 @@ class DisplaytemplateController extends ODRCustomController
 
         // Going to need this a lot...
         $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-
 
         // ----------------------------------------
         // Load required objects based on parameters
@@ -3689,12 +3632,12 @@ class DisplaytemplateController extends ODRCustomController
 
             // design_fieldarea.html.twig attempts to render all theme_elements in the given theme...
             // Since this is a request to only re-render one of them, unset all theme_elements in the theme other than the one the user wants to re-render
-            foreach ($datatype_array[ $datatype->getId() ]['themes'][ $theme->getId() ]['themeElements'] as $te_num => $te) {
+            foreach ($datatype_array[ $target_datatype_id ]['themes'][ $theme->getId() ]['themeElements'] as $te_num => $te) {
                 if ( $te['id'] != $target_id )
-                    unset( $datatype_array[ $datatype->getId() ]['themes'][ $theme->getId() ]['themeElements'][$te_num] );
+                    unset( $datatype_array[ $target_datatype_id ]['themes'][ $theme->getId() ]['themeElements'][$te_num] );
             }
 
-//            print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
+//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
             $html = $templating->render(
                 'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig',
@@ -3914,7 +3857,6 @@ class DisplaytemplateController extends ODRCustomController
                         'xml_shortName' => $submitted_data->getXmlShortName(),
 
                         'useShortResults' => $submitted_data->getUseShortResults(),
-                        'display_type' => $submitted_data->getDisplayType(),
                         'publicDate' => $submitted_data->getPublicDate(),
                     );
 
@@ -4107,12 +4049,12 @@ class DisplaytemplateController extends ODRCustomController
 
             // Check whether this datafield is being used by a table theme
             $query = $em->createQuery(
-                'SELECT tdf.id
-                    FROM ODRAdminBundle:Theme AS t
-                    JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
-                    JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
-                    WHERE t.themeType = :theme_type AND tdf.dataField = :datafield
-                    AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL'
+               'SELECT tdf.id
+                FROM ODRAdminBundle:Theme AS t
+                JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
+                JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
+                WHERE t.themeType = :theme_type AND tdf.dataField = :datafield
+                AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL'
             )->setParameters( array('theme_type' => 'table', 'datafield' => $datafield->getId()) );
             $results = $query->getArrayResult();
 
@@ -4445,7 +4387,6 @@ class DisplaytemplateController extends ODRCustomController
                         'is_unique' => $submitted_data->getIsUnique(),
                         'allow_multiple_uploads' => $submitted_data->getAllowMultipleUploads(),
                         'shorten_filename' => $submitted_data->getShortenFilename(),
-                        'displayOrder' => $submitted_data->getDisplayOrder(),
                         'children_per_row' => $submitted_data->getChildrenPerRow(),
                         'radio_option_name_sort' => $submitted_data->getRadioOptionNameSort(),
                         'radio_option_display_unselected' => $submitted_data->getRadioOptionDisplayUnselected(),
@@ -4953,6 +4894,7 @@ $debug = false;
             $em->refresh($datafield);
 
             // Step 1.5: re-activate theme_datafield entries for theme 1
+            /** @var ThemeDataField $theme_datafield */
             $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield->getId(), 'theme' => 1) );
             $theme_datafield->setActive(1);
             $em->persist($theme_datafield);

@@ -102,11 +102,12 @@ class ODRUserController extends ODRCustomController
 
 
     /**
-     * Checks whether a given email address is already in use
+     * Checks whether a given email address is already in use.
+     * Returns 0 if the email is not in use, otherwise returns the ID of the user that owns the email address.
      *
      * @param Request $request
      *
-     * @return integer 0 if the email is not in use, otherwise returns the ID of the user that owns the email address
+     * @return Response
      */
     public function checknewAction(Request $request)
     {
@@ -2155,9 +2156,9 @@ class ODRUserController extends ODRCustomController
 
             // design_fieldarea.html.twig attempts to render all theme_elements in the given theme...
             // Since this is a request to only re-render one of them, unset all theme_elements in the theme other than the one the user wants to re-render
-            foreach ($datatype_array[ $datatype->getId() ]['themes'][ $theme->getId() ]['themeElements'] as $te_num => $te) {
+            foreach ($datatype_array[ $target_datatype_id ]['themes'][ $theme->getId() ]['themeElements'] as $te_num => $te) {
                 if ( $te['id'] != $target_id )
-                    unset( $datatype_array[ $datatype->getId() ]['themes'][ $theme->getId() ]['themeElements'][$te_num] );
+                    unset( $datatype_array[ $target_datatype_id ]['themes'][ $theme->getId() ]['themeElements'][$te_num] );
             }
 
 //            print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
@@ -2233,7 +2234,7 @@ class ODRUserController extends ODRCustomController
 
                 // Grab permissions of both target user and admin
                 $admin_permissions = parent::getPermissionsArray($admin_user->getId(), $request);
-                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+//                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
 
                 $allow = false;
                 if ( isset($admin_permissions[$datatype_id]) && isset($admin_permissions[$datatype_id]['admin']) && $admin_permissions[$datatype_id]['admin'] == 1 ) {
