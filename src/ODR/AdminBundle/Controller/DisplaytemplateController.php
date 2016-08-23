@@ -863,10 +863,12 @@ class DisplaytemplateController extends ODRCustomController
                 $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
             }
 
-            // ...and layout data
+            // ...layout data
             foreach ($datatypes_to_delete as $num => $dt_id)
                 $redis->del($redis_prefix.'.cached_datatype_'.$dt_id);
 
+            // ...and the cached version of the datatree array
+            $redis->del($redis_prefix.'.cached_datatree_array');
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1038,6 +1040,12 @@ class DisplaytemplateController extends ODRCustomController
                     );
                     parent::ODR_copyDatatreeMeta($em, $user, $datatree, $properties);
 
+                    // Delete the cached version of the datatree array because 'multiple_allowed' may have been changed
+                    $redis = $this->container->get('snc_redis.default');;
+                    // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+                    $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+                    $redis->del($redis_prefix.'.cached_datatree_array');
 
                     // TODO - modify cached version of datatype directly?
                     parent::tmp_updateDatatypeCache($em, $datatype, $user);
@@ -1857,6 +1865,9 @@ class DisplaytemplateController extends ODRCustomController
             foreach ($users as $user)
                 $redis->del($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
 
+            // Delete the cached version of the datatree array because a child datatype was created
+            $redis->del($redis_prefix.'.cached_datatree_array');
+
 
             // ----------------------------------------
 /*
@@ -2242,6 +2253,9 @@ class DisplaytemplateController extends ODRCustomController
                 // Delete memcached key that stores linked datarecords for each of the affected datarecords
                 foreach ($datarecords_to_recache as $dr_id => $num)
                     $redis->del($redis_prefix.'.associated_datarecords_for_'.$dr_id);
+
+                // Delete the cached version of the datatree array because a link between datatypes got deleted
+                $redis->del($redis_prefix.'.cached_datatree_array');
             }
 
 //throw new \Exception('do not continue');
@@ -2274,6 +2288,9 @@ class DisplaytemplateController extends ODRCustomController
                 // Create a new theme_datatype entry between the local and the remote datatype
                 parent::ODR_addThemeDatatype($em, $user, $remote_datatype, $theme_element);
                 $em->flush();
+
+                // Delete the cached version of the datatree array because a link between datatypes got created
+                $redis->del($redis_prefix.'.cached_datatree_array');
             }
 
 

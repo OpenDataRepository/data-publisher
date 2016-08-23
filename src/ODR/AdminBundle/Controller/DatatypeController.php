@@ -378,6 +378,9 @@ class DatatypeController extends ODRCustomController
                     $users = $user_manager->findUsers();
                     foreach ($users as $user)
                         $redis->del($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
+
+                    // Delete the cached version of the datatree array
+                    $redis->del($redis_prefix.'.cached_datatree_array');
                 }
                 else {
                     // Return any errors encountered
