@@ -2332,14 +2332,15 @@ if ($debug)
         $em->flush();
 
         // Locate and clear the cache entry for this datatype
-        $datatree_array = self::getDatatreeArray($em);
-        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype->getId());
+//        $datatree_array = self::getDatatreeArray($em);
+//        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype->getId());
+        $datatype_id = $datatype->getId();
 
         $redis = $this->container->get('snc_redis.default');;
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        $redis->del($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
+        $redis->del($redis_prefix.'.cached_datatype_'.$datatype_id);
     }
 
 
@@ -2369,14 +2370,15 @@ if ($debug)
         $em->flush();
 
         // Locate and clear the cache entry for this datatype
-        $datatree_array = self::getDatatreeArray($em);
-        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $theme->getDataType()->getId());
+//        $datatree_array = self::getDatatreeArray($em);
+//        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $theme->getDataType()->getId());
+        $datatype_id = $theme->getDataType()->getId();
 
         $redis = $this->container->get('snc_redis.default');;
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        $redis->del($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
+        $redis->del($redis_prefix.'.cached_datatype_'.$datatype_id);
     }
 
 
@@ -3114,7 +3116,7 @@ if ($debug)
                 break;
             case 'DatetimeValue':
                 $table_name = 'odr_datetime_value';
-                $default_value = new \DateTime('9999-12-31 00:00:00');
+                $default_value = '9999-12-31 00:00:00';
                 break;
             case 'DecimalValue':
                 $table_name = 'odr_decimal_value';
