@@ -754,9 +754,9 @@ class ThemeController extends ODRCustomController
             // Grab the theme element from the repository
             /** @var ThemeElement $theme_element */
             $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
-            $em->refresh($theme_element);
             if ($theme_element == null)
                 return parent::deletedEntityError('ThemeElement');
+            $em->refresh($theme_element);
 
             $theme = $theme_element->getTheme();
             if ($theme == null)

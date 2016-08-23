@@ -410,7 +410,12 @@ exit();
 
             // Check if user has permission to view datatype
             $target_datatype_id = $target_datatype->getId();
-            if ( !$target_datatype->isPublic() && !(isset($datatype_permissions[ $target_datatype_id ]) && isset($datatype_permissions[ $target_datatype_id ][ 'view' ])) )
+
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[ $target_datatype_id ]) && isset($datatype_permissions[ $target_datatype_id ][ 'view' ]) )
+                $can_view_datatype = true;
+
+            if ( !$target_datatype->isPublic() && !$can_view_datatype )
                 return self::searchPageError("You don't have permission to access this DataType.", $request);
 
             // Need to grab all searchable datafields for the target_datatype and its descendants
@@ -449,20 +454,25 @@ if ($debug) {
             // Grab a random background image
             $background_image_id = null;
             if ( $target_datatype !== null && $target_datatype->getBackgroundImageField() !== null ) {
-                $query_str =
-                   'SELECT image.id
-                    FROM ODRAdminBundle:Image AS image
-                    WHERE image.original = 1 AND image.deletedAt IS NULL 
-                    AND image.dataField = :datafield';
-                $parameters = array('datafield' => $target_datatype->getBackgroundImageField());
-
-                // Should logged-in users be able to view non-public images on this search page?  currently defaulting to no
-//                if (!$logged_in) {
-                    $query_str .= ' AND image.publicDate NOT LIKE :date';
-                    $parameters['date'] = "2200-01-01 00:00:00";
-//                }
-
-                $query = $em->createQuery($query_str)->setParameters($parameters);
+                // TODO - also include datafield permissions here...
+                $query = null;
+                if ($can_view_datatype) {
+                    $query = $em->createQuery(
+                       'SELECT i.id AS image_id
+                        FROM ODRAdminBundle:Image AS i
+                        WHERE i.original = 1 AND i.dataField = :datafield_id
+                        AND i.deletedAt IS NULL'
+                    )->setParameters( array('datafield_id' => $target_datatype->getBackgroundImageField()->getId()) );
+                }
+                else {
+                    $query = $em->createQuery(
+                       'SELECT i.id AS image_id
+                        FROM ODRAdminBundle:Image AS i
+                        JOIN ODRAdminBundle:ImageMeta AS im WITH im.image = i
+                        WHERE i.original = 1 AND i.dataField = :datafield_id AND im.publicDate NOT LIKE :public_date
+                        AND i.deletedAt IS NULL AND im.deletedAt IS NULL'
+                    )->setParameters( array('datafield_id' => $target_datatype->getBackgroundImageField()->getId(), 'public_date' => '2200-01-01 00:00:00') );
+                }
                 $results = $query->getArrayResult();
 
                 // Pick a random image from the list of available images
