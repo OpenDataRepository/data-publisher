@@ -19,9 +19,11 @@ framework:
     templating:      { engines: ['twig'] } #assets_version: SomeVersionScheme
     default_locale:  %locale%
     session:
+        gc_probability: 0
         handler_id: ~  #  session.handler.memcached
         cookie_lifetime:  1209600   # 2 weeks
     #trusted_hosts:   ~
+     
 
 # Twig Configuration
 twig:
