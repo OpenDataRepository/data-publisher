@@ -478,7 +478,7 @@ if ($debug) {
                 // Pick a random image from the list of available images
                 if ( count($results) > 0 ) {
                     $index = rand(0, count($results)-1);
-                    $background_image_id = $results[$index]['id'];
+                    $background_image_id = $results[$index]['image_id'];
                 }
             }
 
