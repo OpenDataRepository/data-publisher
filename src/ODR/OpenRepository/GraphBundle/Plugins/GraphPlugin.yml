@@ -18,8 +18,8 @@ ODR\OpenRepository\GraphBundle\Plugins\Graph:
         graph_type:
             name: Graph Type
             type: string
-            default: xy 
-            choices: xy||XY Scatter,line||Line,hbar||Horizontal Bar,vbar||Vertical Bar
+            default: fLine
+            choices: fline||Line With Focus,line||Line,xy||XY Scatter,hbar||Horizontal Bar,vbar||Vertical Bar, starea||Stacked Area, sgbar||Stacked/Grouped Bar, cline||Cumulative Line, piechart||Pie Chart
             description: Choose the graph type XY (scatter), Line, Horizontal Bar, or Vertical Bar.
         graph_width: 
             name: Graph Width
