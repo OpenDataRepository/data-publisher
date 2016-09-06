@@ -1,3 +1,5 @@
+{% spaceless %}
+
 {% set level = 0 %}
 {% for role in user.getroles %}
     {% if role == 'ROLE_SUPER_ADMIN' %}
@@ -16,15 +18,17 @@
         <a class="ODRCreateDatatype Pointer"><i class="fa fa-lg fa-plus"></i>New Database</a>
     </div>
     {% endif %}
-    {#% if level == 7 %}
+{#
+    {% if level == 7 %}
     <div class="left">
         <a class="Pointer" onclick="recacheAll();"><i class="fa fa-lg fa-refresh"></i>Recache All Datatypes</a>
     </div>
-    {% endif #}
+    {% endif %}
+#}
 </div>
 
 <div id="ODRDataTypeListWrapper">
-<table id="ODRDatatypeList" class="{#pure-table pure-table-striped#}display dataTable">
+<table id="ODRDatatypeList" class="display dataTable">
     <thead>
         <tr>
             <th></th>
@@ -35,36 +39,27 @@
             <th>Derivative Layouts</th>
             <th>Download Schema</th>
             <th>CSV Import</th>
-
-            {#{% if level > 1 %}#}
             <th>Delete</th>
-            {#{% endif %}#}
         </tr>
     </thead>
     <tbody>
     {% for datatype in datatypes %}
 
         {% set can_view_datatype = false %}
-        {% set can_edit_datatype = false %}
-        {% set can_design_datatype = false %}
-        {% set is_type_admin = false %}
-        {% if permissions[ datatype.id ] is defined %}
-            {% if permissions[ datatype.id ][ 'view' ] is defined %}
+        {% set is_datatype_admin = false %}
+
+        {% if permissions['datatypes'][datatype.id] is defined %}
+            {% set datatype_permissions = permissions['datatypes'][datatype.id] %}
+
+            {% if datatype_permissions[ 'dt_view' ] is defined %}
                 {% set can_view_datatype = true %}
             {% endif %}
-            {% if permissions[ datatype.id ][ 'edit' ] is defined %}
-                {% set can_edit_datatype = true %}
-            {% endif %}
-            {% if permissions[ datatype.id ][ 'design' ] is defined %}
-                {% set can_design_datatype = true %}
-            {% endif %}
-            {% if permissions[ datatype.id ][ 'admin' ] is defined %}
-                {% set is_type_admin = true %}
+            {% if datatype_permissions[ 'dt_admin' ] is defined %}
+                {% set is_datatype_admin = true %}
             {% endif %}
         {% endif %}
 
-        {#{% if datatype.ispublic == true or can_view_datatype == true %}#}
-        {% if can_view_datatype == true %}
+        {% if can_view_datatype == true or datatype.dataTypeMeta.publicDate|is_public == true %}
         <tr>
             <td>{{ datatype.id }}</td>
             <td>
@@ -94,8 +89,7 @@
                 <td class="center">0</td>
             {% endif %}
 
-            {% if can_design_datatype == true %}
-                {# If user has design permissions... #}
+            {% if is_datatype_admin == true %}
                 {% if datatype.dataTypeMeta.searchslug == '' %}
                     <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a></td>
                     <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
@@ -104,14 +98,13 @@
                     <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchslug } ) }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a></td>
                 {% endif %}
             {% else %}
-                {# Otherwise, print out nothing #}
                 <td class="center"></td>
                 <td class="center"></td>
             {% endif %}
 
                 <td class="center"><a class="Pointer" onclick="downloadXSD({{ datatype.id }});"><i class="fa fa-lg fa-download"></i>&nbsp;Download</a></td>
 
-            {% if can_design_datatype == true and can_edit_datatype == true %}
+            {% if is_datatype_admin == true %}
                 {% if datatype.dataTypeMeta.searchSlug == '' %}
                     <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
                 {% else %}
@@ -121,9 +114,8 @@
                 <td class="center"></td>
             {% endif %}
 
-            {% if level == 7 or is_type_admin == true %}
+            {% if level == 7 or is_datatype_admin == true %}
                 <td class="center"><a style="cursor:pointer;" onclick="deleteDataType({{ datatype.id }});"><i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete</a></td>
-            {#{% elseif level > 1 %}#}
             {% else %}
                 <td class="center"></td>
             {% endif %}
@@ -278,3 +270,5 @@
         document.location = url;
     }
 </script>
+
+{% endspaceless %}

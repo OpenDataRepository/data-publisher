@@ -1,9 +1,7 @@
-# @deprecated
-ODR\AdminBundle\Entity\UserFieldPermissions:
+ODR\AdminBundle\Entity\Group:
     type: entity
-    table: odr_user_field_permissions
+    table: odr_group
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -15,59 +13,67 @@ ODR\AdminBundle\Entity\UserFieldPermissions:
             generator:
                 strategy: IDENTITY
 
-        can_view_field:
-            type: integer
-            unsigned: false
-            nullable: false
-            default: 0
-
-        can_edit_field:
-            type: integer
-            unsigned: false
-            nullable: false
-            default: 0
+        purpose:
+            type: string
+            length: 32
+            fixed: false
+            nullable: true
 
         created:
             type: datetime
             gedmo:
                 timestampable:
                     on: create
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
+
+    oneToMany:
+        groupMeta:
+            targetEntity: GroupMeta
+            cascade: { }
+            mappedBy: group
+            inversedBy: null
+            joinColumns:
+                group_meta_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        userGroups:
+            targetEntity: UserGroup
+            cascade: { }
+            mappedBy: group
+            inversedBy: null
+            joinColumns:
+                user_group_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        groupDatatypePermissions:
+            targetEntity: GroupDatatypePermissions
+            cascade: { }
+            mappedBy: group
+            inversedBy: null
+            joinColumns:
+                group_datatype_permission_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+        groupDatafieldPermissions:
+            targetEntity: GroupDatafieldPermissions
+            cascade: { }
+            mappedBy: group
+            inversedBy: null
+            joinColumns:
+                group_datafield_permission_id:
+                    referencedColumnName: id
+            orphanRemoval: false
 
     manyToOne:
-        user:
-            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                user_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-
-        dataField:
-            targetEntity: DataFields
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                data_field_id:
-                    referencedColumnName: id
-            orphanRemoval: false
         dataType:
             targetEntity: DataType
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: groups
             joinColumns:
                 data_type_id:
                     referencedColumnName: id
@@ -82,13 +88,13 @@ ODR\AdminBundle\Entity\UserFieldPermissions:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-        updatedBy:
+        deletedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
             mappedBy: null
             inversedBy: null
             joinColumns:
-                createdBy:
+                deletedBy:
                     referencedColumnName: id
             orphanRemoval: false
 

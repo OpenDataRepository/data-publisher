@@ -1,5 +1,7 @@
+{% spaceless %}
+
 <div id="ODRDataTypeListWrapper">
-<table id="ODRDatatypeList" class="{#pure-table pure-table-striped#}display dataTable">
+<table id="ODRDatatypeList" class="display dataTable">
     <thead>
         <tr>
             <th></th>
@@ -10,34 +12,31 @@
             <th>Search Records</th>
             <th>List Records</th>
             <th>Add Record</th>
-            {#<th>Import Records</th>#}
         </tr>
     </thead>
     <tbody>
     {% for datatype in datatypes %}
 
         {# Pre-determine which permissions user has for this datatype... #}
-        {% set can_edit_datarecord = false %}
-        {% set can_add_datarecord = false %}
         {% set can_view_datatype = false %}
-        {% set can_design_datatype = false %}
+        {% set can_add_datarecord = false %}
+        {% set is_datatype_admin = false %}
 
-        {% if permissions[ datatype.id ] is defined %}
-            {% if permissions[ datatype.id ][ 'edit' ] is defined or permissions[ datatype.id ][ 'child_edit' ] is defined %}
-                {% set can_edit_datarecord = true %}
-            {% endif %}
-            {% if permissions[ datatype.id ][ 'add' ] is defined %}
-                {% set can_add_datarecord = true %}
-            {% endif %}
-            {% if permissions[ datatype.id ][ 'view' ] is defined %}
+        {% if permissions['datatypes'][datatype.id] is defined %}
+            {% set datatype_permissions = permissions['datatypes'][datatype.id] %}
+
+            {% if datatype_permissions[ 'dt_view' ] is defined %}
                 {% set can_view_datatype = true %}
             {% endif %}
-            {% if permissions[ datatype.id ][ 'design' ] is defined %}
-                {% set can_design_datatype = true %}
+            {% if datatype_permissions[ 'dr_add' ] is defined %}
+                {% set can_add_datarecord = true %}
+            {% endif %}
+            {% if datatype_permissions[ 'dt_admin' ] is defined %}
+                {% set is_datatype_admin = true %}
             {% endif %}
         {% endif %}
 
-        {% if can_view_datatype == true %}
+        {% if can_view_datatype == true or datatype.dataTypeMeta.publicDate|is_public == true %}
         <tr>
             <td>{{ datatype.id }}</td>
             <td>
@@ -70,37 +69,48 @@
                 <td class="center">0</td>
             {% endif %}
 
+
             {# link to search this datatype #}
             {% if datatype.dataTypeMeta.searchSlug != '' and datarecord_count > 0 %}
                 <td class="center"><a href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}" title="Search {{ datatype.dataTypeMeta.shortName }} DataRecords"><i class="fa fa-lg fa-search"></i>&nbsp;Search Records</a></td>
-            {% elseif can_design_datatype == false or datarecord_count == 0 %}
+            {% elseif datarecord_count == 0 %}
                 <td class="center"></td>
+            {% elseif is_datatype_admin == false %}
+                <td class="center"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</td>
             {% else %}
                 <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
             {% endif %}
 
-            {# view/edit links for this datatype #}
+
+            {# view link for this datatype #}
             {% if datarecord_count == 0 %}
                 <td class="center"></td>
             {% elseif datatype.dataTypeMeta.searchSlug == '' %}
-                <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
-            {% elseif (datatype.dataTypeMeta.useShortResults == 1 and datatype.hasShortResults == true) or (datatype.dataTypeMeta.useShortResults == 0 and datatype.hasTextResults == true) %}
-                <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}#{{ path('odr_search_render', {'search_key': 'dt_id='~datatype.id} ) }}" title="View {{ datatype.dataTypeMeta.shortName }} DataRecords"><i class="fa fa-lg fa-list"></i>&nbsp;List Records</a></td>
-            {% elseif can_design_datatype == false %}
-                <td class="center"></td>
-            {% elseif datatype.dataTypeMeta.useShortResults == 1 and datatype.hasShortResults == false %}    {# user has design permission at this point #}
-                <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Search Results Theme not designed!</a></td>
-            {% elseif datatype.dataTypeMeta.useShortResults == 0 and datatype.hasTextResults == false %}     {# user has design permission at this point #}
-                <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Table Theme not designed!</a></td>
+                {% if is_datatype_admin == true %}
+                    <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
+                {% else %}
+                    <td class="center"></td>
+                {% endif %}
+            {% else %}
+                {% if (datatype.dataTypeMeta.useShortResults == 1 and datatype.hasShortResults == true) or (datatype.dataTypeMeta.useShortResults == 0 and datatype.hasTextResults == true) %}
+                    <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}#{{ path('odr_search_render', {'search_key': 'dt_id='~datatype.id} ) }}" title="View {{ datatype.dataTypeMeta.shortName }} DataRecords"><i class="fa fa-lg fa-list"></i>&nbsp;List Records</a></td>
+                {% elseif is_datatype_admin == true %}
+                    {% if datatype.dataTypeMeta.useShortResults == 1 and datatype.hasShortResults == false %}
+                        <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Search Results Theme not designed!</a></td>
+                    {% elseif datatype.dataTypeMeta.useShortResults == 0 and datatype.hasTextResults == false %}
+                        <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Table Theme not designed!</a></td>
+                    {% endif %}
+                {% else %}
+                    <td class="center"></td>
+                {% endif %}
             {% endif %}
+
 
             {# add/import links for this datatype #}
             {% if can_add_datarecord == true %}
                 <td class="center"><a style="cursor:pointer;" onclick="addDataRecord('{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}',{{ datatype.id }});"><i class="fa fa-lg fa-plus-circle"></i>&nbsp;Add New Record</a></td>
-                {#<td class="center"><a style="cursor:pointer;" onclick="LoadContentFullAjax('{{ path('odr_xml_import', { 'type': 'datatype', 'id': datatype.id } ) }}');"><i class="fa fa-lg fa-upload"></i>&nbsp;Import Records</a></td>#}
             {% else %}
                 <td class="center"></td>
-                {#<td class="center"></td>#}
             {% endif %}
         </tr>
         {% endif %}
@@ -204,3 +214,5 @@
         }
     }
 </script>
+
+{% endspaceless %}

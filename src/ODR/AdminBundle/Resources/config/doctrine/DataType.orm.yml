@@ -128,4 +128,14 @@ ODR\AdminBundle\Entity\DataType:
                     referencedColumnName: id
             orphanRemoval: false
 
+        groups:
+            targetEntity: Group
+            cascade: { }
+            mappedBy: dataType
+            inversedBy: null
+            joinColumns:
+                group_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
     lifecycleCallbacks: {  }

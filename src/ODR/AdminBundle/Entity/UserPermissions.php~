@@ -18,6 +18,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * UserPermissions
+ * @deprecated
  */
 class UserPermissions
 {

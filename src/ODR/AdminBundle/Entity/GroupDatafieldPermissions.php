@@ -2,25 +2,22 @@
 
 /**
  * Open Data Repository Data Publisher
- * ThemeElementMeta Entity
+ * Group DatafieldPermissions Entity
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * The ThemeElementMeta Entity is responsible for storing the properties
- * of the ThemeElement Entity that are subject to change, and is
- * automatically generated from ./Resources/config/doctrine/ThemeElementMeta.orm.yml
+ * The Group DatafieldPermissions Entity is automatically generated from
+ * ./Resources/config/doctrine/GroupDatafieldPermissions.orm.yml
  *
  */
 
 namespace ODR\AdminBundle\Entity;
 
-use Doctrine\ORM\Mapping as ORM;
-
 /**
- * ThemeElementMeta
+ * GroupDatafieldPermissions
  */
-class ThemeElementMeta
+class GroupDatafieldPermissions
 {
     /**
      * @var integer
@@ -28,25 +25,14 @@ class ThemeElementMeta
     private $id;
 
     /**
-     * @var integer
+     * @var boolean
      */
-    private $displayOrder;
+    private $can_view_datafield;
 
     /**
-     * @var string
+     * @var boolean
      */
-    private $cssWidthMed;
-
-    /**
-     * @var string
-     */
-    private $cssWidthXL;
-
-    /**
-     * @deprecated
-     * @var \DateTime
-     */
-    private $publicDate;
+    private $can_edit_datafield;
 
     /**
      * @var \DateTime
@@ -57,16 +43,21 @@ class ThemeElementMeta
      * @var \DateTime
      */
     private $updated;
-    
+
     /**
      * @var \DateTime
      */
     private $deletedAt;
 
     /**
-     * @var \ODR\AdminBundle\Entity\ThemeElement
+     * @var \ODR\AdminBundle\Entity\Group
      */
-    private $themeElement;
+    private $group;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataFields
+     */
+    private $dataField;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -82,7 +73,7 @@ class ThemeElementMeta
     /**
      * Get id
      *
-     * @return integer 
+     * @return integer
      */
     public function getId()
     {
@@ -90,104 +81,59 @@ class ThemeElementMeta
     }
 
     /**
-     * Set displayOrder
+     * Set canViewDatafield
      *
-     * @param integer $displayOrder
-     * @return ThemeElementMeta
+     * @param boolean $canViewDatafield
+     *
+     * @return GroupDatafieldPermissions
      */
-    public function setDisplayOrder($displayOrder)
+    public function setCanViewDatafield($canViewDatafield)
     {
-        $this->displayOrder = $displayOrder;
+        $this->can_view_datafield = $canViewDatafield;
 
         return $this;
     }
 
     /**
-     * Get displayOrder
+     * Get canViewDatafield
      *
-     * @return integer 
+     * @return boolean
      */
-    public function getDisplayOrder()
+    public function getCanViewDatafield()
     {
-        return $this->displayOrder;
+        return $this->can_view_datafield;
     }
 
     /**
-     * Set cssWidthMed
+     * Set canEditDatafield
      *
-     * @param string $cssWidthMed
-     * @return ThemeElementMeta
+     * @param boolean $canEditDatafield
+     *
+     * @return GroupDatafieldPermissions
      */
-    public function setCssWidthMed($cssWidthMed)
+    public function setCanEditDatafield($canEditDatafield)
     {
-        $this->cssWidthMed = $cssWidthMed;
+        $this->can_edit_datafield = $canEditDatafield;
 
         return $this;
     }
 
     /**
-     * Get cssWidthMed
+     * Get canEditDatafield
      *
-     * @return string 
+     * @return boolean
      */
-    public function getCssWidthMed()
+    public function getCanEditDatafield()
     {
-        return $this->cssWidthMed;
-    }
-
-    /**
-     * Set cssWidthXL
-     *
-     * @param string $cssWidthXL
-     * @return ThemeElementMeta
-     */
-    public function setCssWidthXL($cssWidthXL)
-    {
-        $this->cssWidthXL = $cssWidthXL;
-
-        return $this;
-    }
-
-    /**
-     * Get cssWidthXL
-     *
-     * @return string 
-     */
-    public function getCssWidthXL()
-    {
-        return $this->cssWidthXL;
-    }
-
-    /**
-     * Set publicDate
-     * @deprecated
-     *
-     * @param \DateTime $publicDate
-     * @return ThemeElementMeta
-     */
-    public function setPublicDate($publicDate)
-    {
-        $this->publicDate = $publicDate;
-
-        return $this;
-    }
-
-    /**
-     * Get publicDate
-     * @deprecated
-     *
-     * @return \DateTime 
-     */
-    public function getPublicDate()
-    {
-        return $this->publicDate;
+        return $this->can_edit_datafield;
     }
 
     /**
      * Set created
      *
      * @param \DateTime $created
-     * @return ThemeElementMeta
+     *
+     * @return GroupDatafieldPermissions
      */
     public function setCreated($created)
     {
@@ -199,7 +145,7 @@ class ThemeElementMeta
     /**
      * Get created
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getCreated()
     {
@@ -210,7 +156,8 @@ class ThemeElementMeta
      * Set updated
      *
      * @param \DateTime $updated
-     * @return ThemeElementMeta
+     *
+     * @return GroupDatafieldPermissions
      */
     public function setUpdated($updated)
     {
@@ -233,7 +180,8 @@ class ThemeElementMeta
      * Set deletedAt
      *
      * @param \DateTime $deletedAt
-     * @return ThemeElementMeta
+     *
+     * @return GroupDatafieldPermissions
      */
     public function setDeletedAt($deletedAt)
     {
@@ -245,7 +193,7 @@ class ThemeElementMeta
     /**
      * Get deletedAt
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getDeletedAt()
     {
@@ -253,33 +201,59 @@ class ThemeElementMeta
     }
 
     /**
-     * Set themeElement
+     * Set group
      *
-     * @param \ODR\AdminBundle\Entity\ThemeElement $themeElement
-     * @return ThemeElementMeta
+     * @param \ODR\AdminBundle\Entity\Group $group
+     *
+     * @return GroupDatafieldPermissions
      */
-    public function setThemeElement(\ODR\AdminBundle\Entity\ThemeElement $themeElement = null)
+    public function setGroup(\ODR\AdminBundle\Entity\Group $group = null)
     {
-        $this->themeElement = $themeElement;
+        $this->group = $group;
 
         return $this;
     }
 
     /**
-     * Get themeElement
+     * Get group
      *
-     * @return \ODR\AdminBundle\Entity\ThemeElement 
+     * @return \ODR\AdminBundle\Entity\Group
      */
-    public function getThemeElement()
+    public function getGroup()
     {
-        return $this->themeElement;
+        return $this->group;
+    }
+
+    /**
+     * Set dataField
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $dataField
+     *
+     * @return GroupDatafieldPermissions
+     */
+    public function setDataField(\ODR\AdminBundle\Entity\DataFields $dataField = null)
+    {
+        $this->dataField = $dataField;
+
+        return $this;
+    }
+
+    /**
+     * Get dataField
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields
+     */
+    public function getDataField()
+    {
+        return $this->dataField;
     }
 
     /**
      * Set createdBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
-     * @return ThemeElementMeta
+     *
+     * @return GroupDatafieldPermissions
      */
     public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
     {
@@ -291,7 +265,7 @@ class ThemeElementMeta
     /**
      * Get createdBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getCreatedBy()
     {
@@ -302,7 +276,8 @@ class ThemeElementMeta
      * Set updatedBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return ThemeElementMeta
+     *
+     * @return GroupDatafieldPermissions
      */
     public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
     {

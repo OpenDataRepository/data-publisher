@@ -2,25 +2,22 @@
 
 /**
  * Open Data Repository Data Publisher
- * ThemeElementMeta Entity
+ * GroupMeta Entity
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * The ThemeElementMeta Entity is responsible for storing the properties
- * of the ThemeElement Entity that are subject to change, and is
- * automatically generated from ./Resources/config/doctrine/ThemeElementMeta.orm.yml
+ * The DataType Entity is automatically generated from
+ * ./Resources/config/doctrine/GroupMeta.orm.yml
  *
  */
 
 namespace ODR\AdminBundle\Entity;
 
-use Doctrine\ORM\Mapping as ORM;
-
 /**
- * ThemeElementMeta
+ * GroupMeta
  */
-class ThemeElementMeta
+class GroupMeta
 {
     /**
      * @var integer
@@ -28,25 +25,19 @@ class ThemeElementMeta
     private $id;
 
     /**
-     * @var integer
+     * @var string
      */
-    private $displayOrder;
+    private $groupName;
 
     /**
      * @var string
      */
-    private $cssWidthMed;
+    private $groupDescription;
 
     /**
      * @var string
      */
-    private $cssWidthXL;
-
-    /**
-     * @deprecated
-     * @var \DateTime
-     */
-    private $publicDate;
+    private $datarecord_restriction;
 
     /**
      * @var \DateTime
@@ -57,16 +48,16 @@ class ThemeElementMeta
      * @var \DateTime
      */
     private $updated;
-    
+
     /**
      * @var \DateTime
      */
     private $deletedAt;
 
     /**
-     * @var \ODR\AdminBundle\Entity\ThemeElement
+     * @var \ODR\AdminBundle\Entity\Group
      */
-    private $themeElement;
+    private $group;
 
     /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
@@ -82,7 +73,7 @@ class ThemeElementMeta
     /**
      * Get id
      *
-     * @return integer 
+     * @return integer
      */
     public function getId()
     {
@@ -90,104 +81,83 @@ class ThemeElementMeta
     }
 
     /**
-     * Set displayOrder
+     * Set groupName
      *
-     * @param integer $displayOrder
-     * @return ThemeElementMeta
+     * @param string $groupName
+     *
+     * @return GroupMeta
      */
-    public function setDisplayOrder($displayOrder)
+    public function setGroupName($groupName)
     {
-        $this->displayOrder = $displayOrder;
+        $this->groupName = $groupName;
 
         return $this;
     }
 
     /**
-     * Get displayOrder
+     * Get groupName
      *
-     * @return integer 
+     * @return string
      */
-    public function getDisplayOrder()
+    public function getGroupName()
     {
-        return $this->displayOrder;
+        return $this->groupName;
     }
 
     /**
-     * Set cssWidthMed
+     * Set groupDescription
      *
-     * @param string $cssWidthMed
-     * @return ThemeElementMeta
+     * @param string $groupDescription
+     *
+     * @return GroupMeta
      */
-    public function setCssWidthMed($cssWidthMed)
+    public function setGroupDescription($groupDescription)
     {
-        $this->cssWidthMed = $cssWidthMed;
+        $this->groupDescription = $groupDescription;
 
         return $this;
     }
 
     /**
-     * Get cssWidthMed
+     * Get groupDescription
      *
-     * @return string 
+     * @return string
      */
-    public function getCssWidthMed()
+    public function getGroupDescription()
     {
-        return $this->cssWidthMed;
+        return $this->groupDescription;
     }
 
     /**
-     * Set cssWidthXL
+     * Set datarecordRestriction
      *
-     * @param string $cssWidthXL
-     * @return ThemeElementMeta
+     * @param string $datarecordRestriction
+     *
+     * @return GroupMeta
      */
-    public function setCssWidthXL($cssWidthXL)
+    public function setDatarecordRestriction($datarecordRestriction)
     {
-        $this->cssWidthXL = $cssWidthXL;
+        $this->datarecord_restriction = $datarecordRestriction;
 
         return $this;
     }
 
     /**
-     * Get cssWidthXL
+     * Get datarecordRestriction
      *
-     * @return string 
+     * @return string
      */
-    public function getCssWidthXL()
+    public function getDatarecordRestriction()
     {
-        return $this->cssWidthXL;
-    }
-
-    /**
-     * Set publicDate
-     * @deprecated
-     *
-     * @param \DateTime $publicDate
-     * @return ThemeElementMeta
-     */
-    public function setPublicDate($publicDate)
-    {
-        $this->publicDate = $publicDate;
-
-        return $this;
-    }
-
-    /**
-     * Get publicDate
-     * @deprecated
-     *
-     * @return \DateTime 
-     */
-    public function getPublicDate()
-    {
-        return $this->publicDate;
+        return $this->datarecord_restriction;
     }
 
     /**
      * Set created
      *
      * @param \DateTime $created
-     * @return ThemeElementMeta
+     *
+     * @return GroupMeta
      */
     public function setCreated($created)
     {
@@ -199,7 +169,7 @@ class ThemeElementMeta
     /**
      * Get created
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getCreated()
     {
@@ -210,7 +180,8 @@ class ThemeElementMeta
      * Set updated
      *
      * @param \DateTime $updated
-     * @return ThemeElementMeta
+     *
+     * @return GroupMeta
      */
     public function setUpdated($updated)
     {
@@ -233,7 +204,8 @@ class ThemeElementMeta
      * Set deletedAt
      *
      * @param \DateTime $deletedAt
-     * @return ThemeElementMeta
+     *
+     * @return GroupMeta
      */
     public function setDeletedAt($deletedAt)
     {
@@ -245,7 +217,7 @@ class ThemeElementMeta
     /**
      * Get deletedAt
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getDeletedAt()
     {
@@ -253,33 +225,35 @@ class ThemeElementMeta
     }
 
     /**
-     * Set themeElement
+     * Set group
      *
-     * @param \ODR\AdminBundle\Entity\ThemeElement $themeElement
-     * @return ThemeElementMeta
+     * @param \ODR\AdminBundle\Entity\Group $group
+     *
+     * @return GroupMeta
      */
-    public function setThemeElement(\ODR\AdminBundle\Entity\ThemeElement $themeElement = null)
+    public function setGroup(\ODR\AdminBundle\Entity\Group $group = null)
     {
-        $this->themeElement = $themeElement;
+        $this->group = $group;
 
         return $this;
     }
 
     /**
-     * Get themeElement
+     * Get group
      *
-     * @return \ODR\AdminBundle\Entity\ThemeElement 
+     * @return \ODR\AdminBundle\Entity\Group
      */
-    public function getThemeElement()
+    public function getGroup()
     {
-        return $this->themeElement;
+        return $this->group;
     }
 
     /**
      * Set createdBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
-     * @return ThemeElementMeta
+     *
+     * @return GroupMeta
      */
     public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
     {
@@ -291,7 +265,7 @@ class ThemeElementMeta
     /**
      * Get createdBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getCreatedBy()
     {
@@ -302,7 +276,8 @@ class ThemeElementMeta
      * Set updatedBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return ThemeElementMeta
+     *
+     * @return GroupMeta
      */
     public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
     {

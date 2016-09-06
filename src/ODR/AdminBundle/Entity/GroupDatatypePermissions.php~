@@ -2,25 +2,22 @@
 
 /**
  * Open Data Repository Data Publisher
- * UserPermissions Entity
+ * Group DatatypePermissions Entity
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * The UserPermissions Entity is automatically generated from
- * ./Resources/config/doctrine/UserPermissions.orm.yml
- * 
+ * The DataType Entity is automatically generated from
+ * ./Resources/config/doctrine/GroupDatatypePermissions.orm.yml
+ *
  */
 
 namespace ODR\AdminBundle\Entity;
 
-use Doctrine\ORM\Mapping as ORM;
-
 /**
- * UserPermissions
- * @deprecated
+ * GroupDatatypePermissions
  */
-class UserPermissions
+class GroupDatatypePermissions
 {
     /**
      * @var integer
@@ -28,34 +25,34 @@ class UserPermissions
     private $id;
 
     /**
-     * @var integer
+     * @var boolean
      */
-    private $can_view_type;
+    private $can_view_datatype;
 
     /**
-     * @var integer
+     * @var boolean
      */
-    private $can_edit_record;
+    private $can_view_datarecord;
 
     /**
-     * @var integer
+     * @var boolean
      */
-    private $can_add_record;
+    private $can_add_datarecord;
 
     /**
-     * @var integer
+     * @var boolean
      */
-    private $can_delete_record;
+    private $can_delete_datarecord;
 
     /**
-     * @var integer
+     * @var boolean
      */
-    private $can_design_type;
+    private $can_design_datatype;
 
     /**
-     * @var integer
+     * @var boolean
      */
-    private $is_type_admin;
+    private $is_datatype_admin;
 
     /**
      * @var \DateTime
@@ -73,9 +70,9 @@ class UserPermissions
     private $deletedAt;
 
     /**
-     * @var \ODR\OpenRepository\UserBundle\Entity\User
+     * @var \ODR\AdminBundle\Entity\Group
      */
-    private $user;
+    private $group;
 
     /**
      * @var \ODR\AdminBundle\Entity\DataType
@@ -96,7 +93,7 @@ class UserPermissions
     /**
      * Get id
      *
-     * @return integer 
+     * @return integer
      */
     public function getId()
     {
@@ -104,148 +101,155 @@ class UserPermissions
     }
 
     /**
-     * Set can_view_type
+     * Set canViewDatatype
      *
-     * @param integer $canViewType
-     * @return UserPermissions
+     * @param boolean $canViewDatatype
+     *
+     * @return GroupDatatypePermissions
      */
-    public function setCanViewType($canViewType)
+    public function setCanViewDatatype($canViewDatatype)
     {
-        $this->can_view_type = $canViewType;
+        $this->can_view_datatype = $canViewDatatype;
 
         return $this;
     }
 
     /**
-     * Get can_view_type
+     * Get canViewDatatype
      *
-     * @return integer 
+     * @return boolean
      */
-    public function getCanViewType()
+    public function getCanViewDatatype()
     {
-        return $this->can_view_type;
+        return $this->can_view_datatype;
     }
 
     /**
-     * Set can_edit_record
+     * Set canViewDatarecord
      *
-     * @param integer $canEditRecord
-     * @return UserPermissions
+     * @param boolean $canViewDatarecord
+     *
+     * @return GroupDatatypePermissions
      */
-    public function setCanEditRecord($canEditRecord)
+    public function setCanViewDatarecord($canViewDatarecord)
     {
-        $this->can_edit_record = $canEditRecord;
+        $this->can_view_datarecord = $canViewDatarecord;
 
         return $this;
     }
 
     /**
-     * Get can_edit_record
+     * Get canViewDatarecord
      *
-     * @return integer 
+     * @return boolean
      */
-    public function getCanEditRecord()
+    public function getCanViewDatarecord()
     {
-        return $this->can_edit_record;
+        return $this->can_view_datarecord;
     }
 
     /**
-     * Set can_add_record
+     * Set canAddDatarecord
      *
-     * @param integer $canAddRecord
-     * @return UserPermissions
+     * @param boolean $canAddDatarecord
+     *
+     * @return GroupDatatypePermissions
      */
-    public function setCanAddRecord($canAddRecord)
+    public function setCanAddDatarecord($canAddDatarecord)
     {
-        $this->can_add_record = $canAddRecord;
+        $this->can_add_datarecord = $canAddDatarecord;
 
         return $this;
     }
 
     /**
-     * Get can_add_record
+     * Get canAddDatarecord
      *
-     * @return integer 
+     * @return boolean
      */
-    public function getCanAddRecord()
+    public function getCanAddDatarecord()
     {
-        return $this->can_add_record;
+        return $this->can_add_datarecord;
     }
 
     /**
-     * Set can_delete_record
+     * Set canDeleteDatarecord
      *
-     * @param integer $canDeleteRecord
-     * @return UserPermissions
+     * @param boolean $canDeleteDatarecord
+     *
+     * @return GroupDatatypePermissions
      */
-    public function setCanDeleteRecord($canDeleteRecord)
+    public function setCanDeleteDatarecord($canDeleteDatarecord)
     {
-        $this->can_delete_record = $canDeleteRecord;
+        $this->can_delete_datarecord = $canDeleteDatarecord;
 
         return $this;
     }
 
     /**
-     * Get can_delete_record
+     * Get canDeleteDatarecord
      *
-     * @return integer 
+     * @return boolean
      */
-    public function getCanDeleteRecord()
+    public function getCanDeleteDatarecord()
     {
-        return $this->can_delete_record;
+        return $this->can_delete_datarecord;
     }
 
     /**
-     * Set can_design_type
+     * Set canDesignDatatype
      *
-     * @param integer $canDesignType
-     * @return UserPermissions
+     * @param boolean $canDesignDatatype
+     *
+     * @return GroupDatatypePermissions
      */
-    public function setCanDesignType($canDesignType)
+    public function setCanDesignDatatype($canDesignDatatype)
     {
-        $this->can_design_type = $canDesignType;
+        $this->can_design_datatype = $canDesignDatatype;
 
         return $this;
     }
 
     /**
-     * Get can_design_type
+     * Get canDesignDatatype
      *
-     * @return integer 
+     * @return boolean
      */
-    public function getCanDesignType()
+    public function getCanDesignDatatype()
     {
-        return $this->can_design_type;
+        return $this->can_design_datatype;
     }
 
     /**
-     * Set is_type_admin
+     * Set isDatatypeAdmin
      *
-     * @param integer $isTypeAdmin
-     * @return UserPermissions
+     * @param boolean $isDatatypeAdmin
+     *
+     * @return GroupDatatypePermissions
      */
-    public function setIsTypeAdmin($isTypeAdmin)
+    public function setIsDatatypeAdmin($isDatatypeAdmin)
     {
-        $this->is_type_admin = $isTypeAdmin;
+        $this->is_datatype_admin = $isDatatypeAdmin;
 
         return $this;
     }
 
     /**
-     * Get is_type_admin
+     * Get isDatatypeAdmin
      *
-     * @return integer 
+     * @return boolean
      */
-    public function getIsTypeAdmin()
+    public function getIsDatatypeAdmin()
     {
-        return $this->is_type_admin;
+        return $this->is_datatype_admin;
     }
 
     /**
      * Set created
      *
      * @param \DateTime $created
-     * @return UserPermissions
+     *
+     * @return GroupDatatypePermissions
      */
     public function setCreated($created)
     {
@@ -257,7 +261,7 @@ class UserPermissions
     /**
      * Get created
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getCreated()
     {
@@ -268,7 +272,8 @@ class UserPermissions
      * Set updated
      *
      * @param \DateTime $updated
-     * @return UserPermissions
+     *
+     * @return GroupDatatypePermissions
      */
     public function setUpdated($updated)
     {
@@ -291,7 +296,8 @@ class UserPermissions
      * Set deletedAt
      *
      * @param \DateTime $deletedAt
-     * @return UserPermissions
+     *
+     * @return GroupDatatypePermissions
      */
     public function setDeletedAt($deletedAt)
     {
@@ -303,7 +309,7 @@ class UserPermissions
     /**
      * Get deletedAt
      *
-     * @return \DateTime 
+     * @return \DateTime
      */
     public function getDeletedAt()
     {
@@ -311,33 +317,35 @@ class UserPermissions
     }
 
     /**
-     * Set user
+     * Set group
      *
-     * @param \ODR\OpenRepository\UserBundle\Entity\User $user
-     * @return UserPermissions
+     * @param \ODR\AdminBundle\Entity\Group $group
+     *
+     * @return GroupDatatypePermissions
      */
-    public function setUser(\ODR\OpenRepository\UserBundle\Entity\User $user = null)
+    public function setGroup(\ODR\AdminBundle\Entity\Group $group = null)
     {
-        $this->user = $user;
+        $this->group = $group;
 
         return $this;
     }
 
     /**
-     * Get user
+     * Get group
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\AdminBundle\Entity\Group
      */
-    public function getUser()
+    public function getGroup()
     {
-        return $this->user;
+        return $this->group;
     }
 
     /**
      * Set dataType
      *
      * @param \ODR\AdminBundle\Entity\DataType $dataType
-     * @return UserPermissions
+     *
+     * @return GroupDatatypePermissions
      */
     public function setDataType(\ODR\AdminBundle\Entity\DataType $dataType = null)
     {
@@ -349,18 +357,19 @@ class UserPermissions
     /**
      * Get dataType
      *
-     * @return \ODR\AdminBundle\Entity\DataType 
+     * @return \ODR\AdminBundle\Entity\DataType
      */
     public function getDataType()
     {
         return $this->dataType;
     }
-
+    
     /**
      * Set createdBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
-     * @return UserPermissions
+     *
+     * @return GroupDatatypePermissions
      */
     public function setCreatedBy(\ODR\OpenRepository\UserBundle\Entity\User $createdBy = null)
     {
@@ -372,7 +381,7 @@ class UserPermissions
     /**
      * Get createdBy
      *
-     * @return \ODR\OpenRepository\UserBundle\Entity\User 
+     * @return \ODR\OpenRepository\UserBundle\Entity\User
      */
     public function getCreatedBy()
     {
@@ -383,7 +392,8 @@ class UserPermissions
      * Set updatedBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $updatedBy
-     * @return UserPermissions
+     *
+     * @return GroupDatatypePermissions
      */
     public function setUpdatedBy(\ODR\OpenRepository\UserBundle\Entity\User $updatedBy = null)
     {

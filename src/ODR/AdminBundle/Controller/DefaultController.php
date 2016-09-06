@@ -45,10 +45,12 @@ class DefaultController extends ODRCustomController
         /** @var User $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-        $user_permissions = array();
+        $datatype_permissions = array();
         if ($user !== 'anon.') {
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
         }
+
 
         // Render the base html for the page...$this->render() apparently creates a full Reponse object
 //        $site_baseurl = $this->container->getParameter('site_baseurl');
@@ -56,7 +58,7 @@ class DefaultController extends ODRCustomController
             'ODRAdminBundle:Default:index.html.twig',
             array(
                 'user' => $user,
-                'user_permissions' => $user_permissions,
+                'user_permissions' => $datatype_permissions,
 
 //                'site_baseurl' => $site_baseurl,
 //                'search_slug' => $search_slug,

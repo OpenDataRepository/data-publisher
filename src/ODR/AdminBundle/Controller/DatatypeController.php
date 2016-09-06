@@ -63,7 +63,7 @@ class DatatypeController extends ODRCustomController
             // Grab user privileges to determine what they can do
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
             // --------------------
 
 
@@ -331,18 +331,12 @@ class DatatypeController extends ODRCustomController
                     $em->persist($submitted_data);
 
                     // ----------------------------------------
-                    // Ensure the user that created this datatype has permissions to do everything to it
-                    $initial_permissions = array(
-                        'can_view_type' => 1,
-                        'can_add_record' => 1,
-                        'can_edit_record' => 1,
-                        'can_delete_record' => 1,
-                        'can_design_type' => 1,
-                        'is_type_admin' => 1
-                    );
-                    parent::ODR_addUserPermission($em, $admin->getId(), $admin->getId(), $datatype->getId(), $initial_permissions);
+                    // Create the default groups for this datatype
+                    $is_top_level = true;
+                    parent::ODR_createGroupsForDatatype($em, $admin, $datatype, $is_top_level);
 
 
+                    // ----------------------------------------
                     // Create a new master theme for this new datatype
                     $theme = new Theme();
                     $theme->setDataType($datatype);
@@ -372,12 +366,6 @@ class DatatypeController extends ODRCustomController
                     $redis = $this->container->get('snc_redis.default');;
                     // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
                     $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-                    $user_manager = $this->container->get('fos_user.user_manager');
-                    /** @var User[] $users */
-                    $users = $user_manager->findUsers();
-                    foreach ($users as $user)
-                        $redis->del($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
 
                     // Delete the cached version of the datatree array
                     $redis->del($redis_prefix.'.cached_datatree_array');
@@ -412,6 +400,7 @@ class DatatypeController extends ODRCustomController
 
     /**
      * Triggers a recache of all datarecords of all datatypes.
+     * @deprecated
      * TODO - using old recaching system.
      *
      * @param Request $request

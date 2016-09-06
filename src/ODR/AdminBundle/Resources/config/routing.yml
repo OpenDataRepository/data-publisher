@@ -301,6 +301,7 @@ odr_design_save_theme_element_order:
     defaults: { _controller: ODRAdminBundle:Theme:themeelementorder }
     requirements: { methods: POST }
 
+# @deprecated
 odr_design_public_theme_element:
     path:  /design/themeelement/public/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Theme:themeelementpublic }
@@ -404,14 +405,14 @@ odr_design_save_datatree:
 
 odr_design_get_link_datatypes:
     path:  /design/displaytemplate/getlinktypes/{datatype_id}/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:getlinktypes }
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:getlinkabledatatypes }
     requirements:
         datatype_id:  \d+
         theme_element_id:  \d+
 
 odr_design_link_datatype:
     path:  /design/displaytemplate/linktype
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:linktype }
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:linkdatatype }
     requirements: { methods: POST }
 
 odr_design_get_datafield_properties:
@@ -1244,61 +1245,11 @@ odr_duplicate_radio_check:
 #-----------------------------------------
 
 #-----------------------------------------
-# Metadata creation (one-time use)
-#odr_console_start_build_metadata:
-#    path:  /admin/build_metadata_start
-#    defaults: { _controller: ODRAdminBundle:Worker:startbuildmetadata }
+build_group_data:
+    path:  /admin/build_group_data
+    defaults: { _controller:ODRAdminBundle:Worker:startbuildgroupdata }
 
-odr_start_build_metadata_entries:
-    path:  /beanstalk/build_metadata_entries
-    defaults: { _controller: ODRAdminBundle:Worker:startbuildmetadataentries }
-
-odr_radio_option_metadata:
-    path: /beanstalk/radio_option_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:buildradiooptionmetadata }
+odr_group_metadata:
+    path:  /beanstalk/build_group_data
+    defaults: { _controller:ODRAdminBundle:Worker:buildgroupdata }
     requirements: { methods: POST }
-
-odr_file_metadata:
-    path: /beanstalk/file_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:buildfilemetadata }
-    requirements: { methods: POST }
-
-odr_image_metadata:
-    path: /beanstalk/image_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:buildimagemetadata }
-    requirements: { methods: POST }
-
-odr_datatree_metadata:
-    path: /beanstalk/datatree_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:builddatatreemetadata }
-    requirements: { methods: POST }
-
-odr_datafield_metadata:
-    path: /beanstalk/datafield_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:builddatafieldmetadata }
-    requirements: { methods: POST }
-
-odr_datarecord_metadata:
-    path: /beanstalk/datarecord_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:builddatarecordmetadata }
-    requirements: { methods: POST }
-
-odr_datatype_metadata:
-    path: /beanstalk/datatype_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:builddatatypemetadata }
-    requirements: { methods: POST }
-
-# Theme Metadata creation
-odr_start_build_theme_entries:
-    path:  /beanstalk/build_theme_entries
-    defaults: { _controller: ODRAdminBundle:Worker:startbuildthemeentries }
-
-odr_theme_metadata:
-    path: /beanstalk/theme_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:buildthememetadata }
-    requirements: { methods: POST }
-
-
-odr_table_rebuild:
-    path:  /admin/rebuild_table_themes
-    defaults: { _controller: ODRAdminBundle:Worker:redoTableThemes }

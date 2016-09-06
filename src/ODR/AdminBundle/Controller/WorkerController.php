@@ -1748,4 +1748,214 @@ print '</pre>';
         }
     }
 
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     * @throws \Exception
+     */
+    public function startbuildgroupdataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $pheanstalk = $this->get('pheanstalk');
+            $router = $this->container->get('router');
+
+            $redis = $this->container->get('snc_redis.default');;
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+
+            $api_key = $this->container->getParameter('beanstalk_api_key');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                return parent::permissionDeniedError();
+            // --------------------
+
+
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_group_metadata');
+
+
+            $top_level_datatypes = parent::getTopLevelDatatypes();
+            foreach ($top_level_datatypes as $num => $dt_id) {
+                // Insert the new job into the queue
+                $priority = 1024;   // should be roughly default priority
+                $payload = json_encode(
+                    array(
+                        "object_type" => 'datatype',
+                        "object_id" => $dt_id,
+                        "redis_prefix" => $redis_prefix,    // debug purposes only
+                        "url" => $url,
+                        "api_key" => $api_key,
+                    )
+                );
+                $delay = 1;
+                $pheanstalk->useTube('build_metadata')->put($payload, $priority, $delay);
+            }
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = '0x1878321483: '.$e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function buildgroupdataAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
+
+            throw new \Exception('DO NOT CONTINUE');
+
+            // Pull data from the post
+            $object_type = $post['object_type'];
+            $object_id = $post['object_id'];
+            $api_key = $post['api_key'];
+
+            // Load symfony objects
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($object_id);
+//            if ($datatype == null)
+//                throw new \Exception('Deleted Datatype');
+
+            // Determine whether this top-level datatype has the default groups already...
+            $repo_group = $em->getRepository('ODRAdminBundle:Group');
+            $repo_datatype_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
+            $repo_datafield_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');
+
+            $group_data = null;
+            $admin_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'admin') );
+            if ($admin_group == false) {
+                $group_data = parent::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'admin');
+                $admin_group = $group_data['group'];
+            }
+
+            $group_data = null;
+            $edit_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'edit_all') );
+            if ($edit_group == false) {
+                $group_data = parent::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'edit_all');
+                $edit_group = $group_data['group'];
+            }
+
+            $group_data = null;
+            $view_all_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'view_all') );
+            if ($view_all_group == false) {
+                $group_data = parent::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'view_all');
+                $view_all_group = $group_data['group'];
+            }
+
+            $group_data = null;
+            $view_only_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'view_only') );
+            if ($view_only_group == false) {
+                $group_data = parent::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'view_only');
+                $view_only_group = $group_data['group'];
+            }
+
+
+            // Need to add users to these new groups...
+            $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var User[] $user_list */
+            $user_list = $user_manager->findUsers();
+
+$ret = 'Created default groups for datatype '.$datatype->getId()."...\n";
+
+            $users_with_groups = array();
+
+            // Locate all users without the super-admin role that have the current 'is_datatype_admin' permission...
+            foreach ($user_list as $user) {
+                if ( !$user->hasRole('ROLE_SUPER_ADMIN') ) {
+                    $datatype_permission = $repo_datatype_permissions->findOneBy( array('is_type_admin' => 1, 'user' => $user->getId(), 'dataType' => $datatype->getId()) );
+                    if ($datatype_permission != false) {
+                        // ...add this user to the new default admin group
+                        parent::ODR_createUserGroup($em, $user, $admin_group, $datatype->getCreatedBy());
+$ret .= ' -- added '.$user->getUserString().' to the default "admin" group'."\n";
+
+                        // Note that this user is in the admin group, and therefore don't add them to any other default group
+                        $users_with_groups[ $user->getId() ] = 1;
+                    }
+                }
+            }
+
+            // Locate all users without the super-admin role that have the current 'can_edit_datarecord' permission...
+            foreach ($user_list as $user) {
+                if ( !$user->hasRole('ROLE_SUPER_ADMIN') && !isset($users_with_groups[$user->getId()]) ) {
+                    $datatype_permission = $repo_datatype_permissions->findOneBy( array('can_edit_record' => 1, 'user' => $user->getId(), 'dataType' => $datatype->getId()) );
+                    if ($datatype_permission != false) {
+                        // ...add this user to the new default edit_all group
+                        parent::ODR_createUserGroup($em, $user, $edit_group, $datatype->getCreatedBy());
+$ret .= ' -- added '.$user->getUserString().' to the default "edit_all" group'."\n";
+
+                        // Note that this user is in the edit_all group, and therefore don't add them to any other default group
+                        $users_with_groups[ $user->getId() ] = 1;
+                    }
+                }
+            }
+
+            // Locate all users without the super-admin role that have the current 'can_view_datatype' permission...
+            foreach ($user_list as $user) {
+                if ( !$user->hasRole('ROLE_SUPER_ADMIN') && !isset($users_with_groups[$user->getId()]) ) {
+                    $datatype_permission = $repo_datatype_permissions->findOneBy( array('can_view_type' => 1, 'user' => $user->getId(), 'dataType' => $datatype->getId()) );
+                    if ($datatype_permission != false) {
+                        // ...add this user to the new default view_all group
+                        parent::ODR_createUserGroup($em, $user, $view_all_group, $datatype->getCreatedBy());
+$ret .= ' -- added '.$user->getUserString().' to the default "view_all" group'."\n";
+
+                        // Note that this user is in the view_all group, and therefore don't add them to any other default group
+                        $users_with_groups[ $user->getId() ] = 1;
+                    }
+                }
+            }
+
+            $return['d'] = $ret;
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x212738622 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 }

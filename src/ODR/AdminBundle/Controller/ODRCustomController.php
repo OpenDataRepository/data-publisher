@@ -17,6 +17,8 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
+// Controllers/Classes
+use ODR\OpenRepository\SearchBundle\Controller\DefaultController as SearchController;
 // Entities
 use ODR\AdminBundle\Entity\Boolean AS ODRBoolean;
 use ODR\AdminBundle\Entity\DataFields;
@@ -34,6 +36,10 @@ use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileChecksum;
 use ODR\AdminBundle\Entity\FileMeta;
+use ODR\AdminBundle\Entity\Group;
+use ODR\AdminBundle\Entity\GroupDatafieldPermissions;
+use ODR\AdminBundle\Entity\GroupDatatypePermissions;
+use ODR\AdminBundle\Entity\GroupMeta;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageChecksum;
 use ODR\AdminBundle\Entity\ImageMeta;
@@ -63,6 +69,7 @@ use ODR\AdminBundle\Entity\TrackedError;
 use ODR\AdminBundle\Entity\UserPermissions;
 use ODR\AdminBundle\Entity\UserFieldPermissions;
 use ODR\OpenRepository\UserBundle\Entity\User;
+use ODR\AdminBundle\Entity\UserGroup;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -514,6 +521,7 @@ exit();
 
         // ----------------------------------------
         // Going to need the search controller for determining whether $search_key is valid or not
+        /** @var SearchController $search_controller */
         $search_controller = $this->get('odr_search_controller', $request);
         $search_controller->setContainer($this->container);
 
@@ -1021,6 +1029,7 @@ exit();
         return $grandparent_datatype_id;
     }
 
+
     /**
      * Automatically decompresses and unserializes redis data.
      *
@@ -1028,7 +1037,7 @@ exit();
      *
      * @param string $redis_value - the value returned by the redis call.
      *
-     * @return data or object
+     * @return boolean|string
      */
     public static function getRedisData($redis_value) {
         // print "::" . strlen($redis_value) . "::";
@@ -1038,8 +1047,10 @@ exit();
         return false;
     }
 
+
     /**
      * Builds an array of all datatype permissions possessed by the given user.
+     * @deprecated
      *
      * @throws \Exception
      *
@@ -1173,6 +1184,7 @@ exit();
 
     /**
      * Ensures the user permissions table has rows linking the given user and datatype.
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $user_id                The User receiving the permissions
@@ -1264,6 +1276,7 @@ exit();
 
     /**
      * Creates and persists a UserPermissions entity for the specified user/datatype pair
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $user_id            The user receiving this permission entity
@@ -1342,6 +1355,7 @@ exit();
 
     /**
      * Creates and persists a UserFieldPermissions entity for the specified user/datafield pair.
+     * @deprecated
      *
      * Calling function MUST FLUSH ENTITYMANAGER...if this function needs to be called, it will be called multiple times
      * in rapid succession because a user is missing a whole pile of UserFieldPermission entries.  As such, it's more
@@ -1400,6 +1414,7 @@ exit();
     /**
      * Although it doesn't make sense to use previous UserPermissions entries, changes made are handled the same as
      * other soft-deleteable entities...delete the current one, and make a new one with the changes.
+     * @deprecated
      *
      * The $properties parameter must contain at least one of the following keys...
      * 'can_view_type', 'can_add_record', 'can_edit_record', 'can_delete_record', 'can_design_type', 'is_type_admin'
@@ -1488,6 +1503,7 @@ exit();
     /**
      * Although it doesn't make sense to use previous UserFieldPermissions entries, changes made are handled the same as
      * other soft-deleteable entities...delete the current one, and make a new one with the changes.
+     * @deprecated
      *
      * The $properties parameter must contain at least one of the following keys...
      * 'can_view_field', 'can_edit_field'
@@ -1560,6 +1576,7 @@ exit();
 
     /**
      * Builds an array of all datafield permissions possessed by the given user.
+     * @deprecated
      *
      * @param integer $user_id       The database id of the user to grab datafield permissions for.
      * @param Request $request
@@ -1671,6 +1688,7 @@ exit();
 
     /**
      * Ensures a user has all required datafield permission objects.
+     * @deprecated
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $user_id                The user that is being checked for missing datafield permissions
@@ -1750,6 +1768,7 @@ exit();
 
     /**
      * Given a user's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.
+     * @deprecated
      *
      * @param array &$datatype_array        @see self::getDatatypeArray()
      * @param array &$datarecord_array      @see self::getDatarecordArray()
@@ -1890,6 +1909,1049 @@ if ($debug)
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Ensures the given user is in the given group.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param Group $group
+     * @param User $admin_user
+     *
+     * @return UserGroup
+     */
+    protected function ODR_createUserGroup($em, $user, $group, $admin_user)
+    {
+        // Check to see if the user already belongs to this group
+        $query = $em->createQuery(
+           'SELECT ug
+            FROM ODRAdminBundle:UserGroup AS ug
+            WHERE ug.user = :user_id AND ug.group = :group_id
+            AND ug.deletedAt IS NULL'
+        )->setParameters( array('user_id' => $user->getId(), 'group_id' => $group->getId()) );
+        /** @var UserGroup[] $results */
+        $results = $query->getResult();
+
+        $user_group = null;
+        if ( count($results) > 0 ) {
+            // If an existing linked_datatree entry was found, return it and don't do anything else
+            foreach ($results as $num => $ug)
+                return $ug;
+        }
+        else {
+            // ...otherwise, create a new user_group entry
+            $user_group = new UserGroup();
+            $user_group->setUser($user);
+            $user_group->setGroup($group);
+
+            $user_group->setCreatedBy($admin_user);
+
+            $em->persist($user_group);
+            $em->flush();
+        }
+
+        return $user_group;
+    }
+
+
+    /**
+     * Create a new Group for users of the given datatype.
+     * TODO - move this to like ODRUserController or something?
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param DataType $datatype               An id for a top-level datatype
+     * @param string $initial_purpose          One of 'admin', 'edit_all', 'view_all', 'view_only', or ''
+     *
+     * @return array
+     */
+    protected function ODR_createGroup($em, $user, $datatype, $initial_purpose = '')
+    {
+        // ----------------------------------------
+        // Create the Group entity
+        $group = new Group();
+        $group->setDataType($datatype);
+        $group->setPurpose($initial_purpose);
+
+        $group->setCreatedBy($user);
+
+        $em->persist($group);
+        $em->flush();
+        $em->refresh($group);
+
+
+        // Create the GroupMeta entity
+        $group_meta = new GroupMeta();
+        $group_meta->setGroup($group);
+        if ($initial_purpose == 'admin') {
+            $group_meta->setGroupName('Default Group - Admin');
+            $group_meta->setGroupDescription('Users in this default Group are always allowed to view and edit all Datarecords, modify all layouts, and change permissions of any User with regards to this Datatype.');
+        }
+        else if ($initial_purpose == 'edit_all') {
+            $group_meta->setGroupName('Default Group - Editor');
+            $group_meta->setGroupDescription('Users in this default Group can always both view and edit all Daarecords and Datafields of this Datatype.');
+        }
+        else if ($initial_purpose == 'view_all') {
+            $group_meta->setGroupName('Default Group - View All');
+            $group_meta->setGroupDescription('Users in this default Group always have the ability to see non-public Datarecords and Datafields of this Datatype, but cannot make any changes.');
+        }
+        else if ($initial_purpose == 'view_only') {
+            $group_meta->setGroupName('Default Group - View');
+            $group_meta->setGroupDescription('Users in this default Group are always able to public Datarecords and Datafields of this Datatype, though they cannot make any changes.  If the Datatype is public, then adding Users to this Group is meaningless.');
+        }
+        else {
+            $group_meta->setGroupName('New user group for '.$datatype->getShortName());
+            $group_meta->setGroupDescription('');
+        }
+
+        $group_meta->setCreatedBy($user);
+        $group_meta->setUpdatedBy($user);
+
+        $em->persist($group_meta);
+        $em->flush();
+        $em->refresh($group_meta);
+
+
+        // ----------------------------------------
+        // Create the initial datatype permission entries
+        $include_links = false;
+        $associated_datatypes = self::getAssociatedDatatypes($em, array($datatype->getId()), $include_links);   // TODO - if datatypes are eventually going to be undeleteable, then this needs to return deleted child datatypes
+//print_r($associated_datatypes);
+
+        // Build a single INSERT INTO query to add GroupDatatypePermissions entries for this top-level datatype and for each of its children
+        // A unique constraint placed upon (group_id, data_type_id) in the database will prevent duplicate entries
+        $query_str = '
+            INSERT IGNORE INTO odr_group_datatype_permissions (
+                group_id, data_type_id,
+                can_view_datatype, can_view_datarecord, can_add_datarecord, can_delete_datarecord, can_design_datatype, is_datatype_admin,
+                created, createdBy, updated, updatedBy
+            )
+            VALUES ';
+
+        $has_datatypes = false;
+        foreach ($associated_datatypes as $num => $dt_id) {
+            // Only set the 'is_datatype_admin' permission to true if this is the default 'admin' user and the top-level datatype
+            // DO NOT want 'is_datatype_admin' set to true for child datatypes
+            $is_datatype_admin = 0;
+            if ($initial_purpose == 'admin' && $dt_id == $datatype->getId())
+                $is_datatype_admin = 1;
+
+            $has_datatypes = true;
+
+            if ($initial_purpose == 'admin')
+                $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "1", "1", "1", "1", "1", "'.$is_datatype_admin.'", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
+            else if ($initial_purpose == 'edit_all')
+                $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "1", "1", "1", "1", "0", "'.$is_datatype_admin.'", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
+            else if ($initial_purpose == 'view_all')
+                $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "1", "1", "0", "0", "0", "'.$is_datatype_admin.'", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
+            else if ($initial_purpose == 'view_only')
+                $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "1", "0", "0", "0", "0", "'.$is_datatype_admin.'", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
+            else
+                $query_str .= '("'.$group->getId().'", "'.$dt_id.'", "0", "0", "0", "0", "0", "'.$is_datatype_admin.'", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
+        }
+
+        if ($has_datatypes) {
+            // Get rid of the trailing comma and replace with a semicolon
+            $query_str = substr($query_str, 0, -2).';';
+            $conn = $em->getConnection();
+            $rowsAffected = $conn->executeUpdate($query_str);
+        }
+
+        // ----------------------------------------
+        // Create the initial datafield permission entries
+        $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted datafields
+        $query = $em->createQuery(
+           'SELECT df.id AS df_id, df.deletedAt AS df_deletedAt
+            FROM ODRAdminBundle:DataFields AS df
+            JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+            WHERE dt.id IN (:datatype_ids)'
+        )->setParameters( array('datatype_ids' => $associated_datatypes) );
+        $results = $query->getArrayResult();
+        $em->getFilters()->enable('softdeleteable');
+//print_r($results);  exit();
+
+        // Build a single INSERT INTO query to add GroupDatafieldPermissions entries for all datafields of this top-level datatype and its children
+        // A unique constraint placed upon (group_id, data_field_id) in the database will prevent duplicate entries
+        $query_str = '
+            INSERT IGNORE INTO odr_group_datafield_permissions (
+                group_id, data_field_id,
+                can_view_datafield, can_edit_datafield,
+                created, createdBy, updated, updatedBy, deletedAt
+            )
+            VALUES ';
+
+        $has_datafields = false;
+        foreach ($results as $result) {
+            $has_datafields = true;
+            $df_id = $result['df_id'];
+            $df_deletedAt = $result['df_deletedAt'];
+
+            // Want to also store GroupDatafieldPermission entries for deleted datafields, in case said datafields get undeleted later...
+            $deletedAt = "NULL";
+            if ( !is_null($df_deletedAt) )
+                $deletedAt = '"'.$df_deletedAt->format('Y-m-d H:i:s').'"';
+
+            if ($initial_purpose == 'admin' || $initial_purpose == 'edit_all')
+                $query_str .= '("'.$group->getId().'", "'.$df_id.'", "1", "1", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'", '.$deletedAt.'),'."\n";
+            else if ($initial_purpose == 'view_all')
+                $query_str .= '("'.$group->getId().'", "'.$df_id.'", "1", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'", '.$deletedAt.'),'."\n";
+            else
+                $query_str .= '("'.$group->getId().'", "'.$df_id.'", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'", '.$deletedAt.'),'."\n";
+        }
+
+        if ($has_datafields) {
+            // Get rid of the trailing comma and replace with a semicolon
+            $query_str = substr($query_str, 0, -2).';';
+            $conn = $em->getConnection();
+            $rowsAffected = $conn->executeUpdate($query_str);
+        }
+
+        // ----------------------------------------
+        // Automatically add super-admin users to new default "admin" groups
+        if ($initial_purpose == 'admin') {
+            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            // Grab all users
+            $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var User[] $user_list */
+            $user_list = $user_manager->findUsers();
+
+            // Locate those with super-admin permissions...
+            foreach ($user_list as $u) {
+                if ( $u->hasRole('ROLE_SUPER_ADMIN') ) {
+                    // ...add the super admin to this new admin group
+                    self::ODR_createUserGroup($em, $u, $group, $user);
+
+                    // ...delete the cached list of permissions for each super-admin belongs to
+                    $redis->del($redis_prefix.'.user_'.$u->getId().'_permissions');
+                }
+            }
+        }
+
+        return array('group' => $group, 'group_meta' => $group_meta);
+    }
+
+
+    /**
+     * Creates GroupDatatypePermissions for all groups when a new datatype is created.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param DataType $datatype
+     * @param boolean $is_top_level
+     */
+    protected function ODR_createGroupsForDatatype($em, $user, $datatype, $is_top_level)
+    {
+        // Locate all groups for this datatype's grandparent
+        $repo_group = $em->getRepository('ODRAdminBundle:Group');
+        $groups = false;
+
+        /** @var Group[] $groups */
+        if ($is_top_level) {
+            $groups = $repo_group->findBy( array('dataType' => $datatype->getId()) );
+            if ($groups == false) {
+                // Determine whether this datatype has the default groups already...
+                $admin_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'admin') );
+                if ($admin_group == false)
+                    self::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'admin');
+
+                $edit_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'edit_all') );
+                if ($edit_group == false)
+                    self::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'edit_all');
+
+                $view_all_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'view_all') );
+                if ($view_all_group == false)
+                    self::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'view_all');
+
+                $view_only_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'view_only') );
+                if ($view_only_group == false)
+                    self::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'view_only');
+
+
+                // Now that the default groups exist, reload them
+                $groups = $repo_group->findBy( array('dataType' => $datatype->getId()) );
+            }
+        }
+        else {
+            // This function call is to create initial groups for a child datatype...locate its grandparent id
+            $datatree_array = self::getDatatreeArray($em, true);    // TODO - modify calling function so this isn't needed?
+            $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype->getId());
+
+            // Load all groups belonging to the grandparent datatype
+            $groups = $repo_group->findBy( array('dataType' => $grandparent_datatype_id) );
+        }
+
+        // If this function is called to create groups for a top-level datatype, the following section wouldn't be needed since it's already covered by in self::ODR_createGroup()...
+        if ( !$is_top_level ) {
+
+            // ----------------------------------------
+            // Going to need these later...
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+
+            // ----------------------------------------
+            // Load the list of groups and users this INSERT INTO query will affect
+            $group_list = array();
+            foreach ($groups as $group)
+                $group_list[] = $group->getId();
+
+            $query = $em->createQuery(
+               'SELECT DISTINCT(u.id) AS user_id
+                FROM ODRAdminBundle:UserGroup AS ug
+                JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+                WHERE ug.group IN (:groups)
+                AND ug.deletedAt IS NULL'
+            )->setParameters( array('groups' => $group_list) );
+            $results = $query->getArrayResult();
+
+            $user_list = array();
+            foreach ($results as $result)
+                $user_list[] = $result['user_id'];
+
+
+            // ----------------------------------------
+            // Build a single INSERT INTO query to add a GroupDatatypePermissions entry for this child datatype to all groups found previously
+            // A unique constraint placed upon (group_id, data_type_id) in the database will prevent duplicate entries
+            $query_str = '
+                INSERT IGNORE INTO odr_group_datatype_permissions (
+                    group_id, data_type_id,
+                    can_view_datatype, can_view_datarecord, can_add_datarecord, can_delete_datarecord, can_design_datatype, is_datatype_admin,
+                    created, createdBy, updated, updatedBy
+                )
+                VALUES ';
+
+            foreach ($groups as $group) {
+                // Default permissions depend on the original purpose of this group...
+                $initial_purpose = $group->getPurpose();
+
+                $cache_update = null;
+                if ($initial_purpose == 'admin') {
+                    $query_str .= '("'.$group->getId().'", "'.$datatype->getId().'", "1", "1", "1", "1", "1", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
+                    $cache_update = array('dt_view' => 1, 'dr_view' => 1, 'dr_add' => 1, 'dr_delete' => 1,/* 'dt_design' => 1,*/ 'dt_admin' => 1);
+                }
+                else if ($initial_purpose == 'edit_all') {
+                    $query_str .= '("'.$group->getId().'", "'.$datatype->getId().'", "1", "1", "1", "1", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
+                    $cache_update = array('dt_view' => 1, 'dr_view' => 1, 'dr_add' => 1, 'dr_delete' => 1);
+                }
+                else if ($initial_purpose == 'view_all') {
+                    $query_str .= '("'.$group->getId().'", "'.$datatype->getId().'", "1", "1", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
+                    $cache_update = array('dt_view' => 1, 'dr_view' => 1);
+                }
+                else if ($initial_purpose == 'view_only') {
+                    $query_str .= '("'.$group->getId().'", "'.$datatype->getId().'", "1", "0", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
+                    $cache_update = array('dt_view' => 1);
+                }
+                else {
+                    $query_str .= '("'.$group->getId().'", "'.$datatype->getId().'", "0", "0", "0", "0", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
+                    /* no need to update the cache entry with this */
+                }
+
+                if ($cache_update != null) {
+                    // Immediately update group permissions with the new datatype, if a cached version of those permissions exists
+                    $group_permissions = self::getRedisData(($redis->get($redis_prefix.'.group_'.$group->getId().'_permissions')));
+                    if ($group_permissions != false) {
+                        $group_permissions['datatypes'][$datatype->getId()] = $cache_update;
+                        $redis->set($redis_prefix.'.group_'.$group->getId().'_permissions', gzcompress(serialize($group_permissions)));
+                    }
+                }
+            }
+
+            // Get rid of the trailing comma and replace with a semicolon
+            $query_str = substr($query_str, 0, -2).';';
+            $conn = $em->getConnection();
+            $rowsAffected = $conn->executeUpdate($query_str);
+
+
+            // ----------------------------------------
+            // Delete all permission entries for each affected user...
+            // Not updating cached entry because it's a combination of all group permissions, and would take as much work to figure out what all to change as it would to just rebuild it
+            foreach ($user_list as $user_id)
+                $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
+        }
+    }
+
+
+    /**
+     * Creates GroupDatafieldPermissions for all groups when a new datafield is created, and updates existing cache entries for groups and users with the new datafield.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param DataFields $datafield
+     */
+    protected function ODR_createGroupsForDatafield($em, $user, $datafield)
+    {
+        // ----------------------------------------
+        // Going to need these later...
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+
+        // ----------------------------------------
+        // Locate this datafield's datatype's grandparent
+        $datatree_array = self::getDatatreeArray($em);
+        $datatype_id = $datafield->getDataType()->getId();
+        $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype_id);
+
+        // Locate all groups for this datatype's grandparent
+        /** @var Group[] $groups */
+        $groups = $em->getRepository('ODRAdminBundle:Group')->findBy( array('dataType' => $grandparent_datatype_id) );
+        // Unless something has gone wrong previously, there should always be results in this
+
+
+        // ----------------------------------------
+        // Load the list of groups and users this INSERT INTO query will affect
+        $group_list = array();
+        foreach ($groups as $group)
+            $group_list[] = $group->getId();
+
+        $query = $em->createQuery(
+           'SELECT DISTINCT(u.id) AS user_id
+            FROM ODRAdminBundle:UserGroup AS ug
+            JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+            WHERE ug.group IN (:groups)
+            AND ug.deletedAt IS NULL'
+        )->setParameters( array('groups' => $group_list) );
+        $results = $query->getArrayResult();
+
+        $user_list = array();
+        foreach ($results as $result)
+            $user_list[] = $result['user_id'];
+
+
+        // ----------------------------------------
+        // Build a single INSERT INTO query to add a GroupDatafieldPermissions entry for this datafield to all groups found previously
+        // A unique constraint placed upon (group_id, data_field_id) in the database will prevent duplicate entries
+        $query_str = '
+            INSERT IGNORE INTO odr_group_datafield_permissions (
+                group_id, data_field_id,
+                can_view_datafield, can_edit_datafield,
+                created, createdBy, updated, updatedBy
+            )
+            VALUES ';
+        foreach ($groups as $group) {
+            $initial_purpose = $group->getPurpose();
+
+            $cache_update = null;
+            if ($initial_purpose == 'admin' || $initial_purpose == 'edit_all') {
+                $query_str .= '("'.$group->getId().'", "'.$datafield->getId().'", "1", "1", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
+                $cache_update = array('view' => 1, 'edit' => 1);
+            }
+            else if ($initial_purpose == 'view_all') {
+                $query_str .= '("'.$group->getId().'", "'.$datafield->getId().'", "1", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
+                $cache_update = array('view' => 1);
+            }
+            else {
+                $query_str .= '("'.$group->getId().'", "'.$datafield->getId().'", "0", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
+                /* no need to update the cache entry with this */
+            }
+
+            if ($cache_update != null) {
+                // Immediately update group permissions with the new datafield, if a cached version of those permissions exists
+                $group_permissions = self::getRedisData(($redis->get($redis_prefix.'.group_'.$group->getId().'_permissions')));
+                if ($group_permissions != false) {
+                    if ( !isset($group_permissions['datafields'][$datatype_id]) )
+                        $group_permissions['datafields'][$datatype_id] = array();
+
+                    $group_permissions['datafields'][$datatype_id][$datafield->getId()] = $cache_update;
+                    $redis->set($redis_prefix.'.group_'.$group->getId().'_permissions', gzcompress(serialize($group_permissions)));
+                }
+            }
+        }
+
+        // Get rid of the trailing comma and replace with a semicolon
+        $query_str = substr($query_str, 0, -2).';';
+        $conn = $em->getConnection();
+        $rowsAffected = $conn->executeUpdate($query_str);
+
+
+        // ----------------------------------------
+        // Delete all permission entries for each affected user...
+        // Not updating cached entry because it's a combination of all group permissions, and would take as much work to figure out what all to change as it would to just rebuild it
+        foreach ($user_list as $user_id)
+            $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
+    }
+
+
+    /**
+     * Copies the contents of the given GroupMeta entity into a new GroupMeta entity if something was changed
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'groupName', 'groupDescription', 'datarecord_restriction'
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param Group $group
+     * @param array $properties
+     *
+     * @return GroupMeta
+     */
+    protected function ODR_copyGroupMeta($em, $user, $group, $properties)
+    {
+        // Load the old meta entry
+        /** @var GroupMeta $old_meta_entry */
+        $old_meta_entry = $em->getRepository('ODRAdminBundle:GroupMeta')->findOneBy( array('group' => $group->getId()) );
+
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'groupName' => $old_meta_entry->getGroupName(),
+            'groupDescription' => $old_meta_entry->getGroupDescription(),
+            'datarecord_restriction' => $old_meta_entry->getDatarecordRestriction(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $old_meta_entry;
+
+
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_theme_meta = null;
+        if ( self::createNewMetaEntry($user, $old_meta_entry) ) {
+            // Create a new meta entry and copy the old entry's data over
+            $remove_old_entry = true;
+
+            $new_group_meta = new GroupMeta();
+            $new_group_meta->setGroup($group);
+
+            $new_group_meta->setGroupName( $old_meta_entry->getGroupName() );
+            $new_group_meta->setGroupDescription( $old_meta_entry->getGroupDescription() );
+            $new_group_meta->setDatarecordRestriction( $old_meta_entry->getDatarecordRestriction() );
+
+            $new_group_meta->setCreatedBy($user);
+        }
+        else {
+            // Update the existing meta entry
+            $new_group_meta = $old_meta_entry;
+        }
+
+
+        // Set any new properties
+        if ( isset($properties['groupName']) )
+            $new_group_meta->setGroupName( $properties['groupName'] );
+        if ( isset($properties['groupDescription']) )
+            $new_group_meta->setGroupDescription( $properties['groupDescription'] );
+        if ( isset($properties['datarecord_restriction']) )
+            $new_group_meta->setDatarecordRestriction( $properties['datarecord_restriction'] );
+
+        $new_group_meta->setUpdatedBy($user);
+
+
+        // Delete the old meta entry if needed
+        if ($remove_old_entry)
+            $em->remove($old_meta_entry);
+
+        // Save the new meta entry
+        $em->persist($new_group_meta);
+        $em->flush();
+
+        // Return the new entry
+        return $new_group_meta;
+    }
+
+
+    /**
+     * Although it doesn't make sense to use previous GroupDatatypePermission entries, changes made are handled the
+     * same as other soft-deleteable entities...delete the current one, and make a new one with the changes.
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'can_view_datatype', 'can_view_datarecord', 'can_add_datarecord', 'can_delete_datarecord', 'can_design_datatype', 'is_datatype_admin'
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param GroupDatatypePermissions $permission
+     * @param User $user
+     * @param array $properties
+     *
+     * @return GroupDatatypePermissions
+     */
+    protected function ODR_copyGroupDatatypePermission($em, $user, $permission, $properties)
+    {
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'can_view_datatype' => $permission->getCanViewDatatype(),
+            'can_view_datarecord' => $permission->getCanViewDatarecord(),
+            'can_add_datarecord' => $permission->getCanAddDatarecord(),
+            'can_delete_datarecord' => $permission->getCanDeleteDatarecord(),
+            'can_design_datatype' => $permission->getCanDesignDatatype(),
+            'is_datatype_admin' => $permission->getIsDatatypeAdmin(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $permission;
+
+
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_permission = null;
+        if ( self::createNewMetaEntry($user, $permission) ) {
+            // Create a new UserPermissions entry and copy the old entry's data over
+            $remove_old_entry = true;
+
+            $new_permission = new GroupDatatypePermissions();
+            $new_permission->setGroup( $permission->getGroup() );
+            $new_permission->setDataType( $permission->getDataType() );
+
+            $new_permission->setCanViewDatatype( $permission->getCanViewDatatype() );
+            $new_permission->setCanViewDatarecord( $permission->getCanViewDatarecord() );
+            $new_permission->setCanAddDatarecord( $permission->getCanAddDatarecord() );
+            $new_permission->setCanDeleteDatarecord( $permission->getCanDeleteDatarecord() );
+            $new_permission->setCanDesignDatatype( $permission->getCanDesignDatatype() );
+            $new_permission->setIsDatatypeAdmin( $permission->getIsDatatypeAdmin() );
+
+            $new_permission->setCreatedBy($user);
+        }
+        else {
+            $new_permission = $permission;
+        }
+
+        // Set any new properties
+        if ( isset( $properties['can_view_datatype']) )
+            $new_permission->setCanViewDatatype( $properties['can_view_datatype'] );
+        if ( isset( $properties['can_view_datarecord']) )
+            $new_permission->setCanViewDatarecord( $properties['can_view_datarecord'] );
+        if ( isset( $properties['can_add_datarecord']) )
+            $new_permission->setCanAddDatarecord( $properties['can_add_datarecord'] );
+        if ( isset( $properties['can_delete_datarecord']) )
+            $new_permission->setCanDeleteDatarecord( $properties['can_delete_datarecord'] );
+        if ( isset( $properties['can_design_datatype']) )
+            $new_permission->setCanDesignDatatype( $properties['can_design_datatype'] );
+        if ( isset( $properties['is_datatype_admin']) )
+            $new_permission->setIsDatatypeAdmin( $properties['is_datatype_admin'] );
+
+        $new_permission->setUpdatedBy($user);
+
+
+        // Save the new meta entry and delete the old one if needed
+        if ($remove_old_entry)
+            $em->remove($permission);
+
+        $em->persist($new_permission);
+        $em->flush();
+
+        // Return the new entry
+        return $new_permission;
+    }
+
+
+    /**
+     * Although it doesn't make sense to use previous GroupDatafieldPermission entries, changes made are handled the
+     * same as other soft-deleteable entities...delete the current one, and make a new one with the changes.
+     *
+     * The $properties parameter must contain at least one of the following keys...
+     * 'can_view_datafield', 'can_edit_datafield'
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param User $user
+     * @param GroupDatafieldPermissions $permission
+     * @param array $properties
+     *
+     * @return GroupDatafieldPermissions
+     */
+    protected function ODR_copyGroupDatafieldPermission($em, $user, $permission, $properties)
+    {
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'can_view_datafield' => $permission->getCanViewDatafield(),
+            'can_edit_datafield' => $permission->getCanEditDatafield(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $permission;
+
+
+        // Determine whether to create a new meta entry or modify the previous one
+        $remove_old_entry = false;
+        $new_permission = null;
+        if ( self::createNewMetaEntry($user, $permission) ) {
+            // Create a new UserPermissions entry and copy the old entry's data over
+            $remove_old_entry = true;
+
+            $new_permission = new GroupDatafieldPermissions();
+            $new_permission->setGroup( $permission->getGroup() );
+            $new_permission->setDataField( $permission->getDataField() );
+
+            $new_permission->setCanViewDatafield( $permission->getCanViewDatafield() );
+            $new_permission->setCanEditDatafield( $permission->getCanEditDatafield() );
+
+            $new_permission->setCreatedBy($user);
+        }
+        else {
+            $new_permission = $permission;
+        }
+
+        // Set any new properties
+        if ( isset( $properties['can_view_datafield']) )
+            $new_permission->setCanViewDatafield( $properties['can_view_datafield'] );
+        if ( isset( $properties['can_edit_datafield']) )
+            $new_permission->setCanEditDatafield( $properties['can_edit_datafield'] );
+
+        $new_permission->setUpdatedBy($user);
+
+
+        // Save the new meta entry and delete the old one if needed
+        if ($remove_old_entry)
+            $em->remove($permission);
+
+        $em->persist($new_permission);
+        $em->flush();
+
+        // Return the new entry
+        return $new_permission;
+    }
+
+
+    /**
+     * Gets and returns the permissions array for the given group.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $user_id
+     * @param boolean $force_rebuild
+     *
+     * @throws \Exception
+     *
+     * @return array
+     */
+    public function getUserPermissionsArray($em, $user_id, $force_rebuild = false)
+    {
+        try {
+            // Permissons are stored in memcached to allow other parts of the server to force a rebuild of any user's permissions
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+//$force_rebuild = true;
+            $user_permissions = self::getRedisData(($redis->get($redis_prefix.'.user_'.$user_id.'_permissions')));
+            if ( !$force_rebuild && $user_permissions != false )
+                return $user_permissions;
+
+
+            // ----------------------------------------
+            // ...otherwise, get which groups the user belongs to
+            $query = $em->createQuery(
+               'SELECT g.id AS group_id
+                FROM ODRAdminBundle:UserGroup AS ug
+                JOIN ODRAdminBundle:Group AS g WITH ug.group = g
+                WHERE ug.user = :user_id
+                AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
+            )->setParameters( array('user_id' => $user_id) );
+            $results = $query->getArrayResult();
+
+            $user_groups = array();
+            foreach ($results as $result)
+                $user_groups[] = $result['group_id'];
+
+
+            // ----------------------------------------
+            // For each group the user belongs to, attempt to load that group's permissions from the cache
+            $group_permissions = array();
+            foreach ($user_groups as $num => $group_id) {
+                // Attempt to load the permissions for this group
+                $permissions = self::getRedisData(($redis->get($redis_prefix.'.group_'.$group_id.'_permissions')));
+
+                if ( $force_rebuild || $permissions == false ) {
+                    $permissions = self::rebuildGroupPermissionsArray($em, $group_id);
+                    $redis->set($redis_prefix.'.group_'.$group_id.'_permissions', gzcompress(serialize($permissions)));
+                }
+
+                $group_permissions[$group_id] = $permissions;
+            }
+
+
+            // ----------------------------------------
+            // Merge these group permissions into a single array for this user
+            $user_permissions = array('datatypes' => array(), 'datafields' => array());
+            foreach ($group_permissions as $group_id => $group_permission) {
+                // TODO - datarecord restriction?
+
+                foreach ($group_permission['datatypes'] as $dt_id => $dt_permissions) {
+                    foreach ($dt_permissions as $permission => $num) {
+                        $user_permissions['datatypes'][$dt_id][$permission] = 1;
+                    }
+                }
+
+                foreach ($group_permission['datafields'] as $dt_id => $datafields) {
+                    foreach ($datafields as $df_id => $df_permissions) {
+                        if ( isset($df_permissions['view']) ) {
+                            $user_permissions['datafields'][$df_id]['view'] = 1;
+                        }
+
+                        if ( isset($df_permissions['edit']) ) {
+                            $user_permissions['datafields'][$df_id]['edit'] = 1;
+
+                            $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
+                        }
+                    }
+                }
+            }
+
+            // If child datatypes have the "dr_edit" permission, ensure their parents do as well
+            $datatree_array = self::getDatatreeArray($em, $force_rebuild);
+
+            foreach ($user_permissions['datatypes'] as $dt_id => $dt_permissions) {
+                if ( isset($dt_permissions['dr_edit']) ) {
+
+                    $parent_datatype_id = $dt_id;
+                    while( isset($datatree_array['descendant_of'][$parent_datatype_id]) && $datatree_array['descendant_of'][$parent_datatype_id] !== '' ) {
+                        $parent_datatype_id = $datatree_array['descendant_of'][$parent_datatype_id];
+                        $user_permissions['datatypes'][$parent_datatype_id]['dr_edit'] = 1;
+                    }
+                }
+            }
+
+            // Store that array in the cache
+            $redis->set($redis_prefix.'.user_'.$user_id.'_permissions', gzcompress(serialize($user_permissions)));
+
+
+            // ----------------------------------------
+            // Return the permissions for all groups this user belongs to
+            return $user_permissions;
+        }
+        catch (\Exception $e) {
+            throw new \Exception( $e->getMessage() );
+        }
+    }
+
+
+    /**
+     * Rebuilds the cached version of a group's datatype/datafield permissions array
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param integer $group_id
+     *
+     * @return array
+     */
+    private function rebuildGroupPermissionsArray($em, $group_id)
+    {
+        // Load all permission entities from the database for the given group
+        $query = $em->createQuery(
+           'SELECT g, gm, gdtp, dt, gdfp, df, df_dt
+            FROM ODRAdminBundle:Group AS g
+            JOIN g.groupMeta AS gm
+            LEFT JOIN g.groupDatatypePermissions AS gdtp
+            LEFT JOIN gdtp.dataType AS dt
+            LEFT JOIN g.groupDatafieldPermissions AS gdfp
+            LEFT JOIN gdfp.dataField AS df
+            LEFT JOIN df.dataType AS df_dt
+            WHERE g.id = :group_id
+            AND g.deletedAt IS NULL AND gm.deletedAt IS NULL AND gdtp.deletedAt IS NULL AND gdfp.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND df_dt.deletedAt IS NULL'
+        )->setParameters( array('group_id' => $group_id) );
+        $results = $query->getArrayResult();
+//print '<pre>'.print_r($results, true).'</pre>';
+//exit();
+
+        // Read the query result to find...
+        $datarecord_restriction = '';
+        $datatype_permissions = array();
+        $datafield_permissions = array();
+
+        foreach ($results as $group) {
+            // Extract datarecord restriction first
+            $datarecord_restriction = $group['groupMeta'][0]['datarecord_restriction'];
+
+            // Build the permissions list for datatypes
+            foreach ($group['groupDatatypePermissions'] as $num => $permission) {
+                $dt_id = $permission['dataType']['id'];
+                $datatype_permissions[$dt_id] = array();
+
+                if ($permission['can_view_datatype'])
+                    $datatype_permissions[$dt_id]['dt_view'] = 1;
+                if ($permission['can_view_datarecord'])
+                    $datatype_permissions[$dt_id]['dr_view'] = 1;
+                if ($permission['can_add_datarecord'])
+                    $datatype_permissions[$dt_id]['dr_add'] = 1;
+                if ($permission['can_delete_datarecord'])
+                    $datatype_permissions[$dt_id]['dr_delete'] = 1;
+//                if ($permission['can_design_datatype'])
+//                    $datatype_permissions[$dt_id]['dt_design'] = 1;
+                if ($permission['is_datatype_admin'])
+                    $datatype_permissions[$dt_id]['dt_admin'] = 1;
+            }
+
+            // Build the permissions list for datafields
+            foreach ($group['groupDatafieldPermissions'] as $num => $permission) {
+                $dt_id = $permission['dataField']['dataType']['id'];
+                if ( !isset($datafield_permissions[$dt_id]) )
+                    $datafield_permissions[$dt_id] = array();
+
+                $df_id = $permission['dataField']['id'];
+                $datafield_permissions[$dt_id][$df_id] = array();
+
+                if ($permission['can_view_datafield'])
+                    $datafield_permissions[$dt_id][$df_id]['view'] = 1;
+                if ($permission['can_edit_datafield'])
+                    $datafield_permissions[$dt_id][$df_id]['edit'] = 1;
+            }
+        }
+
+        // ----------------------------------------
+        // Return the final array
+        return array(
+            'datarecord_restriction' => $datarecord_restriction,
+            'datatypes' => $datatype_permissions,
+            'datafields' => $datafield_permissions,
+        );
+    }
+
+
+    /**
+     * Given a group's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.
+     *
+     * @param array &$datatype_array    @see self::getDatatypeArray()
+     * @param array &$datarecord_array  @see self::getDatarecordArray()
+     * @param array $permissions_array  @see self::getUserPermissionsArray()
+     */
+    protected function filterByGroupPermissions(&$datatype_array, &$datarecord_array, $permissions_array)
+    {
+$debug = true;
+$debug = false;
+
+if ($debug)
+    print '----- permissions filter -----'."\n";
+
+        // Save relevant permissions...
+        $datatype_permissions = array();
+        if ( isset($permissions_array['datatypes']) )
+            $datatype_permissions = $permissions_array['datatypes'];
+        $datafield_permissions = array();
+        if ( isset($permissions_array['datafields']) )
+            $datafield_permissions = $permissions_array['datafields'];
+
+        $can_view_datatype = array();
+        $can_view_datarecord = array();
+        $datafields_to_remove = array();
+        foreach ($datatype_array as $dt_id => $dt) {
+            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dt_view' ]) )
+                $can_view_datatype[$dt_id] = true;
+            else
+                $can_view_datatype[$dt_id] = false;
+
+            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dr_view' ]) )
+                $can_view_datarecord[$dt_id] = true;
+            else
+                $can_view_datarecord[$dt_id] = false;
+        }
+
+
+        // For each datatype in the provided array...
+        foreach ($datatype_array as $dt_id => $dt) {
+
+            // If there was no datatype permission entry for this datatype, have it default to false
+            if ( !isset($can_view_datatype[$dt_id]) )
+                $can_view_datatype[$dt_id] = false;
+
+            // If datatype is non-public and user does not have the 'can_view_datatype' permission, then remove the datatype from the array
+            if ( $dt['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datatype[$dt_id] ) {
+                unset( $datatype_array[$dt_id] );
+if ($debug)
+    print 'removed non-public datatype '.$dt_id."\n";
+
+                // Also remove all datarecords of that datatype
+                foreach ($datarecord_array as $dr_id => $dr) {
+                    if ($dt_id == $dr['datatType']['id'])
+                        unset( $datarecord_array[$dr_id] );
+if ($debug)
+    print ' -- removed datarecord '.$dr_id."\n";
+                }
+
+                // No sense checking anything else for this datatype, skip to the next one
+                continue;
+            }
+
+            // Otherwise, the user is allowed to see this datatype...
+            foreach ($dt['themes'] as $theme_id => $theme) {
+                foreach ($theme['themeElements'] as $te_num => $te) {
+
+                    // For each datafield in this theme element...
+                    if ( isset($te['themeDataFields']) ) {
+                        foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                            $df_id = $tdf['dataField']['id'];
+
+                            // If the user doesn't have the 'can_view_datafield' permission for that datafield...
+                            if ( $tdf['dataField']['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !(isset($datafield_permissions[$df_id]) && $datafield_permissions[$df_id]['view'] == 1) ) {
+                                // ...remove it from the layout
+                                unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry on purpose
+                                $datafields_to_remove[$df_id] = 1;
+if ($debug)
+    print 'removed datafield '.$df_id.' from theme_element '.$te['id'].' datatype '.$dt_id.' theme '.$theme_id.' ('.$theme['themeType'].')'."\n";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Also need to go through the datarecord array and remove both datarecords and datafields that the user isn't allowed to see
+        foreach ($datarecord_array as $dr_id => $dr) {
+            // Save datatype id of this datarecord
+            $dt_id = $dr['dataType']['id'];
+
+            // If there was no datatype permission entry for this datatype, have it default to false
+            if ( !isset($can_view_datarecord[$dt_id]) )
+                $can_view_datarecord[$dt_id] = false;
+
+            // If the datarecord is non-public and user doesn't have the 'can_view_datarecord' permission, then remove the datarecord from the array
+            if ( $dr['dataRecordMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
+                unset( $datarecord_array[$dr_id] );
+if ($debug)
+    print 'removed non-public datarecord '.$dr_id."\n";
+
+                // No sense checking anything else for this datarecord, skip to the next one
+                continue;
+            }
+
+            // The user is allowed to view this datarecord...
+            foreach ($dr['dataRecordFields'] as $df_id => $drf) {
+
+                // Remove the datafield if needed
+                if ( isset($datafields_to_remove[$df_id]) ) {
+                    unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
+if ($debug)
+    print 'removed datafield '.$df_id.' from datarecord '.$dr_id."\n";
+
+                    // No sense checking file/image public status, skip to the next datafield
+                    continue;
+                }
+
+                // ...remove the files the user isn't allowed to see
+                foreach ($drf['file'] as $file_num => $file) {
+                    if ( $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
+                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['file'][$file_num] );
+if ($debug)
+    print 'removed non-public file '.$file['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
+                    }
+                }
+
+                // ...remove the images the user isn't allowed to see
+                foreach ($drf['image'] as $image_num => $image) {
+                    if ( $image['parent']['imageMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
+                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['image'][$image_num] );
+if ($debug)
+    print 'removed non-public image '.$image['parent']['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
                     }
                 }
             }
@@ -2847,7 +3909,7 @@ if ($debug)
 
         $linked_datatree = null;
         if ( count($results) > 0 ) {
-            // If an earlier deleted linked_datatree entry was found, don't do anything
+            // If an existing linked_datatree entry was found, return it and don't do anything else
             foreach ($results as $num => $ldt)
                 return $ldt;
         }
@@ -3112,7 +4174,7 @@ if ($debug)
         switch ($typeclass) {
             case 'Boolean':
                 $table_name = 'odr_boolean';
-                $default_value = false;
+                $default_value = 0;
                 break;
             case 'DatetimeValue':
                 $table_name = 'odr_datetime_value';
@@ -3164,6 +4226,15 @@ if ($debug)
             $insert_value = $initial_value;
         else
             $insert_value = $default_value;
+
+        // Ensure the boolean value is an integer...native SQL query will complain if it's an actual boolean value...
+        if ($typeclass == 'Boolean') {
+            if ($insert_value == false)
+                $insert_value = 0;
+            else
+                $insert_value = 1;
+        }
+
 
         // Create a new storage entity
         $query =
@@ -3961,6 +5032,7 @@ if ($debug)
         $datafield_meta->setRequired(false);
         $datafield_meta->setSearchable(0);
         $datafield_meta->setUserOnlySearch(false);
+        $datafield_meta->setPublicDate( new \DateTime('2200-00-00 00:00:00') );
 
         $datafield_meta->setChildrenPerRow(1);
         $datafield_meta->setRadioOptionNameSort(0);
@@ -3977,6 +5049,10 @@ if ($debug)
         $datafield_meta->setUpdatedBy($user);
 
         $em->persist($datafield_meta);
+
+
+        // Add the datafield to all groups for this datatype
+        self::ODR_createGroupsForDatafield($em, $user, $datafield);
 
         return array('datafield' => $datafield, 'datafield_meta' => $datafield_meta);
     }
@@ -4022,7 +5098,8 @@ if ($debug)
             'radio_option_name_sort' => $old_meta_entry->getRadioOptionNameSort(),
             'radio_option_display_unselected' => $old_meta_entry->getRadioOptionDisplayUnselected(),
             'searchable' => $old_meta_entry->getSearchable(),
-            'user_only_search' =>$old_meta_entry->getUserOnlySearch(),
+            'user_only_search' => $old_meta_entry->getUserOnlySearch(),
+            'public_date' => $old_meta_entry->getPublicDate(),
         );
 
         foreach ($existing_values as $key => $value) {
@@ -4061,6 +5138,7 @@ if ($debug)
             $new_datafield_meta->setRadioOptionDisplayUnselected( $old_meta_entry->getRadioOptionDisplayUnselected() );
             $new_datafield_meta->setSearchable( $old_meta_entry->getSearchable() );
             $new_datafield_meta->setUserOnlySearch( $old_meta_entry->getUserOnlySearch() );
+            $new_datafield_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
             $new_datafield_meta->setCreatedBy($user);
         }
@@ -4105,6 +5183,8 @@ if ($debug)
             $new_datafield_meta->setSearchable( $properties['searchable'] );
         if ( isset($properties['user_only_search']) )
             $new_datafield_meta->setUserOnlySearch( $properties['user_only_search'] );
+        if ( isset($properties['public_date']) )
+            $new_datafield_meta->setPublicDate( $properties['public_date'] );
 
         $new_datafield_meta->setUpdatedBy($user);
 

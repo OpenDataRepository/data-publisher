@@ -1,9 +1,7 @@
-# @deprecated
-ODR\AdminBundle\Entity\UserFieldPermissions:
+ODR\AdminBundle\Entity\UserGroup:
     type: entity
-    table: odr_user_field_permissions
+    table: odr_user_group
     gedmo:
-#        loggable: true
         soft_deleteable:
             field_name: deletedAt
     fields:
@@ -15,33 +13,14 @@ ODR\AdminBundle\Entity\UserFieldPermissions:
             generator:
                 strategy: IDENTITY
 
-        can_view_field:
-            type: integer
-            unsigned: false
-            nullable: false
-            default: 0
-
-        can_edit_field:
-            type: integer
-            unsigned: false
-            nullable: false
-            default: 0
-
         created:
             type: datetime
             gedmo:
                 timestampable:
                     on: create
-        updated:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: update
         deletedAt:
             type: datetime
             nullable: true
-#            gedmo:
-#                - versioned
 
     manyToOne:
         user:
@@ -53,23 +32,13 @@ ODR\AdminBundle\Entity\UserFieldPermissions:
                 user_id:
                     referencedColumnName: id
             orphanRemoval: false
-
-        dataField:
-            targetEntity: DataFields
+        group:
+            targetEntity: Group
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: userGroups
             joinColumns:
-                data_field_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-        dataType:
-            targetEntity: DataType
-            cascade: {  }
-            mappedBy: null
-            inversedBy: null
-            joinColumns:
-                data_type_id:
+                group_id:
                     referencedColumnName: id
             orphanRemoval: false
 
@@ -78,17 +47,19 @@ ODR\AdminBundle\Entity\UserFieldPermissions:
             cascade: {  }
             mappedBy: null
             inversedBy: null
+            fetch: LAZY
             joinColumns:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
-        updatedBy:
+        deletedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
             mappedBy: null
             inversedBy: null
+            fetch: LAZY
             joinColumns:
-                createdBy:
+                deletedBy:
                     referencedColumnName: id
             orphanRemoval: false
 

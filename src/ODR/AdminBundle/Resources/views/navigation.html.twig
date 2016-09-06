@@ -11,13 +11,13 @@
     {% endif %}
 {% endfor %}
 
-{% set has_datatype_admin = false %}
+{% set is_datatype_admin = false %}
 {% if level == 7 %}
-    {% set has_datatype_admin = true %}
+    {% set is_datatype_admin = true %}
 {% else %}
     {% for datatype_id, permissions in user_permissions %}
-        {% if user_permissions[ datatype_id ][ 'admin' ] is defined %}
-            {% set has_datatype_admin = true %}
+        {% if user_permissions[ datatype_id ][ 'dt_admin' ] is defined %}
+            {% set is_datatype_admin = true %}
         {% endif %}
     {% endfor %}
 {% endif %}
@@ -39,7 +39,7 @@
             <a class="address" href="#{{ path('odr_list_types', { 'section': 'design' } ) }}" title="List Databases"><i class="fa fa-lg fa-fw fa-cog"></i>List Databases</a>
         </li>
 
-{% if has_datatype_admin == true %}
+{% if is_datatype_admin == true %}
         <li class="ODRMenuExpand Pointer">
             <a><i class="fa fa-lg fa-group fa-fw"></i>User Management</a>
             <ul>
@@ -63,8 +63,7 @@
 //        $("li.ODRMenuExpand > ul").hide();
         $("li.ODRMenuExpand > ul").removeAttr('style');
         
-        $("li.ODRMenuExpand").unbind('click');
-        $("li.ODRMenuExpand").click(function() {
+        $("li.ODRMenuExpand").unbind('click').click(function() {
             $("li.ODRMenuExpand > ul").hide();
 //            $(this).children("ul").show();
             $(this).children("ul").css(
