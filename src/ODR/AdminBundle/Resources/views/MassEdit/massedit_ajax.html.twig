@@ -69,8 +69,7 @@ $(function() {
     window.scrollTo(0,0);
 
     // Tristate checkbox
-    $(".ODRTristateCheckbox").unbind('click');
-    $(".ODRTristateCheckbox").click(function() {
+    $(".ODRTristateCheckbox").unbind('click').click(function() {
         // Grab data about the option being clicked
         var icon = $(this).children('i').first();
         var input = $(this).children('input').first();
@@ -147,8 +146,7 @@ function initPage() {
         }
     });
 
-    $(".ODRDatePicker_clear").unbind('click');
-    $(".ODRDatePicker_clear").click(function() {
+    $(".ODRDatePicker_clear").unbind('click').click(function() {
         $(this).parent().parent().find(".ODRDatePicker").datepicker('setDate', null);
     });
 }

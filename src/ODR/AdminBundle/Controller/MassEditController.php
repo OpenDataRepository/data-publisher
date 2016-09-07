@@ -17,6 +17,8 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
+// Controllers/Classes
+use ODR\OpenRepository\SearchBundle\Controller\DefaultController as SearchController;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
@@ -76,11 +78,20 @@ class MassEditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_edit_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
+                $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'edit' ])) )
+            if ( !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -177,8 +188,9 @@ class MassEditController extends ODRCustomController
         // Determine user privileges
         /** @var User $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
-        $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
-        $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+        $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+        $datatype_permissions = $user_permissions['datatypes'];
+        $datafield_permissions = $user_permissions['datafields'];
         // --------------------
 
         $bypass_cache = false;
@@ -209,8 +221,8 @@ class MassEditController extends ODRCustomController
 
         // ----------------------------------------
         // Filter by user permissions
-        $datarecord_data = array();
-        parent::filterByUserPermissions($datatype_array, $datarecord_data, $datatype_permissions, $datafield_permissions);
+        $datarecord_array = array();
+        parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 
         // Render the MassEdit page
@@ -271,6 +283,10 @@ class MassEditController extends ODRCustomController
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
 //            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
 
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
 //            $redis = $this->container->get('snc_redis.default');;
 //            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -283,12 +299,22 @@ class MassEditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-//            $logged_in = true;
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_edit_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
+                $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'edit' ])) )
+            if ( !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
                 return parent::permissionDeniedError("edit");
+
+            // Don't need to consider the 'dr_view' permission here since the datarecord list acquired via beanstalk is already filtered
             // --------------------
 
 
@@ -309,6 +335,7 @@ class MassEditController extends ODRCustomController
             // If the datarecord list doesn't exist for some reason, or the user is attempting to view a datarecord from a search that returned no results...
             if ( !isset($list[$odr_tab_id]) || ($encoded_search_key !== '' && $datarecords === '') ) {
                 // ...redirect to "no results found" page
+                /** @var SearchController $search_controller */
                 $search_controller = $this->get('odr_search_controller', $request);
                 $search_controller->setContainer($this->container);
 

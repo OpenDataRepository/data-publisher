@@ -3,14 +3,14 @@
 {% set can_edit_record = 0 %}
 {% set can_delete_record = 0 %}
 {% set can_add_record = 0 %}
-{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'edit' ] is defined %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
     {# Edit page for a datarecord can be accessed if user has permissions for a childtype, need to verify that user has permissions to edit the parent datatype #}
     {% set can_edit_record = 1 %}
 {% endif %}
-{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'delete' ] is defined %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
     {% set can_delete_record = 1 %}
 {% endif %}
-{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'add' ] is defined %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
     {% set can_add_record = 1 %}
 {% endif %}
 

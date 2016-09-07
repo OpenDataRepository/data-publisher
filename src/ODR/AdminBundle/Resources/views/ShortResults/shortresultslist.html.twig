@@ -3,10 +3,8 @@
 {% set datatype = datatype_array[initial_datatype_id] %}
 
 {% set can_edit_datarecord = false %}
-{% if user_permissions[ datatype.id ] is defined %}
-    {% if user_permissions[ datatype.id ][ 'edit' ] is defined or user_permissions[ datatype.id ][ 'child_edit' ] is defined %}
-        {% set can_edit_datarecord = true %}
-    {% endif %}
+{% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
+    {% set can_edit_datarecord = true %}
 {% endif %}
 
 <div class="ODRFormWrap"> 

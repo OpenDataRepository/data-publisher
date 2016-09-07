@@ -2,10 +2,8 @@
 
 {% set can_edit_datarecord = false %}
 
-{% if user_permissions[ datatype.id ] is defined %}
-    {% if user_permissions[ datatype.id ][ 'edit' ] is defined or user_permissions[ datatype.id ][ 'child_edit' ] is defined %}
-        {% set can_edit_datarecord = true %}
-    {% endif %}
+{% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
+    {% set can_edit_datarecord = true %}
 {% endif %}
 
 <div class="ODRFormWrap" {#style="min-height: 800px;"#}> 
@@ -13,9 +11,9 @@
         <div class="box">
             <div class="header">
             {% if target == "results" %}
-                <h2>Display Records - {{ datatype.shortname }}</h2>
+                <h2>Display Records - {{ datatype.dataTypeMeta.shortName }}</h2>
             {% else %}
-                <h2>Edit Records - {{ datatype.shortname }}</h2>
+                <h2>Edit Records - {{ datatype.dataTypeMeta.shortName }}</h2>
             {% endif %}
             </div>
             <div id="TextResults_wrapper" class="ODRTableOuterWrap">
@@ -199,8 +197,7 @@
         });
 
 {% if can_edit_datarecord %}
-        $(".ODREditLink").unbind('click');
-        $(".ODREditLink").click(function(event) {
+        $(".ODREditLink").unbind('click').click(function(event) {
             // Don't load view mode for Datarecord
             event.stopImmediatePropagation();
             // Load edit mode of Datarecord instead
@@ -209,8 +206,7 @@
 {% endif %}
 
         // Prevent the click handler for <tr> elements from firing if <a> is clicked
-        $("a.ODRDownload").unbind('click');
-        $("a.ODRDownload").click(function(event) {
+        $("a.ODRDownload").unbind('click').click(function(event) {
             event.stopImmediatePropagation();
         });
     });

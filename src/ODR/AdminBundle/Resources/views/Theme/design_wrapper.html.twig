@@ -211,7 +211,6 @@
             var theme_id = $(this).attr('rel');
 
             // Load form for current datfield if not already loaded
-            $("#ODRThemePropertiesFormDiv").hide().html("");
             var url = '{{ path('odr_design_load_theme', { 'theme_id': 0 } ) }}';
             url = url.substring(0, (url.length - 1));
             url += theme_id;
@@ -227,6 +226,16 @@
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
                         $("#ElementData").html('');
+
+                        // Hide the theme properties div if there's a theme in there and the user loaded the datafield list for another theme
+                        var active_theme_properties = $(".ODRThemeProperties.ODRActiveIcon");
+                        if ( active_theme_properties.length > 0 ) {
+                            if ( $(active_theme_properties).attr('rel') != theme_id ) {
+                                $("#ODRThemePropertiesFormDiv").hide().html("");
+                                $(active_theme_properties).removeClass("ODRActiveIcon");
+                            }
+                        }
+
                         $("#ODRThemeListContent").html('');
                         $("#ODRThemeListContent").html(data.d.html).fadeIn('fast');
 
@@ -315,20 +324,9 @@
                 $(this).hide();
         });
 
-        // Attach an overlay div of sorts over each datafield
-        $(".ODROverlayDiv").each(function() {
-            // Need dimensions of parent div...
-            var height = $(this).parent().css('height');
-            var width = $(this).parent().css('width');
+        // Create overlay divs for each of the datafields in the master theme area
+        resizeOverlayDivs();
 
-            // Apply dimensions of parent div to loading div
-            $(this).css({"height": height, "line-height": height, "width": width});
-
-            if ( $(this).hasClass('ODRInvalidDatafield') )
-                $(this).attr('title', "This datafield can't be used by the selected Theme");
-            else
-                $(this).attr('title', "This datafield is currently not being used by the selected Theme");
-        });
         $("#ODRThemeListDesign_master").hide();
 
         $("#ODRThemeListDesign_derivative").find(".ODRDataField").each(function() {
@@ -375,6 +373,33 @@
                 $(this).next().hide();
                 $(this).find('i').addClass('fa-caret-up').removeClass('fa-caret-down');
             }
+        });
+
+        // Resize all overlay divs on window size
+        $(window).unbind('resize');
+        $(window).resize(function() {
+            WindowResizeInterval = window.clearInterval(WindowResizeInterval);
+            WindowResizeInterval = window.setInterval("resizeOverlayDivs()", 50);
+        });
+    }
+
+    var WindowResizeInterval = "";
+    function resizeOverlayDivs() {
+        WindowResizeInterval = window.clearInterval(WindowResizeInterval);
+
+        // Attach an overlay div of sorts over each datafield
+        $(".ODROverlayDiv").each(function() {
+            // Need dimensions of parent div...
+            var height = $(this).parent().css('height');
+            var width = $(this).parent().css('width');
+
+            // Apply dimensions of parent div to loading div
+            $(this).css({"height": height, "line-height": height, "width": width});
+
+            if ( $(this).hasClass('ODRInvalidDatafield') )
+                $(this).attr('title', "This datafield can't be used by the selected Theme");
+            else
+                $(this).attr('title', "This datafield is currently not being used by the selected Theme");
         });
     }
 
@@ -532,57 +557,6 @@
                     // If the Sfjs object exists
                     if (typeof Sfjs !== "undefined") {
 
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
-                }
-            });
-        });
-
-        $("#ODRThemeListDesign_derivative").find(".ODRPublicThemeElement").unbind('click').click(function() {
-
-            var theme_element_id_data = $(this).parent().parent().parent().parent().attr('id').split(/_/);
-            var theme_element_id = theme_element_id_data[1];
-            var element = $(this);
-
-            var url  = '{{ path('odr_design_public_theme_element', {'theme_element_id': 0} ) }}';
-            url = url.substring(0,(url.length-1));
-            url += theme_element_id;
-
-//alert( url );
-//return;
-
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        // Toggle muted status
-                        var icons = {};
-                        if ( $(element).hasClass('ODRActiveIcon') )
-                            icons = {"ODRPublicThemeElement": 0};
-                        else
-                            icons = {"ODRPublicThemeElement": 1};
-
-                        setThemeElementIcons(theme_element_id, icons);
-                    }
-                    else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        alert(data.d);
-                    }
-                },
-                complete: function(jqXHR, textStatus) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
                         // Grab the toolbar element
                         var currentElement = $('.sf-toolbar')[0];
 
@@ -757,7 +731,7 @@
 
 
     var SaveThemePropertyInterval = [];
-    function SaveThemeProperties(datatype_id, theme_id) {
+    function SaveThemeProperties(datatype_id, theme_id, reload_theme_list) {
         if(SaveThemePropertyInterval[theme_id] != undefined)
             SaveThemePropertyInterval[theme_id] = window.clearInterval(SaveThemePropertyInterval[theme_id]);
 
@@ -779,7 +753,8 @@
 //                    notifySaved();
 
                     // Forcibly reload theme div
-                    LoadThemeList(datatype_id);
+                    if (reload_theme_list)
+                        LoadThemeList(datatype_id);
                 }
                 else {
                     // An error has occurred.
@@ -833,7 +808,7 @@
             if($(this).is(":checkbox")) {
                 $(this).unbind('change').change(function() {
                     SaveThemePropertyInterval[theme_id] = window.clearInterval(SaveThemePropertyInterval[theme_id]);
-                    SaveThemePropertyInterval[theme_id] = window.setInterval("SaveThemeProperties(" + datatype_id + "," + theme_id + ")", SaveTimeout);
+                    SaveThemePropertyInterval[theme_id] = window.setInterval("SaveThemeProperties(" + datatype_id + "," + theme_id + ", true)", SaveTimeout);
                 });
             }
             else {
@@ -847,7 +822,7 @@
                     }
 
                     SaveThemePropertyInterval[theme_id] = window.clearInterval(SaveThemePropertyInterval[theme_id]);
-                    SaveThemePropertyInterval[theme_id] = window.setInterval("SaveThemeProperties(" + datatype_id + "," + theme_id + ")", SaveTimeout);
+                    SaveThemePropertyInterval[theme_id] = window.setInterval("SaveThemeProperties(" + datatype_id + "," + theme_id + ", false)", SaveTimeout);
                 });
             }
         });

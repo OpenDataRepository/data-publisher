@@ -86,10 +86,11 @@ class CSVImportController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )    // TODO - less restrictive permissions?
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -121,7 +122,7 @@ class CSVImportController extends ODRCustomController
             foreach ($datatree_array['descendant_of'] as $dt_id => $parent_dt_id) {
                 if ($parent_dt_id == $datatype_id) {
                     // Ensure user has permissions to modify this childtype before storing it
-                    if ( isset($user_permissions[ $dt_id ]) && $user_permissions[ $dt_id ]['edit'] == 1 ) {
+                    if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ]['dr_edit']) ) {
 
                         // Only store the childtype if it doesn't have children of its own...
                         if ( !in_array($dt_id, $datatree_array['descendant_of']) )
@@ -136,7 +137,7 @@ class CSVImportController extends ODRCustomController
             foreach ($datatree_array['linked_from'] as $descendant_dt_id => $ancestor_ids) {
                 if ( in_array($datatype_id, $ancestor_ids) ) {
                     // Ensure user has permissions to modify this linked type before storing it
-                    if ( isset($user_permissions[ $descendant_dt_id ]) && $user_permissions[ $descendant_dt_id ]['edit'] == 1 ) {
+                    if ( isset($datatype_permissions[ $descendant_dt_id ]) && isset($datatype_permissions[ $descendant_dt_id ]['dr_edit']) ) {
                         $linked_types[] = $repo_datatype->find($descendant_dt_id);
                     }
                 }
@@ -282,10 +283,12 @@ class CSVImportController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+//            $datafield_permissions = $user_permissions['datafields'];     // TODO - eventually need to use this alongside the less restrictiev permissions?
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $target_datatype->getId() ]) && isset($user_permissions[ $target_datatype->getId() ][ 'edit' ])) )
+            if ( !(isset($datatype_permissions[ $source_datatype_id ]) && isset($datatype_permissions[ $source_datatype_id ][ 'dt_admin' ])) )    // TODO - less restrictive permissions?
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -927,10 +930,11 @@ class CSVImportController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )    // TODO - less restrictive permissions?
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -2024,10 +2028,11 @@ class CSVImportController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )    // TODO - less restrictive permissions?
                 return parent::permissionDeniedError("edit");
 
             // TODO - permissions check may need to be more involved than just checking whether the user accessing this can edit the datatype...
@@ -2081,7 +2086,7 @@ class CSVImportController extends ODRCustomController
                 foreach ($datatree_array['descendant_of'] as $dt_id => $parent_dt_id) {
                     if ($parent_dt_id == $datatype_id) {
                         // Ensure user has permissions to modify this childtype before storing it
-                        if (isset($user_permissions[$dt_id]) && $user_permissions[$dt_id]['edit'] == 1) {
+                        if (isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_edit']) ) {
 
                             // Only store the childtype if it doesn't have children of its own...
                             if ( !in_array($dt_id, $datatree_array['descendant_of']) )
@@ -2099,7 +2104,7 @@ class CSVImportController extends ODRCustomController
                 foreach ($datatree_array['linked_from'] as $descendant_dt_id => $ancestor_ids) {
                     if ( in_array($datatype_id, $ancestor_ids) ) {
                         // Ensure user has permissions to modify this linked type before storing it
-                        if (isset($user_permissions[$descendant_dt_id]) && $user_permissions[$descendant_dt_id]['edit'] == 1) {
+                        if (isset($datatype_permissions[$descendant_dt_id]) && isset($datatype_permissions[$descendant_dt_id]['dr_edit']) ) {
                             $linked_types[] = $repo_datatype->find($descendant_dt_id);
                         }
                     }
@@ -2296,10 +2301,11 @@ class CSVImportController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )    // TODO - less restrictive permissions?
                 return parent::permissionDeniedError("edit");
 
             // TODO - permissions check may need to be more involved than just checking whether the user accessing this can edit the datatype...

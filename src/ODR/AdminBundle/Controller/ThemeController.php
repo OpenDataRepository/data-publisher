@@ -70,10 +70,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError('design');
             // --------------------
 
@@ -144,10 +145,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError('design');
             // --------------------
 
@@ -242,10 +244,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError('design');
             // --------------------
 
@@ -256,7 +259,7 @@ class ThemeController extends ODRCustomController
             // ----------------------------------------
             // Determine whether this theme should be set as default
             $query = $em->createQuery(
-                'SELECT t
+               'SELECT t
                 FROM ODRAdminBundle:Theme AS t
                 WHERE t.dataType = :datatype_id AND t.themeType = :theme_type
                 AND t.deletedAt IS NULL'
@@ -293,25 +296,7 @@ class ThemeController extends ODRCustomController
             $em->persist($theme_meta);
 
             // Create a new default Theme Element for the theme
-            $data = parent::ODR_addThemeElement($em, $user, $theme);
-
-            // Ensure the theme element is public if it's for a table theme
-            if ($theme_type == 'table') {
-                /** @var ThemeElement $theme_element */
-                $theme_element = $data['theme_element'];
-                /** @var ThemeElementMeta $theme_element_meta */
-                $theme_element_meta = $data['theme_element_meta'];
-
-                // Ensure $theme_element_meta is in the database
-                $em->flush();
-                $em->refresh($theme_element_meta);
-
-                $properties = array(
-                    'publicDate' => new \DateTime()
-                );
-                parent::ODR_copyThemeElementMeta($em, $user, $theme_element, $properties);
-            }
-
+            parent::ODR_addThemeElement($em, $user, $theme);
 
             // Ensure that the datatype knows it has this particular theme type available to it
             if ($theme_type == 'search_results' && $datatype->getHasShortresults() == false) {
@@ -368,9 +353,6 @@ class ThemeController extends ODRCustomController
             if ($theme == null)
                 return parent::deletedEntityError('Theme');
 
-            if ($theme->getThemeType() == 'master')
-                throw new \Exception('ThemeController::loadthemeAction() attempted to load a "master" theme');
-
             $datatype = $theme->getDataType();
             if ($datatype->getDeletedAt() !== null)
                 return parent::deletedEntityError('Datatype');
@@ -384,12 +366,16 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
+
+            if ($theme->getThemeType() == 'master')
+                throw new \Exception('ThemeController::loadthemeAction() attempted to load a "master" theme');
 
 
             // ----------------------------------------
@@ -483,10 +469,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -571,10 +558,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -687,10 +675,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -770,10 +759,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -863,10 +853,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -988,10 +979,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1022,88 +1014,6 @@ class ThemeController extends ODRCustomController
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x8283002 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
-     * Toggles public status of a theme element.
-     *
-     * @param integer $theme_element_id
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function themeelementpublicAction($theme_element_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
-            if ($theme_element == null)
-                return parent::deletedEntityError('ThemeElement');
-
-            $theme = $theme_element->getTheme();
-            if ($theme == null)
-                return parent::deletedEntityError('Theme');
-
-            $datatype = $theme->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-            // Not allowed to change public status of a theme element for a table theme
-            if ($theme->getThemeType() == 'table')
-                throw new \Exception('Not allowed to change public status for a theme element belonging to a table theme');
-
-
-            // TODO - how will this affect datafield permissions?  users without view permissions should get can_view_field revoked?  what about permissions clash with can_view_type for child/linked datatype?
-//            throw new \Exception('do not continue');
-
-            if ($theme_element->isPublic()) {
-                // Make the theme element not-public
-                $properties = array(
-                    'publicDate' => new \DateTime('2200-00-00 00:00:00')
-                );
-                parent::ODR_copyThemeElementMeta($em, $user, $theme_element, $properties);
-            }
-            else {
-                // Make the theme element public
-                $properties = array(
-                    'publicDate' => new \DateTime()
-                );
-                parent::ODR_copyThemeElementMeta($em, $user, $theme_element, $properties);
-            }
-
-            // TODO - update cached version directly?
-            parent::tmp_updateThemeCache($em, $theme, $user);
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x65828302 ' . $e->getMessage();
         }
 
         $response = new Response(json_encode($return));
@@ -1157,10 +1067,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1270,10 +1181,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1403,10 +1315,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1485,10 +1398,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1559,14 +1473,28 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-            // TODO - ensure datafield list in $post is valid?
+            // Ensure datafield list in $post is valid
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                WHERE df.id IN (:datafields)
+                AND df.deletedAt IS NULL AND dt.deletedAt IS NULL
+                GROUP BY dt.id'
+            )->setParameters( array('datafields' => $post) );
+            $results = $query->getArrayResult();
+
+            if ( count($results) > 1 )
+                throw new \Exception('Invalid Datafield list');
+
 
             // There aren't appreciable differences between 'master', 'search_results', and 'table' themes...at least as far as changing datafield order is concerned
 
@@ -1677,10 +1605,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1766,10 +1695,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1862,10 +1792,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1938,10 +1869,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -2028,10 +1960,11 @@ class ThemeController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -2182,6 +2115,7 @@ class ThemeController extends ODRCustomController
 
 //print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 
+        // Don't need to filter by group permissions...have to be a datatype admin to get to this point, which will let them see everything anyways
 
         // ----------------------------------------
         // Render the required version of the page

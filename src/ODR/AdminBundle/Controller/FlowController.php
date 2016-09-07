@@ -13,6 +13,9 @@
  *
  * @see https://github.com/flowjs/flow.js
  * @see https://github.com/flowjs/flow-php-server
+ *
+ * saveFile(), validateFile(), saveChunk(), validateChunk(), getChunkPath(), checkChunk() in particular borrow heavily from
+ * @see https://github.com/flowjs/flow-php-server/blob/master/src/Flow/File.php
  */
 
 namespace ODR\AdminBundle\Controller;
@@ -112,7 +115,7 @@ class FlowController extends ODRCustomController
      * @param integer $datafield_id
      * @param Request $request
      * 
-     * @return Response TODO
+     * @return Response
      */
     public function flowAction($upload_type, $datatype_id, $datarecord_id, $datafield_id, Request $request)
     {
@@ -164,16 +167,18 @@ class FlowController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_id = $user->getId();
-            $datatype_permissions = parent::getPermissionsArray($user_id, $request);
+
+            $user_permissions = parent::getUserPermissionsArray($em, $user_id);
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'edit' ])) )
+            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dr_edit' ])) )
                 return self::flowAbort('Permission denied');
 
             if ($datafield_id !== null) {
-//                $datafield_permissions = parent::getDatafieldPermissionsArray($user_id, $request);
-//                if ( !(isset($datafield_permissions[ $datafield_id ]) && isset($datafield_permissions[ $datafield_id ][ 'edit' ])) )
-//                    return self::flowAbort('Permission denied');
+                if ( !(isset($datafield_permissions[ $datafield_id ]) && isset($datafield_permissions[ $datafield_id ][ 'edit' ])) )
+                    return self::flowAbort('Permission denied');
             }
 
 
@@ -352,6 +357,7 @@ class FlowController extends ODRCustomController
         $session = $request->getSession();
         $session->set('csv_file', $final_filename);
     }
+
 
     /**
      * Moves the specified file from the upload directory to the user's XMLImport directory.

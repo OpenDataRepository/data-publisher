@@ -35,7 +35,7 @@ class JobController extends ODRCustomController
      * 
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function listAction(Request $request)
     {
@@ -47,7 +47,7 @@ class JobController extends ODRCustomController
         try {
 
             $jobs = array(
-                'recache' => 'Recaching',
+//                'recache' => 'Recaching',
                 'migrate' => 'DataField Migration',
                 'mass_edit' => 'Mass Updates',
 //                'rebuild_thumbnails'
@@ -83,13 +83,13 @@ class JobController extends ODRCustomController
 
 
     /**
-     * Wrapper function to...TODO
+     * Wrapper function for self::refreshJob()
      * 
      * @param string $job_type
      * @param integer $job_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function refreshAction($job_type, $job_id, Request $request)
     {
@@ -134,7 +134,9 @@ class JobController extends ODRCustomController
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
         $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
         $repo_tracked_jobs = $em->getRepository('ODRAdminBundle:TrackedJob');
-        $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+
+        $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+        $datatype_permissions = $user_permissions['datatypes'];
 
         $datatree_array = parent::getDatatreeArray($em);
         $parameters = array();
@@ -164,7 +166,7 @@ class JobController extends ODRCustomController
                 $tmp = explode('_', $target_entity);
                 $datatype_id = $tmp[1];
 
-                if ( !(isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['view']) && $user_permissions[$datatype_id]['view'] == 1) )
+                if ( !(isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view'])) )
                     continue;
 
                 // Store whether user has permissions to delete this job
@@ -230,7 +232,7 @@ class JobController extends ODRCustomController
 
                     // TODO - able to delete jobs at anytime
                     // For now, only permit deletion of jobs when they're finished
-                    if ( isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['admin']) && $user_permissions[$datatype_id]['admin'] == 1 )
+                    if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_admin']) )
                         $can_delete = true;
                 }
 
@@ -347,7 +349,6 @@ class JobController extends ODRCustomController
 
     /**
      * Utility function to turn PHP DateIntervals into strings more effectively
-     * TODO - improve this
      *
      * @param \DateInterval $interval
      *
@@ -381,148 +382,12 @@ class JobController extends ODRCustomController
 
 
     /**
-     * Builds and returns a JSON array of any TrackedError entities that exist for a given TrackedJob
-     * 
-     * @param integer $job_id Which TrackedJob to look at
-     * @param Request $request
-     *
-     * @return Response TODO
-     */
-    /*
-    public function getjoberrorsAction($job_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Get necessary objects
-            $em = $this->getDoctrine()->getManager();
-            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-
-            // --------------------
-            // Get datatype from job
-            $tracked_job = $repo_tracked_job->find($job_id);
-            if ($tracked_job == null)
-                return parent::deletedEntityError('Job');
-
-            $job_type = $tracked_job->getJobType();
-            $tmp = '';
-            if ($job_type == 'migrate')
-                $tmp = $tracked_job->getRestrictions();
-            else
-                $tmp = $tracked_job->getTargetEntity();
-
-            $tmp = explode('_', $tmp);
-            $datatype_id = $tmp[1];
-
-            $datatype = $repo_datatype->find($datatype_id);
-            if ($datatype == null)
-                return parent::deletedEntityError('Job');
-
-
-            // --------------------
-            // Determine user privileges
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-            $return['d'] = parent::ODR_getTrackedErrorArray($em, $job_id);
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x34272215 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-    */
-
-    /**
-     * Deletes all TrackedErrors for a given TrackedJob
-     * 
-     * @param integer $job_id
-     * @param Request $request
-     *
-     * @return Response TODO
-     */
-    /*
-    public function deletejoberrorsAction($job_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Get necessary objects
-            $em = $this->getDoctrine()->getManager();
-            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-
-            // Locate datatype_id from the tracked job
-            $tracked_job = $repo_tracked_job->find($job_id);
-            if ($tracked_job !== null) {
-
-                $job_type = $tracked_job->getJobType();
-                $tmp = '';
-                if ($job_type == 'migrate')
-                    $tmp = $tracked_job->getRestrictions();
-                else
-                    $tmp = $tracked_job->getTargetEntity();
-
-                $tmp = explode('_', $tmp);
-                $datatype_id = $tmp[1];
-
-                $datatype = $repo_datatype->find($datatype_id);
-                // If the Datatype is deleted, there's no point to this job...delete it
-                if ($datatype == null) {
-//                return parent::deletedEntityError('Job');
-                    return self::deletejobAction($job_id, $request);
-                }
-
-                // --------------------
-                // Determine user privileges
-                $user = $this->container->get('security.token_storage')->getToken()->getUser();
-                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-                // Ensure user has permissions to be doing this
-                if (!(isset($user_permissions[$datatype->getId()]) && isset($user_permissions[$datatype->getId()]['admin'])))   // TODO - probably needs to be changed...
-                    return parent::permissionDeniedError("admin");
-                // --------------------
-            }
-
-            // Delete all errors attached to this job
-            parent::ODR_deleteTrackedErrorsByJob($em, $job_id);
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x32791345 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-    */
-
-    /**
      * Deletes a single TrackedJob entity
      * 
      * @param integer $job_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function deletejobAction($job_id, Request $request)
     {
@@ -571,10 +436,11 @@ class JobController extends ODRCustomController
                     // Determine user privileges
                     /** @var User $user */
                     $user = $this->container->get('security.token_storage')->getToken()->getUser();
-                    $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+                    $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                    $datatype_permissions = $user_permissions['datatypes'];
 
                     // Ensure user has permissions to be doing this
-                    if ( !(isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['admin']) && $user_permissions[$datatype_id]['admin'] == 1) )   // TODO - change from is_admin permission?
+                    if ( !(isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_admin'])) )   // TODO - change from is_admin permission?
                         return parent::permissionDeniedError("admin");
                     // --------------------
                 }

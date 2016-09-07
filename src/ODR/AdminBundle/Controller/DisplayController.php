@@ -433,15 +433,15 @@ class DisplayController extends ODRCustomController
 
                 $can_view_datatype = false;
                 if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = false;
+                    $can_view_datatype = true;
 
                 $can_view_datarecord = false;
                 if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = false;
+                    $can_view_datarecord = true;
 
                 $can_view_datafield = false;
                 if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                    $can_view_datafield = false;
+                    $can_view_datafield = true;
 
                 // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
                 if ( !($original_datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
@@ -635,15 +635,15 @@ class DisplayController extends ODRCustomController
 
                 $can_view_datatype = false;
                 if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = false;
+                    $can_view_datatype = true;
 
                 $can_view_datarecord = false;
                 if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = false;
+                    $can_view_datarecord = true;
 
                 $can_view_datafield = false;
                 if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                    $can_view_datafield = false;
+                    $can_view_datafield = true;
 
                 // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
                 if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
@@ -981,15 +981,15 @@ fclose($log_file);
 
             $can_view_datatype = false;
             if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                $can_view_datatype = false;
+                $can_view_datatype = true;
 
             $can_view_datarecord = false;
             if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                $can_view_datarecord = false;
+                $can_view_datarecord = true;
 
             $can_view_datafield = false;
             if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                $can_view_datafield = false;
+                $can_view_datafield = true;
 
             // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
             if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
@@ -1087,15 +1087,15 @@ fclose($log_file);
 
                     $can_view_datatype = false;
                     if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                        $can_view_datatype = false;
+                        $can_view_datatype = true;
 
                     $can_view_datarecord = false;
                     if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                        $can_view_datarecord = false;
+                        $can_view_datarecord = true;
 
                     $can_view_datafield = false;
                     if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                        $can_view_datafield = false;
+                        $can_view_datafield = true;
 
                     // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
                     if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )

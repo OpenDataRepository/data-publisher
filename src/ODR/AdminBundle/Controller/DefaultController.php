@@ -120,7 +120,8 @@ class DefaultController extends ODRCustomController
 
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Grab the cached graph data
             $redis = $this->container->get('snc_redis.default');;
@@ -136,7 +137,7 @@ class DefaultController extends ODRCustomController
             $dashboard_graphs = array();
             foreach ($datatypes as $num => $datatype_id) {
                 // Don't display dashboard stuff that the user doesn't have permission to see
-                if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'view' ])) ) {
+                if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_view' ])) ) {
 //print 'no permissions for datatype '.$datatype_id."\n";
                     continue;
                 }

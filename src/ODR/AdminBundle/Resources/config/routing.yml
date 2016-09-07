@@ -301,13 +301,6 @@ odr_design_save_theme_element_order:
     defaults: { _controller: ODRAdminBundle:Theme:themeelementorder }
     requirements: { methods: POST }
 
-# @deprecated
-odr_design_public_theme_element:
-    path:  /design/themeelement/public/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Theme:themeelementpublic }
-    requirements:
-        theme_element_id:  \d+
-
 
 odr_design_attach_datafield:
     path:  /design/displaytemplate/attachdatafield/{datafield_id}/{theme_element_id}
@@ -707,9 +700,9 @@ odr_record_save_image_order:
     defaults: { _controller: ODRAdminBundle:Edit:saveimageorder }
     requirements: { methods: POST }
 
-odr_record_get_linkable_records:
+odr_record_get_linkable_datarecords:
     path:  /edit/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}/{search_key}
-    defaults: { _controller: ODRAdminBundle:Edit:getlinkablerecords, search_key: '' }
+    defaults: { _controller: ODRAdminBundle:Edit:getlinkabledatarecords, search_key: '' }
     requirements:
         ancestor_datatype_id:  \d+
         descendant_datatype_id:  \d+
@@ -717,9 +710,9 @@ odr_record_get_linkable_records:
         search_key: '[^\/]*'
 
 
-odr_link_records:
+odr_link_datarecords:
     path:  /edit/linkrecords
-    defaults: { _controller: ODRAdminBundle:Edit:linkrecord }
+    defaults: { _controller: ODRAdminBundle:Edit:linkdatarecords }
     requirements: { methods: POST }
 
 odr_record_get_field_history:

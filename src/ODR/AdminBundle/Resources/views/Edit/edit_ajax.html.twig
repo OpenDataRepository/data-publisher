@@ -5,13 +5,13 @@
 
 <div class="ODRFormHeader clearfix">
     {% for ancestor_id, ancestor_name in linked_datatype_ancestors %}
-        {% if datatype_permissions[ ancestor_id ] is defined and datatype_permissions[ ancestor_id ][ 'edit' ] is defined %}
+        {% if datatype_permissions[ ancestor_id ] is defined and datatype_permissions[ ancestor_id ][ 'dr_edit' ] is defined %}
             <button type="button" class="pure-button" onclick="LinkRecord({{ ancestor_id }},{{ datatype.id }},{{ datarecord.id }});">Link to {{ ancestor_name }}.</button>
         {% endif %}
     {% endfor %}
 
     {% for descendant_id, descendant_name in linked_datatype_descendants %}
-        {% if datatype_permissions[ descendant_id ] is defined and datatype_permissions[ descendant_id ][ 'edit' ] is defined %}
+        {% if datatype_permissions[ descendant_id ] is defined and datatype_permissions[ descendant_id ][ 'dr_edit' ] is defined %}
             <button type="button" class="pure-button" onclick="LinkRecord({{ datatype.id }},{{ descendant_id }},{{ datarecord.id }});">Link to {{ descendant_name }}.</button>
         {% endif %}
     {% endfor %}
@@ -53,7 +53,7 @@ $(function() {
     // Resize all elements dependent on window size
     $(window).unbind('resize');
     $(window).resize(function() {
-        WindowResizeInterval = window.clearInterval(WindowResizeInterval);
+        WindowResizeInterval = window.clearInterval(WindowResizeInterval);      // variable WindowResizeInterval defined in common.js
         WindowResizeInterval = window.setInterval("onWindowResize()", 500);
     });
 
@@ -868,7 +868,7 @@ function AddChildRecord(datatype_id, parent_id, grandparent_id) {
 }
 
 function LinkRecord(ancestor_datatype_id, descendant_datatype_id, local_datarecord_id) {
-    var url = '{{ path('odr_record_get_linkable_records', { 'ancestor_datatype_id': 0, 'descendant_datatype_id': 0, 'local_datarecord_id': 0 } ) }}';
+    var url = '{{ path('odr_record_get_linkable_datarecords', { 'ancestor_datatype_id': 0, 'descendant_datatype_id': 0, 'local_datarecord_id': 0 } ) }}';
     url = url.substring(0, (url.length - 5));
     url += ancestor_datatype_id + '/' + descendant_datatype_id + '/' + local_datarecord_id;
 {% if search_key != '' %}

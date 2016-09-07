@@ -143,12 +143,10 @@ class ODRCustomController extends Controller
         $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
         $logged_in = false;
-        $datatype_permissions = array();
-        $datafield_permissions = array();
+        $user_permissions = array();
         if ($user !== 'anon.') {
             $logged_in = true;
-            $datatype_permissions = self::getPermissionsArray($user->getId(), $request);
-            $datafield_permissions = self::getDatafieldPermissionsArray($user->getId(), $request);
+            $user_permissions = self::getUserPermissionsArray($em, $user->getId());
         }
 
         // Grab the tab's id, if it exists
@@ -255,7 +253,7 @@ class ODRCustomController extends Controller
             }
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            self::filterByUserPermissions($datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
+            self::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 
             // -----------------------------------
@@ -273,7 +271,7 @@ class ODRCustomController extends Controller
                     'count' => $total_datarecords,
                     'scroll_target' => $scroll_target,
                     'user' => $user,
-                    'user_permissions' => $datatype_permissions,
+                    'user_permissions' => $user_permissions['datatypes'],
                     'odr_tab_id' => $odr_tab_id,
 
                     'logged_in' => $logged_in,
@@ -320,7 +318,7 @@ exit();
                     'page_length' => $page_length,
                     'scroll_target' => $scroll_target,
                     'user' => $user,
-                    'user_permissions' => $datatype_permissions,
+                    'user_permissions' => $user_permissions['datatypes'],
                     'theme_id' => $theme->getId(),
 
                     'logged_in' => $logged_in,
@@ -363,14 +361,15 @@ exit();
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datafield_permissions = array();
 
-            $can_view_datatype = false;
+            $can_view_datarecord = false;
             if ($user !== 'anon.') {
-                $datatype_permissions = self::getPermissionsArray($user->getId(), $request);
-                $datafield_permissions = self::getDatafieldPermissionsArray($user->getId(), $request);
+                $user_permissions = self::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+                $datafield_permissions = $user_permissions['datafields'];
 
-                // Check if user has permissions to download files
-                if (isset($datatype_permissions[$datatype->getId()]) && isset($datatype_permissions[$datatype->getId()]['view']))
-                    $can_view_datatype = true;
+                // Check if user has permissions to view non-public datarecords
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                    $can_view_datarecord = true;
             }
             // --------------------
 
@@ -398,14 +397,14 @@ exit();
 
                 $row = array();
                 // Only add this datarecord to the list if the user is allowed to see it...
-                if ($can_view_datatype || $data['publicDate']->format('Y-m-d H:i:s') !== '2200-01-01 00:00:00') {
+                if ( $can_view_datarecord || $data['publicDate']->format('Y-m-d H:i:s') !== '2200-01-01 00:00:00' ) {
                     // Don't save values from datafields the user isn't allowed to see...
                     $dr_data = array();
                     foreach ($data[$theme->getId()] as $display_order => $df_data) {        // TODO - apparently provides wrong theme id here at times?
                         $df_id = $df_data['id'];
                         $df_value = $df_data['value'];
 
-                        if (isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']))
+                        if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
                             $dr_data[] = $df_value;
                     }
 
@@ -1962,7 +1961,6 @@ if ($debug)
 
     /**
      * Create a new Group for users of the given datatype.
-     * TODO - move this to like ODRUserController or something?
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user
@@ -3668,9 +3666,10 @@ if ($debug)
 
     /**
      * Creates and persists a new DataRecordField entity, if one does not already exist for the given (DataRecord, DataField) pair.
+     * TODO - do the work needed to allow this to use a  "INSERT IGNORE INTO"  query?
      *
      * @param \Doctrine\ORM\EntityManager $em
-     * @param User $user             The user requesting the creation of this entity
+     * @param User $user                        The user requesting the creation of this entity
      * @param DataRecord $datarecord
      * @param DataFields $datafield
      *
@@ -4151,7 +4150,7 @@ if ($debug)
 
 
     /**
-     * Creates, persists, and flushes a new storage entity
+     * Creates, persists, and flushes a new storage entity.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                        The user requesting the creation of this entity
@@ -5032,7 +5031,7 @@ if ($debug)
         $datafield_meta->setRequired(false);
         $datafield_meta->setSearchable(0);
         $datafield_meta->setUserOnlySearch(false);
-        $datafield_meta->setPublicDate( new \DateTime('2200-00-00 00:00:00') );
+        $datafield_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 
         $datafield_meta->setChildrenPerRow(1);
         $datafield_meta->setRadioOptionNameSort(0);
@@ -5326,7 +5325,7 @@ if ($debug)
      *  updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
      *
      * The $properties parameter must contain at least one of the following keys...
-     * 'displayOrder', 'cssWidthMed', 'cssWidthXL', 'publicDate'
+     * 'displayOrder', 'cssWidthMed', 'cssWidthXL'
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                      The user requesting the modification of this meta entry.
@@ -5347,7 +5346,6 @@ if ($debug)
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
             'cssWidthMed' => $old_meta_entry->getCssWidthMed(),
             'cssWidthXL' => $old_meta_entry->getCssWidthXL(),
-            'publicDate' => $old_meta_entry->getPublicDate(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -5371,7 +5369,6 @@ if ($debug)
             $theme_element_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
             $theme_element_meta->setCssWidthMed( $old_meta_entry->getCssWidthMed() );
             $theme_element_meta->setCssWidthXL( $old_meta_entry->getCssWidthXL() );
-            $theme_element_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
             $theme_element_meta->setCreatedBy($user);
         }
@@ -5388,8 +5385,6 @@ if ($debug)
             $theme_element_meta->setCssWidthMed( $properties['cssWidthMed'] );
         if ( isset($properties['cssWidthXL']) )
             $theme_element_meta->setCssWidthXL( $properties['cssWidthXL'] );
-        if ( isset($properties['publicDate']) )
-            $theme_element_meta->setPublicDate( $properties['publicDate'] );
 
         $theme_element_meta->setUpdatedBy($user);
 
@@ -6459,7 +6454,6 @@ if ($debug)
             // Reload the newly created ImageSize entity
             $image_size = $em->getRepository('ODRAdminBundle:ImageSizes')->findOneBy( array('dataFields' => $datafield->getId(), 'size_constraint' => 'both') );
         }
-
     }
 
 
@@ -6567,23 +6561,8 @@ if ($timing)
             ORDER BY dt.id, t.id, tem.displayOrder, te.id, tdf.displayOrder, df.id, rom.displayOrder, ro.id'
         )->setParameters( array('datatype_id' => $datatype_id) );
 
-                //dt.id = :datatype_id AND (dt_rpi.id IS NULL OR dt_rpi.dataType = :datatype_id)
-
-//print $query->getSQL();  exit();
-/*
-        try {
-            $sql = $query->getSQL();
-        }
-        catch(\Exception $e) {
-
-            print $e->getMessage();
-            exit();
-
-        }
-*/
         $datatype_data = $query->getArrayResult();
-
-//    print '<pre>'.print_r($datatype_data, true).'</pre>';  exit();
+//print '<pre>'.print_r($datatype_data, true).'</pre>';  exit();
 
 /*
 if ($timing) {
@@ -6791,12 +6770,9 @@ if ($timing)
                 AND (e_i.id IS NULL OR e_i.original = 0)'
         )->setParameters(array('grandparent_id' => $grandparent_datarecord_id));
 
-//print $query->getSQL();
-//        $sql = $query->getSQL();
-
         $datarecord_data = $query->getArrayResult();
-
 //print '<pre>'.print_r($datarecord_data, true).'</pre>';  exit();
+
 /*
 if ($timing) {
     $t1 = microtime(true);
