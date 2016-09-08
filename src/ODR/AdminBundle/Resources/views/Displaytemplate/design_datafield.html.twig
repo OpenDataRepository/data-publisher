@@ -11,6 +11,11 @@
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;">
             <input type="checkbox" name="">
             {{ datafield.dataFieldMeta.fieldName }}
+            {% if is_datatype_admin == true %}
+            <span style="margin-left: 10px;">
+                <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+            </span>
+            {% endif %}
         </label>
     </fieldset>
 
@@ -21,7 +26,14 @@
                 <thead class="pure-u-1">
                     <tr class="pure-u-1">
                         <th class="pure-u-1-24">&nbsp;</th>
-                        <th id="Label_{{ datafield.id }}" class="pure-u-20-24">{{ datafield.dataFieldMeta.fieldName }}</th>
+                        <th id="Label_{{ datafield.id }}" class="pure-u-20-24">
+                            {{ datafield.dataFieldMeta.fieldName }}
+                            {% if is_datatype_admin == true %}
+                            <span style="margin-left: 10px;">
+                                <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+                            </span>
+                            {% endif %}
+                        </th>
                         <th class="pure-u-3-24">Options</th>
                     </tr>
                 </thead>
@@ -30,9 +42,9 @@
                         <td class="pure-u-1-24">&nbsp;</td>
                         <td class="pure-u-20-24">file_name_here</td>
                         <td class="pure-u-3-24">
-                            <i class="Cursor tooltip fa fa-globe fa-lg ODRPublicFile" title="Public since [YYYY-MM-DD]"></i>
+                            {#<i class="Cursor tooltip fa fa-globe fa-lg" title="Public since [YYYY-MM-DD]"></i>#}
                             <i class="Cursor tooltip fa fa-calendar fa-lg" title="Uploaded [YYYY-MM-DD] by John Doe"></i>
-                            {#<i class="Pointer tooltip fa fa-trash-o fa-lg ODRDeleteFile" title="Delete File" rel="{{ datafield.id }}"></i>#}
+                            <i class="Cursor tooltip fa fa-trash-o fa-lg" title="Delete File"></i>
                         </td>
                     </tr>
                 </tbody>
@@ -42,7 +54,14 @@
 
     {% elseif field_typename == "Image" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <span class="pure-u-1">
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            {% if is_datatype_admin == true %}
+            <span style="margin-left: 10px;">
+                <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+            </span>
+            {% endif %}
+        </span>
         <div class="pure-u-1">
             {#<div class="pure-u-1">&nbsp;<i class="ODRDeleteImage Pointer fa fa-lg fa-trash-o" title="Delete Image"></i>&nbsp;<i class="PublicImage Pointer fa fa-lg fa-globe"></i>&nbsp;</div>#}
             <div class="pure-u-1">
@@ -54,7 +73,14 @@
 
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Paragraph Text" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <span class="pure-u-1">
+            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+            {% if is_datatype_admin == true %}
+            <span style="margin-left: 10px;">
+                <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+            </span>
+            {% endif %}
+        </span>
         <div class="ODRPseudoField" id="Input_{{ datafield.id }}"></div>
     </fieldset>
 
@@ -65,6 +91,11 @@
             <span style="margin-left: 10px;">
                 <i id="Field_{{ datafield.id }}_radio_options" class="ODRRadioOptions Pointer fa fa-lg fa-cog" title="Edit Options" rel="{{ datafield.id }}"></i>
             </span>
+            {% if is_datatype_admin == true %}
+            <span style="margin-left: 10px;">
+                <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+            </span>
+            {% endif %}
         </span>
 
         {% if datafield.radioOptions is defined %}
@@ -90,6 +121,11 @@
             <span style="margin-left: 10px;">
                 <i id="Field_{{ datafield.id }}_radio_options" class="ODRRadioOptions Pointer fa fa-lg fa-cog" title="Edit Options" rel="{{ datafield.id }}"></i>
             </span>
+            {% if is_datatype_admin == true %}
+            <span style="margin-left: 10px;">
+                <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+            </span>
+            {% endif %}
         </span>
         <select id="SelectGroup_{{ datafield.id }}" class="{% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
 
@@ -107,7 +143,14 @@
 
     {% elseif field_typename == "DateTime" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <span class="pure-u-1">
+            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+            {% if is_datatype_admin == true %}
+            <span style="margin-left: 10px;">
+                <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+            </span>
+            {% endif %}
+        </span>
         <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
             <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly />
         </div>
@@ -115,7 +158,16 @@
     </fieldset>
 
     {% elseif field_typename == "Markdown" %}
-        {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
+        <fieldset>
+            <span class="pure-u-1">
+                {% if is_datatype_admin == true %}
+                <span style="margin-left: 10px;">
+                    <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+                </span>
+                {% endif %}
+            </span>
+            <div title="{{ datafield.dataFieldMeta.description }}">{% if datafield.dataFieldMeta.markdownText != null %}{{ datafield.dataFieldMeta.markdownText|markdown }}{% endif %}</div>
+        </fieldset>
 
     {% endif %}
 

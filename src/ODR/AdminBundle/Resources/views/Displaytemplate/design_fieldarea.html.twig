@@ -49,6 +49,8 @@
                 {% include 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig' with {
                     'theme_datafield': theme_datafield,
                     'datafield': datafield,
+
+                    'is_datatype_admin': is_datatype_admin,
                 } %}
 
             {% endfor %}
@@ -69,6 +71,8 @@
                         'datatype_array': datatype_array,
                         'target_datatype_id': child_datatype.id,
                         'theme_id': child_theme_id,
+
+                        'is_datatype_admin': is_datatype_admin,
 
                         'is_top_level': 0,
                         'is_link': theme_datatype.is_link,

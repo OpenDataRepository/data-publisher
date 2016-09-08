@@ -2034,10 +2034,9 @@ if ($debug)
 
         $has_datatypes = false;
         foreach ($associated_datatypes as $num => $dt_id) {
-            // Only set the 'is_datatype_admin' permission to true if this is the default 'admin' user and the top-level datatype
-            // DO NOT want 'is_datatype_admin' set to true for child datatypes
+            // Only set the 'is_datatype_admin' permission to true if this is the default 'admin' user
             $is_datatype_admin = 0;
-            if ($initial_purpose == 'admin' && $dt_id == $datatype->getId())
+            if ($initial_purpose == 'admin')
                 $is_datatype_admin = 1;
 
             $has_datatypes = true;
@@ -2181,7 +2180,7 @@ if ($debug)
         }
         else {
             // This function call is to create initial groups for a child datatype...locate its grandparent id
-            $datatree_array = self::getDatatreeArray($em, true);    // TODO - modify calling function so this isn't needed?
+            $datatree_array = self::getDatatreeArray($em, true);
             $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype->getId());
 
             // Load all groups belonging to the grandparent datatype
@@ -2235,7 +2234,7 @@ if ($debug)
 
                 $cache_update = null;
                 if ($initial_purpose == 'admin') {
-                    $query_str .= '("'.$group->getId().'", "'.$datatype->getId().'", "1", "1", "1", "1", "1", "0", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
+                    $query_str .= '("'.$group->getId().'", "'.$datatype->getId().'", "1", "1", "1", "1", "1", "1", NOW(), "'.$user->getId().'", NOW(), "'.$user->getId().'"),'."\n";
                     $cache_update = array('dt_view' => 1, 'dr_view' => 1, 'dr_add' => 1, 'dr_delete' => 1,/* 'dt_design' => 1,*/ 'dt_admin' => 1);
                 }
                 else if ($initial_purpose == 'edit_all') {
@@ -5098,7 +5097,7 @@ if ($debug)
             'radio_option_display_unselected' => $old_meta_entry->getRadioOptionDisplayUnselected(),
             'searchable' => $old_meta_entry->getSearchable(),
             'user_only_search' => $old_meta_entry->getUserOnlySearch(),
-            'public_date' => $old_meta_entry->getPublicDate(),
+            'publicDate' => $old_meta_entry->getPublicDate(),
         );
 
         foreach ($existing_values as $key => $value) {
@@ -5182,8 +5181,8 @@ if ($debug)
             $new_datafield_meta->setSearchable( $properties['searchable'] );
         if ( isset($properties['user_only_search']) )
             $new_datafield_meta->setUserOnlySearch( $properties['user_only_search'] );
-        if ( isset($properties['public_date']) )
-            $new_datafield_meta->setPublicDate( $properties['public_date'] );
+        if ( isset($properties['publicDate']) )
+            $new_datafield_meta->setPublicDate( $properties['publicDate'] );
 
         $new_datafield_meta->setUpdatedBy($user);
 

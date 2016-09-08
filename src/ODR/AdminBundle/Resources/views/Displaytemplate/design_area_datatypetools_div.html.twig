@@ -17,7 +17,7 @@
         <i class="Pointer tooltip fa fa-bar-chart-o ODRRenderPlugin" title="RenderPlugin Settings" rel="{{ datatype.id }}"></i>
     {% endif %}
 
-    <i class="Pointer tooltip fa fa-globe {% if datatype.dataTypeMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatatype" title="Datatype {% if not datatype.dataTypeMeta.publicDate|is_public %}not {% endif %}visible to Public" rel="{{ datatype.id }}"></i>
+    <i class="Pointer tooltip fa fa-globe {% if datatype.dataTypeMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatatype" title="Datatype {% if not datatype.dataTypeMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datatype.id }}"></i>
 {% endif %}
 
 </span>

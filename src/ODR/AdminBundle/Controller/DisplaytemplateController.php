@@ -3486,6 +3486,7 @@ class DisplaytemplateController extends ODRCustomController
         // Going to need this a lot...
         $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
 
+
         // ----------------------------------------
         // Load required objects based on parameters
         /** @var DataType $datatype */
@@ -3550,6 +3551,18 @@ class DisplaytemplateController extends ODRCustomController
 
 
         // ----------------------------------------
+        // Determine whether the user is an admin of this datatype
+        /** @var User $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+        $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+        $datatype_permissions = $user_permissions['datatypes'];
+
+        $is_datatype_admin = false;
+        if ( isset($datatype_permissions[$datatype->getId()]) && isset($datatype_permissions[$datatype->getId()]['dt_admin']) )
+            $is_datatype_admin = true;
+
+
+        // ----------------------------------------
         // Determine which datatypes/childtypes to load from the cache
         $include_links = true;
         $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype->getId()), $include_links);
@@ -3603,6 +3616,8 @@ class DisplaytemplateController extends ODRCustomController
                     'initial_datatype_id' => $datatype->getId(),
                     'theme_id' => $theme->getId(),
 
+                    'is_datatype_admin' => $is_datatype_admin,
+
                     'fieldtype_array' => $fieldtype_array,
                     'has_datarecords' => $has_datarecords,
                 )
@@ -3630,6 +3645,8 @@ class DisplaytemplateController extends ODRCustomController
                     'datatype_array' => $datatype_array,
                     'target_datatype_id' => $target_datatype_id,
                     'theme_id' => $theme->getId(),
+
+                    'is_datatype_admin' => $is_datatype_admin,
 
                     'is_link' => $is_link,
                     'is_top_level' => $is_top_level,
@@ -3664,9 +3681,10 @@ class DisplaytemplateController extends ODRCustomController
                 'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig',
                 array(
                     'datatype_array' => $datatype_array,
-
                     'target_datatype_id' => $target_datatype_id,
                     'theme_id' => $theme->getId(),
+
+                    'is_datatype_admin' => $is_datatype_admin,
 
                     'is_top_level' =>  $is_top_level,
                     'is_link' => $is_link,
@@ -3697,12 +3715,13 @@ class DisplaytemplateController extends ODRCustomController
             if ( $datafield_array == null )
                 throw new \Exception('Unable to locate array entry for datafield '.$datafield->getId());
 
-
             $html = $templating->render(
                 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig',
                 array(
                     'theme_datafield' => $theme_datafield_array,
                     'datafield' => $datafield_array,
+
+                    'is_datatype_admin' => $is_datatype_admin,
                 )
             );
         }
@@ -5158,6 +5177,82 @@ if ($debug)
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x20228935656 '. $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Toggles the public status of a Datafield.
+     *
+     * @param integer $datafield_id The database id of the Datafield to modify.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function datafieldpublicAction($datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // Grab the necessary entities
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                return parent::deletedEntityError('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ( $datatype->getDeletedAt() != null )
+                return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+
+            // If the datafield is public, make it non-public...if datafield is non-public, make it public
+            if ( $datafield->isPublic() ) {
+                // Make the datafield non-public
+                $properties = array(
+                    'publicDate' => new \DateTime('2200-01-01 00:00:00')
+                );
+                parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
+            }
+            else {
+                // Make the datafield public
+                $properties = array(
+                    'publicDate' => new \DateTime()
+                );
+                parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
+            }
+
+            // TODO - update cached version directly?
+            parent::tmp_updateDatatypeCache($em, $datatype, $user);
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x283526535 '. $e->getMessage();
         }
 
         $response = new Response(json_encode($return));

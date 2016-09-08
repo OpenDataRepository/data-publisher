@@ -501,6 +501,12 @@ odr_design_public_datatype:
     requirements:
         datatype_id:  \d+
 
+odr_design_public_datafield:
+    path:  /design/displaytemplate/publicdatafield/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldpublic }
+    requirements:
+        datafield_id:  \d+
+
 #-----------------------------------------
 
 #-----------------------------------------
