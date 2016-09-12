@@ -1,0 +1,250 @@
+
+
+
+/* from PURE menu-core.css */
+/*csslint adjoining-classes:false, outline-none:false*/
+/*TODO: Remove this lint rule override after a refactor of this code.*/
+
+
+.pure-skin-odr .pure-menu ul {
+    position: absolute;
+    visibility: hidden;
+}
+
+.pure-skin-odr .pure-menu.pure-menu-open {
+    visibility: visible;
+    z-index: 2;
+    width: 100%;
+}
+
+.pure-skin-odr .pure-menu ul {
+    left: -10000px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    top: -10000px;
+    z-index: 1;
+}
+
+.pure-skin-odr .pure-menu > ul { position: relative; }
+
+.pure-skin-odr .pure-menu-open > ul {
+    left: 0;
+    top: 0;
+    visibility: visible;
+}
+
+.pure-skin-odr .pure-menu-open > ul:focus {
+    outline: 0;
+}
+
+.pure-skin-odr .pure-menu li {
+    position: relative;
+}
+
+.pure-skin-odr .pure-menu a, .pure-skin-odr .pure-menu .pure-menu-heading {
+    display: block;
+    color: inherit;
+    line-height: 1.5em;
+    padding: 0.55em 1.4em;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.pure-skin-odr .pure-menu.pure-menu-horizontal > .pure-menu-heading {
+    display: inline-block;
+    *display: inline;
+    zoom: 1;
+    margin: 0;
+    vertical-align: middle;
+}
+.pure-skin-odr .pure-menu.pure-menu-horizontal > ul {
+    display: inline-block;
+    *display: inline;
+    zoom: 1;
+    vertical-align: middle;
+    /* height: 2.4em; removed for Skin Builder */
+}
+
+.pure-skin-odr .pure-menu li a { padding: 0.55em 1.4em; }
+
+.pure-skin-odr .pure-menu-can-have-children > .pure-menu-label:after {
+    content: '\25B8';
+    float: right;
+    font-family: 'Lucida Grande', 'Lucida Sans Unicode', 'DejaVu Sans', sans-serif; /* These specific fonts have the Unicode char we need. */
+    margin-right: -20px;
+    margin-top: -1px;
+}
+
+.pure-skin-odr .pure-menu-can-have-children > .pure-menu-label {
+    padding-right: 30px;
+}
+
+.pure-skin-odr .pure-menu-separator {
+    background-color: #ededed;
+    display: block;
+    height: 1px;
+    font-size: 0;
+    margin: 7px 2px;
+    overflow: hidden;
+}
+
+.pure-skin-odr .pure-menu-hidden {
+    display: none;
+}
+
+/* FIXED MENU */
+.pure-skin-odr .pure-menu-fixed {
+    position: fixed;
+    top:0;
+    left:0;
+    width: 100%;
+}
+
+
+/* HORIZONTAL MENU CODE */
+
+/* Initial menus should be inline-block so that they are horizontal */
+.pure-skin-odr .pure-menu-horizontal li {
+    display: inline-block;
+    *display: inline;
+    zoom: 1;
+    vertical-align: middle;
+}
+
+/* Submenus should still be display:block; */
+.pure-skin-odr .pure-menu-horizontal li li {
+    display: block;
+}
+
+/* Content after should be down arrow */
+.pure-skin-odr .pure-menu-horizontal > .pure-menu-children > .pure-menu-can-have-children > .pure-menu-label:after {
+    content: "\25BE";
+}
+/*Add extra padding to elements that have the arrow so that the hover looks nice */
+.pure-skin-odr .pure-menu-horizontal > .pure-menu-children > .pure-menu-can-have-children > .pure-menu-label {
+    padding-right: 30px;
+}
+
+/* Adjusting separator for vertical menus */
+.pure-skin-odr .pure-menu-horizontal li.pure-menu-separator {
+    height: 50%;
+    width: 1px;
+    margin: 0 7px;
+}
+
+/* Submenus should be horizontal separator again */
+.pure-skin-odr .pure-menu-horizontal li li.pure-menu-separator {
+    height: 1px;
+    width: auto;
+    margin: 7px 2px;
+}
+
+
+/* MAIN MENU STYLING */
+/*csslint adjoining-classes:false*/
+/*TODO: Remove this lint rule override after a refactor of this code.*/
+
+.pure-skin-odr .pure-menu.pure-menu-open,
+.pure-skin-odr .pure-menu.pure-menu-horizontal li .pure-menu-children {
+    background: #fafafa; /* Old browsers */
+    border: 1px solid #ededed;
+}
+
+/* remove borders for horizontal menus */
+.pure-skin-odr .pure-menu.pure-menu-horizontal,
+.pure-skin-odr .pure-menu.pure-menu-horizontal .pure-menu-heading {
+    border: none;
+}
+
+
+/* LINK STYLES */
+
+.pure-skin-odr .pure-menu a {
+    border: 1px solid transparent;
+    border-left: none;
+    border-right: none;
+
+}
+
+.pure-skin-odr .pure-menu a,
+.pure-skin-odr .pure-menu .pure-menu-can-have-children > li:after {
+    color: #878787;
+}
+
+.pure-skin-odr .pure-menu .pure-menu-can-have-children > li:hover:after {
+    color: #6e6e6e;
+}
+
+/* Focus style for a dropdown menu-item when the parent has been opened */
+.pure-skin-odr .pure-menu .pure-menu-open {
+    background: #dedede;
+}
+
+.pure-skin-odr .pure-menu li a:hover,
+.pure-skin-odr .pure-menu li a:focus {
+    background: #dedede;
+}
+
+/* DISABLED STATES */
+.pure-skin-odr .pure-menu li.pure-menu-disabled a:hover,
+.pure-skin-odr .pure-menu li.pure-menu-disabled a:focus {
+    background: #fafafa;
+    color: #c7c7c7;
+}
+
+.pure-skin-odr .pure-menu .pure-menu-disabled > a {
+    background-image: none;
+    border-color: transparent;
+    cursor: default;
+}
+
+.pure-skin-odr .pure-menu .pure-menu-disabled > a,
+.pure-skin-odr .pure-menu .pure-menu-can-have-children.pure-menu-disabled > a:after {
+    color: #c7c7c7;
+}
+
+/* HEADINGS */
+.pure-skin-odr .pure-menu .pure-menu-heading {
+    color: #6e6e6e;
+    text-transform: uppercase;
+    font-size: 90%;
+    margin-top: 0.5em;
+    border-bottom: solid 1px #ededed;
+}
+
+
+/* SELECTED MENU ITEM */
+.pure-skin-odr .pure-menu li.pure-menu-selected a {
+    background-color: #9AB5EF;
+    color: #173f96;
+}
+
+/* FIXED MENU */
+.pure-skin-odr .pure-menu.pure-menu-open.pure-menu-fixed {
+    border: none;
+    border-bottom: 1px solid #ededed;
+}
+/* end from PURE menu.css ***********************************/
+
+/* from PURE menu-responsive.css ****************************/
+/* RESPONSIVE */
+
+@media (max-width: 480px) {
+
+    .pure-skin-odr .pure-menu-horizontal {
+        width:100%;
+    }
+
+    .pure-skin-odr .pure-menu-children li {
+        display: block;
+        border-bottom:1px solid #ededed;
+    }
+
+}
+/* end from menu-responsive.css ******************/
+
+
+
+
+
