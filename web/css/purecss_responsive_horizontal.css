@@ -76,3 +76,20 @@
     }
 
 }
+
+
+
+
+
+/* end from menu-responsive.css ******************/
+
+/* ODR Pure Submenu */
+#ODRMainMenu li ul {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+}
+#ODRMainMenu li:hover ul {
+    display: block;
+}
