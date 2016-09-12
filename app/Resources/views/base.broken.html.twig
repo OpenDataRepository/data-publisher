@@ -9,12 +9,6 @@
 <head>
     <meta charset="utf-8">
 
-    <!-- <link rel="dns-prefetch" href="http://cdnjs.cloudflare.com" />
-    <link rel="dns-prefetch" href="http://fonts.googleapis.com" />
-    <link rel="dns-prefetch" href="http://themes.googleusercontent.com" />
-    <link rel="dns-prefetch" href="http://ajax.googleapis.com" />
-    <link rel="dns-prefetch" href="http://agorbatchev.typepad.com" /> -->
-    
     <!-- Use the .htaccess and remove these lines to avoid edge case issues.  More info: h5bp.com/b/378 -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     
@@ -35,9 +29,9 @@
     
     
     <!-- Pure Layout -->
-    <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.5.0/pure-min.css">
-    <!--[if lte IE 8]><link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.5.0/grids-responsive-old-ie-min.css"><![endif]-->
-    <!--[if gt IE 8]><!--><link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.5.0/grids-responsive-min.css"><!--<![endif]-->
+    <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
+    <!--[if lte IE 8]><link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/grids-responsive-old-ie-min.css"><![endif]-->
+    <!--[if gt IE 8]><!--><link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/grids-responsive-min.css"><!--<![endif]-->
 
     <!-- Icon Styles -->
     <link rel="stylesheet" href="/css/fonts/font-awesome.css">
@@ -51,7 +45,8 @@
 
     <!-- Symfony Stylesheets -->
     <link href="/css/pure_odr_custom.css" type="text/css" rel="stylesheet"> 
-    <link href="/css/custom.css" type="text/css" rel="stylesheet" /> 
+    <link href="/css/custom.css" type="text/css" rel="stylesheet" />
+    <link href="/css/purecss_responsive_horizontal.css" type="text/css" rel="stylesheet">
 
     <!-- NVD3 StyleSheet -->
     <link rel="stylesheet" href="/js/mylibs/nvd3/nv.d3.css">
@@ -173,7 +168,12 @@
     <div class="pure-u-1 pure-u-md-1-3">
         <div class="pure-menu pure-menu-horizontal odr-custom-can-transform">
             <ul class="pure-menu-list">
-                <li class="pure-menu-item"><a href="#" class="pure-menu-link">Home</a></li>
+                <li class="pure-menu-item"><a href="#" class="pure-menu-link">Home</a>
+                    <ul class="pure-submenu">
+                        <li class="pure-menu-item"><a href="#" class="pure-menu-link">About</a></li>
+                        <li class="pure-menu-item"><a href="#" class="pure-menu-link">Contact</a></li>
+                    </ul>
+                </li>
                 <li class="pure-menu-item"><a href="#" class="pure-menu-link">About</a></li>
                 <li class="pure-menu-item"><a href="#" class="pure-menu-link">Contact</a></li>
             </ul>
@@ -277,13 +277,6 @@ window.addEventListener(WINDOW_CHANGE_EVENT, closeMenu);
         $("#loading").hide();
     </script>
     
-    <!-- Prompt IE 6 users to install Chrome Frame. Remove this if you want to support IE 6.
-       chromium.org/developers/how-tos/chrome-frame-getting-started -->
-    <!--[if lt IE 7 ]>
-    <script defer src="http://ajax.googleapis.com/ajax/libs/chrome-frame/1.0.3/CFInstall.min.js"></script>
-    <script defer>window.attachEvent('onload',function(){CFInstall.check({mode:'overlay'})})</script>
-    <![endif]-->
-
     <!-- Symfony Javascripts -->
     {% block javascripts %}{% endblock %}
 </body>
