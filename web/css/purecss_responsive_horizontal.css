@@ -1,14 +1,16 @@
 
 .ODRMenuWrapper {
-    background-color: #ffd390;
     margin-bottom: 1em;
     -webkit-font-smoothing: antialiased;
-    height: 2.1em;
-    overflow: hidden;
     -webkit-transition: height 0.5s;
     -moz-transition: height 0.5s;
     -ms-transition: height 0.5s;
     transition: height 0.5s;
+}
+
+.ODRMenuWrapper,
+.ODRMenuWrapper ul {
+    background-color: #ffd390;
 }
 
 .ODRMenuWrapper.open {
@@ -75,6 +77,10 @@
         display: block;
     }
 
+    .ODRMenuWrapper {
+        height: 34px;
+        overflow: hidden;
+    }
 }
 
 
@@ -84,12 +90,53 @@
 /* end from menu-responsive.css ******************/
 
 /* ODR Pure Submenu */
-#ODRMainMenu li ul {
+#ODRMainMenu ul {
+    /* position: relative; */
+}
+
+
+#ODRMainMenu.open ul ul {
+    display: block;
+    position: relative;
+}
+#ODRMainMenu.open {
+    background-color: blue;
+}
+
+#ODRMainMenu ul ul {
     display: none;
     position: absolute;
     top: 100%;
     left: 0;
 }
-#ODRMainMenu li:hover ul {
-    display: block;
+
+#ODRMainMenu ul li.show > ul {
+    display:inherit;
 }
+/* Display Dropdowns on Hover */
+#ODRMainMenu ul li:hover > ul {
+    display:inherit;
+}
+
+/* Fisrt Tier Dropdown */
+#ODRMainMenu ul ul li {
+    width:170px;
+    float:none;
+    display:list-item;
+    position: relative;
+}
+
+/* Second, Third and more Tiers	*/
+#ODRMainMenu ul ul ul li {
+    position: relative;
+    top:-60px;
+    left:170px;
+}
+
+/* Change this in order to change the Dropdown symbol */
+#ODRMainMenu li > a:after { content:  ' +'; }
+#ODRMainMenu li > a:only-child:after { content: ''; }
+
+/* #ODRMainMenu li:hover ul {
+    display: block;
+} */
