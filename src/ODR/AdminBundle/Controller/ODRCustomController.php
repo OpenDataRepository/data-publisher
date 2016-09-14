@@ -391,7 +391,7 @@ exit();
 
                 $row = array();
                 // Only add this datarecord to the list if the user is allowed to see it...
-                if ($can_view_datatype || $data['publicDate']->format('Y-m-d H:i:s') !== '2200-01-01 00:00:00') {
+                if ($can_view_datatype || $data['publicDate'] !== '2200-01-01 00:00:00') {
                     // Don't save values from datafields the user isn't allowed to see...
                     $dr_data = array();
                     foreach ($data[$theme->getId()] as $display_order => $df_data) {        // TODO - apparently provides wrong theme id here at times?
@@ -3112,7 +3112,7 @@ if ($debug)
         switch ($typeclass) {
             case 'Boolean':
                 $table_name = 'odr_boolean';
-                $default_value = false;
+                $default_value = 0;
                 break;
             case 'DatetimeValue':
                 $table_name = 'odr_datetime_value';
@@ -3164,6 +3164,15 @@ if ($debug)
             $insert_value = $initial_value;
         else
             $insert_value = $default_value;
+
+        // Ensure the boolean value is an integer...native SQL query will complain if it's an actual boolean value...
+        if ($typeclass == 'Boolean') {
+            if ($insert_value == false)
+                $insert_value = 0;
+            else
+                $insert_value = 1;
+        }
+
 
         // Create a new storage entity
         $query =
@@ -5054,7 +5063,7 @@ if ($debug)
         // Need to build an array to store the data
         $data = array(
             'default_sort_value' => $datarecord_data[$datarecord_id]['sortField_value'],
-            'publicDate' => $datarecord_data[$datarecord_id]['dataRecordMeta']['publicDate']->format('Y-m-d'),
+            'publicDate' => $datarecord_data[$datarecord_id]['dataRecordMeta']['publicDate']->format('Y-m-d H:i:s'),
         );
 
         foreach ($datatype_data[$datatype_id]['themes'] as $theme_id => $theme) {
@@ -5130,7 +5139,7 @@ if ($debug)
                                     $file = $drf['file'][0];    // should only ever be one file in here anyways
 
                                     $url = $router->generate( 'odr_file_download', array('file_id' => $file['id']) );
-                                    $df_value = '<a href='.$url.'>'.$file['originalFileName'].'</a>';
+                                    $df_value = '<a href='.$url.'>'.$file['fileMeta']['originalFileName'].'</a>';
                                 }
                                 break;
 
