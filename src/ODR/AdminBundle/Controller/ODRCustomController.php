@@ -2313,6 +2313,7 @@ if ($debug)
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
         $redis->del($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
+        $redis->del($redis_prefix.'.datarecord_table_data_'.$grandparent_datarecord_id);
     }
 
 
