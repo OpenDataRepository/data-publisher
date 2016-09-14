@@ -410,6 +410,7 @@ class EditController extends ODRCustomController
 
             // Delete the cached entry for this now-deleted datarecord
             $redis->del($redis_prefix.'.cached_datarecord_'.$datarecord_id);
+            $redis->del($redis_prefix.'.datarecord_table_data_'.$datarecord_id);
 
             // Delete the sorted list of datarecords for this datatype
             $redis->del($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');

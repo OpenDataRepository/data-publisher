@@ -194,7 +194,7 @@
     }
 
     function viewPermissions(user_id) {
-        var url = "{{ path('odr_manage_user_permissions', {'user_id': 0}) }}";
+        var url = "{{ path('odr_manage_user_groups', {'user_id': 0}) }}";
         url = url.substr(0, url.length-1);
         url += user_id;
 //alert(url);

@@ -18,17 +18,20 @@
     <h2>User List</h2>
 </div>
     <button type="button" id="deleted_user_toggle" class="pure-button" onclick="toggleDeletedUsers();" rel="Hide">Show deleted users</button>
+{% if admin_level >= 3 %}
+    <button type="button" class="pure-button" onclick="createNewUser();" rel="Hide">Create new user</button>
+{% endif %}
 
     <div class="ODRTableOuterWrap">
     <div class="ODRTableWrap">
-    <table id="ODRUserList" class="{#pure-table pure-table-striped#}display dataTable">
+    <table id="ODRUserList" class="display dataTable">
         <thead>
             <tr>
                 <th></th>
                 <th>User Name</th>
                 <th>Email</th>
                 <th>Edit Profile</th>
-                <th>Edit Permissions</th>
+                <th>Manage Groups</th>
                 <th>Delete User</th>
             </tr>
         </thead>
@@ -63,7 +66,7 @@
                 {% if target_is_super_admin == true or (admin_level == 1 and target_is_admin == true) %}
                     {# either target has all permissions by definition, or the user visiting this page has insufficient permissions...do nothing #}
                 {% else %}
-                    <a class="address" href="#{{ path('odr_manage_user_permissions', { 'user_id': user.id } ) }}"><i class="fa fa-lg fa-list"></i>&nbsp;Manage Permissions</a>
+                    <a class="address" href="#{{ path('odr_manage_user_groups', { 'user_id': user.id } ) }}"><i class="fa fa-lg fa-list"></i>&nbsp;Manage Groups</a>
                 {% endif %}
                 </td>
 
@@ -237,6 +240,12 @@
         });
     }
 
+{% if admin_level >= 3 %}
+    function createNewUser() {
+        var url = '{{ path('odr_admin_new_user_create') }}';
+        UpdateURL(url);
+    }
+{% endif %}
 </script>
 
 {% endspaceless %}

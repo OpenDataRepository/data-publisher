@@ -77,7 +77,3 @@ ODR\AdminBundle\Entity\GroupDatafieldPermissions:
             orphanRemoval: false
 
     lifecycleCallbacks: {  }
-
-    uniqueConstraints:
-        group_datafield_idx:
-            columns: [ group_id, data_field_id ]

@@ -47,7 +47,8 @@ class DefaultController extends ODRCustomController
 
         $datatype_permissions = array();
         if ($user !== 'anon.') {
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+//            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());     // TODO - revert to this
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId(), true);
             $datatype_permissions = $user_permissions['datatypes'];
         }
 

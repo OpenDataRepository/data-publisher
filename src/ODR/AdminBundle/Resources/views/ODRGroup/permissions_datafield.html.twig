@@ -5,42 +5,37 @@
 {% set can_view_datafield = false %}
 {% set can_edit_datafield = false %}
 
-{% if datafield_permissions[ datafield.id ] is defined and datafield_permissions[ datafield.id ][ 'view' ] is defined %}
+{% if datafield_permissions[ datatype.id ][ datafield.id ] is defined and datafield_permissions[ datatype.id ][ datafield.id ][ 'view' ] is defined %}
     {% set can_view_datafield = true %}
 {% endif %}
-{% if datafield_permissions[ datafield.id ] is defined and datafield_permissions[ datafield.id ][ 'edit' ] is defined %}
+{% if datafield_permissions[ datatype.id ][ datafield.id ] is defined and datafield_permissions[ datatype.id ][ datafield.id ][ 'edit' ] is defined %}
     {% set can_edit_datafield = true %}
 {% endif %}
 
+{% set datafield_is_public = false %}
+{% if datafield.dataFieldMeta.publicDate|is_public %}
+    {% set datafield_is_public = true %}
+{% endif %}
 
-{% if theme_element_public or can_view_datatype %}
-    {% if can_edit_datatype %}
-        {% if can_view_datafield and can_edit_datafield %}
-            <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODREditableDatafield Pointer" title="The datafield is both viewable and editable by the user" rel="{{ datafield.id }}"></div>
-        {% elseif can_view_datafield %}
-            <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODRVisibleDatafield Pointer" title="This datafield can be viewed, but not edited by the user" rel="{{ datafield.id }}"></div>
-        {% else %}
-            <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODRBlockedDatafield Pointer" title="This datafield is neither viewable nor editable by the user" rel="{{ datafield.id }}"></div>
-        {% endif %}
-    {% else %}
-        {% if can_view_datafield %}
-            <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODRVisibleDatafield Pointer" title="This datafield can be viewed, but not edited by the user" rel="{{ datafield.id }}"></div>
-        {% else %}
-            <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODRBlockedDatafield Pointer" title="This datafield is neither viewable nor editable by the user" rel="{{ datafield.id }}"></div>
-        {% endif %}
-    {% endif %}
+
+{% if can_view_datafield and can_edit_datafield %}
+    <div id="Field_{{ datafield.id }}_overlay" class="ODRDataFieldPermission ODROverlayDiv ODREditableDatafield {% if prevent_all_changes %}Cursor{% else %}Pointer{% endif %}" title="This Group is allowed to both view and edit this datafield" rel="{{ datafield.id }}"></div>
+{% elseif can_view_datafield or datafield.dataFieldMeta.publicDate|is_public %}
+    <div id="Field_{{ datafield.id }}_overlay" class="ODRDataFieldPermission ODROverlayDiv ODRVisibleDatafield {% if prevent_all_changes %}Cursor{% else %}Pointer{% endif %}" title="This Group is allowed to view this datafield, but not edit it" rel="{{ datafield.id }}"></div>
 {% else %}
-    <div id="Field_{{ datafield.id }}_overlay" class="ODRFieldPermission ODROverlayDiv ODRBlockedDatafield fa-muted" title="This datafield is neither viewable nor editable by the user" rel="{{ datafield.id }}"></div>
+    <div id="Field_{{ datafield.id }}_overlay" class="ODRDataFieldPermission ODROverlayDiv ODRBlockedDatafield {% if prevent_all_changes %}Cursor{% else %}Pointer{% endif %}" title="This Group is not allowed to view or edit this datafield" rel="{{ datafield.id }}"></div>
 {% endif %}
 
 
 <form id="Form_DataField_{{ datafield.id }}" class="pure-u-1">
+    <input type="hidden" id="datafield_{{ datafield.id }}_public" value="{% if datafield_is_public %}1{% else %}0{% endif %}" />
 
     {% if field_typename == "Boolean" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;">
             <input type="checkbox" name="">
             {{ datafield.dataFieldMeta.fieldName }}
+            {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
         </label>
     </fieldset>
 
@@ -50,7 +45,10 @@
             <table class="ODRTable pure-u-1">
                 <thead class="pure-u-1">
                     <tr class="pure-u-1">
-                        <th class="pure-u-20-24">{{ datafield.dataFieldMeta.fieldName }}</th>
+                        <th class="pure-u-20-24">
+                            {{ datafield.dataFieldMeta.fieldName }}
+                            {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
+                        </th>
                         <th class="pure-u-1-24"></th>
                     </tr>
                 </thead>
@@ -58,8 +56,9 @@
                     <tr class="pure-u-1">
                         <td class="pure-u-20-24">file_name_here</td>
                         <td class="pure-u-4-24">
-                            <i class="Cursor tooltip fa fa-globe fa-lg ODRPublicFile" title="Public since [YYYY-MM-DD]"></i>
+                            {#<i class="Cursor tooltip fa fa-globe fa-lg" title="Public since [YYYY-MM-DD]"></i>#}
                             <i class="Cursor tooltip fa fa-calendar fa-lg" title="Uploaded [YYYY-MM-DD] by John Doe"></i>
+                            <i class="Cursor tooltip fa fa-trash-o fa-lg" title="Delete File"></i>
                         </td>
                     </tr>
                 </tbody>
@@ -69,7 +68,10 @@
 
     {% elseif field_typename == "Image" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <span class="pure-u-1">
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
+        </span>
         <div class="pure-u-1">
             <div class="pure-u-1">&nbsp;<i class="ODRDeleteImage Pointer fa fa-lg fa-trash-o" title="Delete Image"></i>&nbsp;<i class="PublicImage Pointer fa fa-lg fa-globe"></i>&nbsp;</div>
             <div class="pure-u-1">
@@ -80,7 +82,10 @@
 
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Paragraph Text" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <span class="pure-u-1">
+            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+            {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
+        </span>
         <div class="ODRPseudoField" id="Input_{{ datafield.id }}"></div>
     </fieldset>
 
@@ -88,9 +93,7 @@
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
-            <span style="margin-left: 10px;">
-                <i id="Field_{{ datafield.id }}_radio_options" class="ODRRadioOptions Pointer fa fa-lg fa-cog" title="Edit Options" rel="{{ datafield.id }}"></i>
-            </span>
+            {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
         </span>
 
         {% if datafield.radioOptions is defined %}
@@ -113,10 +116,9 @@
     <fieldset>
         <span class="pure-u-1">
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
-            <span style="margin-left: 10px;">
-                <i id="Field_{{ datafield.id }}_radio_options" class="ODRRadioOptions Pointer fa fa-lg fa-cog" title="Edit Options" rel="{{ datafield.id }}"></i>
-            </span>
+            {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
         </span>
+
         <select id="SelectGroup_{{ datafield.id }}" class="{% if field_typename == "Multiple Select" %}MultipleSelectGroup{% else %}SingleSelectGroup{% endif %}" {% if field_typename == "Multiple Select" %}multiple{% endif %}>
 
         {% if datafield.radioOptions is defined %}
@@ -133,7 +135,11 @@
 
     {% elseif field_typename == "DateTime" %}
     <fieldset>
-        <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+        <span class="pure-u-1">
+            <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
+            {% include "ODRAdminBundle:ODRGroup:datafield_permissions_icons.html.twig" with {'datafield': datafield} %}
+        </span>
+
         <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
             <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly />
         </div>

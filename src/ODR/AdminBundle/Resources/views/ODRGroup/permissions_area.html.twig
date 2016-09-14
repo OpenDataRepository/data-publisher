@@ -1,16 +1,18 @@
 {% spaceless %}
-<div class="ODRFormWrap pure-u-1">
+<div class="ODRFormWrap ODRDesign pure-u-1">
 
-    {% include 'ODRAdminBundle:FieldPermissions:fieldpermissions_childtype.html.twig' with {
-        'user': user,
+    {% include 'ODRAdminBundle:ODRGroup:permissions_childtype.html.twig' with {
         'datatype_permissions': datatype_permissions,
         'datafield_permissions': datafield_permissions,
+
+        'group': group,
 
         'datatype_array': datatype_array,
         'target_datatype_id': initial_datatype_id,
         'theme_id': theme_id,
 
-        'is_top_level': 1
+        'is_top_level': 1,
+        'prevent_all_changes': prevent_all_changes,
     } %}
 
 </div><!-- End of .ODRFormWrap -->

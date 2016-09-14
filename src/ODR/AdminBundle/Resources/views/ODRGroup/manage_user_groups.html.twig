@@ -1,0 +1,277 @@
+{% spaceless %}
+
+<h2>Group Membership for "{{ target_user.getuserstring }}"</h2>
+
+{% if datatypes|length == 0 %}
+    <div class="ODRDatarecordListHeader">No Datatypes exist!</div>
+{% else %}
+<div class="pure-u-1-2">
+    <table id="ODRDatatypeList" class="display dataTable">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Datatype Name</th>
+                <th>Datatype is public?</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dt_id, dt in datatypes %}
+            <tr>
+                <td>
+                    <span class="ODRDatatypeInfoDiv">
+                        <i class="fa fa-lg fa-info-circle"></i>
+                        <span class="ODRDatatypeInfo">
+                            <div>
+                                <b>Created By: </b>{{ dt.createdBy|user_string }}<b> on </b>{{ dt.created|date('Y-m-d') }}
+                            </div>
+                            <div>
+                                <b>Description: </b>{{ dt.dataTypeMeta.description }}
+                            </div>
+                        </span>
+                    </span>
+                </td>
+                <td>{{ dt.dataTypeMeta.shortName }}</td>
+                <td>
+                    {% if dt.dataTypeMeta.publicDate|is_public %}
+                        <i class="fa fa-lg fa-check ODRGrayIon Cursor"></i>
+                    {% endif %}
+                </td>
+                <td class="Pointer ODRListExpand"><i class="fa fa-lg fa-caret-down ODRGrayIcon" rel="{{ dt_id }}"></i></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="pure-u-1-24"></div>
+
+{% for dt_id, dt in datatypes %}
+<div id="datatype_groups_{{ dt_id }}" class="ODRGroupList pure-u-11-24" rel="{{ dt_id }}">
+    <div class="pure-u-1 ODRGroupListHeader">Default Groups for "{{ dt.dataTypeMeta.shortName }}"</div>
+    <div class="pure-u-1">
+        {# print out the four default groups across the top #}
+        {% set group_id = dt['groups']['view_only']['id'] %}
+        <span class="pure-u-1-4 Cursor"  title="{{ dt['groups']['view_only']['groupMeta']['groupDescription'] }}">
+            <input type="checkbox" id="checkbox_{{ target_user.id }}_{{ group_id }}" class="ODRDefaultGroupCheckbox ODRGroupCheckbox" {% if user_group_list[group_id] is defined %}checked{% endif %} />
+            <span class="ODRGroupName">View Only</span>
+        </span>
+        {% set group_id = dt['groups']['view_all']['id'] %}
+        <span class="pure-u-1-4 Cursor"  title="{{ dt['groups']['view_all']['groupMeta']['groupDescription'] }}">
+            <input type="checkbox" id="checkbox_{{ target_user.id }}_{{ group_id }}" class="ODRDefaultGroupCheckbox ODRGroupCheckbox" {% if user_group_list[group_id] is defined %}checked{% endif %} />
+            <span class="ODRGroupName">View All</span>
+        </span>
+        {% set group_id = dt['groups']['edit_all']['id'] %}
+        <span class="pure-u-1-4 Cursor"  title="{{ dt['groups']['edit_all']['groupMeta']['groupDescription'] }}">
+            <input type="checkbox" id="checkbox_{{ target_user.id }}_{{ group_id }}" class="ODRDefaultGroupCheckbox ODRGroupCheckbox" {% if user_group_list[group_id] is defined %}checked{% endif %} />
+            <span class="ODRGroupName">Edit All</span>
+        </span>
+        {% set group_id = dt['groups']['admin']['id'] %}
+        <span class="pure-u-1-4 Cursor" title="{{ dt['groups']['admin']['groupMeta']['groupDescription'] }}">
+            <input type="checkbox" id="checkbox_{{ target_user.id }}_{{ group_id }}" class="ODRDefaultGroupCheckbox ODRGroupCheckbox" {% if user_group_list[group_id] is defined %}checked{% endif %} />
+            <span class="ODRGroupName">Admin</span>
+        </span>
+    </div>
+    <div class="pure-u-1 ODRGroupListHeader">Custom Groups for "{{ dt.dataTypeMeta.shortName }}"</div>
+    <div class="pure-u-1">
+        {# print out the remaining non-default groups as a list #}
+        {% for group in datatypes[dt_id]['groups'] %}
+            {% if group.purpose == "" %}
+                <div class="pure-u-1">
+                    <span class="ODRDatatypeInfoDiv">
+                        <i class="fa fa-lg fa-info-circle"></i>
+                        <span class="ODRDatatypeInfo">
+                            <div>
+                                <b>Created By: </b>{{ group.createdBy|user_string }}<b> on </b>{{ group.created|date('Y-m-d') }}
+                            </div>
+                            <div>
+                                <b>Description: </b>{{ group.dataTypeMeta.description }}
+                            </div>
+                        </span>
+                    </span>
+                    <span class="ODRGroupName">
+                        <input type="checkbox" id="checkbox_{{ target_user.id }}_{{ group['id'] }}" class="ODRGroupCheckbox" {% if user_group_list[ group['id'] ] is defined %}checked{% endif %} />
+                    </span>
+                    <span class="ODRGroupName">
+                        {{ group.groupMeta.groupName }}
+                    </span>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    <div class="pure-u-xl-1-3 pure-u-md-1-2">
+        <button class="pure-button ODRGroupEdit" title="Edit Groups for this Datatype">Edit Groups</button>
+    </div>
+    <div class="pure-u-xl-1-3 pure-u-md-1-2">
+        <button class="pure-button ODREffectivePermissions" rel="{{ target_user.id }}" title="Displays an interface showing what this user would see if he attempted to view this Datatype">View Effective Permissions</button>
+    </div>
+</div>
+{% endfor %}
+
+{% endif %}
+
+<style>
+    .ODRGroupListHeader {
+        border-bottom: 1px solid #111111;
+        font-weight: bold;
+        padding: 10px 18px;
+        margin-top: 15px;
+    }
+    .ODRGrayIcon {
+        opacity: 0.4;
+    }
+
+    .ODRGroupCheckbox {
+        cursor: pointer;
+    }
+    .ODRGroupName {
+        margin-left: 10px;
+    }
+
+    .ODRDatatypeInfoDiv {
+        cursor: pointer;
+        position: relative;
+    }
+    .ODRDatatypeInfoDiv:hover .ODRDatatypeInfo {
+        visibility: visible;
+        top: 20px;
+        left: 20px;
+    }
+    .ODRDatatypeInfo {
+        visibility: hidden;
+        position: absolute;
+        background-color: lightyellow;
+        padding: 5px;
+        border: 1px dashed gray;
+        z-index: 999;
+        width: 500px;
+    }
+</style>
+
+<script>
+    $(function() {
+        $("#ODRDatatypeList").dataTable({
+            "searching": false,
+            "ordering": false,
+            "paging": false,
+            "info": false,
+        });
+
+        $("#ODRDatatypeList").removeAttr('style');
+
+        $(".ODRGroupList").hide();
+
+        $(".ODRListExpand").unbind('click').click(function() {
+            // If clicking an already open datarecord list, don't run the block that will open it again
+            var self_click = false;
+            if ( $(this).children("i").hasClass('fa-caret-right') )
+                self_click = true;
+
+            // Reset any open datarecord lists
+            $(".ODRListExpand").children(".fa-caret-right").each(function() {   // should only return one
+                var row_num = $(this).attr('rel');
+                $("#datatype_groups_" + row_num).hide();
+
+                $(this).removeClass('fa-caret-right').addClass('fa-caret-down ODRGrayIcon');
+            });
+
+            if ( !self_click ) {
+                // Open the selected datarecord list
+                $(this).children("i").each(function() {     // should only return one
+                    var row_num = $(this).attr('rel');
+
+                    $("#datatype_groups_" + row_num).show();
+                    $(this).removeClass('fa-caret-down ODRGrayIcon').addClass('fa-caret-right');
+                });
+            }
+        });
+{#
+        $(".ODRGroupEdit").unbind('click').click(function() {
+
+            var datatype_id = $(this).parent().parent().attr('rel');
+
+            var url = '{{ path('odr_edit_datatype_groups', { 'datatype_id': 0 }) }}';
+            url = url.substring(0, (url.length - 1));
+            url += datatype_id;
+
+alert(url);
+return;
+
+            UpdateURL(url);
+        });
+#}
+        $(".ODREffectivePermissions").unbind('click').click(function() {
+
+            var datatype_id = $(this).parent().parent().attr('rel');
+            var user_id = $(this).attr('rel');
+
+            var url = '{{ path('odr_view_effective_permissions', { 'user_id': 0, 'datatype_id': 0 }) }}';
+            url = url.substring(0, (url.length - 3));
+            url += user_id + '/' + datatype_id;
+
+//alert(url);
+//return;
+
+            UpdateURL(url);
+        });
+
+
+        $(".ODRGroupCheckbox").unbind('click').click(function() {
+
+            var id_data = $(this).attr('id').split(/_/);
+            var user_id = id_data[1];
+            var group_id = id_data[2];
+
+            var element = $(this);
+
+            var value = 0;
+            if ( $(element).is(':checked') )
+                value = 1;
+
+            var url = '{{ path('odr_change_user_group', {'user_id': 0, 'group_id': 0, 'value': 0}) }}';
+            url = url.substring(0, (url.length - 5));
+            url += user_id + '/' + group_id + '/' + value;
+
+//alert(url);
+//return;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: 'json',
+                success: function(data, textStatus, jqXHR) {
+                    if (data.r == 0) {
+                        if ( value == 1 && $(element).hasClass('ODRDefaultGroupCheckbox') ) {
+                            // Set all other default group checkboxes to false
+                            $(element).parent().parent().find('.ODRDefaultGroupCheckbox').each(function() {
+                                $(this).prop('checked', false);
+                            });
+                            // Set this specific group checkbox to true
+                            $(element).prop('checked', true);
+                        }
+                    }
+                    else {
+                        // An error has occurred.
+                        // Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function (jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        });
+    });
+
+</script>
+{% endspaceless %}

@@ -95,7 +95,3 @@ ODR\AdminBundle\Entity\GroupDatatypePermissions:
             orphanRemoval: false
 
     lifecycleCallbacks: {  }
-
-    uniqueConstraints:
-        group_datatype_idx:
-            columns: [ group_id, data_type_id ]

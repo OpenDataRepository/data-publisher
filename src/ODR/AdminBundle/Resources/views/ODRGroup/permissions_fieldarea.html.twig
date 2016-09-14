@@ -16,17 +16,9 @@
 {% for theme_element in theme.themeElements %}
 
     <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
+    <div class="ODRInnerBox">
 
     {% if theme_element.themeDataFields is defined %}
-
-        {% set theme_element_public = false %}
-        {% if theme_element.themeElementMeta.publicDate|is_public %}
-            {% set theme_element_public = true %}
-        {% endif %}
-
-        <div id="ThemeElementTools_{{ theme_element.id }}" class="DataTypeTools pure-u-1"><span style="float:right;">
-            <i class="Cursor tooltip fa fa-globe ODRThemeElementPublic{% if not theme_element_public %} IconRed{% endif %}" title="ThemeElement{% if not theme_element_public %} not{% endif %} visible to public" rel="{{ theme_element.id }}"></i>
-        </span></div>
 
         {% for theme_datafield in theme_element.themeDataFields %}
             {# Output via results_datafield or markdown #}
@@ -37,14 +29,15 @@
                 {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
                     {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
                 {% else %}
-                    {% include 'ODRAdminBundle:FieldPermissions:fieldpermissions_datafield.html.twig' with {
+                    {% include 'ODRAdminBundle:ODRGroup:permissions_datafield.html.twig' with {
+                        'group': group,
                         'theme_datafield': theme_datafield,
                         'datafield': datafield,
+                        'datatype': datatype,
 
-                        'can_view_datatype': can_view_datatype,
-                        'can_edit_datatype': can_edit_datatype,
-                        'theme_element_public': theme_element_public,
                         'datafield_permissions': datafield_permissions,
+
+                        'prevent_all_changes': prevent_all_changes,
                     } %}
                 {% endif %}
 
@@ -64,22 +57,25 @@
                     {% endif %}
                 {% endfor %}
 
-                {% include 'ODRAdminBundle:FieldPermissions:fieldpermissions_childtype.html.twig' with {
+                {% include 'ODRAdminBundle:ODRGroup:permissions_childtype.html.twig' with {
                     'datatype_array': datatype_array,
                     'target_datatype_id': child_datatype.id,
                     'theme_id': child_theme_id,
 
-                    'user': user,
+                    'group': group,
+
                     'datatype_permissions': datatype_permissions,
                     'datafield_permissions': datafield_permissions,
 
-                    'is_top_level': 0
+                    'is_top_level': 0,
+                    'prevent_all_changes': prevent_all_changes,
                 } %}
             {% endif %}
         {% endfor %}
 
     {% endif %}
 
+    </div><!-- End of .ODRInnerBox -->
     </div><!-- End of .ThemeElement -->
 
 {% endfor %}

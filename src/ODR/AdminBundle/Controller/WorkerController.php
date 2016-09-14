@@ -72,6 +72,9 @@ class WorkerController extends ODRCustomController
         $ret = '';
 
         try {
+
+            throw new \Exception('DO NOT CONTINUE');
+
             $post = $_POST;
             if ( !isset($post['tracked_job_id']) || !isset($post['datarecord_id']) || !isset($post['api_key']) || !isset($post['scheduled_at']) )
                 throw new \Exception('Invalid Form');

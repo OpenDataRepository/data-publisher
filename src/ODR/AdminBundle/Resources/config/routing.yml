@@ -18,11 +18,11 @@ odr_dashboard:
 # public routes to let users modify their own profile
 odr_self_profile_edit:
     path:  /profile
-    defaults: { _controller: ODRAdminBundle:ODRUser:selfedit }
+    defaults: { _controller: ODRAdminBundle:ODRUser:selfeditprofile }
 
 odr_self_profile_save:
     path:  /profile/save
-    defaults: { _controller: ODRAdminBundle:ODRUser:selfsave }
+    defaults: { _controller: ODRAdminBundle:ODRUser:selfsaveprofile }
     requirements: { methods: POST }
 
 #-----------------------------------------
@@ -31,16 +31,16 @@ odr_self_profile_save:
 # ODRUser Controller
 odr_admin_new_user_create:
     path:  /admin/new_user/create
-    defaults: { _controller: ODRAdminBundle:ODRUser:createnew }
+    defaults: { _controller: ODRAdminBundle:ODRUser:createnewuser }
 
 odr_admin_new_user_check:
     path:  /admin/new_user/check
-    defaults: { _controller: ODRAdminBundle:ODRUser:checknew }
+    defaults: { _controller: ODRAdminBundle:ODRUser:checknewuser }
     requirements: { methods: POST }
 
 odr_admin_new_user_save:
     path: /admin/new_user/save
-    defaults: { _controller: ODRAdminBundle:ODRUser:savenew }
+    defaults: { _controller: ODRAdminBundle:ODRUser:savenewuser }
     requirements: { methods: POST }
 
 odr_admin_change_password:
@@ -56,78 +56,18 @@ odr_admin_save_password:
 
 odr_profile_edit:
     path:  /admin/user/edit/{user_id}
-    defaults: { _controller: ODRAdminBundle:ODRUser:edit }
+    defaults: { _controller: ODRAdminBundle:ODRUser:editprofile }
     requirements:
         user_id:  \d+
 
 odr_profile_save:
     path:  /admin/user/save
-    defaults: { _controller: ODRAdminBundle:ODRUser:save }
+    defaults: { _controller: ODRAdminBundle:ODRUser:saveprofile }
     requirements: { methods: POST }
 
 odr_user_list:
     path:  /admin/user/list
-    defaults: { _controller: ODRAdminBundle:ODRUser:list }
-
-odr_manage_user_permissions:
-    path:  /admin/user/managepermissions/{user_id}
-    defaults: { _controller: ODRAdminBundle:ODRUser:managepermissions }
-    requirements:
-        user_id:  \d+
-
-odr_toggle_user_permission:
-    path:  /admin/user/togglepermission/{user_id}/{datatype_id}/{value}/{permission}
-    defaults: { _controller: ODRAdminBundle:ODRUser:togglepermission }
-    requirements:
-        user_id:  \d+
-        datatype_id:  \d+
-        value:  0|1
-        permission:  'edit|add|delete|view|design|admin|'
-
-odr_quick_permissions:
-    path:  /admin/user/quickpermissions/
-    defaults: { _controller: ODRAdminBundle:ODRUser:quickpermissions }
-
-odr_toggle_quick_permission:
-    path:  /admin/user/togglequickpermission/{datatype_id}/{value}/{permission}
-    defaults: { _controller: ODRAdminBundle:ODRUser:togglequickpermission }
-    requirements:
-        datatype_id:  \d+
-        value:  0|1
-        permission:  'edit|add|delete|view|design|admin|'
-
-
-odr_edit_datafield_permissions:
-    path:  /admin/user/datafieldpermissions/{user_id}/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:ODRUser:datafieldpermissions }
-    requirements:
-        user_id:  \d+
-        datatype_id:  \d+
-
-odr_datafield_permissions_reload_childtype:
-    path:  /admin/user/datafieldpermissions/reload/childtype/{user_id}/{source_datatype_id}/{childtype_id}
-    defaults: { _controller: ODRAdminBundle:ODRUser:reloaddatafieldpermissionschildtype }
-    requirements:
-        user_id:  \d+
-        source_datatype_id:  \d+
-        childtype_id:  \d+
-
-#odr_datafield_permissions_reload_theme_element:
-#    path:  /admin/user/datafieldpermissions/reload/theme_element/{user_id}/{source_datatype_id}/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:ODRUser:reloaddatafieldpermissionsthemeelement }
-#    requirements:
-#        user_id:  \d+
-#        source_datatype_id:  \d+
-#        theme_element_id:  \d+
-
-
-odr_save_datafield_permission:
-    path:  /admin/user/savedatafieldpermission/{user_id}/{datafield_id}/{permission}
-    defaults: { _controller: ODRAdminBundle:ODRUser:savedatafieldpermission }
-    requirements:
-        user_id:  \d+
-        datafield_id:  \d+
-        permission: '0|1|2'
+    defaults: { _controller: ODRAdminBundle:ODRUser:listusers }
 
 odr_manage_user_roles:
     path:  /admin/user/manage/roles
@@ -144,13 +84,13 @@ odr_set_user_role:
 
 odr_delete_user:
     path:  /admin/user/delete/{user_id}
-    defaults: { _controller: ODRAdminBundle:ODRUser:delete }
+    defaults: { _controller: ODRAdminBundle:ODRUser:deleteuser }
     requirements:
         user_id:  \d+
 
 odr_undelete_user:
     path:  /admin/user/undelete/{user_id}
-    defaults: { _controller: ODRAdminBundle:ODRUser:undelete }
+    defaults: { _controller: ODRAdminBundle:ODRUser:undeleteuser }
     requirements:
         user_id:  \d+
 
@@ -160,6 +100,101 @@ odr_session_pagelength:
     requirements:
         length: 10|25|50|100
 
+odr_view_effective_permissions:
+    path:  /admin/user/view_as/{user_id}/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:ODRUser:vieweffectivepermissions }
+    requirements:
+        user_id:  \d+
+        datatype_id:  \d+
+#-----------------------------------------
+
+#-----------------------------------------
+# ODRGroup Controller
+odr_manage_groups:
+    path:  /admin/group/list/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:grouplist }
+    requirements:
+        datatype_id:  \d+
+
+odr_add_group:
+    path:  /admin/group/add/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:addgroup }
+    requirements:
+        datatype_id:  \d+
+
+odr_delete_group:
+    path:  /admin/group/delete/{group_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:deletegroup }
+    requirements:
+        group_id:  \d+
+
+odr_load_group_properties:
+    path:  /admin/group/load/{group_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:loadgroup }
+    requirements:
+        group_id:  \d+
+
+odr_save_group_properties:
+    path:  /admin/group/save/{group_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:savegroup }
+    requirements:
+        group_id:  \d+
+
+
+odr_manage_user_groups:
+    path:  /admin/user/managegroups/{user_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:managegroups }
+    requirements:
+        user_id:  \d+
+
+odr_change_user_group:
+    path:  /admin/user/changegroup/{user_id}/{group_id}/{value}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:changegroup }
+    requirements:
+        user_id:  \d+
+        group_id:  \d+
+        value:  0|1
+
+
+odr_manage_group_permissions:
+    path:  /admin/group/permissions/{group_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:grouppermissions }
+    requirements:
+        group_id:  \d+
+
+odr_group_permissions_reload_childtype:
+    path:  /admin/group/permissions/reload/childtype/{group_id}/{source_datatype_id}/{childtype_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:reloadchildtype }
+    requirements:
+        group_id:  \d+
+        source_datatype_id:  \d+
+        childtype_id:  \d+
+
+#odr_group_permissions_reload_theme_element:
+#    path:  /admin/group/permissions/reload/theme_element/{group_id}/{source_datatype_id}/{theme_element_id}
+#    defaults: { _controller: ODRAdminBundle:ODRGroup:reloadthemeelement }
+#    requirements:
+#        group_id:  \d+
+#        source_datatype_id:  \d+
+#        theme_element_id:  \d+
+
+
+odr_save_group_datatype_permission:
+    path:  /admin/group/savepermissions/datatype/{group_id}/{datatype_id}/{value}/{permission}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:savedatatypepermission }
+    requirements:
+        group_id:  \d+
+        datatype_id:  \d+
+        value: '0|1'
+        permission:  'dr_view|dr_add|dr_delete|dt_admin|'
+
+odr_save_group_datafield_permission:
+    path:  /admin/group/savepermissions/datafield/{group_id}/{datafield_id}/{value}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:savedatafieldpermission }
+    requirements:
+        group_id:  \d+
+        datafield_id:  \d+
+        value: '0|1|2'
 #-----------------------------------------
 
 #-----------------------------------------
@@ -1134,12 +1169,6 @@ odr_delete_tracked_job:
 
 #-----------------------------------------
 # Reports Controller
-odr_datatype_permissions_list:
-    path:  /design/displaytemplate/datatypepermissions/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Reports:datatypepermissionslist }
-    requirements:
-        datatype_id: \d+
-
 odr_design_analyze_datafield_unique:
     path:  /design/displaytemplate/analyze_datafield_unique/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Reports:analyzedatafieldunique }

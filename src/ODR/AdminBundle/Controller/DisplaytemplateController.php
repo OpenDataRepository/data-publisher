@@ -242,6 +242,7 @@ class DisplaytemplateController extends ODRCustomController
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
                 $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
+                $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
 
                 // TODO - schedule each of these datarecords for a recache?
             }
@@ -403,6 +404,7 @@ class DisplaytemplateController extends ODRCustomController
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
                 $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
+                $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
 
                 // TODO - schedule each of these datarecords for a recache?
             }
@@ -639,6 +641,7 @@ class DisplaytemplateController extends ODRCustomController
                     $dr_id = $result['dr_id'];
 
                     $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
+                    $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
                     $redis->del($redis_prefix.'.associated_datarecords_for_'.$dr_id);
                 }
             }
@@ -3878,6 +3881,7 @@ class DisplaytemplateController extends ODRCustomController
                         foreach ($results as $result) {
                             $dr_id = $result['dr_id'];
                             $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
+                            $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
                         }
                     }
 
