@@ -1,6 +1,6 @@
 
 .ODRMenuWrapper {
-    margin-bottom: 1em;
+    /* margin-bottom: 1em; */
     -webkit-font-smoothing: antialiased;
     -webkit-transition: height 0.5s;
     -moz-transition: height 0.5s;
@@ -14,7 +14,8 @@
 }
 
 .ODRMenuWrapper.open {
-    height: 14em;
+    min-height: 14em;
+    overflow-y: visible;
 }
 
 .odr-custom-menu-3 {
@@ -22,6 +23,7 @@
 }
 
 .odr-custom-toggle {
+    margin-top: 4px;
     width: 34px;
     height: 34px;
     display: block;
@@ -78,7 +80,7 @@
     }
 
     .ODRMenuWrapper {
-        height: 34px;
+        height: 2.5em;
         overflow: hidden;
     }
 }
@@ -98,9 +100,6 @@
 #ODRMainMenu.open ul ul {
     display: block;
     position: relative;
-}
-#ODRMainMenu.open {
-    background-color: blue;
 }
 
 #ODRMainMenu ul ul {

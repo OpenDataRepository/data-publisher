@@ -149,12 +149,21 @@
 
 <body class="pure-skin-odr">
     <!-- The toolbar at the top -->
-    <!-- <section id="toolbar" class="pure-form pure-g"> -->
+<!-- <section id="toolbar" class="pure-form pure-g"> -->
 
 <div class="ODRMenuWrapper pure-g" id="ODRMainMenu">
     <div class="pure-u-1 pure-u-md-1-3">
         <div class="pure-menu">
-            <a href="#" class="pure-menu-heading odr-custom-brand">Brand</a>
+            <ul class="pure-menu-list">
+
+                <li><a href="#" class="pure-menu-heading odr-custom-brand">Admin</a>
+                    <ul>
+                        <li><a href="#">MENU Test 11</a></li>
+                    </ul>
+                </li>
+            </ul>
+            {# block navigation_top %}
+            {% endblock #}
             <a href="#" class="odr-custom-toggle" id="toggle"><s class="bar"></s><s class="bar"></s></a>
         </div>
     </div>
@@ -186,15 +195,19 @@
     <div class="pure-u-1 pure-u-md-1-3">
         <div class="pure-menu pure-menu-horizontal odr-custom-menu-3 odr-custom-can-transform">
             <ul class="pure-menu-list">
-                <li class="pure-menu-item"><a href="#" class="pure-menu-link">Yahoo</a></li>
-                <li class="pure-menu-item"><a href="#" class="pure-menu-link">W3C</a></li>
+                {% if current_user != '' %}
+                    <li class="pure-menu-item"><span class="pure-menu-link">{{ current_user }}</span></li>
+                {% endif %}
+                {% if header_right_title != '' %}
+                    <li class="pure-menu-item"><a class="pure-menu-link" {% if header_right_path != '' %}href="{{ header_right_path }}"{% endif %} {% if header_right_js != '' %}onclick="{{ header_right_js }}"{% endif %}>{{ header_right_title }}</a></li>
+                {% endif %}
             </ul>
         </div>
     </div>
 </div>
 
 
-    <!-- </section><!-- End of #toolbar -->
+<!-- </section><!-- End of #toolbar -->
     
 <script>
 (function (window, document) {
