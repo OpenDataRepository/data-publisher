@@ -4,17 +4,24 @@
 {% set theme = datatype.themes[theme_id] %}
 {% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
 
-{% if render_plugin.overrideChild == 1 %}
+{# Determine the list of datarecords to display at this point in time #}
+{% set datarecord_list = {} %}
+{% if is_top_level == 1 %}
+    {% set datarecord_list = datarecord_list|merge({ (parent_datarecord_id): datarecord_array[parent_datarecord_id] }) %}   {# parent_datarecord_id will NOT be the key due to twig's use of php array_merge #}
+{% else %}
+    {% set parent_datarecord = datarecord_array[parent_datarecord_id] %}
 
-    {% set datarecord_list = [] %}
-    {% for dr_id, datarecord in datarecord_array %}
-        {% if (is_link == 1 or datarecord.parent.id == parent_datarecord_id) and datarecord.dataType.id == target_datatype_id %}
-            {#PASSING DATARECORD {{ datarecord.id }} TO RENDER PLUGIN</br>#}
-            {% set datarecord_list = datarecord_list|merge([datarecord]) %}
-        {% else %}
-            {#IGNORING DATARECORD {{ datarecord.id }}</br>#}
-        {% endif %}
-    {% endfor %}
+    {% if parent_datarecord['children'][target_datatype_id] is defined %}
+        {% for num, dr_id in parent_datarecord['children'][target_datatype_id] %}
+            {% if datarecord_array[dr_id] is defined %}
+                {% set datarecord_list = datarecord_list|merge({ (dr_id): datarecord_array[dr_id] }) %}     {# dr_id will NOT be the key due to twig's use of php array_merge #}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endif %}
+
+
+{% if render_plugin.overrideChild == 1 %}
 
     <!-- Start {{ render_plugin.pluginName }} override child html -->
     {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type} %}
@@ -37,7 +44,8 @@
             'display_type': display_type
         } %}
 
-        {% for dr_id, datarecord in datarecord_array %}
+
+        {% for num, datarecord in datarecord_list %}
 {#
 ----------</br>
 datarecord: {{ datarecord.id }}...datatype {{ datarecord.dataType.id }}</br>
@@ -53,35 +61,32 @@ display_type: {{ display_type }}</br>
 ----------</br>
 #}
 
-            {% if (is_link == 1 or datarecord.parent.id == parent_datarecord_id) and datarecord.dataType.id == target_datatype_id %}
+            {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {'datarecord': datarecord, 'datatype': datatype, 'is_top_level': is_top_level, 'display_type': display_type} %}
 
-                {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {'datarecord': datarecord, 'datatype': datatype, 'is_top_level': is_top_level, 'display_type': display_type} %}
+            <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
+                {% if render_plugin.id != '1' and (render_plugin.overrideChild == 1 or render_plugin.overrideFields == 1) %}
+                    <!-- html for {{ render_plugin.pluginName }} -->
+                    {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type} %}
+                    {{ [datarecord]|datatype_plugin(datatype, render_plugin, theme, rendering_options)|raw }}   {# [datarecord] converts datarecord into a single-element array #}
+                {% endif %}
 
-                <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
-                    {% if render_plugin.id != '1' and (render_plugin.overrideChild == 1 or render_plugin.overrideFields == 1) %}
-                        <!-- html for {{ render_plugin.pluginName }} -->
-                        {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type} %}
-                        {{ [datarecord]|datatype_plugin(datatype, render_plugin, theme, rendering_options)|raw }}   {# [datarecord] converts datarecord into a single-element array #}
-                    {% endif %}
+                {% if render_plugin.overrideFields == 0 %}
+                    {% include 'ODRAdminBundle:Display:display_fieldarea.html.twig' with {
+                        'datatype_array': datatype_array,
+                        'datarecord_array': datarecord_array,
 
-                    {% if render_plugin.overrideFields == 0 %}
-                        {% include 'ODRAdminBundle:Display:display_fieldarea.html.twig' with {
-                            'datatype_array': datatype_array,
-                            'datarecord_array': datarecord_array,
+                        'target_datatype_id': target_datatype_id,
+                        'parent_datarecord_id': parent_datarecord_id,
+                        'target_datarecord_id': datarecord.id,
+                        'theme_id': theme_id,
 
-                            'target_datatype_id': target_datatype_id,
-                            'parent_datarecord_id': parent_datarecord_id,
-                            'target_datarecord_id': datarecord.id,
-                            'theme_id': theme_id,
+                        'is_top_level': is_top_level,
+                        'is_link': is_link,
+                        'display_type': display_type
+                    } %}
+                {% endif %}
+            </div><!-- End of #FieldArea_{{ datarecord.id }} -->
 
-                            'is_top_level': is_top_level,
-                            'is_link': is_link,
-                            'display_type': display_type
-                        } %}
-                    {% endif %}
-                </div><!-- End of #FieldArea_{{ datarecord.id }} -->
-
-            {% endif %}
         {% endfor %}
 
         {% include 'ODRAdminBundle:Default:fieldarea_footer.html.twig' with {'display_type': display_type } %}

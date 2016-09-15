@@ -70,6 +70,11 @@ class DataRecord
     private $dataRecordMeta;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $linkedDatarecords;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataRecord
      */
     private $parent;
@@ -109,6 +114,7 @@ class DataRecord
         $this->grandchildren = new \Doctrine\Common\Collections\ArrayCollection();
         $this->children = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataRecordMeta = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->linkedDatarecords = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -343,6 +349,40 @@ class DataRecord
     public function getDataRecordMeta()
     {
         return $this->dataRecordMeta->first();
+    }
+
+    /**
+     * Add linkedDatarecord
+     *
+     * @param \ODR\AdminBundle\Entity\LinkedDataTree $linkedDatarecord
+     *
+     * @return DataRecord
+     */
+    public function addLinkedDatarecord(\ODR\AdminBundle\Entity\LinkedDataTree $linkedDatarecord)
+    {
+        $this->linkedDatarecords[] = $linkedDatarecord;
+
+        return $this;
+    }
+
+    /**
+     * Remove linkedDatarecord
+     *
+     * @param \ODR\AdminBundle\Entity\LinkedDataTree $linkedDatarecord
+     */
+    public function removeLinkedDatarecord(\ODR\AdminBundle\Entity\LinkedDataTree $linkedDatarecord)
+    {
+        $this->linkedDatarecords->removeElement($linkedDatarecord);
+    }
+
+    /**
+     * Get linkedDatarecords
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getLinkedDatarecords()
+    {
+        return $this->linkedDatarecords;
     }
 
     /**
