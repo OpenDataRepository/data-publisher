@@ -2109,6 +2109,7 @@ class EditController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
             $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
             $can_view_ancestor_datatype = false;
             if ( isset($datatype_permissions[$ancestor_datatype_id]) && isset($datatype_permissions[$ancestor_datatype_id]['dt_view']) )
@@ -2280,7 +2281,7 @@ if ($debug) {
 //print_r($table_html);
 
             // Grab the column names for the datatables plugin
-            $column_data = parent::getDatatablesColumnNames($em, $theme);
+            $column_data = parent::getDatatablesColumnNames($em, $theme, $datafield_permissions);
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
 /*

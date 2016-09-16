@@ -1222,34 +1222,14 @@ odr_get_file_encrypt_progress:
 
 #-----------------------------------------
 # Other stuff
-odr_dr_check:
-    path: /admin/dr_check
-    defaults: { _controller: ODRAdminBundle:Worker:drcheck }
-odr_df_check:
-    path: /admin/df_check
-    defaults: { _controller: ODRAdminBundle:Worker:dfcheck }
-odr_drf_check:
-    path: /admin/drf_check/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Worker:drfcheck }
+odr_dt_clear:
+    path: /admin/dt_clear/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Worker:dtclear, datatype_id: 0 }
     requirements:
         datatype_id: \d+
-
-odr_entity_check:
-    path: /admin/entity_check/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Worker:entitycheck }
-    requirements:
-        datatype_id: \d+
-
-odr_permission_check:
-    path: /admin/permission_check
-    defaults: { _controller: ODRAdminBundle:ODRUser:permissioncheck }
-
-odr_deleted_radio_check:
-    path: /admin/deleted_radio_check
-    defaults: { _controller:ODRAdminBundle:Worker:deletedradiocheck }
-odr_duplicate_radio_check:
-    path: /admin/duplicate_radio_check/{datatype_id}
-    defaults: { _controller:ODRAdminBundle:Worker:duplicateradiocheck }
+odr_dr_clear:
+    path: /admin/dr_clear/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Worker:drclear, datatype_id: 0 }
     requirements:
         datatype_id: \d+
 

@@ -142,9 +142,13 @@ class ODRCustomController extends Controller
 
         $logged_in = false;
         $user_permissions = array();
+        $datatype_permissions = array();
+        $datafield_permissions = array();
         if ($user !== 'anon.') {
             $logged_in = true;
             $user_permissions = self::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
         }
 
         // Grab the tab's id, if it exists
@@ -269,7 +273,7 @@ class ODRCustomController extends Controller
                     'count' => $total_datarecords,
                     'scroll_target' => $scroll_target,
                     'user' => $user,
-                    'user_permissions' => $user_permissions['datatypes'],
+                    'user_permissions' => $datatype_permissions,
                     'odr_tab_id' => $odr_tab_id,
 
                     'logged_in' => $logged_in,
@@ -287,7 +291,7 @@ class ODRCustomController extends Controller
         else if ( $theme->getThemeType() == 'table' ) {
             // -----------------------------------
             // Grab the...
-            $column_data = self::getDatatablesColumnNames($em, $theme);
+            $column_data = self::getDatatablesColumnNames($em, $theme, $datafield_permissions);
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
 /*
@@ -316,7 +320,7 @@ exit();
                     'page_length' => $page_length,
                     'scroll_target' => $scroll_target,
                     'user' => $user,
-                    'user_permissions' => $user_permissions['datatypes'],
+                    'user_permissions' => $datatype_permissions,
                     'theme_id' => $theme->getId(),
 
                     'logged_in' => $logged_in,
@@ -397,22 +401,32 @@ exit();
                 // Only add this datarecord to the list if the user is allowed to see it...
                 if ( $can_view_datarecord || $data['publicDate'] !== '2200-01-01 00:00:00' ) {
                     // Don't save values from datafields the user isn't allowed to see...
-                    $dr_data = array();
+                    $dr_data = null;
                     foreach ($data[$theme->getId()] as $display_order => $df_data) {        // TODO - apparently provides wrong theme id here at times?
+                        if ($dr_data == null)
+                            $dr_data = array();
+
                         $df_id = $df_data['id'];
                         $df_value = $df_data['value'];
+                        $df_is_public = $df_data['is_public'];
 
-                        if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
+                        if ( $df_is_public || (isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view'])) )
                             $dr_data[] = $df_value;
                     }
 
                     // If the user isn't prevented from seeing all datafields comprising this layout, store the data in an array
-                    if (count($dr_data) > 0) {
+                    if ( is_null($dr_data) ) {
+                        throw new \Exception('Table Theme has no datafields attached to it');
+                    }
+                    else if (count($dr_data) > 0) {
                         $row[] = strval($datarecord_id);
                         $row[] = strval($data['default_sort_value']);
 
                         foreach ($dr_data as $tmp)
                             $row[] = strval($tmp);
+                    }
+                    else {
+                        throw new \Exception('You are not allowed to view any of the Datafields used by this Table Theme');
                     }
 
                 }
@@ -4834,10 +4848,11 @@ if ($debug)
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param Theme $theme                     The 'table' theme that stores the order of datafields for its datatype
+     * @param array $datafield_permissions     The datafield permissions array of the user requesting this page
      *
      * @return array
      */
-    public function getDatatablesColumnNames($em, $theme)
+    public function getDatatablesColumnNames($em, $theme, $datafield_permissions)
     {
         // First and second columns are always datarecord id and sort value, respectively
         $column_names  = '{"title":"datarecord_id","visible":false,"searchable":false},';
@@ -4846,7 +4861,7 @@ if ($debug)
 
         // Do a query to locate the names of all datafields that can be in the table
         $query = $em->createQuery(
-           'SELECT dfm.fieldName AS field_name
+           'SELECT df.id AS df_id, dfm.fieldName AS field_name, dfm.publicDate AS public_date
             FROM ODRAdminBundle:ThemeElement AS te
             JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
             JOIN ODRAdminBundle:DataFields AS df WITH tdf.dataField = df
@@ -4858,10 +4873,20 @@ if ($debug)
         $results = $query->getArrayResult();
 
         foreach ($results as $num => $data) {
-            $fieldname = $data['field_name'];
-            $fieldname = str_replace('"', "\\\"", $fieldname);  // escape double-quotes in datafield name
-            $column_names .= '{"title":"'.$fieldname.'"},';
-            $num_columns++;
+            $df_id = $data['df_id'];
+            $public_date = $data['public_date'];
+
+            $datafield_is_public = true;
+            if ($public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+                $datafield_is_public = false;
+
+            if ($datafield_is_public || (isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view'])) ) {
+                $fieldname = $data['field_name'];
+                $fieldname = str_replace('"', "\\\"", $fieldname);  // escape double-quotes in datafield name
+
+                $column_names .= '{"title":"'.$fieldname.'"},';
+                $num_columns++;
+            }
         }
 
         return array('column_names' => $column_names, 'num_columns' => $num_columns);
@@ -4938,6 +4963,10 @@ if ($debug)
                     $df_id = $tdf['dataField']['id'];
                     $df_value = '';
 
+                    $df_is_public = 1;
+                    if ($df['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+                        $df_is_public = 0;
+
                     if ($render_plugin['id'] !== 1) {
                         // Run the render plugin for this datafield
                         try {
@@ -5009,7 +5038,7 @@ if ($debug)
                         }
                     }
 
-                    $data[$theme_id][$display_order] = array('id' => $df_id, 'value' => $df_value);
+                    $data[$theme_id][$display_order] = array('id' => $df_id, 'value' => $df_value, 'is_public' => $df_is_public);
                 }
             }
         }

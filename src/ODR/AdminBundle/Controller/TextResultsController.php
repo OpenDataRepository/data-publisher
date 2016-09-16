@@ -313,9 +313,6 @@ class TextResultsController extends ODRCustomController
             if ( $datarecord_count > 0 )
                 $data = parent::renderTextResultsList($em, $datarecord_list, $theme, $request);
 
-            if ( count($data) == 0 )
-                throw new \Exception("Table Theme has no Datafields attached to it");
-
             // Build the json array to return to the datatables request
             $json = array(
                 'draw' => $draw,

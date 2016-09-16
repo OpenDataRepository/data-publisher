@@ -850,7 +850,7 @@ if ($debug) {
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
             if ($theme == null)
-                throw new \Exception('Datatype '.$datatype->getId().' wants to use a "'.$theme_type.'" theme to render search results, but no such theme exists...');
+                throw new \Exception('The datatype "'.$datatype->getShortName().'" wants to use a "'.$theme_type.'" theme to render search results, but no such theme exists.');
 
 
             // -----------------------------------
@@ -997,7 +997,7 @@ if (isset($debug['timing'])) {
         $datatype_permissions = array();
         $datafield_permissions = array();
 
-        if ($user !== null && $user !== 'anon.') {
+        if ($user !== 'anon.') {
             $user_permissions = $odrcc->getUserPermissionsArray($em, $user->getId());
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
