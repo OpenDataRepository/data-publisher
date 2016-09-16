@@ -14,8 +14,8 @@
 }
 
 .ODRMenuWrapper.open {
-    min-height: 14em;
-    overflow-y: visible;
+    height: auto;
+    overflow-y: visible !important;
 }
 
 .odr-custom-menu-3 {
@@ -67,22 +67,6 @@
     -moz-transform: rotate(-45deg);
     -ms-transform: rotate(-45deg);
     transform: rotate(-45deg);
-}
-
-@media (max-width: 47.999em) {
-
-    .odr-custom-menu-3 {
-        text-align: left;
-    }
-
-    .odr-custom-toggle {
-        display: block;
-    }
-
-    .ODRMenuWrapper {
-        height: 2.5em;
-        overflow: hidden;
-    }
 }
 
 
@@ -139,3 +123,53 @@
 /* #ODRMainMenu li:hover ul {
     display: block;
 } */
+
+.odr-menu-center {
+    text-align: center;
+}
+
+.ODR-pure-submenu {
+    text-align: left;
+    list-style-type: none;
+    padding-left: 1em;
+    padding-top: 0.4em;
+    padding-bottom: 0.2em;
+}
+
+
+
+
+@media (max-width: 47.999em) {
+
+    .odr-custom-menu-3 {
+        text-align: left;
+    }
+
+    .odr-custom-toggle {
+        display: block;
+    }
+
+    .ODRMenuWrapper {
+        height: 2.5em;
+        overflow: hidden;
+    }
+
+    .odr-menu-center {
+        text-align: left;
+    }
+
+    /*
+    #ODRMainMenu ul li.show > ul {
+        display: none;
+    }
+    /* DO NOT Display Dropdowns on Hover */
+    /*
+    #ODRMainMenu ul li:hover > ul {
+        display: none;
+    }
+
+    #ODRMainMenu ul li .show > ul {
+        display: block;
+    } */
+}
+
