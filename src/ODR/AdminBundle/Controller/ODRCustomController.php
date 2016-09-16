@@ -5504,7 +5504,8 @@ if ($timing)
                e_i, e_im, e_ip, e_ipm, e_is, e_ip_cb,
                e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv, rs, ro,
                e_b_cb, e_iv_cb, e_dv_cb, e_lt_cb, e_lvc_cb, e_mvc_cb, e_svc_cb, e_dtv_cb, rs_cb,
-               df
+               df,
+               cdr, cdr_dt, ldt, ldr, ldr_dt
 
             FROM ODRAdminBundle:DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
@@ -5553,12 +5554,20 @@ if ($timing)
 
             LEFT JOIN drf.dataField AS df
 
+            LEFT JOIN dr.children AS cdr
+            LEFT JOIN cdr.dataType AS cdr_dt
+
+            LEFT JOIN dr.linkedDatarecords AS ldt
+            LEFT JOIN ldt.descendant AS ldr
+            LEFT JOIN ldr.dataType AS ldr_dt
+
             WHERE
                 dr.grandparent = :grandparent_id
                 AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND (e_i.id IS NULL OR e_i.original = 0)'
         )->setParameters(array('grandparent_id' => $grandparent_datarecord_id));
 
+//print $query->getSQL();  exit();
         $datarecord_data = $query->getArrayResult();
 //print '<pre>'.print_r($datarecord_data, true).'</pre>';  exit();
 
@@ -5596,6 +5605,31 @@ if ($timing) {
 
             // Don't want to store the datatype's meta entry
             unset( $datarecord_data[$dr_num]['dataType']['dataTypeMeta'] );
+
+            // Need to store a list of child/linked datarecords by their respective datatype ids
+            $child_datarecords = array();
+            foreach ($dr['children'] as $child_num => $cdr) {
+                $cdr_id = $cdr['id'];
+                $cdr_dt_id = $cdr['dataType']['id'];
+
+                // A top-level datarecord is listed as its own parent in the database...don't want to store it in the list of children
+                if ( $cdr_id == $dr['id'] )
+                    continue;
+
+                if ( !isset($child_datarecords[$cdr_dt_id]) )
+                    $child_datarecords[$cdr_dt_id] = array();
+                $child_datarecords[$cdr_dt_id][] = $cdr_id;
+            }
+            foreach ($dr['linkedDatarecords'] as $child_num => $ldt) {
+                $ldr_id = $ldt['descendant']['id'];
+                $ldr_dt_id = $ldt['descendant']['dataType']['id'];
+
+                if ( !isset($child_datarecords[$ldr_dt_id]) )
+                    $child_datarecords[$ldr_dt_id] = array();
+                $child_datarecords[$ldr_dt_id][] = $ldr_id;
+            }
+            $datarecord_data[$dr_num]['children'] = $child_datarecords;
+            unset( $datarecord_data[$dr_num]['linkedDatarecords'] );
 
 
             // Flatten datafield_meta of each datarecordfield, and organize by datafield id instead of some random number

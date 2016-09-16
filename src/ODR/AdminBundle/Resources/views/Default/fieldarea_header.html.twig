@@ -19,6 +19,11 @@
         <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a>{{ datatype.dataTypeMeta.shortName }}</a>
+            {% if is_link == 1 %}
+                <span style="margin-left: 15px;" title="This is a linked Datatype">
+                <i class="fa fa-lg fa-link Cursor"></i>
+            </span>
+            {% endif %}
         </h3>
 
         <div class="pure-u-1 ODRTabButtonHeader">
@@ -37,6 +42,11 @@
         <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a>{{ datatype.dataTypeMeta.shortName }}</a>
+            {% if is_link == 1 %}
+                <span style="margin-left: 15px;" title="This is a linked Datatype">
+                <i class="fa fa-lg fa-link Cursor"></i>
+            </span>
+            {% endif %}
 
             <span style="float:right;">
                 <select id="DataType_{{ datatype.id }}_dropdown" class="accordion" style="padding: 0.6em 0.78em;">
@@ -54,6 +64,11 @@
     {# just a header here...accordion_footer.html.twig doesn't need a closing tag #}
     <h3 class="ODRListDisplayHeader ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
         <a>{{ datatype.dataTypeMeta.shortName }}</a>
+        {% if is_link == 1 %}
+            <span style="margin-left: 15px;" title="This is a linked Datatype">
+                <i class="fa fa-lg fa-link Cursor"></i>
+            </span>
+        {% endif %}
     </h3>
 
 {% endif %}

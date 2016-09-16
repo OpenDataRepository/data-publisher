@@ -27,7 +27,7 @@ ODR\AdminBundle\Entity\LinkedDataTree:
             targetEntity: DataRecord
             cascade: {  }
             mappedBy: null
-            inversedBy: null
+            inversedBy: linkedDatarecords
             joinColumns:
                 ancestor_id:
                     referencedColumnName: id
