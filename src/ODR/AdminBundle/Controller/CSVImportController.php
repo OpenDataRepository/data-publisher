@@ -285,7 +285,7 @@ class CSVImportController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
             $datatype_permissions = $user_permissions['datatypes'];
-//            $datafield_permissions = $user_permissions['datafields'];     // TODO - eventually need to use this alongside the less restrictiev permissions?
+//            $datafield_permissions = $user_permissions['datafields'];     // TODO - eventually need to use this alongside the less restrictive permissions?
 
             // Ensure user has permissions to be doing this
             if ( !(isset($datatype_permissions[ $source_datatype_id ]) && isset($datatype_permissions[ $source_datatype_id ][ 'dt_admin' ])) )    // TODO - less restrictive permissions?

@@ -111,6 +111,12 @@ odr_view_effective_permissions:
 #-----------------------------------------
 # ODRGroup Controller
 odr_manage_groups:
+    path:  /admin/group/manange/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:managegroups }
+    requirements:
+        datatype_id:  \d+
+
+odr_load_group_list:
     path:  /admin/group/list/{datatype_id}
     defaults: { _controller: ODRAdminBundle:ODRGroup:grouplist }
     requirements:
@@ -128,28 +134,22 @@ odr_delete_group:
     requirements:
         group_id:  \d+
 
-odr_load_group_properties:
+odr_group_properties:
     path:  /admin/group/load/{group_id}
-    defaults: { _controller: ODRAdminBundle:ODRGroup:loadgroup }
-    requirements:
-        group_id:  \d+
-
-odr_save_group_properties:
-    path:  /admin/group/save/{group_id}
-    defaults: { _controller: ODRAdminBundle:ODRGroup:savegroup }
+    defaults: { _controller: ODRAdminBundle:ODRGroup:groupproperties }
     requirements:
         group_id:  \d+
 
 
 odr_manage_user_groups:
     path:  /admin/user/managegroups/{user_id}
-    defaults: { _controller: ODRAdminBundle:ODRGroup:managegroups }
+    defaults: { _controller: ODRAdminBundle:ODRGroup:manageusergroups }
     requirements:
         user_id:  \d+
 
 odr_change_user_group:
     path:  /admin/user/changegroup/{user_id}/{group_id}/{value}
-    defaults: { _controller: ODRAdminBundle:ODRGroup:changegroup }
+    defaults: { _controller: ODRAdminBundle:ODRGroup:changeusergroup }
     requirements:
         user_id:  \d+
         group_id:  \d+
@@ -186,7 +186,7 @@ odr_save_group_datatype_permission:
         group_id:  \d+
         datatype_id:  \d+
         value: '0|1'
-        permission:  'dr_view|dr_add|dr_delete|dt_admin|'
+        permission:  'dt_view|dr_view|dr_add|dr_delete|dt_admin|'
 
 odr_save_group_datafield_permission:
     path:  /admin/group/savepermissions/datafield/{group_id}/{datafield_id}/{value}

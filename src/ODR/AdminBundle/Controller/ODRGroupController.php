@@ -21,6 +21,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Group;
+use ODR\AdminBundle\Entity\GroupMeta;
 use ODR\AdminBundle\Entity\GroupDatafieldPermissions;
 use ODR\AdminBundle\Entity\GroupDatatypePermissions;
 use ODR\AdminBundle\Entity\Theme;
@@ -28,6 +29,7 @@ use ODR\AdminBundle\Entity\ThemeElement;
 use ODR\AdminBundle\Entity\UserGroup;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Forms
+use ODR\AdminBundle\Form\UpdateGroupForm;
 // Symfony
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
@@ -36,6 +38,66 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ODRGroupController extends ODRCustomController
 {
+
+    /**
+     * Loads the wrapper for the group management interface
+     *
+     * @param integer $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function managegroupsAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError();
+            // --------------------
+
+            // Render and return the wrapper HTML
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:ODRGroup:permissions_wrapper.html.twig',
+                    array(
+                        'datatype' => $datatype,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x66132513 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
 
     /**
      * Lists all groups for the given datatype.
@@ -47,7 +109,72 @@ class ODRGroupController extends ODRCustomController
      */
     public function grouplistAction($datatype_id, Request $request)
     {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
 
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError();
+            // --------------------
+
+
+            // Load all groups for this Datatype
+            $query = $em->createQuery(
+               'SELECT g, gm
+                FROM ODRAdminBundle:Group AS g
+                JOIN g.groupMeta AS gm
+                WHERE g.dataType = :datatype_id
+                AND g.deletedAt IS NULL AND gm.deletedAt IS NULL'
+            )->setParameters( array('datatype_id' => $datatype->getId()) );
+            $results = $query->getArrayResult();
+
+            $group_list = array();
+            foreach ($results as $num => $result) {
+                $group_list[$num] = $result;
+                $group_list[$num]['groupMeta'] = $group_list[$num]['groupMeta'][0];
+            }
+//print_r($group_list);  exit();
+
+            // Render and return the wrapper HTML
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:ODRGroup:group_list.html.twig',
+                    array(
+                        'datatype' => $datatype,
+                        'group_list' => $group_list,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x66132462 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
@@ -61,7 +188,48 @@ class ODRGroupController extends ODRCustomController
      */
     public function addgroupAction($datatype_id, Request $request)
     {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
 
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError();
+            // --------------------
+
+
+            // Create a new group
+            parent::ODR_createGroup($em, $user, $datatype);
+
+            // Don't need to delete any cached entries, and permissions_wrapper.html.twig will reload the list of groups automatically
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x13274642 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
@@ -75,35 +243,218 @@ class ODRGroupController extends ODRCustomController
      */
     public function deletegroupAction($group_id, Request $request)
     {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
 
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var Group $group */
+            $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
+            if ($group == null)
+                return parent::deletedEntityError('Group');
+
+            $datatype = $group->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError();
+            // --------------------
+
+            if ($group->getPurpose() !== '')
+                throw new \Exception('Not allowed to delete a default group');
+
+
+            // Get all users that are going to be affected by this
+            $query = $em->createQuery(
+               'SELECT DISTINCT(u.id) AS user_id
+                FROM ODROpenRepositoryUserBundle:User AS u
+                JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
+                WHERE ug.group = :group_id
+                AND ug.deletedAt IS NULL'
+            )->setParameters( array('group_id' => $group_id) );
+            $results = $query->getArrayResult();
+
+            $user_list = array();
+            foreach ($results as $result)
+                $user_list[] = $result['user_id'];
+
+
+            // Delete all UserGroup entities
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:UserGroup AS ug
+                SET ug.deletedAt = :now, ug.deletedBy = :user_id
+                WHERE ug.group_id = :group_id AND ug.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'user_id' => $user->getId(), 'group_id' => $group_id) );
+            $rows = $query->execute();
+
+            // Delete all GroupDatatypePermissions entities
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:GroupDatatypePermissions AS gdtp
+                SET gdtp.deletedAt = :now
+                WHERE gdtp.group_id = :group_id AND gdtp.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'group_id' => $group_id) );
+            $rows = $query->execute();
+
+            // Delete all GroupDatafieldPermissions entities
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
+                SET gdfp.deletedAt = :now
+                WHERE gdfp.group_id = :group_id AND gdfp.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'group_id' => $group_id) );
+            $rows = $query->execute();
+
+
+            // Save who deleted the Group
+            $group->setDeletedBy($user);
+            $em->persist($group);
+            $em->flush();
+
+            // Delete the Group and its meta entry
+            $em->remove($group->getGroupMeta());
+            $em->remove($group);
+            $em->flush();
+
+
+            // Delete the cached entries for the group, and for all users that used to be in this group
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            $redis->del($redis_prefix.'.group_'.$group_id.'_permissions');
+            foreach ($user_list as $num => $user_id)
+                $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x2734456 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
     /**
-     * Loads the properties form for the given group.
+     * Loads/Saves an ODR Group Properties Form.
      *
      * @param integer $group_id
      * @param Request $request
      *
      * @return Response
      */
-    public function loadgroupAction($group_id, Request $request)
+    public function grouppropertiesAction($group_id, Request $request)
     {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
 
-    }
+        try {
+            // Grab objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var Group $group */
+            $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
+            if ($group == null)
+                return parent::deletedEntityError('Group');
+
+            $datatype = $group->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                return parent::deletedEntityError('DataType');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+            // Prevent users from changing this group if it's one of the default groups for the datatype
+            $prevent_all_changes = true;
+            if ($group->getPurpose() == '')
+                $prevent_all_changes = false;
 
 
-    /**
-     * Saves changes made to a group properties form.
-     *
-     * @param integer $group_id
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function savegroupAction($group_id, Request $request)
-    {
+            // Populate new Group form
+            $submitted_data = new GroupMeta();
+            $group_form = $this->createForm(UpdateGroupForm::class, $submitted_data);
 
+            $group_form->handleRequest($request);
+
+            if ($group_form->isSubmitted()) {
+
+                if ($prevent_all_changes)
+                    $group_form->addError( new FormError('Not allowed to make changes to a default Group') );
+
+                if ($group_form->isValid()) {
+                    // If a value in the form changed, create a new GroupMeta entity to store the change
+                    // TODO - datarecord_restriction
+                    $properties = array(
+                        'groupName' => $submitted_data->getGroupName(),
+                        'groupDescription' => $submitted_data->getGroupDescription(),
+                    );
+                    parent::ODR_copyGroupMeta($em, $user, $group, $properties);
+
+                    // TODO - Delete cached versions of group/user permissions once datarecord_restriction is added
+                }
+                else {
+                    // Form validation failed
+                    $error_str = parent::ODR_getErrorMessages($group_form);
+                    throw new \Exception($error_str);
+                }
+            }
+            else {
+                // GET request...load the actual ThemeMeta entity
+                $group_meta = $group->getGroupMeta();
+                $group_form = $this->createForm(UpdateGroupForm::class, $group_meta);
+
+                // Return the slideout html
+                $templating = $this->get('templating');
+                $return['d'] = $templating->render(
+                    'ODRAdminBundle:ODRGroup:group_properties_form.html.twig',
+                    array(
+                        'datatype' => $datatype,
+                        'group' => $group,
+                        'group_form' => $group_form->createView(),
+
+                        'prevent_all_changes' => $prevent_all_changes,
+                    )
+                );
+                $return['prevent_all_changes'] = $prevent_all_changes;
+            }
+
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x39257760 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
@@ -156,11 +507,12 @@ class ODRGroupController extends ODRCustomController
             // Get a listing of all top level datatypes
             $top_level_datatypes = parent::getTopLevelDatatypes();
             $query = $em->createQuery(
-                'SELECT dt, dtm, g, gm, dt_cb
+                'SELECT dt, dtm, g, g_cb, gm, dt_cb
                 FROM ODRAdminBundle:DataType AS dt
                 JOIN dt.dataTypeMeta AS dtm
                 JOIN dt.groups AS g
                 JOIN dt.createdBy AS dt_cb
+                JOIN g.createdBy AS g_cb
                 JOIN g.groupMeta AS gm
                 WHERE dt.id IN (:datatype_ids)
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND g.deletedAt IS NULL AND gm.deletedAt IS NULL
@@ -184,6 +536,7 @@ class ODRGroupController extends ODRCustomController
                         $group_id = $g['id'];
                         $purpose = $g['purpose'];
 
+                        $g['createdBy'] = parent::cleanUserData( $g['createdBy'] );
                         $g['groupMeta'] = $g['groupMeta'][0];
 
                         if ($purpose !== '')
@@ -201,7 +554,15 @@ class ODRGroupController extends ODRCustomController
 
             $user_group_list = array();
             foreach ($user_groups as $user_group)
-                $user_group_list[ $user_group->getId() ] = 1;
+                $user_group_list[ $user_group->getGroup()->getId() ] = 1;
+
+            // Also store a quick indication of whether a user belongs to any group for this datatype
+            $user_datatype_group_membership = array();
+            foreach ($user_groups as $user_group)
+                $user_datatype_group_membership[ $user_group->getGroup()->getDataType()->getId() ] = 1;
+
+//print '<pre>'.print_r($user_group_list, true).'</pre>';
+//print '<pre>'.print_r($user_datatype_group_membership, true).'</pre>';
 
             // ----------------------------------------
             // Render and return the interface
@@ -214,6 +575,7 @@ class ODRGroupController extends ODRCustomController
 
                         'datatypes' => $datatypes,
                         'user_group_list' => $user_group_list,
+                        'user_datatype_group_membership' => $user_datatype_group_membership,
                     )
                 )
             );
@@ -248,41 +610,14 @@ class ODRGroupController extends ODRCustomController
         $return['d'] = '';
 
         try {
-
-            throw new \Exception('DO NOT CONTINUE');
-
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_user_group = $em->getRepository('ODRAdminBundle:UserGroup');
-
-
-            // --------------------
-            // Ensure user has permissions to be doing this
-            /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
-            $datatype_permissions = $admin_permissions['datatypes'];
-
-            $admin_permission_count = 0;
-            foreach ($datatype_permissions as $dt_id => $dt_permission) {
-                if ( isset($dt_permission['dt_admin']) && $dt_permission['dt_admin'] == 1 )
-                    $admin_permission_count++;
-            }
-
-            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )
-                return parent::permissionDeniedError();
-            // --------------------
-
 
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ($user == null || !$user->isEnabled())
                 return parent::deletedEntityError('User');
-
-            if ($user->getId() == $admin_user->getId())
-                throw new \Exception('Unable to change own group membership.');
-            if ( $user->hasRole('ROLE_SUPER_ADMIN') )
-                throw new \Exception('Unable to change group membership for a Super-Admin.');
 
             /** @var Group $group */
             $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
@@ -294,6 +629,27 @@ class ODRGroupController extends ODRCustomController
                 return parent::deletedEntityError('DataType');
 
 
+            // --------------------
+            // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
+            $datatype_permissions = $admin_permissions['datatypes'];
+
+            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') )
+                return parent::permissionDeniedError();
+
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ]['dt_admin'])) )
+                return parent::permissionDeniedError();
+            // --------------------
+
+
+            if ( $user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new \Exception('Unable to change group membership for a Super-Admin.');
+            if ($user->getId() == $admin_user->getId())
+                throw new \Exception('Unable to change own group membership.');
+
+
             // ----------------------------------------
             $value = intval($value);
             if ($value == 1) {
@@ -301,7 +657,7 @@ class ODRGroupController extends ODRCustomController
                 if ($group->getPurpose() !== '') {
                     // ...remove them from all other default groups for this datatype since they should only ever be a member of a single group at a time
                     $query = $em->createQuery(
-                        'SELECT ug.id AS ug_id
+                       'SELECT ug.id AS ug_id
                         FROM ODRAdminBundle:Group AS g
                         JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
                         WHERE ug.user = :user_id AND g.purpose != "" AND g.dataType = :datatype_id
@@ -341,6 +697,29 @@ class ODRGroupController extends ODRCustomController
                 }
             }
 
+            // ----------------------------------------
+            // Notify the AJAX handler whether the user is still in a group for this datatype or not
+            $query = $em->createQuery(
+               'SELECT g.id AS group_id
+                FROM ODRAdminBundle:UserGroup AS ug
+                JOIN ODRAdminBundle:Group AS g WITH ug.group = g
+                WHERE ug.user = :user_id AND g.dataType = :datatype_id
+                AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
+            )->setParameters( array('user_id' => $user->getId(), 'datatype_id' => $datatype->getId()) );
+            $results = $query->getArrayResult();
+
+            $in_datatype_group = false;
+            if ( count($results) > 0 )
+                $in_datatype_group = true;
+
+            $return['datatype_id'] = $datatype->getId();    // Usually would automatically determine this id in the AJAX handler, but doesn't want to cooperate...so doing it here
+            if ($in_datatype_group)
+                $return['in_datatype_group'] = 1;
+            else
+                $return['in_datatype_group'] = 0;
+
+
+            // ----------------------------------------
             // Delete cached version of user's permissions
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
@@ -887,60 +1266,141 @@ class ODRGroupController extends ODRCustomController
             $top_level_datatypes = parent::getTopLevelDatatypes();
             if ($permission == 'dt_view' && in_array($datatype_id, $top_level_datatypes) )
                 throw new \Exception('Unable to change the "can_view_datatype" permission on a top-level datatype');
+            if ($permission == 'dt_admin' && !in_array($datatype_id, $top_level_datatypes) )
+                throw new \Exception('Unable to change the "is_datatype_admin" permission on a child datatype');
 
 
-            // Make the requested change to this group's permissions
-            $properties = array();
-            $cache_update = array();
+            // If the group has the "is_datatype_admin" permission, then only allow the user to remove the "is_datatype_admin"
+            if ( $gdtp->getIsDatatypeAdmin() && $permission != 'dt_admin' )
+                throw new \Exception('Unable to change other permissions since this group has the "is_datatype_admin" permission');
 
-            switch ($permission) {
-                case 'dt_view':
-                    $properties['can_view_datatype'] = $value;
-                    break;
-                case 'dr_view':
-                    $properties['can_view_datarecord'] = $value;
-                    break;
-                case 'dr_add':
-                    $properties['can_add_datarecord'] = $value;
-                    break;
-                case 'dr_delete':
-                    $properties['can_delete_datarecord'] = $value;
-                    break;
-                case 'dt_admin':
-                    $properties['is_datatype_admin'] = $value;
-                    break;
+
+            if ($permission == 'dt_admin') {
+                if ($value == 1) {
+                    // Due to the INSERT INTO query for datafields later on, don't continue if the group already has the "is_datatype_admin" permission
+                    if ( $gdtp->getIsDatatypeAdmin() )
+                        throw new \Exception('Already have the "is_datatype_admin" permission');
+
+                    // ----------------------------------------
+                    // Set all datatypes affected by this group to have the "is_datatype_admin" permission
+                    $query = $em->createQuery(
+                        'SELECT gdtp
+                        FROM ODRAdminBundle:GroupDatatypePermissions AS gdtp
+                        WHERE gdtp.group = :group_id
+                        AND gdtp.deletedAt IS NULL'
+                    )->setParameters( array('group_id' => $group->getId()) );
+                    $results = $query->getResult();
+
+                    $properties = array(
+                        'can_view_datatype' => 1,
+                        'can_view_datarecord' => 1,
+                        'can_add_datarecord' => 1,
+                        'can_delete_datarecord' => 1,
+                        'is_datatype_admin' => 1,
+                    );
+
+                    foreach ($results as $gdtp)
+                        parent::ODR_copyGroupDatatypePermission($em, $admin_user, $gdtp, $properties);
+
+
+                    // ----------------------------------------
+                    // Ensure all datafields to can-view/can-edit to avoid edge-cases
+                    $query = $em->createQuery(
+                       'SELECT gdfp.id AS gdfp_id, df.id AS df_id, df.deletedAt AS df_deletedAt
+                        FROM ODRAdminBundle:GroupDatafieldPermissions AS gdfp
+                        JOIN ODRAdminBundle:DataFields AS df WITH gdfp.dataField = df
+                        WHERE gdfp.group = :group_id AND (gdfp.can_view_datafield = 0 OR gdfp.can_edit_datafield = 0)
+                        AND gdfp.deletedAt IS NULL AND df.deletedAt IS NULL'
+                    )->setParameters( array('group_id' => $group->getId()) );
+                    $results = $query->getArrayResult();
+
+                    $permission_list = array();
+                    $datafield_list = array();
+                    foreach ($results as $result) {
+                        $permission_list[] = $result['gdfp_id'];
+
+                        $df_deletedAt = "NULL";
+                        if ( !is_null($result['df_deletedAt']) )
+                            $df_deletedAt = '"'.$df_deletedAt->format('Y-m-d H:i:s').'"';
+                        $datafield_list[ $result['df_id'] ] = $df_deletedAt;
+                    }
+
+                    // Delete the specified GroupDatafieldPermissions entities
+                    $query = $em->createQuery(
+                       'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
+                        SET gdfp.deletedAt = :now
+                        WHERE gdfp.id IN (:permission_list) AND gdfp.deletedAt IS NULL'
+                    )->setParameters( array('now' => new \DateTime(), 'permission_list' => $permission_list) );
+                    $rows = $query->execute();
+
+                    // Build a single INSERT INTO query to add GroupDatafieldPermissions entries for all datafields of this top-level datatype and its children
+                    $query_str = '
+                        INSERT INTO odr_group_datafield_permissions (
+                            group_id, data_field_id,
+                            can_view_datafield, can_edit_datafield,
+                            created, createdBy, updated, updatedBy, deletedAt
+                        )
+                        VALUES ';
+
+                    foreach ($datafield_list as $df_id => $df_deletedAt)
+                        $query_str .= '("'.$group->getId().'", "'.$df_id.'", "1", "1", NOW(), "'.$admin_user->getId().'", NOW(), "'.$admin_user->getId().'", '.$df_deletedAt.'),'."\n";
+
+                    // Get rid of the trailing comma and replace with a semicolon
+                    $query_str = substr($query_str, 0, -2).';';
+                    $conn = $em->getConnection();
+                    $rowsAffected = $conn->executeUpdate($query_str);
+                }
+                else {
+                    // Set all datatypes affected by this group to not have the "is_datatype_admin" permission
+                    $query = $em->createQuery(
+                       'SELECT gdtp
+                        FROM ODRAdminBundle:GroupDatatypePermissions AS gdtp
+                        WHERE gdtp.group = :group_id
+                        AND gdtp.deletedAt IS NULL'
+                    )->setParameters( array('group_id' => $group->getId()) );
+                    $results = $query->getResult();
+
+                    $properties['is_datatype_admin'] = 0;
+                    foreach ($results as $gdtp)
+                        parent::ODR_copyGroupDatatypePermission($em, $admin_user, $gdtp, $properties);
+                }
             }
+            else {
+                // Make the requested change to this group's permissions
+                $properties = array();
+                switch ($permission) {
+                    case 'dt_view':
+                        $properties['can_view_datatype'] = $value;
+                        break;
+                    case 'dr_view':
+                        $properties['can_view_datarecord'] = $value;
+                        break;
+                    case 'dr_add':
+                        $properties['can_add_datarecord'] = $value;
+                        break;
+                    case 'dr_delete':
+                        $properties['can_delete_datarecord'] = $value;
+                        break;
+                }
 
-            if ($permission == 'dt_admin' && $value == 1) {
-                // If the group received the 'is_datatype_admin' permission, then make sure all other permissions are also active
-                $properties = array(
-                    'can_view_datatype' => 1,
-                    'can_view_datarecord' => 1,
-                    'can_add_datarecord' => 1,
-                    'can_delete_datarecord' => 1,
-                    'is_datatype_admin' => 1,
-                );
+                if ($permission != 'dt_view' && $value == 1) {
+                    // If any permission is selected, ensure the "can_view_datatype" permission is selected as well
+                    $properties['can_view_datatype'] = 1;
+                }
+                else if ($permission == 'dt_view' && $value == 0) {
+                    // If the "can_view_datatype" permission is deselected, ensure all other permissions are deselected as well
+                    // Don't need to worry about the 'is_datatype_admin' permission...if it's set to 1, then this line of code can't be reached
+                    $properties = array(
+                        'can_view_datatype' => 0,
+                        'can_view_datarecord' => 0,
+                        'can_add_datarecord' => 0,
+                        'can_delete_datarecord' => 0,
+                    );
+                }
 
-                // TODO - Set all datafields of this datatype to can-view/can-edit?  Not doing it at the moment because...lazy?
+                // Update the database
+                parent::ODR_copyGroupDatatypePermission($em, $admin_user, $gdtp, $properties);
             }
-            else if ($value == 1) {
-                // If some other permission got received, then ensure the group has the "can_view_datatype" permission as well
-                $properties['can_view_datatype'] = 1;
-            }
-            else if ($permission == 'dt_view' && $value == 0) {
-                // If the 'can_view_datatype' permission got removed, then remove all other permissions as well?
-                $properties = array(
-                    'can_view_datatype' => 0,
-                    'can_view_datarecord' => 0,
-                    'can_add_datarecord' => 0,
-                    'can_delete_datarecord' => 0,
-                    'is_datatype_admin' => 0,
-                );
-
-                // TODO - Set all datafields of this datatype to no-view/no-edit?  Not doing it at the moment because lack of 'dt_view' should theoretically prevent editing as well...
-            }
-
-            parent::ODR_copyGroupDatatypePermission($em, $admin_user, $gdtp, $properties);
 
 
             // ----------------------------------------
@@ -958,12 +1418,9 @@ class ODRGroupController extends ODRCustomController
             foreach ($results as $result)
                 $user_list[] = $result['user_id'];
 
-            // Immediately update group permissions with the new datatype, if a cached version of those permissions exists
-            $group_permissions = self::getRedisData(($redis->get($redis_prefix.'.group_'.$group->getId().'_permissions')));
-            if ($group_permissions != false) {
-                $group_permissions['datatypes'][$datatype->getId()] = $cache_update;
-                $redis->set($redis_prefix.'.group_'.$group->getId().'_permissions', gzcompress(serialize($group_permissions)));
-            }
+
+            // Could be quite a few changes to the cached group array...just delete it
+            $redis->del($redis_prefix.'.group_'.$group_id.'_permissions');
 
             // Clear cached version of permissions for all users of this group
             // Not updating cached entry because it's a combination of all group permissions, and would take as much work to figure out what all to change as it would to just rebuild it
@@ -1042,6 +1499,18 @@ class ODRGroupController extends ODRCustomController
             if ( !(isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_admin'])) )
                 return parent::permissionDeniedError();
             // --------------------
+
+
+            // If the group has the "is_datatype_admin" permission, then don't allow the user to change the any datafield permissions away from can-view/can-edit
+            /** @var GroupDatatypePermissions $gdtp */
+            $gdtp = $gdfp->getGroup()->getGroupDatatypePermissions()->first();
+            if ($gdtp->getIsDatatypeAdmin())
+                throw new \Exception('Unable to change other permissions since this group has the "is_datatype_admin" permission');
+
+
+            // Doesn't make sense to say a user can't view this datafield when it's already public
+            if ($datafield->isPublic() && $value == 0)
+                throw new \Exception('Groups must have the "can_view_datafield" permission for public Datafields');
 
 
             // Make the requested change to this group's permissions

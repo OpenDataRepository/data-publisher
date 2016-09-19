@@ -11,6 +11,7 @@
             <tr>
                 <th></th>
                 <th>Datatype Name</th>
+                <th>User in group?</th>
                 <th>Datatype is public?</th>
                 <th></th>
             </tr>
@@ -33,8 +34,11 @@
                 </td>
                 <td>{{ dt.dataTypeMeta.shortName }}</td>
                 <td>
+                    <i id="in_datatype_{{ dt_id }}_group" class="fa fa-lg {% if user_datatype_group_membership[ dt_id ] is defined %}fa-check{% endif %} {#ODRGrayIcon #}Cursor"></i>
+                </td>
+                <td>
                     {% if dt.dataTypeMeta.publicDate|is_public %}
-                        <i class="fa fa-lg fa-check ODRGrayIon Cursor"></i>
+                        <i class="fa fa-lg fa-check {#ODRGrayIcon #}Cursor"></i>
                     {% endif %}
                 </td>
                 <td class="Pointer ODRListExpand"><i class="fa fa-lg fa-caret-down ODRGrayIcon" rel="{{ dt_id }}"></i></td>
@@ -72,7 +76,7 @@
         </span>
     </div>
     <div class="pure-u-1 ODRGroupListHeader">Custom Groups for "{{ dt.dataTypeMeta.shortName }}"</div>
-    <div class="pure-u-1">
+    <div class="pure-u-1" style="margin-bottom:15px;">
         {# print out the remaining non-default groups as a list #}
         {% for group in datatypes[dt_id]['groups'] %}
             {% if group.purpose == "" %}
@@ -84,14 +88,14 @@
                                 <b>Created By: </b>{{ group.createdBy|user_string }}<b> on </b>{{ group.created|date('Y-m-d') }}
                             </div>
                             <div>
-                                <b>Description: </b>{{ group.dataTypeMeta.description }}
+                                <b>Description: </b>{{ group.groupMeta.groupDescription }}
                             </div>
                         </span>
                     </span>
                     <span class="ODRGroupName">
                         <input type="checkbox" id="checkbox_{{ target_user.id }}_{{ group['id'] }}" class="ODRGroupCheckbox" {% if user_group_list[ group['id'] ] is defined %}checked{% endif %} />
                     </span>
-                    <span class="ODRGroupName">
+                    <span class="ODRGroupName Cursor">
                         {{ group.groupMeta.groupName }}
                     </span>
                 </div>
@@ -99,10 +103,10 @@
         {% endfor %}
     </div>
     <div class="pure-u-xl-1-3 pure-u-md-1-2">
-        <button class="pure-button ODRGroupEdit" title="Edit Groups for this Datatype">Edit Groups</button>
+        <button class="pure-button ODRGroupEdit" title="Edit Groups for this Datatype">Edit Groups for "{{ dt.dataTypeMeta.shortName }}"</button>
     </div>
     <div class="pure-u-xl-1-3 pure-u-md-1-2">
-        <button class="pure-button ODREffectivePermissions" rel="{{ target_user.id }}" title="Displays an interface showing what this user would see if he attempted to view this Datatype">View Effective Permissions</button>
+        <button class="pure-button ODREffectivePermissions" rel="{{ target_user.id }}" title="Displays an interface showing what this user would see if he attempted to view this Datatype">View User's Effective Permissions</button>
     </div>
 </div>
 {% endfor %}
@@ -184,21 +188,21 @@
                 });
             }
         });
-{#
+
         $(".ODRGroupEdit").unbind('click').click(function() {
 
             var datatype_id = $(this).parent().parent().attr('rel');
 
-            var url = '{{ path('odr_edit_datatype_groups', { 'datatype_id': 0 }) }}';
+            var url = '{{ path('odr_manage_groups', { 'datatype_id': 0 }) }}';
             url = url.substring(0, (url.length - 1));
             url += datatype_id;
 
-alert(url);
-return;
+//alert(url);
+//return;
 
             UpdateURL(url);
         });
-#}
+
         $(".ODREffectivePermissions").unbind('click').click(function() {
 
             var datatype_id = $(this).parent().parent().attr('rel');
@@ -222,7 +226,6 @@ return;
             var group_id = id_data[2];
 
             var element = $(this);
-
             var value = 0;
             if ( $(element).is(':checked') )
                 value = 1;
@@ -249,6 +252,11 @@ return;
                             // Set this specific group checkbox to true
                             $(element).prop('checked', true);
                         }
+
+                        if (data.in_datatype_group == 1)
+                            $("#in_datatype_" + data.datatype_id + "_group").addClass('fa-check');
+                        else
+                            $("#in_datatype_" + data.datatype_id + "_group").removeClass('fa-check');
                     }
                     else {
                         // An error has occurred.

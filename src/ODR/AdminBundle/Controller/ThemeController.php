@@ -594,7 +594,7 @@ class ThemeController extends ODRCustomController
                         }
                     }
 
-                    // If a value in the form changed, create a new DataTree entity to store the change
+                    // If a value in the form changed, create a new ThemeMeta entity to store the change
                     $properties = array(
                         'templateName' => $submitted_data->getTemplateName(),
                         'templateDescription' => $submitted_data->getTemplateDescription(),

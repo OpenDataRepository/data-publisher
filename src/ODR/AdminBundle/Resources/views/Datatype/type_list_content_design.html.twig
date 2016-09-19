@@ -37,7 +37,7 @@
             <th>Number of Records</th>
             <th>Master Layout</th>
             <th>Derivative Layouts</th>
-            <th>Download Schema</th>
+            <th>Manage Groups</th>
             <th>CSV Import</th>
             <th>Delete</th>
         </tr>
@@ -102,7 +102,11 @@
                 <td class="center"></td>
             {% endif %}
 
-                <td class="center"><a class="Pointer" onclick="downloadXSD({{ datatype.id }});"><i class="fa fa-lg fa-download"></i>&nbsp;Download</a></td>
+            {% if is_datatype_admin %}
+                <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-cog"></i>&nbsp;Manage Groups</a></td>
+            {% else %}
+                <td class="center"></td>
+            {% endif %}
 
             {% if is_datatype_admin == true %}
                 {% if datatype.dataTypeMeta.searchSlug == '' %}

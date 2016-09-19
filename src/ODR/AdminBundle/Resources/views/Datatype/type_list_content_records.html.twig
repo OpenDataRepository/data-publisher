@@ -12,6 +12,7 @@
             <th>Search Records</th>
             <th>List Records</th>
             <th>Add Record</th>
+            <th>Download Schema</th>
         </tr>
     </thead>
     <tbody>
@@ -112,6 +113,8 @@
             {% else %}
                 <td class="center"></td>
             {% endif %}
+
+            <td class="center"><a class="Pointer" onclick="downloadXSD({{ datatype.id }});"><i class="fa fa-lg fa-download"></i>&nbsp;Download</a></td>
         </tr>
         {% endif %}
     {% endfor %}

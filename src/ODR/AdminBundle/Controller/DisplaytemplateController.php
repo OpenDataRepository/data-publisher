@@ -5248,6 +5248,8 @@ if ($debug)
                     'publicDate' => new \DateTime()
                 );
                 parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
+
+                // TODO - since datafield is now public, set all GroupDatafieldPermission entries where "can_view_datafield" == 0 to instead be 1?  Leaving it at 0 should make no difference, but...
             }
 
             // TODO - update cached version directly?

@@ -780,7 +780,7 @@
     }
 
     function InitThemePropertyForm() {
-        // Init Field Properties forms
+        // Init Theme Properties forms
         $("#ODRThemePropertiesFormDiv").find(".ODRDeleteTheme").each(function() {
             var theme_id_data = $(this).attr('id').split(/_/);
             var theme_id = theme_id_data[1];
@@ -798,7 +798,7 @@
         });
 
         $("#ODRThemePropertiesFormDiv").find("input").each(function() {
-            // Grab Datafield id
+            // Grab Theme id
             var theme_id_data = $("#ODRThemePropertiesFormDiv").children(".ODRThemePropertiesForm").first().attr('id').split(/_/);
             var theme_id = theme_id_data[1];
 
@@ -816,7 +816,7 @@
                 $(this).unbind('paste');
                 $(this).on('keyup paste', function() {
                     //
-                    if ( $(this).hasClass('ODRThemeName') ) {   // inline update of datafield name  TODO - error handling?
+                    if ( $(this).hasClass('ODRThemeName') ) {   // inline update of theme name  TODO - error handling?
                         var text = $(this).val();
                         $("#ODRTheme_" + theme_id + "_name").html(text);
                     }

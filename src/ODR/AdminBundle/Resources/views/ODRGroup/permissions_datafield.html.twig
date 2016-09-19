@@ -2,12 +2,17 @@
 
 {% set field_typename = datafield.dataFieldMeta.fieldType.typeName %}
 
-{% set can_view_datafield = false %}
-{% set can_edit_datafield = false %}
+{% set is_datatype_admin = false %}
+{% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ]['dt_admin'] is defined %}
+    {% set is_datatype_admin = true %}
+{% endif %}
 
+{% set can_view_datafield = false %}
 {% if datafield_permissions[ datatype.id ][ datafield.id ] is defined and datafield_permissions[ datatype.id ][ datafield.id ][ 'view' ] is defined %}
     {% set can_view_datafield = true %}
 {% endif %}
+
+{% set can_edit_datafield = false %}
 {% if datafield_permissions[ datatype.id ][ datafield.id ] is defined and datafield_permissions[ datatype.id ][ datafield.id ][ 'edit' ] is defined %}
     {% set can_edit_datafield = true %}
 {% endif %}
@@ -19,11 +24,11 @@
 
 
 {% if can_view_datafield and can_edit_datafield %}
-    <div id="Field_{{ datafield.id }}_overlay" class="ODRDataFieldPermission ODROverlayDiv ODREditableDatafield {% if prevent_all_changes %}Cursor{% else %}Pointer{% endif %}" title="This Group is allowed to both view and edit this datafield" rel="{{ datafield.id }}"></div>
+    <div id="Field_{{ datafield.id }}_overlay" class="ODRDataFieldPermission ODROverlayDiv ODREditableDatafield {% if prevent_all_changes or is_datatype_admin %}fa-muted{% else %}Pointer{% endif %}" title="This Group is allowed to both view and edit this datafield" rel="{{ datafield.id }}"></div>
 {% elseif can_view_datafield or datafield.dataFieldMeta.publicDate|is_public %}
-    <div id="Field_{{ datafield.id }}_overlay" class="ODRDataFieldPermission ODROverlayDiv ODRVisibleDatafield {% if prevent_all_changes %}Cursor{% else %}Pointer{% endif %}" title="This Group is allowed to view this datafield, but not edit it" rel="{{ datafield.id }}"></div>
+    <div id="Field_{{ datafield.id }}_overlay" class="ODRDataFieldPermission ODROverlayDiv ODRVisibleDatafield {% if prevent_all_changes or is_datatype_admin %}fa-muted{% else %}Pointer{% endif %}" title="This Group is allowed to view this datafield, but not edit it" rel="{{ datafield.id }}"></div>
 {% else %}
-    <div id="Field_{{ datafield.id }}_overlay" class="ODRDataFieldPermission ODROverlayDiv ODRBlockedDatafield {% if prevent_all_changes %}Cursor{% else %}Pointer{% endif %}" title="This Group is not allowed to view or edit this datafield" rel="{{ datafield.id }}"></div>
+    <div id="Field_{{ datafield.id }}_overlay" class="ODRDataFieldPermission ODROverlayDiv ODRBlockedDatafield {% if prevent_all_changes or is_datatype_admin %}fa-muted{% else %}Pointer{% endif %}" title="This Group is not allowed to view or edit this datafield" rel="{{ datafield.id }}"></div>
 {% endif %}
 
 

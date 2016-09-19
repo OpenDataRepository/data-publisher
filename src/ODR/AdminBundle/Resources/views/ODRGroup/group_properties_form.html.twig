@@ -1,0 +1,48 @@
+{% spaceless %}
+
+{{ form_start(group_form, {
+    'method': 'POST',
+    'attr': {
+        'id': 'GroupPropertiesForm_' ~ group.id,
+        'class': 'ODRGroupPropertiesForm pure-form pure-form-aligned',
+        'rel': datatype.id,
+    }
+}) }}
+
+    <fieldset>
+        <div class="pure-control-group">
+            <label for="{{ group_form.groupName.vars.id }}">
+                <strong>{{ group_form.groupName.vars.label }}</strong>
+            </label>
+            {{ form_errors(group_form.groupName) }}
+            {% if prevent_all_changes %}
+                {{ form_widget(group_form.groupName, { 'attr': {'class': 'ODRGroupName', 'style': 'width:auto', 'readonly': 'readonly' } }) }}
+            {% else %}
+                {{ form_widget(group_form.groupName, { 'attr': {'class': 'ODRGroupName', 'style': 'width:auto' } }) }}
+            {% endif %}
+        </div>
+
+        <div class="pure-control-group">
+            <label for="{{ group_form.groupDescription.vars.id }}">
+                <strong>{{ group_form.groupDescription.vars.label }}</strong>
+            </label>
+            {{ form_errors(group_form.groupDescription) }}
+            {% if prevent_all_changes %}
+                {{ form_widget(group_form.groupDescription, { 'attr': {'style': 'width:auto; height:150px;', 'readonly': 'readonly' } }) }}
+            {% else %}
+                {{ form_widget(group_form.groupDescription, { 'attr': {'style': 'width:auto; height:150px;' } }) }}
+            {% endif %}
+        </div>
+
+        <div style="display: none">
+        {{ form_rest(group_form) }}
+        </div>
+    </fieldset>
+
+{{ form_end(group_form) }}
+
+{% if not prevent_all_changes %}
+    <button type="button" id="DeleteGroup_{{ group.id }}" class="pure-button pure-button-primary ODRDeleteGroup" style="float:right;" rel="{{ datatype.id }}"><i class="fa fa-trash-o"></i>&nbsp;Delete Group</button>
+{% endif %}
+
+{% endspaceless %}

@@ -1137,7 +1137,7 @@ exit();
         }
         else if ($initial_purpose == 'edit_all') {
             $group_meta->setGroupName('Default Group - Editor');
-            $group_meta->setGroupDescription('Users in this default Group can always both view and edit all Daarecords and Datafields of this Datatype.');
+            $group_meta->setGroupDescription('Users in this default Group can always both view and edit all Datarecords and Datafields of this Datatype.');
         }
         else if ($initial_purpose == 'view_all') {
             $group_meta->setGroupName('Default Group - View All');
@@ -1898,8 +1898,7 @@ exit();
             AND g.deletedAt IS NULL AND gm.deletedAt IS NULL AND gdtp.deletedAt IS NULL AND gdfp.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND df_dt.deletedAt IS NULL'
         )->setParameters( array('group_id' => $group_id) );
         $results = $query->getArrayResult();
-//print '<pre>'.print_r($results, true).'</pre>';
-//exit();
+//print '<pre>'.print_r($results, true).'</pre>'; exit();
 
         // Read the query result to find...
         $datarecord_restriction = '';

@@ -1,0 +1,83 @@
+{% spaceless %}
+
+    <div id="ODRGroupList" class="pure-u-1-4">
+
+        <div class="pure-u-1" style="padding-top:15px">
+            <div class="pure-u-1">
+                <span style="float:left">
+                    <b>Default Groups</b>
+                </span>
+            </div>
+            <div class="pure-u-1-12"></div>
+            <div class="pure-u-11-12">
+                {% set count = 0 %}
+                {% for group in group_list %}
+                    {% set group_name = group.groupMeta.groupName %}
+                    {% if group_name == '' %}
+                        {% set group_name = 'group_' ~ group.id %}
+                    {% endif %}
+
+                    {% if group.purpose != '' %}
+                        {% set count = count + 1 %}
+                        <div class="pure-u-1">
+                            <span style="float:left;">
+                                <i class="fa fa-lg fa-info-circle Pointer ODRGroupProperties" title="Group Properties" rel="{{ group.id }}"></i>
+                                <i id="edit_group_{{ group.id }}" class="fa fa-lg fa-edit Pointer ODREditGroup" title="Edit Group" rel="{{ group.id }}"></i>
+                            </span>
+                            <span id="ODRGroup_{{ group.id }}_name" class="Cursor" style="padding-left:15px;">
+                                {{ group_name }}
+                            </span>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        <div class="pure-u-1" style="padding-top:15px">
+            <div class="pure-u-1">
+                <span style="float:left">
+                    <b>Custom Groups</b>
+                </span>
+                <span style="float:right">
+                    <i class="Pointer tooltip fa fa-plus-square ODRAddGroup" title="Create new custom Group" rel="table"></i>
+                </span>
+            </div>
+            <div class="pure-u-1-12"></div>
+            <div class="pure-u-11-12">
+                {% set count = 0 %}
+                {% for group in group_list %}
+                    {% set group_name = group.groupMeta.groupName %}
+                    {% if group_name == '' %}
+                        {% set group_name = 'group_' ~ group.id %}
+                    {% endif %}
+
+                    {% if group.purpose == '' %}
+                        {% set count = count + 1 %}
+                        <div class="pure-u-1">
+                            <span style="float:left;">
+                                <i class="fa fa-lg fa-info-circle Pointer ODRGroupProperties" title="Group Properties" rel="{{ group.id }}"></i>
+                                <i id="edit_group_{{ group.id }}" class="fa fa-lg fa-edit Pointer ODREditGroup" title="Edit Group" rel="{{ group.id }}"></i>
+                            </span>
+                            <span id="ODRGroup_{{ group.id }}_name" class="Cursor" style="padding-left:15px;">
+                                {{ group_name }}
+                            </span>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+
+                {% if count == 0 %}
+                        <div class="pure-u-1">
+                            <span class="Cursor" style="padding-left:15px; color: red;">
+                                No custom Groups exist!
+                            </span>
+                        </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+    <div class="pure-u-1-24"></div>
+
+    <div id="ODRGroupPropertiesFormDiv" class="pure-u-1-4"></div>
+
+{% endspaceless %}
