@@ -3,74 +3,51 @@
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = datatype.themes[theme_id] %}
 
+{% set can_view_datatype = false %}
+{% if datatype_permissions[ target_datatype_id ] is defined and datatype_permissions[ target_datatype_id ][ 'dt_view' ] is defined %}
+    {% set can_view_datatype = true %}
+{% endif %}
+
 <div class="ODRDataType{% if is_top_level == 0 %} ODRAccordionWrapper ODRFormAccordion{% endif %} pure-u-1" id="DataType_{{ datatype.id }}">
 
+{% if datatype.dataTypeMeta.publicDate|is_public or can_view_datatype %}
     {% if is_top_level == 0 %}
         {# current datatype is a child datatype #}
         <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
             <span class="ui-icon ui-icon-triangle-1-s"></span>
             <a id="Datatype_{{ datatype.id }}_ShortName">{{ datatype.dataTypeMeta.shortName }}</a>
-            <span style="margin-left: 10px;">
-                <i class="Cursor fa fa-lg fa-globe {% if datatype.dataTypeMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatatype" title="Datatype{% if datatype.dataTypeMeta.publicDate|is_public %} does not require{% else %} requires{% endif %} permission to view" rel="{{ datatype.id }}"></i>
-            </span>
-
-            {% include 'ODRAdminBundle:ODRGroup:datatype_permissions_icons.html.twig' with {
-                'datatype': datatype,
-                'datatype_permissions': datatype_permissions,
-
-                'group': group,
-
-                'is_top_level': is_top_level,
-                'prevent_all_changes': prevent_all_changes,
-            } %}
         </h3>
 
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datatype.id }}">
-            {% include 'ODRAdminBundle:ODRGroup:permissions_fieldarea.html.twig' with {
+            {% include 'ODRAdminBundle:ODRUser:view_fieldarea.html.twig' with {
                 'datatype_permissions': datatype_permissions,
                 'datafield_permissions': datafield_permissions,
-
-                'group': group,
+                'theme_id': theme_id,
 
                 'datatype_array': datatype_array,
                 'target_datatype_id': target_datatype_id,
-                'theme_id': theme_id,
 
                 'is_top_level': is_top_level,
-                'prevent_all_changes': prevent_all_changes,
             } %}
         </div><!-- End of #FieldArea_{{ datatype.id }} -->
 
     {% else %}
         {# current datatype is top-level #}
         <div class="ODRFieldArea pure-u-1" id="FieldArea_{{ datatype.id }}">
-            {% include 'ODRAdminBundle:ODRGroup:datatype_permissions_icons.html.twig' with {
-                'datatype': datatype,
-                'datatype_permissions': datatype_permissions,
-
-                'group': group,
-
-                'is_top_level': is_top_level,
-                'prevent_all_changes': prevent_all_changes,
-            } %}
-
-            {% include 'ODRAdminBundle:ODRGroup:permissions_fieldarea.html.twig' with {
+            {% include 'ODRAdminBundle:ODRUser:view_fieldarea.html.twig' with {
                 'datatype_permissions': datatype_permissions,
                 'datafield_permissions': datafield_permissions,
-
-                'group': group,
+                'theme_id': theme_id,
 
                 'datatype_array': datatype_array,
                 'target_datatype_id': target_datatype_id,
-                'theme_id': theme_id,
 
                 'is_top_level': is_top_level,
-                'prevent_all_changes': prevent_all_changes,
             } %}
         </div><!-- End of #FieldArea_{{ datatype.id }} -->
 
     {% endif %}
-
+{% endif %}
 </div><!-- End of #DataType_{{ datatype.id }} -->
 
 {% endspaceless %}

@@ -660,9 +660,9 @@ class ODRGroupController extends ODRCustomController
                        'SELECT ug.id AS ug_id
                         FROM ODRAdminBundle:Group AS g
                         JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
-                        WHERE ug.user = :user_id AND g.purpose != "" AND g.dataType = :datatype_id
+                        WHERE ug.user = :user_id AND g.purpose != :purpose AND g.dataType = :datatype_id
                         AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
-                    )->setParameters( array('user_id' => $user->getId(), 'datatype_id' => $datatype->getId()) );
+                    )->setParameters( array('user_id' => $user->getId(), 'purpose' => '', 'datatype_id' => $datatype->getId()) );
                     $results = $query->getArrayResult();
 
                     foreach ($results as $result) {

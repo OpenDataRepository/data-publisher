@@ -106,6 +106,13 @@ odr_view_effective_permissions:
     requirements:
         user_id:  \d+
         datatype_id:  \d+
+
+odr_view_permissions_result:
+    path:  /admin/user/view_theme/{user_id}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:ODRUser:viewpermissionsresult }
+    requirements:
+        user_id:  \d+
+        theme_id:  \d+
 #-----------------------------------------
 
 #-----------------------------------------

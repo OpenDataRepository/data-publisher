@@ -23,7 +23,9 @@ namespace ODR\AdminBundle\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Group;
+use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Forms
 use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
@@ -1227,4 +1229,227 @@ class ODRUserController extends ODRCustomController
         return $response;
     }
 
+
+    /**
+     * Loads the wrapper for selecting which theme the admin user wants to view through the eyes of the given user.
+     *
+     * @param integer $user_id
+     * @param integer $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function vieweffectivepermissionsAction($user_id, $datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Required objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            /** @var ODRUser $target_user */
+            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            if ($target_user == null || !$target_user->isEnabled())
+                return parent::deletedEntityError('User');
+
+            $top_level_datatypes = parent::getTopLevelDatatypes();
+            if ( !in_array($datatype_id, $top_level_datatypes) )
+                throw new \Exception('Not allowed to run this on child Datatypes');
+
+            // --------------------
+            // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Require admin user to have at least admin role to do this...
+            if ( $admin_user->hasRole('ROLE_SUPER_ADMIN') ) {
+                // Grab permissions of both target user and admin
+                $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
+                $datatype_permissions = $admin_permissions['datatypes'];
+
+                // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
+                if ( !isset($datatype_permissions[$datatype_id]) || !isset($datatype_permissions[$datatype_id]['dt_admin']) )
+                    return parent::permissionDeniedError();
+            }
+            else {
+                return parent::permissionDeniedError();
+            }
+            // --------------------
+
+
+            // Load permissions of target user
+            $user_permissions = parent::getUserPermissionsArray($em, $target_user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Also want all themes for this datatype
+            $theme_list = $datatype->getThemes();
+
+
+            // Render and return the required HTML
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:ODRUser:view_wrapper.html.twig',
+                    array(
+                        'target_user' => $target_user,
+                        'user_permissions' => $datatype_permissions,
+
+                        'datatype' => $datatype,
+                        'theme_list' => $theme_list,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x881216122 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Loads the specified theme and filters by the specified user's permissions.
+     *
+     * @param integer $user_id
+     * @param integer $theme_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function viewpermissionsresultAction($user_id, $theme_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Required objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            /** @var ODRUser $target_user */
+            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            if ($target_user == null || !$target_user->isEnabled())
+                return parent::deletedEntityError('User');
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                return parent::deletedEntityError('Datatype');
+            $datatype_id = $datatype->getId();
+
+            $top_level_datatypes = parent::getTopLevelDatatypes();
+            if ( !in_array($datatype_id, $top_level_datatypes) )
+                throw new \Exception('Not allowed to run this on child Datatypes');
+
+            // --------------------
+            // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Require admin user to have at least admin role to do this...
+            if ( $admin_user->hasRole('ROLE_SUPER_ADMIN') ) {
+                // Grab permissions of both target user and admin
+                $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
+                $datatype_permissions = $admin_permissions['datatypes'];
+
+                // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
+                if ( !isset($datatype_permissions[$datatype_id]) || !isset($datatype_permissions[$datatype_id]['dt_admin']) )
+                    return parent::permissionDeniedError();
+            }
+            else {
+                return parent::permissionDeniedError();
+            }
+            // --------------------
+
+
+            // Always bypass cache in dev mode?
+            $bypass_cache = false;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
+
+            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+
+
+            // Load permissions for the target user
+            $user_permissions = parent::getUserPermissionsArray($em, $target_user->getId(), $bypass_cache);
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            // ----------------------------------------
+            // Determine which datatypes/childtypes to load from the cache
+            $include_links = true;
+            $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype->getId()), $include_links);
+
+//print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
+
+            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+            $datatype_array = array();
+            foreach ($associated_datatypes as $num => $dt_id) {
+                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
+                if ($bypass_cache || $datatype_data == null)
+                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
+
+                foreach ($datatype_data as $dt_id => $data)
+                    $datatype_array[$dt_id] = $data;
+            }
+
+//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
+
+
+            // Filter by the target user's permissions
+            $datarecord_array = array();
+            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+//print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
+
+            // ----------------------------------------
+            // Render the datatype from the target user's point of view
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:ODRUser:view_ajax.html.twig',
+                    array(
+                        'datatype_permissions' => $datatype_permissions,
+                        'datafield_permissions' => $datafield_permissions,
+                        'theme' => $theme,
+
+                        'datatype_array' => $datatype_array,
+                        'initial_datatype_id' => $datatype->getId(),
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x12612834 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 }

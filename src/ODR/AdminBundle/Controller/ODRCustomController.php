@@ -2008,7 +2008,7 @@ if ($debug)
 
                 // Also remove all datarecords of that datatype
                 foreach ($datarecord_array as $dr_id => $dr) {
-                    if ($dt_id == $dr['datatType']['id'])
+                    if ($dt_id == $dr['dataType']['id'])
                         unset( $datarecord_array[$dr_id] );
 if ($debug)
     print ' -- removed datarecord '.$dr_id."\n";
@@ -2028,7 +2028,7 @@ if ($debug)
                             $df_id = $tdf['dataField']['id'];
 
                             // If the user doesn't have the 'can_view_datafield' permission for that datafield...
-                            if ( $tdf['dataField']['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !(isset($datafield_permissions[$df_id]) && $datafield_permissions[$df_id]['view'] == 1) ) {
+                            if ( $tdf['dataField']['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !(isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) ) ) {
                                 // ...remove it from the layout
                                 unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry on purpose
                                 $datafields_to_remove[$df_id] = 1;
