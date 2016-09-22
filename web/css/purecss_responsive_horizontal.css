@@ -103,7 +103,7 @@
 
 /* Fisrt Tier Dropdown */
 #ODRMainMenu ul ul li {
-    width:170px;
+    min-width:170px;
     float:none;
     display:list-item;
     position: relative;
@@ -112,8 +112,8 @@
 /* Second, Third and more Tiers	*/
 #ODRMainMenu ul ul ul li {
     position: relative;
-    top:-60px;
-    left:170px;
+    /* top:-60px;
+    left:170px; */
 }
 
 /* Change this in order to change the Dropdown symbol */
@@ -132,13 +132,22 @@
     text-align: left;
     list-style-type: none;
     padding-left: 1em;
-    padding-top: 0.4em;
-    padding-bottom: 0.2em;
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
 }
 
+.ODR-pure-submenu li {
+    padding-top: 0.4em;
+    padding-bottom: 0.4em;
+}
 
+#ODRMainMenu div.pure-u-1:last-child .ODR-pure-submenu {
+    position: absolute;
+    left: -130px;
+    min-width: 170px;
+}
 
-
+/* Compress at Pure  < 768px */
 @media (max-width: 47.999em) {
 
     .odr-custom-menu-3 {
@@ -158,6 +167,9 @@
         text-align: left;
     }
 
+    .pure-menu-horizontal.odr-hide-small {
+        display: none;
+    }
     /*
     #ODRMainMenu ul li.show > ul {
         display: none;
