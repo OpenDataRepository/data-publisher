@@ -81,7 +81,7 @@
 }
 
 
-#ODRMainMenu.open ul ul {
+#ODRMainMenu ul ul.open {
     display: block;
     position: relative;
 }
@@ -94,10 +94,6 @@
 }
 
 #ODRMainMenu ul li.show > ul {
-    display:inherit;
-}
-/* Display Dropdowns on Hover */
-#ODRMainMenu ul li:hover > ul {
     display:inherit;
 }
 
@@ -147,6 +143,12 @@
     min-width: 170px;
 }
 
+/* Display Dropdowns on Hover */
+@media (min-width: 48em) {
+    #ODRMainMenu ul li:hover > ul {
+        display: inherit;
+    }
+}
 /* Compress at Pure  < 768px */
 @media (max-width: 47.999em) {
 
@@ -155,6 +157,10 @@
     }
 
     .odr-custom-toggle {
+        display: block;
+    }
+
+    #ODRMainMenu ul li:hover > ul {
         display: block;
     }
 
@@ -168,6 +174,10 @@
     }
 
     .pure-menu-horizontal.odr-hide-small {
+        display: none;
+    }
+
+    .ODR-pure-submenu {
         display: none;
     }
     /*

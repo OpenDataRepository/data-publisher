@@ -169,7 +169,12 @@
             {% endblock #}
             <li class="pure-menu-item"><a href="#" class="pure-menu-link">Home</a>
                 <ul class="ODR-pure-submenu">
-                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 1</a></li>
+                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 1</a>
+                        <ul class="ODR-pure-submenu">
+                            <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 222</a></li>
+                            <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 222</a></li>
+                        </ul>
+                    </li>
                     <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
                     <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
                     <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
@@ -212,6 +217,14 @@
 (function (window, document) {
 var menu = document.getElementById('ODRMainMenu'),
     WINDOW_CHANGE_EVENT = ('onorientationchange' in window) ? 'orientationchange':'resize';
+
+    // Add Click handler for all menu LI
+    jQuery("#ODRMainMenu ul li").each(function(el) {
+        jQuery(el).unbind('click');
+        jQuery(el).click(function() {
+            alert('click');
+        });
+    })
 
 function toggleHorizontal() {
     [].forEach.call(
