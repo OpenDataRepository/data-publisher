@@ -16,7 +16,7 @@
             </label>
             {{ form_errors(group_form.groupName) }}
             {% if prevent_all_changes %}
-                {{ form_widget(group_form.groupName, { 'attr': {'class': 'ODRGroupName', 'style': 'width:auto', 'readonly': 'readonly' } }) }}
+                {{ form_widget(group_form.groupName, { 'attr': {'class': 'ODRGroupName', 'style': 'width:auto; cursor:not-allowed;', 'readonly': 'readonly' } }) }}
             {% else %}
                 {{ form_widget(group_form.groupName, { 'attr': {'class': 'ODRGroupName', 'style': 'width:auto' } }) }}
             {% endif %}
@@ -28,7 +28,7 @@
             </label>
             {{ form_errors(group_form.groupDescription) }}
             {% if prevent_all_changes %}
-                {{ form_widget(group_form.groupDescription, { 'attr': {'style': 'width:auto; height:150px;', 'readonly': 'readonly' } }) }}
+                {{ form_widget(group_form.groupDescription, { 'attr': {'style': 'width:auto; height:150px; cursor:not-allowed;', 'readonly': 'readonly' } }) }}
             {% else %}
                 {{ form_widget(group_form.groupDescription, { 'attr': {'style': 'width:auto; height:150px;' } }) }}
             {% endif %}

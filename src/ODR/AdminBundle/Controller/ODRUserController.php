@@ -1289,6 +1289,7 @@ class ODRUserController extends ODRCustomController
             // Load permissions of target user
             $user_permissions = parent::getUserPermissionsArray($em, $target_user->getId());
             $datatype_permissions = $user_permissions['datatypes'];
+//print '<pre>'.print_r($datatype_permissions, true).'</pre>'; exit();
 
             // Also want all themes for this datatype
             $theme_list = $datatype->getThemes();
@@ -1301,7 +1302,7 @@ class ODRUserController extends ODRCustomController
                     'ODRAdminBundle:ODRUser:view_wrapper.html.twig',
                     array(
                         'target_user' => $target_user,
-                        'user_permissions' => $datatype_permissions,
+                        'datatype_permissions' => $datatype_permissions,
 
                         'datatype' => $datatype,
                         'theme_list' => $theme_list,

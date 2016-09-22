@@ -11,16 +11,18 @@
     </h3>
 </div>
 
-{% include 'ODRAdminBundle:ODRUser:view_childtype.html.twig' with {
-    'datatype_permissions': datatype_permissions,
-    'datafield_permissions': datafield_permissions,
-    'theme_id': theme.id,
+<div class="ODRFormWrap ODRDesign">
+    {% include 'ODRAdminBundle:ODRUser:view_childtype.html.twig' with {
+        'datatype_permissions': datatype_permissions,
+        'datafield_permissions': datafield_permissions,
+        'theme_id': theme.id,
 
-    'is_top_level': 1,
+        'is_top_level': 1,
 
-    'datatype_array': datatype_array,
-    'target_datatype_id': initial_datatype_id,
-} %}
+        'datatype_array': datatype_array,
+        'target_datatype_id': initial_datatype_id,
+    } %}
+</div>
 
 <script>
     $(function() {

@@ -5,6 +5,9 @@
 <div id="ODRGroupListContent_{{ group.id }}" class="ODRAccordionWrapper ODRFormAccordion ODRGroupListContentHeader pure-u-1" style="margin-top: 20px;">
     <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
         <a>{{ group.groupMeta.groupName }}</a>
+        <span style="margin-left: 10px;">
+            <i class="Cursor fa fa-lg fa-globe {% if datatype.dataTypeMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatatype" title="Datatype{% if datatype.dataTypeMeta.publicDate|is_public %} does not require{% else %} requires{% endif %} permission to view" rel="{{ datatype.id }}"></i>
+        </span>
     {% if prevent_all_changes %}
         <span style="margin-left:15px; color: #000000;">Not allowed to make changes to this Group!</span>
     {% endif %}
@@ -114,15 +117,15 @@ function initPage() {
         var datatype_id = $(this).parent().attr('rel');
         var group_id = $(this).attr('rel');
 
+        var element = $(this);
+
         var value = 1;
-        if ( $(this).children('.fa-ban').first().is(':hidden') )
+        if ( $(element).children('.fa-ban').first().is(':hidden') )
             value = 0;
 
         var url  = '{{ path('odr_save_group_datatype_permission', {'group_id': 0, 'datatype_id': 0, 'value': 0, 'permission': ''} ) }}';
         url = url.substring(0,(url.length-6));
         url += {{ group.id }} + '/' + datatype_id + '/' + value + '/' + 'dr_view';
-
-        var element = $(this);
 
 //alert(url);
 //return;
@@ -135,6 +138,10 @@ function initPage() {
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
 
+                    if (value == 0)
+                        $(element).children('.fa-ban').first().show();
+                    else
+                        $(element).children('.fa-ban').first().hide();
                 }
                 else {
                     // An error has occurred.
@@ -166,15 +173,15 @@ function initPage() {
         var datatype_id = $(this).parent().attr('rel');
         var group_id = $(this).attr('rel');
 
+        var element = $(this);
+
         var value = 1;
-        if ( $(this).children('.fa-ban').first().is(':hidden') )
+        if ( $(element).children('.fa-ban').first().is(':hidden') )
             value = 0;
 
         var url  = '{{ path('odr_save_group_datatype_permission', {'group_id': 0, 'datatype_id': 0, 'value': 0, 'permission': ''} ) }}';
         url = url.substring(0,(url.length-6));
         url += {{ group.id }} + '/' + datatype_id + '/' + value + '/' + 'dr_add';
-
-        var element = $(this);
 
 //alert(url);
 //return;
@@ -187,6 +194,10 @@ function initPage() {
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
 
+                    if (value == 0)
+                        $(element).children('.fa-ban').first().show();
+                    else
+                        $(element).children('.fa-ban').first().hide();
                 }
                 else {
                     // An error has occurred.
@@ -218,15 +229,15 @@ function initPage() {
         var datatype_id = $(this).parent().attr('rel');
         var group_id = $(this).attr('rel');
 
+        var element = $(this);
+
         var value = 1;
-        if ( $(this).children('.fa-ban').first().is(':hidden') )
+        if ( $(element).children('.fa-ban').first().is(':hidden') )
             value = 0;
 
         var url  = '{{ path('odr_save_group_datatype_permission', {'group_id': 0, 'datatype_id': 0, 'value': 0, 'permission': ''} ) }}';
         url = url.substring(0,(url.length-6));
         url += {{ group.id }} + '/' + datatype_id + '/' + value + '/' + 'dr_delete';
-
-        var element = $(this);
 
 //alert(url);
 //return;
@@ -239,6 +250,10 @@ function initPage() {
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
 
+                    if (value == 0)
+                        $(element).children('.fa-ban').first().show();
+                    else
+                        $(element).children('.fa-ban').first().hide();
                 }
                 else {
                     // An error has occurred.
@@ -277,8 +292,6 @@ function initPage() {
         var url  = '{{ path('odr_save_group_datatype_permission', {'group_id': 0, 'datatype_id': 0, 'value': 0, 'permission': ''} ) }}';
         url = url.substring(0,(url.length-6));
         url += {{ group.id }} + '/' + datatype_id + '/' + value + '/' + 'dt_admin';
-
-        var element = $(this);
 
 //alert(url);
 //return;

@@ -34,11 +34,11 @@
                 </td>
                 <td>{{ dt.dataTypeMeta.shortName }}</td>
                 <td>
-                    <i id="in_datatype_{{ dt_id }}_group" class="fa fa-lg {% if user_datatype_group_membership[ dt_id ] is defined %}fa-check{% endif %} {#ODRGrayIcon #}Cursor"></i>
+                    <i id="in_datatype_{{ dt_id }}_group" class="fa fa-lg{% if user_datatype_group_membership[ dt_id ] is defined %} fa-check{% endif %} Cursor" style="left:45%; position:relative;"></i>
                 </td>
                 <td>
                     {% if dt.dataTypeMeta.publicDate|is_public %}
-                        <i class="fa fa-lg fa-check {#ODRGrayIcon #}Cursor"></i>
+                        <i class="fa fa-lg fa-check Cursor" style="left:45%; position:relative;"></i>
                     {% endif %}
                 </td>
                 <td class="Pointer ODRListExpand"><i class="fa fa-lg fa-caret-down ODRGrayIcon" rel="{{ dt_id }}"></i></td>
