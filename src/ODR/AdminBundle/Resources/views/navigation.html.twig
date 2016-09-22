@@ -24,32 +24,25 @@
 
 {#{% set baseurl =  site_baseurl ~ "/" ~ search_slug %}#}
 <!-- This div is used to indicate the original position of the scrollable nav -->
-<div class="vertical_spacer"></div>
+    <ul class="ODR-pure-submenu">
+        <li class="pure-menu-item"><a class="pure-menu-link" href="{{ path('odr_admin_homepage') }}"><i class="fa fa-lg fa-dashboard fa-fw"></i>Dashboard</a></li>
+        <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_self_profile_edit') }}"><i class="fa fa-lg fa-user fa-fw"></i>Profile</a></li>
+        <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_job_list') }}"><i class="fa fa-lg fa-cogs fa-fw"></i>Active Jobs</a></li>
 
-<nav class="pure-menu pure-menu-open">
-    <ul>
-        <li><a href="{{ path('odr_admin_homepage') }}"><i class="fa fa-lg fa-dashboard fa-fw"></i>Dashboard</a></li>
-        <li><a class="address" href="#{{ path('odr_self_profile_edit') }}"><i class="fa fa-lg fa-user fa-fw"></i>Profile</a></li>
-        <li><a class="address" href="#{{ path('odr_job_list') }}"><i class="fa fa-lg fa-cogs fa-fw"></i>Active Jobs</a></li>
-
-        <li class="pure-menu-separator"></li>
-
-        <li class="ODRMenuExpand Pointer">
-            <a class="address" href="#{{ path('odr_list_types', { 'section': 'records' } ) }}" title="List Records"><i class="fa fa-lg fa-fw fa-list"></i>List Records</a>
-            <a class="address" href="#{{ path('odr_list_types', { 'section': 'design' } ) }}" title="List Databases"><i class="fa fa-lg fa-fw fa-cog"></i>List Databases</a>
-        </li>
+        <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_list_types', { 'section': 'records' } ) }}" title="List Records"><i class="fa fa-lg fa-fw fa-list"></i>List Records</a></li>
+        <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_list_types', { 'section': 'design' } ) }}" title="List Databases"><i class="fa fa-lg fa-fw fa-cog"></i>List Databases</a></li>
 
 {% if has_datatype_admin == true %}
-        <li class="ODRMenuExpand Pointer">
-            <a><i class="fa fa-lg fa-group fa-fw"></i>User Management</a>
-            <ul>
-                <li><a class="address" href="#{{ path('odr_user_list') }}" title="List Users"><i class="fa fa-lg fa-fw fa-cog"></i>List Users</a></li>
+        <li class="pure-menu-item">
+            <a class="pure-menu-link"><i class="fa fa-lg fa-group fa-fw"></i>User Management</a>
+            <ul class="ODR-pure-submenu">
+                <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_user_list') }}" title="List Users"><i class="fa fa-lg fa-fw fa-cog"></i>List Users</a></li>
             {% if level == 3 or level == 7 %}
-                <li><a class="address" href="#{{ path('odr_admin_new_user_create') }}" title="Add User"><i class="fa fa-lg fa-fw fa-cog"></i>Add User</a></li>
+                <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_admin_new_user_create') }}" title="Add User"><i class="fa fa-lg fa-fw fa-cog"></i>Add User</a></li>
             {% endif %}
             {% if level == 7 %}
-                <li><a class="address" href="#{{ path('odr_manage_user_roles') }}" title="Manage Roles"><i class="fa fa-lg fa-fw fa-cog"></i>Manage Roles</a></li>
-                <li><a class="address" href="#{{ path('odr_quick_permissions') }}" title="Quick Permissions"><i class="fa fa-lg fa-fw fa-cog"></i>Quick Permissions</a></li>
+                <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_manage_user_roles') }}" title="Manage Roles"><i class="fa fa-lg fa-fw fa-cog"></i>Manage Roles</a></li>
+                <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_quick_permissions') }}" title="Quick Permissions"><i class="fa fa-lg fa-fw fa-cog"></i>Quick Permissions</a></li>
             {% endif %}
             </ul>
         </li>
@@ -59,6 +52,7 @@
 </nav>
 
 <script type="text/javascript">
+    /*
     $(function() {
 //        $("li.ODRMenuExpand > ul").hide();
         $("li.ODRMenuExpand > ul").removeAttr('style');
@@ -78,12 +72,13 @@
             );
         });
     });
+    */
 </script>
 
 <style type="text/css">
-    .ODRMenuExpand li {
+    /* .ODRMenuExpand li {
         margin-left: 10px;
-    }
+    } */
 </style>
 
 {% endblock %}
