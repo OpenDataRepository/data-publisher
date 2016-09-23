@@ -24,54 +24,16 @@
 
 .odr-custom-toggle {
     margin-top: 4px;
-    width: 34px;
-    height: 34px;
+    padding-left: 4px;
     display: block;
-    position: absolute;
-    top: 0;
-    right: 0;
+    position: relative;
+    cursor: pointer;
     display: none;
 }
 
-.odr-custom-toggle .bar {
-    background-color: #777;
-    display: block;
-    width: 20px;
-    height: 2px;
-    border-radius: 100px;
-    position: absolute;
-    top: 18px;
-    right: 7px;
-    -webkit-transition: all 0.5s;
-    -moz-transition: all 0.5s;
-    -ms-transition: all 0.5s;
-    transition: all 0.5s;
+.odr-custom-toggle i {
+    padding-right: 4px;
 }
-
-.odr-custom-toggle .bar:first-child {
-    -webkit-transform: translateY(-6px);
-    -moz-transform: translateY(-6px);
-    -ms-transform: translateY(-6px);
-    transform: translateY(-6px);
-}
-
-.odr-custom-toggle.x .bar {
-    -webkit-transform: rotate(45deg);
-    -moz-transform: rotate(45deg);
-    -ms-transform: rotate(45deg);
-    transform: rotate(45deg);
-}
-
-.odr-custom-toggle.x .bar:first-child {
-    -webkit-transform: rotate(-45deg);
-    -moz-transform: rotate(-45deg);
-    -ms-transform: rotate(-45deg);
-    transform: rotate(-45deg);
-}
-
-
-
-
 
 /* end from menu-responsive.css ******************/
 
@@ -113,9 +75,12 @@
 }
 
 /* Change this in order to change the Dropdown symbol */
-#ODRMainMenu li > a:after { content:  ' +'; }
-#ODRMainMenu li > a:only-child:after { content: ''; }
+#ODRMainMenu li > span:after { content:  ' +'; }
+#ODRMainMenu li > span:only-child:after { content: ''; }
 
+#ODRMainMenu .pure-menu-heading {
+    cursor: pointer;
+}
 /* #ODRMainMenu li:hover ul {
     display: block;
 } */
@@ -145,9 +110,9 @@
 
 /* Display Dropdowns on Hover */
 @media (min-width: 48em) {
-    #ODRMainMenu ul li:hover > ul {
+    /* #ODRMainMenu ul li:hover > ul {
         display: inherit;
-    }
+    } */
 }
 /* Compress at Pure  < 768px */
 @media (max-width: 47.999em) {
@@ -160,9 +125,10 @@
         display: block;
     }
 
-    #ODRMainMenu ul li:hover > ul {
+    /* #ODRMainMenu ul li:hover > ul {
+        position: relative;
         display: block;
-    }
+    } */
 
     .ODRMenuWrapper {
         height: 2.5em;
@@ -178,12 +144,32 @@
     }
 
     .ODR-pure-submenu {
+        position: relative;
         display: none;
     }
-    /*
+
+    .ODR-pure-submenu {
+        width: 100%;
+        text-align: left;
+        list-style-type: none;
+        padding-top: 0.5em;
+        padding-bottom: 0.5em;
+    }
+
+    .ODR-pure-submenu li {
+        padding-top: 0.4em;
+        padding-bottom: 0.4em;
+    }
+
+    #ODRMainMenu div.pure-u-1:last-child .ODR-pure-submenu {
+        position: relative;
+    }
+
     #ODRMainMenu ul li.show > ul {
-        display: none;
+        position: relative;
+        display: block;
     }
+
     /* DO NOT Display Dropdowns on Hover */
     /*
     #ODRMainMenu ul li:hover > ul {
