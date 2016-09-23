@@ -92,9 +92,9 @@
 .ODR-pure-submenu {
     text-align: left;
     list-style-type: none;
-    padding-left: 1em;
-    padding-top: 0.5em;
-    padding-bottom: 0.5em;
+    padding-left: 0.5em;
+    padding-top: 0.25em;
+    padding-bottom: 0.25em;
 }
 
 .ODR-pure-submenu li {
@@ -162,6 +162,10 @@
     }
 
     #ODRMainMenu div.pure-u-1:last-child .ODR-pure-submenu {
+        position: relative;
+    }
+
+    .ODR-pure-submenu ul {
         position: relative;
     }
 
