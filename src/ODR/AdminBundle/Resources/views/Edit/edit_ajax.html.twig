@@ -79,6 +79,11 @@ $(function() {
             has_children = true;
         });
 
+        $(this).find(".ODRRenderPluginContent").each(function() {
+            // Also don't hide the theme element if a render plugin exists
+            has_children = true;
+        });
+
         if (!has_children)
             $(this).css( "display", "none" );
     });
