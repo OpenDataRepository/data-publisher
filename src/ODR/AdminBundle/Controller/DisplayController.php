@@ -248,11 +248,10 @@ class DisplayController extends ODRCustomController
             if ($bypass_cache || $associated_datarecords == false) {
                 $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord->getId()));
 
-//print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
-
                 $redis->set($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId(), gzcompress(serialize($associated_datarecords)));
             }
 
+//print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
 
             // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
             $datarecord_array = array();

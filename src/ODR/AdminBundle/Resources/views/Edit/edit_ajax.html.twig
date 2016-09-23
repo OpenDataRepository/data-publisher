@@ -65,21 +65,23 @@ $(function() {
 
     // Hide divs for accordion purposes
     setupAccordions();
-/*
+
     // Hide empty theme element divs
     $(".ODRThemeElement").each(function() {
         var has_children = false;
-        $(this).find(".ODRDataField").each(function() { // TODO - render plugins that hide fieldarea and don't do datafields?
+        $(this).find(".ODRDataField").each(function() {
+            // Don't hide this theme element if it has datafields
             has_children = true;
         });
-        $(this).find(".ODRDataType").each(function() { // TODO - render plugins that hide fieldarea and don't do datafields?
+
+        $(this).find("button.pure-button").each(function() {
+            // Also don't hide this theme element if child datatypes can be added
             has_children = true;
         });
 
         if (!has_children)
             $(this).css( "display", "none" );
     });
-*/
 
     // --------------------
     initPage();

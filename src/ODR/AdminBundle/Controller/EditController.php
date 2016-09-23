@@ -2363,6 +2363,11 @@ exit();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+
             /** @var DataRecord $local_datarecord */
             $local_datarecord = $repo_datarecord->find($local_datarecord_id);
             if ( $local_datarecord == null )
@@ -2520,6 +2525,9 @@ if ($debug)
 if ($debug)
     print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
+                    // Delete the cached list of child/linked datarecords for the ancestor datarecord
+                    $redis->del($redis_prefix.'.associated_datarecords_for_'.$ldt->getAncestor()->getId());
+
                     // Remove the linked_data_tree entry
                     $ldt->setDeletedBy($user);
                     $em->persist($ldt);
@@ -2557,6 +2565,9 @@ if ($debug)
 
                 // Ensure there is a link between the two datarecords
                 parent::ODR_linkDataRecords($em, $user, $ancestor_datarecord, $descendant_datarecord);
+
+                // Delete the cached list of child/linked datarecords for the ancestor datarecord
+                $redis->del($redis_prefix.'.associated_datarecords_for_'.$ancestor_datarecord->getId());
             }
 
             $em->flush();

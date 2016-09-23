@@ -2726,17 +2726,9 @@ if ($debug)
             $em->flush();
         }
 
-        // Refresh the cache entries for the datarecords
+        // Refresh the cache entries for the ancestor datarecord
         self::tmp_updateDatarecordCache($em, $ancestor_datarecord, $user);
-/*
-        $options = array(
-            'user_id' => $user->getId(),    // This action may be called via the command-line...specify user id so datarecord is guaranteed to be updated correctly
-            'mark_as_updated' => true
-        );
-        self::updateDatarecordCache($ancestor_datarecord->getId(), $options);
 
-        self::updateDatarecordCache($descendant_datarecord->getId(), array());  // nothing changed in the descendant
-*/
         return $linked_datatree;
     }
 
