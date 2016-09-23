@@ -152,8 +152,9 @@
 
 <div class="ODRMenuWrapper pure-g" id="ODRMainMenu">
     <div class="pure-menu pure-menu-horizontal odr-custom-can-transform pure-u-1 pure-u-md-7-24">
+        <span class="odr-custom-toggle" id="toggle"><i class="fa fa-lg fa-bars"></i> Menu</span>
         <ul class="pure-menu-list">
-            <li class="pure-menu-item"><a href="#" class="pure-menu-heading odr-custom-brand">Admin</a>
+            <li class="pure-menu-item"><span class="pure-menu-heading odr-custom-brand">Admin</span>
                 {% block navigation_top %}
                 {% endblock %}
             </li>
@@ -161,15 +162,14 @@
         </ul>
         {# block navigation_top %}
         {% endblock #}
-        <a href="#" class="odr-custom-toggle" id="toggle"><s class="bar"></s><s class="bar"></s></a>
     </div>
     <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-can-transform odr-menu-center pure-u-1 pure-u-md-10-24">
         <ul class="pure-menu-list">
             {# block center_navigation_top %}
             {% endblock #}
-            <li class="pure-menu-item"><a href="#" class="pure-menu-link">Home</a>
+            <li class="pure-menu-item"><span class="pure-menu-heading">Home</span>
                 <ul class="ODR-pure-submenu">
-                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 1</a>
+                    <li class="pure-menu-item"><span class="pure-menu-heading">TEST 1</span>
                         <ul class="ODR-pure-submenu">
                             <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 222</a></li>
                             <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 222</a></li>
@@ -198,12 +198,12 @@
     </div>
     <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-1-24">
         <ul class="pure-menu-list">
-            <li class="pure-menu-item"><span class="pure-menu-link"><i class="fa fa-lg fa-question-circle"></i></span>
+            <li class="pure-menu-item"><span class="pure-menu-heading"><i class="fa fa-lg fa-question-circle"></i></span>
             {# block help_navigation_top %}
             {% endblock #}
                 <ul class="ODR-pure-submenu">
-                    <li class="pre-menu-item"><a href="#" class="pre-menu-link">TEST 1    </a></li>
-                    <li class="pre-menu-item"><a href="#" class="pre-menu-link">TEST 2</a></li>
+                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 1    </a></li>
+                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
                 </ul>
             </li>
         </ul>
@@ -215,16 +215,15 @@
     
 <script>
 (function (window, document) {
-var menu = document.getElementById('ODRMainMenu'),
-    WINDOW_CHANGE_EVENT = ('onorientationchange' in window) ? 'orientationchange':'resize';
+    var menu = document.getElementById('ODRMainMenu'),
+            WINDOW_CHANGE_EVENT = ('onorientationchange' in window) ? 'orientationchange':'resize';
 
     // Add Click handler for all menu LI
-    jQuery("#ODRMainMenu ul li").each(function(el) {
-        jQuery(el).unbind('click');
-        jQuery(el).click(function() {
-            alert('click');
-        });
-    })
+    jQuery("#ODRMainMenu .pure-menu-heading").unbind('click');
+    jQuery("#ODRMainMenu .pure-menu-heading").click(function() {
+        // jQuery("#ODRMainMenu .pure-menu-heading").parent().removeClass('show');
+        jQuery(this).parent().toggleClass('show');
+    });
 
 function toggleHorizontal() {
     [].forEach.call(
