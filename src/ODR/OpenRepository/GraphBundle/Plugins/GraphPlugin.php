@@ -409,6 +409,7 @@ class GraphPlugin
             'ODROpenRepositoryGraphBundle:Graph:graph_builder.html.twig', $page_data
         );
         $fs->dumpFile(dirname(__FILE__)."/../../../../../web/uploads/files/Chart__".$page_data['file_id_list'].'.html', $output1);
+        $filep = dirname(__FILE__)."/../../../../../web/uploads/files/Chart__".$page_data['file_id_list'].'.html';
 
         //JSON data to be passed to the phantom js server
         $json_data = array (
