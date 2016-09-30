@@ -62,6 +62,18 @@
         </div><!-- end of #{{ nv_chart_id }}_GraphWrapper -->
         {% if nv_files|length %}
         <div id='{{ nv_chart_id }}' class="ODRGraph pure-u-1">
+            <div id="plotlybars_{{ nv_chart_id }}" class="plotlybars-wrapper">
+                <div class="plotlybars">
+                    <div class="plotlybars-bar b1"></div>
+                    <div class="plotlybars-bar b2"></div>
+                    <div class="plotlybars-bar b3"></div>
+                    <div class="plotlybars-bar b4"></div>
+                    <div class="plotlybars-bar b5"></div>
+                    <div class="plotlybars-bar b6"></div>
+                    <div class="plotlybars-bar b7"></div>
+                </div>
+                <div class="plotlybars-text">Loading graph</div>
+            </div>
             <svg class="pure-u-1" style="min-height: 500px;"></svg>
         </div><!-- end of .ODRGraph -->
         {% endif %}
@@ -112,7 +124,6 @@
     display: none;
 }
 </style>
-
 
 <script type="text/javascript">
 /*
@@ -234,10 +245,7 @@ if(!window.ODRGetGraphData) {
         var txt;
 
         var file_url = "{{ path('odr_file_download', {'file_id': '0'}) }}";
-        console.log();
-        console.log(file_url);
         file_url = file_url.substr(0, file_url.length-1) + filename;
-        console.log(file_url)
 
         if(filename != "") {
             $.ajax({
@@ -275,8 +283,6 @@ if(!window.ODRGetGraphData) {
             }
 
             //Line chart data should be sent as an array of series objects.
-            console.log("this is the line label")
-            console.log(line_label);
             var line = {
                     values: line_data,      //values - represents the array of {x,y} data points
                     key: line_label, //key  - //the name of the series.
@@ -299,7 +305,6 @@ if(!window.ODRNVGraph) {
         this.y_axis_label = "";
         this.GraphData = function(chart_obj) {
             /* These lines are all chart setup.  Pick and choose which chart features ou want to utilize. */
-            console.log(graph_type)
             if(window.nv) {
             switch (graph_type) {
                 case "fline":
@@ -313,7 +318,8 @@ if(!window.ODRNVGraph) {
                 case "xy":
                     // return xyScatterGenerator(chart_obj);
                     // return lineChartGenerator(chart_obj);
-                    return multiBarChartGenerator(chart_obj);
+                    // return multiBarChartGenerator(chart_obj);
+                    return lineChartPlotly(chart_obj)
                 case "hbar":
                     break;
                 case "vbar":
@@ -364,14 +370,10 @@ function focusLineGenerator(chart_obj) {
         var myData = new Array();   //You need data...
         $("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {
             if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {
-//                            console.log($(this).val())
-                console.log(chart_obj)
                 if(!myData.includes(chart_obj.data[$(this).val()]) ) {
 
                     myData.push(chart_obj.data[$(this).val()]);
-                    console.log("pushing data")
                 }
-//                            console.log(chart_obj)
             }
         });
         // Select the <svg> element you want to render the chart in.
@@ -386,6 +388,49 @@ function focusLineGenerator(chart_obj) {
         return this.chart;
 
     });
+}
+
+function lineChartPlotly(chart_obj) {
+
+    var data = []
+
+    // var myData = new Array();   //You need data...
+    console.log(chart_obj)
+    var loaded_data = []
+    $("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {
+        if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {
+            if(loaded_data[$(this).val()] == undefined) {
+                console.log('Plotting ' + $(this).val())
+                var line = chart_obj.data[$(this).val()]
+                var x = []
+                var y = []
+                for(i=0; i<line.values.length;i++) {
+                    x.push(line.values[i].x)
+                    y.push(line.values[i].y)
+                }
+
+                // Build the trace object for Plotly
+                var trace = {}
+                trace.x = x
+                trace.y = y
+                trace.mode = 'lines+markers'
+                trace.name = line.key
+                data.push(trace)
+
+                // Store that this data is loaded
+                loaded_data[$(this).val()] = 1
+            }
+        }
+    });
+
+    var layout = {
+        title:'Adding Names to Line and Scatter Plot'
+    };
+
+    Plotly.newPlot(chart_obj.chart_id, data, layout).then(function(){
+        $("#plotlybars_" + chart_obj.chart_id).hide()
+    })
+
 }
 
 function multiBarChartGenerator(chart_obj) {
@@ -410,10 +455,7 @@ function multiBarChartGenerator(chart_obj) {
         var myData = new Array();   //You need data...
         $("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {
             if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {
-//                            console.log($(this).val())
-                console.log(chart_obj)
                 myData.push(chart_obj.data[$(this).val()]);
-//                            console.log(chart_obj)
             }
         });
 
@@ -453,14 +495,10 @@ function lineChartGenerator(chart_obj) {
         var myData = new Array();   //You need data...
         $("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {
             if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {
-//                            console.log($(this).val())
-                console.log(chart_obj)
                 if(!myData.includes(chart_obj.data[$(this).val()]) ) {
 
                     myData.push(chart_obj.data[$(this).val()]);
-                    console.log("pushing data")
                 }
-//                            console.log(chart_obj)
             }
         });
 
@@ -498,8 +536,6 @@ var SetupGraphs_{{ nv_chart_id }} = function() {
                 {% for mydrcid, pivot in nv_pivot %}
                     {% if mydrcid == drcid %}
                         count++;
-                        console.log("this is the file")
-                        console.log(file);
                         odr_nv_{{ nv_chart_id }}.data[{{ drcid}}] = ODRGetGraphData(file,  line_color, '{{ pivot }}', '{{ plugin_options.graph_type }}');
                     {% endif %}
                 {% endfor %}
@@ -540,10 +576,109 @@ var SetupGraphs_{{ nv_chart_id }} = function() {
         $('#{{ nv_chart_id }}_GraphWrapper').parent().children('.FieldArea:first').before(html);
         $('#{{ nv_chart_id }}_GraphWrapper').parent().children('.FieldArea').hide();
 
-        console.log(odr_nv_{{ nv_chart_id }});
     }
 }
 
 </script>
+
+    <style type="text/css">
+        .plotlybars {
+            padding: 0 10px;
+            vertical-align: bottom;
+
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .plotlybars-wrapper {
+            width: 205px;
+            height: 150px;
+            position: relative;
+            top: 150px;
+            left: 50%;
+            transform: translate(-50%, -50%); */
+        }
+
+        .plotlybars-text {
+            color: #447adb;
+            font-family: 'Open Sans', verdana, arial, sans-serif;
+            font-size: 80%;
+            text-align: center;
+            margin-top: 5px;
+        }
+
+        .plotlybars-bar {
+            background-color: #447adb;
+            height: 100%;
+            width: 13.3%;
+            position: absolute;
+            transform: translateZ(0);
+
+            animation-duration: 2s;
+            animation-iteration-count: infinite;
+            animation-direction: normal;
+            animation-timing-function: linear;
+        }
+
+        .b1 { left: 0%; top: 88%; animation-name: b1; }
+        .b2 { left: 14.3%; top: 76%; animation-name: b2; }
+        .b3 { left: 28.6%; top: 16%; animation-name: b3; }
+        .b4 { left: 42.9%; top: 40%; animation-name: b4; }
+        .b5 { left: 57.2%; top: 26%; animation-name: b5; }
+        .b6 { left: 71.5%; top: 67%; animation-name: b6; }
+        .b7 { left: 85.8%; top: 89%; animation-name: b7; }
+
+        @keyframes b1 {
+            0% { top: 88%; }
+            44% { top: 0%; }
+            94% { top: 100%; }
+            100% { top: 88%; }
+        }
+
+        @keyframes b2 {
+            0% { top: 76%; }
+            38% { top: 0%; }
+            88% { top: 100%; }
+            100% { top: 76%; }
+        }
+
+        @keyframes b3 {
+            0% { top: 16%; }
+            8% { top: 0%; }
+            58% { top: 100%; }
+            100% { top: 16%; }
+        }
+
+        @keyframes b4 {
+            0% { top: 40%; }
+            20% { top: 0%; }
+            70% { top: 100%; }
+            100% { top: 40%; }
+        }
+
+        @keyframes b5 {
+            0% { top: 26%; }
+            13% { top: 0%; }
+            63% { top: 100%; }
+            100% { top: 26%; }
+        }
+
+        @keyframes b6 {
+            0% { top: 67%; }
+            33.5% { top: 0%; }
+            83% { top: 100%; }
+            100% { top: 67%; }
+        }
+
+        @keyframes b7 {
+            0% { top: 89%; }
+            44.5% { top: 0%; }
+            94.5% { top: 100%; }
+            100% { top: 89%; }
+        }
+    </style>
 
 {% endspaceless %}
