@@ -68,6 +68,9 @@
     <!-- Plot.ly JS Plots Based on D3 -->
     <script type="text/javascript" src="../../js/mylibs/plotly.js-1.17.3/dist/plotly.min.js"></script>
 
+    <!-- Plot.ly JS Plots Based on D3 -->
+    <script type="text/javascript" src="../../js/mylibs/plotly.js-1.17.3/dist/plotly.min.js"></script>
+
     <!-- App JS -->
     <!-- <script src="../../js/app.js"></script> -->
 </head>
@@ -473,7 +476,7 @@
                     var line = chart_obj.data[$(this).val()]
                     var x = []
                     var y = []
-                    for (i = 0; i < line.values.length; i++) {
+                    for(i=0; i<line.values.length;i++) {
                         x.push(line.values[i].x)
                         y.push(line.values[i].y)
                     }
