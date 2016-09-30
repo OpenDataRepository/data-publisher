@@ -312,7 +312,8 @@ if(!window.ODRNVGraph) {
                     break;
                 case "xy":
                     // return xyScatterGenerator(chart_obj);
-                    return lineChartGenerator(chart_obj);
+                    // return lineChartGenerator(chart_obj);
+                    return multiBarChartGenerator(chart_obj);
                 case "hbar":
                     break;
                 case "vbar":
@@ -384,6 +385,49 @@ function focusLineGenerator(chart_obj) {
         nv.utils.windowResize(function() { this.chart.update() });
         return this.chart;
 
+    });
+}
+
+function multiBarChartGenerator(chart_obj) {
+    nv.addGraph(function() {
+        this.chart = nv.models.multiBarChart()
+        // .transitionDuration(350)
+        // .reduceXTicks(true)   //If 'false', every single x-axis tick label will be rendered.
+        // .rotateLabels(0)      //Angle to rotate x-axis labels.
+        // .showControls(true)   //Allow user to switch between 'Grouped' and 'Stacked' mode.
+        // .groupSpacing(0.1)    //Distance between each group of bars.
+        ;
+
+        this.chart.xAxis
+                .axisLabel(chart_obj.x_axis_label)
+                .tickFormat(d3.format(',f'));
+
+        this.chart.yAxis
+                .tickFormat(d3.format(',.1f'));
+
+
+        /* Done setting the chart up? Time to render it!*/
+        var myData = new Array();   //You need data...
+        $("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {
+            if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {
+//                            console.log($(this).val())
+                console.log(chart_obj)
+                myData.push(chart_obj.data[$(this).val()]);
+//                            console.log(chart_obj)
+            }
+        });
+
+        $('#' + chart_obj.chart_id + ' svg').html('');
+
+        // Select the <svg> element you want to render the chart in.
+        d3.select('#' + chart_obj.chart_id + ' svg')
+                .datum(myData)         //Populate the <svg> element with chart data...
+                .call(this.chart);          //Finally, render the chart!
+
+        // Update the chart when window resizes.
+        nv.utils.windowResize(function() { this.chart.update() });
+
+        return this.chart;
     });
 }
 
