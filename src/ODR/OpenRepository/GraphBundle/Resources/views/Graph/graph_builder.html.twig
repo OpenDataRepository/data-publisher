@@ -141,6 +141,9 @@
     <!-- Ajax File Downloads -->
     <script src="../../js/mylibs/jquery.fileDownload.js"></script>
 
+    <!-- Plot.ly JS Plots Based on D3 -->
+    <script type="text/javascript" src="../../js/mylibs/plotly.js-1.17.3/dist/plotly.min.js"></script>
+
     <!-- App JS -->
     <script src="../../js/app.js"></script>
 </head>
@@ -597,7 +600,8 @@
                             break;
                         case "xy":
                             // return lineChartGenerator(chart_obj);
-                            return multiBarChartGenerator(chart_obj);
+                            // return multiBarChartGenerator(chart_obj);
+                            return lineChartPlotly(chart_obj);
                             break
                         case "vbar":
                             break;
@@ -668,6 +672,49 @@
             return this.chart;
 
         });
+    }
+
+    function lineChartPlotly(chart_obj) {
+
+        var data = []
+
+        // var myData = new Array();   //You need data...
+        console.log(chart_obj)
+        var loaded_data = []
+        $("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {
+            if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {
+                if(loaded_data[$(this).val()] == undefined) {
+                    console.log('Plotting ' + $(this).val())
+                    var line = chart_obj.data[$(this).val()]
+                    var x = []
+                    var y = []
+                    for(i=0; i<line.values.length;i++) {
+                        x.push(line.values[i].x)
+                        y.push(line.values[i].y)
+                    }
+
+                    // Build the trace object for Plotly
+                    var trace = {}
+                    trace.x = x
+                    trace.y = y
+                    trace.mode = 'lines+markers'
+                    trace.name = line.key
+                    data.push(trace)
+
+                    // Store that this data is loaded
+                    loaded_data[$(this).val()] = 1
+                }
+            }
+        });
+
+        var layout = {
+            title:'Adding Names to Line and Scatter Plot'
+        };
+
+        Plotly.newPlot(chart_obj.chart_id, data, layout).then(function(){
+            $("#plotlybars_" + chart_obj.chart_id).hide()
+        })
+
     }
 
     function multiBarChartGenerator(chart_obj) {
