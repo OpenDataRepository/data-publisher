@@ -882,7 +882,7 @@ $ret .= '  Set current to '.$count."\n";
      *
      * @return Response
      */
-    public function dtcheckAction($datatype_id, Request $request)
+    public function dtclearAction($datatype_id, Request $request)
     {
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
@@ -936,7 +936,7 @@ $ret .= '  Set current to '.$count."\n";
      *
      * @return Response
      */
-    public function drcheckAction($datatype_id, Request $request)
+    public function drclearAction($datatype_id, Request $request)
     {
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();

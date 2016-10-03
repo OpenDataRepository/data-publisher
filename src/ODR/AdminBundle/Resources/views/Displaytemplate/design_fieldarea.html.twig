@@ -23,19 +23,19 @@
 
         {% if is_link == 0 %}
             <div id="ThemeElementTools_{{ theme_element.id }}" class="DataTypeTools pure-u-1"><span style="float:right;">
-                <i class="Pointer tooltip fa fa-info-circle ODRThemeElementProperties" title="ThemeElement Properties"></i>
-                <i class="Pointer tooltip fa fa-plus-square {% if has_childtype %}fa-muted{% endif %} ODRAddDatafield" title="Add DataField" rel="{{ datatype.id }}"></i>
-                <i class="Pointer tooltip fa fa-list-alt {% if has_childtype or has_datafields %}fa-muted{% endif %} ODRAddChildtype" title="Add Child Type" rel="{{ datatype.id }}"></i>
+                <i id="ODRThemeElement_{{ theme_element.id }}_properties" class="Pointer tooltip fa fa-info-circle ODRThemeElementProperties" title="ThemeElement Properties"></i>
+                <i id="ODRThemeElement_{{ theme_element.id }}_addDF" class="Pointer tooltip fa fa-plus-square {% if has_childtype %}fa-muted{% endif %} ODRAddDatafield" title="Add DataField" rel="{{ datatype.id }}"></i>
+                <i id="ODRThemeElement_{{ theme_element.id }}_addCDT" class="Pointer tooltip fa fa-list-alt {% if has_childtype or has_datafields %}fa-muted{% endif %} ODRAddChildtype" title="Add Child Type" rel="{{ datatype.id }}"></i>
 
                 {% if has_datafields or (has_childtype and not child_is_link) %}
-                    <i class="Pointer tooltip fa fa-link fa-muted ODRLinkDatatype" title="Link DataType" rel="{{ datatype.id }}"></i>
+                    <i id="ODRThemeElement_{{ theme_element.id }}_linkDT" class="Pointer tooltip fa fa-link fa-muted ODRLinkDatatype" title="Link DataType" rel="{{ datatype.id }}"></i>
                 {% elseif has_childtype and child_is_link %}
-                    <i class="Pointer tooltip fa fa-link ODRActiveIcon ODRLinkDatatype" title="Link DataType" rel="{{ datatype.id }}"></i>
+                    <i id="ODRThemeElement_{{ theme_element.id }}_linkDT" class="Pointer tooltip fa fa-link ODRActiveIcon ODRLinkDatatype" title="Link DataType" rel="{{ datatype.id }}"></i>
                 {% else %}
-                    <i class="Pointer tooltip fa fa-link ODRLinkDatatype" title="Link DataType" rel="{{ datatype.id }}"></i>
+                    <i id="ODRThemeElement_{{ theme_element.id }}_linkDT" class="Pointer tooltip fa fa-link ODRLinkDatatype" title="Link DataType" rel="{{ datatype.id }}"></i>
                 {% endif %}
 
-                <i class="Pointer tooltip fa fa-trash-o {% if has_datafields or has_childtype %}fa-muted{% endif %} ODRDeleteThemeElement" title="Delete ThemeElement"></i>
+                <i id="ODRThemeElement_{{ theme_element.id }}_delete" class="Pointer tooltip fa fa-trash-o {% if has_datafields or has_childtype %}fa-muted{% endif %} ODRDeleteThemeElement" title="Delete ThemeElement"></i>
             </span></div>
 
         {% endif %}

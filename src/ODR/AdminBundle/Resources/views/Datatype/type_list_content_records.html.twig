@@ -18,6 +18,8 @@
     <tbody>
     {% for datatype in datatypes %}
 
+        {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) %}
+
         {# Pre-determine which permissions user has for this datatype... #}
         {% set can_view_datatype = false %}
         {% set can_add_datarecord = false %}
@@ -37,6 +39,7 @@
             {% endif %}
         {% endif %}
 
+
         {% if can_view_datatype == true or datatype.dataTypeMeta.publicDate|is_public == true %}
         <tr>
             <td>{{ datatype.id }}</td>
@@ -53,68 +56,72 @@
                     </span>
                 </span>
             </td>
-            <td>{{ datatype.dataTypeMeta.shortName }}</td>
+            <td id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype.dataTypeMeta.shortName }}</td>
 
-            {# number of datatrecords for this datatype #}
+            {# number of datarecords for this datatype #}
             {% set datarecord_count = 0 %}
             {% set found = false %}
             {% for datatype_id, data in metadata %}
                 {% if datatype_id == datatype.id %}
                     {% set datarecord_count = data.count %}
                     {% set found = true %}
-                    <td class="center">{{ datarecord_count }}</td>
+                    <td id="ODRDatarecordList_{{ datatype.id }}_count">{{ datarecord_count }}</td>
                 {% endif %}
             {% endfor %}
 
             {% if found == false %}
-                <td class="center">0</td>
+                <td id="ODRDatarecordList_{{ datatype.id }}_count">0</td>
             {% endif %}
 
 
             {# link to search this datatype #}
+            <td>
             {% if datatype.dataTypeMeta.searchSlug != '' and datarecord_count > 0 %}
-                <td class="center"><a href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}" title="Search {{ datatype.dataTypeMeta.shortName }} DataRecords"><i class="fa fa-lg fa-search"></i>&nbsp;Search Records</a></td>
+                <a id="ODRDatarecordList_{{ datatype.id }}_search" href="{{ datatype_baseurl }}" title="Search {{ datatype.dataTypeMeta.shortName }} DataRecords"><i class="fa fa-lg fa-search"></i>&nbsp;Search Records</a>
             {% elseif datarecord_count == 0 %}
-                <td class="center"></td>
+                {# don't display link, nothing to search #}
             {% elseif is_datatype_admin == false %}
-                <td class="center"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</td>
+                <i class="fa fa-lg fa-exclamation-triangle Cursor"></i>&nbsp;No Search Abbreviation!
             {% else %}
-                <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
+                <a id="ODRDatarecordList_{{ datatype.id }}_search" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
             {% endif %}
+            </td>
 
 
             {# view link for this datatype #}
+            <td>
             {% if datarecord_count == 0 %}
-                <td class="center"></td>
+                {# don't display link, nothing to view #}
             {% elseif datatype.dataTypeMeta.searchSlug == '' %}
                 {% if is_datatype_admin == true %}
-                    <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
-                {% else %}
-                    <td class="center"></td>
+                    <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
                 {% endif %}
             {% else %}
                 {% if (datatype.dataTypeMeta.useShortResults == 1 and datatype.hasShortResults == true) or (datatype.dataTypeMeta.useShortResults == 0 and datatype.hasTextResults == true) %}
-                    <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}#{{ path('odr_search_render', {'search_key': 'dt_id='~datatype.id} ) }}" title="View {{ datatype.dataTypeMeta.shortName }} DataRecords"><i class="fa fa-lg fa-list"></i>&nbsp;List Records</a></td>
+                    <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_search_render', {'search_key': 'dt_id='~datatype.id} ) }}" title="View {{ datatype.dataTypeMeta.shortName }} DataRecords"><i class="fa fa-lg fa-list"></i>&nbsp;List Records</a>
                 {% elseif is_datatype_admin == true %}
                     {% if datatype.dataTypeMeta.useShortResults == 1 and datatype.hasShortResults == false %}
-                        <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Search Results Theme not designed!</a></td>
+                        <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Search Results Theme not designed!</a>
                     {% elseif datatype.dataTypeMeta.useShortResults == 0 and datatype.hasTextResults == false %}
-                        <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Table Theme not designed!</a></td>
+                        <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Table Theme not designed!</a>
                     {% endif %}
                 {% else %}
-                    <td class="center"></td>
+                    {# missing templates to display search results,and user doesn't have permission to make any...do nothing #}
                 {% endif %}
             {% endif %}
+            </td>
 
 
             {# add/import links for this datatype #}
+            <td>
             {% if can_add_datarecord == true %}
-                <td class="center"><a style="cursor:pointer;" onclick="addDataRecord('{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}',{{ datatype.id }});"><i class="fa fa-lg fa-plus-circle"></i>&nbsp;Add New Record</a></td>
-            {% else %}
-                <td class="center"></td>
+                <a id="ODRDatarecordList_{{ datatype.id }}_add" class="Pointer" onclick="addDataRecord('{{ datatype_baseurl }}',{{ datatype.id }});"><i class="fa fa-lg fa-plus-circle"></i>&nbsp;Add New Record</a>
             {% endif %}
+            </td>
 
-            <td class="center"><a class="Pointer" onclick="downloadXSD({{ datatype.id }});"><i class="fa fa-lg fa-download"></i>&nbsp;Download</a></td>
+            <td>
+                <a id="ODRDatarecordList_{{ datatype.id }}_downloadXSD" class="Pointer" onclick="downloadXSD({{ datatype.id }});"><i class="fa fa-lg fa-download"></i>&nbsp;Download</a>
+            </td>
         </tr>
         {% endif %}
     {% endfor %}
@@ -215,6 +222,14 @@
                 }
             });
         }
+    }
+
+    function downloadXSD(datatype_id) {
+        var url = '{{ path('odr_get_datatype_xsd', { 'version': 'v1', 'datatype_id': 0 }) }}';
+        url = url.substring(0, (url.length - 1));
+        url += datatype_id;
+
+        document.location = url;
     }
 </script>
 

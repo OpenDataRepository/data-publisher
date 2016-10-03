@@ -13,7 +13,7 @@
             {{ datafield.dataFieldMeta.fieldName }}
             {% if is_datatype_admin == true %}
             <span style="margin-left: 10px;">
-                <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+                <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
             </span>
             {% endif %}
         </label>
@@ -30,7 +30,7 @@
                             {{ datafield.dataFieldMeta.fieldName }}
                             {% if is_datatype_admin == true %}
                             <span style="margin-left: 10px;">
-                                <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+                                <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
                             </span>
                             {% endif %}
                         </th>
@@ -58,7 +58,7 @@
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
             {% if is_datatype_admin == true %}
             <span style="margin-left: 10px;">
-                <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+                <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
             </span>
             {% endif %}
         </span>
@@ -77,7 +77,7 @@
             <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
             {% if is_datatype_admin == true %}
             <span style="margin-left: 10px;">
-                <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+                <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
             </span>
             {% endif %}
         </span>
@@ -93,7 +93,7 @@
             </span>
             {% if is_datatype_admin == true %}
             <span style="margin-left: 10px;">
-                <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+                <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
             </span>
             {% endif %}
         </span>
@@ -123,7 +123,7 @@
             </span>
             {% if is_datatype_admin == true %}
             <span style="margin-left: 10px;">
-                <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+                <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
             </span>
             {% endif %}
         </span>
@@ -147,7 +147,7 @@
             <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
             {% if is_datatype_admin == true %}
             <span style="margin-left: 10px;">
-                <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+                <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
             </span>
             {% endif %}
         </span>
@@ -162,7 +162,7 @@
             <span class="pure-u-1">
                 {% if is_datatype_admin == true %}
                 <span style="margin-left: 10px;">
-                    <i class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
+                    <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Datafield {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
                 </span>
                 {% endif %}
             </span>
