@@ -29,9 +29,11 @@
     
     
     <!-- Pure Layout -->
-    <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
-    <!--[if lte IE 8]><link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/grids-responsive-old-ie-min.css"><![endif]-->
-    <!--[if gt IE 8]><!--><link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/grids-responsive-min.css"><!--<![endif]-->
+    <!-- <link rel="stylesheet" href="/css/pure-0.6.0-rollup.min.css">
+    <!-- Pure Layout -->
+    <link rel="stylesheet" href="/css/external/pure-min.css">
+    <!--[if gt IE 8]><!--><link rel="stylesheet" href="/css/external/pure-grids-responsive-min.css"><!--<![endif]-->
+
 
     <!-- Icon Styles -->
     <link rel="stylesheet" href="/css/fonts/font-awesome-4.6.3/css/font-awesome.css">
@@ -64,26 +66,13 @@
     <!--[if lt IE 10]><script src="/js/mylibs/polyfills/excanvas.js"></script><![endif]-->
     <!--[if lt IE 10]><script src="/js/mylibs/polyfills/classlist.js"></script><![endif]-->
     
-    
-    
-    <!-- Grab frameworks from CDNs -->
     <!-- Grab Google CDN's jQuery, with a protocol relative URL; fall back to local if offline -->
-    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.js"></script>
-    <script>window.jQuery || document.write('<script src="/js/libs/jquery-1.7.2.js"><\/script>')</script>
+    <script src="/js/libs/jquery-1.7.2.js"></script>
 
     <!-- Do the same with jQuery UI -->
-    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.21/jquery-ui.js"></script>
-    <script>window.jQuery.ui || document.write('<script src="/js/libs/jquery-ui-1.8.21.js"><\/script>')</script>
-    
-    <!-- Do the same with Lo-Dash.js -->
-    <!--[if gt IE 8]>
-        <script src="http://cdnjs.cloudflare.com/ajax/libs/lodash.js/0.4.2/lodash.js"></script>
-        <script>window._ || document.write('<script src="/js/libs/lo-dash.js"><\/script>')</script>
-    <![endif]-->
-    <!-- IE8 doesn't like lodash -->
-    <!--[if lt IE 9]><script src="http://documentcloud.github.com/underscore/underscore.js"></script><![endif]-->
-    
-    
+    <script src="/js/libs/jquery-ui-1.8.21.js"></script>
+    <script src="/js/libs/lo-dash.min.js"></script>
+
     <!-- Load Webfont loader -->
     <script type="text/javascript">
         $(function() {

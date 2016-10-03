@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype xhtml>
 <!-- paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/ -->
 <!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7" lang="en"> <![endif]-->
 <!--[if IE 7]>    <html class="no-js lt-ie9 lt-ie8" lang="en"> <![endif]-->
@@ -33,20 +33,14 @@
     <!-- Place favicon.ico and apple-touch-icon.png in the root directory: mathiasbynens.be/notes/touch-icons -->
     <!-- More ideas for your <head> here: h5bp.com/d/head-Tips -->
 
-
     <!-- Pure Layout -->
     <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.5.0/pure-min.css">
-    <!--[if lte IE 8]><link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.5.0/grids-responsive-old-ie-min.css"><![endif]-->
-    <!--[if gt IE 8]><!--><link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.5.0/grids-responsive-min.css"><!--<![endif]-->
 
     <!-- Icon Styles -->
     <link rel="stylesheet" src="../../css/fonts/font-awesome.css">
-    <!--[if IE 8]><link rel="stylesheet" src="../../css/fonts/font-awesome-ie7.css"><![endif]-->
 
     <!-- External Styles -->
     <link rel="stylesheet" src="../../css/external/jquery-ui-1.8.21.custom.css">
-    <link rel="stylesheet" src="../../css/external/jquery.jgrowl.css">
-    <link rel="stylesheet" src="../../css/external/jquery.dataTables.css">
 
     <!-- Symfony Stylesheets -->
     <link src="../../css/pure_odr_custom.css" type="text/css" rel="stylesheet">
@@ -55,37 +49,22 @@
 
     <!-- NVD3 StyleSheet -->
     <link rel="stylesheet" href="../../js/mylibs/nvd3/nv.d3.css">
-    <link rel="stylesheet" href="../../js/mylibs/nvd3/nv.d3.css">
 
-
-    <!-- Scripts -->
+    <!-- Scripts
     <script defer async src="https://ajax.googleapis.com/ajax/libs/webfont/1.0.28/webfont.js"></script>
-
-    <!-- Essential polyfills -->
-    <script src="../../js/mylibs/polyfills/modernizr-2.6.1.min.js"></script>
-    <!--[if lt IE 9]><script src="../../js/mylibs/polyfills/selectivizr.js"></script><![endif]-->
-    <!--[if lt IE 10]><script src="../../js/mylibs/polyfills/excanvas.js"></script><![endif]-->
-    <!--[if lt IE 10]><script src="../../js/mylibs/polyfills/classlist.js"></script><![endif]-->
-
-
+    -->
 
     <!-- Grab frameworks from CDNs -->
     <!-- Grab Google CDN's jQuery, with a protocol relative URL; fall back to local if offline -->
-    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.js"></script>
-    <script>window.jQuery || document.write('<script src="../../js/libs/jquery-1.7.2.js"><\/script>')</script>
+    <script src="../../js/libs/jquery-1.7.2.js"></script>
 
-    <!-- Do the same with jQuery UI -->
-    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.21/jquery-ui.js"></script>
-    <script>window.jQuery.ui || document.write('<script src="../../js/libs/jquery-ui-1.8.21.js"><\/script>')</script>
+    <!-- Include jQuery SVG DOM -->
+    <script src="../../js/mylibs/jquery_svg/jquery-svgdom.min.js"></script>
+
+    <script src="../../js/libs/jquery-ui-1.8.21.js"></script>
 
     <!-- Do the same with Lo-Dash.js -->
-    <!--[if gt IE 8]>
-    <script src="http://cdnjs.cloudflare.com/ajax/libs/lodash.js/0.4.2/lodash.js"></script>
-    <script>window._ || document.write('<script src="../../js/libs/lo-dash.js"><\/script>')</script>
-    <![endif]-->
-    <!-- IE8 doesn't like lodash -->
-    <!--[if lt IE 9]><script src="http://documentcloud.github.com/underscore/underscore.js"></script><![endif]-->
-
+    <script src="../../js/libs/lo-dash.js"></script>
 
     <!-- Load Webfont loader -->
     <script type="text/javascript">
@@ -98,54 +77,17 @@
     </script>
 
     <!-- scripts concatenated and minified via build script -->
-
-    <!-- General Scripts -->
-    <script src="../../js/mylibs/jquery.hashchange.js"></script>
-    <script src="../../js/mylibs/jquery.idle-timer.js"></script>
-    <script src="../../js/mylibs/jquery.plusplus.js"></script>
-    <script src="../../js/mylibs/jquery.jgrowl.js"></script>
-    <script src="../../js/mylibs/jquery.scrollTo.js"></script>
-    <script src="../../js/mylibs/jquery.ui.touch-punch.js"></script>
-    <script src="../../js/mylibs/jquery.ui.multiaccordion.js"></script>
-    <script src="../../js/mylibs/number-functions.js"></script>
-
-    <!-- Forms -->
-    <script src="../../js/libs/plugins/jquery.validate.min.js"></script>
-
-    <!-- Charts -->
     <script src="../../js/mylibs/nvd3/d3.v3.min.js"></script>
     <script src="../../js/mylibs/nvd3/nv.d3.js"></script>
 
-    <!-- Fullstats -->
-    <script src="../../js/mylibs/fullstats/jquery.css-transform.js"></script>
-    <script src="../../js/mylibs/fullstats/jquery.animate-css-rotate-scale.js"></script>
-    <script src="../../js/mylibs/fullstats/jquery.sparkline.js"></script>
-
-    <!-- Dynamic Tables -->
-    <script src="../../js/mylibs/dynamic-tables/jquery.dataTables.js"></script>
-    <script src="../../js/mylibs/dynamic-tables/jquery.dataTables.tableTools.zeroClipboard.js"></script>
-    <script src="../../js/mylibs/dynamic-tables/jquery.dataTables.tableTools.js"></script>
-
-    <!-- Tooltips -->
-    <script src="../../js/mylibs/tooltips/jquery.tipsy.js"></script>
-
     <!-- Images Loaded -->
     <script src="../../js/mylibs/imagesloaded/imagesloaded.pkgd.js"></script>
-
-    <!-- Meltdown -->
-    <script src="../../js/mylibs/meltdown/js-markdown-extra.js"></script>
-
-    <!-- Multiple/Large File Uploads -->
-    <script src="../../js/mylibs/flow/flow.js"></script>
-
-    <!-- Ajax File Downloads -->
-    <script src="../../js/mylibs/jquery.fileDownload.js"></script>
 
     <!-- Plot.ly JS Plots Based on D3 -->
     <script type="text/javascript" src="../../js/mylibs/plotly.js-1.17.3/dist/plotly.min.js"></script>
 
     <!-- App JS -->
-    <script src="../../js/app.js"></script>
+    <!-- <script src="../../js/app.js"></script> -->
 </head>
 
 {% spaceless %}
@@ -212,8 +154,8 @@
         </div><!-- end of #{{ nv_chart_id }}_GraphWrapper -->
         {% if nv_files|length %}
             <div id='{{ nv_chart_id }}' class="ODRGraph pure-u-1">
-                <svg class="pure-u-1" style="min-height: 500px;"></svg>
             </div><!-- end of .ODRGraph -->
+            <!-- <div id='svg-export' class="ODRGraph pure-u-1"></div> -->
         {% endif %}
 
     </div><!-- end of .DynamicGraphs -->
@@ -437,145 +379,6 @@
         }
     }
 
-    {#if(!window.ODRNVGraph) {#}
-        {#function ODRNVGraph() {#}
-            {#this.chart = "";#}
-            {#this.chart_id = "";#}
-            {#this.data = new Array(); // Graph Data for the available files#}
-            {#this.ids = new Array(); // DRC_IDs to plot#}
-
-            {#this.x_axis_label = "";#}
-            {#this.y_axis_label = "";#}
-            {#this.GraphData = function(chart_obj) {#}
-                {#/* These lines are all chart setup.  Pick and choose which chart features ou want to utilize. */#}
-                {#if(window.nv) {#}
-                    {#switch ('{{ plugin_options.graph_type }}') {#}
-                        {#case "xy":#}
-                            {#return xyLineGenerator(chart_obj);#}
-                            {#break;#}
-                        {#case "line":#}
-                            {#return lineChartGenerator(chart_obj);#}
-                            {#break;#}
-                        {#case "hbar":#}
-                            {#break;#}
-                        {#case "vbar":#}
-                            {#break;#}
-                        {#case "starea":#}
-                            {#break;#}
-                        {#case "sgbar":#}
-                            {#break;#}
-                        {#case "cline":#}
-                            {#break;#}
-                        {#case "piechart":#}
-                            {#break;#}
-                        {#default:#}
-                            {#break;#}
-                    {#}#}
-                {#}#}
-            {#}#}
-        {#};#}
-    {#}#}
-
-    {#var {{ nv_chart_id }}_initialized = false;#}
-
-    {#function xyLineGenerator(chart_obj) {#}
-        {#nv.addGraph(function() {#}
-            {#this.chart = nv.models.lineWithFocusChart();#}
-            {#//.margin({left: 100, right: 50})  //Adjust chart margins to give the x-axis some breathing room.#}
-            {#//.useInteractiveGuideline(true)  //We want nice looking tooltips and a guideline!#}
-            {#//.transitionDuration(350)  //how fast do you want the lines to transition?#}
-            {#//.showLegend(true)       //Show the legend, allowing users to turn on/off line series.#}
-            {#//.showYAxis(true)        //Show the y-axis#}
-            {#//.showXAxis(true)        //Show the x-axis#}
-            {#//;#}
-
-            {#this.chart.xAxis     //Chart x-axis settings#}
-                    {#.axisLabel(chart_obj.x_axis_label)#}
-                    {#.tickFormat(d3.format(',r'));#}
-
-            {#this.chart.yAxis     //Chart y-axis settings#}
-            {#// .axisLabel(chart_obj.y_axis_label)#}
-                    {#.tickFormat(d3.format('.02f'));#}
-
-            {#this.chart.y2Axis     //Chart y-axis settings#}
-            {#// .axisLabel(chart_obj.y_axis_label)#}
-                    {#.tickFormat(d3.format('.02f'));#}
-            {#console.log("repoeasts")#}
-            {#/* Done setting the chart up? Time to render it!*/#}
-            {#//TODO Kind of hacky fix for the issue of duplicating header keys, just checks to make sure its not already in the file#}
-            {#//     Want to fix but need to move on for right now.#}
-            {#var myData = new Array();   //You need data...#}
-            {#$("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {#}
-                {#if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {#}
-{#//                            console.log($(this).val())#}
-                    {#console.log(chart_obj)#}
-                    {#if(!myData.includes(chart_obj.data[$(this).val()]) ) {#}
-
-                        {#myData.push(chart_obj.data[$(this).val()]);#}
-                        {#console.log("pushing data")#}
-                    {#}#}
-{#//                            console.log(chart_obj)#}
-                {#}#}
-            {#});#}
-            {#// Select the <svg> element you want to render the chart in.#}
-            {#$('#' + chart_obj.chart_id + ' svg').html('');#}
-
-            {#// Select the <svg> element you want to render the chart in.#}
-            {#d3.select('#' + chart_obj.chart_id + ' svg')#}
-                    {#.datum(myData)         //Populate the <svg> element with chart data...#}
-                    {#.call(this.chart);          //Finally, render the chart!#}
-            {#// Update the chart when window resizes.#}
-            {#nv.utils.windowResize(function() { this.chart.update() });#}
-            {#return this.chart;#}
-
-        {#});#}
-    {#}#}
-
-    {#function lineChartGenerator(chart_obj) {#}
-        {#nv.addGraph(function() {#}
-            {#this.chart = nv.models.lineChart();#}
-{#//                        .margin({left: 100})  //Adjust chart margins to give the x-axis some breathing room.#}
-{#//                        .useInteractiveGuideline(true)  //We want nice looking tooltips and a guideline!#}
-{#//                        .transitionDuration(350)  //how fast do you want the lines to transition?#}
-{#//                        .showLegend(true)       //Show the legend, allowing users to turn on/off line series.#}
-{#//                        .showYAxis(true)        //Show the y-axis#}
-{#//                        .showXAxis(true)        //Show the x-axis#}
-
-
-            {#this.chart.xAxis     //Chart x-axis settings#}
-                    {#.axisLabel(chart_obj.x_axis_label)#}
-                    {#.tickFormat(d3.format(',r'));#}
-
-            {#this.chart.yAxis     //Chart y-axis settings#}
-                    {#.tickFormat(d3.format('.02f'));#}
-
-            {#/* Done setting the chart up? Time to render it!*/#}
-            {#var myData = new Array();   //You need data...#}
-            {#$("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {#}
-                {#if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {#}
-{#//                            console.log($(this).val())#}
-                    {#console.log(chart_obj)#}
-                    {#if(!myData.includes(chart_obj.data[$(this).val()]) ) {#}
-
-                        {#myData.push(chart_obj.data[$(this).val()]);#}
-                        {#console.log("pushing data")#}
-                    {#}#}
-{#//                            console.log(chart_obj)#}
-                {#}#}
-            {#});#}
-
-            {#$('#' + chart_obj.chart_id + ' svg').html('');#}
-
-            {#// Select the <svg> element you want to render the chart in.#}
-            {#d3.select('#' + chart_obj.chart_id + ' svg')#}
-                    {#.datum(myData)         //Populate the <svg> element with chart data...#}
-                    {#.call(this.chart);          //Finally, render the chart!#}
-            {#// Update the chart when window resizes.#}
-            {#nv.utils.windowResize(function() { this.chart.update() });#}
-            {#return this.chart;#}
-        {#});#}
-    {#}#}
-
     if(!window.ODRNVGraph) {
         function ODRNVGraph() {
             this.chart = "";
@@ -708,13 +511,62 @@
         });
 
         var layout = {
-            title:'Adding Names to Line and Scatter Plot'
+            title: 'Title of the Graph',
+            // autosize: true,
+            // width: 500,
+            // height: 600,
+            // margin: {
+                // l: 50,
+                // r: 50,
+                // b: 100,
+                // t: 100,
+                // pad: 4
+            // },
+            // paper_bgcolor: '#7f7f7f',
+            // plot_bgcolor: '#c7c7c7',
+            xaxis: {
+                title: 'x-axis title',
+                showgrid: true,
+                zeroline: true
+            },
+            yaxis: {
+                title: 'y-axis title',
+                showline: true
+            }
         };
 
-        Plotly.newPlot(chart_obj.chart_id, data, layout).then(function(){
-            $("#plotlybars_" + chart_obj.chart_id).hide()
-        })
+        // d3 = Plotly.d3
+        // var img_svg= d3.select('#svg-export');
 
+        Plotly.newPlot(chart_obj.chart_id, data, layout)
+        .then(function(){
+            console.log('Removing divs')
+            // Need to remove non-svg items from Plotly Output
+            var svgs = $("#" + chart_obj.chart_id + " svg.main-svg")
+            $("#" + chart_obj.chart_id + " div.plot-container").before(svgs)
+            // Remove divs (not-SVG Compliant)
+            $("#" + chart_obj.chart_id + " div").remove()
+            // Add viewBox="0 0 1400 450" preserveAspectRatio="xMinYMin meet"
+            var main_svg = $("#" + chart_obj.chart_id)
+            // $("svg:first", main_svg.root()).attr('aAApreserveAspectRatio', 'xMinyMin meet')
+            // $("svg:first", main_svg.root()).attr('viewBox', '0 0 ' + $("#" + chart_obj.chart_id + " svg:first").width() + " " + $("#" + chart_obj.chart_id + " svg:first").height()  )
+            $(main_svg).attr('preserveAspectRatio', 'xMinyMin meet')
+            $(main_svg).attr('viewBox', '0 0 ' + $("#" + chart_obj.chart_id + " svg:first").width() + " " + $("#" + chart_obj.chart_id + " svg:first").height()  )
+        })
+        // static image in svg format
+        /* .then(
+            function(gd)
+            {
+                Plotly.toImage(gd,{height:500,width:1400})
+                .then(
+                    function(url)
+                    {
+                        img_svg.attr("src", url);
+                        return Plotly.toImage(gd,{format:'svg',height:500,width:1400});
+                    }
+                )
+            }
+        ); */
     }
 
     function multiBarChartGenerator(chart_obj) {

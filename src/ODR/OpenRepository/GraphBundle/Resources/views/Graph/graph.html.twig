@@ -61,7 +61,7 @@
             </dl>
         </div><!-- end of #{{ nv_chart_id }}_GraphWrapper -->
         {% if nv_files|length %}
-        <div id='{{ nv_chart_id }}' class="ODRGraph pure-u-1">
+        <div id='{{ nv_chart_id }}' class="ODRGraph ODRDynamicGraph pure-u-1">
             <div id="plotlybars_{{ nv_chart_id }}" class="plotlybars-wrapper">
                 <div class="plotlybars">
                     <div class="plotlybars-bar b1"></div>
@@ -74,7 +74,7 @@
                 </div>
                 <div class="plotlybars-text">Loading graph</div>
             </div>
-            <svg class="pure-u-1" style="min-height: 500px;"></svg>
+            <!-- <svg class="pure-u-1" style="min-height: 500px;"></svg> -->
         </div><!-- end of .ODRGraph -->
         {% endif %}
 
@@ -107,7 +107,7 @@
 
             {% if nv_output_files|length %}
                 {% for dr_id, nv_file_name in nv_output_files %}
-                    <div id="StaticGraph_{{ dr_id }}" class="ODRGraph pure-u-1" {% if dr_id != "rollup" %}style="display: none; min-height: 500px;"{% endif %}>
+                    <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1" {% if dr_id != "rollup" %}style="display: none;"{% endif %}>
                         <img class="pure-u-1" src="{{ nv_file_name }}" style="min-height: 500px;" />
                         {#{{ svg_contents | raw }}#}
                     </div><!-- end of .ODRGraph -->
@@ -424,7 +424,16 @@ function lineChartPlotly(chart_obj) {
     });
 
     var layout = {
-        title:'Adding Names to Line and Scatter Plot'
+        title: 'Title of the Graph',
+        xaxis: {
+            title: 'x-axis title',
+            showgrid: true,
+            zeroline: true
+        },
+        yaxis: {
+            title: 'y-axis title',
+            showline: true
+        }
     };
 
     Plotly.newPlot(chart_obj.chart_id, data, layout).then(function(){
