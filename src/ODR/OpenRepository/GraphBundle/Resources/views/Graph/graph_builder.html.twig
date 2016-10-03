@@ -9,32 +9,24 @@
 <head>
     <meta charset="utf-8">
 
-    <!-- <link rel="dns-prefetch" href="http://cdnjs.cloudflare.com" />
-    <link rel="dns-prefetch" href="http://fonts.googleapis.com" />
-    <link rel="dns-prefetch" href="http://themes.googleusercontent.com" />
-    <link rel="dns-prefetch" href="http://ajax.googleapis.com" />
-    <link rel="dns-prefetch" href="http://agorbatchev.typepad.com" /> -->
-
     <!-- Use the .htaccess and remove these lines to avoid edge case issues.  More info: h5bp.com/b/378 -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 
     <title>{% block title %}Welcome!{% endblock %}</title>
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}" />
 
-    <meta name="description" content="The Planetary Materials Database catalogues the work of the Mars Rover Curiosity and the materials discovered during its mission on Mars..">
-    <meta name="author" content="Simon Stamm & Markus Siemens">
+    <meta name="description" content="ODR Graph Generator">
+    <meta name="author" content="Open Data Repostiory (opendatarepository.org)">
 
     <!-- Mobile viewport optimized: h5bp.com/viewport -->
     <meta name="viewport" content="width=device-width,initial-scale=1">
+
     <!-- iPhone: Don't render numbers as call links -->
     <meta name="format-detection" content="telephone=no">
 
-    <link rel="shortcut icon" href="favicon.ico" />
-    <!-- Place favicon.ico and apple-touch-icon.png in the root directory: mathiasbynens.be/notes/touch-icons -->
-    <!-- More ideas for your <head> here: h5bp.com/d/head-Tips -->
-
     <!-- Pure Layout -->
-    <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.5.0/pure-min.css">
+    <link rel="stylesheet" href="../../css/external/pure-min.css">
+    <!--[if gt IE 8]><!--><link rel="stylesheet" href="../../css/external/pure-grids-responsive-min.css"><!--<![endif]-->
 
     <!-- Icon Styles -->
     <link rel="stylesheet" src="../../css/fonts/font-awesome.css">
@@ -50,17 +42,7 @@
     <!-- NVD3 StyleSheet -->
     <link rel="stylesheet" href="../../js/mylibs/nvd3/nv.d3.css">
 
-    <!-- Scripts
-    <script defer async src="https://ajax.googleapis.com/ajax/libs/webfont/1.0.28/webfont.js"></script>
-    -->
-
-    <!-- Grab frameworks from CDNs -->
-    <!-- Grab Google CDN's jQuery, with a protocol relative URL; fall back to local if offline -->
     <script src="../../js/libs/jquery-1.7.2.js"></script>
-
-    <!-- Include jQuery SVG DOM -->
-    <script src="../../js/mylibs/jquery_svg/jquery-svgdom.min.js"></script>
-
     <script src="../../js/libs/jquery-ui-1.8.21.js"></script>
 
     <!-- Do the same with Lo-Dash.js -->
