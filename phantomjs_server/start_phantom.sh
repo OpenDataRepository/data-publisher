@@ -1,3 +1,3 @@
 #!/bin/bash
 
-phantomjs phantomjs_svg_server.js
+/usr/bin/phantomjs phantomjs_svg_server.js
