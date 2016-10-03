@@ -415,6 +415,7 @@ class GraphPlugin
         $json_data = array (
             "data" => array (
                 'URL' => dirname(__FILE__)."/../../../../../web/uploads/files/Chart__".$page_data['file_id_list'].'.html',
+                // 'selector' => 'svg-export', // $page_data['nv_chart_id'],
                 'selector' => $page_data['nv_chart_id'],
                 'output' => dirname(__FILE__)."/../../../../../web/uploads/files/graphs/".$filename
             )

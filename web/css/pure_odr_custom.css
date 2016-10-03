@@ -1554,8 +1554,32 @@ footer .ODRLogoImage img {
 }
 
 
+@media screen and (max-width:768px) {
+    .ODRDynamicGraph {
+        min-height: 325px;
+    }
+    .ODRStaticGraph {
+        min-height: 325px;
+    }
+}
 
+@media screen and (min-width:769px) and (max-width:1279px) {
+    .ODRDynamicGraph {
+        min-height: 475px;
+    }
+    .ODRStaticGraph {
+        min-height: 475px;
+    }
+}
 
+@media screen and (min-width:1280px) {
+    .ODRDynamicGraph {
+        min-height: 550px;
+    }
+    .ODRStaticGraph {
+        min-height: 550px;
+    }
+}
 
 /* pure-hidden-xs */
 @media screen and (max-width:567px) {
@@ -1597,5 +1621,6 @@ footer .ODRLogoImage img {
     .pure-visible-lg{display:none}
     .pure-hidden-xl{display:none}
 }
+
 
 
