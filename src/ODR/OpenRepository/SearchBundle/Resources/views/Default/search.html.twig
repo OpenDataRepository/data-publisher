@@ -430,7 +430,7 @@
                 search_key += divider;
             search_key += name + '=' + value;
 
-            $('#dt_' + datatype_id + '_pub').removeClass('ODRSearchDisabled');
+            {#$('#dt_' + datatype_id + '_pub').removeClass('ODRSearchDisabled');#}
         });
         $(".ODRRadioSearchDiv").each(function() {
 
@@ -465,6 +465,7 @@
             if (has_selections)
                 search_key += str;
         });
+{#
         $(".ODRDatatype_require_public").each(function() {
             if ( !$(this).hasClass('ODRSearchDisabled') ) {
                 var name = $(this).attr('name');
@@ -475,7 +476,7 @@
                 search_key += name + '=' + value;
             }
         });
-
+#}
 //alert( 'search_key: ' + search_key );
 //return;
 

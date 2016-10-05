@@ -1123,9 +1123,27 @@ if (isset($debug['timing'])) {
             $datarecord_ids = array_unique($datarecord_ids);
             $datarecord_ids = implode(',', $datarecord_ids);
         }
+
+        $public_grandparent_ids = '';
         if (strpos($grandparent_ids, ',') !== false) {
             $grandparent_ids = substr($grandparent_ids, 0, -1);
             $grandparent_ids = $odrcc->getSortedDatarecords($target_datatype, $grandparent_ids);
+
+            // Need to figure out which of these grandparent datarecords are viewable to people without the 'dr_view' permission
+            $grandparent_ids_as_array = explode(',', $grandparent_ids);
+            $query = $em->createQuery(
+               'SELECT gp.id AS gp_id
+                FROM ODRAdminBundle:DataRecord AS gp
+                JOIN ODRAdminBundle:DataRecordMeta AS gpm WITH gpm.dataRecord = gp
+                WHERE gp.id IN (:grandparent_ids) AND gpm.publicDate != :public_date
+                AND gp.deletedAt IS NULL AND gpm.deletedAt IS NULL'
+            )->setParameters( array('grandparent_ids' => $grandparent_ids_as_array, 'public_date' => '2200-01-01 00:00:00') );
+            $results = $query->getArrayResult();
+
+            foreach($results as $result)
+                $public_grandparent_ids .= $result['gp_id'].',';
+            $public_grandparent_ids = substr($public_grandparent_ids, 0, -1);
+            $public_grandparent_ids = $odrcc->getSortedDatarecords($target_datatype, $public_grandparent_ids);
         }
 
 if (isset($debug['basic'])) {
@@ -1142,10 +1160,14 @@ if (isset($debug['basic'])) {
 
     if ($grandparent_ids == '') {
         print 'count($grandparent_ids): 0'."\n";
+        print 'count($public_grandparent_ids): 0'."\n";
     }
     else {
         $grandparent_ids_as_array = explode(',', $grandparent_ids);
         print 'count($grandparent_ids): '.count($grandparent_ids_as_array)."\n";
+
+        $grandparent_ids_as_array = explode(',', $public_grandparent_ids);
+        print 'count($public_grandparent_ids): '.count($grandparent_ids_as_array)."\n";
     }
 }
 if (isset($debug['timing'])) {
@@ -1195,7 +1217,7 @@ if (isset($debug['timing'])) {
 
         // Store the data in the memcached entry
         $cached_searches[$target_datatype_id][$search_checksum]['complete_datarecord_list'] = $datarecord_ids;
-        $cached_searches[$target_datatype_id][$search_checksum]['datarecord_list'] = $grandparent_ids;
+        $cached_searches[$target_datatype_id][$search_checksum]['datarecord_list'] = array('all' => $grandparent_ids, 'public' => $public_grandparent_ids);
 
         $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
 
@@ -1658,13 +1680,16 @@ if ( isset($debug['basic']))
         foreach ($searched_datatypes as $num => $dt_id) {
             if ( !( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_view']) ) ) {
                 $datafield_array['metadata'][$dt_id] = array();   // clears updated/created (by) on purpose
-                $datafield_array['metadata'][$dt_id]['public'] = 1;
 
-                //
+                // Get rid of any created/modified searching
                 self::clearSearchKeyMetadata($dt_id, $encoded_search_keys);
-                $encoded_search_keys['dt_'.$dt_id.'_pub'] = 1;
                 self::clearSearchKeyMetadata($dt_id, $filtered_search_keys);
+/*
+                // Force a search of public datarecords only
+                $datafield_array['metadata'][$dt_id]['public'] = 1;
+                $encoded_search_keys['dt_'.$dt_id.'_pub'] = 1;
                 $filtered_search_keys['dt_'.$dt_id.'_pub'] = 1;
+*/
             }
         }
 
@@ -1704,7 +1729,7 @@ if ( isset($debug['basic']) ) {
      */
     private function clearSearchKeyMetadata($datatype_id, &$array)
     {
-        $pieces = array('m_s', 'm_e', 'm_by', 'c_s', 'c_e', 'c_by');
+        $pieces = array('m_s', 'm_e', 'm_by', 'c_s', 'c_e', 'c_by', 'pub');
         foreach ($pieces as $piece) {
             if ( isset($array['dt_'.$datatype_id.'_'.$piece]) )
                 unset( $array['dt_'.$datatype_id.'_'.$piece] );

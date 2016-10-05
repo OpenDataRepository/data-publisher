@@ -543,6 +543,9 @@ exit();
         if ( $search_key !== $datafield_array['filtered_search_key'] )
             return array('redirect' => true, 'encoded_search_key' => $datafield_array['encoded_search_key'], 'datarecord_list' => '');
 
+        $can_view_datarecord = false;
+        if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+            $can_view_datarecord = true;
 
         // ----------------------------------------
         // Otherwise, the search_key is fine...check to see if a cached version exists
@@ -577,8 +580,12 @@ exit();
         $data['searched_datafields'] = $search_params['searched_datafields'];
         $data['encoded_search_key'] = $search_params['encoded_search_key'];
 
-        $data['datarecord_list'] = $search_params['datarecord_list'];                     // ...just top-level datarecords
-        $data['complete_datarecord_list'] = $search_params['complete_datarecord_list'];   // ...top-level, child, and linked datarecords
+        if ($can_view_datarecord)
+            $data['datarecord_list'] = $search_params['datarecord_list']['all'];          // ...user has view permission, show all top-level datarecords
+        else
+            $data['datarecord_list'] = $search_params['datarecord_list']['public'];       // ...user doesn't have view permission, only show public top-level datarecords
+
+        $data['complete_datarecord_list'] = $search_params['complete_datarecord_list'];   // ...top-level, child, and linked datarecords...NOT FILTERED BY USER PERMISSIONS
 
         return $data;
     }

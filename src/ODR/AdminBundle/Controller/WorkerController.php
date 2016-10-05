@@ -968,6 +968,35 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
+     * Debug function...clears all existing cached search result.
+     */
+    public function searchclearAction(Request $request)
+    {
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+        /** @var User $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+        if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+            return parent::permissionDeniedError();
+
+        $redis->del($redis_prefix.'.cached_search_results');
+
+        $return = array(
+            'r' => 0,
+            't' => '',
+            'd' => '',
+        );
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Begins the process of forcibly (re)encrypting every uploaded file/image on the site
      *
      * @param string $object_type "File" or "Image"...which type of entity to encrypt
