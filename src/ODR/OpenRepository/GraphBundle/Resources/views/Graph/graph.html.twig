@@ -74,7 +74,7 @@
                 </div>
                 <div class="plotlybars-text">Loading graph</div>
             </div>
-            <!-- <svg class="pure-u-1" style="min-height: 500px;"></svg> -->
+            <!-- <svg class="pure-u-1"></svg> -->
         </div><!-- end of .ODRGraph -->
         {% endif %}
 
@@ -108,8 +108,7 @@
             {% if nv_output_files|length %}
                 {% for dr_id, nv_file_name in nv_output_files %}
                     <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1" {% if dr_id != "rollup" %}style="display: none;"{% endif %}>
-                        <img class="pure-u-1" src="{{ nv_file_name }}" style="min-height: 500px;" />
-                        {#{{ svg_contents | raw }}#}
+                        <img class="pure-u-1" src="{{ nv_file_name }}" />
                     </div><!-- end of .ODRGraph -->
                 {% endfor %}
             {% endif %}
@@ -404,7 +403,7 @@ function lineChartPlotly(chart_obj) {
                 var line = chart_obj.data[$(this).val()]
                 var x = []
                 var y = []
-                for(i=0; i<line.values.length;i++) {
+                for (i = 0; i < line.values.length; i++) {
                     x.push(line.values[i].x)
                     y.push(line.values[i].y)
                 }
@@ -413,7 +412,11 @@ function lineChartPlotly(chart_obj) {
                 var trace = {}
                 trace.x = x
                 trace.y = y
-                trace.mode = 'lines+markers'
+                {% if plugin_options.line_type is defined %}
+                trace.mode = '{{ plugin_options.line_type }}'
+                {% else %}
+                trace.mode = 'lines'
+                {%  endif %}
                 trace.name = line.key
                 data.push(trace)
 
@@ -424,15 +427,68 @@ function lineChartPlotly(chart_obj) {
     });
 
     var layout = {
-        title: 'Title of the Graph',
+        // title: 'Title of the Graph',
+        // autosize: true,
+        margin: {
+            l: 70,
+            r: 20,
+            b: 70,
+            t: 20,
+            pad: 4
+        },
+        // paper_bgcolor: '#7f7f7f',
+        // plot_bgcolor: '#c7c7c7',
         xaxis: {
-            title: 'x-axis title',
+            {% if plugin_options.x_axis_dir == "desc" %}
+            autorange: 'reversed',
+            {% endif %}
+            {% if plugin_options.x_axis_log == "yes" %}
+            type: 'log',
+            {% endif %}
+            {% if plugin_options.x_axis_caption != "" %}
+            title: '{{ plugin_options.x_axis_caption }}',
+            {% endif %}
+            {% if plugin_options.x_axis_tick_interval != "auto" %}
+            dtick: {{ plugin_options.x_axis_tick_interval }},
+            tick0: {{ plugin_options.x_axis_tick_start }},
+            {% else %}
+            autottick: true,
+            {% endif %}
+            {% if plugin_options.x_axis_labels != "yes" %}
+            showticklabels: false,
+            {% endif %}
+            {% if plugin_options.x_axis_min != "auto" and plugin_options.x_axis_max != "auto" %}
+            range: [{{ plugin_options.x_axis_min }}, {{ plugin_options.x_axis_max }}],
+            {% endif %}
+            showline: true,
             showgrid: true,
-            zeroline: true
+            zeroline: false
         },
         yaxis: {
-            title: 'y-axis title',
-            showline: true
+            {% if plugin_options.y_axis_dir is defined and plugin_options.y_axis_dir == "desc" %}
+            autorange: 'reversed',
+            {% endif %}
+            {% if plugin_options.y_axis_log == "yes" %}
+            type: 'log',
+            {% endif %}
+            {% if plugin_options.y_axis_caption != "" %}
+            title: '{{ plugin_options.y_axis_caption }}',
+            {% endif %}
+            {% if plugin_options.y_axis_tick_interval != "auto" %}
+            dtick: {{ plugin_options.y_axis_tick_interval }},
+            tick0: {{ plugin_options.y_axis_tick_start }},
+            {% else %}
+            autottick: true,
+            {% endif %}
+            {% if plugin_options.y_axis_labels != "yes" %}
+            showticklabels: false,
+            {% endif %}
+            {% if plugin_options.y_axis_min != "auto" and plugin_options.y_axis_max != "auto" %}
+            range: [{{ plugin_options.y_axis_min }}, {{ plugin_options.y_axis_max }}],
+            {% endif %}
+            showline: true,
+            showgrid: true,
+            zeroline: false
         }
     };
 
