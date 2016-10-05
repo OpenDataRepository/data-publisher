@@ -1,6 +1,7 @@
 #!/bin/bash
 
 #export ODR_PATH=/home/planetary
+# export XDEBUG_CONFIG="idekey=phpstorm_xdebug"
 
 #cd $ODR_PATH
 php app/console odr_cache:recache_record >> app/logs/recache_record.log 2>&1 &
