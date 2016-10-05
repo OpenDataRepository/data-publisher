@@ -714,3 +714,8 @@ footer .ODRLogoImage img {
 .sf-toolbar-icon svg {
     width: auto;
 }
+
+.NavSlideOut,
+.ODRDatatypeProperties {
+    background: #7fb9d8 none;
+}

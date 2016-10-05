@@ -149,9 +149,17 @@ class GraphPlugin
             $render_plugin_options = $render_plugin_instance['renderPluginOptions'];
 
             // Remap render plugin by name => value
+            $max_option_date = 0;
             $options = array();
             foreach($render_plugin_options as $option) {
                 if ( $option['active'] == 1 )
+                    $option_date = new \DateTime($option['updated']->date);
+                    $us = $option_date->format('u');
+                    $epoch = strtotime($option['updated']->date) * 1000000;
+                    $epoch = $epoch + $us;
+                    if($epoch > $max_option_date) {
+                        $max_option_date = $epoch;
+                    }
                     $options[ $option['optionName'] ] = $option['optionValue'];
             }
 
@@ -228,16 +236,24 @@ class GraphPlugin
                 $drf = $dr['dataRecordFields'][$pivot_datafield_id];
                 switch ($pivot_datafield_typeclass) {
                     case 'IntegerValue':
-                        $entity = $drf['integerValue'];
+                        if(isset($drf['integerValue'])) {
+                            $entity = $drf['integerValue'];
+                        }
                         break;
                     case 'ShortVarchar':
-                        $entity = $drf['shortVarchar'];
+                        if(isset($drf['shortVarchar'])) {
+                            $entity = $drf['shortVarchar'];
+                        }
                         break;
                     case 'MediumVarchar':
-                        $entity = $drf['mediumVarchar'];
+                        if(isset($drf['mediumVarchar'])) {
+                            $entity = $drf['mediumVarchar'];
+                        }
                         break;
                     case 'LongVarchar':
-                        $entity = $drf['longVarchar'];
+                        if(isset($drf['longVarchar'])) {
+                            $entity = $drf['longVarchar'];
+                        }
                         break;
 
                     default:
@@ -315,7 +331,8 @@ class GraphPlugin
                     $page_data['file_ids'] = $file_ids;
                     $page_data['current_drcids'] = $nv_set;
                     $file_id_list = implode('_', $file_ids);
-                    $filename = 'Chart__'.$file_id_list.'.svg';
+                    // Use the Max Option Date to ensure graph is up-to-date option wise.
+                    $filename = 'Chart__'.$file_id_list. '_' . $max_option_date . '.svg';
                     $page_data['file_id_list'] = $file_id_list;
                     $page_data['filename'] = $filename;
                     $nv_output_files['rollup'] = '/uploads/files/graphs/'.$filename;
