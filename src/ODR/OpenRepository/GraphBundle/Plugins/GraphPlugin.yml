@@ -18,10 +18,10 @@ ODR\OpenRepository\GraphBundle\Plugins\Graph:
         graph_type:
             name: Graph Type
             type: string
-            default: fLine
-            choices: fline||Line With Focus,line||Line,xy||XY Scatter,hbar||Horizontal Bar,vbar||Vertical Bar, starea||Stacked Area, sgbar||Stacked/Grouped Bar, cline||Cumulative Line, piechart||Pie Chart
+            default: xy
+            choices: xy||XY Plot,bar||Bar Chart (stacked/grouped/horizontal/vertical),windrose||WindRose,histogram||Histogram,polar||Polar,bubble||Bubble Chart,lineerror||Line w/Error Bars,stick||Stick Plot,starea||Stacked Area,piechart||Pie Chart
             description: Choose the graph type XY (scatter), Line, Horizontal Bar, or Vertical Bar.
-        graph_width: 
+        graph_width:
             name: Graph Width
             type: string
             default: 900 
@@ -30,12 +30,19 @@ ODR\OpenRepository\GraphBundle\Plugins\Graph:
             name: Graph Height
             type: string
             default: 300 
-            description: Enter a height in pixels for the graph. 
+            description: Enter a height in pixels for the graph.
+        line_type:
+            name: Line Type
+            type: string
+            default: line
+            choices: lines||Lines,markers||Markers,lines+markers||Lines and Markers
+            description: Choose how to display the connections between points.
+            appliesto: xy
         x_axis_min:
             name: X Axis Minimum
             type: string
             default: auto
-            description: Minimum X Value.  Defaults to "auto" which results in automatic calculation. 
+            description: Minimum X Value.  Defaults to "auto" which results in automatic calculation.
         x_axis_max:
             name: X Axis Maximum
             type: string
@@ -57,7 +64,12 @@ ODR\OpenRepository\GraphBundle\Plugins\Graph:
             name: X Axis Tick Interval
             type: string
             default: auto
-            description: Numeric value for tick placement.  Defaults to "auto" which results in automatic calculation. 
+            description: Numeric value for inteval bewtween tick markers.  Defaults to "auto" which results in automatic calculation.
+        x_axis_tick_start:
+            name: X Axis Tick Start
+            type: string
+            default: auto
+            description: Numeric value for placement of first tick.  If tick interval is not "auto", this value must be set. Defaults to "auto" which results in automatic calculation.
         x_axis_caption:
             name: X Axis Caption
             type: string

@@ -1553,34 +1553,6 @@ footer .ODRLogoImage img {
     margin: 5px;
 }
 
-
-@media screen and (max-width:768px) {
-    .ODRDynamicGraph {
-        min-height: 325px;
-    }
-    .ODRStaticGraph {
-        min-height: 325px;
-    }
-}
-
-@media screen and (min-width:769px) and (max-width:1279px) {
-    .ODRDynamicGraph {
-        min-height: 475px;
-    }
-    .ODRStaticGraph {
-        min-height: 475px;
-    }
-}
-
-@media screen and (min-width:1280px) {
-    .ODRDynamicGraph {
-        min-height: 550px;
-    }
-    .ODRStaticGraph {
-        min-height: 550px;
-    }
-}
-
 /* pure-hidden-xs */
 @media screen and (max-width:567px) {
     .pure-visible-sm{display:none}
@@ -1588,6 +1560,15 @@ footer .ODRLogoImage img {
     .pure-visible-lg{display:none}
     .pure-visible-xl{display:none}
     .pure-hidden-xs{display:none}
+
+    .ODRDynamicGraph {
+        min-width: 300px;
+        min-height: 100px;
+    }
+    .ODRStaticGraph {
+        min-width: 300px;
+        min-height: 100px;
+    }
 }
 /* pure-hidden-sm */
 @media screen and (min-width:568px) and (max-width:767px) {
@@ -1596,6 +1577,15 @@ footer .ODRLogoImage img {
     .pure-visible-lg{display:none}
     .pure-visible-xl{display:none}
     .pure-hidden-sm{display:none}
+
+    .ODRDynamicGraph {
+        min-width: 500px;
+        min-height: 166px;
+    }
+    .ODRStaticGraph {
+        min-width: 500px;
+        min-height: 166px;
+    }
 }
 /* pure-hidden-md */
 @media screen and (min-width:768px) and (max-width:1023px) {
@@ -1604,6 +1594,15 @@ footer .ODRLogoImage img {
     .pure-visible-lg{display:none}
     .pure-visible-xl{display:none}
     .pure-hidden-md{display:none}
+
+    .ODRDynamicGraph {
+        min-width: 740px;
+        min-height: 246px;
+    }
+    .ODRStaticGraph {
+        min-width: 740px;
+        min-height: 246px;
+    }
 }
 /* pure-hidden-lg */
 @media screen and (min-width:1024px) and (max-width:1279px) {
@@ -1612,6 +1611,15 @@ footer .ODRLogoImage img {
     .pure-visible-md{display:none}
     .pure-visible-xl{display:none}
     .pure-hidden-lg{display:none}
+
+    .ODRDynamicGraph {
+        min-width: 960px;
+        min-height: 320px;
+    }
+    .ODRStaticGraph {
+        min-width: 960px;
+        min-height: 320px;
+    }
 }
 /* pure-hidden-xl */
 @media screen and (min-width:1280px) {
@@ -1620,6 +1628,15 @@ footer .ODRLogoImage img {
     .pure-visible-md{display:none}
     .pure-visible-lg{display:none}
     .pure-hidden-xl{display:none}
+
+    .ODRDynamicGraph {
+        min-width: 1200px;
+        min-height: 400px;
+    }
+    .ODRStaticGraph {
+        min-width: 1200px;
+        min-height: 400px;
+    }
 }
 
 

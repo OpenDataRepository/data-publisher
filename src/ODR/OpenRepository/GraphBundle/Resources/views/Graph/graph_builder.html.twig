@@ -473,7 +473,7 @@
                     var line = chart_obj.data[$(this).val()]
                     var x = []
                     var y = []
-                    for(i=0; i<line.values.length;i++) {
+                    for (i = 0; i < line.values.length; i++) {
                         x.push(line.values[i].x)
                         y.push(line.values[i].y)
                     }
@@ -482,7 +482,11 @@
                     var trace = {}
                     trace.x = x
                     trace.y = y
-                    trace.mode = 'lines+markers'
+                    {% if plugin_options.line_type is defined %}
+                    trace.mode = '{{ plugin_options.line_type }}'
+                    {% else %}
+                    trace.mode = 'lines'
+                    {%  endif %}
                     trace.name = line.key
                     data.push(trace)
 
@@ -493,27 +497,74 @@
         });
 
         var layout = {
-            title: 'Title of the Graph',
-            // autosize: true,
-            // width: 500,
-            // height: 600,
-            // margin: {
-                // l: 50,
-                // r: 50,
-                // b: 100,
-                // t: 100,
-                // pad: 4
-            // },
+            // title: 'Title of the Graph',
+            {% if plugin_options.graph_width != 0 %}
+               autosize: false,
+               width: {{ plugin_options.graph_width * 1.5 }},
+               height: {{ plugin_options.graph_height * 1.5 }},
+            {% else %}
+                autosize: true,
+            {% endif %}
+            margin: {
+                l: 70,
+                r: 20,
+                b: 70,
+                t: 20,
+                pad: 4
+            },
             // paper_bgcolor: '#7f7f7f',
             // plot_bgcolor: '#c7c7c7',
             xaxis: {
-                title: 'x-axis title',
+            {% if plugin_options.x_axis_dir == "desc" %}
+                autorange: 'reversed',
+            {% endif %}
+            {% if plugin_options.x_axis_log == "yes" %}
+                type: 'log',
+            {% endif %}
+            {% if plugin_options.x_axis_caption != "" %}
+                title: '{{ plugin_options.x_axis_caption }}',
+            {% endif %}
+            {% if plugin_options.x_axis_tick_interval != "auto" %}
+                dtick: {{ plugin_options.x_axis_tick_interval }},
+                tick0: {{ plugin_options.x_axis_tick_start }},
+            {% else %}
+                autottick: true,
+            {% endif %}
+            {% if plugin_options.x_axis_labels != "yes" %}
+                showticklabels: false,
+            {% endif %}
+            {% if plugin_options.x_axis_min != "auto" and plugin_options.x_axis_max != "auto" %}
+                range: [{{ plugin_options.x_axis_min }}, {{ plugin_options.x_axis_max }}],
+            {% endif %}
+                showline: true,
                 showgrid: true,
-                zeroline: true
+                zeroline: false
             },
             yaxis: {
-                title: 'y-axis title',
-                showline: true
+            {% if plugin_options.y_axis_dir is defined and plugin_options.y_axis_dir == "desc" %}
+                autorange: 'reversed',
+            {% endif %}
+            {% if plugin_options.y_axis_log == "yes" %}
+                type: 'log',
+            {% endif %}
+            {% if plugin_options.y_axis_caption != "" %}
+                title: '{{ plugin_options.y_axis_caption }}',
+            {% endif %}
+            {% if plugin_options.y_axis_tick_interval != "auto" %}
+                dtick: {{ plugin_options.y_axis_tick_interval }},
+                tick0: {{ plugin_options.y_axis_tick_start }},
+            {% else %}
+                autottick: true,
+            {% endif %}
+            {% if plugin_options.y_axis_labels != "yes" %}
+                showticklabels: false,
+            {% endif %}
+            {% if plugin_options.y_axis_min != "auto" and plugin_options.y_axis_max != "auto" %}
+                range: [{{ plugin_options.y_axis_min }}, {{ plugin_options.y_axis_max }}],
+            {% endif %}
+                showline: true,
+                showgrid: true,
+                zeroline: false
             }
         };
 
@@ -530,10 +581,8 @@
             $("#" + chart_obj.chart_id + " div").remove()
             // Add viewBox="0 0 1400 450" preserveAspectRatio="xMinYMin meet"
             var main_svg = $("#" + chart_obj.chart_id)
-            // $("svg:first", main_svg.root()).attr('aAApreserveAspectRatio', 'xMinyMin meet')
-            // $("svg:first", main_svg.root()).attr('viewBox', '0 0 ' + $("#" + chart_obj.chart_id + " svg:first").width() + " " + $("#" + chart_obj.chart_id + " svg:first").height()  )
             $(main_svg).attr('preserveAspectRatio', 'xMinyMin meet')
-            $(main_svg).attr('viewBox', '0 0 ' + $("#" + chart_obj.chart_id + " svg:first").width() + " " + $("#" + chart_obj.chart_id + " svg:first").height()  )
+            $(main_svg).attr('viewBox', '0 0 {{ plugin_options.graph_width * 1.5 }} {{ plugin_options.graph_height * 1.5 }}')
         })
         // static image in svg format
         /* .then(
