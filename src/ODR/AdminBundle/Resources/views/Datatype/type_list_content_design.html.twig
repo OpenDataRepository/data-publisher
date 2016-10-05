@@ -48,22 +48,18 @@
         {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) %}
 
         {# Pre-determine which permissions user has for this datatype... #}
-        {% set can_view_datatype = false %}
         {% set is_datatype_admin = false %}
 
         {% if permissions['datatypes'][datatype.id] is defined %}
             {% set datatype_permissions = permissions['datatypes'][datatype.id] %}
 
-            {% if datatype_permissions[ 'dt_view' ] is defined %}
-                {% set can_view_datatype = true %}
-            {% endif %}
             {% if datatype_permissions[ 'dt_admin' ] is defined %}
                 {% set is_datatype_admin = true %}
             {% endif %}
         {% endif %}
 
 
-        {% if can_view_datatype == true or datatype.dataTypeMeta.publicDate|is_public == true %}
+        {% if is_datatype_admin == true %}
         <tr>
             <td>{{ datatype.id }}</td>
             <td>
@@ -98,52 +94,42 @@
 
             {# master layout designer link #}
             <td>
-            {% if is_datatype_admin == true %}
-                {% if datatype.dataTypeMeta.searchslug == '' %}
-                    <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
-                {% else %}
-                    <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
-                {% endif %}
+            {% if datatype.dataTypeMeta.searchslug == '' %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
+            {% else %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
             {% endif %}
             </td>
 
             {# derivative layout designer link #}
             <td>
-            {% if is_datatype_admin == true %}
-                {% if datatype.dataTypeMeta.searchslug == '' %}
-                    <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
-                {% else %}
-                    <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a>
-                {% endif %}
+            {% if datatype.dataTypeMeta.searchslug == '' %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
+            {% else %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a>
             {% endif %}
             </td>
 
 
             {# Group management link for this datatype #}
             <td>
-            {% if is_datatype_admin %}
                 <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups" class="address" href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-cog"></i>&nbsp;Manage Groups</a>
-            {% endif %}
             </td>
 
 
             {# CSV import link for this datatype #}
             <td>
-            {% if is_datatype_admin == true %}
-                {% if datatype.dataTypeMeta.searchSlug == '' %}
-                    <a id="ODRDatatypeList_{{ datatype.id }}_csv_import" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
-                {% else %}
-                    <a class="address" href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-upload"></i>&nbsp;Import</a>
-                {% endif %}
+            {% if datatype.dataTypeMeta.searchSlug == '' %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_csv_import" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
+            {% else %}
+                <a class="address" href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-upload"></i>&nbsp;Import</a>
             {% endif %}
             </td>
 
 
             {# deletion link for this datatype #}
             <td>
-            {% if level == 7 or is_datatype_admin == true %}
                 <a id="ODRDatatypeList_{{ datatype.id }}_delete" class="Pointer" onclick="deleteDataType({{ datatype.id }});"><i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete</a>
-            {% endif %}
             </td>
         </tr>
         {% endif %}

@@ -9,6 +9,8 @@
     <span>Effective Permissions Viewer for "{{ datatype.getshortname }}" &raquo; {{ target_user.getuserstring }}</span>
 </h1>
 
+<button class="pure-button ODRManageGroups">Return to "Manage Groups" page</button>
+
 <div class="pure-u-1">
     {% if not datatype.isPublic and not can_view_datatype %}
         <b>This user is not allowed to view this non-public Datatype!</b>
@@ -223,6 +225,14 @@
                     }
                 }
             });
+        });
+
+        $(".ODRManageGroups").unbind('click').click(function() {
+            var url = '{{ path('odr_manage_user_groups', {'user_id': 0}) }}';
+            url = url.substr(0, (url.length-1));
+            url += '{{ target_user.id }}';
+
+            UpdateURL(url);
         });
 
         // Resize all overlay divs on window size

@@ -1145,7 +1145,7 @@ exit();
         }
         else if ($initial_purpose == 'view_only') {
             $group_meta->setGroupName('Default Group - View');
-            $group_meta->setGroupDescription('Users in this default Group are always able to public Datarecords and Datafields of this Datatype, though they cannot make any changes.  If the Datatype is public, then adding Users to this Group is meaningless.');
+            $group_meta->setGroupDescription('Users in this default Group are always able to see public Datarecords and Datafields of this Datatype, though they cannot make any changes.  If the Datatype is public, then adding Users to this Group is meaningless.');
         }
         else {
             $group_meta->setGroupName('New user group for '.$datatype->getShortName());
@@ -4979,11 +4979,8 @@ if ($debug)
 
                         switch ($df_typeclass) {
                             case 'Boolean':
-                                $df_value = $drf['boolean'][0]['value'];
-                                if ($df_value == 1)
+                                if ( $drf['boolean'][0]['value'] == 1 )
                                     $df_value = 'YES';
-                                else
-                                    $df_value = '';
                                 break;
                             case 'IntegerValue':
                                 $df_value = $drf['integerValue'][0]['value'];

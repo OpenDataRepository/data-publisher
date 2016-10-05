@@ -285,16 +285,6 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                 throw new \Exception('Datafield '.$datafield_id.' is deleted');
 
 
-            // Create a new datarecord field entity if it doesn't exist
-            $em->refresh($datafield);
-            /** @var DataRecordFields $drf */
-            $drf = $repo_datarecordfields->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
-            if ($drf == null) {
-                $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
-                $em->flush();
-                $em->refresh($drf);
-            }
-
             // Radio options need typename to distinguish...
             $old_typename = $old_fieldtype->getTypeName();
             $new_typename = $new_fieldtype->getTypeName();
@@ -346,7 +336,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                 $src_repository = $em->getRepository('ODRAdminBundle:'.$old_typeclass);
 
                 // Grab the entity that needs to be migrated
-                $src_entity = $src_repository->findOneBy(array('dataField' => $datafield->getId(), 'dataRecordFields' => $drf->getId()));
+                $src_entity = $src_repository->findOneBy(array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()));
 
                 // No point migrating anything if the src entity doesn't exist in the first place...would be no data in it
                 if ($src_entity !== null) {
@@ -409,8 +399,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 
                     // TODO - code to directly update the cached version of the datarecord
                     // Locate and clear the cache entry for this datarecord
-                    $grandparent_datarecord_id = $datarecord->getGrandparent()->getId();
-                    $redis->del($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
+                    parent::tmp_updateDatarecordCache($em, $datarecord->getGrandparent(), $user);
                 }
                 else {
                     $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";
@@ -433,15 +422,9 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 $ret .= '  Set current to '.$count."\n";
             }
 
-/*
-            // ----------------------------------------
-            // Schedule the datarecord for an update
-            $options = array();
-            parent::updateDatarecordCache($datarecord_id, $options);
 
-            $logger->info('WorkerController:migrateAction()  >> scheduled DataRecord '.$datarecord_id.' for update');
-            $ret .= '>> scheduled DataRecord '.$datarecord_id.' for update'."\n";
-*/
+            // ----------------------------------------
+            // Delete the cached versions of this datarecord
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
 
             $return['d'] = $ret;

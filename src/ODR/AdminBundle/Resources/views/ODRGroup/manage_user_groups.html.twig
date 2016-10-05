@@ -102,12 +102,9 @@
             {% endif %}
         {% endfor %}
     </div>
-    <div class="pure-u-xl-1-3 pure-u-md-1-2">
-        <button class="pure-button ODRGroupEdit" title="Edit Groups for this Datatype">Edit Groups for "{{ dt.dataTypeMeta.shortName }}"</button>
-    </div>
-    <div class="pure-u-xl-1-3 pure-u-md-1-2">
-        <button class="pure-button ODREffectivePermissions" rel="{{ target_user.id }}" title="Displays an interface showing what this user would see if he attempted to view this Datatype">View User's Effective Permissions</button>
-    </div>
+
+    <button class="pure-button ODRGroupEdit" title="Edit Groups for this Datatype">Edit Groups for "{{ dt.dataTypeMeta.shortName }}"</button>
+    <button class="pure-button ODREffectivePermissions" rel="{{ target_user.id }}" title="Displays an interface showing what this user would see if he attempted to view this Datatype">View User's Effective Permissions</button>
 </div>
 {% endfor %}
 
@@ -205,7 +202,7 @@
 
         $(".ODREffectivePermissions").unbind('click').click(function() {
 
-            var datatype_id = $(this).parent().parent().attr('rel');
+            var datatype_id = $(this).parent().attr('rel');
             var user_id = $(this).attr('rel');
 
             var url = '{{ path('odr_view_effective_permissions', { 'user_id': 0, 'datatype_id': 0 }) }}';

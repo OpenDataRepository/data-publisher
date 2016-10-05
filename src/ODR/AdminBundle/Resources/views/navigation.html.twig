@@ -32,7 +32,9 @@
         <li class="pure-menu-separator"></li>
 
         <li><a id="ODRMenu_listrecords" class="address" href="#{{ path('odr_list_types', { 'section': 'records' } ) }}" title="List Records"><i class="fa fa-lg fa-fw fa-list"></i>List Records</a></li>
+{% if is_datatype_admin == true %}
         <li><a id="ODRMenu_listtypes" class="address" href="#{{ path('odr_list_types', { 'section': 'design' } ) }}" title="List Databases"><i class="fa fa-lg fa-fw fa-cog"></i>List Databases</a></li>
+{% endif %}
 
 {% if is_datatype_admin == true %}
         <li class="ODRMenuExpand Pointer">
