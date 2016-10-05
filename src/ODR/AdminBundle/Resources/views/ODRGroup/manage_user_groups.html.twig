@@ -188,7 +188,7 @@
 
         $(".ODRGroupEdit").unbind('click').click(function() {
 
-            var datatype_id = $(this).parent().parent().attr('rel');
+            var datatype_id = $(this).parent().attr('rel');
 
             var url = '{{ path('odr_manage_groups', { 'datatype_id': 0 }) }}';
             url = url.substring(0, (url.length - 1));

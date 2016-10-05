@@ -535,6 +535,7 @@ class EditController extends ODRCustomController
             $parent = $datarecord->getParent();
             $grandparent = $datarecord->getGrandparent();
             $grandparent_id = $grandparent->getId();
+            $grandparent_datatype_id = $grandparent->getDataType()->getId();
 
 
             // ----------------------------------------
@@ -630,6 +631,22 @@ class EditController extends ODRCustomController
             // Delete the cached entries for this datarecord's grandparent
             $redis->del($redis_prefix.'.associated_datarecords_for_'.$grandparent_id);
             parent::tmp_updateDatarecordCache($em, $grandparent, $user);
+
+
+            // ----------------------------------------
+            // See if any cached search results need to be deleted...
+            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            if ( $cached_searches !== false && isset($cached_searches[$grandparent_datatype_id]) ) {
+                // Delete all cached search results for this datatype that contained this now-deleted datarecord
+                foreach ($cached_searches[$grandparent_datatype_id] as $search_checksum => $search_data) {
+                    $complete_datarecord_list = explode(',', $search_data['complete_datarecord_list']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
+                    if ( in_array($datarecord_id, $complete_datarecord_list) )
+                        unset ( $cached_searches[$grandparent_datatype_id][$search_checksum] );
+                }
+
+                // Save the collection of cached searches back to memcached
+                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+            }
 
 
             // Get record_ajax.html.twig to re-render the datarecord
@@ -745,6 +762,8 @@ class EditController extends ODRCustomController
             // TODO - directly update the cached version of the datarecord?
             // TODO - execute graph plugin?
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+
+            // TODO - update cached search results?
 
             // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
             if ($datafield->getAllowMultipleUploads() == "0")
@@ -875,6 +894,8 @@ class EditController extends ODRCustomController
             // TODO - replace this block with code to directly update the cached version of the datarecord
             // TODO - execute graph plugin?
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+
+            // TODO - update cached search results?
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1008,6 +1029,8 @@ class EditController extends ODRCustomController
             // Delete cached version of datarecord
             // TODO - replace this block with code to directly update the cached version of the datarecord
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+
+            // TODO - update cached search results?
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1130,6 +1153,8 @@ class EditController extends ODRCustomController
             // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
             if ($datafield->getAllowMultipleUploads() == "0")
                 $return['d'] = array('need_reload' => true);
+
+            // TODO - update cached search results?
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1525,6 +1550,10 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ( $datarecord == null )
@@ -1533,6 +1562,7 @@ class EditController extends ODRCustomController
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
 
             // --------------------
@@ -1543,7 +1573,7 @@ class EditController extends ODRCustomController
             $datatype_permissions = $user_permissions['datatypes'];
 
             $is_datatype_admin = false;
-            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ]['dt_admin']) )     // TODO - probably shouldn't be this permission...
+            if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ]['dt_admin']) )     // TODO - probably shouldn't be this permission...
                 $is_datatype_admin = true;
 
             // Ensure user has permissions to be doing this
@@ -1572,11 +1602,23 @@ class EditController extends ODRCustomController
             }
 
             // Refresh the cache entries for this datarecord?
-/*
-            $options = array('mark_as_updated' => true);
-            parent::updateDatarecordCache($datarecord->getId(), $options);
-*/
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+
+
+            // ----------------------------------------
+            // See if any cached search results need to be deleted...
+            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
+                // Delete all cached search results for this datatype that contained this now-deleted datarecord
+                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
+                    $datarecord_list = explode(',', $search_data['datarecord_list']['all']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
+                    if ( in_array($datarecord_id, $datarecord_list) )
+                        unset ( $cached_searches[$datatype_id][$search_checksum] );
+                }
+
+                // Save the collection of cached searches back to memcached
+                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+            }
 
 
             // re-render?  wat
@@ -1621,6 +1663,10 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
+
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
@@ -1730,6 +1776,22 @@ class EditController extends ODRCustomController
             // ----------------------------------------
             // TODO - replace this block with code to directly update the cached version of the datarecord?
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+
+            // See if any cached search results need to be deleted...
+            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
+                // Delete all cached search results for this datatype that were run with criteria for this specific datafield
+                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
+                    $searched_datafields = $search_data['searched_datafields'];
+                    $searched_datafields = explode(',', $searched_datafields);
+
+                    if ( in_array($datafield_id, $searched_datafields) )
+                        unset($cached_searches[$datatype_id][$search_checksum]);
+                }
+
+                // Save the collection of cached searches back to memcached
+                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
