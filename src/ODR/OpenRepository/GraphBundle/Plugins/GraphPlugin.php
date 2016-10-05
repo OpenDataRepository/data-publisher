@@ -233,35 +233,43 @@ class GraphPlugin
                 $pivot_datafield_typeclass = $datafield_mapping['pivot_field']['datafield']['dataFieldMeta']['fieldType']['typeClass'];
 
                 $entity = array();
-                $drf = $dr['dataRecordFields'][$pivot_datafield_id];
-                switch ($pivot_datafield_typeclass) {
-                    case 'IntegerValue':
-                        if(isset($drf['integerValue'])) {
-                            $entity = $drf['integerValue'];
-                        }
-                        break;
-                    case 'ShortVarchar':
-                        if(isset($drf['shortVarchar'])) {
-                            $entity = $drf['shortVarchar'];
-                        }
-                        break;
-                    case 'MediumVarchar':
-                        if(isset($drf['mediumVarchar'])) {
-                            $entity = $drf['mediumVarchar'];
-                        }
-                        break;
-                    case 'LongVarchar':
-                        if(isset($drf['longVarchar'])) {
-                            $entity = $drf['longVarchar'];
-                        }
-                        break;
+                // Check if Pivot Field is set
+                if(isset($dr['dataRecordFields'][$pivot_datafield_id])) {
 
-                    default:
-                        throw new \Exception('Invalid Fieldtype for pivot_field');
-                        break;
+                    $drf = $dr['dataRecordFields'][$pivot_datafield_id];
+                    switch ($pivot_datafield_typeclass) {
+                        case 'IntegerValue':
+                            if(isset($drf['integerValue'])) {
+                                $entity = $drf['integerValue'];
+                            }
+                            break;
+                        case 'ShortVarchar':
+                            if(isset($drf['shortVarchar'])) {
+                                $entity = $drf['shortVarchar'];
+                            }
+                            break;
+                        case 'MediumVarchar':
+                            if(isset($drf['mediumVarchar'])) {
+                                $entity = $drf['mediumVarchar'];
+                            }
+                            break;
+                        case 'LongVarchar':
+                            if(isset($drf['longVarchar'])) {
+                                $entity = $drf['longVarchar'];
+                            }
+                            break;
+
+                        default:
+                            throw new \Exception('Invalid Fieldtype for pivot_field');
+                            break;
+                    }
+
+                    $pivot_values[$dr_id] = $entity[0]['value'];
                 }
-
-                $pivot_values[$dr_id] = $entity[0]['value'];
+                else {
+                    // Use Datafield ID as Pivot Value
+                    $pivot_values[$dr_id] = $pivot_datafield_id;
+                }
             }
 
 
