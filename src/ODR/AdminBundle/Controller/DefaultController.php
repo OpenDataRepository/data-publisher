@@ -1,18 +1,18 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* Default Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The Default controller handles the loading of the base template
-* and AJAX handlers that the rest of the site uses.  It also
-* handles the creation of the information displayed on the site's
-* dashboard.
-*
-*/
+ * Open Data Repository Data Publisher
+ * Default Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The Default controller handles the loading of the base template
+ * and AJAX handlers that the rest of the site uses.  It also
+ * handles the creation of the information displayed on the site's
+ * dashboard.
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 
@@ -27,16 +27,17 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Cookie;
 
+
 class DefaultController extends ODRCustomController
 {
 
     /**
-    * Triggers the loading of base.html.twig, and sets up session cookies.
-    * 
-    * @param Request $request
-    * 
-    * @return Response
-    */
+     * Triggers the loading of base.html.twig, and sets up session cookies.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
     public function indexAction(Request $request)
     {
         // Grab the current user
@@ -47,22 +48,18 @@ class DefaultController extends ODRCustomController
 
         $datatype_permissions = array();
         if ($user !== 'anon.') {
-//            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());     // TODO - revert to this
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId(), true);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+//            $user_permissions = parent::getUserPermissionsArray($em, $user->getId(), true);
             $datatype_permissions = $user_permissions['datatypes'];
         }
 
 
         // Render the base html for the page...$this->render() apparently creates a full Reponse object
-//        $site_baseurl = $this->container->getParameter('site_baseurl');
         $html = $this->renderView(
             'ODRAdminBundle:Default:index.html.twig',
             array(
                 'user' => $user,
                 'user_permissions' => $datatype_permissions,
-
-//                'site_baseurl' => $site_baseurl,
-//                'search_slug' => $search_slug,
             )
         );
 
@@ -100,13 +97,14 @@ class DefaultController extends ODRCustomController
         return $response;
     }
 
+
     /**
-    * Loads the dashboard blurbs about the most populous datatypes on the site.
-    * 
-    * @param Request $request
-    * 
-    * @return Response
-    */
+     * Loads the dashboard blurbs about the most populous datatypes on the site.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
     public function dashboardAction(Request $request)
     {
         $return = array();

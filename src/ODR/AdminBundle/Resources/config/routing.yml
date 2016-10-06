@@ -417,12 +417,6 @@ odr_design_reload_datafield:
         datafield_id: \d+
 
 
-odr_nav_display_template:
-    path:  /design/datafields/nav/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:nav }
-    requirements:
-        datatype_id:  \d+
-
 odr_design_get_datatype_properties:
     path:  /design/displaytemplate/datatypeproperties/{datatype_id}/{parent_datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypeproperties, parent_datatype_id: '' }
@@ -549,92 +543,6 @@ odr_design_public_datafield:
     requirements:
         datafield_id:  \d+
 
-#-----------------------------------------
-
-#-----------------------------------------
-# Searchtemplate Controller
-#odr_search_template_reload_child:
-#    path: /design/searchtemplate/childreload/{datatype_id}/{theme_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloadchild }
-#    requirements:
-#        datatype_id: \d+
-#        theme_id: \d+
-#odr_search_template_reload_theme_element:
-#    path: /design/searchtemplate/themeelementreload/{theme_element_id}/{theme_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloadthemeelement }
-#    requirements:
-#        theme_element_id: \d+
-#        theme_id: \d+
-#odr_search_template_reload_datafield:
-#    path: /design/searchtemplate/datafieldreload/{datafield_id}/{theme_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloaddatafield }
-#    requirements:
-#        datafield_id: \d+
-#        theme_id: \d+
-#
-#odr_search_template_edit:
-#    path:  /design/searchtemplate/{datatype_id}/{theme_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:design }
-#    requirements:
-#        datatype_id:  \d+
-#        theme_id: \d+
-#
-#odr_search_template_get_datafield_properties:
-#    path:  /design/searchtemplate/datafieldproperty/{datafield_id}/{theme_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:datafieldproperties }
-#    requirements:
-#        datafield_id:  \d+
-#        theme_id: \d+
-#
-#odr_search_template_save_theme_datafield:
-#    path:  /design/searchtemplate/savethemedatafield/{theme_datafield_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:savethemedatafield }
-#    methods: [POST]
-#    requirements:
-#        theme_datafield_id:  \d+
-#
-#odr_search_template_save_datafield_order:
-#    path:  /design/searchtemplate/datafieldorder/{initial_theme_element_id}/{ending_theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:datafieldorder }
-#    methods: [POST]
-#    requirements:
-#        initial_theme_element_id: \d+
-#        ending_theme_element_id: \d+
-
-#odr_search_template_add_datafield:
-#    path:  /design/searchtemplate/addfield/{datafield_id}/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:addfield }
-#    requirements:
-#        datafield_id: \d+
-#        theme_element_id: \d+
-#odr_search_template_remove_datafield:
-#    path:  /design/searchtemplate/removefield/{datafield_id}/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:removefield }
-#    requirements:
-#        datafield_id: \d+
-#        theme_element_id: \d+
-
-#odr_search_template_get_theme_element_properties:
-#    path:  /design/searchtemplate/themeelementproperties/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:themeelementproperties }
-#    requirements:
-#        theme_element_id:  \d+
-#odr_search_template_save_theme_element_order:
-#    path:  /design/searchtemplate/themeelementorder
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:themeelementorder }
-#    requirements: { methods: POST }
-#
-#odr_search_template_add_theme_element:
-#    path:  /design/searchtemplate/addthemeelement/{datatype_id}/{theme_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:addthemeelement }
-#    requirements:
-#        datatype_id:  \d+
-#        theme_id:  \d+
-#odr_search_template_delete_theme_element:
-#    path:  /design/searchtemplate/deletethemeelement/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:deletethemeelement }
-#    requirements:
-#        theme_element_id:  \d+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -1214,13 +1122,13 @@ odr_design_analyze_radio_selections:
         datafield_id: \d+
 
 odr_get_file_decrypt_progress:
-    path:  /results/decrypt_progress/file/{file_id}
+    path:  /view/decrypt_progress/file/{file_id}
     defaults: { _controller: ODRAdminBundle:Reports:getfiledecryptprogress }
     requirements:
         file_id: \d+
 
 odr_get_file_encrypt_progress:
-    path:  /results/encrypt_progress/file/{file_id}
+    path:  /view/encrypt_progress/file/{file_id}
     defaults: { _controller: ODRAdminBundle:Reports:getfileencryptprogress }
     requirements:
         file_id: \d+
