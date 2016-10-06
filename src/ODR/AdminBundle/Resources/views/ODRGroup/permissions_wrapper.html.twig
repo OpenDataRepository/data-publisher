@@ -382,12 +382,14 @@
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
                     // Remove permissions UI if it currently exists
-                    var group_id_data = $(".ODRGroupListContentHeader").attr('id');
-                    var current_group_id = group_id_data[1];
+                    if ( $(".ODRGroupListContentHeader").length > 0 ) {
+                        var group_id_data = $(".ODRGroupListContentHeader").attr('id').split('_');
+                        var current_group_id = group_id_data[1];
 
-                    if (group_id == current_group_id) {
-                        $("#ODRGroupListContent_" + group_id).next().remove();
-                        $("#ODRGroupListContent_" + group_id).remove();
+                        if (group_id == current_group_id) {
+                            $("#ODRGroupListContent_" + group_id).next().remove();
+                            $("#ODRGroupListContent_" + group_id).remove();
+                        }
                     }
 
                     // Reload group list div

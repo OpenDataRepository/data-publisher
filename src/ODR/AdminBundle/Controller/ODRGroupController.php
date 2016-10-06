@@ -277,7 +277,6 @@ class ODRGroupController extends ODRCustomController
             if ($group->getPurpose() !== '')
                 throw new \Exception('Not allowed to delete a default group');
 
-
             // Get all users that are going to be affected by this
             $query = $em->createQuery(
                'SELECT DISTINCT(u.id) AS user_id
@@ -297,7 +296,7 @@ class ODRGroupController extends ODRCustomController
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:UserGroup AS ug
                 SET ug.deletedAt = :now, ug.deletedBy = :user_id
-                WHERE ug.group_id = :group_id AND ug.deletedAt IS NULL'
+                WHERE ug.group = :group_id AND ug.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'user_id' => $user->getId(), 'group_id' => $group_id) );
             $rows = $query->execute();
 
@@ -305,7 +304,7 @@ class ODRGroupController extends ODRCustomController
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:GroupDatatypePermissions AS gdtp
                 SET gdtp.deletedAt = :now
-                WHERE gdtp.group_id = :group_id AND gdtp.deletedAt IS NULL'
+                WHERE gdtp.group = :group_id AND gdtp.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'group_id' => $group_id) );
             $rows = $query->execute();
 
@@ -313,7 +312,7 @@ class ODRGroupController extends ODRCustomController
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
                 SET gdfp.deletedAt = :now
-                WHERE gdfp.group_id = :group_id AND gdfp.deletedAt IS NULL'
+                WHERE gdfp.group = :group_id AND gdfp.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'group_id' => $group_id) );
             $rows = $query->execute();
 
