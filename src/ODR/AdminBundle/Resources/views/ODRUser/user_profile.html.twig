@@ -80,13 +80,18 @@
     </fieldset>
 
     {#<input class="pure-button pure-button-primary" type="button" value="Save" onclick="saveProfileForm();" />#}
-    <button class="pure-button pure-button-primary" onclick="saveProfileForm();">Save</button>
 
 {{ form_end(profile_form) }}
+
+<button id="ODRProfileSave" class="pure-button pure-button-primary">Save</button>
 
 <script>
     $(function() {
         $("#saved").hide();
+
+        $("#ODRProfileSave").unbind('click').click(function() {
+            saveProfileForm();
+        });
     });
 
     function saveProfileForm() {
