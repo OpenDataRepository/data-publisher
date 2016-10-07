@@ -3058,6 +3058,7 @@ class DisplaytemplateController extends ODRCustomController
             if ($reload_datatype) {
                 $em->flush();
 
+                // TODO Make this only flush affected users - this is inefficient.
                 // Since new datafields were created, wipe datafield permission entries for all users
                 $redis = $this->container->get('snc_redis.default');;
                 // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
