@@ -458,6 +458,192 @@ class ODRGroupController extends ODRCustomController
 
 
     /**
+     * Renders and returns a list of all users who are members of the specified group.
+     *
+     * @param integer $group_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function groupmembersAction($group_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var Group $group */
+            $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
+            if ($group == null)
+                return parent::deletedEntityError('Group');
+
+            $datatype = $group->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                return parent::deletedEntityError('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+
+            // Get all non-super admin users who are members of this group
+            $query = $em->createQuery(
+               'SELECT u
+                FROM ODROpenRepositoryUserBundle:User AS u
+                JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
+                WHERE ug.group = :group_id
+                AND u.enabled = 1 AND ug.deletedAt IS NULL'
+            )->setParameters( array('group_id' => $group_id) );
+            $results = $query->getArrayResult();
+
+            $user_list = array();
+            foreach ($results as $result) {
+                $user_id = $result['id'];
+                $roles = $result['roles'];
+                if ( !in_array('ROLE_SUPER_ADMIN', $roles) ) {
+                    $user_data = parent::cleanUserData($result);
+                    $user_list[$user_id] = $user_data;
+                }
+            }
+
+
+            // Render and return the user list
+            $templating = $this->get('templating');
+            $return['d'] = $templating->render(
+                'ODRAdminBundle:ODRGroup:user_list.html.twig',
+                array(
+                    'group' => $group,
+                    'user_list' => $user_list,
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x35726740 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Returns a list of all users in all groups of the specified datatype.
+     *
+     * @param integer $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function datatypegroupmembersAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+
+            // Get a list of all users for all groups of this datatype
+            $query = $em->createQuery(
+               'SELECT dt, g, gm, ug, u
+
+                FROM ODRAdminBundle:DataType AS dt
+                LEFT JOIN dt.groups AS g
+                LEFT JOIN g.groupMeta AS gm
+                LEFT JOIN g.userGroups AS ug
+                LEFT JOIN ug.user AS u
+
+                WHERE dt.id = :datatype_id
+                AND dt.deletedAt IS NULL AND g.deletedAt IS NULL AND gm.deletedAt IS NULL'
+            )->setParameters( array('datatype_id' => $datatype_id) );
+            $results = $query->getArrayResult();
+
+            $group_list = array();
+            foreach ($results as $result) {
+                foreach ($result['groups'] as $num => $g) {
+                    $group_id = $g['id'];
+
+                    $group_list[$group_id] = $g;
+                    $group_list[$group_id]['groupMeta'] = $g['groupMeta'][0];
+
+                    $group_list[$group_id]['users'] = array();
+
+                    if ( isset($group_list[$group_id]['userGroups']) ) {
+                        foreach ($g['userGroups'] as $num => $ug) {
+                            $user_id = $ug['user']['id'];
+
+                            if ( $ug['user']['enabled'] == 1 && !in_array('ROLE_SUPER_ADMIN', $ug['user']['roles']) ) {
+                                $user = parent::cleanUserData($ug['user']);
+                                $group_list[$group_id]['users'][$user_id] = $user;
+                            }
+                        }
+
+                        unset($group_list[$group_id]['userGroups']);
+                    }
+                }
+            }
+
+
+            // Render and return the user list
+            $templating = $this->get('templating');
+            $return['d'] = $templating->render(
+                'ODRAdminBundle:ODRGroup:user_list_datatype.html.twig',
+                array(
+                    'datatype' => $datatype,
+                    'group_list' => $group_list,
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x3772746 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Lists all groups the user belongs to, filtered by what the calling user is allowed to view.
      *
      * @param integer $user_id

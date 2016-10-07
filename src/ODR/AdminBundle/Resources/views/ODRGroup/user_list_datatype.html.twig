@@ -1,0 +1,41 @@
+{% spaceless %}
+
+<div class="ODRAccordionWrapper ODRFormAccordion pure-u-1" style="margin-top:20px;">
+    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <a>Membership of users for all groups in "{{ datatype.dataTypeMeta.shortName }}"</a>
+        <span style="margin-left: 10px;">
+            <i class="Cursor fa fa-lg fa-globe {% if datatype.dataTypeMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatatype" title="Datatype{% if datatype.dataTypeMeta.publicDate|is_public %} does not require{% else %} requires{% endif %} permission to view" rel="{{ datatype.id }}"></i>
+        </span>
+    </h3>
+
+    <div class="pure-u-1" style="margin-left:15px;">
+    {% for group_id,group in group_list %}
+        <span class="pure-u-1" title="{{ group.groupMeta.groupDescription }}" style="margin-top:10px;">
+            <b>{{ group.groupMeta.groupName }}</b>
+        </span>
+
+        <div style="margin-left:15px;">
+        {% if group.purpose == 'admin' %}
+            <div class="pure-u-1 Cursor">
+                All Super Admins are automatically members of this group.
+            </div>
+        {% endif %}
+
+        {% for user_id,user in group['users'] %}
+            <div class="pure-u-1">
+                <span class="ODRUserLink Pointer" rel="{{ user_id }}">{{ user.username }}</span>
+            </div>
+        {% else %}
+            {% if group.purpose != 'admin' %}
+            <div class="pure-u-1 Cursor">
+                No users are members of this group.
+            </div>
+            {% endif %}
+        {% endfor %}
+        </div>
+
+    {% endfor %}
+    </div>
+</div>
+
+{% endspaceless %}

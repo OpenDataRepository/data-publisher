@@ -1,0 +1,31 @@
+{% spaceless %}
+
+<h1>
+    List of Users in this group
+</h1>
+
+{% if group.purpose == 'admin' %}
+<div class="pure-u-1">
+    <div class="pure-u-1-24"></div>
+    <div class="pure-u-20-24">
+        All Super Admins are automatically members of this group.
+    </div>
+</div>
+{% endif %}
+
+<div class="pure-u-1">
+    <div class="pure-u-1-24"></div>
+    <div class="pure-u-23-24">
+    {% for user_id,user in user_list %}
+        <div class="pure-u-1-3 ODRUserLink Pointer" rel="{{ user_id }}">{{ user['username'] }}</div>
+    {% else %}
+        {% if group.purpose != 'admin' %}
+        <div class="pure-u-1">
+            No users are currently members of this group.
+        </div>
+        {% endif %}
+    {% endfor %}
+    </div>
+</div>
+
+{% endspaceless %}

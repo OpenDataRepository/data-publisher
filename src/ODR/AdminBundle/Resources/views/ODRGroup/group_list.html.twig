@@ -1,6 +1,6 @@
 {% spaceless %}
 
-    <div id="ODRGroupList" class="pure-u-1-4">
+    <div id="ODRGroupList" class="pure-u-lg-1-3 pure-u-md-1-2">
 
         <div class="pure-u-1" style="padding-top:15px">
             <div class="pure-u-1">
@@ -23,6 +23,7 @@
                             <span style="float:left;">
                                 <i class="fa fa-lg fa-info-circle Pointer ODRGroupProperties" title="Group Properties" rel="{{ group.id }}"></i>
                                 <i id="edit_group_{{ group.id }}" class="fa fa-lg fa-edit Pointer ODREditGroup" title="Edit Group" rel="{{ group.id }}"></i>
+                                <i id="group_members_{{ group.id }}" class="fa fa-lg fa-users Pointer ODRGroupMembers" title="Group Members" rel="{{ group.id }}"></i>
                             </span>
                             <span id="ODRGroup_{{ group.id }}_name" class="Cursor" style="padding-left:15px;">
                                 {{ group_name }}
@@ -35,10 +36,8 @@
         <div class="pure-u-1" style="padding-top:15px">
             <div class="pure-u-1">
                 <span style="float:left">
+                    <i class="Pointer tooltip fa fa-plus-square ODRAddGroup" title="Create new custom Group" rel="table" style="margin-right: 5px;"></i>
                     <b>Custom Groups</b>
-                </span>
-                <span style="float:right">
-                    <i class="Pointer tooltip fa fa-plus-square ODRAddGroup" title="Create new custom Group" rel="table"></i>
                 </span>
             </div>
             <div class="pure-u-1-12"></div>
@@ -56,6 +55,7 @@
                             <span style="float:left;">
                                 <i class="fa fa-lg fa-info-circle Pointer ODRGroupProperties" title="Group Properties" rel="{{ group.id }}"></i>
                                 <i id="edit_group_{{ group.id }}" class="fa fa-lg fa-edit Pointer ODREditGroup" title="Edit Group" rel="{{ group.id }}"></i>
+                                <i id="group_members_{{ group.id }}" class="fa fa-lg fa-users Pointer ODRGroupMembers" title="Group Members" rel="{{ group.id }}"></i>
                             </span>
                             <span id="ODRGroup_{{ group.id }}_name" class="Cursor" style="padding-left:15px;">
                                 {{ group_name }}
@@ -76,8 +76,6 @@
 
     </div>
 
-    <div class="pure-u-1-24"></div>
-
-    <div id="ODRGroupPropertiesFormDiv" class="pure-u-1-4"></div>
+    <div id="ODRGroupPropertiesFormDiv" class="pure-u-1-2"></div>
 
 {% endspaceless %}

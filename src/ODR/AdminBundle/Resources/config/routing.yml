@@ -147,6 +147,18 @@ odr_group_properties:
     requirements:
         group_id:  \d+
 
+odr_group_membership:
+    path:  /admin/group/members/{group_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:groupmembers }
+    requirements:
+        group_id:  \d+
+
+odr_datatype_group_membership:
+    path:  /admin/group/members_datatype/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:datatypegroupmembers }
+    requirements:
+        datatype_id:  \d+
+
 
 odr_manage_user_groups:
     path:  /admin/user/managegroups/{user_id}

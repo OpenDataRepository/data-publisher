@@ -61,7 +61,7 @@
         {% endif %}
 
         {% set hidden_datatype = false %}
-        {% if not (can_view_datarecord or can_edit_datarecord or can_add_datarecord or can_delete_datarecord or is_datatype_admin) %}
+        {% if not (can_view_datatype or can_view_datarecord or can_edit_datarecord or can_add_datarecord or can_delete_datarecord or is_datatype_admin) %}
             {% set hidden_datatype = true %}
             {% set hidden_datatype_count = hidden_datatype_count + 1 %}
         {% endif %}
