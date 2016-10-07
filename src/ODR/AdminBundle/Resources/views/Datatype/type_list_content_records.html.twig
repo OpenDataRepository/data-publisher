@@ -1,5 +1,13 @@
 {% spaceless %}
 
+{#<button id="all_datatypes_toggle" type="button" class="pure-button" onclick="showAllDatatypes();" rel="Show only ">Show all public Databases</button>#}
+<div id="ODRDatatypeToggleDiv">
+    <label for="all_datatypes_toggle" class="pure-button">
+        <input type="checkbox" id="all_datatypes_toggle" style="margin-right: 5px;" />
+        Show all public Databases
+    </label>
+</div>
+
 <div id="ODRDataTypeListWrapper">
 <table id="ODRDatatypeList" class="display dataTable">
     <thead>
@@ -16,13 +24,17 @@
         </tr>
     </thead>
     <tbody>
+    {% set hidden_datatype_count = 0 %}
     {% for datatype in datatypes %}
 
         {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) %}
 
         {# Pre-determine which permissions user has for this datatype... #}
         {% set can_view_datatype = false %}
+        {% set can_view_datarecord = false %}
+        {% set can_edit_datarecord = false %}
         {% set can_add_datarecord = false %}
+        {% set can_delete_datarecord = false %}
         {% set is_datatype_admin = false %}
 
         {% if permissions['datatypes'][datatype.id] is defined %}
@@ -31,17 +43,31 @@
             {% if datatype_permissions[ 'dt_view' ] is defined %}
                 {% set can_view_datatype = true %}
             {% endif %}
+            {% if datatype_permissions[ 'dr_view' ] is defined %}
+                {% set can_view_datarecord = true %}
+            {% endif %}
+            {% if datatype_permissions[ 'dr_edit' ] is defined %}
+                {% set can_edit_datarecord = true %}
+            {% endif %}
             {% if datatype_permissions[ 'dr_add' ] is defined %}
                 {% set can_add_datarecord = true %}
+            {% endif %}
+            {% if datatype_permissions[ 'dr_delete' ] is defined %}
+                {% set can_delete_datarecord = true %}
             {% endif %}
             {% if datatype_permissions[ 'dt_admin' ] is defined %}
                 {% set is_datatype_admin = true %}
             {% endif %}
         {% endif %}
 
+        {% set hidden_datatype = false %}
+        {% if not (can_view_datarecord or can_edit_datarecord or can_add_datarecord or can_delete_datarecord or is_datatype_admin) %}
+            {% set hidden_datatype = true %}
+            {% set hidden_datatype_count = hidden_datatype_count + 1 %}
+        {% endif %}
 
         {% if can_view_datatype == true or datatype.dataTypeMeta.publicDate|is_public == true %}
-        <tr>
+        <tr {% if hidden_datatype %}class="ODRPublicDatatype ODRHidden"{% endif %}>
             <td>{{ datatype.id }}</td>
             <td>
                 <span class="ODRDatatypeInfoDiv">
@@ -148,6 +174,10 @@
         z-index: 999;
         width: 500px;
     }
+
+    .ODRHidden {
+        display: none;
+    }
 </style>
 
 <script>
@@ -177,6 +207,28 @@
         });
 
         $("#ODRDatatypeList").removeAttr('style');
+
+{% if hidden_datatype_count == 0 %}
+        $("#ODRDatatypeToggleDiv").remove();
+{% else %}
+        $("#all_datatypes_toggle").unbind('change').change(function() {
+            if ( $(this).is(":checked") ) {
+                $(".ODRPublicDatatype").each(function() {
+                    $(this).removeClass('ODRHidden');
+                });
+            }
+            else {
+                $(".ODRPublicDatatype").each(function() {
+                    $(this).addClass('ODRHidden');
+                });
+            }
+
+            redoRowClasses();
+        });
+
+        // Due to rows already being hidden, redo the row classes
+        redoRowClasses();
+{% endif %}
     });
 
     function addDataRecord(urlpath, datatype_id) {
@@ -231,6 +283,21 @@
 
         document.location = url;
     }
+
+{% if hidden_datatype_count != 0 %}
+    function redoRowClasses() {
+        var count = 0;
+        $("#ODRDatatypeList tr").each(function() {
+            if ( !$(this).hasClass('ODRHidden') ) {
+                count++;
+                if ( count % 2 == 0 )
+                    $(this).removeClass('odd').addClass('even');
+                else
+                    $(this).removeClass('even').addClass('odd');
+            }
+        });
+    }
+{% endif %}
 </script>
 
 {% endspaceless %}
