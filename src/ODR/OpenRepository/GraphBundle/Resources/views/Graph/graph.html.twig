@@ -394,6 +394,7 @@ function lineChartPlotly(chart_obj) {
     var data = []
 
     // var myData = new Array();   //You need data...
+    console.log('LINE CHART PLOTLY')
     console.log(chart_obj)
     var loaded_data = []
     $("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {
@@ -439,7 +440,7 @@ function lineChartPlotly(chart_obj) {
         // paper_bgcolor: '#7f7f7f',
         // plot_bgcolor: '#c7c7c7',
         xaxis: {
-            {% if plugin_options.x_axis_dir == "desc" %}
+            {% if plugin_options.x_axis_dir == "desc" and (plugin_options.x_axis_min == "auto" or plugin_options.x_axis_max == "auto") %}
             autorange: 'reversed',
             {% endif %}
             {% if plugin_options.x_axis_log == "yes" %}
@@ -465,7 +466,7 @@ function lineChartPlotly(chart_obj) {
             zeroline: false
         },
         yaxis: {
-            {% if plugin_options.y_axis_dir is defined and plugin_options.y_axis_dir == "desc" %}
+            {% if plugin_options.y_axis_dir is defined and plugin_options.y_axis_dir == "desc" and (plugin_options.y_axis_min == "auto" or plugin_options.y_axis_max == "auto") %}
             autorange: 'reversed',
             {% endif %}
             {% if plugin_options.y_axis_log == "yes" %}

@@ -4634,7 +4634,6 @@ if ($debug)
         if (!$changes_made)
             return $render_plugin_map;
 
-
         // Determine whether to create a new meta entry or modify the previous one
         $remove_old_entry = false;
         $new_rpm = null;
@@ -4746,6 +4745,7 @@ if ($debug)
             $new_rpo->setRenderPluginInstance( $render_plugin_option->getRenderPluginInstance() );
             $new_rpo->setOptionName( $render_plugin_option->getOptionName() );
             $new_rpo->setOptionValue( $render_plugin_option->getOptionValue() );
+            $new_rpo->setActive(true);
 
             $new_rpo->setCreatedBy($user);
         }
