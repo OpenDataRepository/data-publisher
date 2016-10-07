@@ -23,7 +23,7 @@
 
         {% for user_id,user in group['users'] %}
             <div class="pure-u-1">
-                <span class="ODRUserLink Pointer" rel="{{ user_id }}">{{ user.username }}</span>
+                <span class="ODRUserLink Pointer" rel="{{ user_id }}">{{ user|user_string }}</span>
             </div>
         {% else %}
             {% if group.purpose != 'admin' %}

@@ -172,13 +172,32 @@ class FlowController extends ODRCustomController
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dr_edit' ])) )
-                return self::flowAbort('Permission denied');
+            $can_edit_datarecord = false;
+            if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dr_edit' ]) )
+                $can_edit_datarecord = true;
 
-            if ($datafield_id !== null) {
-                if ( !(isset($datafield_permissions[ $datafield_id ]) && isset($datafield_permissions[ $datafield_id ][ 'edit' ])) )
-                    return self::flowAbort('Permission denied');
+            $is_datatype_admin = false;
+            if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ]) )
+                $is_datatype_admin = true;
+
+
+            // Ensure user has permissions to be doing this
+            if ($upload_type == 'csv' || $upload_type == 'xml') {
+                if (!$is_datatype_admin)
+                    return self::flowAbort('Not allowed to upload csv/xml files for importing');
+            }
+            else {
+                if (!$can_edit_datarecord)
+                    return self::flowAbort('Not allowed to edit this Datarecord');
+            }
+
+            if ($datafield !== null) {
+                $can_edit_datafield = false;
+                if ( isset($datafield_permissions[ $datafield_id ]) && isset($datafield_permissions[ $datafield_id ][ 'edit' ]) )
+                    $can_edit_datafield = true;
+
+                if ( !$can_edit_datafield )
+                    return self::flowAbort('Not allowed to edit this Datafield');
             }
 
 
