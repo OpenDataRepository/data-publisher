@@ -515,7 +515,7 @@
             // paper_bgcolor: '#7f7f7f',
             // plot_bgcolor: '#c7c7c7',
             xaxis: {
-            {% if plugin_options.x_axis_dir == "desc" %}
+            {% if plugin_options.x_axis_dir == "desc" and (plugin_options.x_axis_min == "auto" or plugin_options.x_axis_max == "auto") %}
                 autorange: 'reversed',
             {% endif %}
             {% if plugin_options.x_axis_log == "yes" %}
@@ -541,7 +541,7 @@
                 zeroline: false
             },
             yaxis: {
-            {% if plugin_options.y_axis_dir is defined and plugin_options.y_axis_dir == "desc" %}
+            {% if plugin_options.y_axis_dir is defined and plugin_options.y_axis_dir == "desc" and (plugin_options.y_axis_min == "auto" or plugin_options.y_axis_max == "auto") %}
                 autorange: 'reversed',
             {% endif %}
             {% if plugin_options.y_axis_log == "yes" %}
