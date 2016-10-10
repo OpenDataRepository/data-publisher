@@ -404,7 +404,7 @@ function lineChartPlotly(chart_obj) {
                 var line = chart_obj.data[$(this).val()]
                 var x = []
                 var y = []
-                for (i = 0; i < line.values.length; i++) {
+                for (var i = 0; i < line.values.length; i++) {
                     x.push(line.values[i].x)
                     y.push(line.values[i].y)
                 }
@@ -413,11 +413,12 @@ function lineChartPlotly(chart_obj) {
                 var trace = {}
                 trace.x = x
                 trace.y = y
-                {% if plugin_options.line_type is defined %}
-                trace.mode = '{{ plugin_options.line_type }}'
-                {% else %}
-                trace.mode = 'lines'
-                {%  endif %}
+                if (chart_obj.line_type != undefined) {
+                    trace.mode = chart_obj.line_type
+                }
+                else {
+                    trace.mode = 'lines'
+                }
                 trace.name = line.key
                 data.push(trace)
 
@@ -426,6 +427,72 @@ function lineChartPlotly(chart_obj) {
             }
         }
     });
+
+    var xaxis_settings = {}
+    if(chart_obj.x_axis_dir == "desc" && (chart_obj.x_axis_min == "auto" || chart_obj.x_axis_max == "auto")) {
+        xaxis_settings.autorange = 'reversed'
+    }
+
+    if(chart_obj.x_axis_log == "yes")  {
+        xaxis_settings.type = 'log'
+    }
+
+    if(chart_obj.x_axis_caption != "") {
+        xaxis_settings.title = chart_obj.x_axis_caption
+    }
+
+    if (chart_obj.x_axis_tick_interval != "auto") {
+        xaxis_settings.dtick = chart_obj.x_axis_tick_interval
+        xaxis_settings.tick0 = chart_obj.x_axis_tick_start
+    }
+    else {
+        xaxis_settings.autottick = true
+    }
+
+    if(chart_obj.x_axis_labels != "yes") {
+        xaxis_settings.showticklabels = false
+    }
+
+    if(chart_obj.x_axis_min != "auto" && chart_obj.x_axis_max != "auto" ) {
+        xaxis_settings.range = [ chart_obj.x_axis_min, chart_obj.x_axis_max ]
+    }
+
+    xaxis_settings.showline = true
+    xaxis_settings.showgrid = true
+    xaxis_settings.zeroline = false
+
+    var yaxis_settings = {}
+    if(chart_obj.y_axis_dir == "desc" && (chart_obj.y_axis_min == "auto" || chart_obj.y_axis_max == "auto")) {
+        yaxis_settings.autorange = 'reversed'
+    }
+    if(chart_obj.y_axis_log == "yes") {
+        yaxis_settings.type = 'log'
+    }
+
+    if(chart_obj.y_axis_caption != "") {
+        yaxis_settings.title = chart_obj.y_axis_caption
+    }
+
+    if (chart_obj.y_axis_tick_interval != "auto") {
+        yaxis_settings.dtick = chart_obj.y_axis_tick_interval
+        yaxis_settings.tick0 = chart_obj.y_axis_tick_start
+    }
+    else {
+        yaxis_settings.autottick = true
+    }
+
+    if(chart_obj.x_axis_labels != "yes") {
+        yaxis_settings.showticklabels = false
+    }
+
+    if(chart_obj.y_axis_min != "auto" && chart_obj.y_axis_max != "auto" ) {
+        yaxis_settings.range = [ chart_obj.y_axis_min, chart_obj.y_axis_max ]
+    }
+
+    yaxis_settings.showline = true
+    yaxis_settings.showgrid = true
+    yaxis_settings.zeroline = false
+
 
     var layout = {
         // title: 'Title of the Graph',
@@ -439,58 +506,8 @@ function lineChartPlotly(chart_obj) {
         },
         // paper_bgcolor: '#7f7f7f',
         // plot_bgcolor: '#c7c7c7',
-        xaxis: {
-            {% if plugin_options.x_axis_dir == "desc" and (plugin_options.x_axis_min == "auto" or plugin_options.x_axis_max == "auto") %}
-            autorange: 'reversed',
-            {% endif %}
-            {% if plugin_options.x_axis_log == "yes" %}
-            type: 'log',
-            {% endif %}
-            {% if plugin_options.x_axis_caption != "" %}
-            title: '{{ plugin_options.x_axis_caption }}',
-            {% endif %}
-            {% if plugin_options.x_axis_tick_interval != "auto" %}
-            dtick: {{ plugin_options.x_axis_tick_interval }},
-            tick0: {{ plugin_options.x_axis_tick_start }},
-            {% else %}
-            autottick: true,
-            {% endif %}
-            {% if plugin_options.x_axis_labels != "yes" %}
-            showticklabels: false,
-            {% endif %}
-            {% if plugin_options.x_axis_min != "auto" and plugin_options.x_axis_max != "auto" %}
-            range: [{{ plugin_options.x_axis_min }}, {{ plugin_options.x_axis_max }}],
-            {% endif %}
-            showline: true,
-            showgrid: true,
-            zeroline: false
-        },
-        yaxis: {
-            {% if plugin_options.y_axis_dir is defined and plugin_options.y_axis_dir == "desc" and (plugin_options.y_axis_min == "auto" or plugin_options.y_axis_max == "auto") %}
-            autorange: 'reversed',
-            {% endif %}
-            {% if plugin_options.y_axis_log == "yes" %}
-            type: 'log',
-            {% endif %}
-            {% if plugin_options.y_axis_caption != "" %}
-            title: '{{ plugin_options.y_axis_caption }}',
-            {% endif %}
-            {% if plugin_options.y_axis_tick_interval != "auto" %}
-            dtick: {{ plugin_options.y_axis_tick_interval }},
-            tick0: {{ plugin_options.y_axis_tick_start }},
-            {% else %}
-            autottick: true,
-            {% endif %}
-            {% if plugin_options.y_axis_labels != "yes" %}
-            showticklabels: false,
-            {% endif %}
-            {% if plugin_options.y_axis_min != "auto" and plugin_options.y_axis_max != "auto" %}
-            range: [{{ plugin_options.y_axis_min }}, {{ plugin_options.y_axis_max }}],
-            {% endif %}
-            showline: true,
-            showgrid: true,
-            zeroline: false
-        }
+        xaxis: xaxis_settings,
+        yaxis: yaxis_settings
     };
 
     Plotly.newPlot(chart_obj.chart_id, data, layout).then(function(){
@@ -608,10 +625,9 @@ var SetupGraphs_{{ nv_chart_id }} = function() {
             }
         {% endfor %}
 
-
-        odr_nv_{{ nv_chart_id }}.x_axis_label = '{{ plugin_options.x_axis_caption }}';
-        odr_nv_{{ nv_chart_id }}.y_axis_label = '{{ plugin_options.y_axis_caption }}';
-
+        {% for o_name, o_value in plugin_options %}
+        odr_nv_{{ nv_chart_id }}['{{ o_name }}'] = '{{ o_value }}';
+        {% endfor %}
 
         // Plot selected graphs
         // Get checked DRC IDs
