@@ -682,6 +682,8 @@ class ODRGroupController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
 
+            if ( !$user->isEnabled() )
+                throw new \Exception('Unable to change group membership of a deleted User');
             if ($user->getId() == $admin_user->getId())
                 throw new \Exception('Unable to change own group membership.');
             if ( $user->hasRole('ROLE_SUPER_ADMIN') )

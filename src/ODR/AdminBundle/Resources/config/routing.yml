@@ -34,8 +34,8 @@ odr_admin_new_user_create:
     defaults: { _controller: ODRAdminBundle:ODRUser:createnewuser }
 
 odr_admin_new_user_check:
-    path:  /admin/new_user/check
-    defaults: { _controller: ODRAdminBundle:ODRUser:checknewuser }
+    path:  /admin/new_user/check_email
+    defaults: { _controller: ODRAdminBundle:ODRUser:checkemailexistence }
     requirements: { methods: POST }
 
 odr_admin_new_user_save:
@@ -72,8 +72,6 @@ odr_user_list:
 odr_manage_user_roles:
     path:  /admin/user/manage/roles
     defaults: { _controller: ODRAdminBundle:ODRUser:manageroles }
-    requirements:
-        user_id:  \d+
 
 odr_set_user_role:
     path:  /admin/user/setrole/{user_id}/{role}

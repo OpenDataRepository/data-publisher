@@ -110,7 +110,7 @@ class ODRUserController extends ODRCustomController
      *
      * @return Response
      */
-    public function checknewuserAction(Request $request)
+    public function checkemailexistenceAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -342,7 +342,7 @@ class ODRUserController extends ODRCustomController
 
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
-            if ($user == null)
+            if ($user == null || !$user->isEnabled())
                 return parent::deletedEntityError('User');
 
             // --------------------
@@ -623,7 +623,7 @@ class ODRUserController extends ODRCustomController
 
             /** @var ODRUser $target_user */
             $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
-            if ($target_user == null)
+            if ($target_user == null || !$target_user->isEnabled())
                 return parent::deletedEntityError('User');
 
             // --------------------
@@ -940,7 +940,6 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Saves changes made to a user's role (user/editor/designer/admin)
-     * TODO - test this
      *
      * @param integer $user_id The database id of the user being modified.
      * @param string $role     Which role to grant the user.
@@ -971,6 +970,8 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
 
+            if (!$user->isEnabled())
+                throw new \Exception('Unable to change role of a deleted User');
             if ($user->getId() == $admin_user->getId())
                 throw new \Exception('Unable to change own role');
 //            if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -1077,6 +1078,8 @@ class ODRUserController extends ODRCustomController
 
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            if (!$user->isEnabled())
+                throw new \Exception('User is already deleted');
 
             // Prevent super-admins from being deleted?
 //            if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -1145,6 +1148,9 @@ class ODRUserController extends ODRCustomController
 
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            if ($user->isEnabled())
+                throw new \Exception('User is already active');
+
 
             // This may not be the right way to do it...
             $user->setEnabled(1);
