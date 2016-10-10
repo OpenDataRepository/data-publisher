@@ -1648,7 +1648,7 @@ exit();
         $remove_old_entry = false;
         $new_permission = null;
         if ( self::createNewMetaEntry($user, $permission) ) {
-            // Create a new UserPermissions entry and copy the old entry's data over
+            // Create a new GroupDatatypePermissions entry and copy the old entry's data over
             $remove_old_entry = true;
 
             $new_permission = new GroupDatatypePermissions();
@@ -1732,7 +1732,7 @@ exit();
         $remove_old_entry = false;
         $new_permission = null;
         if ( self::createNewMetaEntry($user, $permission) ) {
-            // Create a new UserPermissions entry and copy the old entry's data over
+            // Create a new GroupDatafieldPermissions entry and copy the old entry's data over
             $remove_old_entry = true;
 
             $new_permission = new GroupDatafieldPermissions();

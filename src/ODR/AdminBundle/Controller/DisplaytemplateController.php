@@ -130,14 +130,27 @@ class DisplaytemplateController extends ODRCustomController
             $all_datafield_themes = $query->getResult();
             /** @var Theme[] $all_datafield_themes */
 
-            // Save which users are going to get datafield permissions deleted
+            // Save which users and groups need to delete their permission entries for this datafield
+            $query = $em->createQuery(
+               'SELECT g.id AS group_id
+                FROM ODRAdminBundle:GroupDatafieldPermissions AS gdfp
+                JOIN ODRAdminBundle:Group AS g WITH gdfp.group = g
+                WHERE gdfp.dataField = :datafield
+                AND gdfp.deletedAt IS NULL AND g.deletedAt IS NULL'
+            )->setParameters( array('datafield' => $datafield->getId()) );
+            $all_affected_groups = $query->getArrayResult();
+
+//print '<pre>'.print_r($all_affected_groups, true).'</pre>';  //exit();
+
             $query = $em->createQuery(
                'SELECT u.id AS user_id
-                FROM ODRAdminBundle:UserFieldPermissions AS ufp
-                JOIN ODROpenRepositoryUserBundle:User AS u WITH ufp.user = u
-                WHERE ufp.dataField = :datafield AND ufp.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield->getId()) );
-            $all_affected_users = $query->getResult();
+                FROM ODRAdminBundle:Group AS g
+                JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
+                JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+                WHERE g.id IN (:groups)
+                AND g.deletedAt IS NULL AND ug.deletedAt IS NULL'
+            )->setParameters( array('groups' => $all_affected_groups) );
+            $all_affected_users = $query->getArrayResult();
 
 //print '<pre>'.print_r($all_affected_users, true).'</pre>'; exit();
 
@@ -167,9 +180,9 @@ class DisplaytemplateController extends ODRCustomController
 
             // ...datafield permissions
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:UserFieldPermissions AS ufp
-                SET ufp.deletedAt = :now
-                WHERE ufp.dataField = :datafield AND ufp.deletedAt IS NULL'
+               'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
+                SET gdfp.deletedAt = :now
+                WHERE gdfp.dataField = :datafield AND gdfp.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'datafield' => $datafield->getId()) );
             $rows = $query->execute();
 
@@ -200,6 +213,7 @@ class DisplaytemplateController extends ODRCustomController
                 parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
 
 
+            // ----------------------------------------
             // Save who deleted this datafield
             $datafield->setDeletedBy($user);
             $em->persist($datafield);
@@ -214,12 +228,10 @@ class DisplaytemplateController extends ODRCustomController
             $em->flush();
 
 
-            // TODO - delete all storage entities via beanstalk?  or just stack delete statements for all 12 entities in here?
+            // ----------------------------------------
+            // TODO - delete all storage entities for this datafield via beanstalk?  or just stack delete statements for all 12 entities in here?
 
-/*
-            // Schedule the cache for an update
-            parent::updateDatatypeCache($datatype->getId(), $options);
-*/
+            // Remove this datafield from all themes of the datafield's datatype
             $update_datatype = true;
             foreach ($all_datafield_themes as $theme) {
                 parent::tmp_updateThemeCache($em, $theme, $user, $update_datatype);
@@ -228,9 +240,6 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Wipe cached data for the grandparent datatype
-//            $redis->del($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
-
             // Wipe cached data for all the datatype's datarecords
             $query = $em->createQuery(
                'SELECT dr.id AS dr_id
@@ -247,15 +256,24 @@ class DisplaytemplateController extends ODRCustomController
                 // TODO - schedule each of these datarecords for a recache?
             }
 
-            // Wipe datafield permissions involving this datafield
+
+            // Wipe cached entries for Group and User permissions involving this datafield
+            foreach ($all_affected_groups as $group) {
+                $group_id = $group['group_id'];
+                $redis->del($redis_prefix.'.group_'.$group_id.'_permissions');
+
+                // TODO - schedule each of these groups for a recache?
+            }
+
             foreach ($all_affected_users as $user) {
                 $user_id = $user['user_id'];
-                $redis->del($redis_prefix.'.user_'.$user_id.'_datafield_permissions');
+                $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
 
-                // TODO - schedule each of these for a recache?
+                // TODO - schedule each of these users for a recache?
             }
 
 
+            // ----------------------------------------
             // See if any cached search results need to be deleted...
             $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
             if ( $cached_searches != false && isset($cached_searches[$grandparent_datatype_id]) ) {
@@ -625,27 +643,29 @@ class DisplaytemplateController extends ODRCustomController
 
 //print '<pre>'.print_r($datatypes_to_delete, true).'</pre>'; exit();
 
+            // Determine all Groups and all Users affected by this
+            $query = $em->createQuery(
+               'SELECT g.id AS group_id
+                FROM ODRAdminBundle:Group AS g
+                WHERE g.dataType IN (:datatype_ids)
+                AND g.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            $groups_to_delete = $query->getArrayResult();
+
+//print '<pre>'.print_r($groups_to_delete, true).'</pre>';  exit();
+
+            $query = $em->createQuery(
+               'SELECT u.id AS user_id
+                FROM ODRAdminBundle:UserGroup AS ug
+                JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+                WHERE ug.group IN (:groups) AND ug.deletedAt IS NULL'
+            )->setParameters( array('groups' => $groups_to_delete) );
+            $all_affected_users = $query->getArrayResult();
+
+//print '<pre>'.print_r($all_affected_users, true).'</pre>';  exit();
+
+
             // ----------------------------------------
-            // Delete cached versions of Datarecords if needed
-            if ($datatype->getId() == $grandparent_datatype_id) {
-                $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.dataType = :datatype_id'
-                )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
-                $results = $query->getArrayResult();
-
-//print '<pre>'.print_r($results, true).'</pre>';  exit();
-
-                foreach ($results as $result) {
-                    $dr_id = $result['dr_id'];
-
-                    $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
-                    $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
-                    $redis->del($redis_prefix.'.associated_datarecords_for_'.$dr_id);
-                }
-            }
-
 /*
             // Delete Datarecordfield entries
             $query = $em->createQuery(
@@ -704,13 +724,13 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
 /*
-            // Delete DatafieldPermission entries (cached versions deleted later)
+            // Delete GroupDatafieldPermission entries (cached versions deleted later)
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataFields AS df, ODRAdminBundle:UserFieldPermissions AS ufp
-                SET ufp.deletedAt = :now
-                WHERE ufp.dataField = df
+               'UPDATE ODRAdminBundle:DataFields AS df, ODRAdminBundle:GroupDatafieldPermissions AS gdfp
+                SET gdfp.deletedAt = :now
+                WHERE gdfp.dataField = df
                 AND df.dataType IN (:datatype_ids)
-                AND df.deletedAt IS NULL AND ufp.deletedAt IS NULL'
+                AND df.deletedAt IS NULL AND gdfp.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'datatype_ids' => $datatypes_to_delete) );
             $query->execute();
 
@@ -811,15 +831,37 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
 /*
-            // Delete all Datatype permission entries
+            // Delete GroupDatatypePermission entries (cached versions deleted later)
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:UserPermission AS up
-                SET up.deletedAt = :now
-                WHERE up.dataType IN (:datatype_ids)
-                AND up.deletedAt IS NULL'
+               'UPDATE ODRAdminBundle:GroupDatatypePermissions AS gdtp
+                SET gdtp.deletedAt = :now
+                WHERE gdtp.dataType IN (:datatype_ids)
+                AND gdtp.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'datatype_ids' => $datatypes_to_delete) );
             $query->execute();
+
+            // Delete Groups and their GroupMeta entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:Group AS g, ODRAdminBundle:GroupMeta AS gm
+                SET g.deletedAt = :now, g.deletedBy = :deleted_by, gm.deletedAt = :now
+                WHERE gm.group = g
+                AND g.dataType IN (:datatype_ids)
+                AND g.deletedAt IS NULL AND gm.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
 */
+
+            // Remove members from the Groups for this Datatype
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:UserGroup AS ug
+                SET ug.deletedAt = now(), ug.deletedBy = :deleted_by
+                WHERE ug.group IN (:group_ids)
+                AND ug.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'group_ids' => $groups_to_delete) );
+            $query->execute();
+
+
+            // ----------------------------------------
             // Delete all Datatype and DatatypeMeta entries
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:DataTypeMeta AS dtm
@@ -838,19 +880,40 @@ class DisplaytemplateController extends ODRCustomController
             $query->execute();
 
 
-            // TODO - move (just about) all this preceeding stuff to beanstalk?
-
-
             // ----------------------------------------
-            // Grab all the users
-            $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var User[] $user_list */
-            $user_list = $user_manager->findUsers();
+            // Delete cached versions of all Datarecords of this Datatype if needed
+            if ($datatype->getId() == $grandparent_datatype_id) {
+                $query = $em->createQuery(
+                    'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.dataType = :datatype_id'
+                )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
+                $results = $query->getArrayResult();
 
-            // Delete all cached permissions
-            foreach ($user_list as $user) {
-                $redis->del($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
-                $redis->del($redis_prefix.'.user_'.$user->getId().'_datafield_permissions');
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+                foreach ($results as $result) {
+                    $dr_id = $result['dr_id'];
+
+                    $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
+                    $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
+                    $redis->del($redis_prefix.'.associated_datarecords_for_'.$dr_id);
+                }
+            }
+
+            // Delete cached entries for Group and User permissions involving this Datafield
+            foreach ($groups_to_delete as $group) {
+                $group_id = $group['group_id'];
+                $redis->del($redis_prefix.'.group_'.$group_id.'_permissions');
+
+                // TODO - schedule each of these groups for a recache?
+            }
+
+            foreach ($all_affected_users as $user) {
+                $user_id = $user['user_id'];
+                $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
+
+                // TODO - schedule each of these users for a recache?
             }
 
             // ...cached searches
@@ -1171,30 +1234,11 @@ class DisplaytemplateController extends ODRCustomController
 
             // design_ajax.html.twig calls ReloadThemeElement()
 
-/*
-            // Schedule the cache for an update
-            $options = array();
-            $options['mark_as_updated'] = true;
-            parent::updateDatatypeCache($datatype->getId(), $options);
-*/
+            // TODO - Updated cached entries instead of deleting them?
             $update_datatype = true;
             parent::tmp_updateThemeCache($em, $theme, $user, $update_datatype);
 
-
-            // ----------------------------------------
-            // Since new datafields were created, wipe datafield permission entries for all users
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-            $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var User[] $user_list */
-            $user_list = $user_manager->findUsers();
-            foreach ($user_list as $u) {
-                $redis->del($redis_prefix.'.user_'.$u->getId().'_datafield_permissions');
-
-                // TODO - schedule a permissions recache via beanstalk?
-            }
+            // Don't need to worry about datafield permissions here, those are taken care of inside ODR_addDataField()
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -3062,19 +3106,7 @@ class DisplaytemplateController extends ODRCustomController
             if ($reload_datatype) {
                 $em->flush();
 
-                // Since new datafields were created, wipe datafield permission entries for all users
-                $redis = $this->container->get('snc_redis.default');;
-                // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-                $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-                $user_manager = $this->container->get('fos_user.user_manager');
-                /** @var User[] $user_list */
-                $user_list = $user_manager->findUsers();
-                foreach ($user_list as $u) {
-                    $redis->del($redis_prefix.'.user_'.$u->getId().'_datafield_permissions');
-
-                    // TODO - schedule a permissions recache via beanstalk?
-                }
+                // Don't need to worry about datafield permissions here, those are taken care of inside ODR_addDataField()
             }
 
 

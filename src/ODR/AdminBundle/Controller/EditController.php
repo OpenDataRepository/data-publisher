@@ -3167,6 +3167,8 @@ if ($debug)
      * @param array $datatype_array    @see parent::getDatatypeData()
      * @param array $datarecord_array  @see parent::getDatarecordData()
      *
+     * @throws \Exception
+     *
      * @return array
      */
     private function generateCSRFTokens($datatype_array, $datarecord_array)
@@ -3192,6 +3194,9 @@ if ($debug)
                 foreach ($theme['themeElements'] as $te_num => $te) {
                     if ( isset($te['themeDataFields']) ) {
                         foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                            if ( !isset($tdf['dataField']) )
+                                throw new \Exception('Datarecord '.$dr['id'].' ThemeDatafield '.$tdf['id'].' missing a datafield entry!');
+
                             $df_id = $tdf['dataField']['id'];
                             $typeclass = $tdf['dataField']['dataFieldMeta']['fieldType']['typeClass'];
 

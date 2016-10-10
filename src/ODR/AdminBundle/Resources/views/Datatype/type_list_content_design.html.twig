@@ -203,7 +203,7 @@
     });
 
     function deleteDataType(datatype_id) {
-        var datatype_name = $("#datatype_" + datatype_id + "_name").html();
+        var datatype_name = $("#ODRDatatypeList_" + datatype_id + "_name").html();
 
         if( confirm("Are you sure you want to delete the \"" + datatype_name + "\" datatype and all associated datarecords?") ) {
             // Delete the datatype selected

@@ -2482,15 +2482,7 @@ class CSVImportController extends ODRCustomController
                 // Update theme and datatype becuase new datafields were added
                 parent::tmp_updateThemeCache($em, $theme, $user, true);
 
-                // Since new datafields were created, wipe the lists of datafield permissions for all users
-                $user_manager = $this->container->get('fos_user.user_manager');
-                /** @var User[] $user_list */
-                $user_list = $user_manager->findUsers();
-                foreach ($user_list as $u) {
-                    $redis->del($redis_prefix.'.user_'.$u->getId().'_datafield_permissions');
-
-                    // TODO - schedule a permissions recache via beanstalk?
-                }
+                // Don't need to worry about datafield permissions here, those are taken care of inside ODR_addDataField()
             }
 
 /*

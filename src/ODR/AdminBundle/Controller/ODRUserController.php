@@ -217,7 +217,7 @@ class ODRUserController extends ODRCustomController
             $user = $user_manager->findUserByEmail($email);
             if ($user !== null) {
                 // If user already exists, just return the url to their permissions page
-                $url = $router->generate( 'odr_manage_user_permissions', array('user_id' => $user->getId()) );
+                $url = $router->generate( 'odr_manage_user_groups', array('user_id' => $user->getId()) );
                 $return['d'] = array('url' => $url);
             }
             else {
@@ -248,7 +248,7 @@ class ODRUserController extends ODRCustomController
                         // Generate and return the URL to modify the new user's permissions
                         $em->refresh($new_user);
 
-                        $url = $router->generate( 'odr_manage_user_permissions', array('user_id' => $new_user->getId()) );      // TODO
+                        $url = $router->generate( 'odr_manage_user_groups', array('user_id' => $new_user->getId()) );
                         $return['d'] = array('url' => $url);
                     }
                     else {
