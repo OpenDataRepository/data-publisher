@@ -66,6 +66,7 @@
             {% endif %}
 
                     {% include "ODROpenRepositoryGraphBundle:Graph:graph.html.twig" with {
+                        'render_plugin': render_plugin,
                         'line_colors': line_colors,
                         'jpgraph_line_colors': jpgraph_line_colors,
                         'plugin_options': plugin_options,
@@ -73,6 +74,7 @@
                         'datatype_array': datatype_array,
                         'datarecord_array': datarecord_array,
                         'target_datatype_id': target_datatype_id,
+                        'target_datarecord_id': datarecord.id,
 
                         'is_top_level': is_top_level,
                         'display_type': display_type,

@@ -5151,6 +5151,9 @@ if ($debug)
         }
 
         // Store the resulting array back in memcached before returning it
+        // TODO - There should be no need to store the redis data again.  Data should not
+        // be modified during the rendering of the object.  The plugins should not be called
+        // during the creation of redis data so something is messed up here.
         $redis->set($redis_prefix.'.datarecord_table_data_'.$datarecord_id, gzcompress(serialize($data)));
         return $data;
     }
