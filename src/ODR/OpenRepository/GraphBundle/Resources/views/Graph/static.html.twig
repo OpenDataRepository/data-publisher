@@ -109,7 +109,8 @@
                 {% for dr_id, nv_file_name in nv_output_files %}
                     <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1" {% if dr_id != "rollup" %}style="display: none;"{% endif %}>
                         {# Add call for image by URL Here #}
-                        <img class="pure-u-1" src="{{ path('odr_plugin_graph_static', { 'plugin_id': render_plugin.id, 'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id } ) }}" />
+                        <img class="pure-u-1" src="{{ path('odr_design_load_theme_list', { 'datatype_id': 0, } ) }}" />
+                        <img class="pure-u-1" src="{{ nv_file_name }}" />
                     </div><!-- end of .ODRGraph -->
                 {% endfor %}
             {% endif %}

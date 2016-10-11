@@ -302,6 +302,7 @@ class GraphPlugin
                 'is_link' => $rendering_options['is_link'],
                 'display_type' => $rendering_options['display_type'],
 
+                'render_plugin' => $render_plugin,
                 // Required for the rest of the graph plugin
                 'line_colors' => $this->line_colors,
                 'jpgraph_line_colors' => $this->jpgraph_line_colors,
