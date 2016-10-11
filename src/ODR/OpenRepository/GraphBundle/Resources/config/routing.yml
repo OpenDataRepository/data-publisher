@@ -1,3 +1,7 @@
 odr_open_repository_graph_homepage:
     path:  /hello/{name}
     defaults: { _controller: ODROpenRepositoryGraphBundle:Default:index }
+
+odr_plugin_graph_static:
+    path:  /graph/static/{plugin_id}/{datatype_id}/{datarecord_id}
+    defaults: { _controller: ODROpenRepositoryGraphBundle:Graph:static }
