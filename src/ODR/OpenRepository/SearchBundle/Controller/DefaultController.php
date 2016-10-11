@@ -1494,7 +1494,7 @@ if (isset($debug['timing'])) {
                     $conditions[] = '(ro.option_name '.$comparision.' :'.$key.' AND rs.selected = 1)';
 
                 $radio_search_params = array(
-                    'str' => implode(' OR ', $conditions),
+                    'str' => implode(' AND ', $conditions),
                     'params' => $general_search_params['params'],
                 );
 
