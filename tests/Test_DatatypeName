@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head profile="http://selenium-ide.openqa.org/profiles/test-case">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link rel="selenium.base" href="http://dev2.opendatarepository.org/" />
+<title>Test_DatatypeName</title>
+</head>
+<body>
+<table cellpadding="1" cellspacing="1" border="1">
+<thead>
+<tr><td rowspan="1" colspan="3">Test_DatatypeName</td></tr>
+</thead><tbody>
+<tr>
+	<td>rollup</td>
+	<td>odr_login</td>
+	<td></td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>//i[@onclick=&quot;jQuery('#ODRNav').toggle()&quot;]</td>
+	<td></td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>link=List Databases</td>
+	<td></td>
+</tr>
+<!--Required for test suite to wait for jQuery AJAX call to finish-->
+<tr>
+	<td>waitForEval</td>
+	<td>window.$.active</td>
+	<td>0</td>
+</tr>
+<!--Replace 1 with whichever datatype id you need-->
+<tr>
+	<td>clickAndWait</td>
+	<td>id=ODRDatatypeList_1_master_layout</td>
+	<td></td>
+</tr>
+<tr>
+	<td>click</td>
+	<td>id=ODRDatatype_1_properties</td>
+	<td></td>
+</tr>
+<tr>
+	<td>waitForEval</td>
+	<td>window.$.active</td>
+	<td>0</td>
+</tr>
+<tr>
+	<td>assertValue</td>
+	<td>id=UpdateDataTypeForm_short_name</td>
+	<td>test</td>
+</tr>
+<tr>
+	<td>rollup</td>
+	<td>odr_logout</td>
+	<td></td>
+</tr>
+
+</tbody></table>
+</body>
+</html>

@@ -1,4 +1,5 @@
 {% spaceless %}
+
 <div class="grid_12">
     <div class="box">
     
@@ -13,13 +14,14 @@
         <div class="content">
 
             {% if section == "design" %}
-                {% include 'ODRAdminBundle:Datatype:type_list_content_design.html.twig' with {'user': user, 'permissions': permissions, 'datatypes': datatypes, 'metadata': metadata } %}
+                {% include 'ODRAdminBundle:Datatype:type_list_content_design.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions, 'datatypes': datatypes, 'metadata': metadata } %}
             {% elseif section == "records" %}
-                {% include 'ODRAdminBundle:Datatype:type_list_content_records.html.twig' with {'user': user, 'permissions': permissions, 'datatypes': datatypes, 'metadata': metadata } %}
+                {% include 'ODRAdminBundle:Datatype:type_list_content_records.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions, 'datatypes': datatypes, 'metadata': metadata } %}
             {% endif %}
             
         </div><!-- End of .content -->
         
     </div><!-- End of .box -->
 </div><!-- End of .grid_12 -->
+
 {% endspaceless %}

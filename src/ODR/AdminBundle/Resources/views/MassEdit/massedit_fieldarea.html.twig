@@ -8,7 +8,6 @@
     <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
     <div class="ODRInnerBox">
 
-
     {% if theme_element.themeDataFields is defined %}
 
         {% for theme_datafield in theme_element.themeDataFields %}
@@ -55,6 +54,7 @@
                     'target_datatype_id': child_datatype.id,
                     'theme_id': child_theme_id,
 
+                    'datatype_permissions': datatype_permissions,
                     'datafield_permissions': datafield_permissions,
 
                     'is_top_level': 0

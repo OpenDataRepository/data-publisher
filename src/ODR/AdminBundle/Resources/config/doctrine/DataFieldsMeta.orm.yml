@@ -99,6 +99,11 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             default: false
             nullable: false
 
+        publicDate:
+            type: datetime
+            nullable: false
+            column: public_date
+
         created:
             type: datetime
             gedmo:

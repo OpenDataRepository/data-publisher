@@ -1,3 +1,5 @@
+{% spaceless %}
+
 {% set level = 0 %}
 {% for role in user.getroles %}
     {% if role == 'ROLE_SUPER_ADMIN' %}
@@ -12,59 +14,50 @@
         
 <div class="tabletools">
     {% if level > 1 %}
-    <div class="left">
-        <a class="ODRCreateDatatype Pointer"><i class="fa fa-lg fa-plus"></i>New Database</a>
+    <div>
+        <button id="ODRDatatypeList_createDatatype" class="pure-button pure-button-primary ODRCreateDatatype"><i class="fa fa-lg fa-plus"></i> New Database</button>
     </div>
     {% endif %}
-    {#% if level == 7 %}
-    <div class="left">
-        <a class="Pointer" onclick="recacheAll();"><i class="fa fa-lg fa-refresh"></i>Recache All Datatypes</a>
+{#
+    {% if level == 7 %}
+    <div>
+        <button id="ODRDatatypeList_recache" class="pure-botton pure-button-primary ODRRecacheAll"><i class="fa fa-lg fa-refresh"></i>Recache All Datatypes</button>
     </div>
-    {% endif #}
+    {% endif %}
+#}
 </div>
 
 <div id="ODRDataTypeListWrapper">
-<table id="ODRDatatypeList" class="{#pure-table pure-table-striped#}display dataTable">
+<table id="ODRDatatypeList" class="display dataTable">
     <thead>
         <tr>
             <th></th>
             <th></th>
-            <th>Type Name</th>
-            <th>Number of Records</th>
+            <th>Database Name</th>
+            <th>Viewable Records</th>
             <th>Master Layout</th>
             <th>Derivative Layouts</th>
-            <th>Download Schema</th>
+            <th>Manage Groups</th>
             <th>CSV Import</th>
-
-            {#{% if level > 1 %}#}
             <th>Delete</th>
-            {#{% endif %}#}
         </tr>
     </thead>
     <tbody>
     {% for datatype in datatypes %}
 
-        {% set can_view_datatype = false %}
-        {% set can_edit_datatype = false %}
-        {% set can_design_datatype = false %}
-        {% set is_type_admin = false %}
-        {% if permissions[ datatype.id ] is defined %}
-            {% if permissions[ datatype.id ][ 'view' ] is defined %}
-                {% set can_view_datatype = true %}
-            {% endif %}
-            {% if permissions[ datatype.id ][ 'edit' ] is defined %}
-                {% set can_edit_datatype = true %}
-            {% endif %}
-            {% if permissions[ datatype.id ][ 'design' ] is defined %}
-                {% set can_design_datatype = true %}
-            {% endif %}
-            {% if permissions[ datatype.id ][ 'admin' ] is defined %}
-                {% set is_type_admin = true %}
+        {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) %}
+
+        {# Pre-determine which permissions user has for this datatype... #}
+        {% set is_datatype_admin = false %}
+
+        {% if datatype_permissions[ datatype.id ] is defined %}
+            {% if datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+                {% set is_datatype_admin = true %}
             {% endif %}
         {% endif %}
 
-        {#{% if datatype.ispublic == true or can_view_datatype == true %}#}
-        {% if can_view_datatype == true %}
+
+        {% if is_datatype_admin == true %}
         <tr>
             <td>{{ datatype.id }}</td>
             <td>
@@ -72,7 +65,7 @@
                     <i class="fa fa-lg fa-info-circle"></i>
                     <span class="ODRDatatypeInfo">
                         <div>
-                            <b>Created By: </b>{{ datatype.createdBy.getuserstring }}<b> on </b>{{ datatype.created|date('Y-m-d') }}
+                            <b>Created By: </b>{{ datatype.createdBy|user_string }}<b> on </b>{{ datatype.created|date('Y-m-d') }}
                         </div>
                         <div>
                             <b>Description: </b>{{ datatype.dataTypeMeta.description }}
@@ -80,53 +73,56 @@
                     </span>
                 </span>
             </td>
-            <td id="datatype_{{ datatype.id }}_name">{{ datatype.dataTypeMeta.shortName }}</td>
+            <td id="ODRDatatypeList_{{ datatype.id }}_name">{{ datatype.dataTypeMeta.shortName }}</td>
 
-            {% set found = false %}
-            {% for datatype_id, data in metadata %}
-                {% if datatype_id == datatype.id %}
-                    {% set found = true %}
-                    <td class="center">{{ data.count }}</td>
-                {% endif %}
-            {% endfor %}
 
-            {% if found == false %}
-                <td class="center">0</td>
+            {# number of datarecords for this datatype #}
+            {% set datarecord_count = 0 %}
+            {% if metadata[ datatype.id ] is defined %}
+                {% set datarecord_count = metadata[ datatype.id ] %}
             {% endif %}
+            <td id="ODRDatarecordList_{{ datatype.id }}_count">{{ datarecord_count }}</td>
 
-            {% if can_design_datatype == true %}
-                {# If user has design permissions... #}
-                {% if datatype.dataTypeMeta.searchslug == '' %}
-                    <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a></td>
-                    <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
-                {% else %}
-                    <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchslug } ) }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a></td>
-                    <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchslug } ) }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a></td>
-                {% endif %}
+
+            {# master layout designer link #}
+            <td>
+            {% if datatype.dataTypeMeta.searchSlug == '' %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
             {% else %}
-                {# Otherwise, print out nothing #}
-                <td class="center"></td>
-                <td class="center"></td>
+                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
             {% endif %}
+            </td>
 
-                <td class="center"><a class="Pointer" onclick="downloadXSD({{ datatype.id }});"><i class="fa fa-lg fa-download"></i>&nbsp;Download</a></td>
-
-            {% if can_design_datatype == true and can_edit_datatype == true %}
-                {% if datatype.dataTypeMeta.searchSlug == '' %}
-                    <td class="center"><a class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a></td>
-                {% else %}
-                    <td class="center"><a class="address" href="{{ path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-upload"></i>&nbsp;Import</a></td>
-                {% endif %}
+            {# derivative layout designer link #}
+            <td>
+            {% if datatype.dataTypeMeta.searchSlug == '' %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
             {% else %}
-                <td class="center"></td>
+                <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a>
             {% endif %}
+            </td>
 
-            {% if level == 7 or is_type_admin == true %}
-                <td class="center"><a style="cursor:pointer;" onclick="deleteDataType({{ datatype.id }});"><i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete</a></td>
-            {#{% elseif level > 1 %}#}
+
+            {# Group management link for this datatype #}
+            <td>
+                <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups" class="address" href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-cog"></i>&nbsp;Manage Groups</a>
+            </td>
+
+
+            {# CSV import link for this datatype #}
+            <td>
+            {% if datatype.dataTypeMeta.searchSlug == '' %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_csv_import" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
             {% else %}
-                <td class="center"></td>
+                <a class="address" href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-upload"></i>&nbsp;Import</a>
             {% endif %}
+            </td>
+
+
+            {# deletion link for this datatype #}
+            <td>
+                <a id="ODRDatatypeList_{{ datatype.id }}_delete" class="Pointer" onclick="deleteDataType({{ datatype.id }});"><i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete</a>
+            </td>
         </tr>
         {% endif %}
     {% endfor %}
@@ -162,6 +158,13 @@
             // Open the dialog to create a new datatype
             $("#dialog_add_datatype").dialog( "open" );
         });
+{#
+        $(".ODRRecacheAll").unbind('click').click(function() {
+            if ( confirm("This will rebuild all cache entries for all datatypes.") ) {
+                recacheAll();
+            }
+        });
+#}
 
         $("#ODRDatatypeList").dataTable({
             "columnDefs": [
@@ -180,7 +183,8 @@
                 headerOffset: 42
             },
             responsive: true,
-            "paging": true,
+//            "paging": true,
+            "paging": false,
             "info": false,
             "language": {
                 "emptyTable": "No Datatypes found"
@@ -191,7 +195,7 @@
     });
 
     function deleteDataType(datatype_id) {
-        var datatype_name = $("#datatype_" + datatype_id + "_name").html();
+        var datatype_name = $("#ODRDatatypeList_" + datatype_id + "_name").html();
 
         if( confirm("Are you sure you want to delete the \"" + datatype_name + "\" datatype and all associated datarecords?") ) {
             // Delete the datatype selected
@@ -208,7 +212,6 @@
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
                         // Reload this area of the page
-                        //window.location.replace( "{{ path('odr_admin_homepage') }}" + "#" + "{{ path('odr_list_types', { 'section': 'design' }) }}" );
                         window.location.reload(true);
                     }
                     else {
@@ -232,49 +235,42 @@
             });
         }
     }
-
+{#
     function recacheAll() {
-        if( confirm("This will rebuild all cache entries for all datatypes.") ) {
-            // Delete the datatype selected
-            var url = '{{ path('odr_recache_all') }}';
+        // Rebuild all cache entries for all datatypes
+        var url = '{{ path('odr_recache_all') }}';
 
-            var dataType = "json";
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: dataType,
-                success: function(data, textStatus, jqXHR) {
-                    if (data.r == 0) {
-                        alert( 'All DataTypes scheduled for recache...this may take awhile...' );
-                    }
-                    else {
-                        // Error occurred
-                        alert( data.d );
-                    }
-                },
-                complete: function(jqXHR, textStatus) {
-                    // Get the xdebugToken from response headers
-                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                    // If the Sfjs object exists
-                    if (typeof Sfjs !== "undefined") {
-                        // Grab the toolbar element
-                        var currentElement = $('.sf-toolbar')[0];
-
-                        // Load the data of the given xdebug token into the current toolbar wrapper
-                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                    }
+        var dataType = "json";
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: dataType,
+            success: function(data, textStatus, jqXHR) {
+                if (data.r == 0) {
+                    alert( 'All DataTypes scheduled for recache...this may take awhile...' );
                 }
-            });
-        }
-    }
+                else {
+                    // Error occurred
+                    alert( data.d );
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
-    function downloadXSD(datatype_id) {
-        var url = '{{ path('odr_get_datatype_xsd', { 'version': 'v1', 'datatype_id': 0 }) }}';
-        url = url.substring(0, (url.length - 1));
-        url += datatype_id;
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
 
-        document.location = url;
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
     }
+#}
 </script>
+
+{% endspaceless %}

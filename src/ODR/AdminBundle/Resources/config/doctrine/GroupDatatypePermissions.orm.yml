@@ -1,0 +1,97 @@
+ODR\AdminBundle\Entity\GroupDatatypePermissions:
+    type: entity
+    table: odr_group_datatype_permissions
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        can_view_datatype:
+            type: boolean
+            nullable: false
+            default: false
+
+        can_view_datarecord:
+            type: boolean
+            nullable: false
+            default: false
+        can_add_datarecord:
+            type: boolean
+            nullable: false
+            default: false
+        can_delete_datarecord:
+            type: boolean
+            nullable: false
+            default: false
+
+        can_design_datatype:
+            type: boolean
+            nullable: false
+            default: false
+        is_datatype_admin:
+            type: boolean
+            nullable: false
+            default: false
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+
+    manyToOne:
+        group:
+            targetEntity: Group
+            cascade: {  }
+            mappedBy: null
+            inversedBy: groupDatatypePermissions
+            joinColumns:
+                group_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        dataType:
+            targetEntity: DataType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }

@@ -1,6 +1,7 @@
 {% spaceless %}
+
 {% set can_edit_record = 0 %}
-{% if user_permissions[ datatype.id ] is defined and (user_permissions[ datatype.id ][ 'edit' ] is defined or user_permissions[ datatype.id ][ 'child_edit' ] is defined) %}
+{% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
     {% set can_edit_record = 1 %}
 {% endif %}
 

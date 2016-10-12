@@ -105,6 +105,11 @@ class DataFieldsMeta
     /**
      * @var \DateTime
      */
+    private $publicDate;
+
+    /**
+     * @var \DateTime
+     */
     private $created;
 
     /**
@@ -496,6 +501,29 @@ class DataFieldsMeta
     public function getUserOnlySearch()
     {
         return $this->user_only_search;
+    }
+
+    /**
+     * Set publicDate
+     *
+     * @param \DateTime $publicDate
+     * @return DataFieldsMeta
+     */
+    public function setPublicDate($publicDate)
+    {
+        $this->publicDate = $publicDate;
+
+        return $this;
+    }
+
+    /**
+     * Get publicDate
+     *
+     * @return \DateTime
+     */
+    public function getPublicDate()
+    {
+        return $this->publicDate;
     }
 
     /**

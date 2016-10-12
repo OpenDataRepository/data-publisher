@@ -21,7 +21,7 @@
                     {% endif %}
 
                     {% if theme.themeType == 'derivative' %}
-                        {% set count = count = 1 %}
+                        {% set count = count + 1 %}
                         <div class="pure-u-1">
                             <span style="float:left;">
                                 <i class="fa fa-lg fa-info-circle Pointer ODRThemeProperties" title="Theme Properties" rel="{{ theme.id }}"></i>
@@ -42,7 +42,7 @@
                 {% if count == 0 %}
                         <div class="pure-u-1">
                             <span class="Cursor" style="padding-left:15px; color: red;">
-                                No Search Results Themes exist!
+                                No Derivative Themes exist!
                             </span>
                         </div>
                 {% endif %}

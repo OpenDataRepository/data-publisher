@@ -31,7 +31,7 @@ function initPage() {
     // Resize all elements dependent on window size
     $(window).unbind('resize');
     $(window).resize(function() {
-        WindowResizeInterval = window.clearInterval(WindowResizeInterval);
+        WindowResizeInterval = window.clearInterval(WindowResizeInterval);      // WindowResizeInterval variable defined in common.js
         WindowResizeInterval = window.setInterval("onWindowResize()", 500);
     });
 
@@ -47,11 +47,12 @@ function initPage() {
     // Hide empty theme element divs
     $(".ODRThemeElement").each(function() {
         var has_children = false;
-        $(this).find(".ODRFieldArea").each(function() {
+        $(this).find(".ODRDataField").each(function() {
             has_children = true;
         });
 
-        $(this).find(".ODRDataField").each(function() {
+        $(this).find(".ODRRenderPluginContent").each(function() {
+            // Also don't hide the theme element if a render plugin exists
             has_children = true;
         });
 

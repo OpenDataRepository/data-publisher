@@ -33,17 +33,13 @@
     <div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
 
         {% include 'ODRAdminBundle:Default:fieldarea_header.html.twig' with {
-            'datatype_array': datatype_array,
-            'datarecord_array': datarecord_array,
-
-            'target_datatype_id': target_datatype_id,
-            'parent_datarecord_id': parent_datarecord_id,
+            'datatype': datatype,
+            'datarecord_list': datarecord_list,
 
             'is_top_level': is_top_level,
             'is_link': is_link,
             'display_type': display_type
         } %}
-
 
         {% for num, datarecord in datarecord_list %}
 {#

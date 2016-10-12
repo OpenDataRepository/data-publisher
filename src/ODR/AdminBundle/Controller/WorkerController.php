@@ -19,30 +19,14 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataFieldsMeta;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
-use ODR\AdminBundle\Entity\DataRecordMeta;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
-use ODR\AdminBundle\Entity\FileMeta;
 use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\ImageMeta;
 use ODR\AdminBundle\Entity\ImageSizes;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RadioOptionsMeta;
 use ODR\AdminBundle\Entity\RadioSelection;
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeElementField;
-use ODR\AdminBundle\Entity\ThemeElementMeta;
-use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
@@ -72,6 +56,9 @@ class WorkerController extends ODRCustomController
         $ret = '';
 
         try {
+
+            throw new \Exception('DO NOT CONTINUE');
+
             $post = $_POST;
             if ( !isset($post['tracked_job_id']) || !isset($post['datarecord_id']) || !isset($post['api_key']) || !isset($post['scheduled_at']) )
                 throw new \Exception('Invalid Form');
@@ -298,16 +285,6 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                 throw new \Exception('Datafield '.$datafield_id.' is deleted');
 
 
-            // Create a new datarecord field entity if it doesn't exist
-            $em->refresh($datafield);
-            /** @var DataRecordFields $drf */
-            $drf = $repo_datarecordfields->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
-            if ($drf == null) {
-                $drf = parent::ODR_addDataRecordField($em, $user, $datarecord, $datafield);
-                $em->flush();
-                $em->refresh($drf);
-            }
-
             // Radio options need typename to distinguish...
             $old_typename = $old_fieldtype->getTypeName();
             $new_typename = $new_fieldtype->getTypeName();
@@ -359,7 +336,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
                 $src_repository = $em->getRepository('ODRAdminBundle:'.$old_typeclass);
 
                 // Grab the entity that needs to be migrated
-                $src_entity = $src_repository->findOneBy(array('dataField' => $datafield->getId(), 'dataRecordFields' => $drf->getId()));
+                $src_entity = $src_repository->findOneBy(array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()));
 
                 // No point migrating anything if the src entity doesn't exist in the first place...would be no data in it
                 if ($src_entity !== null) {
@@ -422,8 +399,7 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 
                     // TODO - code to directly update the cached version of the datarecord
                     // Locate and clear the cache entry for this datarecord
-                    $grandparent_datarecord_id = $datarecord->getGrandparent()->getId();
-                    $redis->del($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
+                    parent::tmp_updateDatarecordCache($em, $datarecord->getGrandparent(), $user);
                 }
                 else {
                     $ret .= '>> No '.$old_typeclass.' source entity for datarecord "'.$datarecord->getId().'" datafield "'.$datafield->getId().'", skipping'."\n";
@@ -446,15 +422,9 @@ $logger->info('WorkerController::recacherecordAction() >> Ignored update request
 $ret .= '  Set current to '.$count."\n";
             }
 
-/*
-            // ----------------------------------------
-            // Schedule the datarecord for an update
-            $options = array();
-            parent::updateDatarecordCache($datarecord_id, $options);
 
-            $logger->info('WorkerController:migrateAction()  >> scheduled DataRecord '.$datarecord_id.' for update');
-            $ret .= '>> scheduled DataRecord '.$datarecord_id.' for update'."\n";
-*/
+            // ----------------------------------------
+            // Delete the cached versions of this datarecord
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
 
             $return['d'] = $ret;
@@ -887,473 +857,142 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
-     * Debug function...checks for non-deleted datarecord entities belonging to deleted datatypes
-     *
-     * @param Request $request
-     *
-     * @return string
-     */
-    public function drcheckAction(Request $request)
-    {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-        $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
-
-        $em->getFilters()->disable('softdeleteable');
-        $query = $em->createQuery(
-           'SELECT dt.id AS dt_id, dr.id AS dr_id
-            FROM ODRAdminBundle:DataRecord AS dr
-            JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-            WHERE dt.deletedAt IS NOT NULL AND dr.deletedAt IS NULL
-            ORDER BY dt.id, dr.id');
-        $results = $query->getArrayResult();
-        $em->getFilters()->enable('softdeleteable');
-
-print '<pre>';
-        foreach ($results as $result) {
-            $datatype_id = $result['dt_id'];
-            $datarecord_id = $result['dr_id'];
-
-            print 'DataRecord '.$datarecord_id.' (DataType '.$datatype_id.') was not deleted'."\n";
-
-            // Delete DataRecordField entries for this datarecord
-            // TODO - do this with a DQL update query?
-            $query = $em->createQuery(
-               'SELECT drf.id AS drf_id
-                FROM ODRAdminBundle:DataRecordFields AS drf
-                WHERE drf.dataRecord = :datarecord'
-            )->setParameters( array('datarecord' => $datarecord_id) );
-            $results = $query->getResult();
-            foreach ($results as $num => $data) {
-                $drf_id = $data['drf_id'];
-                print '-- deleting drf '.$drf_id."\n";
-
-                /** @var DataRecordFields $drf */
-                $drf = $repo_datarecordfields->find($drf_id);
-                $em->remove($drf);
-            }
-
-            /** @var DataRecord $datarecord */
-            $datarecord = $repo_datarecord->find($datarecord_id);
-            $em->remove($datarecord);
-        }
-print '</pre>';
-
-        $em->flush();
-    }
-
-
-    /**
-     * Debug function...checks for orphaned datarecordfield entities that somehow didn't get deleted after a datafield got deleted
-     *
-     * @param Request $request
-     *
-     * @return string
-     */
-    public function dfcheckAction(Request $request)
-    {
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
-
-        $em->getFilters()->disable('softdeleteable');
-        $query = $em->createQuery(
-           'SELECT df.id AS df_id, ft.typeName AS type_name
-            FROM ODRAdminBundle:DataFields AS df
-            JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-            JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-            JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
-            WHERE df.deletedAt IS NOT NULL AND dt.deletedAt IS NULL AND dfm.deletedAt IS NULL
-            ORDER BY df.id'
-        );
-        $datafields = $query->getResult();
-        $em->getFilters()->enable('softdeleteable');
-
-print '<pre>';
-        foreach ($datafields as $tmp) {
-            $datafield_id = $tmp['df_id'];
-            $type_name = $tmp['type_name'];
-            print "\n".'DataField '.$datafield_id.' ('.$type_name.')'."\n";
-
-            $query = $em->createQuery(
-               'SELECT drf.id AS drf_id, dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecordFields AS drf
-                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                WHERE drf.dataField = :datafield
-                AND drf.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield_id) );
-            $results = $query->getResult();
-
-            $entries = array();
-            foreach ($results as $result) {
-                $datarecord_id = $result['dr_id'];
-                $datarecordfield_id = $result['drf_id'];
-
-                print '-- drf '.$datarecordfield_id.' (dr '.$datarecord_id.', df '.$datafield_id.') was not deleted'."\n";
-
-                /** @var DataRecordFields $drf */
-                $drf = $repo_datarecordfields->find($datarecordfield_id);
-                $em->remove($drf);
-            }
-            print "\n";
-        }
-
-        $em->flush();
-
-print '</pre>';
-    }
-
-
-    /**
-     * Debuf function...checks for duplicate datarecordfield entities (those that share the same datarecord/datafield key pair)
-     * TODO - check for non-deleted drf entities that point to deleted datarecords? 
+     * Debug function...clears existing cached versions of datatypes (optionally for a specific datatype).
+     * Should only be used when changes have been made to the structure of the cached array for datatypes
      *
      * @param integer $datatype_id
      * @param Request $request
-     * 
-     * @return string
+     *
+     * @return Response
      */
-    public function drfcheckAction($datatype_id, Request $request)
+    public function dtclearAction($datatype_id, Request $request)
     {
-        $delete_entities = true;
-        $delete_entities = false;
-
-        $deleted_entities = array();
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        $query = $em->createQuery(
-           'SELECT df.id AS df_id, ft.typeName AS type_name
-            FROM ODRAdminBundle:DataFields AS df
-            JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-            JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-            JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
-            WHERE dt.id = :datatype
-            AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND df.deletedAt IS NULL AND dt.deletedAt IS NULL
-            ORDER BY df.id'
-        )->setParameters( array('datatype' => $datatype_id) );
-        $datafields = $query->getArrayResult();
-print '<pre>';
-        foreach ($datafields as $tmp) {
-            $datafield_id = $tmp['df_id'];
-            $type_name = $tmp['type_name'];
-            print "\n".'DataField '.$datafield_id.' ('.$type_name.')'."\n";
+        /** @var User $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+        if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+            return parent::permissionDeniedError();
+
+        $results = array();
+        if ($datatype_id == 0) {
             $query = $em->createQuery(
-               'SELECT drf.id AS drf_id, dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecordFields AS drf
-                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                WHERE drf.dataField = :datafield
-                AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield_id) );
-            $results = $query->getResult();
+               'SELECT dt.id AS dt_id
+                FROM ODRAdminBundle:DataType AS dt');
 
-//print_r($results);
-
-            $entries = array();
-            foreach ($results as $result) {
-                $datarecord_id = $result['dr_id'];
-                $datarecordfield_id = $result['drf_id'];
-
-                if ( isset($entries[$datarecord_id]) ) {
-                    print '-- DataRecord '.$datarecord_id.': duplicate datarecordfield entry '.$datarecordfield_id.' (had '.$entries[$datarecord_id].')'."\n";
-
-                    /** @var DataRecordFields $old_drf */
-                    $old_drf = $repo_datarecordfields->find($entries[$datarecord_id]);
-                    /** @var DataRecordFields $new_drf */
-                    $new_drf = $repo_datarecordfields->find($datarecordfield_id);
-                    $fieldtype = $old_drf->getDataField()->getFieldType()->getTypeClass();
-                    $skip = false;
-                    $delete_new_drf = true;
-                    switch ($fieldtype) {
-                        case 'Radio':
-                            $query = $em->createQuery(
-                               'SELECT drf.id AS drf_id, rom.optionName AS option_name
-                                 FROM ODRAdminBundle:RadioOptions AS ro
-                                 JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
-                                 JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
-                                 JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
-                                 WHERE ro.dataField = :datafield AND (drf.id = :old_drf OR drf.id = :new_drf) AND rs.selected = 1
-                                 AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL'
-                            )->setParameters( array('datafield' => $datafield_id, 'old_drf' => $old_drf->getId(), 'new_drf' => $new_drf->getId()) );
-                            $sub_results = $query->getResult();
-//print_r($sub_results);
-                            $old = array();  $new = array();
-                            foreach ($sub_results as $sub_result) {
-                                $drf_id = $sub_result['drf_id'];
-                                $option_name = $sub_result['option_name'];
-                                if ($drf_id == $old_drf->getId())
-                                    $old[] = $option_name;
-                                else
-                                    $new[] = $option_name;
-                            }
-                            $old_str = implode(', ', $old);
-                            $new_str = implode(', ', $new);
-                            if ( strcmp($old_str, $new_str) !== 0 )
-                                print '-- -- old values: "'.implode(', ', $old).'" new values: "'.implode(', ', $new).'"'."\n";
-                            else
-                                print '-- -- values are identical'."\n";
-
-                            if ( $old_str == '' && $new_str != '' )
-                                $delete_new_drf = false;
-                            else if ( $old_str != '' && $new_str != '' )
-                                $skip = true;
-
-                            break;
-
-                        case 'DatetimeValue':
-                            if ($old_drf->getAssociatedEntity() == null) {
-                                // old drf doesn't point to a storage entity, get rid of it
-                                $delete_new_drf = false;
-                                print '-- -- no old value'."\n";
-                            }
-                            else if ($new_drf->getAssociatedEntity() == null) {
-                                // new drf doesn't point to a storage entity, get rid of it
-                                $delete_new_drf = true;
-                                print '-- -- no new value'."\n";
-                            }
-                            else {
-                                $old_value = $old_drf->getAssociatedEntity()->getValue();
-                                $old_value = $old_value->format('Y-m-d');
-                                $new_value = $new_drf->getAssociatedEntity()->getValue();
-                                $new_value = $new_value->format('Y-m-d');
-
-                                if ( strcmp($old_value, $new_value) !== 0 )
-                                    print '-- -- old value: "'.$old_value.'" new value: "'.$new_value.'"'."\n";
-                                else
-                                    print '-- -- values are identical'."\n";
-
-                                if ( $old_value == '9999-12-31' && $new_value != '9999-12-31' )
-                                    $delete_new_drf = false;
-                                else if ( $old_value != '9999-12-31' && $new_value != '9999-12-31' )
-                                    $skip = true;
-                            }
-
-                            break;
-
-                        case 'Boolean':
-                        case 'ShortVarchar':
-                        case 'MediumVarchar':
-                        case 'LongVarchar':
-                        case 'LongText':
-                        case 'IntegerValue':
-                            if ($old_drf->getAssociatedEntity() == null) {
-                                // old drf doesn't point to a storage entity, get rid of it
-                                $delete_new_drf = false;
-                                print '-- -- no old value'."\n";
-                            }
-                            else if ($new_drf->getAssociatedEntity() == null) {
-                                // new drf doesn't point to a storage entity, get rid of it
-                                $delete_new_drf = true;
-                                print '-- -- no new value'."\n";
-                            }
-                            else {
-                                $old_value = $old_drf->getAssociatedEntity()->getValue();
-                                $new_value = $new_drf->getAssociatedEntity()->getValue();
-                                if ( strcmp($old_value, $new_value) !== 0 )
-                                    print '-- -- old value: "'.$old_value.'" new value: "'.$new_value.'"'."\n";
-                                else
-                                    print '-- -- values are identical'."\n";
-
-                                if ( $old_value == '' && $new_value != '' )
-                                    $delete_new_drf = false;
-                                else if ( $old_value != '' && $new_value != '' )
-                                    $skip = true;
-                            }
-
-                            break;
-
-                        case 'File':
-                        case 'Image':
-                            $skip = true;
-                            break;
-                    }
-
-                    if (!$skip) {
-                        if ($delete_new_drf) {
-                            $deleted_entities[] = $new_drf->getId();
-                            if ($delete_entities) {
-                                $em->remove($new_drf);
-                                print '-- >> new drf deleted'."\n";
-                            }
-                            else {
-                                print '-- >> new drf would be deleted'."\n";
-                            }
-                        }
-                        else {
-                            $deleted_entities[] = $old_drf->getId();
-                            if ($delete_entities) {
-                                $em->remove($old_drf);
-                                print '-- >> old drf deleted'."\n";
-                            }
-                            else {
-                                print '-- >> old drf would be deleted'."\n";
-                            }
-                        }
-
-                        if ($delete_entities)
-                            $em->flush();
-                    }
-
-                }
-                else {
-                    $entries[$datarecord_id] = $datarecordfield_id;
-                }
-            }
+            $results = $query->getArrayResult();
+        }
+        else {
+            $results = array('dt_id' => $datatype_id);
         }
 
-if ($delete_entities)
-   print "\n".'Deleted these drf entities...'."\n";
-else
-   print "\n".'Would deleted these drf entities...'."\n";
 
-print_r($deleted_entities);
-print '</pre>';
+        foreach ($results as $result) {
+            $dt_id = $result['dt_id'];
+
+            $redis->del($redis_prefix.'.cached_datatype_'.$dt_id);
+        }
+
+        $return = array(
+            'r' => 0,
+            't' => '',
+            'd' => '',
+        );
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
     /**
-     * Debug function...check for duplicate storage entities (those with the same datarecord/datafield key pair)
-     * TODO ...
-     * 
+     * Debug function...clears existing cached versions of datarecords (optionally for a given datatype).
+     * Should only be used when changes have been made to the structure of the cached array for datarecords
+     *
+     * @param integer $datatype_id
      * @param Request $request
-     * 
-     * @return string
+     *
+     * @return Response
      */
-    public function entitycheckAction($datatype_id, Request $request)
+    public function drclearAction($datatype_id, Request $request)
     {
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-print '<pre>';
+        /** @var User $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-        $all_entities = array('boolean', 'file', 'image', 'integerValue', 'longText', 'longVarchar', 'mediumVarchar', 'radioSelection', 'shortVarchar', 'datetimeValue', 'decimalValue');
-        $single_entities = array('boolean', /*'file', 'image',*/ 'integerValue', 'longText', 'longVarchar', 'mediumVarchar', /*'radioSelection',*/ 'shortVarchar', 'datetimeValue', 'decimalValue');
+        if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+            return parent::permissionDeniedError();
 
-        $table_names = array(
-            'shortVarchar' => 'odr_short_varchar',
-            'mediumVarchar' => 'odr_medium_varchar',
-            'longVarchar' => 'odr_long_varchar',
-            'longText' => 'odr_long_text',
-
-            'integerValue' => 'odr_integer_value',
-            'decimalValue' => 'odr_decimal_value',
-            'datetimeValue' => 'odr_datetime_value',
-
-            'boolean' => 'odr_boolean',
-
-            'file' => 'odr_file',
-            'image' => 'odr_image',
-
-            'radioSelection' => 'DO NOT RUN',
-        );
-
-        $query = $em->createQuery(
-           'SELECT dr.id AS dr_id
-            FROM ODRAdminBundle:DataRecord AS dr
-            WHERE dr.dataType = :datatype_id
-            AND dr.deletedAt IS NULL'
-        )->setParameters( array('datatype_id' => $datatype_id) );
+        $query = null;
+        if ($datatype_id == 0) {
+            $query = $em->createQuery(
+               'SELECT dr.id AS dr_id
+                FROM ODRAdminBundle:DataRecord AS dr');
+        }
+        else {
+            $query = $em->createQuery(
+               'SELECT dr.id AS dr_id
+                FROM ODRAdminBundle:DataRecord AS dr
+                WHERE dr.dataType = :datatype_id'
+            )->setParameters( array('datatype_id' => $datatype_id) );
+        }
         $results = $query->getArrayResult();
 
-        $datarecord_ids = array();
-        foreach ($results as $result)
-            $datarecord_ids[] = $result['dr_id'];
+        foreach ($results as $result) {
+            $dr_id = $result['dr_id'];
 
-        $queries = array();
-
-        $step = 50;
-        $count = 0;
-        while (true) {
-            $dr_ids = array();
-            for ($i = $count; $i < ($count + $step); $i++) {
-                if ( !isset($datarecord_ids[$i]) )
-                    break;
-
-                $dr_ids[] = $datarecord_ids[$i];
-            }
-print '-- '.$count."\n";
-            if ( count($dr_ids) == 0 )
-                break;
-
-            $count += $step;
-
-            $query = $em->createQuery(
-               'SELECT dr, drf, e_f, e_i, e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv, rs, df, dfm, ft
-                FROM ODRAdminBundle:DataRecord AS dr
-                LEFT JOIN dr.dataRecordFields AS drf
-                LEFT JOIN drf.file AS e_f
-                LEFT JOIN drf.image AS e_i
-                LEFT JOIN drf.boolean AS e_b
-                LEFT JOIN drf.integerValue AS e_iv
-                LEFT JOIN drf.decimalValue AS e_dv
-                LEFT JOIN drf.longText AS e_lt
-                LEFT JOIN drf.longVarchar AS e_lvc
-                LEFT JOIN drf.mediumVarchar AS e_mvc
-                LEFT JOIN drf.shortVarchar AS e_svc
-                LEFT JOIN drf.datetimeValue AS e_dtv
-                LEFT JOIN drf.radioSelection AS rs
-                    
-                LEFT JOIN drf.dataField AS df
-                LEFT JOIN df.dataFieldMeta AS dfm
-                LEFT JOIN dfm.fieldType AS ft
-                
-                WHERE dr.id IN (:datarecord_ids)
-                    AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL'
-            )->setParameters(array('datarecord_ids' => $dr_ids));
-            $results = $query->getArrayResult();
-
-            foreach ($results as $num => $dr) {
-                foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
-                    //
-                    $entity = '';
-                    foreach ($all_entities as $typeclass) {
-                        if ( count($drf[$typeclass]) > 0 ) {
-                            if ($entity == '')
-                                $entity = $typeclass;
-                            else {
-                                $dr_id = $dr['id'];
-                                $df_id = $drf['dataField']['id'];
-                                $fieldtype = lcfirst( $drf['dataField']['dataFieldMeta'][0]['fieldType']['typeClass'] );
-
-                                print 'datarecord '.$dr_id.' df '.$df_id.' has both a "'.$entity.'" and a "'.$typeclass.'" entry...current fieldtype is "'.$fieldtype.'"'."\n";
-
-                                $old_fieldtype = '';
-                                if ($fieldtype == 'radio') {
-                                    if ($entity == 'radioSelection')
-                                        $old_fieldtype = $typeclass;
-                                    else
-                                        $old_fieldtype = $entity;
-                                }
-                                else if ($fieldtype == $entity) {
-                                    $old_fieldtype = $typeclass;
-                                }
-                                else {
-                                    $old_fieldtype = $entity;
-                                }
-
-                                if ( !isset($queries[$df_id]) )
-                                    $queries[$df_id] = 'UPDATE '.$table_names[$old_fieldtype].' SET deletedAt = NOW() WHERE deletedAt IS NULL AND data_field_id = '.$df_id.';';
-                            }
-                        }
-                    }
-
-                    foreach ($single_entities as $typeclass) {
-                        if ( count($drf[$typeclass]) > 1 )
-                            print 'datarecord '.$dr['id'].' drf '.$drf['dataField']['id'].' has multiples entries for the "'.$typeclass.'" typeclass'."\n";
-                    }
-                }
-            }
-
-//break;
+            $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
+            $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
         }
 
-print "\n\n\n";
-foreach ($queries as $df_id => $query)
-    print $query."\n";
-print '</pre>';
+        $return = array(
+            'r' => 0,
+            't' => '',
+            'd' => '',
+        );
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Debug function...clears all existing cached search result.
+     */
+    public function searchclearAction(Request $request)
+    {
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+        /** @var User $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+        if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+            return parent::permissionDeniedError();
+
+        $redis->del($redis_prefix.'.cached_search_results');
+
+        $return = array(
+            'r' => 0,
+            't' => '',
+            'd' => '',
+        );
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
@@ -1617,135 +1256,212 @@ print '</pre>';
 
 
     /**
-     * Debug function...deletes radio selection entities belonging to deleted radio options
-     *
      * @param Request $request
      *
+     * @return Response
+     * @throws \Exception
      */
-    public function deletedradiocheckAction(Request $request)
+    public function startbuildgroupdataAction(Request $request)
     {
-//return;
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
 
-        $em->getFilters()->disable('softdeleteable');
-        $query = $em->createQuery(
-           'SELECT ro.id AS ro_id
-            FROM ODRAdminBundle:RadioOptions AS ro
-            WHERE ro.deletedAt IS NOT NULL
-            ORDER BY ro.id');
-        $results = $query->getArrayResult();
-        $em->getFilters()->enable('softdeleteable');
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $pheanstalk = $this->get('pheanstalk');
+            $router = $this->container->get('router');
 
-        foreach ($results as $num => $tmp) {
-            $radio_option_id = $tmp['ro_id'];
+            $redis = $this->container->get('snc_redis.default');;
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
-            $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:RadioSelection AS rs
-                SET rs.deletedAt = :now
-                WHERE rs.radioOption = :radio_option_id AND rs.deletedAt IS NULL'
-            )->setParameters( array('now' => new \DateTime(), 'radio_option_id' => $radio_option_id) );
-//            $updated = $query->execute();
+            $api_key = $this->container->getParameter('beanstalk_api_key');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                return parent::permissionDeniedError();
+            // --------------------
+
+
+            // Generate the url for cURL to use
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_group_metadata');
+
+
+            $top_level_datatypes = parent::getTopLevelDatatypes();
+            foreach ($top_level_datatypes as $num => $dt_id) {
+                // Insert the new job into the queue
+                $priority = 1024;   // should be roughly default priority
+                $payload = json_encode(
+                    array(
+                        "object_type" => 'datatype',
+                        "object_id" => $dt_id,
+                        "redis_prefix" => $redis_prefix,    // debug purposes only
+                        "url" => $url,
+                        "api_key" => $api_key,
+                    )
+                );
+                $delay = 1;
+                $pheanstalk->useTube('build_metadata')->put($payload, $priority, $delay);
+            }
         }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = '0x1878321483: '.$e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
     /**
-     * displays/deletes duplicate radio selection options
-     *
-     * @param integer $datatype_id
      * @param Request $request
      *
-     * @return string
+     * @return Response
      */
-    public function duplicateradiocheckAction($datatype_id, Request $request)
+    public function buildgroupdataAction(Request $request)
     {
-        $delete = true;
-        $delete = false;
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
 
-        // Get necessary objects
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
+        try {
+            $post = $_POST;
+            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
+                throw new \Exception('Invalid Form');
 
-        // Figure out how many radio selection entities exist for this datatype
-        $query =
-            'SELECT COUNT(rs.id) AS num
-            FROM odr_radio_selection AS rs
-            LEFT JOIN odr_data_record_fields AS drf ON rs.data_record_fields_id = drf.id
-            LEFT JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
-            WHERE dr.data_type_id = :datatype_id
-            AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
-            ORDER BY drf.id, rs.radio_option_id';
-        $parameters = array('datatype_id' => $datatype_id);
+            throw new \Exception('DO NOT CONTINUE');
 
-        // Execute and return the native SQL query
-        $conn = $em->getConnection();
-        $results = $conn->fetchAll($query, $parameters);
+            // Pull data from the post
+            $object_type = $post['object_type'];
+            $object_id = $post['object_id'];
+            $api_key = $post['api_key'];
 
-        $total = $results[0]['num'];
-        $step = 50000;  // probably a bit low, but only took ~2 minutes to find duplicates in a little more than 1 mil entries
+            // Load symfony objects
+            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 
-        $duplicates = array();
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
 
-        $previous_drf_id = 0;
-        $previous_ro_id = 0;
-        $previous_rs_id = 0;
+            if ($api_key !== $beanstalk_api_key)
+                throw new \Exception('Invalid Form');
 
-        for ( $i = 0; $i <= $total; $i += $step ) {
 
-            $query =
-               'SELECT drf.id AS drf_id, rs.radio_option_id AS ro_id, rs.id AS rs_id, rs.selected
-                FROM odr_radio_selection AS rs
-                LEFT JOIN odr_data_record_fields AS drf ON rs.data_record_fields_id = drf.id
-                LEFT JOIN odr_data_record AS dr ON drf.data_record_id = dr.id
-                WHERE dr.data_type_id = :datatype_id
-                AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
-                ORDER BY drf.id, rs.radio_option_id';
-            $query .= ' LIMIT '.$i.', '.$step;
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($object_id);
+//            if ($datatype == null)
+//                throw new \Exception('Deleted Datatype');
 
-            $parameters = array('datatype_id' => $datatype_id);
+            // Determine whether this top-level datatype has the default groups already...
+            $repo_group = $em->getRepository('ODRAdminBundle:Group');
+            $repo_datatype_permissions = $em->getRepository('ODRAdminBundle:UserPermissions');
+            $repo_datafield_permissions = $em->getRepository('ODRAdminBundle:UserFieldPermissions');
 
-            // Execute and return the native SQL query
-            $conn = $em->getConnection();
-            $results = $conn->fetchAll($query, $parameters);
-
-            foreach ($results as $result) {
-                $drf_id = $result['drf_id'];
-                $ro_id = $result['ro_id'];
-                $rs_id = $result['rs_id'];
-
-                // datarecordfield id and radio option id should be unique...
-                if ($drf_id == $previous_drf_id && $ro_id == $previous_ro_id) {
-                    $duplicates[] = $previous_rs_id;
-
-                    $previous_rs_id = $rs_id;
-                }
-                else {
-                    $previous_drf_id = $drf_id;
-                    $previous_ro_id = $ro_id;
-                    $previous_rs_id = $rs_id;
-                }
-            }
-        }
-
-        if (!$delete)
-            print_r($duplicates);
-
-        if ($delete) {
-            $deleted_count = 0;
-            foreach ($duplicates as $num => $rs_id) {
-                /** @var RadioSelection $rs */
-                $rs = $repo_radio_selection->find($rs_id);
-                $em->remove($rs);
-
-                $deleted_count++;
-                if ( ($deleted_count % 50) == 0 )   // no idea what a good number is
-                    $em->flush();
+            $group_data = null;
+            $admin_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'admin') );
+            if ($admin_group == false) {
+                $group_data = parent::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'admin');
+                $admin_group = $group_data['group'];
             }
 
-            $em->flush();
+            $group_data = null;
+            $edit_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'edit_all') );
+            if ($edit_group == false) {
+                $group_data = parent::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'edit_all');
+                $edit_group = $group_data['group'];
+            }
+
+            $group_data = null;
+            $view_all_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'view_all') );
+            if ($view_all_group == false) {
+                $group_data = parent::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'view_all');
+                $view_all_group = $group_data['group'];
+            }
+
+            $group_data = null;
+            $view_only_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'view_only') );
+            if ($view_only_group == false) {
+                $group_data = parent::ODR_createGroup($em, $datatype->getCreatedBy(), $datatype, 'view_only');
+                $view_only_group = $group_data['group'];
+            }
+
+
+            // Need to add users to these new groups...
+            $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var User[] $user_list */
+            $user_list = $user_manager->findUsers();
+
+$ret = 'Created default groups for datatype '.$datatype->getId()."...\n";
+
+            $users_with_groups = array();
+
+            // Locate all users without the super-admin role that have the current 'is_datatype_admin' permission...
+            foreach ($user_list as $user) {
+                if ( $user->isEnabled() && !$user->hasRole('ROLE_SUPER_ADMIN') ) {
+                    $datatype_permission = $repo_datatype_permissions->findOneBy( array('is_type_admin' => 1, 'user' => $user->getId(), 'dataType' => $datatype->getId()) );
+                    if ($datatype_permission != false) {
+                        // ...add this user to the new default admin group
+                        parent::ODR_createUserGroup($em, $user, $admin_group, $datatype->getCreatedBy());
+$ret .= ' -- added '.$user->getUserString().' to the default "admin" group'."\n";
+
+                        // Note that this user is in the admin group, and therefore don't add them to any other default group
+                        $users_with_groups[ $user->getId() ] = 1;
+                    }
+                }
+            }
+
+            // Locate all users without the super-admin role that have the current 'can_edit_datarecord' permission...
+            foreach ($user_list as $user) {
+                if ( $user->isEnabled() && !$user->hasRole('ROLE_SUPER_ADMIN') && !isset($users_with_groups[$user->getId()]) ) {
+                    $datatype_permission = $repo_datatype_permissions->findOneBy( array('can_edit_record' => 1, 'user' => $user->getId(), 'dataType' => $datatype->getId()) );
+                    if ($datatype_permission != false) {
+                        // ...add this user to the new default edit_all group
+                        parent::ODR_createUserGroup($em, $user, $edit_group, $datatype->getCreatedBy());
+$ret .= ' -- added '.$user->getUserString().' to the default "edit_all" group'."\n";
+
+                        // Note that this user is in the edit_all group, and therefore don't add them to any other default group
+                        $users_with_groups[ $user->getId() ] = 1;
+                    }
+                }
+            }
+
+            // Locate all users without the super-admin role that have the current 'can_view_datatype' permission...
+            foreach ($user_list as $user) {
+                if ( $user->isEnabled() && !$user->hasRole('ROLE_SUPER_ADMIN') && !isset($users_with_groups[$user->getId()]) ) {
+                    $datatype_permission = $repo_datatype_permissions->findOneBy( array('can_view_type' => 1, 'user' => $user->getId(), 'dataType' => $datatype->getId()) );
+                    if ($datatype_permission != false) {
+                        // ...add this user to the new default view_all group
+                        parent::ODR_createUserGroup($em, $user, $view_all_group, $datatype->getCreatedBy());
+$ret .= ' -- added '.$user->getUserString().' to the default "view_all" group'."\n";
+
+                        // Note that this user is in the view_all group, and therefore don't add them to any other default group
+                        $users_with_groups[ $user->getId() ] = 1;
+                    }
+                }
+            }
+
+            $return['d'] = $ret;
         }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x212738622 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
-
 }

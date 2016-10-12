@@ -3,10 +3,13 @@
 {% set datatype = datatype_array[initial_datatype_id] %}
 
 {% set can_edit_datarecord = false %}
-{% if user_permissions[ datatype.id ] is defined %}
-    {% if user_permissions[ datatype.id ][ 'edit' ] is defined or user_permissions[ datatype.id ][ 'child_edit' ] is defined %}
-        {% set can_edit_datarecord = true %}
-    {% endif %}
+{% set is_datatype_admin = false %}
+
+{% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
+    {% set can_edit_datarecord = true %}
+{% endif %}
+{% if user_permissions[ datatype.id ] is defined and user_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+    {% set is_datatype_admin = true %}
 {% endif %}
 
 <div class="ODRFormWrap"> 
@@ -49,8 +52,10 @@
 {% endif %}
 {% if user_role == 'ROLE_ADMIN' and count > 0 %}
 <div class="ODRExportButtons Cursor">
+    {% if can_edit_datarecord or is_datatype_admin %}
     <button class="pure-button pure-button-primary" type="button" onclick="doMassEdit();">Mass Edit all these datarecords</button>
     &nbsp;&nbsp;&nbsp;
+    {% endif %}
     <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>
 </div>
 {% endif %}
@@ -138,7 +143,7 @@
         // Set up image galleries
         setupImageGalleries();
 
-{% if can_edit_datarecord == false %}
+{% if not can_edit_datarecord %}
         // Remove links to edit mode
         $(".ODREditLink").remove();
 {% else %}
@@ -197,6 +202,7 @@
     }
 
 {% if count > 0 and user_role == 'ROLE_ADMIN' %}
+    {% if can_edit_datarecord or is_datatype_admin %}
     function doMassEdit() {
         var url = '{{ path('odr_mass_edit_render', { 'datatype_id': 0, 'search_key': '', 'offset': '' }) }}';
         url = url.substr(0, url.length-2);
@@ -204,6 +210,7 @@
 
         UpdateURL(url);
     }
+    {% endif %}
 
     function doCSVExport() {
         var url = '{{ path('odr_csv_export_render', { 'datatype_id': 0, 'search_key': '', 'offset': '' }) }}';

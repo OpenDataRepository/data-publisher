@@ -13,7 +13,7 @@
         <span class="pure-u-1">
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
         </span>
-        <select id="SelectGroup_{{ datafield.id }}" class="ODRBoolean" {% if can_edit_datafield == 0 %}disabled{% endif %}>
+        <select id="SelectGroup_{{ datafield.id }}" class="ODRBoolean" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
             <option value="-1">&lt;No change&gt;</option>
             <option value="0">Unchecked</option>
             <option value="1">Checked</option>
@@ -24,7 +24,7 @@
     <fieldset>
         <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
         <div class="pure-u-1">
-            <select id="SelectGroup_{{ datafield.id }}" class="ODRFile" {% if can_edit_datafield == 0 %}disabled{% endif %}>
+            <select id="SelectGroup_{{ datafield.id }}" class="ODRFile" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
                 <option value="-1">Make all Files non-public</option>
                 <option value="0" selected>Don't change public status</option>
                 <option value="1">Make all Files public</option>
@@ -36,7 +36,7 @@
     <fieldset>
         <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
         <div class="pure-u-1">
-            <select id="SelectGroup_{{ datafield.id }}" class="ODRFile" {% if can_edit_datafield == 0 %}disabled{% endif %}>
+            <select id="SelectGroup_{{ datafield.id }}" class="ODRFile" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
                 <option value="-1">Make all Images non-public</option>
                 <option value="0" selected>Don't change public status</option>
                 <option value="1">Make all Images public</option>
@@ -48,7 +48,7 @@
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
         <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
-            <textarea class="ODRParagraphField pure-u-1" {% if can_edit_datafield == 0 %}disabled{% endif %}></textarea>
+            <textarea class="ODRParagraphField pure-u-1" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}></textarea>
         </div>
     </fieldset>
 
@@ -56,7 +56,7 @@
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
         <div class="ODRFieldWrapper" id="Input_{{ datafield.id }}">
-            <input type="text" class="ODRField pure-u-1" name="" value="" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
+            <input type="text" class="ODRField pure-u-1" name="" value="" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
         </div>
     </fieldset>
 
@@ -68,7 +68,7 @@
         </span>
         <div class="ODRSingleRadio pure-u-1" rel="{{ datafield.id }}">
             <label id="Label_0" for="Input_0" class="pure-u-1" style="margin: 0.5em 0;">
-                <input id="Option_{{ datafield.id }}_0" type="radio" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" checked rel="0" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
+                <input id="Option_{{ datafield.id }}_0" type="radio" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" checked rel="0" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
                 &lt;No change&gt;
             </label>
 
@@ -77,9 +77,9 @@
                 <label id="Label_{{ radio_option.id }}" for="Input_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield.dataFieldMeta.children_per_row }}" style="margin: 0.5em 0;">
 
                 {% if field_typename == "Single Radio" %}
-                    <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
+                    <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="radio" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
                 {% else %}
-                    <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if can_edit_datafield == 0 %}disabled{% endif %}/>
+                    <input id="Option_{{ datafield.id }}_{{ radio_option.id }}" type="checkbox" name="RadioGroup_{{ datafield.id }}" class="ODRRadioOption" rel="{{ radio_option.id }}" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
                 {% endif %}
 
                 {{ radio_option.radioOptionMeta.optionName }}
@@ -95,7 +95,7 @@
         <span class="pure-u-1">
             <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
         </span>
-        <select id="SelectGroup_{{ datafield.id }}" class="ODRSingleSelect" {% if can_edit_datafield == 0 %}disabled{% endif %}>
+        <select id="SelectGroup_{{ datafield.id }}" class="ODRSingleSelect" {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}>
 
         {% if datafield.radioOptions is defined %}
             {% if field_typename == "Single Select" %}
@@ -134,7 +134,7 @@
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel">{{ datafield.dataFieldMeta.fieldName }}</label>
         <div class="ODRPseudoField" id="Input_{{ datafield.id }}">
-            <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly {% if can_edit_datafield == 0 %}disabled{% endif %}/>
+            <input type="text" name="" class="ODRDatePicker" style="width: 100%" readonly {% if not can_edit_datafield %}disabled title="You don't have permission to edit this Datafield"{% endif %}/>
         </div>
         <div style="float:left; margin:5px;"><label class="ODRDatePicker_clear Pointer"><input type="checkbox" class="ODRDatePicker_clearAll" name="" value="1" />&nbsp;Clear All Dates</label></div>
         <div style="float:right; margin:5px;"><label class="ODRDatePicker_clear Pointer"><u>Clear</u></label></div>

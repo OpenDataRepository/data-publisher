@@ -5,13 +5,13 @@
 
 <div class="ODRFormHeader clearfix">
     {% for ancestor_id, ancestor_name in linked_datatype_ancestors %}
-        {% if datatype_permissions[ ancestor_id ] is defined and datatype_permissions[ ancestor_id ][ 'edit' ] is defined %}
+        {% if datatype_permissions[ ancestor_id ] is defined and datatype_permissions[ ancestor_id ][ 'dr_edit' ] is defined %}
             <button type="button" class="pure-button" onclick="LinkRecord({{ ancestor_id }},{{ datatype.id }},{{ datarecord.id }});">Link to {{ ancestor_name }}.</button>
         {% endif %}
     {% endfor %}
 
     {% for descendant_id, descendant_name in linked_datatype_descendants %}
-        {% if datatype_permissions[ descendant_id ] is defined and datatype_permissions[ descendant_id ][ 'edit' ] is defined %}
+        {% if datatype_permissions[ descendant_id ] is defined and datatype_permissions[ descendant_id ][ 'dr_edit' ] is defined %}
             <button type="button" class="pure-button" onclick="LinkRecord({{ datatype.id }},{{ descendant_id }},{{ datarecord.id }});">Link to {{ descendant_name }}.</button>
         {% endif %}
     {% endfor %}
@@ -53,7 +53,7 @@ $(function() {
     // Resize all elements dependent on window size
     $(window).unbind('resize');
     $(window).resize(function() {
-        WindowResizeInterval = window.clearInterval(WindowResizeInterval);
+        WindowResizeInterval = window.clearInterval(WindowResizeInterval);      // variable WindowResizeInterval defined in common.js
         WindowResizeInterval = window.setInterval("onWindowResize()", 500);
     });
 
@@ -65,21 +65,28 @@ $(function() {
 
     // Hide divs for accordion purposes
     setupAccordions();
-/*
+
     // Hide empty theme element divs
     $(".ODRThemeElement").each(function() {
         var has_children = false;
-        $(this).find(".ODRDataField").each(function() { // TODO - render plugins that hide fieldarea and don't do datafields?
+        $(this).find(".ODRDataField").each(function() {
+            // Don't hide this theme element if it has datafields
             has_children = true;
         });
-        $(this).find(".ODRDataType").each(function() { // TODO - render plugins that hide fieldarea and don't do datafields?
+
+        $(this).find("button.pure-button").each(function() {
+            // Also don't hide this theme element if child datatypes can be added
+            has_children = true;
+        });
+
+        $(this).find(".ODRRenderPluginContent").each(function() {
+            // Also don't hide the theme element if a render plugin exists
             has_children = true;
         });
 
         if (!has_children)
             $(this).css( "display", "none" );
     });
-*/
 
     // --------------------
     initPage();
@@ -868,7 +875,7 @@ function AddChildRecord(datatype_id, parent_id, grandparent_id) {
 }
 
 function LinkRecord(ancestor_datatype_id, descendant_datatype_id, local_datarecord_id) {
-    var url = '{{ path('odr_record_get_linkable_records', { 'ancestor_datatype_id': 0, 'descendant_datatype_id': 0, 'local_datarecord_id': 0 } ) }}';
+    var url = '{{ path('odr_record_get_linkable_datarecords', { 'ancestor_datatype_id': 0, 'descendant_datatype_id': 0, 'local_datarecord_id': 0 } ) }}';
     url = url.substring(0, (url.length - 5));
     url += ancestor_datatype_id + '/' + descendant_datatype_id + '/' + local_datarecord_id;
 {% if search_key != '' %}

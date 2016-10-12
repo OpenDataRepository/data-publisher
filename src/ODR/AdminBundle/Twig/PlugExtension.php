@@ -178,17 +178,18 @@ class PlugExtension extends \Twig_Extension
     public function userStringFilter($obj)
     {
         try {
-            if ( !is_array($obj) || !isset($obj['firstName']) || !isset($obj['lastName']) || !isset($obj['email']) )
-//                throw new \Exception();
-                return '&lt;unknown&gt;';
+            if ( !is_array($obj) )
+                throw new \Exception('Did not receive array');
 
-            if ( $obj['firstName'] !== '')
+            if ( isset($obj['firstName']) && isset($obj['lastName']) && $obj['firstName'] !== '')
                 return $obj['firstName'].' '.$obj['lastName'];
-            else
+            else if ( isset($obj['email']) )
                 return $obj['email'];
+            else
+                throw new \Exception('Malformed array');
         }
         catch (\Exception $e) {
-            throw new \Exception("Error executing user_string filter");
+            throw new \Exception( "Error executing user_string filter: ".$e->getMessage() );
         }
     }
 

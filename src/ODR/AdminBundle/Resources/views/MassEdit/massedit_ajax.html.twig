@@ -1,10 +1,17 @@
 {% spaceless %}
 
 {% set datatype = datatype_array[initial_datatype_id] %}
+
+{% set is_datatype_admin = false %}
+{% if datatype_permissions[initial_datatype_id] is defined and datatype_permissions[initial_datatype_id][ 'dt_admin' ] is defined %}
+    {% set is_datatype_admin = true %}
+{% endif %}
+
 <div class="grid_12 no-margin-top-phone">
     <h1 style="display: inline;">
         <span>Mass Update &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
     </h1>
+    {% if is_datatype_admin %}
     <span>
         <select class="ODRPublicSelect" style="margin-left: 15px;" rel="{{ datatype.id }}">
             <option value="-1">Make all Datarecords non-public</option>
@@ -12,6 +19,7 @@
             <option value="1">Make all Datarecords public</option>
         </select>
     </span>
+    {% endif %}
 </div>
 
 <form id="massedit_form" style="display:none;" action="{{ path('odr_mass_update_start') }}">
@@ -30,6 +38,7 @@
     'initial_datatype_id': initial_datatype_id,
     'theme_id': theme_id,
 
+    'datatype_permissions': datatype_permissions,
     'datafield_permissions': datafield_permissions,
 } %}
 
@@ -69,8 +78,7 @@ $(function() {
     window.scrollTo(0,0);
 
     // Tristate checkbox
-    $(".ODRTristateCheckbox").unbind('click');
-    $(".ODRTristateCheckbox").click(function() {
+    $(".ODRTristateCheckbox").unbind('click').click(function() {
         // Grab data about the option being clicked
         var icon = $(this).children('i').first();
         var input = $(this).children('input').first();
@@ -147,8 +155,7 @@ function initPage() {
         }
     });
 
-    $(".ODRDatePicker_clear").unbind('click');
-    $(".ODRDatePicker_clear").click(function() {
+    $(".ODRDatePicker_clear").unbind('click').click(function() {
         $(this).parent().parent().find(".ODRDatePicker").datepicker('setDate', null);
     });
 }

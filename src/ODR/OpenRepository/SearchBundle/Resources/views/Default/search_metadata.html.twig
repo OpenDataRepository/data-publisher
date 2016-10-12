@@ -1,7 +1,7 @@
 {% spaceless %}
 
 {% set has_view_permission = false %}
-{% if datatype_permissions[datatype_id] is defined and datatype_permissions[datatype_id]['view'] is defined %}
+{% if datatype_permissions[datatype_id] is defined and datatype_permissions[datatype_id]['dr_view'] is defined %}
     {% set has_view_permission = true %}
 {% endif %}
 
@@ -56,10 +56,12 @@
             <option id="Option_public" value="1">Public</option>
         </select>
     </div>
+{#
 {% elseif is_top_level == 1 %}
     <input type="hidden" class="ODRDatatype_require_public" id="dt_{{ datatype_id }}_pub" name="dt_{{ datatype_id }}_pub" value="1" />
 {% else %}
     <input type="hidden" class="ODRDatatype_require_public ODRSearchDisabled" id="dt_{{ datatype_id }}_pub" name="dt_{{ datatype_id }}_pub" value="1" />
+#}
 {% endif %}
 
 {% endspaceless %}

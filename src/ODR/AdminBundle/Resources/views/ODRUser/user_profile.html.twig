@@ -27,9 +27,9 @@
 
         <div class="pure-control-group">
 {% if current_user.id == target_user.id %}
-            <a class="address" href="{{ path('fos_user_change_password') }}" >Change Password</a>
+            <a class="address pure-button" href="{{ path('fos_user_change_password') }}" >Change Password</a>
 {% else %}
-            <a class="address" href="#{{ path('odr_admin_change_password', {'user_id': target_user.id}) }}" >Change Password</a>
+            <a class="address pure-button" href="#{{ path('odr_admin_change_password', {'user_id': target_user.id}) }}" >Change Password</a>
 {% endif %}
         </div>
 
@@ -79,13 +79,19 @@
         </div>
     </fieldset>
 
-    <input class="pure-button pure-button-primary" type="button" value="Save" onclick="saveProfileForm();" />
+    {#<input class="pure-button pure-button-primary" type="button" value="Save" onclick="saveProfileForm();" />#}
 
 {{ form_end(profile_form) }}
+
+<button id="ODRProfileSave" class="pure-button pure-button-primary">Save</button>
 
 <script>
     $(function() {
         $("#saved").hide();
+
+        $("#ODRProfileSave").unbind('click').click(function() {
+            saveProfileForm();
+        });
     });
 
     function saveProfileForm() {

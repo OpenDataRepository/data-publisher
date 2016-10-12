@@ -59,122 +59,6 @@ class ReportsController extends ODRCustomController
 
 
     /**
-     * Generates a list of all permissions for all users for the specified datatype
-     *
-     * @param string $datatype_id
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function datatypepermissionslistAction($datatype_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
-        try {
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
-
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
-
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['admin'])) )
-                return parent::permissionDeniedError();
-            // --------------------
-
-
-            // ----------------------------------------
-            // Ensure this isn't called on a child datatype
-            $datatree_array = parent::getDatatreeArray($em);
-            if ( isset($datatree_array['descendant_of'][$datatype_id]) && $datatree_array['descendant_of'][$datatype_id] !== '' )
-                throw new \Exception('This action is only permitted on top-level datatypes.');
-
-
-            // Recursively locate all childtypes of this datatype
-            $all_datatypes = array($datatype_id => array('datatype' => $datatype, 'children' => array()));
-            $all_datatypes[$datatype_id]['children'] = self::getAllDatatypes($em, $datatree_array, $datatype_id);
-
-            // Easier to look through $datatree_array directly to find all relevant datatype ids...
-            $all_datatype_ids = array($datatype_id);
-            $parent_datatype_ids = array($datatype_id);
-            while (count($parent_datatype_ids) > 0) {
-
-                $tmp_datatype_ids = array();
-                foreach ($parent_datatype_ids as $num => $dt_id) {
-                    $tmp = array_keys($datatree_array['descendant_of'], $dt_id);
-
-                    foreach ($tmp as $child_datatype_id) {
-                        $tmp_datatype_ids[] = $child_datatype_id;
-                        $all_datatype_ids[] = $child_datatype_id;
-                    }
-                }
-
-                $parent_datatype_ids = $tmp_datatype_ids;
-            }
-
-            // Locate all users that can access this datatype
-            $query = $em->createQuery(
-               'SELECT DISTINCT(u.id)
-                FROM ODRAdminBundle:UserPermissions AS up
-                JOIN ODROpenRepositoryUserBundle:User AS u WITH up.user = u
-                WHERE up.dataType IN (:datatypes)
-                AND (up.can_view_type = 1 OR up.can_edit_record = 1 OR up.can_add_record = 1 OR up.can_delete_record = 1 OR up.can_design_type = 1 OR up.is_type_admin = 1)'
-            )->setParameters(array('datatypes' => $all_datatype_ids));
-            $results = $query->getArrayResult();
-
-            // Store all relevant permissions in an array for twig...
-            $all_permissions = array();
-            foreach ($results as $num => $data) {
-                $user_id = $data[1];
-
-                if (!isset($all_permissions[$user_id])) {
-                    /** @var User $site_user */
-                    $site_user = $repo_user->find($user_id);
-                    if ($site_user->isEnabled() == 1 && !$site_user->hasRole('ROLE_SUPER_ADMIN'))   // only display this user's permissions for this datatype if they're not deleted and aren't super admin
-                        $all_permissions[$user_id] = array('user' => $site_user, 'permissions' => parent::getPermissionsArray($user_id, $request));
-                }
-            }
-            ksort($all_permissions);
-
-
-            // Render and return the report
-            $templating = $this->get('templating');
-            $return['d'] = array(
-                'html' => $templating->render(
-                    'ODRAdminBundle:Reports:datatype_permissions_list.html.twig',
-                    array(
-                        'all_datatypes' => $all_datatypes,
-                        'all_permissions' => $all_permissions,
-                    )
-                )
-            );
-
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x23267635 '. $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-    }
-
-
-    /**
      * Given a Datafield, build a list of Datarecords (if any) that have identical values in that Datafield.
      *
      * @param integer $datafield_id
@@ -214,10 +98,11 @@ class ReportsController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -439,8 +324,9 @@ print_r($grandparent_list);
                 return parent::deletedEntityError('DataField');
 
             $datatype = $datafield->getDataType();
-            if ( $datatype == null )
+            if ( $datatype->getDeletedAt() != null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
             // Only run on file or image fields
             $typename = $datafield->getFieldType()->getTypeName();
@@ -451,10 +337,11 @@ print_r($grandparent_list);
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -560,10 +447,10 @@ print_r($grandparent_list);
                 return parent::deletedEntityError('Datatree');
 
             $parent_datatype = $datatree->getAncestor();
-            if ($parent_datatype == null)
+            if ($parent_datatype->getDeletedAt() != null)
                 return parent::deletedEntityError('parent Datatype');
             $child_datatype = $datatree->getDescendant();
-            if ($child_datatype == null)
+            if ($child_datatype->getDeletedAt() != null)
                 return parent::deletedEntityError('child Datatype');
 
 
@@ -571,10 +458,11 @@ print_r($grandparent_list);
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $parent_datatype->getId() ]) && isset($user_permissions[ $parent_datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $parent_datatype->getId() ]) && isset($datatype_permissions[ $parent_datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -679,18 +567,19 @@ print_r($grandparent_list);
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $local_datatype_id ]) && isset($user_permissions[ $local_datatype_id ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $local_datatype_id ]) && isset($datatype_permissions[ $local_datatype_id ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
 
             $can_edit_local = false;
-            if ( isset($user_permissions[ $local_datatype_id ]) && isset($user_permissions[ $local_datatype_id ][ 'edit' ]) )
+            if ( isset($datatype_permissions[ $local_datatype_id ]) && isset($datatype_permissions[ $local_datatype_id ][ 'dr_edit' ]) )
                 $can_edit_local = true;
 
             $can_edit_remote = false;
-            if ( isset($user_permissions[ $remote_datatype_id ]) && isset($user_permissions[ $remote_datatype_id ][ 'edit' ]) )
+            if ( isset($datatype_permissions[ $remote_datatype_id ]) && isset($datatype_permissions[ $remote_datatype_id ][ 'dr_edit' ]) )
                 $can_edit_remote = true;
             // --------------------
 
@@ -772,18 +661,20 @@ print_r($grandparent_list);
                 return parent::deletedEntityError('DataField');
 
             $datatype = $datafield->getDataType();
-            if ( $datatype == null )
+            if ( $datatype->getDeletedAt() != null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -901,7 +792,7 @@ print_r($grandparent_list);
                 return parent::deletedEntityError('DataField');
 
             $datatype = $datafield->getDataType();
-            if ( $datatype == null )
+            if ( $datatype->getDeletedAt() != null )
                 return parent::deletedEntityError('DataType');
             $datatype_id = $datatype->getId();
 
@@ -910,12 +801,14 @@ print_r($grandparent_list);
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'edit' ])) )
+            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
+
 
             // ----------------------------------------
             // Only run this on valid fieldtypes...
@@ -1007,7 +900,7 @@ print_r($grandparent_list);
             if ($datarecord == null)
                 return parent::deletedEntityError('DataRecord');
             $datatype = $datarecord->getDataType();
-            if ($datatype == null)
+            if ($datatype->getDeletedAt() != null)
                 return parent::deletedEntityError('DataType');
 
             // Files that aren't done encrypting shouldn't be checked for decryption progress
@@ -1027,15 +920,20 @@ print_r($grandparent_list);
             }
             else {
                 // Grab user's permissions
-                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                    $can_view_datatype = true;
 
                 // If user has view permissions, show non-public sections of the datarecord
-                $has_view_permission = false;
-                if ( isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ]) )
-                    $has_view_permission = true;
+                $can_view_datarecord = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                    $can_view_datarecord = true;
 
                 // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !$file->isPublic() && !$has_view_permission )
+                if ( !($datatype->isPublic() || $can_view_datatype) || !($file->isPublic() || $can_view_datarecord) )
                     return parent::permissionDeniedError('view');
             }
             // --------------------
@@ -1118,7 +1016,7 @@ print_r($grandparent_list);
             if ($datarecord == null)
                 return parent::deletedEntityError('DataRecord');
             $datatype = $datarecord->getDataType();
-            if ($datatype == null)
+            if ($datatype->getDeletedAt() != null)
                 return parent::deletedEntityError('DataType');
 
             if ($file->getFilesize() == '')
@@ -1137,15 +1035,20 @@ print_r($grandparent_list);
             }
             else {
                 // Grab user's permissions
-                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                    $can_view_datatype = true;
 
                 // If user has view permissions, show non-public sections of the datarecord
-                $has_view_permission = false;
-                if ( isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ]) )
-                    $has_view_permission = true;
+                $can_view_datarecord = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                    $can_view_datarecord = true;
 
                 // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !$file->isPublic() && !$has_view_permission )
+                if ( !($datatype->isPublic() || $can_view_datatype) || !($file->isPublic() || $can_view_datarecord) )
                     return parent::permissionDeniedError('view');
             }
             // --------------------

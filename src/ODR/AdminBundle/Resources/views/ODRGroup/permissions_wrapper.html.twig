@@ -1,0 +1,531 @@
+{% spaceless %}
+
+<h1 class="no-margin-top-phone">
+    <span>Group Permissions &raquo; {{ datatype.dataTypeMeta.shortName }} <i class="fa fa-lg fa-users ODRDatatypeGroupMembers Pointer" style="margin-left: 10px;"></i></span>
+</h1>
+
+<input type="hidden" id="datatype_id" value="{{ datatype.id }}" />
+
+<div id="ODRGroupListHeader" class="pure-u-1"></div>
+<div id="ODRGroupListContent" class="pure-u-1"></div>
+
+<style>
+    .fa-ban {
+        color: #e9322d;
+    }
+    .fa-stack-1x {
+        color: #000000;
+    }
+    .ODRBlockedDatafield {
+        background-color: #000000;
+        opacity: 0.3;
+    }
+    .ODRVisibleDatafield {
+        background-color: #ffff00;
+        opacity: 0.4;
+    }
+    .ODREditableDatafield {
+    }
+    .ODRActiveIcon {
+    background: #00FF00;
+    }
+</style>
+
+<script>
+    $(function() {
+        LoadGroupList({{ datatype.id }});
+
+        // Resize all overlay divs on window size
+        $(window).unbind('resize');
+        $(window).resize(function() {
+            WindowResizeInterval = window.clearInterval(WindowResizeInterval);
+            WindowResizeInterval = window.setInterval("resizeOverlayDivs()", 50);
+        });
+    });
+
+    var WindowResizeInterval = "";
+    function resizeOverlayDivs() {
+        WindowResizeInterval = window.clearInterval(WindowResizeInterval);
+
+        // Attach an overlay div of sorts over each datafield
+        $(".ODROverlayDiv").each(function() {
+            // Need dimensions of parent div...
+            var height = $(this).parent().css('height');
+            var width = $(this).parent().css('width');
+
+            // Apply dimensions of parent div to loading div
+            $(this).css({"height": height, "line-height": height, "width": width});
+        });
+    }
+
+    function LoadGroupList(datatype_id) {
+        var url = '{{ path('odr_load_group_list', { 'datatype_id': 0, } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += datatype_id;
+
+//alert(url);
+//return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    $("#ODRGroupListHeader").html(data.d.html).fadeIn('fast');
+                    InitHeader();
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function InitHeader() {
+
+        $(".ODRDatatypeGroupMembers").unbind('click').click(function() {
+
+            // Clear the currently selected group indicator
+            $(".ODREditGroup").removeClass('ODRActiveIcon');
+
+            // Grab the datatype id
+            var datatype_id = $("#datatype_id").val();
+
+            // Load user list for entire datatype
+            var url = '{{ path('odr_datatype_group_membership', { 'datatype_id': 0 } ) }}';
+            url = url.substring(0, (url.length - 1));
+            url += datatype_id;
+
+//alert(url);
+//return;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+                        $("#ODRGroupListContent").html(data.d).fadeIn('fast');
+
+                        attachUserLinks();
+                    }
+                    else {
+                        // An error has occurred.
+                        // Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+
+        $(".ODRAddGroup").unbind('click').click(function() {
+            // Grab the datatype id
+            var datatype_id = $("#datatype_id").val();
+
+            // Load form for current datfield if not already loaded
+            var url = '{{ path('odr_add_group', { 'datatype_id': 0 } ) }}';
+            url = url.substring(0, (url.length - 1));
+            url += datatype_id;
+
+//alert(url);
+//return;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+                        // Remove permissions UI if it currently exists
+                        if ( $(".ODRGroupListContentHeader") != undefined ) {
+                            $(".ODRGroupListContentHeader").next().remove();
+                            $(".ODRGroupListContentHeader").remove();
+                        }
+
+                        // Reload the theme list html
+                        LoadGroupList(datatype_id);
+                    }
+                    else {
+                        // An error has occurred.
+                        // Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+
+        $(".ODREditGroup").unbind('click').click(function() {
+
+            // Clear the currently selected group indicator
+            $(".ODREditGroup").removeClass('ODRActiveIcon');
+            $(this).addClass('ODRActiveIcon');
+
+            // Grab the id of the group to load
+            var group_id = $(this).attr('rel');
+
+            // Load form for current group if not already loaded
+            var url = '{{ path('odr_manage_group_permissions', { 'group_id': 0 } ) }}';
+            url = url.substring(0, (url.length - 1));
+            url += group_id;
+
+            $("#ODRGroupListContent").html('');
+//alert(url);
+//return;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+
+                        // Hide the group properties div if there's a group in there and the user loaded the permissions UI for another group
+                        var active_group_properties = $(".ODRGroupProperties.ODRActiveIcon");
+                        if ( active_group_properties.length > 0 ) {
+                            if ( $(active_group_properties).attr('rel') != group_id ) {
+                                $("#ODRGroupPropertiesFormDiv").hide().html("");
+                                $(active_group_properties).removeClass("ODRActiveIcon");
+                            }
+                        }
+
+                        $("#ODRGroupListContent").html(data.d.html).fadeIn('fast');
+
+                        initPage();     // defined in ODRAdminBundle:ODRGroup:permissions_ajax.html.twig
+                    }
+                    else {
+                        // An error has occurred.
+                        // Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+
+        $(".ODRGroupProperties").unbind('click').click(function() {
+
+            // Clear the currently selected group indicator
+            $(".ODRGroupProperties").removeClass('ODRActiveIcon');
+            $(".ODRGroupMembers").removeClass('ODRActiveIcon');
+            $(this).addClass('ODRActiveIcon');
+
+            // Grab the id of the group to load
+            var group_id = $(this).attr('rel');
+
+            // Load form for current group if not already loaded
+            $("#ODRGroupPropertiesFormDiv").hide().html("");
+            var url = '{{ path('odr_group_properties', { 'group_id': 0 } ) }}';
+            url = url.substring(0, (url.length - 1));
+            url += group_id;
+
+//alert(url);
+//return;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+                        $("#ODRGroupPropertiesFormDiv").html(data.d).fadeIn('fast');
+
+                        if (data.prevent_all_changes != 1)
+                            InitGroupPropertyForm();
+                    }
+                    else {
+                        // An error has occurred.
+                        // Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+
+        $(".ODRGroupMembers").unbind('click').click(function() {
+            // Clear the currently selected group indicator
+            $(".ODRGroupProperties").removeClass('ODRActiveIcon');
+            $(".ODRGroupMembers").removeClass('ODRActiveIcon');
+            $(this).addClass('ODRActiveIcon');
+
+            var group_id = $(this).attr('rel');
+
+            var url = '{{ path('odr_group_membership', {'group_id': 0}) }}';
+            url = url.substring(0, (url.length - 1));
+            url += group_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+                        $("#ODRGroupPropertiesFormDiv").html(data.d).fadeIn('fast');
+
+                        attachUserLinks();
+                    }
+                    else {
+                        // An error has occurred.
+                        // Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+    }
+
+    function attachUserLinks() {
+        $(".ODRUserLink").unbind('click').click(function() {
+            var user_id = $(this).attr('rel');
+
+            var url = '{{ path('odr_manage_user_groups', {'user_id': 0}) }}';
+            url = url.substring(0, (url.length-1));
+            url += user_id;
+
+            UpdateURL(url);
+        });
+    }
+
+    var SaveGroupPropertyInterval = [];
+    function SaveGroupProperties(datatype_id, group_id, reload_group_list) {
+        if(SaveGroupPropertyInterval[group_id] != undefined)
+            SaveGroupPropertyInterval[group_id] = window.clearInterval(SaveGroupPropertyInterval[group_id]);
+
+        var url = '{{ path('odr_group_properties', { 'group_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += group_id;
+
+//alert( url );
+//return;
+
+        var form_data = $("#GroupPropertiesForm_" + group_id).serialize();
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: form_data,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+//                    notifySaved();
+
+                    // Forcibly reload group div
+                    if (reload_group_list)
+                        LoadGroupList(datatype_id);
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function InitGroupPropertyForm() {
+        // Init Group Properties forms
+        $("#ODRGroupPropertiesFormDiv").find(".ODRDeleteGroup").each(function() {
+            var group_id_data = $(this).attr('id').split(/_/);
+            var group_id = group_id_data[1];
+
+            var datatype_id = $(this).attr('rel');
+
+            $(this).unbind('click').click(function() {
+                if ( $(this).hasClass('pure-button-disabled') ) {
+                    return;
+                }
+                else if( confirm("Are you certain you want to delete this Group?")) {
+                    DeleteGroup(datatype_id, group_id);
+                }
+            });
+        });
+
+        $("#ODRGroupPropertiesFormDiv").find("input, textarea").each(function() {
+            // Grab group id
+            var group_id_data = $("#ODRGroupPropertiesFormDiv").children(".ODRGroupPropertiesForm").first().attr('id').split(/_/);
+            var group_id = group_id_data[1];
+
+            var datatype_id = $("#GroupPropertiesForm_" + group_id).attr('rel');
+
+            // Save changes
+            if($(this).is(":checkbox")) {
+                $(this).unbind('change').change(function() {
+                    SaveGroupPropertyInterval[group_id] = window.clearInterval(SaveGroupPropertyInterval[group_id]);
+                    SaveGroupPropertyInterval[group_id] = window.setInterval("SaveGroupProperties(" + datatype_id + "," + group_id + ", true)", SaveTimeout);
+                });
+            }
+            else {
+                $(this).unbind('keyup');
+                $(this).unbind('paste');
+                $(this).on('keyup paste', function() {
+                    //
+                    if ( $(this).hasClass('ODRGroupName') ) {   // inline update of group name  TODO - error handling?
+                        var text = $(this).val();
+                        $("#ODRGroup_" + group_id + "_name").html(text);
+                    }
+
+                    SaveGroupPropertyInterval[group_id] = window.clearInterval(SaveGroupPropertyInterval[group_id]);
+                    SaveGroupPropertyInterval[group_id] = window.setInterval("SaveGroupProperties(" + datatype_id + "," + group_id + ", false)", SaveTimeout);
+                });
+            }
+        });
+    }
+
+    function DeleteGroup(datatype_id, group_id) {
+        var url = '{{ path('odr_delete_group', { 'group_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += group_id;
+
+//alert( url );
+//return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    // Remove permissions UI if it currently exists
+                    if ( $(".ODRGroupListContentHeader").length > 0 ) {
+                        var group_id_data = $(".ODRGroupListContentHeader").attr('id').split('_');
+                        var current_group_id = group_id_data[1];
+
+                        if (group_id == current_group_id) {
+                            $("#ODRGroupListContent_" + group_id).next().remove();
+                            $("#ODRGroupListContent_" + group_id).remove();
+                        }
+                    }
+
+                    // Reload group list div
+                    $("#ODRGroupListHeader").fadeOut('fast');
+                    LoadGroupList(datatype_id);
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+{% endspaceless %}
