@@ -1409,7 +1409,7 @@ $ret = 'Created default groups for datatype '.$datatype->getId()."...\n";
 
             // Locate all users without the super-admin role that have the current 'is_datatype_admin' permission...
             foreach ($user_list as $user) {
-                if ( !$user->hasRole('ROLE_SUPER_ADMIN') ) {
+                if ( $user->isEnabled() && !$user->hasRole('ROLE_SUPER_ADMIN') ) {
                     $datatype_permission = $repo_datatype_permissions->findOneBy( array('is_type_admin' => 1, 'user' => $user->getId(), 'dataType' => $datatype->getId()) );
                     if ($datatype_permission != false) {
                         // ...add this user to the new default admin group
@@ -1424,7 +1424,7 @@ $ret .= ' -- added '.$user->getUserString().' to the default "admin" group'."\n"
 
             // Locate all users without the super-admin role that have the current 'can_edit_datarecord' permission...
             foreach ($user_list as $user) {
-                if ( !$user->hasRole('ROLE_SUPER_ADMIN') && !isset($users_with_groups[$user->getId()]) ) {
+                if ( $user->isEnabled() && !$user->hasRole('ROLE_SUPER_ADMIN') && !isset($users_with_groups[$user->getId()]) ) {
                     $datatype_permission = $repo_datatype_permissions->findOneBy( array('can_edit_record' => 1, 'user' => $user->getId(), 'dataType' => $datatype->getId()) );
                     if ($datatype_permission != false) {
                         // ...add this user to the new default edit_all group
@@ -1439,7 +1439,7 @@ $ret .= ' -- added '.$user->getUserString().' to the default "edit_all" group'."
 
             // Locate all users without the super-admin role that have the current 'can_view_datatype' permission...
             foreach ($user_list as $user) {
-                if ( !$user->hasRole('ROLE_SUPER_ADMIN') && !isset($users_with_groups[$user->getId()]) ) {
+                if ( $user->isEnabled() && !$user->hasRole('ROLE_SUPER_ADMIN') && !isset($users_with_groups[$user->getId()]) ) {
                     $datatype_permission = $repo_datatype_permissions->findOneBy( array('can_view_type' => 1, 'user' => $user->getId(), 'dataType' => $datatype->getId()) );
                     if ($datatype_permission != false) {
                         // ...add this user to the new default view_all group

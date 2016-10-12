@@ -841,7 +841,7 @@ class ODRUserController extends ODRCustomController
             if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') ) {
                 $tmp = array();
                 foreach ($user_list as $user) {
-                    // Don't add super admins to this list
+                    // Don't add super admins to this list if the user isn't a super admin themself
                     if (!$user->hasRole('ROLE_SUPER_ADMIN')) {
                         $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
                         $user_permissions = $user_permissions['datatypes'];
@@ -858,7 +858,7 @@ class ODRUserController extends ODRCustomController
                 $user_list = $tmp;
             }
 
-            // Render them in a list
+            // Render the list of users
             $templating = $this->get('templating');
             $return['d'] = array(
                 'html' => $templating->render(
@@ -980,21 +980,25 @@ class ODRUserController extends ODRCustomController
 
             // ----------------------------------------
             if ($role == 'user') {
+                // User got demoted to the regular user group
                 $user->addRole('ROLE_USER');
                 $user->removeRole('ROLE_ADMIN');
                 $user->removeRole('ROLE_SUPER_ADMIN');
             }
             else if ($role == 'admin') {
+                // User got added to the admin group
                 $user->addRole('ROLE_USER');
                 $user->addRole('ROLE_ADMIN');
                 $user->removeRole('ROLE_SUPER_ADMIN');
             }
             else if ($role == 'sadmin') {
+                // User got added to the super-admin group
                 $user->addRole('ROLE_USER');
                 $user->addRole('ROLE_ADMIN');
                 $user->addRole('ROLE_SUPER_ADMIN');
 
-                // Remove user from all current default groups
+                // ----------------------------------------
+                // Remove the user from all the non-admin groups they're currently a member of...
                 $query_str = '
                     UPDATE odr_user_group AS ug, odr_group AS g
                     SET ug.deletedAt = NOW(), ug.deletedBy = :admin_user_id
@@ -1006,8 +1010,7 @@ class ODRUserController extends ODRCustomController
                 $conn = $em->getConnection();
                 $rowsAffected = $conn->executeUpdate($query_str, $parameters);
 
-                // ----------------------------------------
-                // Locate all existing "admin" default groups
+                // ...so they can be added to all existing "admin" default groups instead
                 /** @var Group[] $admin_groups */
                 $admin_groups = $em->getRepository('ODRAdminBundle:Group')->findBy( array('purpose' => 'admin') );
                 if ( count($admin_groups) > 0 ) {
@@ -1026,6 +1029,7 @@ class ODRUserController extends ODRCustomController
                 }
 
 
+                // ----------------------------------------
                 // Delete any cached permissions for the affected user
                 $redis = $this->container->get('snc_redis.default');;
                 // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
@@ -1084,6 +1088,30 @@ class ODRUserController extends ODRCustomController
             // Prevent super-admins from being deleted?
 //            if ( $user->hasRole('ROLE_SUPER_ADMIN') )
 //                throw new \Exception('Unable to delete another Super-Admin user');
+
+            // Remove user from all the groups they're currently a member of
+            $query_str = '
+                UPDATE odr_user_group AS ug, odr_group AS g
+                SET ug.deletedAt = NOW(), ug.deletedBy = :admin_user_id
+                WHERE ug.group_id = g.id
+                AND ug.user_id = :user_id
+                AND ug.deletedAt IS NULL AND g.deletedAt IS NULL';
+            $parameters = array('admin_user_id' => $admin_user->getId(), 'user_id' => $user->getId());
+
+            $conn = $em->getConnection();
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters);
+
+            // Demote the user to the regular user group
+            $user->addRole('ROLE_USER');
+            $user->removeRole('ROLE_ADMIN');
+            $user->removeRole('ROLE_SUPER_ADMIN');
+
+            // Delete the user's cached permissions
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
 
 
             // This may not be the right way to do it...
