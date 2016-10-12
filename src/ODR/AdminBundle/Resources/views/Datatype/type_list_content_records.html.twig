@@ -14,8 +14,8 @@
         <tr>
             <th></th>
             <th></th>
-            <th>Type Name</th>
-            <th>Number of Records</th>
+            <th>Database Name</th>
+            <th>Viewable Records</th>
 
             <th>Search Records</th>
             <th>List Records</th>
@@ -37,25 +37,24 @@
         {% set can_delete_datarecord = false %}
         {% set is_datatype_admin = false %}
 
-        {% if permissions['datatypes'][datatype.id] is defined %}
-            {% set datatype_permissions = permissions['datatypes'][datatype.id] %}
+        {% if datatype_permissions[ datatype.id ] is defined %}
 
-            {% if datatype_permissions[ 'dt_view' ] is defined %}
+            {% if datatype_permissions[ datatype.id ][ 'dt_view' ] is defined %}
                 {% set can_view_datatype = true %}
             {% endif %}
-            {% if datatype_permissions[ 'dr_view' ] is defined %}
+            {% if datatype_permissions[ datatype.id ][ 'dr_view' ] is defined %}
                 {% set can_view_datarecord = true %}
             {% endif %}
-            {% if datatype_permissions[ 'dr_edit' ] is defined %}
+            {% if datatype_permissions[ datatype.id ][ 'dr_edit' ] is defined %}
                 {% set can_edit_datarecord = true %}
             {% endif %}
-            {% if datatype_permissions[ 'dr_add' ] is defined %}
+            {% if datatype_permissions[ datatype.id ][ 'dr_add' ] is defined %}
                 {% set can_add_datarecord = true %}
             {% endif %}
-            {% if datatype_permissions[ 'dr_delete' ] is defined %}
+            {% if datatype_permissions[ datatype.id ][ 'dr_delete' ] is defined %}
                 {% set can_delete_datarecord = true %}
             {% endif %}
-            {% if datatype_permissions[ 'dt_admin' ] is defined %}
+            {% if datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
                 {% set is_datatype_admin = true %}
             {% endif %}
         {% endif %}
@@ -74,7 +73,7 @@
                     <i class="fa fa-lg fa-info-circle"></i>
                     <span class="ODRDatatypeInfo">
                         <div>
-                            <b>Created By: </b>{{ datatype.createdBy.getuserstring }}<b> on </b>{{ datatype.created|date('Y-m-d') }}
+                            <b>Created By: </b>{{ datatype.createdBy|user_string }}<b> on </b>{{ datatype.created|date('Y-m-d') }}
                         </div>
                         <div>
                             <b>Description: </b>{{ datatype.dataTypeMeta.description }}
@@ -84,20 +83,13 @@
             </td>
             <td id="ODRDatarecordList_{{ datatype.id }}_name">{{ datatype.dataTypeMeta.shortName }}</td>
 
+
             {# number of datarecords for this datatype #}
             {% set datarecord_count = 0 %}
-            {% set found = false %}
-            {% for datatype_id, data in metadata %}
-                {% if datatype_id == datatype.id %}
-                    {% set datarecord_count = data.count %}
-                    {% set found = true %}
-                    <td id="ODRDatarecordList_{{ datatype.id }}_count">{{ datarecord_count }}</td>
-                {% endif %}
-            {% endfor %}
-
-            {% if found == false %}
-                <td id="ODRDatarecordList_{{ datatype.id }}_count">0</td>
+            {% if metadata[ datatype.id ] is defined %}
+                {% set datarecord_count = metadata[ datatype.id ] %}
             {% endif %}
+            <td id="ODRDatarecordList_{{ datatype.id }}_count">{{ datarecord_count }}</td>
 
 
             {# link to search this datatype #}
@@ -123,12 +115,12 @@
                     <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
                 {% endif %}
             {% else %}
-                {% if (datatype.dataTypeMeta.useShortResults == 1 and datatype.hasShortResults == true) or (datatype.dataTypeMeta.useShortResults == 0 and datatype.hasTextResults == true) %}
+                {% if (datatype.dataTypeMeta.useShortResults == 1 and datatype.has_shortresults == true) or (datatype.dataTypeMeta.useShortResults == 0 and datatype.has_textresults == true) %}
                     <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_search_render', {'search_key': 'dt_id='~datatype.id} ) }}" title="View {{ datatype.dataTypeMeta.shortName }} DataRecords"><i class="fa fa-lg fa-list"></i>&nbsp;List Records</a>
                 {% elseif is_datatype_admin == true %}
-                    {% if datatype.dataTypeMeta.useShortResults == 1 and datatype.hasShortResults == false %}
+                    {% if datatype.dataTypeMeta.useShortResults == 1 and datatype.has_shortresults == false %}
                         <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Search Results Theme not designed!</a>
-                    {% elseif datatype.dataTypeMeta.useShortResults == 0 and datatype.hasTextResults == false %}
+                    {% elseif datatype.dataTypeMeta.useShortResults == 0 and datatype.has_textresults == false %}
                         <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;Table Theme not designed!</a>
                     {% endif %}
                 {% else %}

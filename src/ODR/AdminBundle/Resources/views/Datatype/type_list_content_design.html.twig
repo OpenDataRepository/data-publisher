@@ -33,8 +33,8 @@
         <tr>
             <th></th>
             <th></th>
-            <th>Type Name</th>
-            <th>Number of Records</th>
+            <th>Database Name</th>
+            <th>Viewable Records</th>
             <th>Master Layout</th>
             <th>Derivative Layouts</th>
             <th>Manage Groups</th>
@@ -50,10 +50,8 @@
         {# Pre-determine which permissions user has for this datatype... #}
         {% set is_datatype_admin = false %}
 
-        {% if permissions['datatypes'][datatype.id] is defined %}
-            {% set datatype_permissions = permissions['datatypes'][datatype.id] %}
-
-            {% if datatype_permissions[ 'dt_admin' ] is defined %}
+        {% if datatype_permissions[ datatype.id ] is defined %}
+            {% if datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
                 {% set is_datatype_admin = true %}
             {% endif %}
         {% endif %}
@@ -67,7 +65,7 @@
                     <i class="fa fa-lg fa-info-circle"></i>
                     <span class="ODRDatatypeInfo">
                         <div>
-                            <b>Created By: </b>{{ datatype.createdBy.getuserstring }}<b> on </b>{{ datatype.created|date('Y-m-d') }}
+                            <b>Created By: </b>{{ datatype.createdBy|user_string }}<b> on </b>{{ datatype.created|date('Y-m-d') }}
                         </div>
                         <div>
                             <b>Description: </b>{{ datatype.dataTypeMeta.description }}
@@ -79,22 +77,16 @@
 
 
             {# number of datarecords for this datatype #}
-            {% set found = false %}
-            {% for datatype_id, data in metadata %}
-                {% if datatype_id == datatype.id %}
-                    {% set found = true %}
-                    <td id="ODRDatatypeList_{{ datatype.id }}_count">{{ data.count }}</td>
-                {% endif %}
-            {% endfor %}
-
-            {% if found == false %}
-                <td id="ODRDatatypeList_{{ datatype.id }}_count">0</td>
+            {% set datarecord_count = 0 %}
+            {% if metadata[ datatype.id ] is defined %}
+                {% set datarecord_count = metadata[ datatype.id ] %}
             {% endif %}
+            <td id="ODRDatarecordList_{{ datatype.id }}_count">{{ datarecord_count }}</td>
 
 
             {# master layout designer link #}
             <td>
-            {% if datatype.dataTypeMeta.searchslug == '' %}
+            {% if datatype.dataTypeMeta.searchSlug == '' %}
                 <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
             {% else %}
                 <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
@@ -103,7 +95,7 @@
 
             {# derivative layout designer link #}
             <td>
-            {% if datatype.dataTypeMeta.searchslug == '' %}
+            {% if datatype.dataTypeMeta.searchSlug == '' %}
                 <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
             {% else %}
                 <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a>

@@ -64,53 +64,90 @@ class DatatypeController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
             // --------------------
 
 
             // Grab a list of top top-level datatypes
             $top_level_datatypes = parent::getTopLevelDatatypes();
-//print_r($top_level_datatypes);
 
             // Grab each top-level datatype from the repository
             $query = $em->createQuery(
-               'SELECT dt
+               'SELECT dt, dtm, dt_cb, dt_ub
                 FROM ODRAdminBundle:DataType AS dt
-                WHERE dt IN (:datatypes)
-                AND dt.deletedAt IS NULL'
-            )->setParameters( array('datatypes' => $top_level_datatypes) );
-            $results = $query->getResult();
-
-            $datatypes = array();
-            $metadata = array();
-            foreach ($results as $dt) {
-                /** @var DataType $dt */
-                $datatypes[] = $dt;
-
-                $dt_id = $dt->getId();
-                $metadata[$dt_id] = array();
-                $metadata[$dt_id]['count'] = 0;
-            }
-            /** @var DataType[] $datatypes */
-
-            // Do a second query to grab which datatypes have datarecords, and how many
-            $query = $em->createQuery(
-               'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                WHERE dt IN (:datatypes) AND dr.provisioned = false
-                AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL
-                GROUP BY dt.id'
+                JOIN dt.dataTypeMeta AS dtm
+                JOIN dt.createdBy AS dt_cb
+                JOIN dt.updatedBy AS dt_ub
+                WHERE dt.id IN (:datatypes)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
             )->setParameters( array('datatypes' => $top_level_datatypes) );
             $results = $query->getArrayResult();
-//print_r($results);
 
+            $datatypes = array();
             foreach ($results as $result) {
-                $datatype_id = $result['dt_id'];
-                $datarecord_count = $result['datarecord_count'];
+                $dt_id = $result['id'];
 
-                $metadata[$datatype_id]['count'] = $datarecord_count;
+                $dt = $result;
+                $dt['dataTypeMeta'] = $result['dataTypeMeta'][0];
+                $dt['createdBy'] = parent::cleanUserData($result['createdBy']);
+                $dt['updatedBy'] = parent::cleanUserData($result['updatedBy']);
+
+                $datatypes[$dt_id] = $dt;
             }
-//print_r($metadata);
+//print_r($datatypes);  exit();
+
+            // Determine whether user has the ability to view non-public datarecords for this datatype
+            $can_view_public_datarecords = array();
+            $can_view_nonpublic_datarecords = array();
+            foreach ($datatypes as $dt_id => $dt) {
+                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_view']) )
+                    $can_view_nonpublic_datarecords[] = $dt_id;
+                else
+                    $can_view_public_datarecords[] = $dt_id;
+            }
+
+            // Figure out how many datarecords the user can view for each of the datatypes
+            $metadata = array();
+            if ( count($can_view_nonpublic_datarecords) > 0 ) {
+                $query = $em->createQuery(
+                   'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
+                    FROM ODRAdminBundle:DataType AS dt
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                    WHERE dt IN (:datatype_ids) AND dr.provisioned = false
+                    AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
+                    GROUP BY dt.id'
+                )->setParameters( array('datatype_ids' => $can_view_nonpublic_datarecords) );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    $dt_id = $result['dt_id'];
+                    $count = $result['datarecord_count'];
+
+                    $metadata[$dt_id] = $count;
+                }
+            }
+
+            if ( count($can_view_public_datarecords) > 0 ) {
+                $query = $em->createQuery(
+                   'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
+                    FROM ODRAdminBundle:DataType AS dt
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                    JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                    WHERE dt IN (:datatype_ids) AND dr.provisioned = false AND drm.publicDate != :public_date
+                    AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL
+                    GROUP BY dt.id'
+                )->setParameters( array('datatype_ids' => $can_view_nonpublic_datarecords, 'public_date' => '2200-01-01 00:00:00') );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    $dt_id = $result['dt_id'];
+                    $count = $result['datarecord_count'];
+
+                    $metadata[$dt_id] = $count;
+                }
+            }
+//print_r($metadata);  exit();
+
 
             // Build a form for creating a new datatype, if needed
             $new_datatype_data = new DataTypeMeta();
@@ -122,7 +159,7 @@ class DatatypeController extends ODRCustomController
                     'ODRAdminBundle:Datatype:list_ajax.html.twig', 
                     array(
                         'user' => $user,
-                        'permissions' => $user_permissions,
+                        'datatype_permissions' => $datatype_permissions,
                         'section' => $section,
                         'datatypes' => $datatypes,
                         'metadata' => $metadata,
