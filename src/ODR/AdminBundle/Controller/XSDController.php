@@ -223,25 +223,26 @@ class XSDController extends ODRCustomController
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             if ( $user === 'anon.' ) {
-                if ( !$datatype->isPublic() ) {
-                    // non-public datatype and anonymous user, can't view
-                    return parent::permissionDeniedError('view');
+                if ( $datatype->isPublic() ) {
+                    /* anonymous users aren't restricted from viewing a public datatype */
                 }
                 else {
-                    // public datatype, anybody can view
+                    // ...otherwise, datatype is not public, don't let anonymous users see it
+                    return parent::permissionDeniedError('view');
                 }
             }
             else {
                 // Grab user's permissions
-                $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
 
                 // If user has view permissions, show non-public sections of the datarecord
                 $has_view_permission = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'view' ]) )
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
                     $has_view_permission = true;
 
-                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !$datatype->isPublic() && !$has_view_permission )
+                // If datatype is not public and user doesn't have the correct permissions, don't let them view the datatype
+                if ( !($datatype->isPublic() || $has_view_permission) )
                     return parent::permissionDeniedError('view');
             }
             // ----------------------------------------
@@ -307,16 +308,14 @@ class XSDController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $datatype_permissions = array();
-            $datafield_permissions = array();
+            $user_permissions = array();
 
             if ($user === 'anon.') {
                 // public datatype, anybody can view
             }
             else {
                 // Grab user's permissions
-                $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
-                $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
             }
             // ----------------------------------------
 
@@ -355,7 +354,7 @@ class XSDController extends ODRCustomController
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $datarecord_array = array();
-            parent::filterByUserPermissions($datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
+            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 //print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 //print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();

@@ -18,6 +18,8 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
+// Controllers/Classes
+use ODR\OpenRepository\SearchBundle\Controller\DefaultController as SearchController;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
@@ -102,30 +104,37 @@ class DisplayController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user_permissions = array();
             $datatype_permissions = array();
             $datafield_permissions = array();
-            $has_view_permission = false;
+
 
             if ( $user === 'anon.' ) {
-                if ( !$datatype->isPublic() ) {
-                    // non-public datatype and anonymous user, can't view
-                    return parent::permissionDeniedError('view');
+                if ( $datatype->isPublic() && $datarecord->isPublic() ) {
+                    /* anonymous users aren't restricted from a public datarecord that belongs to a public datatype */
                 }
                 else {
-                    // public datatype, anybody can view
+                    // ...if either the datatype is non-public or the datarecord is non-public, return false
+                    return parent::permissionDeniedError('view');
                 }
             }
             else {
                 // Grab user's permissions
-                $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
-                $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+                $datafield_permissions = $user_permissions['datafields'];
+//                $datarecord_restriction = $user_permissions['datarecord_restriction'];  // TODO
 
-                // If user has view permissions, show non-public sections of the datarecord
-                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'view' ]) )
-                    $has_view_permission = true;
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dt_view' ]) )
+                    $can_view_datatype = true;
 
-                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !$original_datatype->isPublic() && !$has_view_permission )
+                $can_view_datarecord = false;
+                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dr_view' ]) )
+                    $can_view_datarecord = true;
+
+                // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
+                if ( !($original_datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) )
                     return parent::permissionDeniedError('view');
             }
             // ----------------------------------------
@@ -143,6 +152,7 @@ class DisplayController extends ODRCustomController
 
                 if (!$data['redirect'] && $encoded_search_key !== '' && $datarecord_list === '') {
                     // Some sort of error encounted...bad search query, invalid permissions, or empty datarecord list
+                    /** @var SearchController $search_controller */
                     $search_controller = $this->get('odr_search_controller', $request);
                     return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
                 }
@@ -154,7 +164,7 @@ class DisplayController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Grab the tab's id, if it exists
+            // Grab the tab's id, if it exists...Prefer the use of the sorted lists created during usage of the datatables plugin over the default list created during searching
             $params = $request->query->all();
             $odr_tab_id = '';
             if ( isset($params['odr_tab_id']) )
@@ -162,7 +172,6 @@ class DisplayController extends ODRCustomController
 
             // Locate a sorted list of datarecords for search_header.html.twig if possible
             if ( $session->has('stored_tab_data') && $odr_tab_id !== '' ) {
-                // Prefer the use of the sorted lists created during usage of the datatables plugin over the default list created during searching
                 $stored_tab_data = $session->get('stored_tab_data');
 
                 if ( isset($stored_tab_data[$odr_tab_id]) && isset($stored_tab_data[$odr_tab_id]['datarecord_list']) ) {
@@ -239,11 +248,10 @@ class DisplayController extends ODRCustomController
             if ($bypass_cache || $associated_datarecords == false) {
                 $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord->getId()));
 
-//print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
-
                 $redis->set($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId(), gzcompress(serialize($associated_datarecords)));
             }
 
+//print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
 
             // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
             $datarecord_array = array();
@@ -258,7 +266,7 @@ class DisplayController extends ODRCustomController
 
 //print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 
-            // If this request isn't for a top-level datarecord, then the datarecord array needs to have entries removed so twig doesn't render more than it should...TODO - still leaves more than it should
+            // If this request isn't for a top-level datarecord, then the datarecord array needs to have entries removed so twig doesn't render more than it should...TODO - still leaves more than it should...
             if ($is_top_level == 0) {
                 $target_datarecord_parent_id = $datarecord_array[ $original_datarecord->getId() ]['parent']['id'];
                 unset( $datarecord_array[$target_datarecord_parent_id] );
@@ -275,7 +283,7 @@ class DisplayController extends ODRCustomController
             $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
 
             // Grab all datatypes associated with the desired datarecord
-            // NOTE - not using parent::getAssociatedDatatypes() here on purpose...don't care about child/linked datatypes if they aren't attached to this datarecord
+            // NOTE - not using parent::getAssociatedDatatypes() here on purpose...that would always return child/linked datatypes for the datatype even if this datarecord isn't making use of them
             $associated_datatypes = array();
             foreach ($datarecord_array as $dr_id => $dr) {
                 $dt_id = $dr['dataType']['id'];
@@ -301,7 +309,7 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            parent::filterByUserPermissions($datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
+            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 //print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
 
@@ -403,32 +411,39 @@ class DisplayController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $has_view_permission = false;
-            $datatype_permissions = array();
-            $datafield_permissions = array();
+            $user_permissions = array();
+            $datarecord_restriction = '';
 
             if ( $user === 'anon.' ) {
-                if ( !$datatype->isPublic() ) {
-                    // non-public datatype and anonymous user, can't view
-                    return parent::permissionDeniedError('view');
+                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() ) {
+                    /* anonymous users aren't restricted from a public datafield in a public datarecord that belongs to a public datatype */
                 }
                 else {
-                    // public datatype, anybody can view
+                    // ...if any of the relevant entities are non-public, return false
+                    return parent::permissionDeniedError('view');
                 }
             }
             else {
                 // Grab user's permissions
-                $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
-                $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+                $datafield_permissions = $user_permissions['datafields'];
+//                $datarecord_restriction = $user_permissions['datarecord_restriction'];      // TODO
 
-                // If user has view permissions, show non-public sections of the datarecord
-                if ( !(isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'view' ])) )
-                    $has_view_permission = false;
-                if ( !(isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ])) )
-                    $has_view_permission = false;
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dt_view' ]) )
+                    $can_view_datatype = true;
+
+                $can_view_datarecord = false;
+                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dr_view' ]) )
+                    $can_view_datarecord = true;
+
+                $can_view_datafield = false;
+                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
+                    $can_view_datafield = true;
 
                 // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !$original_datatype->isPublic() && !$has_view_permission )
+                if ( !($original_datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
                     return parent::permissionDeniedError('view');
             }
             // --------------------
@@ -463,8 +478,7 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            parent::filterByUserPermissions($datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
-
+            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
             // Extract datafield and theme_datafield from datatype_array
             $datafield = null;
@@ -515,6 +529,8 @@ class DisplayController extends ODRCustomController
 
     /**
      * Creates a Symfony response that so browsers can download files from the server.
+     * TODO - all files moved into non-web-accessible directory so encryption/decryption not even needed?
+     * TODO - allow anonymous users to download public files even if datatype/datarecord/datafield are non-public?
      *
      * @param integer $file_id The database id of the file to download.
      * @param Request $request
@@ -546,6 +562,9 @@ class DisplayController extends ODRCustomController
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
                 return parent::deletedEntityError('File');
+            $datafield = $file->getDataField();
+            if ($datafield == null)
+                return parent::deletedEntityError('DataField');
             $datarecord = $file->getDataRecord();
             if ($datarecord == null)
                 return parent::deletedEntityError('DataRecord');
@@ -609,10 +628,24 @@ class DisplayController extends ODRCustomController
             }
             else {
                 // Grab the user's permission list
-                $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+                $datafield_permissions = $user_permissions['datafields'];
 
-                // Ensure user has permissions to be doing this
-                if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                    $can_view_datatype = true;
+
+                $can_view_datarecord = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                    $can_view_datarecord = true;
+
+                $can_view_datafield = false;
+                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
+                    $can_view_datafield = true;
+
+                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+                if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
                     return parent::permissionDeniedError();
             }
 
@@ -892,6 +925,8 @@ fclose($log_file);
 
     /**
      * Provides users the ability to cancel the decryption of a file.
+     * TODO - all files moved into non-web-accessible directory so encryption/decryption not even needed?
+     * TODO - allow anonymous users to download public files even if datatype/datarecord/datafield are non-public?
      *
      * @param integer $file_id  The database id of the file currently being decrypted
      * @param Request $request
@@ -920,6 +955,9 @@ fclose($log_file);
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
                 return parent::deletedEntityError('File');
+            $datafield = $file->getDataField();
+            if ($datafield == null)
+                return parent::deletedEntityError('DataField');
             $datarecord = $file->getDataRecord();
             if ($datarecord == null)
                 return parent::deletedEntityError('DataRecord');
@@ -935,9 +973,25 @@ fclose($log_file);
             // Ensure user has permissions to be doing this
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            // Grab the user's permission list
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                $can_view_datarecord = true;
+
+            $can_view_datafield = false;
+            if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
+                $can_view_datafield = true;
+
+            // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+            if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
                 return parent::permissionDeniedError();
             // ----------------------------------------
 
@@ -973,6 +1027,8 @@ fclose($log_file);
 
     /**
      * Creates a Symfony response that so browsers can download images from the server.
+     * TODO - all files moved into non-web-accessible directory so encryption/decryption not even needed?
+     * TODO - allow anonymous users to download public files even if datatype/datarecord/datafield are non-public?
      *
      * @param integer $image_id The database_id of the image to download.
      * @param Request $request
@@ -998,6 +1054,9 @@ fclose($log_file);
             $image = $em->getRepository('ODRAdminBundle:Image')->find($image_id);
             if ($image == null)
                 return parent::deletedEntityError('Image');
+            $datafield = $image->getDataField();
+            if ($datafield == null)
+                return parent::deletedEntityError('DataField');
             $datarecord = $image->getDataRecord();
             if ($datarecord == null)
                 return parent::deletedEntityError('DataRecord');
@@ -1021,15 +1080,30 @@ fclose($log_file);
                 }
                 else {
                     // Grab the user's permission list
-                    $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+                    $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                    $datatype_permissions = $user_permissions['datatypes'];
+                    $datafield_permissions = $user_permissions['datafields'];
 
-                    // Ensure user has permissions to be doing this
-                    if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'view' ])) )
+                    $can_view_datatype = false;
+                    if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                        $can_view_datatype = true;
+
+                    $can_view_datarecord = false;
+                    if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                        $can_view_datarecord = true;
+
+                    $can_view_datafield = false;
+                    if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
+                        $can_view_datafield = true;
+
+                    // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+                    if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
                         return parent::permissionDeniedError();
                 }
             }
             else {
                 /* image is public, so no restrictions on who can download it */
+                // TODO - verify this should be allowed when non-public datatype/datarecord/datafield + public image?
             }
             // --------------------
 

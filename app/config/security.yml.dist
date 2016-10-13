@@ -44,11 +44,10 @@ security:
         - { path: ^/resetting, role: IS_AUTHENTICATED_ANONYMOUSLY }
 
 ##########
-        - { path: ^/search, role: IS_AUTHENTICATED_ANONYMOUSLY }
-        - { path: ^/shortresults, role: IS_AUTHENTICATED_ANONYMOUSLY }
-        - { path: ^/results, role: IS_AUTHENTICATED_ANONYMOUSLY }
-        - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
-        - { path: ^/beanstalk, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/search, role: IS_AUTHENTICATED_ANONYMOUSLY }     # search page
+        - { path: ^/view, role: IS_AUTHENTICATED_ANONYMOUSLY }       # display mode
+        - { path: ^/api, role: ROLE_USER }                           # XML/XSD download
+        - { path: ^/beanstalk, role: IS_AUTHENTICATED_ANONYMOUSLY }  # beanstalk doesn't have a login
 
 ##########
         - { path: ^/admin$, role: ROLE_USER }                     # front page
@@ -56,41 +55,33 @@ security:
         - { path: ^/profile, role: ROLE_USER }                    # ability to edit own profile
 
         - { path: ^/admin/type/list/records, role: ROLE_USER }    # can see page that provides links to add/edit/import datarecords for a datatype
-        - { path: ^/edit, role: ROLE_USER }                       # ability to add/edit/import/delete datarecords
-        - { path: ^/jobs, role: ROLE_USER }                       # 
+        - { path: ^/edit, role: ROLE_USER }                       # Editing and CSV Import
+        - { path: ^/jobs, role: ROLE_USER }                       #
 
 ##########
         - { path: ^/admin/type/list/design, role: ROLE_USER }     # can see page that provides links to design the layout of datatypes
         - { path: ^/admin/type/add, role: ROLE_ADMIN }
-        - { path: ^/admin/type/recache_all, role: ROLE_SUPER_ADMIN }
-        - { path: ^/admin/type/edit, role: ROLE_USER }            # can see page that lets user modify datatype properties
-        - { path: ^/admin/type/save, role: ROLE_USER }            # can save changes to datatype properties page
+#        - { path: ^/admin/type/recache_all, role: ROLE_SUPER_ADMIN }
         - { path: ^/design, role: ROLE_USER }                     # ability to design results/records and shortresults layouts
 #        - { path: ^/plugin, role: ROLE_USER }                     # ability to modify render plugin settings
 
 ##########
         - { path: ^/admin/user/list, role: ROLE_USER }
-        - { path: ^/admin/user/managepermissions, role: ROLE_USER }
-        - { path: ^/admin/user/togglepermission, role: ROLE_USER }
+        - { path: ^/admin/group, role: ROLE_USER }
+        - { path: ^/admin/user/managegroups, role: ROLE_USER }
+        - { path: ^/admin/user/changegroup, role: ROLE_USER }
 
-        - { path: ^/admin/massedit, role: ROLE_ADMIN }
-        - { path: ^/admin/csvexport, role: ROLE_ADMIN }
+        - { path: ^/admin/massedit, role: ROLE_ADMIN }            # Mass Edit
+        - { path: ^/admin/csvexport, role: ROLE_ADMIN }           # CSV Download
 
         - { path: ^/admin/new_user, role: ROLE_ADMIN }
 #        - { path: ^/admin/user/change_password, role: ROLE_ADMIN }
         - { path: ^/admin/user/edit, role: ROLE_ADMIN }
         - { path: ^/admin/user/save, role: ROLE_ADMIN }
 
-        - { path: ^/admin/user/datafieldpermissions, role: ROLE_ADMIN }
-        - { path: ^/admin/user/savedatafieldpermission, role: ROLE_ADMIN }
-
-        - { path: ^/admin/user/quickpermissions, role: ROLE_SUPER_ADMIN }
-        - { path: ^/admin/user/togglequickpermission, role: ROLE_SUPER_ADMIN }
-
         - { path: ^/admin/user/manage/roles, role: ROLE_SUPER_ADMIN }
         - { path: ^/admin/user/setrole, role: ROLE_SUPER_ADMIN }
         - { path: ^/admin/user/delete, role: ROLE_SUPER_ADMIN }
         - { path: ^/admin/user/undelete, role: ROLE_SUPER_ADMIN }
 
-        - { path: ^/admin, role: ROLE_SUPER_ADMIN }                     # everything should already be covered?
-
+        - { path: ^/admin, role: ROLE_SUPER_ADMIN }                     # everything else should already be covered?

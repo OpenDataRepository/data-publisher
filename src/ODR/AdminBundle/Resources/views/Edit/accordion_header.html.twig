@@ -10,6 +10,12 @@
             <a>{{ datatype.dataTypeMeta.shortName }}</a>
         {% endif %}
 
+        {% if is_link == 1 %}
+            <span style="margin-left: 15px;" title="This is a linked Datatype">
+            <i class="fa fa-lg fa-link Cursor"></i>
+        </span>
+        {% endif %}
+
         {% if datarecord.id != datarecord.grandparent.id %}
             <span style="float: right;" rel="{{ datatype.id }}">
                 <i id="datarecord_{{ datarecord.id }}_public" class="tooltip fa fa-lg fa-globe {% if not datarecord.dataRecordMeta.publicDate|is_public %}IconRed{% endif %} {% if is_link == 0 and can_edit_record == 1 %}Pointer ODRPublicChildRecord{% endif %}" title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}"></i>

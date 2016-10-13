@@ -100,7 +100,7 @@
                 <strong>Datatype Permissions</strong>
             </label>
             <span>
-                &nbsp;<a target="_blank" class="address" href="#{{ path( 'odr_datatype_permissions_list', {'datatype_id': datatype.id }) }}" style="color:black;" title="Show all user permissions for this Datatype..."><i class="fa fa-cog fa-lg"></i></a>
+                &nbsp;<a target="_blank" class="address" href="#{{ path( 'odr_manage_groups', {'datatype_id': datatype.id }) }}" style="color:black;" title="Manage Group permissions for this Datatype..."><i class="fa fa-cog fa-lg"></i></a>
             </span>
         </div>
         {% endif %}

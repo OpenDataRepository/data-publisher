@@ -8,7 +8,7 @@
 <div class="link_datarecord_spacer">
 </div>
 <div>
-    <form action="{{ path('odr_link_records') }}" method="post" class="full validate" id="LinkDataRecordForm">
+    <form action="{{ path('odr_link_datarecords') }}" method="post" class="full validate" id="LinkDataRecordForm">
         <input type="hidden" name="local_datarecord_id" value="{{ local_datarecord.id }}" />
         <input type="hidden" name="ancestor_datatype_id" value="{{ ancestor_datatype.id }}" />
         <input type="hidden" name="descendant_datatype_id" value="{{ descendant_datatype.id }}" />

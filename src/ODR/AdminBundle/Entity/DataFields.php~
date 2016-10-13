@@ -377,6 +377,19 @@ class DataFields
         return $this->deletedBy;
     }
 
+    /**
+     * Is public
+     *
+     * @return boolean
+     */
+    public function isPublic()
+    {
+        if ($this->getPublicDate()->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
+            return false;
+        else
+            return true;
+    }
+
 
     /**
      * Get fieldName
@@ -526,6 +539,16 @@ class DataFields
     public function getUserOnlySearch()
     {
         return $this->getDataFieldMeta()->getUserOnlySearch();
+    }
+
+    /**
+     * Get publicDate
+     *
+     * @return \DateTime
+     */
+    public function getPublicDate()
+    {
+        return $this->getDataFieldMeta()->getPublicDate();
     }
 
     /**

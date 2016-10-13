@@ -1,18 +1,18 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* Default Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The Default controller handles the loading of the base template
-* and AJAX handlers that the rest of the site uses.  It also
-* handles the creation of the information displayed on the site's
-* dashboard.
-*
-*/
+ * Open Data Repository Data Publisher
+ * Default Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The Default controller handles the loading of the base template
+ * and AJAX handlers that the rest of the site uses.  It also
+ * handles the creation of the information displayed on the site's
+ * dashboard.
+ *
+ */
 
 namespace ODR\AdminBundle\Controller;
 
@@ -27,16 +27,17 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Cookie;
 
+
 class DefaultController extends ODRCustomController
 {
 
     /**
-    * Triggers the loading of base.html.twig, and sets up session cookies.
-    * 
-    * @param Request $request
-    * 
-    * @return Response
-    */
+     * Triggers the loading of base.html.twig, and sets up session cookies.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
     public function indexAction(Request $request)
     {
         // Grab the current user
@@ -45,49 +46,53 @@ class DefaultController extends ODRCustomController
         /** @var User $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-        $user_permissions = array();
+        $datatype_permissions = array();
         if ($user !== 'anon.') {
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+//            $user_permissions = parent::getUserPermissionsArray($em, $user->getId(), true);
+            $datatype_permissions = $user_permissions['datatypes'];
         }
 
+
         // Render the base html for the page...$this->render() apparently creates a full Reponse object
-//        $site_baseurl = $this->container->getParameter('site_baseurl');
         $html = $this->renderView(
             'ODRAdminBundle:Default:index.html.twig',
             array(
                 'user' => $user,
-                'user_permissions' => $user_permissions,
-
-//                'site_baseurl' => $site_baseurl,
-//                'search_slug' => $search_slug,
+                'user_permissions' => $datatype_permissions,
             )
         );
 
         $response = new Response($html);
 
-        // Set the search cookie if it doesn't exist
+        // Set the search cookie if it doesn't exist        // TODO - The idea behind this is subpar, need something better...
         $cookies = $request->cookies;
         if ( !$cookies->has('prev_searched_datatype') ) {
-
-            $top_level_datatypes = parent::getTopLevelDatatypes();
-
+            // Figure out the first datatype the user can view that has a search slug...
             $query = $em->createQuery(
-               'SELECT dt, up.can_view_type AS can_view_type
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:UserPermissions AS up WITH up.dataType = dt
-                WHERE up.user = :user_id AND dt IN (:datatypes)
-                AND dt.deletedAt IS NULL'
-            )->setParameters( array('user_id' => $user->getId(), 'datatypes' => $top_level_datatypes) );
-            $results = $query->getResult();
+               'SELECT dt.id AS dt_id, dtm.publicDate AS public_date, dtm.searchSlug AS search_slug, gdtp.can_view_datatype AS can_view_datatype
+                FROM ODRAdminBundle:GroupDatatypePermissions AS gdtp
+                JOIN ODRAdminBundle:Group AS g WITH gdtp.group = g
+                JOIN ODRAdminBundle:DataType AS dt WITH g.dataType = dt
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
+                WHERE gdtp.can_view_datatype = 1 AND dtm.searchSlug IS NOT NULL AND ug.user = :user_id
+                AND gdtp.deletedAt IS NULL AND g.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+                GROUP BY dt.id
+                ORDER BY dt.id'
+            )->setParameters( array('user_id' => $user->getId()) );
+            $results = $query->getArrayResult();
 
-            foreach ($results as $num => $result) {
-                /** @var DataType $datatype */
-                $datatype = $result[0];
-                $can_view_type = $result['can_view_type'];
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+            foreach ($results as $result) {
+                $public_date = $result['public_date']->format('Y-m-d H:i:s');
+                $search_slug = $result['search_slug'];
+                $can_view_datatype = $result['can_view_datatype'];
 
                 // Locate first top-level datatype that either is public or viewable by the user logging in
-                if ( $datatype->isPublic() || $can_view_type == 1 ) {
-                    $response->headers->setCookie(new Cookie('prev_searched_datatype', $datatype->getSearchSlug()));
+                if ( $public_date !== '2200-01-01 00:00:00' || $can_view_datatype == 1 ) {
+                    $response->headers->setCookie( new Cookie('prev_searched_datatype', $search_slug) );
                     break;
                 }
             }
@@ -97,13 +102,14 @@ class DefaultController extends ODRCustomController
         return $response;
     }
 
+
     /**
-    * Loads the dashboard blurbs about the most populous datatypes on the site.
-    * 
-    * @param Request $request
-    * 
-    * @return Response
-    */
+     * Loads the dashboard blurbs about the most populous datatypes on the site.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
     public function dashboardAction(Request $request)
     {
         $return = array();
@@ -118,7 +124,8 @@ class DefaultController extends ODRCustomController
 
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Grab the cached graph data
             $redis = $this->container->get('snc_redis.default');;
@@ -134,7 +141,7 @@ class DefaultController extends ODRCustomController
             $dashboard_graphs = array();
             foreach ($datatypes as $num => $datatype_id) {
                 // Don't display dashboard stuff that the user doesn't have permission to see
-                if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'view' ])) ) {
+                if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_view' ])) ) {
 //print 'no permissions for datatype '.$datatype_id."\n";
                     continue;
                 }

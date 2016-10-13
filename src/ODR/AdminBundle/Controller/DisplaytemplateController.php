@@ -97,10 +97,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -129,14 +130,27 @@ class DisplaytemplateController extends ODRCustomController
             $all_datafield_themes = $query->getResult();
             /** @var Theme[] $all_datafield_themes */
 
-            // Save which users are going to get datafield permissions deleted
+            // Save which users and groups need to delete their permission entries for this datafield
+            $query = $em->createQuery(
+               'SELECT g.id AS group_id
+                FROM ODRAdminBundle:GroupDatafieldPermissions AS gdfp
+                JOIN ODRAdminBundle:Group AS g WITH gdfp.group = g
+                WHERE gdfp.dataField = :datafield
+                AND gdfp.deletedAt IS NULL AND g.deletedAt IS NULL'
+            )->setParameters( array('datafield' => $datafield->getId()) );
+            $all_affected_groups = $query->getArrayResult();
+
+//print '<pre>'.print_r($all_affected_groups, true).'</pre>';  //exit();
+
             $query = $em->createQuery(
                'SELECT u.id AS user_id
-                FROM ODRAdminBundle:UserFieldPermissions AS ufp
-                JOIN ODROpenRepositoryUserBundle:User AS u WITH ufp.user = u
-                WHERE ufp.dataField = :datafield AND ufp.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield->getId()) );
-            $all_affected_users = $query->getResult();
+                FROM ODRAdminBundle:Group AS g
+                JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
+                JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+                WHERE g.id IN (:groups)
+                AND g.deletedAt IS NULL AND ug.deletedAt IS NULL'
+            )->setParameters( array('groups' => $all_affected_groups) );
+            $all_affected_users = $query->getArrayResult();
 
 //print '<pre>'.print_r($all_affected_users, true).'</pre>'; exit();
 
@@ -166,9 +180,9 @@ class DisplaytemplateController extends ODRCustomController
 
             // ...datafield permissions
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:UserFieldPermissions AS ufp
-                SET ufp.deletedAt = :now
-                WHERE ufp.dataField = :datafield AND ufp.deletedAt IS NULL'
+               'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
+                SET gdfp.deletedAt = :now
+                WHERE gdfp.dataField = :datafield AND gdfp.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'datafield' => $datafield->getId()) );
             $rows = $query->execute();
 
@@ -199,6 +213,7 @@ class DisplaytemplateController extends ODRCustomController
                 parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
 
 
+            // ----------------------------------------
             // Save who deleted this datafield
             $datafield->setDeletedBy($user);
             $em->persist($datafield);
@@ -213,12 +228,10 @@ class DisplaytemplateController extends ODRCustomController
             $em->flush();
 
 
-            // TODO - delete all storage entities via beanstalk?  or just stack delete statements for all 12 entities in here?
+            // ----------------------------------------
+            // TODO - delete all storage entities for this datafield via beanstalk?  or just stack delete statements for all 12 entities in here?
 
-/*
-            // Schedule the cache for an update
-            parent::updateDatatypeCache($datatype->getId(), $options);
-*/
+            // Remove this datafield from all themes of the datafield's datatype
             $update_datatype = true;
             foreach ($all_datafield_themes as $theme) {
                 parent::tmp_updateThemeCache($em, $theme, $user, $update_datatype);
@@ -227,9 +240,6 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Wipe cached data for the grandparent datatype
-//            $redis->del($redis_prefix.'.cached_datatype_'.$grandparent_datatype_id);
-
             // Wipe cached data for all the datatype's datarecords
             $query = $em->createQuery(
                'SELECT dr.id AS dr_id
@@ -241,19 +251,29 @@ class DisplaytemplateController extends ODRCustomController
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
                 $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
+                $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
 
                 // TODO - schedule each of these datarecords for a recache?
             }
 
-            // Wipe datafield permissions involving this datafield
+
+            // Wipe cached entries for Group and User permissions involving this datafield
+            foreach ($all_affected_groups as $group) {
+                $group_id = $group['group_id'];
+                $redis->del($redis_prefix.'.group_'.$group_id.'_permissions');
+
+                // TODO - schedule each of these groups for a recache?
+            }
+
             foreach ($all_affected_users as $user) {
                 $user_id = $user['user_id'];
-                $redis->del($redis_prefix.'.user_'.$user_id.'_datafield_permissions');
+                $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
 
-                // TODO - schedule each of these for a recache?
+                // TODO - schedule each of these users for a recache?
             }
 
 
+            // ----------------------------------------
             // See if any cached search results need to be deleted...
             $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
             if ( $cached_searches != false && isset($cached_searches[$grandparent_datatype_id]) ) {
@@ -334,10 +354,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("change layout of");
             // --------------------
 
@@ -401,6 +422,7 @@ class DisplaytemplateController extends ODRCustomController
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
                 $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
+                $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
 
                 // TODO - schedule each of these datarecords for a recache?
             }
@@ -476,10 +498,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("change layout of");
             // --------------------
 
@@ -584,19 +607,12 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( in_array($datatype->getId(), $top_level_datatypes) ) {
-                // require "is_type_admin" permission to delete a top-level datatype
-                if ( !($user->hasRole('ROLE_ADMIN') && isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'admin' ])) )
-                    return parent::permissionDeniedError("delete");
-            }
-            else {
-                // only require "can_design_type" permission to delete a childtype
-                if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
-                    return parent::permissionDeniedError("delete");
-            }
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError("delete");
             // --------------------
 
             // TODO - prevent datatype deletion when jobs are in progress?
@@ -627,26 +643,29 @@ class DisplaytemplateController extends ODRCustomController
 
 //print '<pre>'.print_r($datatypes_to_delete, true).'</pre>'; exit();
 
+            // Determine all Groups and all Users affected by this
+            $query = $em->createQuery(
+               'SELECT g.id AS group_id
+                FROM ODRAdminBundle:Group AS g
+                WHERE g.dataType IN (:datatype_ids)
+                AND g.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            $groups_to_delete = $query->getArrayResult();
+
+//print '<pre>'.print_r($groups_to_delete, true).'</pre>';  exit();
+
+            $query = $em->createQuery(
+               'SELECT u.id AS user_id
+                FROM ODRAdminBundle:UserGroup AS ug
+                JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+                WHERE ug.group IN (:groups) AND ug.deletedAt IS NULL'
+            )->setParameters( array('groups' => $groups_to_delete) );
+            $all_affected_users = $query->getArrayResult();
+
+//print '<pre>'.print_r($all_affected_users, true).'</pre>';  exit();
+
+
             // ----------------------------------------
-            // Delete cached versions of Datarecords if needed
-            if ($datatype->getId() == $grandparent_datatype_id) {
-                $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.dataType = :datatype_id'
-                )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
-                $results = $query->getArrayResult();
-
-//print '<pre>'.print_r($results, true).'</pre>';  exit();
-
-                foreach ($results as $result) {
-                    $dr_id = $result['dr_id'];
-
-                    $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
-                    $redis->del($redis_prefix.'.associated_datarecords_for_'.$dr_id);
-                }
-            }
-
 /*
             // Delete Datarecordfield entries
             $query = $em->createQuery(
@@ -705,13 +724,13 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
 /*
-            // Delete DatafieldPermission entries (cached versions deleted later)
+            // Delete GroupDatafieldPermission entries (cached versions deleted later)
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataFields AS df, ODRAdminBundle:UserFieldPermissions AS ufp
-                SET ufp.deletedAt = :now
-                WHERE ufp.dataField = df
+               'UPDATE ODRAdminBundle:DataFields AS df, ODRAdminBundle:GroupDatafieldPermissions AS gdfp
+                SET gdfp.deletedAt = :now
+                WHERE gdfp.dataField = df
                 AND df.dataType IN (:datatype_ids)
-                AND df.deletedAt IS NULL AND ufp.deletedAt IS NULL'
+                AND df.deletedAt IS NULL AND gdfp.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'datatype_ids' => $datatypes_to_delete) );
             $query->execute();
 
@@ -812,15 +831,37 @@ class DisplaytemplateController extends ODRCustomController
 
             // ----------------------------------------
 /*
-            // Delete all Datatype permission entries
+            // Delete GroupDatatypePermission entries (cached versions deleted later)
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:UserPermission AS up
-                SET up.deletedAt = :now
-                WHERE up.dataType IN (:datatype_ids)
-                AND up.deletedAt IS NULL'
+               'UPDATE ODRAdminBundle:GroupDatatypePermissions AS gdtp
+                SET gdtp.deletedAt = :now
+                WHERE gdtp.dataType IN (:datatype_ids)
+                AND gdtp.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'datatype_ids' => $datatypes_to_delete) );
             $query->execute();
+
+            // Delete Groups and their GroupMeta entries
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:Group AS g, ODRAdminBundle:GroupMeta AS gm
+                SET g.deletedAt = :now, g.deletedBy = :deleted_by, gm.deletedAt = :now
+                WHERE gm.group = g
+                AND g.dataType IN (:datatype_ids)
+                AND g.deletedAt IS NULL AND gm.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'datatype_ids' => $datatypes_to_delete) );
+            $query->execute();
 */
+
+            // Remove members from the Groups for this Datatype
+            $query = $em->createQuery(
+               'UPDATE ODRAdminBundle:UserGroup AS ug
+                SET ug.deletedAt = now(), ug.deletedBy = :deleted_by
+                WHERE ug.group IN (:group_ids)
+                AND ug.deletedAt IS NULL'
+            )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'group_ids' => $groups_to_delete) );
+            $query->execute();
+
+
+            // ----------------------------------------
             // Delete all Datatype and DatatypeMeta entries
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:DataTypeMeta AS dtm
@@ -839,19 +880,40 @@ class DisplaytemplateController extends ODRCustomController
             $query->execute();
 
 
-            // TODO - move (just about) all this preceeding stuff to beanstalk?
-
-
             // ----------------------------------------
-            // Grab all the users
-            $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var User[] $user_list */
-            $user_list = $user_manager->findUsers();
+            // Delete cached versions of all Datarecords of this Datatype if needed
+            if ($datatype->getId() == $grandparent_datatype_id) {
+                $query = $em->createQuery(
+                    'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.dataType = :datatype_id'
+                )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
+                $results = $query->getArrayResult();
 
-            // Delete all cached permissions
-            foreach ($user_list as $user) {
-                $redis->del($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
-                $redis->del($redis_prefix.'.user_'.$user->getId().'_datafield_permissions');
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+                foreach ($results as $result) {
+                    $dr_id = $result['dr_id'];
+
+                    $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
+                    $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
+                    $redis->del($redis_prefix.'.associated_datarecords_for_'.$dr_id);
+                }
+            }
+
+            // Delete cached entries for Group and User permissions involving this Datafield
+            foreach ($groups_to_delete as $group) {
+                $group_id = $group['group_id'];
+                $redis->del($redis_prefix.'.group_'.$group_id.'_permissions');
+
+                // TODO - schedule each of these groups for a recache?
+            }
+
+            foreach ($all_affected_users as $user) {
+                $user_id = $user['user_id'];
+                $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
+
+                // TODO - schedule each of these users for a recache?
             }
 
             // ...cached searches
@@ -911,10 +973,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -969,10 +1032,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1141,10 +1205,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1169,30 +1234,11 @@ class DisplaytemplateController extends ODRCustomController
 
             // design_ajax.html.twig calls ReloadThemeElement()
 
-/*
-            // Schedule the cache for an update
-            $options = array();
-            $options['mark_as_updated'] = true;
-            parent::updateDatatypeCache($datatype->getId(), $options);
-*/
+            // TODO - Updated cached entries instead of deleting them?
             $update_datatype = true;
             parent::tmp_updateThemeCache($em, $theme, $user, $update_datatype);
 
-
-            // ----------------------------------------
-            // Since new datafields were created, wipe datafield permission entries for all users
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-            $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var User[] $user_list */
-            $user_list = $user_manager->findUsers();
-            foreach ($user_list as $u) {
-                $redis->del($redis_prefix.'.user_'.$u->getId().'_datafield_permissions');
-
-                // TODO - schedule a permissions recache via beanstalk?
-            }
+            // Don't need to worry about datafield permissions here, those are taken care of inside ODR_addDataField()
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1249,10 +1295,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1288,8 +1335,8 @@ class DisplaytemplateController extends ODRCustomController
                 'radio_option_name_sort' => $old_datafield->getRadioOptionNameSort(),
                 'radio_option_display_unselected' => $old_datafield->getRadioOptionDisplayUnselected(),
                 'searchable' => $old_datafield->getSearchable(),
-                'user_only_search' =>$old_datafield->getUserOnlySearch(),
-
+                'user_only_search' => $old_datafield->getUserOnlySearch(),
+                'public_date' => $old_datafield->getPublicDate(),
             );
             parent::ODR_copyDatafieldMeta($em, $user, $new_datafield, $properties);
 
@@ -1364,10 +1411,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1447,10 +1495,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1533,10 +1582,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1663,10 +1713,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1731,10 +1782,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $parent_datatype->getId() ]) && isset($user_permissions[ $parent_datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $parent_datatype->getId() ]) && isset($datatype_permissions[ $parent_datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1746,7 +1798,6 @@ class DisplaytemplateController extends ODRCustomController
             /** @var RenderPlugin $render_plugin */
             $default_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find(1);
 
-            // TODO - mostly duplicated with DataType controller...move this somewhere else?
             // Create the new child Datatype
             $child_datatype = new DataType();
             $child_datatype->setRevision(0);
@@ -1834,24 +1885,9 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Copy the permissions this user has for the parent datatype to the new child datatype
-            $query = $em->createQuery(
-               'SELECT up
-                FROM ODRAdminBundle:UserPermissions AS up
-                WHERE up.user = :user_id AND up.dataType = :datatype'
-            )->setParameters( array('user_id' => $user->getId(), 'datatype' => $parent_datatype->getId()) );
-            $results = $query->getArrayResult();
-            $parent_permission = $results[0];
-
-            $initial_permissions = array(
-                'can_view_type' => $parent_permission['can_view_type'],
-                'can_add_record' => $parent_permission['can_add_record'],
-                'can_edit_record' => $parent_permission['can_edit_record'],
-                'can_delete_record' => $parent_permission['can_delete_record'],
-                'can_design_type' => $parent_permission['can_design_type'],
-                'is_type_admin' => 0    // DO NOT set admin permissions on childtypes
-            );
-            parent::ODR_addUserPermission($em, $user->getId(), $user->getId(), $child_datatype->getId(), $initial_permissions);
+            // Create the default groups for this child datatype
+            $is_top_level = false;
+            parent::ODR_createGroupsForDatatype($em, $user, $child_datatype, $is_top_level);
 
 
             // ----------------------------------------
@@ -1907,7 +1943,7 @@ class DisplaytemplateController extends ODRCustomController
      * 
      * @return Response
      */
-    public function getlinktypesAction($datatype_id, $theme_element_id, Request $request)
+    public function getlinkabledatatypesAction($datatype_id, $theme_element_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1938,10 +1974,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $local_datatype->getId() ]) && isset($user_permissions[ $local_datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $local_datatype->getId() ]) && isset($datatype_permissions[ $local_datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1980,24 +2017,37 @@ class DisplaytemplateController extends ODRCustomController
             // ----------------------------------------
             // Grab all the ids of all datatypes currently in the database
             $query = $em->createQuery(
-               'SELECT dt.id AS id
+               'SELECT dt.id AS dt_id, dtm.publicDate AS public_date
                 FROM ODRAdminBundle:DataType AS dt
-                WHERE dt.deletedAt IS NULL'
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                WHERE dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
             );
             $results = $query->getArrayResult();
 
             $all_datatype_ids = array();
-            foreach ($results as $result)
-                $all_datatype_ids[] = $result['id'];
+            foreach ($results as $result) {
+                $dt_id = $result['dt_id'];
+                $is_public = true;
+                if ( $result['public_date']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' )
+                    $is_public = false;
 
-            // Iterate through all the datatype ids...
+                $all_datatype_ids[$dt_id] = $is_public;
+            }
+
+            // Ensure user can't link to a datatype they aren't able to see
+            foreach ($all_datatype_ids as $dt_id => $datatype_is_public) {
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dt_view']) )
+                    $can_view_datatype = true;
+
+                // If the datatype is not public and the user doesn't have view permissions, remove from the array
+                if ( !($datatype_is_public || $can_view_datatype) )
+                    unset( $all_datatype_ids[$dt_id] );
+            }
+
+            // Iterate through the remaining datatype ids...
             $linkable_datatype_ids = array();
-            foreach ($all_datatype_ids as $dt_id) {
-                // TODO - should this permission actually be required here?
-                // Prevent user from linking to a datatype they don't have view permissions for
-                if ( !(isset($user_permissions[ $dt_id ]) && isset($user_permissions[ $dt_id ]['view'])) )
-                    continue;
-
+            foreach ($all_datatype_ids as $dt_id => $datatype_is_public) {
                 // Don't allow linking to child datatypes
                 if ( isset($current_datatree_array['descendant_of'][ $dt_id ]) && $current_datatree_array['descendant_of'][ $dt_id ] !== '' )
                     continue;
@@ -2078,7 +2128,7 @@ class DisplaytemplateController extends ODRCustomController
      * 
      * @return Response
      */
-    public function linktypeAction(Request $request)
+    public function linkdatatypeAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2134,15 +2184,20 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $local_datatype->getId() ]) && isset($user_permissions[ $local_datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $local_datatype->getId() ]) && isset($datatype_permissions[ $local_datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
 
-            // TODO - should this permission actually be required here?
-            // Prevent user from linking to a datatype they can't view
-            if ( !(isset($user_permissions[ $remote_datatype->getId() ]) && $user_permissions[ $remote_datatype->getId() ]['view']) )
+
+            // Prevent user from linking to a datatype they don't have permissions to view
+            $can_view_remote_datatype = false;
+            if ( isset($datatype_permissions[ $remote_datatype->getId() ]) && isset($datatype_permissions[ $remote_datatype->getId() ]['dt_view']) )
+                $can_view_remote_datatype = true;
+
+            if ( !($remote_datatype->isPublic() || $can_view_remote_datatype) )
                 return parent::permissionDeniedError('edit');
             // --------------------
 
@@ -2243,6 +2298,8 @@ class DisplaytemplateController extends ODRCustomController
                 $theme_datatype = $theme_element->getThemeDataType()->first();
                 $theme_datatype->setDeletedBy($user);
                 $em->persist($theme_datatype);
+
+                $entities_to_remove[] = $theme_datatype;
 
                 $em->flush();
                 foreach ($entities_to_remove as $entity)
@@ -2421,10 +2478,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -2484,18 +2542,6 @@ class DisplaytemplateController extends ODRCustomController
                 /** @var RenderPluginInstance $render_plugin_instance */
                 $render_plugin_instance = $repo_render_plugin_instance->findOneBy( array('renderPlugin' => $current_render_plugin, 'dataField' => $datafield) );
             }
-
-
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'design' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
 
 
             // Get Templating Object
@@ -2558,10 +2604,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -2890,18 +2937,6 @@ class DisplaytemplateController extends ODRCustomController
                 $plugin_options = $post['plugin_options'];
 
 
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $local_datatype_id ]) && isset($user_permissions[ $local_datatype_id ][ 'design' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-
             // ----------------------------------------
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2912,6 +2947,19 @@ class DisplaytemplateController extends ODRCustomController
             $repo_render_plugin_options = $em->getRepository('ODRAdminBundle:RenderPluginOptions');
             $repo_render_plugin_map = $em->getRepository('ODRAdminBundle:RenderPluginMap');
             $repo_render_plugin_instance = $em->getRepository('ODRAdminBundle:RenderPluginInstance');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $local_datatype_id ]) && isset($datatype_permissions[ $local_datatype_id ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
 
             /** @var DataType|null $target_datatype */
             $target_datatype = null;
@@ -3058,6 +3106,8 @@ class DisplaytemplateController extends ODRCustomController
             if ($reload_datatype) {
                 $em->flush();
 
+                // Don't need to worry about datafield permissions here, those are taken care of inside ODR_addDataField()
+/*
                 // TODO Make this only flush affected users - this is inefficient.
                 // Since new datafields were created, wipe datafield permission entries for all users
                 $redis = $this->container->get('snc_redis.default');;
@@ -3065,13 +3115,13 @@ class DisplaytemplateController extends ODRCustomController
                 $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
                 $user_manager = $this->container->get('fos_user.user_manager');
-                /** @var User[] $user_list */
                 $user_list = $user_manager->findUsers();
                 foreach ($user_list as $u) {
                     $redis->del($redis_prefix.'.user_'.$u->getId().'_datafield_permissions');
 
                     // TODO - schedule a permissions recache via beanstalk?
                 }
+*/
             }
 
 
@@ -3280,10 +3330,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -3349,10 +3400,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -3421,10 +3473,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $source_datatype->getId() ]) && isset($datatype_permissions[ $source_datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -3482,6 +3535,7 @@ class DisplaytemplateController extends ODRCustomController
 
         // Going to need this a lot...
         $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+
 
         // ----------------------------------------
         // Load required objects based on parameters
@@ -3547,6 +3601,18 @@ class DisplaytemplateController extends ODRCustomController
 
 
         // ----------------------------------------
+        // Determine whether the user is an admin of this datatype
+        /** @var User $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+        $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+        $datatype_permissions = $user_permissions['datatypes'];
+
+        $is_datatype_admin = false;
+        if ( isset($datatype_permissions[$datatype->getId()]) && isset($datatype_permissions[$datatype->getId()]['dt_admin']) )
+            $is_datatype_admin = true;
+
+
+        // ----------------------------------------
         // Determine which datatypes/childtypes to load from the cache
         $include_links = true;
         $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype->getId()), $include_links);
@@ -3600,6 +3666,8 @@ class DisplaytemplateController extends ODRCustomController
                     'initial_datatype_id' => $datatype->getId(),
                     'theme_id' => $theme->getId(),
 
+                    'is_datatype_admin' => $is_datatype_admin,
+
                     'fieldtype_array' => $fieldtype_array,
                     'has_datarecords' => $has_datarecords,
                 )
@@ -3627,6 +3695,8 @@ class DisplaytemplateController extends ODRCustomController
                     'datatype_array' => $datatype_array,
                     'target_datatype_id' => $target_datatype_id,
                     'theme_id' => $theme->getId(),
+
+                    'is_datatype_admin' => $is_datatype_admin,
 
                     'is_link' => $is_link,
                     'is_top_level' => $is_top_level,
@@ -3661,9 +3731,10 @@ class DisplaytemplateController extends ODRCustomController
                 'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig',
                 array(
                     'datatype_array' => $datatype_array,
-
                     'target_datatype_id' => $target_datatype_id,
                     'theme_id' => $theme->getId(),
+
+                    'is_datatype_admin' => $is_datatype_admin,
 
                     'is_top_level' =>  $is_top_level,
                     'is_link' => $is_link,
@@ -3694,12 +3765,13 @@ class DisplaytemplateController extends ODRCustomController
             if ( $datafield_array == null )
                 throw new \Exception('Unable to locate array entry for datafield '.$datafield->getId());
 
-
             $html = $templating->render(
                 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig',
                 array(
                     'theme_datafield' => $theme_datafield_array,
                     'datafield' => $datafield_array,
+
+                    'is_datatype_admin' => $is_datatype_admin,
                 )
             );
         }
@@ -3739,10 +3811,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -3855,6 +3928,7 @@ class DisplaytemplateController extends ODRCustomController
                         foreach ($results as $result) {
                             $dr_id = $result['dr_id'];
                             $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
+                            $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
                         }
                     }
 
@@ -3961,7 +4035,7 @@ class DisplaytemplateController extends ODRCustomController
 
                 // Determine whether user can view permissions of other users
                 $can_view_permissions = false;
-                if ( $user->hasRole('ROLE_SUPER_ADMIN') || ( isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['admin']) ) )
+                if ( $user->hasRole('ROLE_SUPER_ADMIN') || ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_admin']) ) )
                     $can_view_permissions = true;
 
 
@@ -4041,10 +4115,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -4409,7 +4484,8 @@ class DisplaytemplateController extends ODRCustomController
                         'radio_option_name_sort' => $submitted_data->getRadioOptionNameSort(),
                         'radio_option_display_unselected' => $submitted_data->getRadioOptionDisplayUnselected(),
                         'searchable' => $submitted_data->getSearchable(),
-                        'user_only_search' =>$submitted_data->getUserOnlySearch(),
+                        'user_only_search' => $submitted_data->getUserOnlySearch(),
+                        'public_date' => $submitted_data->getPublicDate(),
                     );
                     parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
 
@@ -4760,10 +4836,11 @@ class DisplaytemplateController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -4882,10 +4959,11 @@ $debug = false;
             // --------------------
             // Determine user privileges
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) ) {
+            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) ) {
                 $em->getFilters()->enable('softdeleteable');
                 return parent::permissionDeniedError("edit");
             }
@@ -5113,10 +5191,11 @@ if ($debug)
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -5149,6 +5228,84 @@ if ($debug)
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x20228935656 '. $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Toggles the public status of a Datafield.
+     *
+     * @param integer $datafield_id The database id of the Datafield to modify.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function datafieldpublicAction($datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // Grab the necessary entities
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                return parent::deletedEntityError('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ( $datatype->getDeletedAt() != null )
+                return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+
+            // If the datafield is public, make it non-public...if datafield is non-public, make it public
+            if ( $datafield->isPublic() ) {
+                // Make the datafield non-public
+                $properties = array(
+                    'publicDate' => new \DateTime('2200-01-01 00:00:00')
+                );
+                parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
+            }
+            else {
+                // Make the datafield public
+                $properties = array(
+                    'publicDate' => new \DateTime()
+                );
+                parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
+
+                // TODO - since datafield is now public, set all GroupDatafieldPermission entries where "can_view_datafield" == 0 to instead be 1?  Leaving it at 0 should make no difference, but...
+            }
+
+            // TODO - update cached version directly?
+            parent::tmp_updateDatatypeCache($em, $datatype, $user);
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x283526535 '. $e->getMessage();
         }
 
         $response = new Response(json_encode($return));

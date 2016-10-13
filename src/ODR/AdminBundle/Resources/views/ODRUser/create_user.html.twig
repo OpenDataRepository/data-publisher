@@ -36,7 +36,7 @@
         </div>
         <div class="pure-control-group pure-u-1 pure-u-sm-1-2">
             <span style="margin: 5px;">
-                <button id="emailCheckButton" type="button" class="pure-button pure-button-primary" onclick="checkEmail();">Check Availability</button>
+                <button id="emailCheckButton" type="button" class="pure-button pure-button-primary" onclick="checkEmail();">Check Email Availability</button>
             </span>
             <span id="email_errors" style="margin: 5px;"></span>
         </div>
@@ -97,9 +97,9 @@
         </div>
     </fieldset>
 
-    <input id="submitButton" class="pure-button pure-button-primary" type="button" value="Save" />
-
 {{ form_end(profile_form) }}
+
+<button id="submitButton" class="pure-button pure-button-primary">Save</button>
 
 {% include 'ODRAdminBundle:ODRUser:password_rules.html.twig' with {'form': profile_form} %}
 
@@ -137,7 +137,7 @@
             if (old_email != new_email) {
                 old_email = new_email;
 
-                $("#emailCheckButton").addClass('pure-button-primary').html('Check Availability').removeAttr('disabled');
+                $("#emailCheckButton").addClass('pure-button-primary').html('Check Email Availability').removeAttr('disabled');
                 $("#submitButton").removeClass('pure-button-primary').attr('disabled', 'disabled');
             }
         });
@@ -164,11 +164,11 @@
 
                     if (data.d == 0) {
                         // Email not found
-                        $("#submitButton").addClass('pure-button-primary').attr('value', 'Save').attr('onclick', 'saveProfileForm();').removeAttr('disabled');
+                        $("#submitButton").addClass('pure-button-primary').html('Save').attr('onclick', 'saveProfileForm();').removeAttr('disabled');
                     }
                     else {
                         // Email already exists
-                        $("#submitButton").addClass('pure-button-primary').attr('value', 'View Permissions').attr('onclick', 'viewPermissions(' + data.d + ');').removeAttr('disabled');
+                        $("#submitButton").addClass('pure-button-primary').html('View User Permissions').attr('onclick', 'viewPermissions(' + data.d + ');').removeAttr('disabled');
                         $("#emailCheckButton").html('User already exists');
                     }
                 }
@@ -194,7 +194,7 @@
     }
 
     function viewPermissions(user_id) {
-        var url = "{{ path('odr_manage_user_permissions', {'user_id': 0}) }}";
+        var url = "{{ path('odr_manage_user_groups', {'user_id': 0}) }}";
         url = url.substr(0, url.length-1);
         url += user_id;
 //alert(url);
@@ -219,7 +219,7 @@
 //alert(url);
 //return;
 
-        $("#submitButton").attr('disabled', 'disabled').attr('value', 'Creating New User...');
+        $("#submitButton").attr('disabled', 'disabled').html('Creating New User...');
 
         $.ajax({
             url: url,

@@ -16,6 +16,8 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
+// Controllers/Classes
+use ODR\OpenRepository\SearchBundle\Controller\DefaultController as SearchController;
 // Entities
 use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataFields;
@@ -82,12 +84,22 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'add' ])) )
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_add_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_add']) )
+                $can_add_datarecord = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
+            if ( !($datatype->isPublic() || $can_view_datatype) || !$can_add_datarecord )
                 return parent::permissionDeniedError("create new DataRecords for");
             // --------------------
+
 
             // Determine whether this is a request to add a datarecord for a top-level datatype or not
             $top_level_datatypes = parent::getTopLevelDatatypes();
@@ -193,12 +205,26 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'add' ])) )
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_add_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_add']) )
+                $can_add_datarecord = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($grandparent->isPublic() || $can_view_datarecord) || !$can_add_datarecord )
                 return parent::permissionDeniedError("add child DataRecords to");
             // --------------------
+
 
             // Determine whether this is a request to add a datarecord for a top-level datatype or not
             $top_level_datatypes = parent::getTopLevelDatatypes();
@@ -276,14 +302,28 @@ class EditController extends ODRCustomController
                 return parent::deletedEntityError('Datatype');
             $datatype_id = $datatype->getId();
 
+
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'delete' ])) )
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_delete_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_delete']) )
+                $can_delete_datarecord = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_delete_datarecord )
                 return parent::permissionDeniedError("delete DataRecords from");
             // --------------------
 
@@ -370,6 +410,7 @@ class EditController extends ODRCustomController
 
             // Delete the cached entry for this now-deleted datarecord
             $redis->del($redis_prefix.'.cached_datarecord_'.$datarecord_id);
+            $redis->del($redis_prefix.'.datarecord_table_data_'.$datarecord_id);
 
             // Delete the sorted list of datarecords for this datatype
             $redis->del($redis_prefix.'.data_type_'.$datatype->getId().'_record_order');
@@ -381,7 +422,7 @@ class EditController extends ODRCustomController
             if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
                 // Delete all cached search results for this datatype that contained this now-deleted datarecord
                 foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
-                    $datarecord_list = explode(',', $search_data['datarecord_list']);
+                    $datarecord_list = explode(',', $search_data['datarecord_list']['all']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
                     if ( in_array($datarecord_id, $datarecord_list) )
                         unset ( $cached_searches[$datatype_id][$search_checksum] );
                 }
@@ -462,16 +503,31 @@ class EditController extends ODRCustomController
                 return parent::deletedEntityError('DataRecord');
             $datatype = $datarecord->getDataType();
 
+
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'delete' ])) )
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_delete_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_delete']) )
+                $can_delete_datarecord = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_delete_datarecord )
                 return parent::permissionDeniedError("delete child DataRecords from");
             // --------------------
+
 
             if ($datarecord->getId() == $datarecord->getGrandparent()->getId())
                 throw new \Exception('EditController::deletechildrecordAction() called on a Datarecord that is top-level');
@@ -479,6 +535,7 @@ class EditController extends ODRCustomController
             $parent = $datarecord->getParent();
             $grandparent = $datarecord->getGrandparent();
             $grandparent_id = $grandparent->getId();
+            $grandparent_datatype_id = $grandparent->getDataType()->getId();
 
 
             // ----------------------------------------
@@ -576,6 +633,22 @@ class EditController extends ODRCustomController
             parent::tmp_updateDatarecordCache($em, $grandparent, $user);
 
 
+            // ----------------------------------------
+            // See if any cached search results need to be deleted...
+            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            if ( $cached_searches !== false && isset($cached_searches[$grandparent_datatype_id]) ) {
+                // Delete all cached search results for this datatype that contained this now-deleted datarecord
+                foreach ($cached_searches[$grandparent_datatype_id] as $search_checksum => $search_data) {
+                    $complete_datarecord_list = explode(',', $search_data['complete_datarecord_list']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
+                    if ( in_array($datarecord_id, $complete_datarecord_list) )
+                        unset ( $cached_searches[$grandparent_datatype_id][$search_checksum] );
+                }
+
+                // Save the collection of cached searches back to memcached
+                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+            }
+
+
             // Get record_ajax.html.twig to re-render the datarecord
             $return['d'] = array(
                 'datatype_id' => $datatype->getId(),
@@ -619,31 +692,48 @@ class EditController extends ODRCustomController
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ( $file == null )
                 return parent::deletedEntityError('File');
+
             $datafield = $file->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
+            $datafield_id = $datafield->getId();
+
             $datarecord = $file->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
+
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
             // Files that aren't done encrypting shouldn't be modified
             if ($file->getOriginalChecksum() == '')
                 return parent::deletedEntityError('File');
 
+
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
-                return parent::permissionDeniedError("delete files from");
-            if ( !(isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'edit' ])) )
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_edit_datafield = false;
+            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
+                $can_edit_datafield = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -672,6 +762,8 @@ class EditController extends ODRCustomController
             // TODO - directly update the cached version of the datarecord?
             // TODO - execute graph plugin?
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+
+            // TODO - update cached search results?
 
             // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
             if ($datafield->getAllowMultipleUploads() == "0")
@@ -714,15 +806,20 @@ class EditController extends ODRCustomController
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ( $file == null )
                 return parent::deletedEntityError('File');
+
             $datafield = $file->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
+            $datafield_id = $datafield->getId();
+
             $datarecord = $file->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
+
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
             // Files that aren't done encrypting shouldn't be modified
             if ($file->getOriginalChecksum() == '')
@@ -732,13 +829,24 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
-                return parent::permissionDeniedError("edit");
-            if ( !(isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'edit' ])) )
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_edit_datafield = false;
+            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
+                $can_edit_datafield = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -786,6 +894,8 @@ class EditController extends ODRCustomController
             // TODO - replace this block with code to directly update the cached version of the datarecord
             // TODO - execute graph plugin?
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+
+            // TODO - update cached search results?
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -825,15 +935,20 @@ class EditController extends ODRCustomController
             $image = $repo_image->find($image_id);
             if ( $image == null )
                 return parent::deletedEntityError('Image');
+
             $datafield = $image->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
+            $datafield_id = $datafield->getId();
+
             $datarecord = $image->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
+
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
             // Images that aren't done encrypting shouldn't be downloaded
             if ($image->getOriginalChecksum() == '')
@@ -843,15 +958,27 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
-                return parent::permissionDeniedError("edit");
-            if ( !(isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'edit' ])) )
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_edit_datafield = false;
+            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
+                $can_edit_datafield = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
                 return parent::permissionDeniedError("edit");
             // --------------------
+
 
             // Grab all children of the original image (resizes, i believe)
             /** @var Image[] $all_images */
@@ -902,6 +1029,8 @@ class EditController extends ODRCustomController
             // Delete cached version of datarecord
             // TODO - replace this block with code to directly update the cached version of the datarecord
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+
+            // TODO - update cached search results?
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -944,30 +1073,47 @@ class EditController extends ODRCustomController
             $datafield = $image->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
+            $datafield_id = $datafield->getId();
+
             $datarecord = $image->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
+
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
             // Images that aren't done encrypting shouldn't be modified
             if ($image->getOriginalChecksum() == '')
                 return parent::deletedEntityError('Image');
 
+
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
-                return parent::permissionDeniedError("edit");
-            if ( !(isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'edit' ])) )
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_edit_datafield = false;
+            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
+                $can_edit_datafield = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
                 return parent::permissionDeniedError("edit");
             // --------------------
+
 
             // Grab all alternate sizes of the original image (thumbnail is only current one) and remove them
             /** @var Image[] $images */
@@ -1007,6 +1153,8 @@ class EditController extends ODRCustomController
             // If this datafield only allows a single upload, tell record_ajax.html.twig to refresh that datafield so the upload button shows up
             if ($datafield->getAllowMultipleUploads() == "0")
                 $return['d'] = array('need_reload' => true);
+
+            // TODO - update cached search results?
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1047,31 +1195,48 @@ class EditController extends ODRCustomController
             $image = $repo_image->find($image_id);
             if ( $image == null )
                 return parent::deletedEntityError('Image');
+
             $datafield = $image->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
+            $datafield_id = $datafield->getId();
+
             $datarecord = $image->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
+
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
             // Images that aren't done encrypting shouldn't be modified
             if ($image->getOriginalChecksum() == '')
                 return parent::deletedEntityError('Image');
 
+
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
-                return parent::permissionDeniedError("edit");
-            if ( !(isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'edit' ])) )
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_edit_datafield = false;
+            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
+                $can_edit_datafield = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1273,27 +1438,43 @@ class EditController extends ODRCustomController
             $datafield = $image->getDataField();
             if ( $datafield == null )
                 return parent::deletedEntityError('DataField');
+            $datafield_id = $datafield->getId();
+
             $datarecord = $image->getDataRecord();
             if ( $datarecord == null )
                 return parent::deletedEntityError('DataRecord');
+
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
-                return parent::permissionDeniedError("edit");
-            if ( !(isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'edit' ])) )
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_edit_datafield = false;
+            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
+                $can_edit_datafield = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
                 return parent::permissionDeniedError("edit");
             // --------------------
+
 
             // Ensure that the provided image ids are all from the same datarecordfield, and that all images from that datarecordfield are listed in the post
             $query = $em->createQuery(
@@ -1369,6 +1550,10 @@ class EditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ( $datarecord == null )
@@ -1377,16 +1562,22 @@ class EditController extends ODRCustomController
             $datatype = $datarecord->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('DataType');
+            $datatype_id = $datatype->getId();
 
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            $is_datatype_admin = false;
+            if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ]['dt_admin']) )     // TODO - probably shouldn't be this permission...
+                $is_datatype_admin = true;
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+            if ( !$is_datatype_admin )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1411,11 +1602,23 @@ class EditController extends ODRCustomController
             }
 
             // Refresh the cache entries for this datarecord?
-/*
-            $options = array('mark_as_updated' => true);
-            parent::updateDatarecordCache($datarecord->getId(), $options);
-*/
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+
+
+            // ----------------------------------------
+            // See if any cached search results need to be deleted...
+            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
+                // Delete all cached search results for this datatype that contained this now-deleted datarecord
+                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
+                    $datarecord_list = explode(',', $search_data['datarecord_list']['all']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
+                    if ( in_array($datarecord_id, $datarecord_list) )
+                        unset ( $cached_searches[$datatype_id][$search_checksum] );
+                }
+
+                // Save the collection of cached searches back to memcached
+                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+            }
 
 
             // re-render?  wat
@@ -1461,6 +1664,10 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ( $datafield == null )
@@ -1474,6 +1681,7 @@ class EditController extends ODRCustomController
             $datatype = $datafield->getDataType();
             if ( $datatype == null )
                 return parent::deletedEntityError('Datatype');
+            $datatype_id = $datatype->getId();
 
             /** @var RadioOptions $radio_option */
             $radio_option = null;
@@ -1488,13 +1696,24 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
-                return parent::permissionDeniedError("edit");
-            if ( !(isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'edit' ])) )
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_edit_datafield = false;
+            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
+                $can_edit_datafield = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1558,6 +1777,21 @@ class EditController extends ODRCustomController
             // TODO - replace this block with code to directly update the cached version of the datarecord?
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
 
+            // See if any cached search results need to be deleted...
+            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
+                // Delete all cached search results for this datatype that were run with criteria for this specific datafield
+                foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
+                    $searched_datafields = $search_data['searched_datafields'];
+                    $searched_datafields = explode(',', $searched_datafields);
+
+                    if ( in_array($datafield_id, $searched_datafields) )
+                        unset($cached_searches[$datatype_id][$search_checksum]);
+                }
+
+                // Save the collection of cached searches back to memcached
+                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -1604,7 +1838,7 @@ class EditController extends ODRCustomController
                 return parent::deletedEntityError('DataRecord');
 
             $datatype = $datarecord->getDataType();
-            if ($datatype == null)
+            if ($datatype->getDeletedAt() != null)
                 return parent::deletedEntityError('DataType');
             $datatype_id = $datatype->getId();
 
@@ -1618,13 +1852,24 @@ class EditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
-            // Ensure user has permissions to be doing this
-            if (!(isset($user_permissions[$datatype_id]) && isset($user_permissions[$datatype_id]['edit'])))
-                return parent::permissionDeniedError("edit");
-            if (!(isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit'])))
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_edit_datafield = false;
+            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['edit']) )
+                $can_edit_datafield = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1880,7 +2125,7 @@ class EditController extends ODRCustomController
      * 
      * @return Response
      */
-    public function getlinkablerecordsAction($ancestor_datatype_id, $descendant_datatype_id, $local_datarecord_id, $search_key, Request $request)
+    public function getlinkabledatarecordsAction($ancestor_datatype_id, $descendant_datatype_id, $local_datarecord_id, $search_key, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1888,7 +2133,6 @@ class EditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
@@ -1900,6 +2144,11 @@ class EditController extends ODRCustomController
             if ( $local_datarecord == null )
                 return parent::deletedEntityError('DataRecord');
 
+            $local_datatype = $local_datarecord->getDataType();
+            if ($local_datatype->getDeletedAt() != null)
+                return parent::deletedEntityError('DataType');
+            $local_datatype_id = $local_datatype->getId();
+
             /** @var DataType $ancestor_datatype */
             $ancestor_datatype = $repo_datatype->find($ancestor_datatype_id);
             if ( $ancestor_datatype == null )
@@ -1910,15 +2159,38 @@ class EditController extends ODRCustomController
             if ( $descendant_datatype == null )
                 return parent::deletedEntityError('DataType');
 
+            // Ensure a link exists from ancestor to descendant datatype
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $ancestor_datatype->getId(), 'descendant' => $descendant_datatype->getId()) );
+            if ($datatree == null)
+                return parent::deletedEntityError('DataTree');
+
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $ancestor_datatype->getId() ]) && isset($user_permissions[ $ancestor_datatype->getId() ][ 'edit' ])) )
+            $can_view_ancestor_datatype = false;
+            if ( isset($datatype_permissions[$ancestor_datatype_id]) && isset($datatype_permissions[$ancestor_datatype_id]['dt_view']) )
+                $can_view_ancestor_datatype = true;
+
+            $can_view_descendant_datatype = false;
+            if ( isset($datatype_permissions[$descendant_datatype_id]) && isset($datatype_permissions[$descendant_datatype_id]['dt_view']) )
+                $can_view_descendant_datatype = true;
+
+            $can_view_local_datarecord = false;
+            if ( isset($datatype_permissions[$local_datatype_id]) && isset($datatype_permissions[$local_datatype_id]['dr_view']) )
+                $can_view_local_datarecord = true;
+
+            $can_edit_ancestor_datarecord = false;
+            if ( isset($datatype_permissions[$ancestor_datatype_id]) && isset($datatype_permissions[$ancestor_datatype_id]['dr_edit']) )
+                $can_edit_ancestor_datarecord = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
+            if ( !($ancestor_datatype->isPublic() || $can_view_ancestor_datatype) || !($descendant_datatype->isPublic() || $can_view_descendant_datatype) || !($local_datarecord->isPublic() || $can_view_local_datarecord) || !$can_edit_ancestor_datarecord )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -2071,7 +2343,7 @@ if ($debug) {
 //print_r($table_html);
 
             // Grab the column names for the datatables plugin
-            $column_data = parent::getDatatablesColumnNames($em, $theme);
+            $column_data = parent::getDatatablesColumnNames($em, $theme, $datafield_permissions);
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
 /*
@@ -2125,7 +2397,7 @@ exit();
      * 
      * @return Response
      */
-    public function linkrecordAction(Request $request)
+    public function linkdatarecordsAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2153,6 +2425,11 @@ exit();
             $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
             $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+
             /** @var DataRecord $local_datarecord */
             $local_datarecord = $repo_datarecord->find($local_datarecord_id);
             if ( $local_datarecord == null )
@@ -2161,21 +2438,9 @@ exit();
             $local_datatype = $local_datarecord->getDataType();
             if ( $local_datatype == null )
                 return parent::deletedEntityError('DataType');
+            $local_datatype_id = $local_datatype->getId();
 
 
-            // --------------------
-            // Determine user privileges
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $local_datatype->getId() ]) && isset($user_permissions[ $local_datatype->getId() ][ 'edit' ])) )
-                return parent::permissionDeniedError("edit");
-            // --------------------
-
-
-            // Grab the datatypes from the database
             /** @var DataType $ancestor_datatype */
             $ancestor_datatype = $repo_datatype->find($ancestor_datatype_id);
             if ( $ancestor_datatype == null )
@@ -2185,6 +2450,74 @@ exit();
             $descendant_datatype = $repo_datatype->find($descendant_datatype_id);
             if ( $descendant_datatype == null )
                 return parent::deletedEntityError('DataType');
+
+            // Ensure a link exists from ancestor to descendant datatype
+            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $ancestor_datatype->getId(), 'descendant' => $descendant_datatype->getId()) );
+            if ($datatree == null)
+                return parent::deletedEntityError('DataTree');
+
+            // Determine which datatype is the remote one
+            $remote_datatype_id = $descendant_datatype_id;
+            if ($local_datatype_id == $descendant_datatype_id)
+                $remote_datatype_id = $ancestor_datatype_id;
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            $can_view_ancestor_datatype = false;
+            if ( isset($datatype_permissions[$ancestor_datatype_id]) && isset($datatype_permissions[$ancestor_datatype_id]['dt_view']) )
+                $can_view_ancestor_datatype = true;
+
+            $can_view_descendant_datatype = false;
+            if ( isset($datatype_permissions[$descendant_datatype_id]) && isset($datatype_permissions[$descendant_datatype_id]['dt_view']) )
+                $can_view_descendant_datatype = true;
+
+            $can_view_local_datarecord = false;
+            if ( isset($datatype_permissions[$local_datatype_id]) && isset($datatype_permissions[$local_datatype_id]['dr_view']) )
+                $can_view_local_datarecord = true;
+
+            $can_edit_ancestor_datarecord = false;
+            if ( isset($datatype_permissions[$ancestor_datatype_id]) && isset($datatype_permissions[$ancestor_datatype_id]['dr_edit']) )
+                $can_edit_ancestor_datarecord = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
+            if ( !($ancestor_datatype->isPublic() || $can_view_ancestor_datatype) || !($descendant_datatype->isPublic() || $can_view_descendant_datatype) || !($local_datarecord->isPublic() || $can_view_local_datarecord) || !$can_edit_ancestor_datarecord )
+                return parent::permissionDeniedError("edit");
+
+
+            // Need to also check whether user has view permissions for remote datatype...
+            $can_view_remote_datarecords = false;
+            if ( isset($datatype_permissions[$remote_datatype_id]) && isset($datatype_permissions[$remote_datatype_id]['dr_view']) )
+                $can_view_remote_datarecords = true;
+
+            if (!$can_view_remote_datarecords) {
+                // User apparently doesn't have view permissions for the remote datatype...prevent them from touching a non-public datarecord in that datatype
+                $remote_datarecord_ids = array();
+                foreach ($datarecords as $id => $num)
+                    $remote_datarecord_ids[] = $id;
+
+                // Determine whether there are any non-public datarecords in the list that the user wants to link...
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.id IN (:datarecord_ids) AND dr.public_date = "2200-01-01 00:00:00"
+                    AND dr.deletedAt IS NULL'
+                )->setParameters( array('datarecord_ids' => $remote_datarecord_ids) );
+                $results = $query->getArrayResult();
+
+                // ...if there are, then prevent the action since the user isn't allowed to see them
+                if ( count($results) > 0 )
+                    return parent::permissionDeniedError("edit");
+            }
+            else {
+                /* user can view remote datatype, no other checks needed */
+            }
+            // --------------------
 
 
             $linked_datatree = null;
@@ -2254,6 +2587,9 @@ if ($debug)
 if ($debug)
     print 'removing link between ancestor datarecord '.$ldt->getAncestor()->getId().' and descendant datarecord '.$ldt->getDescendant()->getId()."\n";
 
+                    // Delete the cached list of child/linked datarecords for the ancestor datarecord
+                    $redis->del($redis_prefix.'.associated_datarecords_for_'.$ldt->getAncestor()->getId());
+
                     // Remove the linked_data_tree entry
                     $ldt->setDeletedBy($user);
                     $em->persist($ldt);
@@ -2291,6 +2627,9 @@ if ($debug)
 
                 // Ensure there is a link between the two datarecords
                 parent::ODR_linkDataRecords($em, $user, $ancestor_datarecord, $descendant_datarecord);
+
+                // Delete the cached list of child/linked datarecords for the ancestor datarecord
+                $redis->del($redis_prefix.'.associated_datarecords_for_'.$ancestor_datarecord->getId());
             }
 
             $em->flush();
@@ -2313,14 +2652,14 @@ if ($debug)
 
 
     /**
-    * Given a child datatype id and a datarecord, re-render and return the html for that child datatype.
-    *
-    * @param integer $child_datatype_id     The database id of the child DataType to re-render
-    * @param integer $parent_datarecord_id  The database id of the parent DataRecord
-    * @param Request $request
-    * 
-    * @return Response
-    */
+     * Given a child datatype id and a datarecord, re-render and return the html for that child datatype.
+     *
+     * @param integer $child_datatype_id     The database id of the child DataType to re-render
+     * @param integer $parent_datarecord_id  The database id of the parent DataRecord
+     * @param Request $request
+     *
+     * @return Response
+     */
     public function reloadchildAction($child_datatype_id, $parent_datarecord_id, Request $request)
     {
         $return = array();
@@ -2346,6 +2685,11 @@ if ($debug)
             if ($parent_datarecord == null)
                 return parent::deletedEntityError('Datarecord');
 
+            $parent_datatype = $parent_datarecord->getDataType();
+            if ($parent_datatype->getDeletedAt() != null)
+                return parent::deletedEntityError('Datatype');
+            $parent_datatype_id = $parent_datatype->getId();
+
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $child_datatype->getId(), 'themeType' => 'master') );
             if ($theme == null)
@@ -2356,10 +2700,27 @@ if ($debug)
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $child_datatype->getId() ]) && isset($user_permissions[ $child_datatype->getId() ][ 'edit' ])) )
+            $can_view_child_datatype = false;
+            if ( isset($datatype_permissions[$child_datatype_id]) && isset($datatype_permissions[$child_datatype_id]['dt_view']) )
+                $can_view_child_datatype = true;
+
+            $can_view_parent_datatype = false;
+            if ( isset($datatype_permissions[$parent_datatype_id]) && isset($datatype_permissions[$parent_datatype_id]['dt_view']) )
+                $can_view_parent_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$parent_datarecord_id]) && isset($datatype_permissions[$parent_datarecord_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_edit_datarecord = false;
+            if ( isset($datatype_permissions[$parent_datarecord_id]) && isset($datatype_permissions[$parent_datarecord_id]['dr_edit']) )
+                $can_edit_datarecord = true;
+
+            // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't reload the child datatype's HTML
+            if ( !($parent_datatype->isPublic() || $can_view_parent_datatype) || !($child_datatype->isPublic() || $can_view_child_datatype) || !($parent_datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datarecord )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -2381,14 +2742,14 @@ if ($debug)
 
 
     /**
-    * Given a datarecord and datafield, re-render and return the html for that datafield.
-    * 
-    * @param integer $datafield_id  The database id of the DataField inside the DataRecord to re-render.
-    * @param integer $datarecord_id The database id of the DataRecord to re-render
-    * @param Request $request
-    *  
-    * @return Response
-    */  
+     * Given a datarecord and datafield, re-render and return the html for that datafield.
+     *
+     * @param integer $datafield_id  The database id of the DataField inside the DataRecord to re-render.
+     * @param integer $datarecord_id The database id of the DataRecord to re-render
+     * @param Request $request
+     *
+     * @return Response
+     */
     public function reloaddatafieldAction($datafield_id, $datarecord_id, Request $request)
     {
         $return = array();
@@ -2412,6 +2773,7 @@ if ($debug)
             $datatype = $datafield->getDataType();
             if ($datatype == null)
                 return parent::deletedEntityError('Datatype');
+            $datatype_id = $datatype->getId();
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
@@ -2428,10 +2790,28 @@ if ($debug)
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
 
-            // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'edit' ])) )
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_edit_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
+                $can_edit_datarecord = true;
+
+            $can_view_datafield = false;
+            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['view']) )
+                $can_view_datafield = true;
+
+            // If the datatype/datarecord/datafield is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't reload the datafield HTML
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) || !$can_edit_datarecord )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -2487,8 +2867,9 @@ if ($debug)
         // Load all permissions for this user
         /** @var User $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
-        $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
-        $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+        $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+        $datatype_permissions = $user_permissions['datatypes'];
+        $datafield_permissions = $user_permissions['datafields'];
 
         // Going to need this a lot...
         $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
@@ -2608,7 +2989,7 @@ if ($debug)
 
         // ----------------------------------------
         // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-        parent::filterByUserPermissions($datatype_array, $datarecord_array, $datatype_permissions, $datafield_permissions);
+        parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 
         // ----------------------------------------
@@ -2786,6 +3167,8 @@ if ($debug)
      * @param array $datatype_array    @see parent::getDatatypeData()
      * @param array $datarecord_array  @see parent::getDatarecordData()
      *
+     * @throws \Exception
+     *
      * @return array
      */
     private function generateCSRFTokens($datatype_array, $datarecord_array)
@@ -2811,6 +3194,9 @@ if ($debug)
                 foreach ($theme['themeElements'] as $te_num => $te) {
                     if ( isset($te['themeDataFields']) ) {
                         foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                            if ( !isset($tdf['dataField']) )
+                                throw new \Exception('Datarecord '.$dr['id'].' ThemeDatafield '.$tdf['id'].' missing a datafield entry!');
+
                             $df_id = $tdf['dataField']['id'];
                             $typeclass = $tdf['dataField']['dataFieldMeta']['fieldType']['typeClass'];
 
@@ -2879,11 +3265,24 @@ if ($debug)
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_edit_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
+                $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
-            if ( !( isset($datatype_permissions[$datatype_id]) && ( isset($datatype_permissions[$datatype_id]['edit']) || isset($datatype_permissions[$datatype_id]['child_edit']) ) ) )
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datarecord )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -2900,6 +3299,7 @@ if ($debug)
 
                 if (!$data['redirect'] && $encoded_search_key !== '' && $datarecord_list === '') {
                     // Some sort of error encounted...bad search query, invalid permissions, or empty datarecord list
+                    /** @var SearchController $search_controller */
                     $search_controller = $this->get('odr_search_controller', $request);
                     return $search_controller->renderAction($encoded_search_key, 1, 'searching', $request);
                 }
@@ -3056,11 +3456,13 @@ if ($debug)
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
-                return parent::permissionDeniedError('You need to be a super-admin to view datafield history, for now');    // TODO - less restrictive requirements
+                return parent::permissionDeniedError('You need to be a super-admin to view datafield history, for now');    // TODO - less restrictive requirements?
 
             // Ensure user has permissions to be doing this
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-            if ( !(isset($user_permissions[ $datatype->getId() ]) && isset($user_permissions[ $datatype->getId() ][ 'design' ])) )
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_edit' ])) )
                 return parent::permissionDeniedError("edit");
             // ----------------------------------------
 

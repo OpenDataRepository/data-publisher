@@ -77,6 +77,11 @@ class DataType
     private $themes;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $groups;
+
+    /**
      * @var \ODR\AdminBundle\Entity\RenderPlugin
      */
     private $renderPlugin;
@@ -106,6 +111,7 @@ class DataType
         $this->themeDataType = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themes = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->groups = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -386,6 +392,40 @@ class DataType
     public function getThemes()
     {
         return $this->themes;
+    }
+
+    /**
+     * Add group
+     *
+     * @param \ODR\AdminBundle\Entity\Group $group
+     *
+     * @return DataType
+     */
+    public function addGroup(\ODR\AdminBundle\Entity\Group $group)
+    {
+        $this->groups[] = $group;
+
+        return $this;
+    }
+
+    /**
+     * Remove group
+     *
+     * @param \ODR\AdminBundle\Entity\Group $group
+     */
+    public function removeGroup(\ODR\AdminBundle\Entity\Group $group)
+    {
+        $this->groups->removeElement($group);
+    }
+
+    /**
+     * Get groups
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getGroups()
+    {
+        return $this->groups;
     }
 
     /**

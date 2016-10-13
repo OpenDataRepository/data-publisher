@@ -1,0 +1,79 @@
+ODR\AdminBundle\Entity\GroupDatafieldPermissions:
+    type: entity
+    table: odr_group_datafield_permissions
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        can_view_datafield:
+            type: boolean
+            nullable: false
+            default: false
+        can_edit_datafield:
+            type: boolean
+            nullable: false
+            default: false
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+
+    manyToOne:
+        group:
+            targetEntity: Group
+            cascade: {  }
+            mappedBy: null
+            inversedBy: groupDatafieldPermissions
+            joinColumns:
+                group_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        dataField:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                data_field_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }

@@ -114,18 +114,18 @@ class TextResultsController extends ODRCustomController
             if ($theme->getDataType()->getId() !== $datatype->getId() || $theme->getThemeType() !== 'table')
                 throw new \Exception('Invalid request');
 
-            // TODO - user permissions?
-
             // Determine whether user is logged in or not
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $datatype_permissions = array();
             $datafield_permissions = array();
             if ( $user !== 'anon.' ) {
-                $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
-                $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+                $datafield_permissions = $user_permissions['datafields'];
             }
 
+            // TODO - user permissions?
 
             // ----------------------------------------
 //            $datarecord_count = 0;
@@ -313,9 +313,6 @@ class TextResultsController extends ODRCustomController
             if ( $datarecord_count > 0 )
                 $data = parent::renderTextResultsList($em, $datarecord_list, $theme, $request);
 
-            if ( count($data) == 0 )
-                throw new \Exception("Table Theme has no Datafields attached to it");
-
             // Build the json array to return to the datatables request
             $json = array(
                 'draw' => $draw,
@@ -343,7 +340,7 @@ class TextResultsController extends ODRCustomController
      *
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function datatablesstatesaveAction(Request $request)
     {
@@ -371,7 +368,6 @@ class TextResultsController extends ODRCustomController
 
             $stored_tab_data[$odr_tab_id]['state'] = $post;
             $session->set('stored_tab_data', $stored_tab_data);
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -391,7 +387,7 @@ class TextResultsController extends ODRCustomController
      *
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function datatablesstateloadAction(Request $request)
     {
@@ -446,7 +442,7 @@ class TextResultsController extends ODRCustomController
      * @param string $odr_tab_id
      * @param Request $request
      *
-     * @return Response TODO
+     * @return Response
      */
     public function datatablesstatedestroyAction($odr_tab_id, Request $request)
     {

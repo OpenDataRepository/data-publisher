@@ -17,12 +17,12 @@ odr_dashboard:
 # ODRUser Controller
 # public routes to let users modify their own profile
 odr_self_profile_edit:
-    path:  /profile
-    defaults: { _controller: ODRAdminBundle:ODRUser:selfedit }
+    path:  /profile/edit
+    defaults: { _controller: ODRAdminBundle:ODRUser:selfeditprofile }
 
 odr_self_profile_save:
     path:  /profile/save
-    defaults: { _controller: ODRAdminBundle:ODRUser:selfsave }
+    defaults: { _controller: ODRAdminBundle:ODRUser:selfsaveprofile }
     requirements: { methods: POST }
 
 #-----------------------------------------
@@ -31,16 +31,16 @@ odr_self_profile_save:
 # ODRUser Controller
 odr_admin_new_user_create:
     path:  /admin/new_user/create
-    defaults: { _controller: ODRAdminBundle:ODRUser:createnew }
+    defaults: { _controller: ODRAdminBundle:ODRUser:createnewuser }
 
 odr_admin_new_user_check:
-    path:  /admin/new_user/check
-    defaults: { _controller: ODRAdminBundle:ODRUser:checknew }
+    path:  /admin/new_user/check_email
+    defaults: { _controller: ODRAdminBundle:ODRUser:checkemailexistence }
     requirements: { methods: POST }
 
 odr_admin_new_user_save:
     path: /admin/new_user/save
-    defaults: { _controller: ODRAdminBundle:ODRUser:savenew }
+    defaults: { _controller: ODRAdminBundle:ODRUser:savenewuser }
     requirements: { methods: POST }
 
 odr_admin_change_password:
@@ -56,84 +56,22 @@ odr_admin_save_password:
 
 odr_profile_edit:
     path:  /admin/user/edit/{user_id}
-    defaults: { _controller: ODRAdminBundle:ODRUser:edit }
+    defaults: { _controller: ODRAdminBundle:ODRUser:editprofile }
     requirements:
         user_id:  \d+
 
 odr_profile_save:
     path:  /admin/user/save
-    defaults: { _controller: ODRAdminBundle:ODRUser:save }
+    defaults: { _controller: ODRAdminBundle:ODRUser:saveprofile }
     requirements: { methods: POST }
 
 odr_user_list:
     path:  /admin/user/list
-    defaults: { _controller: ODRAdminBundle:ODRUser:list }
-
-odr_manage_user_permissions:
-    path:  /admin/user/managepermissions/{user_id}
-    defaults: { _controller: ODRAdminBundle:ODRUser:managepermissions }
-    requirements:
-        user_id:  \d+
-
-odr_toggle_user_permission:
-    path:  /admin/user/togglepermission/{user_id}/{datatype_id}/{value}/{permission}
-    defaults: { _controller: ODRAdminBundle:ODRUser:togglepermission }
-    requirements:
-        user_id:  \d+
-        datatype_id:  \d+
-        value:  0|1
-        permission:  'edit|add|delete|view|design|admin|'
-
-odr_quick_permissions:
-    path:  /admin/user/quickpermissions/
-    defaults: { _controller: ODRAdminBundle:ODRUser:quickpermissions }
-
-odr_toggle_quick_permission:
-    path:  /admin/user/togglequickpermission/{datatype_id}/{value}/{permission}
-    defaults: { _controller: ODRAdminBundle:ODRUser:togglequickpermission }
-    requirements:
-        datatype_id:  \d+
-        value:  0|1
-        permission:  'edit|add|delete|view|design|admin|'
-
-
-odr_edit_datafield_permissions:
-    path:  /admin/user/datafieldpermissions/{user_id}/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:ODRUser:datafieldpermissions }
-    requirements:
-        user_id:  \d+
-        datatype_id:  \d+
-
-odr_datafield_permissions_reload_childtype:
-    path:  /admin/user/datafieldpermissions/reload/childtype/{user_id}/{source_datatype_id}/{childtype_id}
-    defaults: { _controller: ODRAdminBundle:ODRUser:reloaddatafieldpermissionschildtype }
-    requirements:
-        user_id:  \d+
-        source_datatype_id:  \d+
-        childtype_id:  \d+
-
-#odr_datafield_permissions_reload_theme_element:
-#    path:  /admin/user/datafieldpermissions/reload/theme_element/{user_id}/{source_datatype_id}/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:ODRUser:reloaddatafieldpermissionsthemeelement }
-#    requirements:
-#        user_id:  \d+
-#        source_datatype_id:  \d+
-#        theme_element_id:  \d+
-
-
-odr_save_datafield_permission:
-    path:  /admin/user/savedatafieldpermission/{user_id}/{datafield_id}/{permission}
-    defaults: { _controller: ODRAdminBundle:ODRUser:savedatafieldpermission }
-    requirements:
-        user_id:  \d+
-        datafield_id:  \d+
-        permission: '0|1|2'
+    defaults: { _controller: ODRAdminBundle:ODRUser:listusers }
 
 odr_manage_user_roles:
     path:  /admin/user/manage/roles
     defaults: { _controller: ODRAdminBundle:ODRUser:manageroles }
-    requirements:
-        user_id:  \d+
 
 odr_set_user_role:
     path:  /admin/user/setrole/{user_id}/{role}
@@ -144,13 +82,13 @@ odr_set_user_role:
 
 odr_delete_user:
     path:  /admin/user/delete/{user_id}
-    defaults: { _controller: ODRAdminBundle:ODRUser:delete }
+    defaults: { _controller: ODRAdminBundle:ODRUser:deleteuser }
     requirements:
         user_id:  \d+
 
 odr_undelete_user:
     path:  /admin/user/undelete/{user_id}
-    defaults: { _controller: ODRAdminBundle:ODRUser:undelete }
+    defaults: { _controller: ODRAdminBundle:ODRUser:undeleteuser }
     requirements:
         user_id:  \d+
 
@@ -160,6 +98,120 @@ odr_session_pagelength:
     requirements:
         length: 10|25|50|100
 
+odr_view_effective_permissions:
+    path:  /admin/user/view_as/{user_id}/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:ODRUser:vieweffectivepermissions }
+    requirements:
+        user_id:  \d+
+        datatype_id:  \d+
+
+odr_view_permissions_result:
+    path:  /admin/user/view_theme/{user_id}/{theme_id}
+    defaults: { _controller: ODRAdminBundle:ODRUser:viewpermissionsresult }
+    requirements:
+        user_id:  \d+
+        theme_id:  \d+
+#-----------------------------------------
+
+#-----------------------------------------
+# ODRGroup Controller
+odr_manage_groups:
+    path:  /admin/group/manange/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:managegroups }
+    requirements:
+        datatype_id:  \d+
+
+odr_load_group_list:
+    path:  /admin/group/list/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:grouplist }
+    requirements:
+        datatype_id:  \d+
+
+odr_add_group:
+    path:  /admin/group/add/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:addgroup }
+    requirements:
+        datatype_id:  \d+
+
+odr_delete_group:
+    path:  /admin/group/delete/{group_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:deletegroup }
+    requirements:
+        group_id:  \d+
+
+odr_group_properties:
+    path:  /admin/group/load/{group_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:groupproperties }
+    requirements:
+        group_id:  \d+
+
+odr_group_membership:
+    path:  /admin/group/members/{group_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:groupmembers }
+    requirements:
+        group_id:  \d+
+
+odr_datatype_group_membership:
+    path:  /admin/group/members_datatype/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:datatypegroupmembers }
+    requirements:
+        datatype_id:  \d+
+
+
+odr_manage_user_groups:
+    path:  /admin/user/managegroups/{user_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:manageusergroups }
+    requirements:
+        user_id:  \d+
+
+odr_change_user_group:
+    path:  /admin/user/changegroup/{user_id}/{group_id}/{value}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:changeusergroup }
+    requirements:
+        user_id:  \d+
+        group_id:  \d+
+        value:  0|1
+
+
+odr_manage_group_permissions:
+    path:  /admin/group/permissions/{group_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:grouppermissions }
+    requirements:
+        group_id:  \d+
+
+odr_group_permissions_reload_childtype:
+    path:  /admin/group/permissions/reload/childtype/{group_id}/{source_datatype_id}/{childtype_id}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:reloadchildtype }
+    requirements:
+        group_id:  \d+
+        source_datatype_id:  \d+
+        childtype_id:  \d+
+
+#odr_group_permissions_reload_theme_element:
+#    path:  /admin/group/permissions/reload/theme_element/{group_id}/{source_datatype_id}/{theme_element_id}
+#    defaults: { _controller: ODRAdminBundle:ODRGroup:reloadthemeelement }
+#    requirements:
+#        group_id:  \d+
+#        source_datatype_id:  \d+
+#        theme_element_id:  \d+
+
+
+odr_save_group_datatype_permission:
+    path:  /admin/group/savepermissions/datatype/{group_id}/{datatype_id}/{value}/{permission}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:savedatatypepermission }
+    requirements:
+        group_id:  \d+
+        datatype_id:  \d+
+        value: '0|1'
+        permission:  'dt_view|dr_view|dr_add|dr_delete|dt_admin|'
+
+odr_save_group_datafield_permission:
+    path:  /admin/group/savepermissions/datafield/{group_id}/{datafield_id}/{value}
+    defaults: { _controller: ODRAdminBundle:ODRGroup:savedatafieldpermission }
+    requirements:
+        group_id:  \d+
+        datafield_id:  \d+
+        value: '0|1|2'
 #-----------------------------------------
 
 #-----------------------------------------
@@ -301,12 +353,6 @@ odr_design_save_theme_element_order:
     defaults: { _controller: ODRAdminBundle:Theme:themeelementorder }
     requirements: { methods: POST }
 
-odr_design_public_theme_element:
-    path:  /design/themeelement/public/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Theme:themeelementpublic }
-    requirements:
-        theme_element_id:  \d+
-
 
 odr_design_attach_datafield:
     path:  /design/displaytemplate/attachdatafield/{datafield_id}/{theme_element_id}
@@ -381,12 +427,6 @@ odr_design_reload_datafield:
         datafield_id: \d+
 
 
-odr_nav_display_template:
-    path:  /design/datafields/nav/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:nav }
-    requirements:
-        datatype_id:  \d+
-
 odr_design_get_datatype_properties:
     path:  /design/displaytemplate/datatypeproperties/{datatype_id}/{parent_datatype_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:datatypeproperties, parent_datatype_id: '' }
@@ -404,14 +444,14 @@ odr_design_save_datatree:
 
 odr_design_get_link_datatypes:
     path:  /design/displaytemplate/getlinktypes/{datatype_id}/{theme_element_id}
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:getlinktypes }
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:getlinkabledatatypes }
     requirements:
         datatype_id:  \d+
         theme_element_id:  \d+
 
 odr_design_link_datatype:
     path:  /design/displaytemplate/linktype
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:linktype }
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:linkdatatype }
     requirements: { methods: POST }
 
 odr_design_get_datafield_properties:
@@ -507,92 +547,12 @@ odr_design_public_datatype:
     requirements:
         datatype_id:  \d+
 
-#-----------------------------------------
+odr_design_public_datafield:
+    path:  /design/displaytemplate/publicdatafield/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:datafieldpublic }
+    requirements:
+        datafield_id:  \d+
 
-#-----------------------------------------
-# Searchtemplate Controller
-#odr_search_template_reload_child:
-#    path: /design/searchtemplate/childreload/{datatype_id}/{theme_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloadchild }
-#    requirements:
-#        datatype_id: \d+
-#        theme_id: \d+
-#odr_search_template_reload_theme_element:
-#    path: /design/searchtemplate/themeelementreload/{theme_element_id}/{theme_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloadthemeelement }
-#    requirements:
-#        theme_element_id: \d+
-#        theme_id: \d+
-#odr_search_template_reload_datafield:
-#    path: /design/searchtemplate/datafieldreload/{datafield_id}/{theme_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:reloaddatafield }
-#    requirements:
-#        datafield_id: \d+
-#        theme_id: \d+
-#
-#odr_search_template_edit:
-#    path:  /design/searchtemplate/{datatype_id}/{theme_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:design }
-#    requirements:
-#        datatype_id:  \d+
-#        theme_id: \d+
-#
-#odr_search_template_get_datafield_properties:
-#    path:  /design/searchtemplate/datafieldproperty/{datafield_id}/{theme_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:datafieldproperties }
-#    requirements:
-#        datafield_id:  \d+
-#        theme_id: \d+
-#
-#odr_search_template_save_theme_datafield:
-#    path:  /design/searchtemplate/savethemedatafield/{theme_datafield_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:savethemedatafield }
-#    methods: [POST]
-#    requirements:
-#        theme_datafield_id:  \d+
-#
-#odr_search_template_save_datafield_order:
-#    path:  /design/searchtemplate/datafieldorder/{initial_theme_element_id}/{ending_theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:datafieldorder }
-#    methods: [POST]
-#    requirements:
-#        initial_theme_element_id: \d+
-#        ending_theme_element_id: \d+
-
-#odr_search_template_add_datafield:
-#    path:  /design/searchtemplate/addfield/{datafield_id}/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:addfield }
-#    requirements:
-#        datafield_id: \d+
-#        theme_element_id: \d+
-#odr_search_template_remove_datafield:
-#    path:  /design/searchtemplate/removefield/{datafield_id}/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:removefield }
-#    requirements:
-#        datafield_id: \d+
-#        theme_element_id: \d+
-
-#odr_search_template_get_theme_element_properties:
-#    path:  /design/searchtemplate/themeelementproperties/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:themeelementproperties }
-#    requirements:
-#        theme_element_id:  \d+
-#odr_search_template_save_theme_element_order:
-#    path:  /design/searchtemplate/themeelementorder
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:themeelementorder }
-#    requirements: { methods: POST }
-#
-#odr_search_template_add_theme_element:
-#    path:  /design/searchtemplate/addthemeelement/{datatype_id}/{theme_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:addthemeelement }
-#    requirements:
-#        datatype_id:  \d+
-#        theme_id:  \d+
-#odr_search_template_delete_theme_element:
-#    path:  /design/searchtemplate/deletethemeelement/{theme_element_id}
-#    defaults: { _controller: ODRAdminBundle:Searchtemplate:deletethemeelement }
-#    requirements:
-#        theme_element_id:  \d+
 #-----------------------------------------
 
 #-----------------------------------------
@@ -706,9 +666,9 @@ odr_record_save_image_order:
     defaults: { _controller: ODRAdminBundle:Edit:saveimageorder }
     requirements: { methods: POST }
 
-odr_record_get_linkable_records:
+odr_record_get_linkable_datarecords:
     path:  /edit/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}/{search_key}
-    defaults: { _controller: ODRAdminBundle:Edit:getlinkablerecords, search_key: '' }
+    defaults: { _controller: ODRAdminBundle:Edit:getlinkabledatarecords, search_key: '' }
     requirements:
         ancestor_datatype_id:  \d+
         descendant_datatype_id:  \d+
@@ -716,9 +676,9 @@ odr_record_get_linkable_records:
         search_key: '[^\/]*'
 
 
-odr_link_records:
+odr_link_datarecords:
     path:  /edit/linkrecords
-    defaults: { _controller: ODRAdminBundle:Edit:linkrecord }
+    defaults: { _controller: ODRAdminBundle:Edit:linkdatarecords }
     requirements: { methods: POST }
 
 odr_record_get_field_history:
@@ -1134,12 +1094,6 @@ odr_delete_tracked_job:
 
 #-----------------------------------------
 # Reports Controller
-odr_datatype_permissions_list:
-    path:  /design/displaytemplate/datatypepermissions/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Reports:datatypepermissionslist }
-    requirements:
-        datatype_id: \d+
-
 odr_design_analyze_datafield_unique:
     path:  /design/displaytemplate/analyze_datafield_unique/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Reports:analyzedatafieldunique }
@@ -1178,13 +1132,13 @@ odr_design_analyze_radio_selections:
         datafield_id: \d+
 
 odr_get_file_decrypt_progress:
-    path:  /results/decrypt_progress/file/{file_id}
+    path:  /view/decrypt_progress/file/{file_id}
     defaults: { _controller: ODRAdminBundle:Reports:getfiledecryptprogress }
     requirements:
         file_id: \d+
 
 odr_get_file_encrypt_progress:
-    path:  /results/encrypt_progress/file/{file_id}
+    path:  /view/encrypt_progress/file/{file_id}
     defaults: { _controller: ODRAdminBundle:Reports:getfileencryptprogress }
     requirements:
         file_id: \d+
@@ -1193,36 +1147,20 @@ odr_get_file_encrypt_progress:
 
 #-----------------------------------------
 # Other stuff
-odr_dr_check:
-    path: /admin/dr_check
-    defaults: { _controller: ODRAdminBundle:Worker:drcheck }
-odr_df_check:
-    path: /admin/df_check
-    defaults: { _controller: ODRAdminBundle:Worker:dfcheck }
-odr_drf_check:
-    path: /admin/drf_check/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Worker:drfcheck }
+odr_dt_clear:
+    path: /admin/dt_clear/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Worker:dtclear, datatype_id: 0 }
+    requirements:
+        datatype_id: \d+
+odr_dr_clear:
+    path: /admin/dr_clear/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Worker:drclear, datatype_id: 0 }
     requirements:
         datatype_id: \d+
 
-odr_entity_check:
-    path: /admin/entity_check/{datatype_id}
-    defaults: { _controller: ODRAdminBundle:Worker:entitycheck }
-    requirements:
-        datatype_id: \d+
-
-odr_permission_check:
-    path: /admin/permission_check
-    defaults: { _controller: ODRAdminBundle:ODRUser:permissioncheck }
-
-odr_deleted_radio_check:
-    path: /admin/deleted_radio_check
-    defaults: { _controller:ODRAdminBundle:Worker:deletedradiocheck }
-odr_duplicate_radio_check:
-    path: /admin/duplicate_radio_check/{datatype_id}
-    defaults: { _controller:ODRAdminBundle:Worker:duplicateradiocheck }
-    requirements:
-        datatype_id: \d+
+odr_search_clear:
+    path: /admin/search_clear
+    defaults: { _controller: ODRAdminBundle:Worker:searchclear }
 
 #odr_mass_encrypt:
 #    path: /admin/mass_encrypt/{object_type}
@@ -1244,61 +1182,11 @@ odr_duplicate_radio_check:
 #-----------------------------------------
 
 #-----------------------------------------
-# Metadata creation (one-time use)
-#odr_console_start_build_metadata:
-#    path:  /admin/build_metadata_start
-#    defaults: { _controller: ODRAdminBundle:Worker:startbuildmetadata }
+build_group_data:
+    path:  /admin/build_group_data
+    defaults: { _controller:ODRAdminBundle:Worker:startbuildgroupdata }
 
-odr_start_build_metadata_entries:
-    path:  /beanstalk/build_metadata_entries
-    defaults: { _controller: ODRAdminBundle:Worker:startbuildmetadataentries }
-
-odr_radio_option_metadata:
-    path: /beanstalk/radio_option_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:buildradiooptionmetadata }
+odr_group_metadata:
+    path:  /beanstalk/build_group_data
+    defaults: { _controller:ODRAdminBundle:Worker:buildgroupdata }
     requirements: { methods: POST }
-
-odr_file_metadata:
-    path: /beanstalk/file_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:buildfilemetadata }
-    requirements: { methods: POST }
-
-odr_image_metadata:
-    path: /beanstalk/image_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:buildimagemetadata }
-    requirements: { methods: POST }
-
-odr_datatree_metadata:
-    path: /beanstalk/datatree_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:builddatatreemetadata }
-    requirements: { methods: POST }
-
-odr_datafield_metadata:
-    path: /beanstalk/datafield_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:builddatafieldmetadata }
-    requirements: { methods: POST }
-
-odr_datarecord_metadata:
-    path: /beanstalk/datarecord_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:builddatarecordmetadata }
-    requirements: { methods: POST }
-
-odr_datatype_metadata:
-    path: /beanstalk/datatype_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:builddatatypemetadata }
-    requirements: { methods: POST }
-
-# Theme Metadata creation
-odr_start_build_theme_entries:
-    path:  /beanstalk/build_theme_entries
-    defaults: { _controller: ODRAdminBundle:Worker:startbuildthemeentries }
-
-odr_theme_metadata:
-    path: /beanstalk/theme_metadata
-    defaults: { _controller: ODRAdminBundle:Worker:buildthememetadata }
-    requirements: { methods: POST }
-
-
-odr_table_rebuild:
-    path:  /admin/rebuild_table_themes
-    defaults: { _controller: ODRAdminBundle:Worker:redoTableThemes }

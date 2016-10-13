@@ -322,6 +322,7 @@ class ThemeElement
 
     /**
      * Is public
+     * @deprecated
      * 
      * @return bool
      */
@@ -336,6 +337,7 @@ class ThemeElement
 
     /**
      * Get publicDate
+     * @deprecated
      *
      * @return \DateTime
      */

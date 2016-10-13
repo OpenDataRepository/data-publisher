@@ -1,0 +1,101 @@
+ODR\AdminBundle\Entity\Group:
+    type: entity
+    table: odr_group
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        purpose:
+            type: string
+            length: 32
+            fixed: false
+            nullable: true
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        deletedAt:
+            type: datetime
+            nullable: true
+
+    oneToMany:
+        groupMeta:
+            targetEntity: GroupMeta
+            cascade: { }
+            mappedBy: group
+            inversedBy: null
+            joinColumns:
+                group_meta_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        userGroups:
+            targetEntity: UserGroup
+            cascade: { }
+            mappedBy: group
+            inversedBy: null
+            joinColumns:
+                user_group_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        groupDatatypePermissions:
+            targetEntity: GroupDatatypePermissions
+            cascade: { }
+            mappedBy: group
+            inversedBy: null
+            joinColumns:
+                group_datatype_permission_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+        groupDatafieldPermissions:
+            targetEntity: GroupDatafieldPermissions
+            cascade: { }
+            mappedBy: group
+            inversedBy: null
+            joinColumns:
+                group_datafield_permission_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    manyToOne:
+        dataType:
+            targetEntity: DataType
+            cascade: {  }
+            mappedBy: null
+            inversedBy: groups
+            joinColumns:
+                data_type_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        deletedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                deletedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }

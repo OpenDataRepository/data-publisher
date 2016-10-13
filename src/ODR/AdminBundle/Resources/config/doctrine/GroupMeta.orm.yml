@@ -1,0 +1,76 @@
+ODR\AdminBundle\Entity\GroupMeta:
+    type: entity
+    table: odr_group_meta
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        groupName:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: group_name
+        groupDescription:
+            type: text
+            nullable: true
+            column: group_description
+
+        datarecord_restriction:
+            type: text
+            nullable: true
+            column: datarecord_restriction
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+
+    manyToOne:
+        group:
+            targetEntity: Group
+            cascade: {  }
+            mappedBy: null
+            inversedBy: groupMeta
+            joinColumns:
+                group_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }

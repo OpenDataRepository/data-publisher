@@ -43,6 +43,7 @@ class ThemeElementMeta
     private $cssWidthXL;
 
     /**
+     * @deprecated
      * @var \DateTime
      */
     private $publicDate;
@@ -159,6 +160,7 @@ class ThemeElementMeta
 
     /**
      * Set publicDate
+     * @deprecated
      *
      * @param \DateTime $publicDate
      * @return ThemeElementMeta
@@ -172,6 +174,7 @@ class ThemeElementMeta
 
     /**
      * Get publicDate
+     * @deprecated
      *
      * @return \DateTime 
      */

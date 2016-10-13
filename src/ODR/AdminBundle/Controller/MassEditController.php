@@ -17,6 +17,8 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
+// Controllers/Classes
+use ODR\OpenRepository\SearchBundle\Controller\DefaultController as SearchController;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
@@ -76,11 +78,20 @@ class MassEditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
-            $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_edit_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
+                $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'edit' ])) )
+            if ( !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -177,8 +188,9 @@ class MassEditController extends ODRCustomController
         // Determine user privileges
         /** @var User $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
-        $datatype_permissions = parent::getPermissionsArray($user->getId(), $request);
-        $datafield_permissions = parent::getDatafieldPermissionsArray($user->getId(), $request);
+        $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+        $datatype_permissions = $user_permissions['datatypes'];
+        $datafield_permissions = $user_permissions['datafields'];
         // --------------------
 
         $bypass_cache = false;
@@ -209,8 +221,8 @@ class MassEditController extends ODRCustomController
 
         // ----------------------------------------
         // Filter by user permissions
-        $datarecord_data = array();
-        parent::filterByUserPermissions($datatype_array, $datarecord_data, $datatype_permissions, $datafield_permissions);
+        $datarecord_array = array();
+        parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 
         // Render the MassEdit page
@@ -223,6 +235,7 @@ class MassEditController extends ODRCustomController
                 'theme_id' => $theme->getId(),
 
                 'odr_tab_id' => $odr_tab_id,
+                'datatype_permissions' => $datatype_permissions,
                 'datafield_permissions' => $datafield_permissions,
             )
         );
@@ -271,6 +284,11 @@ class MassEditController extends ODRCustomController
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
 //            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
 
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
 //            $redis = $this->container->get('snc_redis.default');;
 //            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -283,11 +301,20 @@ class MassEditController extends ODRCustomController
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
-//            $logged_in = true;
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_edit_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
+                $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($user_permissions[ $datatype_id ]) && isset($user_permissions[ $datatype_id ][ 'edit' ])) )
+            if ( !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -301,14 +328,15 @@ class MassEditController extends ODRCustomController
             $encoded_search_key = null;
 
             if ( isset($list[$odr_tab_id]) ) {
-                $complete_datarecord_list = explode(',', $list[$odr_tab_id]['complete_datarecord_list']);
-                $datarecords = $list[$odr_tab_id]['datarecord_list'];
+                $complete_datarecord_list = explode(',', $list[$odr_tab_id]['complete_datarecord_list']);   // This list is NOT already filtered by user permissions
+                $datarecords = $list[$odr_tab_id]['datarecord_list'];                                       // This list is already filtered by user permissions
                 $encoded_search_key = $list[$odr_tab_id]['encoded_search_key'];
             }
 
             // If the datarecord list doesn't exist for some reason, or the user is attempting to view a datarecord from a search that returned no results...
             if ( !isset($list[$odr_tab_id]) || ($encoded_search_key !== '' && $datarecords === '') ) {
                 // ...redirect to "no results found" page
+                /** @var SearchController $search_controller */
                 $search_controller = $this->get('odr_search_controller', $request);
                 $search_controller->setContainer($this->container);
 
@@ -321,16 +349,35 @@ class MassEditController extends ODRCustomController
 //            $datarecords = explode(',', $datarecords);
 
             // ----------------------------------------
-            // Ensure no unique datafields managed to get marked for this mass update
+            // Ensure no unique datafields managed to get marked for this mass update...store which datatype they belong to at the same time
+            $datafield_list = array();
+            $datatype_list = array();
             foreach ($datafields as $df_id => $value) {
                 /** @var DataFields $df */
                 $df = $repo_datafield->find($df_id);
-                if ( $df->getIsUnique() == 1 )
+                if ( $df->getIsUnique() == 1 ) {
                     unset( $datafields[$df_id] );
+                }
+                else {
+                    $dt_id = $df->getDataType()->getId();
+                    if ( !isset($datatype_list[$dt_id]) )
+                        $datatype_list[$dt_id] = 1;
+
+                    $datafield_list[$df_id] = $dt_id;
+                }
+            }
+
+            // Ensure no completely unrelated datafields are in the post request
+            $datatree_array = parent::getDatatreeArray($em);
+            foreach ($datatype_list as $dt_id => $num) {
+                $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $dt_id);
+                if ($grandparent_datatype_id != $datatype->getId())
+                    throw new \Exception('Invalid Form');
             }
 /*
 print '$datarecords: '.print_r($datarecords, true)."\n";
 print '$datafields: '.print_r($datafields, true)."\n";
+print '$datafield_list: '.print_r($datafield_list, true)."\n";
 return;
 */
 
@@ -361,6 +408,14 @@ return;
             // Deal with datarecord public status first, if needed
             $updated = false;
             foreach ($public_status as $dt_id => $status) {
+                // Ensure user has the permisions to change public status of datarecords for this datatype
+                $is_datatype_admin = false;
+                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id][ 'dt_admin' ]) )
+                    $is_datatype_admin = true;
+
+                if (!$is_datatype_admin)
+                    continue;
+
                 // Get all datarecords of this datatype
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
@@ -409,15 +464,44 @@ return;
             $url .= $this->container->get('router')->generate('odr_mass_update_worker_values');
 
             foreach ($datafields as $df_id => $value) {
-                // Get all datarecords that display this datafield
-                $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataFields AS df
-                    JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                    WHERE df.id = :datafield_id
-                    AND df.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL'
-                )->setParameters( array('datafield_id' => $df_id) );
+                // Ensure user has the permisions to modify values of this datafield
+                $can_edit_datafield = false;
+                if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id][ 'edit' ]) )
+                    $can_edit_datafield = true;
+
+                if (!$can_edit_datafield)
+                    continue;
+
+                // Determine whether user can view non-public datarecords for this datatype
+                $dt_id = $datafield_list[$df_id];
+                $can_view_datarecord = false;
+                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id][ 'dr_view' ]) )
+                    $can_view_datarecord = true;
+
+
+                // Get all datarecords of this datatype that the user is allowed to view
+                $query = null;
+                if ($can_view_datarecord) {
+                    $query = $em->createQuery(
+                       'SELECT dr.id AS dr_id
+                        FROM ODRAdminBundle:DataFields AS df
+                        JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                        JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                        WHERE df.id = :datafield_id
+                        AND df.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                    )->setParameters( array('datafield_id' => $df_id) );
+                }
+                else {
+                    $query = $em->createQuery(
+                       'SELECT dr.id AS dr_id
+                        FROM ODRAdminBundle:DataFields AS df
+                        JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                        JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                        JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                        WHERE df.id = :datafield_id AND drm.publicDate != :public_date
+                        AND df.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                    )->setParameters( array('datafield_id' => $df_id, 'public_date' => '2200-01-01 00:00:00') );
+                }
                 $results = $query->getArrayResult();
 
                 $all_datarecord_ids = array();
@@ -505,8 +589,10 @@ return;
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 //            $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
+
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -527,7 +613,7 @@ return;
 
             $datatype = $datarecord->getDataType();
             if ($datatype == null)
-                throw new \Exception('MassEditCommand.php: DataRecord '.$datarecord_id.' belongs to deleted DataType, skipping');
+                throw new \Exception('MassEditCommand.php: DataRecord '.$datarecord_id.' belongs to a deleted DataType, skipping');
 
             $datatype_id = $datatype->getId();
 
@@ -573,16 +659,23 @@ return;
                 }
 
                 if ($updated) {
-/*
-                    $options = array(
-                        'user_id' => $user->getId(),    // since this action is called via command-line, need to specify which user is doing the mass updating
-                        'mark_as_updated' => true
-                    );
-
                     // Refresh the cache entries for this datarecord
-                    parent::updateDatarecordCache($datarecord->getId(), $options);
-*/
                     parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+
+                    // ----------------------------------------
+                    // See if any cached search results need to be deleted...
+                    $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+                    if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
+                        // Delete all cached search results for this datatype that contained this datarecord
+                        foreach ($cached_searches[$datatype_id] as $search_checksum => $search_data) {
+                            $datarecord_list = explode(',', $search_data['datarecord_list']['all']);    // if found in the list of all grandparents matching a search, just delete the entire cached search
+                            if ( in_array($datarecord_id, $datarecord_list) )
+                                unset ( $cached_searches[$datatype_id][$search_checksum] );
+                        }
+
+                        // Save the collection of cached searches back to memcached
+                        $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                    }
                 }
             }
 
@@ -599,7 +692,7 @@ return;
                     $tracked_job->setCompleted( new \DateTime() );
 
                 $em->persist($tracked_job);
-//                    $em->flush();
+//                $em->flush();
                 $ret .= '  Set current to '.$count."\n";
             }
 
@@ -655,8 +748,11 @@ return;
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 //            $pheanstalk = $this->get('pheanstalk');
 //            $logger = $this->get('logger');
+
+            // Grab memcached stuff
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -903,6 +999,17 @@ $ret .= '  Set current to '.$count."\n";
                 // ----------------------------------------
                 // TODO - replace this block with code to directly update the cached version of the datarecord?
                 parent::tmp_updateDatarecordCache($em, $datarecord, $user);
+
+                // ----------------------------------------
+                // See if any cached search results need to be deleted...
+                $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+                if ( $cached_searches !== false && isset($cached_searches[$datatype_id]) ) {
+                    // Just delete all cached search results for this datatype...TODO - make it more precise than that...
+                    unset ( $cached_searches[$datatype_id] );
+
+                    // Save the collection of cached searches back to memcached
+                    $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+                }
 
 $ret .=  "---------------\n";
                 $return['d'] = $ret;

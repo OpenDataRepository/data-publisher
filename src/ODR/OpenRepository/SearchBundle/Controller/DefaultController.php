@@ -81,11 +81,16 @@ class DefaultController extends Controller
             }
             else {
                 // Grab user permissions if possible
-                $user_permissions = array();
+                $datatype_permissions = array();
                 if ($logged_in) {
+                    /** @var ODRCustomController $odrcc */
                     $odrcc = $this->get('odr_custom_controller', $request);
                     $odrcc->setContainer($this->container);
-                    $user_permissions = $odrcc->getPermissionsArray($user->getId(), $request);
+
+                    /** @var \Doctrine\ORM\EntityManager $em */
+                    $em = $this->getDoctrine()->getManager();
+                    $user_permissions = $odrcc->getUserPermissionsArray($em, $user->getId());
+                    $datatype_permissions = $user_permissions['datatypes'];
                 }
 
                 $site_baseurl = $this->container->getParameter('site_baseurl');
@@ -101,7 +106,7 @@ class DefaultController extends Controller
                     array(
                         // required twig/javascript parameters
                         'user' => $user,
-                        'user_permissions' => $user_permissions,
+                        'user_permissions' => $datatype_permissions,
 
 //                        'user_list' => $user_list,
                         'logged_in' => $logged_in,
@@ -142,11 +147,11 @@ class DefaultController extends Controller
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $target_datatype_id      If set, which top-level datatype to save child/linked datatypes for
-     * @param array $user_permissions          If set, the current user's permissions array
+     * @param array $datatype_permissions      If set, the current user's permissions array
      *
      * @return array
      */
-    private function getRelatedDatatypes($em, $target_datatype_id = null, $user_permissions = array())
+    private function getRelatedDatatypes($em, $target_datatype_id = null, $datatype_permissions = array())
     {
         // Grab all entities out of the 
         $query = $em->createQuery(
@@ -171,10 +176,9 @@ class DefaultController extends Controller
             $public_date = $result['public_date'];
             $is_link = $result['is_link'];
 
-            // TODO - public datatype
-            $is_public = true;
+            $datatype_is_public = true;
             if ( $public_date->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' )
-                $is_public = false;
+                $datatype_is_public = false;
 
             if ($is_link == 0) {
                 // Save childtypes encountered
@@ -184,7 +188,7 @@ class DefaultController extends Controller
                 }
 
                 // Only save this datatype if the user is allowed to view it
-                if ( $is_public || (isset($user_permissions[$descendant_id]) && isset($user_permissions[$descendant_id]['view'])) ) {
+                if ( $datatype_is_public || (isset($datatype_permissions[$descendant_id]) && isset($datatype_permissions[$descendant_id]['dt_view'])) ) {
                     $descendant_of[$ancestor_id][] = $descendant_id;
                     $datatype_names[$descendant_id] = $descendant_name;
                 }
@@ -197,7 +201,7 @@ class DefaultController extends Controller
                 }
 
                 // Only save this datatype if the user is allowed to view it
-                if ( $is_public || (isset($user_permissions[$descendant_id]) && isset($user_permissions[$descendant_id]['view'])) ) {
+                if ( $datatype_is_public || (isset($datatype_permissions[$descendant_id]) && isset($datatype_permissions[$descendant_id]['dt_view'])) ) {
                     $links[$ancestor_id][] = $descendant_id;
                     $datatype_names[$descendant_id] = $descendant_name;
                 }
@@ -292,11 +296,10 @@ exit();
 
         // Get all searchable datafields of all datatypes that the user is allowed to search on
         $query = $em->createQuery(
-           'SELECT dt.id AS dt_id, tem.publicDate AS public_date, dfm.user_only_search AS user_only_search, df
+           'SELECT dt.id AS dt_id, dfm.publicDate AS public_date, dfm.user_only_search AS user_only_search, df
             FROM ODRAdminBundle:DataType AS dt
             JOIN ODRAdminBundle:Theme AS t WITH t.dataType = dt
             JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
-            JOIN ODRAdminBundle:ThemeElementMeta AS tem WITH tem.themeElement = te
             JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
             JOIN ODRAdminBundle:DataFields AS df WITH tdf.dataField = df
             JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
@@ -318,15 +321,15 @@ exit();
             $datafield = $result[0];
             $df_id = $datafield->getId();
 
-            $theme_element_is_public = true;
+            $datafield_is_public = true;
             if ($public_date == '2200-01-01 00:00:00')
-                $theme_element_is_public = false;
+                $datafield_is_public = false;
 
-            $has_view_permission = false;
+            $can_view_datafield = false;
             if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
-                $has_view_permission = true;
+                $can_view_datafield = true;
 
-            if ( (!$logged_in && $user_only_search == 1) || !($theme_element_is_public || $has_view_permission) ) {
+            if ( (!$logged_in && $user_only_search == 1) || (!$datafield_is_public && !$can_view_datafield) ) {
                 // either the datafield isn't visible to non-logged in users, or the user lacks the view permission for this datafield...either way, don't save in $datafield_array
             }
             else {
@@ -360,6 +363,7 @@ exit();
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var ODRCustomController $odrcc */
             $odrcc = $this->get('odr_custom_controller', $request);
             $odrcc->setContainer($this->container);
 
@@ -403,8 +407,9 @@ exit();
             }
             else {
                 // Grab user permissions
-                $datatype_permissions = $odrcc->getPermissionsArray($admin_user->getId(), $request);
-                $datafield_permissions = $odrcc->getDatafieldPermissionsArray($admin_user->getId(), $request);
+                $user_permissions = $odrcc->getUserPermissionsArray($em, $admin_user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+                $datafield_permissions = $user_permissions['datafields'];
             }
             // ------------------------------
 
@@ -412,8 +417,12 @@ exit();
             $target_datatype_id = $target_datatype->getId();
 
             $can_view_datatype = false;
-            if ( isset($datatype_permissions[ $target_datatype_id ]) && isset($datatype_permissions[ $target_datatype_id ][ 'view' ]) )
+            if ( isset($datatype_permissions[ $target_datatype_id ]) && isset($datatype_permissions[ $target_datatype_id ][ 'dt_view' ]) )
                 $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[ $target_datatype_id ]) && isset($datatype_permissions[ $target_datatype_id ][ 'dr_view' ]) )
+                $can_view_datarecord = true;
 
             if ( !$target_datatype->isPublic() && !$can_view_datatype )
                 return self::searchPageError("You don't have permission to access this DataType.", $request);
@@ -451,34 +460,38 @@ if ($debug) {
 
 
             // ----------------------------------------
-            // Grab a random background image
+            // Grab a random background image if one exists and the user is allowed to see it
             $background_image_id = null;
-            if ( $target_datatype !== null && $target_datatype->getBackgroundImageField() !== null ) {
-                // TODO - also include datafield permissions here...
-                $query = null;
-                if ($can_view_datatype) {
-                    $query = $em->createQuery(
-                       'SELECT i.id AS image_id
-                        FROM ODRAdminBundle:Image AS i
-                        WHERE i.original = 1 AND i.dataField = :datafield_id
-                        AND i.deletedAt IS NULL'
-                    )->setParameters( array('datafield_id' => $target_datatype->getBackgroundImageField()->getId()) );
-                }
-                else {
-                    $query = $em->createQuery(
-                       'SELECT i.id AS image_id
-                        FROM ODRAdminBundle:Image AS i
-                        JOIN ODRAdminBundle:ImageMeta AS im WITH im.image = i
-                        WHERE i.original = 1 AND i.dataField = :datafield_id AND im.publicDate NOT LIKE :public_date
-                        AND i.deletedAt IS NULL AND im.deletedAt IS NULL'
-                    )->setParameters( array('datafield_id' => $target_datatype->getBackgroundImageField()->getId(), 'public_date' => '2200-01-01 00:00:00') );
-                }
-                $results = $query->getArrayResult();
+            if ( $target_datatype !== null && $target_datatype->getBackgroundImageField() !== null) {
 
-                // Pick a random image from the list of available images
-                if ( count($results) > 0 ) {
-                    $index = rand(0, count($results)-1);
-                    $background_image_id = $results[$index]['image_id'];
+                // Determine whether the user is allowed to view the background image datafield
+                $df = $target_datatype->getBackgroundImageField();
+                if ( $df->isPublic() || ( isset($datafield_permissions[$df->getId()]) && isset($datafield_permissions[$df->getId()]['view']) ) ) {
+                    $query = null;
+                    if ($can_view_datarecord) {
+                        $query = $em->createQuery(
+                           'SELECT i.id AS image_id
+                            FROM ODRAdminBundle:Image AS i
+                            WHERE i.original = 1 AND i.dataField = :datafield_id
+                            AND i.deletedAt IS NULL'
+                        )->setParameters( array('datafield_id' => $df->getId()) );
+                    }
+                    else {
+                        $query = $em->createQuery(
+                           'SELECT i.id AS image_id
+                            FROM ODRAdminBundle:Image AS i
+                            JOIN ODRAdminBundle:ImageMeta AS im WITH im.image = i
+                            WHERE i.original = 1 AND i.dataField = :datafield_id AND im.publicDate NOT LIKE :public_date
+                            AND i.deletedAt IS NULL AND im.deletedAt IS NULL'
+                        )->setParameters( array('datafield_id' => $df->getId(), 'public_date' => '2200-01-01 00:00:00') );
+                    }
+                    $results = $query->getArrayResult();
+
+                    // Pick a random image from the list of available images
+                    if (count($results) > 0) {
+                        $index = rand(0, count($results) - 1);
+                        $background_image_id = $results[$index]['image_id'];
+                    }
                 }
             }
 
@@ -492,7 +505,7 @@ if ($debug) {
             // Determine if the user has the permissions required to see anybody in the created/modified by search fields
             $admin_permissions = array();
             foreach ($datatype_permissions as $datatype_id => $up) {
-                if ( (isset($up['edit']) && $up['edit'] == 1) || (isset($up['delete']) && $up['delete'] == 1) || (isset($up['add']) && $up['add'] == 1) || (isset($up['admin']) && $up['admin'] == 1) ) {
+                if ( (isset($up['dr_edit']) && $up['dr_edit'] == 1) || (isset($up['dr_delete']) && $up['dr_delete'] == 1) || (isset($up['dr_add']) && $up['dr_add'] == 1) ) {
                     $admin_permissions[ $datatype_id ] = $up;
                 }
             }
@@ -514,8 +527,11 @@ if ($debug) {
                 $query = $em->createQuery(
                    'SELECT u
                     FROM ODROpenRepositoryUserBundle:User AS u
-                    JOIN ODRAdminBundle:UserPermissions AS up WITH up.user = u
-                    WHERE up.dataType IN (:datatypes) AND up.can_view_type = 1
+                    JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
+                    JOIN ODRAdminBundle:Group AS g WITH ug.group = g
+                    JOIN ODRAdminBundle:GroupDatatypePermissions AS gdtp WITH gdtp.group = g
+                    JOIN ODRAdminBundle:GroupDatafieldPermissions AS gdfp WITH gdfp.group = g
+                    WHERE g.dataType IN (:datatypes) AND (gdtp.can_add_datarecord = 1 OR gdtp.can_delete_datarecord = 1 OR gdfp.can_edit_datafield = 1)
                     GROUP BY u.id'
                 )->setParameters( array('datatypes' => $datatype_list) );   // purposefully getting ALL users, including the ones that are deleted
                 $results = $query->getResult();
@@ -602,6 +618,7 @@ if ($debug) {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            /** @var ODRCustomController $odrcc */
             $odrcc = $this->get('odr_custom_controller', $request);
             $odrcc->setContainer($this->container);
 
@@ -615,8 +632,10 @@ if ($debug) {
             // Grab user and their permissions if possible
             /** @var User $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            $datatype_permissions = $odrcc->getPermissionsArray($admin_user->getId(), $request);
-            $datafield_permissions = $odrcc->getDatafieldPermissionsArray($admin_user->getId(), $request);
+            $user_permissions = $odrcc->getUserPermissionsArray($em, $admin_user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
             $logged_in = true;
 
             // ----------------------------------------
@@ -634,7 +653,7 @@ if ($debug) {
             // Determine if the user has the permissions required to see anybody in the created/modified by search fields
             $admin_permissions = array();
             foreach ($datatype_permissions as $datatype_id => $up) {
-                if ( (isset($up['edit']) && $up['edit'] == 1) || (isset($up['delete']) && $up['delete'] == 1) || (isset($up['add']) && $up['add'] == 1) || (isset($up['admin']) && $up['admin'] == 1) ) {
+                if ( (isset($up['dr_edit']) && $up['dr_edit'] == 1) || (isset($up['dr_delete']) && $up['dr_delete'] == 1) || (isset($up['dr_add']) && $up['dr_add'] == 1) ) {
                     $admin_permissions[ $datatype_id ] = $up;
                 }
             }
@@ -657,8 +676,11 @@ if ($debug) {
                 $query = $em->createQuery(
                    'SELECT u
                     FROM ODROpenRepositoryUserBundle:User AS u
-                    JOIN ODRAdminBundle:UserPermissions AS up WITH up.user = u
-                    WHERE up.dataType IN (:datatypes) AND up.can_view_type = 1
+                    JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
+                    JOIN ODRAdminBundle:Group AS g WITH ug.group = g
+                    JOIN ODRAdminBundle:GroupDatatypePermissions AS gdtp WITH gdtp.group = g
+                    JOIN ODRAdminBundle:GroupDatafieldPermissions AS gdfp WITH gdfp.group = g
+                    WHERE g.dataType IN (:datatypes) AND (gdtp.can_add_datarecord = 1 OR gdtp.can_delete_datarecord = 1 OR gdfp.can_edit_datafield = 1)
                     GROUP BY u.id'
                 )->setParameters( array('datatypes' => $datatype_list) );   // purposefully getting ALL users, including the ones that are deleted
                 $results = $query->getResult();
@@ -739,9 +761,6 @@ if ($debug) {
             // Grab default objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-
-
 //            $templating = $this->get('templating');
 /*
             $redis = $this->container->get('snc_redis.default');;
@@ -749,8 +768,7 @@ if ($debug) {
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $session = $request->getSession();
 */
-
-            // Get ODRCustomController from the AdminBundle...going to need functions from it
+            /** @var ODRCustomController $odrcc */
             $odrcc = $this->get('odr_custom_controller', $request);
             $odrcc->setContainer($this->container);
 
@@ -762,8 +780,9 @@ if ($debug) {
             $datafield_permissions = array();
 
             if ($user !== 'anon.') {
-                $datatype_permissions = $odrcc->getPermissionsArray($user->getId(), $request);
-                $datafield_permissions = $odrcc->getDatafieldPermissionsArray($user->getId(), $request);
+                $user_permissions = $odrcc->getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+                $datafield_permissions = $user_permissions['datafields'];
             }
             // --------------------
 
@@ -829,9 +848,9 @@ if ($debug) {
                 $theme_type = 'search_results';
 
             /** @var Theme $theme */
-            $theme = $repo_theme->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
             if ($theme == null)
-                throw new \Exception('Datatype '.$datatype->getId().' wants to use a "'.$theme_type.'" theme to render search results, but no such theme exists...');
+                throw new \Exception('The datatype "'.$datatype->getShortName().'" wants to use a "'.$theme_type.'" theme to render search results, but no such theme exists.');
 
 
             // -----------------------------------
@@ -885,7 +904,7 @@ if ($debug) {
             }
             // Theoretically, this should never be true...
             else if ( $search_params['redirect'] == true ) {
-                // Get the controller from the AdminBundle for utility methods
+                /** @var ODRCustomController $odrcc */
                 $odrcc = $this->get('odr_custom_controller', $request);
                 $odrcc->setContainer($this->container);
 
@@ -921,9 +940,8 @@ if ($debug) {
         // Grab default objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
-        $session = $request->getSession();
 
-        // Get the controller from the AdminBundle for utility methods
+        /** @var ODRCustomController $odrcc */
         $odrcc = $this->get('odr_custom_controller', $request);
         $odrcc->setContainer($this->container);
 
@@ -979,10 +997,16 @@ if (isset($debug['timing'])) {
         $datatype_permissions = array();
         $datafield_permissions = array();
 
-        if ($user !== null && $user !== 'anon.') {
-            $datatype_permissions = $odrcc->getPermissionsArray($user->getId(), $request);
-            $datafield_permissions = $odrcc->getDatafieldPermissionsArray($user->getId(), $request);
+        if ($user !== 'anon.') {
+            $user_permissions = $odrcc->getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
         }
+
+        // Don't allow user to search the datatype if it's non-public and they can't view it
+        if ( !$target_datatype->isPublic() && !( isset($datatype_permissions[$target_datatype_id]) && $datatype_permissions[$target_datatype_id]['dt_view'] == 1) )
+            return array( 'error' => true, 'redirect' => false, 'message' => 'Permission Denied', 'encoded_search_key' => self::encodeURIComponent($search_key) );
+
 
         // ----------------------------------------
         // Get a list of all datafields the user is allowed to search on
@@ -1099,9 +1123,27 @@ if (isset($debug['timing'])) {
             $datarecord_ids = array_unique($datarecord_ids);
             $datarecord_ids = implode(',', $datarecord_ids);
         }
+
+        $public_grandparent_ids = '';
         if (strpos($grandparent_ids, ',') !== false) {
             $grandparent_ids = substr($grandparent_ids, 0, -1);
             $grandparent_ids = $odrcc->getSortedDatarecords($target_datatype, $grandparent_ids);
+
+            // Need to figure out which of these grandparent datarecords are viewable to people without the 'dr_view' permission
+            $grandparent_ids_as_array = explode(',', $grandparent_ids);
+            $query = $em->createQuery(
+               'SELECT gp.id AS gp_id
+                FROM ODRAdminBundle:DataRecord AS gp
+                JOIN ODRAdminBundle:DataRecordMeta AS gpm WITH gpm.dataRecord = gp
+                WHERE gp.id IN (:grandparent_ids) AND gpm.publicDate != :public_date
+                AND gp.deletedAt IS NULL AND gpm.deletedAt IS NULL'
+            )->setParameters( array('grandparent_ids' => $grandparent_ids_as_array, 'public_date' => '2200-01-01 00:00:00') );
+            $results = $query->getArrayResult();
+
+            foreach($results as $result)
+                $public_grandparent_ids .= $result['gp_id'].',';
+            $public_grandparent_ids = substr($public_grandparent_ids, 0, -1);
+            $public_grandparent_ids = $odrcc->getSortedDatarecords($target_datatype, $public_grandparent_ids);
         }
 
 if (isset($debug['basic'])) {
@@ -1118,10 +1160,14 @@ if (isset($debug['basic'])) {
 
     if ($grandparent_ids == '') {
         print 'count($grandparent_ids): 0'."\n";
+        print 'count($public_grandparent_ids): 0'."\n";
     }
     else {
         $grandparent_ids_as_array = explode(',', $grandparent_ids);
         print 'count($grandparent_ids): '.count($grandparent_ids_as_array)."\n";
+
+        $grandparent_ids_as_array = explode(',', $public_grandparent_ids);
+        print 'count($public_grandparent_ids): '.count($grandparent_ids_as_array)."\n";
     }
 }
 if (isset($debug['timing'])) {
@@ -1171,7 +1217,7 @@ if (isset($debug['timing'])) {
 
         // Store the data in the memcached entry
         $cached_searches[$target_datatype_id][$search_checksum]['complete_datarecord_list'] = $datarecord_ids;
-        $cached_searches[$target_datatype_id][$search_checksum]['datarecord_list'] = $grandparent_ids;
+        $cached_searches[$target_datatype_id][$search_checksum]['datarecord_list'] = array('all' => $grandparent_ids, 'public' => $public_grandparent_ids);
 
         $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
 
@@ -1226,11 +1272,10 @@ if (isset($debug['timing'])) {
 
         // Get all searchable datafields of all datatypes that the user is allowed to search on
         $query = $em->createQuery(
-           'SELECT dt.id AS dt_id, tem.publicDate AS public_date, df.id AS df_id, dfm.user_only_search AS user_only_search, dfm.searchable AS searchable, ft.typeClass AS type_class
+           'SELECT dt.id AS dt_id, dfm.publicDate AS public_date, df.id AS df_id, dfm.user_only_search AS user_only_search, dfm.searchable AS searchable, ft.typeClass AS type_class
             FROM ODRAdminBundle:DataType AS dt
             JOIN ODRAdminBundle:Theme AS t WITH t.dataType = dt
             JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
-            JOIN ODRAdminBundle:ThemeElementMeta AS tem WITH tem.themeElement = te
             JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
             JOIN ODRAdminBundle:DataFields AS df WITH tdf.dataField = df
             JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
@@ -1248,15 +1293,15 @@ if (isset($debug['timing'])) {
             $searchable = $result['searchable'];
             $typeclass = $result['type_class'];
 
-            $theme_element_is_public = true;
+            $datafield_is_public = true;
             if ($public_date == '2200-01-01 00:00:00')
-                $theme_element_is_public = false;
+                $datafield_is_public = false;
 
             $has_view_permission = false;
             if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
                 $has_view_permission = true;
 
-            if ( (!$logged_in && $user_only_search == 1) || !($theme_element_is_public || $has_view_permission) ) {
+            if ( (!$logged_in && $user_only_search == 1) || (!$datafield_is_public && !$has_view_permission) ) {
                 /* either the datafield isn't visible to non-logged in users, or the user lacks the view permission for this datafield...either way, don't save in $datafield_array */
             }
             else {
@@ -1294,8 +1339,6 @@ if (isset($debug['timing'])) {
      * @param array $datatype_permissions
      * @param boolean $parse_all           If false, then will only determine the filtered search key...if actually searching, this MUST be true
      * @param array $debug
-     *
-     * @return array
      */
     public function buildSearchArray($search_key, &$datafield_array, $datatype_permissions, $parse_all = false, $debug = array())
     {
@@ -1451,7 +1494,7 @@ if (isset($debug['timing'])) {
                     $conditions[] = '(ro.option_name '.$comparision.' :'.$key.' AND rs.selected = 1)';
 
                 $radio_search_params = array(
-                    'str' => implode(' OR ', $conditions),
+                    'str' => implode(' AND ', $conditions),
                     'params' => $general_search_params['params'],
                 );
 
@@ -1630,20 +1673,23 @@ if ( isset($debug['basic']))
 
 
         // Need to enforce these rules...
-        // 1) If user doesn't have view permissions for target datatype, only show public datarecords of target datatype
-        // If user doesn't have view permissions for child/linked datatypes, then
+        // 1) If user doesn't have the can_view_datarecord permission for target datatype, only show public datarecords of target datatype
+        // If user doesn't have the can_view_datarecord permission for child/linked datatypes, then
         //  2) searching datafields of child/linked dataypes must be restricted to public datarecords, or the user would be able to see non-public datarecords
         //  3) searching datafields of just the target datatype can't be restricted by non-public child/linked datatypes...or the user would be able to infer the existence of non-public child/linked datarecords
         foreach ($searched_datatypes as $num => $dt_id) {
-            if ( !( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['view']) ) ) {
+            if ( !( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_view']) ) ) {
                 $datafield_array['metadata'][$dt_id] = array();   // clears updated/created (by) on purpose
-                $datafield_array['metadata'][$dt_id]['public'] = 1;
 
-                //
+                // Get rid of any created/modified searching
                 self::clearSearchKeyMetadata($dt_id, $encoded_search_keys);
-                $encoded_search_keys['dt_'.$dt_id.'_pub'] = 1;
                 self::clearSearchKeyMetadata($dt_id, $filtered_search_keys);
+/*
+                // Force a search of public datarecords only
+                $datafield_array['metadata'][$dt_id]['public'] = 1;
+                $encoded_search_keys['dt_'.$dt_id.'_pub'] = 1;
                 $filtered_search_keys['dt_'.$dt_id.'_pub'] = 1;
+*/
             }
         }
 
@@ -1683,7 +1729,7 @@ if ( isset($debug['basic']) ) {
      */
     private function clearSearchKeyMetadata($datatype_id, &$array)
     {
-        $pieces = array('m_s', 'm_e', 'm_by', 'c_s', 'c_e', 'c_by');
+        $pieces = array('m_s', 'm_e', 'm_by', 'c_s', 'c_e', 'c_by', 'pub');
         foreach ($pieces as $piece) {
             if ( isset($array['dt_'.$datatype_id.'_'.$piece]) )
                 unset( $array['dt_'.$datatype_id.'_'.$piece] );

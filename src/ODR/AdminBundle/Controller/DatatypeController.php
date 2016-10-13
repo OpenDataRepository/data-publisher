@@ -63,54 +63,91 @@ class DatatypeController extends ODRCustomController
             // Grab user privileges to determine what they can do
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
             // --------------------
 
 
             // Grab a list of top top-level datatypes
             $top_level_datatypes = parent::getTopLevelDatatypes();
-//print_r($top_level_datatypes);
 
             // Grab each top-level datatype from the repository
             $query = $em->createQuery(
-               'SELECT dt
+               'SELECT dt, dtm, dt_cb, dt_ub
                 FROM ODRAdminBundle:DataType AS dt
-                WHERE dt IN (:datatypes)
-                AND dt.deletedAt IS NULL'
-            )->setParameters( array('datatypes' => $top_level_datatypes) );
-            $results = $query->getResult();
-
-            $datatypes = array();
-            $metadata = array();
-            foreach ($results as $dt) {
-                /** @var DataType $dt */
-                $datatypes[] = $dt;
-
-                $dt_id = $dt->getId();
-                $metadata[$dt_id] = array();
-                $metadata[$dt_id]['count'] = 0;
-            }
-            /** @var DataType[] $datatypes */
-
-            // Do a second query to grab which datatypes have datarecords, and how many
-            $query = $em->createQuery(
-               'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                WHERE dt IN (:datatypes) AND dr.provisioned = false
-                AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL
-                GROUP BY dt.id'
+                JOIN dt.dataTypeMeta AS dtm
+                JOIN dt.createdBy AS dt_cb
+                JOIN dt.updatedBy AS dt_ub
+                WHERE dt.id IN (:datatypes)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
             )->setParameters( array('datatypes' => $top_level_datatypes) );
             $results = $query->getArrayResult();
-//print_r($results);
 
+            $datatypes = array();
             foreach ($results as $result) {
-                $datatype_id = $result['dt_id'];
-                $datarecord_count = $result['datarecord_count'];
+                $dt_id = $result['id'];
 
-                $metadata[$datatype_id]['count'] = $datarecord_count;
+                $dt = $result;
+                $dt['dataTypeMeta'] = $result['dataTypeMeta'][0];
+                $dt['createdBy'] = parent::cleanUserData($result['createdBy']);
+                $dt['updatedBy'] = parent::cleanUserData($result['updatedBy']);
+
+                $datatypes[$dt_id] = $dt;
             }
-//print_r($metadata);
+//print_r($datatypes);  exit();
+
+            // Determine whether user has the ability to view non-public datarecords for this datatype
+            $can_view_public_datarecords = array();
+            $can_view_nonpublic_datarecords = array();
+            foreach ($datatypes as $dt_id => $dt) {
+                if ( isset($datatype_permissions[$dt_id]) && isset($datatype_permissions[$dt_id]['dr_view']) )
+                    $can_view_nonpublic_datarecords[] = $dt_id;
+                else
+                    $can_view_public_datarecords[] = $dt_id;
+            }
+
+            // Figure out how many datarecords the user can view for each of the datatypes
+            $metadata = array();
+            if ( count($can_view_nonpublic_datarecords) > 0 ) {
+                $query = $em->createQuery(
+                   'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
+                    FROM ODRAdminBundle:DataType AS dt
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                    WHERE dt IN (:datatype_ids) AND dr.provisioned = false
+                    AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
+                    GROUP BY dt.id'
+                )->setParameters( array('datatype_ids' => $can_view_nonpublic_datarecords) );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    $dt_id = $result['dt_id'];
+                    $count = $result['datarecord_count'];
+
+                    $metadata[$dt_id] = $count;
+                }
+            }
+
+            if ( count($can_view_public_datarecords) > 0 ) {
+                $query = $em->createQuery(
+                   'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
+                    FROM ODRAdminBundle:DataType AS dt
+                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                    JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                    WHERE dt IN (:datatype_ids) AND dr.provisioned = false AND drm.publicDate != :public_date
+                    AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL
+                    GROUP BY dt.id'
+                )->setParameters( array('datatype_ids' => $can_view_nonpublic_datarecords, 'public_date' => '2200-01-01 00:00:00') );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    $dt_id = $result['dt_id'];
+                    $count = $result['datarecord_count'];
+
+                    $metadata[$dt_id] = $count;
+                }
+            }
+//print_r($metadata);  exit();
+
 
             // Build a form for creating a new datatype, if needed
             $new_datatype_data = new DataTypeMeta();
@@ -122,7 +159,7 @@ class DatatypeController extends ODRCustomController
                     'ODRAdminBundle:Datatype:list_ajax.html.twig', 
                     array(
                         'user' => $user,
-                        'permissions' => $user_permissions,
+                        'datatype_permissions' => $datatype_permissions,
                         'section' => $section,
                         'datatypes' => $datatypes,
                         'metadata' => $metadata,
@@ -144,106 +181,6 @@ class DatatypeController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-    }
-
-
-    /**
-     * TODO - sitemap function
-     * Builds and returns a JSON list of all top-level DataTypes.
-     * 
-     * @param Request $request
-     * 
-     * @return Response TODO
-     */
-    public function getlistAction(Request $request)
-    {
-/*
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = 'json';
-        $return['d'] = '';
-
-        try {
-            // Determine user privileges
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $repo_user_permissions = $this->getDoctrine()->getRepository('ODRAdminBundle:UserPermissions');
-            $user_permissions = $repo_user_permissions->findBy( array('user_id' => $user) );
-
-            $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $this->getDoctrine()->getRepository('ODRAdminBundle:DataType');
-            $repo_datatree = $this->getDoctrine()->getRepository('ODRAdminBundle:DataTree');
-
-            // Need to only return top-level datatypes
-            // TODO - TOP LEVEL DATATYPES
-            $datatypes = null;
-            $datatrees = $repo_datatree->findAll();
-            $tmp_datatypes = $repo_datatype->findAll();
-
-            // Locate the IDs of all datatypes that are descended from another datatype
-            $descendants = array();
-            foreach ($datatrees as $datatree) {
-                if ($datatree->getIsLink() == 0)
-                    $descendants[] = $datatree->getDescendant()->getId();
-            }
-
-            // Only save the datatypes that aren't descended from another datatype
-            foreach ($tmp_datatypes as $tmp_datatype) {
-                if ( !in_array($tmp_datatype->getId(), $descendants) )
-                    $datatypes[] = $tmp_datatype;
-            }
-
-            // Determine additional metadata...
-            $metadata = array();
-
-            // ...how many datarecords each datatype has
-            $query = $em->createQuery(
-                'SELECT dt, COUNT(dt.id)
-                FROM ODRAdminBundle:DataRecord dr
-                JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-                WHERE dr.deletedAt IS NULL
-                GROUP BY dt.id');
-            $results = $query->getResult();
-
-            foreach ($results as $num => $data) {
-                // Parse the returned result for the datatype id and the number of datarecords belonging to that datatype
-                $datatype_id = $count = 0;
-                foreach ($data as $key => $value) {
-                    if ($value instanceof \ODR\AdminBundle\Entity\DataType)
-                        $datatype_id = $value->getId();
-                    else
-                        $count = $value;
-                }
-
-                $metadata[$datatype_id] = array();
-                $metadata[$datatype_id]['count'] = $count;
-            }
-
-
-            $datatype_list = array();
-            foreach ($datatypes as $dt) {
-                $id = $dt->getId();
-                $name = $dt->getShortName();
-
-                if ( isset($metadata[$id]) ) {
-                    $datatype_list[$id]['name'] = $name;
-                    $datatype_list[$id]['count'] = $metadata[$id]['count'];
-                }
-            }
-
-//print_r($datatype_list);
-
-            $return['d'] = $datatype_list;
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x828474520 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-*/
     }
 
 
@@ -331,18 +268,12 @@ class DatatypeController extends ODRCustomController
                     $em->persist($submitted_data);
 
                     // ----------------------------------------
-                    // Ensure the user that created this datatype has permissions to do everything to it
-                    $initial_permissions = array(
-                        'can_view_type' => 1,
-                        'can_add_record' => 1,
-                        'can_edit_record' => 1,
-                        'can_delete_record' => 1,
-                        'can_design_type' => 1,
-                        'is_type_admin' => 1
-                    );
-                    parent::ODR_addUserPermission($em, $admin->getId(), $admin->getId(), $datatype->getId(), $initial_permissions);
+                    // Create the default groups for this datatype
+                    $is_top_level = true;
+                    parent::ODR_createGroupsForDatatype($em, $admin, $datatype, $is_top_level);
 
 
+                    // ----------------------------------------
                     // Create a new master theme for this new datatype
                     $theme = new Theme();
                     $theme->setDataType($datatype);
@@ -372,12 +303,6 @@ class DatatypeController extends ODRCustomController
                     $redis = $this->container->get('snc_redis.default');;
                     // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
                     $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-                    $user_manager = $this->container->get('fos_user.user_manager');
-                    /** @var User[] $users */
-                    $users = $user_manager->findUsers();
-                    foreach ($users as $user)
-                        $redis->del($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
 
                     // Delete the cached version of the datatree array
                     $redis->del($redis_prefix.'.cached_datatree_array');
@@ -412,6 +337,7 @@ class DatatypeController extends ODRCustomController
 
     /**
      * Triggers a recache of all datarecords of all datatypes.
+     * @deprecated
      * TODO - using old recaching system.
      *
      * @param Request $request

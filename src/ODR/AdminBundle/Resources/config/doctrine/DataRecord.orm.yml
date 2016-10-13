@@ -89,6 +89,16 @@ ODR\AdminBundle\Entity\DataRecord:
                     referencedColumnName: id
             orphanRemoval: false
 
+        linkedDatarecords:
+            targetEntity: LinkedDataTree
+            cascade: { }
+            mappedBy: ancestor
+            inversedBy: null
+            joinColumns:
+                linked_data_tree_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
     manyToOne:
         parent:
             targetEntity: DataRecord

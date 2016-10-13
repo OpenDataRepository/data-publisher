@@ -1,0 +1,46 @@
+{% spaceless %}
+
+{% set theme_name = theme.themeMeta.templateName %}
+{% if theme_name == '' %}
+    {% set theme_name = 'theme_' ~ theme.id %}
+{% endif %}
+
+<div id="ODRRenderContent_{{ theme.id }}" class="ODRAccordionWrapper ODRFormAccordion ODRRenderContentHeader pure-u-1" style="margin-top: 20px;">
+    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+        <a>{{ theme_name }}</a>
+    </h3>
+</div>
+
+<div class="ODRFormWrap ODRDesign">
+    {% include 'ODRAdminBundle:ODRUser:view_childtype.html.twig' with {
+        'datatype_permissions': datatype_permissions,
+        'datafield_permissions': datafield_permissions,
+        'theme_id': theme.id,
+
+        'is_top_level': 1,
+
+        'datatype_array': datatype_array,
+        'target_datatype_id': initial_datatype_id,
+    } %}
+</div>
+
+<script>
+    $(function() {
+        // Hide all TEDs without input fields
+        $(".ODRThemeElement").each(function() {
+            var found = false;
+/*
+            $(this).find(".ODRFieldArea").each(function() {
+                found = true;
+            });
+*/
+            $(this).find(".ODRDataField").each(function() {
+                found = true;
+            });
+
+            if (!found)
+                $(this).hide();
+        });
+    });
+</script>
+{% endspaceless %}
