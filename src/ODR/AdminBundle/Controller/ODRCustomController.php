@@ -738,7 +738,7 @@ exit();
      * @param string $object_type "File" or "Image"
      *
      */
-    protected function encryptObject($object_id, $object_type)
+    public static function encryptObject($object_id, $object_type)
     {
         try {
             // Grab necessary objects
@@ -862,7 +862,7 @@ exit();
      *
      * @return string The absolute path to the newly decrypted file/image
      */
-    protected function decryptObject($object_id, $object_type)
+    public static function decryptObject($object_id, $object_type)
     {
         // Grab necessary objects
         /** @var \Doctrine\ORM\EntityManager $em */
@@ -5606,7 +5606,7 @@ if ($timing) {
 }
 */
         // The entity -> entity_metadata relationships have to be one -> many from a database perspective, even though there's only supposed to be a single non-deleted entity_metadata object for each entity
-        // Therefore, the preceeding query generates an array that needs to be slightly flattened in a few places
+        // Therefore, the previous query generates an array that needs to be slightly flattened in a few places
         foreach ($datarecord_data as $dr_num => $dr) {
             // Flatten datarecord_meta
             $drm = $dr['dataRecordMeta'][0];

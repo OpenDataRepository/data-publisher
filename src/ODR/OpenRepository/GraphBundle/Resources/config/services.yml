@@ -7,6 +7,7 @@ services:
         arguments:
             templating: "@templating"
             logger: "@logger"
+            container: "@service_container"
     graph.gcmsplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\GCMassSpecPlugin
         arguments:

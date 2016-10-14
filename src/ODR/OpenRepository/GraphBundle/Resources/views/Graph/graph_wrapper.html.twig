@@ -10,8 +10,7 @@
 
     {% include "ODRAdminBundle:Default:fieldarea_header.html.twig" with {
         "datatype_array": datatype_array,
-        "datarecord_array": datarecord_array,
-
+        "datarecord_list": datarecord_array,
         "target_datatype_id": target_datatype_id,
         "parent_datarecord_id": parent_datarecord_id,
 
@@ -20,7 +19,6 @@
     } %}
 
     {% for dr_id, datarecord in datarecord_array %}
-        {% if (is_link == 1 or datarecord.parent.id == parent_datarecord_id) and datarecord.dataType.id == target_datatype_id %}
 
             {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {'datarecord': datarecord, 'datatype': datatype, 'is_top_level': is_top_level, 'display_type': display_type} %}
 
@@ -88,7 +86,6 @@
                 </div>
 
             </div><!-- End of #FieldArea_{{ datarecord.id }} -->
-        {% endif %}
     {% endfor %}
 
     {% include "ODRAdminBundle:Default:fieldarea_footer.html.twig" with {

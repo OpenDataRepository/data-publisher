@@ -15,9 +15,20 @@
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
+// Controllers/Classes
+
+// Libraries
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\Exception\UnsatisfiedDependencyException;
 
+// Symfony components
+use Symfony\Component\DependencyInjection\ContainerInterface as Container;
+// use Doctrine\ORM\EntityManager;
+
+/**
+ * Class GraphPlugin
+ * @package ODR\OpenRepository\GraphBundle\Plugins
+ */
 class GraphPlugin
 {
 
@@ -51,9 +62,10 @@ class GraphPlugin
      * @param $templating
      * @param $logger
      */
-    public function __construct($templating, $logger) {
+    public function __construct($templating, $logger, Container $container) {
         $this->templating = $templating;
 	    $this->logger = $logger;
+        $this->container = $container;
     }
 
 
@@ -274,16 +286,17 @@ class GraphPlugin
 
 
             // ----------------------------------------
-            //TODO Check if the graph file is set as private or public, Then build a graph with only the public files, and one with both the public and private files.
             // For each datarecord that has been passed to this plugin, determine if the associated graph file exists
             $unique_id = '';
             $nv_filenames = array();
             $nv_files = array();
+            $graph_files = array();
             foreach ($datarecords as $dr_id => $dr) {
                 $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
                 foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
                     $nv_files[$dr_id] = $file['id'];
                     $nv_filenames[$dr_id] = $file['localFileName'];
+                    $graph_files[$dr_id] = $file;
                 }
 
                 $unique_id = $datatype['id'].'_'.$dr['parent']['id'];
@@ -322,6 +335,7 @@ class GraphPlugin
             $nv_sets = array();
 
             if ( count($nv_files) > 0 ) {
+                /*
                 // If more than one element in the nv files array build the powerset of the elements, done to currently handle permissions.
                 if ( count($nv_files) > 1 ) {
                     $nv_sets = self::powerSet($graph_keys, 1);
@@ -330,7 +344,69 @@ class GraphPlugin
                 else {
                     $nv_sets = array($graph_keys);
                 }
+                */
+
+                $file_ids = array();
+                // for( $i = 0; $i < count($nv_files); $i++) {
+                foreach($nv_files as $key => $id) {
+                    $file_ids[] = $id;
+                }
+                $file_id_list = implode('_', $file_ids);
+
+                $filename = 'Chart__'.$file_id_list. '_' . $max_option_date . '.svg';
+                $page_data['file_id_list'] = $file_id_list;
+                $page_data['file_ids'] = $file_ids;
+                $page_data['filename'] = $filename;
+                $nv_output_files['rollup'] = '/uploads/files/graphs/'.$filename;
+                $page_data['nv_output_files'] = $nv_output_files;
+
+                $page_data['current_drcids'] = array_keys($datarecords);
+                // Create the rollup graph.  This should respect permissions
+                // because files users don't have permissions to will not be
+                // passed to this function.  So, the filename will be unique
+                // to the permissions of the user.
+                if(isset($rendering_options['build_graph'])) {
+
+                    if (file_exists(dirname(__FILE__).'/../../../../../web/uploads/files/graphs/'.$filename)) {
+                        /* Pre-rendered graph file exists, do nothing */
+                        // TODO Determine if we can do this earlier and avoid CPU time.
+                        return $filename;
+                    }
+                    else {
+                        $crypto_service = $this->container->get('odr.crypto_service');
+
+                        // Decrypt any non-public files
+                        $files_to_delete = array();
+                        foreach($graph_files as $dr_id => $file) {
+                            $public_date = new \DateTime($file['fileMeta']['publicDate']->date);
+                            $now = new \DateTime();
+                            if($now < $public_date) {
+                                // File is encrypted and must be decrypted temporarily to graph.
+                                $file_path = $crypto_service->decryptObject($file['id'], 'file');
+                                array_push($files_to_delete, $file_path);
+                            }
+                        }
+                        // Pre-rendered graph file does not exist...need to create it
+                        $output_filename = self::buildGraph($page_data, $filename);
+                        // Delete previously encrypted non-public files
+                        foreach($files_to_delete as $file_path) {
+                            unlink($file_path);
+                        }
+                        return $output_filename;
+                    }
+                }
+                else {
+                    // ----------------------------------------
+                    // Render the graph html
+                    $output = $this->templating->render(
+                        'ODROpenRepositoryGraphBundle:Graph:graph_wrapper.html.twig', $page_data
+                    );
+                }
+
+
                 // Iterate over the array, build the file names and check if they exist, if they dont then call build graph.
+
+            /*
                 $page_data['current_drcids'] = array();
                 foreach ($nv_sets as $nv_set){
                     $file_ids = array();
@@ -346,38 +422,35 @@ class GraphPlugin
                     $page_data['filename'] = $filename;
                     $nv_output_files['rollup'] = '/uploads/files/graphs/'.$filename;
                     $page_data['nv_output_files'] = $nv_output_files;
-                    
-                    if (file_exists(dirname(__FILE__).'/../../../../../web/uploads/files/graphs/'.$filename)) {
-                        /* Pre-rendered graph file exists, do nothing */
-                        // TODO Determine if we can do this earlier and avoid CPU time.
-                    }
-                    else {
-                        // Pre-rendered graph file does not exist...need to create it
-                        self::buildGraph($page_data, $filename);
+
+                    if(isset($rendering_options['build_graph'])) {
+
+                        if (file_exists(dirname(__FILE__).'/../../../../../web/uploads/files/graphs/'.$filename)) {
+                            // Pre-rendered graph file exists, do nothing
+                            // TODO Determine if we can do this earlier and avoid CPU time.
+                        }
+                        else {
+                            // Pre-rendered graph file does not exist...need to create it
+                            return self::buildGraph($page_data, $filename);
+                        }
                     }
                 }
-
                 // ----------------------------------------
                 // Render the graph html
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Graph:graph_wrapper.html.twig', $page_data
                 );
+            */
+
 
             }
             else {
                 // No files exist to graph
             }
 
-            return $output;
-        }
-        catch ( \JpGraphException $e ) {
-            $output = $this->templating->render(
-                'ODROpenRepositoryGraphBundle:Default:default_error.html.twig',
-                array(
-                    'message' => 'JpGraphException: '.$e->getMessage()
-                )
-            );
-            throw new \Exception( $output );
+            if(!isset($rendering_options['build_graph'])) {
+                return $output;
+            }
         }
         catch (\Exception $e) {
             $output = $this->templating->render(
@@ -446,6 +519,7 @@ class GraphPlugin
             $fixed_file = str_replace('viewbox', 'viewBox', $created_file);
             $fixed_file = str_replace('preserveaspectratio', 'preserveAspectRatio', $fixed_file);
             file_put_contents($output_svg, $fixed_file);
+            return $filename;
         } else {
             throw new \Exception('The file "'. $output_svg .'" does not exist');
         }

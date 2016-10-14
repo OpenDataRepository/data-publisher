@@ -59,7 +59,7 @@ class CryptoCommand extends ContainerAwareCommand
                 $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );                
                 $output->writeln($data->crypto_type.' request for '.$data->object_type.' '.$data->object_id.' from '.$data->redis_prefix.'...');
 
-                // Need to use cURL to send a POST request...thanks symfony
+                // Need to use cURL to send a POST request
                 $ch = curl_init();
 
                 // Create the required parameters to send
