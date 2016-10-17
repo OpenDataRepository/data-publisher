@@ -997,6 +997,63 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
+     * Debug function...clears all existing cached search result.
+     */
+    public function permissionsclearAction(Request $request)
+    {
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = $this->getDoctrine()->getManager();
+        $redis = $this->container->get('snc_redis.default');;
+        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+        /** @var User $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+        if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+            return parent::permissionDeniedError();
+
+        // ----------------------------------------
+        // Clear all cached user permissions
+        $query = $em->createQuery(
+           'SELECT u.id AS user_id
+            FROM ODROpenRepositoryUserBundle:User AS u'
+        );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result) {
+            $user_id = $result['user_id'];
+            $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
+        }
+
+
+        // ----------------------------------------
+        // Clear all cached group permissions
+        $query = $em->createQuery(
+           'SELECT g.id AS group_id
+            FROM ODRAdminBundle:Group AS g'
+        );
+        $results = $query->getArrayResult();
+
+        foreach ($results as $result) {
+            $group_id = $result['group_id'];
+            $redis->del($redis_prefix.'.group_'.$group_id.'_permissions');
+        }
+
+
+        $return = array(
+            'r' => 0,
+            't' => '',
+            'd' => '',
+        );
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Begins the process of forcibly (re)encrypting every uploaded file/image on the site
      *
      * @param string $object_type "File" or "Image"...which type of entity to encrypt

@@ -136,7 +136,7 @@ class DatatypeController extends ODRCustomController
                     WHERE dt IN (:datatype_ids) AND dr.provisioned = false AND drm.publicDate != :public_date
                     AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL
                     GROUP BY dt.id'
-                )->setParameters( array('datatype_ids' => $can_view_nonpublic_datarecords, 'public_date' => '2200-01-01 00:00:00') );
+                )->setParameters( array('datatype_ids' => $can_view_public_datarecords, 'public_date' => '2200-01-01 00:00:00') );
                 $results = $query->getArrayResult();
 
                 foreach ($results as $result) {

@@ -20,7 +20,7 @@
             <th>Search Records</th>
             <th>List Records</th>
             <th>Add Record</th>
-            <th>Download Schema</th>
+            {#<th>Download Schema</th>#}
         </tr>
     </thead>
     <tbody>
@@ -137,9 +137,11 @@
             {% endif %}
             </td>
 
+{#
             <td>
                 <a id="ODRDatarecordList_{{ datatype.id }}_downloadXSD" class="Pointer" onclick="downloadXSD({{ datatype.id }});"><i class="fa fa-lg fa-download"></i>&nbsp;Download</a>
             </td>
+#}
         </tr>
         {% endif %}
     {% endfor %}

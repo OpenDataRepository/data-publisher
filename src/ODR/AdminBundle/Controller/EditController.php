@@ -2712,15 +2712,22 @@ if ($debug)
                 $can_view_parent_datatype = true;
 
             $can_view_datarecord = false;
-            if ( isset($datatype_permissions[$parent_datarecord_id]) && isset($datatype_permissions[$parent_datarecord_id]['dr_view']) )
+            if ( isset($datatype_permissions[$parent_datatype_id]) && isset($datatype_permissions[$parent_datatype_id]['dr_view']) )
                 $can_view_datarecord = true;
 
             $can_edit_datarecord = false;
-            if ( isset($datatype_permissions[$parent_datarecord_id]) && isset($datatype_permissions[$parent_datarecord_id]['dr_edit']) )
+            if ( isset($datatype_permissions[$child_datatype_id]) && isset($datatype_permissions[$child_datatype_id]['dr_edit']) )
                 $can_edit_datarecord = true;
 
+
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't reload the child datatype's HTML
-            if ( !($parent_datatype->isPublic() || $can_view_parent_datatype) || !($child_datatype->isPublic() || $can_view_child_datatype) || !($parent_datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datarecord )
+            if ( !($parent_datatype->isPublic() || $can_view_parent_datatype) )
+                return parent::permissionDeniedError("edit");
+            if ( !($child_datatype->isPublic() || $can_view_child_datatype) )
+                return parent::permissionDeniedError("edit");
+            if ( !($parent_datarecord->isPublic() || $can_view_datarecord) )
+                return parent::permissionDeniedError("edit");
+            if ( !$can_edit_datarecord )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
