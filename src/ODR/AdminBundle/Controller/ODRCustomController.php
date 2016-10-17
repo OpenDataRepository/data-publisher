@@ -738,7 +738,7 @@ exit();
      * @param string $object_type "File" or "Image"
      *
      */
-    public static function encryptObject($object_id, $object_type)
+    protected function encryptObject($object_id, $object_type)
     {
         try {
             // Grab necessary objects
@@ -862,7 +862,7 @@ exit();
      *
      * @return string The absolute path to the newly decrypted file/image
      */
-    public static function decryptObject($object_id, $object_type)
+    protected function decryptObject($object_id, $object_type)
     {
         // Grab necessary objects
         /** @var \Doctrine\ORM\EntityManager $em */

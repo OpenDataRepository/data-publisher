@@ -1899,7 +1899,7 @@ class DisplaytemplateController extends ODRCustomController
             $user_manager = $this->container->get('fos_user.user_manager');
             $users = $user_manager->findUsers();
             foreach ($users as $user)
-                $redis->del($redis_prefix.'.user_'.$user->getId().'_datatype_permissions');
+                $redis->del($redis_prefix.'.user_'.$user->getId().'_permissions');
 
             // Delete the cached version of the datatree array because a child datatype was created
             $redis->del($redis_prefix.'.cached_datatree_array');
