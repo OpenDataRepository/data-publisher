@@ -130,7 +130,7 @@
         });
 
         var old_email = '';
-        $("#submitButton").removeClass('pure-button-primary').attr('disabled', 'disabled');
+        $("#submitButton").removeClass('pure-button-primary').attr('disabled', 'disabled').attr('title', 'Email needs to be checked for availability first');
         $("#{{ profile_form.email.vars.id }}").unbind('keyup').unbind('paste');
         $("#{{ profile_form.email.vars.id }}").on('keyup paste', function() {
             var new_email = $(this).val();
@@ -138,7 +138,7 @@
                 old_email = new_email;
 
                 $("#emailCheckButton").addClass('pure-button-primary').html('Check Email Availability').removeAttr('disabled');
-                $("#submitButton").removeClass('pure-button-primary').attr('disabled', 'disabled');
+                $("#submitButton").removeClass('pure-button-primary').attr('disabled', 'disabled').attr('title', 'Email needs to be checked for availability first');
             }
         });
     });
@@ -164,11 +164,11 @@
 
                     if (data.d == 0) {
                         // Email not found
-                        $("#submitButton").addClass('pure-button-primary').html('Save').attr('onclick', 'saveProfileForm();').removeAttr('disabled');
+                        $("#submitButton").addClass('pure-button-primary').html('Save').attr('onclick', 'saveProfileForm();').removeAttr('disabled').removeAttr('title');
                     }
                     else {
                         // Email already exists
-                        $("#submitButton").addClass('pure-button-primary').html('View User Permissions').attr('onclick', 'viewPermissions(' + data.d + ');').removeAttr('disabled');
+                        $("#submitButton").addClass('pure-button-primary').html('View User Permissions').attr('onclick', 'viewPermissions(' + data.d + ');').removeAttr('disabled').removeAttr('title');
                         $("#emailCheckButton").html('User already exists');
                     }
                 }

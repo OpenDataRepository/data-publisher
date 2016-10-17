@@ -2180,6 +2180,7 @@ if ($debug)
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
+        $redis->del($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord_id);
         $redis->del($redis_prefix.'.cached_datarecord_'.$grandparent_datarecord_id);
         $redis->del($redis_prefix.'.datarecord_table_data_'.$grandparent_datarecord_id);
     }

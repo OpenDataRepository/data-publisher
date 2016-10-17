@@ -854,7 +854,7 @@ class DisplaytemplateController extends ODRCustomController
             // Remove members from the Groups for this Datatype
             $query = $em->createQuery(
                'UPDATE ODRAdminBundle:UserGroup AS ug
-                SET ug.deletedAt = now(), ug.deletedBy = :deleted_by
+                SET ug.deletedAt = :now, ug.deletedBy = :deleted_by
                 WHERE ug.group IN (:group_ids)
                 AND ug.deletedAt IS NULL'
             )->setParameters( array('now' => new \DateTime(), 'deleted_by' => $user->getId(), 'group_ids' => $groups_to_delete) );
@@ -1845,17 +1845,17 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // Create a new master theme for this new child datatype
-            $theme = new Theme();
-            $theme->setDataType($child_datatype);
-            $theme->setThemeType('master');
-            $theme->setCreatedBy($user);
-            $theme->setUpdatedBy($user);
-            $em->persist($theme);
+            $child_theme = new Theme();
+            $child_theme->setDataType($child_datatype);
+            $child_theme->setThemeType('master');
+            $child_theme->setCreatedBy($user);
+            $child_theme->setUpdatedBy($user);
+            $em->persist($child_theme);
 
 
             $em->flush();
             $em->refresh($datatree);
-            $em->refresh($theme);
+            $em->refresh($child_theme);
 
 
             // Create a new DataTreeMeta entity to store properties of the DataTree
@@ -1869,7 +1869,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // Create a new ThemeMeta entity to store properties of the childtype's Theme
             $theme_meta = new ThemeMeta();
-            $theme_meta->setTheme($theme);
+            $theme_meta->setTheme($child_theme);
             $theme_meta->setTemplateName('');
             $theme_meta->setTemplateDescription('');
             $theme_meta->setIsDefault(true);

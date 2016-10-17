@@ -1162,6 +1162,10 @@ odr_search_clear:
     path: /admin/search_clear
     defaults: { _controller: ODRAdminBundle:Worker:searchclear }
 
+odr_permissions_clear:
+    path: /admin/permissions_clear
+    defaults: { _controller: ODRAdminBundle:Worker:permissionsclear }
+
 #odr_mass_encrypt:
 #    path: /admin/mass_encrypt/{object_type}
 #    defaults: { _controller: ODRAdminBundle:Worker:startencrypt }
