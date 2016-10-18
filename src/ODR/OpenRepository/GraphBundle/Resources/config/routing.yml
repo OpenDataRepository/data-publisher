@@ -3,5 +3,5 @@ odr_open_repository_graph_homepage:
     defaults: { _controller: ODROpenRepositoryGraphBundle:Default:index }
 
 odr_plugin_graph_static:
-    path:  /graph/static/{plugin_id}/{datatype_id}/{datarecord_id}
-    defaults: { _controller: ODROpenRepositoryGraphBundle:Graph:static }
+    path:  /graph/static/{plugin_id}/{datatype_id}/{datarecord_id}.{_format}
+    defaults: { _controller: ODROpenRepositoryGraphBundle:Graph:static, _format: 'svg' }

@@ -121,14 +121,14 @@
                                     <input name="checkall" checked="checked" type="checkbox" value="ALL" /> Check All
                                 </li>
                             {% endif %}
-                            {% set counter = 0 %}
+                            {# set counter = 0 #}
                             {% for drcid in current_drcids %}
                                 <li class="ODRData{% if loop.last %} selected{% endif %}">
                                     <input {% if drcid not in nv_files|keys %}class="NoGraph"{% endif %} {% if drcid in nv_files|keys %}checked="checked"{% endif %} type="checkbox" value="{{ drcid }}" /> {{ nv_pivot[drcid] }}
                                     {% if drcid not in nv_files|keys %}
                                         (No Graph Data)
                                     {% else %}
-                                        <span style="border: 1px solid #ddd; background-color:{{ line_colors[counter] }}{% set counter = counter + 1 %}; float:right; width: 12px;">&nbsp;</span>
+                                        <span style="border: 1px solid #ddd; background-color:{# line_colors[counter] }}{% set counter = counter + 1 #}; float:right; width: 12px;">&nbsp;</span>
                                     {% endif %}
                                 </li>
                             {% endfor %}
@@ -154,14 +154,14 @@
                 <dd>
                     <div class="ODRMultiSelect">
                         <ul>
-                            {% set counter = 0 %}
+                            {# set counter = 0 #}
                             {% for drcid, pivot in nv_output_files %}
                                 <li class="ODRData{% if loop.last %} selected{% endif %}">
                                     <input {% if drcid not in nv_output_files|keys %}class="NoGraph"{% endif %} {% if drcid == "rollup" %}checked="checked"{% endif %} type="checkbox" value="{{ drcid }}" /> {{ nv_pivot[drcid] }}
                                     {% if drcid not in nv_output_files|keys %}
                                         (No Graph Data)
                                     {% else %}
-                                        <span style="display: none; border: 1px solid #ddd; background-color:{{ jpgraph_line_colors[counter] }}{% set counter = counter + 1 %}; float:right; width: 12px;">&nbsp;</span>
+                                        <span style="display: none; border: 1px solid #ddd; background-color:{# jpgraph_line_colors[counter] }}{% set counter = counter + 1 #}; float:right; width: 12px;">&nbsp;</span>
                                     {% endif %}
                                 </li>
                             {% endfor %}
@@ -712,7 +712,7 @@
                                 console.log('pivot, mydrcid' + '{{ pivot }}' +', ' + '{{ mydrcid }}');
                                 console.log('index, current_drcid {{ index }} {{ current_drcid }}');
                                 console.log('filename, filedrcid {{ filename }} {{ filedrcid }}');
-                                odr_nv_{{ nv_chart_id }}.data[{{ drcid }}] = ODRGetGraphData(file, '{{ line_colors[loop.index0] }}', '{{ pivot }}', '{{ filename }}');
+                                odr_nv_{{ nv_chart_id }}.data[{{ drcid }}] = ODRGetGraphData(file, '{# line_colors[loop.index0] #}111111', '{{ pivot }}', '{{ filename }}');
                             {% endif %}
                         {% endfor %}
                     {% endfor %}

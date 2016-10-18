@@ -48,12 +48,12 @@ class GraphPlugin
     /**
      * @var array
      */
-    private $line_colors;
+    // private $line_colors;
 
     /**
      * @var array
      */
-    private $jpgraph_line_colors;
+    // private $jpgraph_line_colors;
 
 
     /**
@@ -179,6 +179,7 @@ class GraphPlugin
             // ----------------------------------------
             // TODO - currently not using user-defined colors
             // $line_colors = explode(',',$plugin_options['line_colors']);
+            /*
             $this->line_colors = array(
                 'rgb(114,114,114)',
                 'rgb(241,89,95)',
@@ -200,6 +201,7 @@ class GraphPlugin
                 '#b99236',
                 '#ffd54d'
             );
+            */
 
 
             // Retrieve mapping between datafields and render plugin fields
@@ -317,8 +319,8 @@ class GraphPlugin
 
                 'render_plugin' => $render_plugin,
                 // Required for the rest of the graph plugin
-                'line_colors' => $this->line_colors,
-                'jpgraph_line_colors' => $this->jpgraph_line_colors,
+                // 'line_colors' => $this->line_colors,
+                // 'jpgraph_line_colors' => $this->jpgraph_line_colors,
                 'plugin_options' => $options,
                 'unique_id' => $unique_id,
                 'nv_chart_id' => $nv_chart_id,

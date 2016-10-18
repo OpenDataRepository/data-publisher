@@ -13,7 +13,7 @@
                 case 403:
                     alert( 'Access Denied!' );
                     // If a hash is present, attempt to preserve it so user goes back to this page after login
-                    var url = window.location.href;
+                    /* var url = window.location.href;
                     if ( url.indexOf('#') !== -1 ) {
                         var tmp = url.split('#');
                         url = tmp[0].substr(0, tmp[0].lastIndexOf('/')) + '/login#' + tmp[1];
@@ -23,7 +23,7 @@
                     else {
                         // Otherwise, just redirect to admin page
                         location.replace("{{ path('odr_admin_homepage') }}");
-                    }
+                    } */
                     break;
 /*
                 default:

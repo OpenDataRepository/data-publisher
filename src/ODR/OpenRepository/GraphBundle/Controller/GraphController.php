@@ -40,16 +40,16 @@ class GraphController extends ODRCustomController
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                return parent::deletedEntityError('Datarecord');
+                throw new \Exception("{ message: 'Item Deleted', detail: 'Data record no longer exists.'}");
 
             $datatype = $datarecord->getDataType();
             if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
+                throw new \Exception("{ message: 'Item Deleted', detail: 'Data type no longer exists.'}");
 
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
             if ($theme == null)
-                return parent::deletedEntityError('Theme');
+                throw new \Exception("{ message: 'Item Deleted', detail: 'Theme could not be found.'}");
 
             // Save incase the user originally requested a child datarecord
             $original_datarecord = $datarecord;
@@ -65,12 +65,12 @@ class GraphController extends ODRCustomController
 
                 $datatype = $datarecord->getDataType();
                 if ($datatype == null)
-                    return parent::deletedEntityError('Datatype');
+                    throw new \Exception("{ message: 'Item Deleted', detail: 'Data type no longer exists.'}");
 
                 /** @var Theme $theme */
                 $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
                 if ($theme == null)
-                    return parent::deletedEntityError('Theme');
+                    throw new \Exception("{ message: 'Item Deleted', detail: 'Theme no longer exists.'}");
             }
 
 
@@ -89,7 +89,7 @@ class GraphController extends ODRCustomController
                 }
                 else {
                     // ...if either the datatype is non-public or the datarecord is non-public, return false
-                    return parent::permissionDeniedError('view');
+                    throw new \Exception("{ message: 'Permission Denied', detail: 'Data type  or data record is non-public.'}");
                 }
             }
             else {
@@ -109,7 +109,7 @@ class GraphController extends ODRCustomController
 
                 // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
                 if ( !($original_datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) )
-                    return parent::permissionDeniedError('view');
+                    throw new \Exception("{ message: 'Permission Denied', detail: 'Insufficient permissions.'}");
             }
             // ----------------------------------------
 
@@ -189,7 +189,7 @@ class GraphController extends ODRCustomController
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
-
+            throw new \Exception("{ message: 'Permission Denied', detail: 'Data type  or data record is non-public.'}");
             // Call Render Plugin
             // Re-organize list of datarecords into
             // $datarecord_array = array();
@@ -213,10 +213,32 @@ class GraphController extends ODRCustomController
             return $this->redirect("/uploads/files/graphs/" . $filename);
         }
         catch (\Exception $e) {
-            return $this->redirect("https://cdn.colorlib.com/wp/wp-content/uploads/sites/2/fix-internal-server-error.jpg");
+            $message = $e->getMessage();
+            if($message_data == json_decode($message)) {
+                $response = self::svgWarning($message_data['message'], $message_data['detail']);
+            }
+            else {
+                $response = self::svgWarning($message);
+            }
+            $headers = array(
+                'Content-Type' => 'image:svg+xml'
+            );
+            return new Response($response, '200', $headers);
         }
 
-        // Redirect to Graph URL
-        return $this->redirect("https://cdn.colorlib.com/wp/wp-content/uploads/sites/2/fix-internal-server-error.jpg");
+    }
+
+    public function svgWarning($message, $detail = "") {
+
+        $templating = $this->get('templating');
+
+        return $templating->render(
+            'ODROpenRepositoryGraphBundle:Graph:graph_error.html.twig',
+            array(
+                'message' => $message,
+                'message' => $detail
+            )
+        );
+
     }
 }
