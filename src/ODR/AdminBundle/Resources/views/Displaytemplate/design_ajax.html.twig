@@ -848,7 +848,8 @@ function SaveDatafieldProperty(datafield_id, reload_datafield) {
                 if (reload_datafield == true) {
                     ReloadDatafield(datafield_id);
                 }
-                else if (data.d.force_slideout_reload == true) {
+
+                if (data.d.force_slideout_reload == true) {
                     $("#ElementData").fadeOut('slow').html("");
                     $("#ElementData").html(data.d.html).fadeIn('slow');
 
@@ -1115,7 +1116,7 @@ function InitDatafieldPropertiesForm() {
             if ( $(this).hasClass('ODRDatafieldMarkdown') ) {
                 var text = $(this).val();
                 var markdown_text = window.Markdown(text);
-                $("#Field_" + datafield_id).find(".ODRPseudoField").html(markdown_text);
+                $("#Field_" + datafield_id).find(".ODRMarkdownContent").html(markdown_text);
             }
 
             SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
