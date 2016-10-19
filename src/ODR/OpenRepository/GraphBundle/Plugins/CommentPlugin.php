@@ -36,7 +36,7 @@ class CommentPlugin
 
 
     /**
-     * Executes the Graph Plugin on the provided datarecords
+     * Executes the Comment Plugin on the provided datarecords
      *
      * @param array $datarecords
      * @param array $datatype

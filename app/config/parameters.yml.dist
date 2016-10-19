@@ -37,6 +37,10 @@ parameters:
             name: 'Comment Plugin'
             filename: CommentPlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
+        link_plugin:
+            name: 'Link Plugin'
+            filename: LinkPlugin
+            bundle_path: /ODROpenRepository/GraphBundle
         url_plugin:
             name: 'URL Field'
             filename: URLPlugin

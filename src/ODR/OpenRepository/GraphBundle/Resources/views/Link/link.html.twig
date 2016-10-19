@@ -1,0 +1,30 @@
+{% spaceless %}
+
+{% if datarecord_array|length > 0 %}
+<div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
+
+    <div class="ODRAccordionWrapper ODRFormAccordion">
+        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+            <span class="ui-icon ui-icon-triangle-1-s"></span>
+            <a>{{ datatype.dataTypeMeta.shortName }}</a>
+
+            <span style="margin-left: 15px;" title="This is a linked Datatype">
+                <i class="fa fa-lg fa-link Cursor"></i>
+            </span>
+        </h3>
+
+        <div class="ODRRenderPluginContent">
+        {% for dr_id,dr in datarecord_array %}
+            <div class="ODRRenderPluginLink" style="margin:10px;">
+                <span>
+                    <a target="_blank" href="#{{ path('odr_display_view', {'datarecord_id': dr_id}) }}" class="pure-button">View Linked Datarecord{% if labels[dr_id] is defined %} for "{{ labels[dr_id] }}"{% endif %}</a>
+                </span>
+            </div>
+        {% endfor %}
+        </div>
+
+    </div><!-- End of .ODRAccordionWrapper -->
+</div><!-- End of #DataType_{{ datatype.id }} -->
+{% endif %}
+
+{% endspaceless %}

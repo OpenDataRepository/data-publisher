@@ -19,5 +19,5 @@ ODR\OpenRepository\GraphBundle\Plugins\Comment:
 #            name: Allow public display
 #            type: string
 #            default: yes
-#            choices: yes||Yes, no||No
+#            choices: yes||Yes,no||No
 #            description: Display comments that are marked public on the record result page.

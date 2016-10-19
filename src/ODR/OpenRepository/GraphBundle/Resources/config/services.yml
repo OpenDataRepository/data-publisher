@@ -20,6 +20,11 @@ services:
         class: ODR\OpenRepository\GraphBundle\Plugins\CommentPlugin
         arguments:
             templating: "@templating"
+    graph.linkplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\LinkPlugin
+        arguments:
+            templating: "@templating"
+
     graph.chemistryplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\ChemistryPlugin
         arguments:

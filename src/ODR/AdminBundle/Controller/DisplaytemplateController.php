@@ -2708,7 +2708,7 @@ class DisplaytemplateController extends ODRCustomController
                     }
                 }
             }
-//print_r($plugin_options);
+//print_r($plugin_options);  exit();
 
 
             // ----------------------------------------
@@ -2746,12 +2746,14 @@ class DisplaytemplateController extends ODRCustomController
             }
 
             // Flatten the required_fields array read from the config file for easier use
-            foreach ($required_fields as $plugin_id => $data) {
-                foreach ($data as $field_key => $field_data) {
-                    $field_name = $field_data['name'];
-                    $required_fields[$field_name] = $field_data;
+            if ( is_array($required_fields) ) {
+                foreach ($required_fields as $plugin_id => $data) {
+                    foreach ($data as $field_key => $field_data) {
+                        $field_name = $field_data['name'];
+                        $required_fields[$field_name] = $field_data;
+                    }
+                    unset($required_fields[$plugin_id]);
                 }
-                unset( $required_fields[$plugin_id] );
             }
 //print_r($required_fields);
 //print_r($available_options);
@@ -2806,43 +2808,45 @@ class DisplaytemplateController extends ODRCustomController
 //print_r($required_fields);
 
             // If any fields remain in the array, then they need to be added to the database
-            foreach ($required_fields as $field) {
-                // Pull the entity's attributes from the config file
-                $field_name = $field['name'];
-                $description = $field['description'];
-                $allowed_typeclasses = explode('|', $field['type']);
+            if ( is_array($required_fields) ) {
+                foreach ($required_fields as $field) {
+                    // Pull the entity's attributes from the config file
+                    $field_name = $field['name'];
+                    $description = $field['description'];
+                    $allowed_typeclasses = explode('|', $field['type']);
 
-                // Create and save the new entity
-                $rpf = new RenderPluginFields();
-                $rpf->setFieldName($field_name);
-                $rpf->setDescription($description);
-                $rpf->setActive(1);
-                $rpf->setCreatedBy($user);
-                $rpf->setUpdatedBy($user);
-                $rpf->setRenderPlugin($current_render_plugin);
-                $rpf->setAllowedFieldtypes('');
-//print 'Created new RenderPluginFields "'.$field_name.'" for RenderPlugin "'.$current_render_plugin->getPluginName()."\"\n";
+                    // Create and save the new entity
+                    $rpf = new RenderPluginFields();
+                    $rpf->setFieldName($field_name);
+                    $rpf->setDescription($description);
+                    $rpf->setActive(1);
+                    $rpf->setCreatedBy($user);
+                    $rpf->setUpdatedBy($user);
+                    $rpf->setRenderPlugin($current_render_plugin);
+                    $rpf->setAllowedFieldtypes('');
+                    //print 'Created new RenderPluginFields "'.$field_name.'" for RenderPlugin "'.$current_render_plugin->getPluginName()."\"\n";
 
-                $em->persist($rpf);
-                $em->flush();
-                $em->refresh($rpf);
+                    $em->persist($rpf);
+                    $em->flush();
+                    $em->refresh($rpf);
 
-                // Save the fieldtypes allowed for this field
-                $rpf_id = $rpf->getId();
-                $allowed_fieldtypes[$rpf_id] = array();
-                foreach ($allowed_typeclasses as $allowed_typeclass) {
-                    /** @var FieldType $ft */
-                    $ft = $repo_fieldtype->findOneBy( array('typeClass' => $allowed_typeclass) );
-                    if ($ft == null)
-                        throw new \Exception('RenderPlugin "'.$current_render_plugin->getPluginName().'" config: Invalid Fieldtype "'.$allowed_typeclass.'" in list for field "'.$field_name.'"');
+                    // Save the fieldtypes allowed for this field
+                    $rpf_id = $rpf->getId();
+                    $allowed_fieldtypes[$rpf_id] = array();
+                    foreach ($allowed_typeclasses as $allowed_typeclass) {
+                        /** @var FieldType $ft */
+                        $ft = $repo_fieldtype->findOneBy(array('typeClass' => $allowed_typeclass));
+                        if ($ft == null)
+                            throw new \Exception('RenderPlugin "'.$current_render_plugin->getPluginName().'" config: Invalid Fieldtype "'.$allowed_typeclass.'" in list for field "'.$field_name.'"');
 
-                    $allowed_fieldtypes[$rpf_id][] = $ft->getId();
+                        $allowed_fieldtypes[$rpf_id][] = $ft->getId();
+                    }
+                    $rpf->setAllowedFieldtypes(implode(',', $allowed_fieldtypes[$rpf_id]));
+
+                    $em->persist($rpf);
+                    $em->flush();
+                    $em->refresh($rpf);
                 }
-                $rpf->setAllowedFieldtypes( implode(',', $allowed_fieldtypes[$rpf_id]) );
-
-                $em->persist($rpf);
-                $em->flush();
-                $em->refresh($rpf);
             }
 
             // Now that db and config file are synched, reload the required fields
