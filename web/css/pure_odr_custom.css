@@ -1562,11 +1562,11 @@ footer .ODRLogoImage img {
     .pure-hidden-xs{display:none}
 
     .ODRDynamicGraph {
-        min-width: 300px;
+        /* min-width: 300px; */
         min-height: 100px;
     }
     .ODRStaticGraph {
-        min-width: 300px;
+        /* min-width: 300px; */
         min-height: 100px;
     }
 }
@@ -1579,11 +1579,11 @@ footer .ODRLogoImage img {
     .pure-hidden-sm{display:none}
 
     .ODRDynamicGraph {
-        min-width: 500px;
+        /* min-width: 500px; */
         min-height: 166px;
     }
     .ODRStaticGraph {
-        min-width: 500px;
+        /* min-width: 500px; */
         min-height: 166px;
     }
 }
@@ -1596,11 +1596,11 @@ footer .ODRLogoImage img {
     .pure-hidden-md{display:none}
 
     .ODRDynamicGraph {
-        min-width: 740px;
+        /* min-width: 740px; */
         min-height: 246px;
     }
     .ODRStaticGraph {
-        min-width: 740px;
+        /* min-width: 740px; */
         min-height: 246px;
     }
 }
@@ -1613,11 +1613,11 @@ footer .ODRLogoImage img {
     .pure-hidden-lg{display:none}
 
     .ODRDynamicGraph {
-        min-width: 960px;
+        /* min-width: 960px; */
         min-height: 320px;
     }
     .ODRStaticGraph {
-        min-width: 960px;
+        /* min-width: 960px; */
         min-height: 320px;
     }
 }
@@ -1630,11 +1630,11 @@ footer .ODRLogoImage img {
     .pure-hidden-xl{display:none}
 
     .ODRDynamicGraph {
-        min-width: 1200px;
+        /* min-width: 1200px; */
         min-height: 400px;
     }
     .ODRStaticGraph {
-        min-width: 1200px;
+        /* min-width: 1200px; */
         min-height: 400px;
     }
 }

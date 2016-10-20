@@ -4172,6 +4172,7 @@ if ($debug)
             $theme_element_meta->setCssWidthMed( $old_meta_entry->getCssWidthMed() );
             $theme_element_meta->setCssWidthXL( $old_meta_entry->getCssWidthXL() );
 
+            $theme_element_meta->setPublicDate( $old_meta_entry->getPublicDate());   // default to not public
             $theme_element_meta->setCreatedBy($user);
         }
         else {

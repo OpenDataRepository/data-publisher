@@ -15,13 +15,6 @@
             {% if is_top_level == 0 %}
                 <span style="float: right;">
                    <span id="Switch_{{ nv_chart_id }}" class="DynamicSwitch" style="cursor: pointer">Switch to Dynamic Charts</span>
-{#
-                {% if datarecordchild.ispublic == true %}
-                    <i class="tooltip fa fa-globe fa-lg" title="Child Record is Public" rel="{{ datarecordchild.id }}"></i>
-                {% else %}
-                    <i class="tooltip fa fa-globe IconRed fa-lg" title="Child Record is not Public" rel="{{ datarecordchild.id }}"></i>
-                {% endif %}
-#}
                 &nbsp;&nbsp;&nbsp;
                 </span> Charts
             {% endif %}
@@ -109,7 +102,7 @@
                 {% for dr_id, nv_file_name in nv_output_files %}
                     <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1" {% if dr_id != "rollup" %}style="display: none;"{% endif %}>
                         {# Add call for image by URL Here #}
-                        <img class="pure-u-1" src="{{ path('odr_plugin_graph_static', { 'plugin_id': render_plugin.id, 'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id } ) }}.svg" />
+                        <img class="pure-u-1" src="{{ path('odr_plugin_graph_static', { 'plugin_id': render_plugin.id, 'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id } ) }}.svg?nocache=1" />
                     </div><!-- end of .ODRGraph -->
                 {% endfor %}
             {% endif %}
@@ -132,7 +125,18 @@
     license: http://www.opensource.org/licenses/mit-license.php
 */
 
+var page_plots = []
 jQuery(function() {
+
+
+    window.onresize = function() {
+        waitForFinalEvent(function() {
+            for(x in page_plots) {
+                console.log('resize')
+                Plotly.Plots.resize(page_plots[x]);
+            }
+        }, 500, "plotly_window_resize")
+    }
 
     {#$("#DataType_{{ datarecordchild.getdatatype.id }}_dropdown").change(function() { #}
     $("#DataType_{{ datatype.id }}_dropdown").change(function() {
@@ -241,7 +245,7 @@ function ODRMultiSetSelected_{{ unique_id }}(elem) {
 
 if(!window.ODRGetGraphData) {
 
-    function ODRGetGraphData(filename, line_color, line_label) {
+    function ODRGetGraphData(filename, line_color, line_label, graph_type) {
         var txt;
 
         var file_url = "{{ path('odr_file_download', {'file_id': '0'}) }}";
@@ -264,32 +268,77 @@ if(!window.ODRGetGraphData) {
                 var lines = txt.split(/\n/);
                 for(var i=0;i<lines.length;i++) {
                     var line = lines[i];
-                    if(!line.match(/^#/) && (line.match(/^[0-9]/) || line.match(/^\.[0-9]/))) {
-                        var data = "";
-                        if(line.match(/,/)) {
-                            data = line.split(/,/);
+                    if(graph_type == "histogram") {
+                        if(!line.match(/^#/) && (line.match(/^[0-9]/) || line.match(/^\.[0-9]/))) {
+                            line_data.push({x: Number(line.trim())})
                         }
-                        else if(line.match(/\t/)) {
-                            data = line.split(/\t/);
+                    }
+                    else if(graph_type == "piechart" || graph_type == "bar") {
+                        if(!line.match(/^#/)) {
+                            var data = "";
+                            if(line.match(/,/)) {
+                                data = line.split(/,/);
+                            }
+                            else if(line.match(/\t/)) {
+                                data = line.split(/\t/);
+                            }
+                            if(undefined != data[0] && undefined != data[1]) {
+                                var xval = data[0].trim()
+                                var yval = data[1].trim()
+                                line_data.push({x: xval, y: yval})
+                            }
                         }
+                    }
+                    else if (graph_type == "lineerror") {
+                        if(!line.match(/^#/) && (line.match(/^[0-9]/) || line.match(/^\.[0-9]/))) {
+                            var data = "";
+                            if(line.match(/,/)) {
+                                data = line.split(/,/);
+                            }
+                            else if(line.match(/\t/)) {
+                                data = line.split(/\t/);
+                            }
 
-                        if(undefined != data[0] && undefined != data[1]) {
-                            var xval = 0 + Number(data[0].trim());
-                            var yval = 0 + Number(data[1].trim());
-                            line_data.push({x: xval, y: yval})
+                            if(undefined != data[0] && undefined != data[1] && undefined != data[2]) {
+                                var xval = 0 + Number(data[0].trim());
+                                var yval = 0 + Number(data[1].trim());
+                                var eval = 0 + Number(data[2].trim());
+                                var fval = '';
+                                if(undefined != data[3]) {
+                                    fval = 0 + Number(data[3].trim());
+                                }
+                                line_data.push({x: xval, y: yval, e: eval, f: fval})
+                            }
+                        }
+                    }
+                    else {
+                        if(!line.match(/^#/) && (line.match(/^[0-9]/) || line.match(/^\.[0-9]/))) {
+                            var data = "";
+                            if(line.match(/,/)) {
+                                data = line.split(/,/);
+                            }
+                            else if(line.match(/\t/)) {
+                                data = line.split(/\t/);
+                            }
+
+                            if(undefined != data[0] && undefined != data[1]) {
+                                var xval = 0 + Number(data[0].trim());
+                                var yval = 0 + Number(data[1].trim());
+                                line_data.push({x: xval, y: yval})
+                            }
                         }
                     }
                 }
             }
 
             //Line chart data should be sent as an array of series objects.
-            var line = {
+            var trace_data = {
                     values: line_data,      //values - represents the array of {x,y} data points
                     key: line_label, //key  - //the name of the series.
                     color: line_color,  //color - optional: choose your own line color.
                     area: false
                 };
-            return line;
+            return trace_data;
         }
     }
 }
@@ -303,93 +352,458 @@ if(!window.ODRNVGraph) {
 
         this.x_axis_label = "";
         this.y_axis_label = "";
-        this.GraphData = function(chart_obj) {
+        this.GraphData = function (chart_obj) {
             /* These lines are all chart setup.  Pick and choose which chart features ou want to utilize. */
-            if(window.nv) {
-            switch (graph_type) {
-                case "fline":
-                    console.log("Focus line generated")
-                    return focusLineGenerator(chart_obj);
-                    break;
-                case "line":
-                    console.log("line chart generated")
-                    return lineChartGenerator(chart_obj);
-                    break;
-                case "xy":
-                    // return xyScatterGenerator(chart_obj);
-                    // return lineChartGenerator(chart_obj);
-                    // return multiBarChartGenerator(chart_obj);
-                    return lineChartPlotly(chart_obj)
-                case "hbar":
-                    break;
-                case "vbar":
-                    break;
-                case "starea":
-                    break;
-                case "sgbar":
-                    break;
-                case "cline":
-                    break;
-                case "piechart":
-                    break;
-                default:
-                    break;
-            }
+            if (window.nv) {
+                switch (graph_type) {
+                    case "line":
+                        console.log("line chart generated")
+                        return lineChartGenerator(chart_obj);
+                        break;
+                    case "xy":
+                        return lineChartPlotly(chart_obj)
+                    case "bar":
+                        return barChartPlotly(chart_obj)
+                    case "histogram":
+                        return histogramChartPlotly(chart_obj)
+                        break;
+                    case "starea":
+                        break;
+                    case "sgbar":
+                        break;
+                    case "cline":
+                        break;
+                    case "lineerror":
+                        console.log('Charting Line Error')
+                        return lineerrorChartPlotly(chart_obj)
+                    case "piechart":
+                        return pieChartPlotly(chart_obj)
+                    default:
+                        break;
+                }
             }
         }
-    };
+    }
 }
 
 var {{ nv_chart_id }}_initialized = false;
 
-function focusLineGenerator(chart_obj) {
-    nv.addGraph(function() {
-        this.chart = nv.models.lineWithFocusChart();
-        //.margin({left: 100, right: 50})  //Adjust chart margins to give the x-axis some breathing room.
-        //.useInteractiveGuideline(true)  //We want nice looking tooltips and a guideline!
-        //.transitionDuration(350)  //how fast do you want the lines to transition?
-        //.showLegend(true)       //Show the legend, allowing users to turn on/off line series.
-        //.showYAxis(true)        //Show the y-axis
-        //.showXAxis(true)        //Show the x-axis
-        //;
 
-        this.chart.xAxis     //Chart x-axis settings
-                .axisLabel(chart_obj.x_axis_label)
-                .tickFormat(d3.format(',r'));
+function histogramChartPlotly(chart_obj) {
 
-        this.chart.yAxis     //Chart y-axis settings
-        // .axisLabel(chart_obj.y_axis_label)
-                .tickFormat(d3.format('.02f'));
+    var data = []
 
-        this.chart.y2Axis     //Chart y-axis settings
-        // .axisLabel(chart_obj.y_axis_label)
-                .tickFormat(d3.format('.02f'));
-        /* Done setting the chart up? Time to render it!*/
-        //TODO Kind of hacky fix for the issue of duplicating header keys, just checks to make sure its not already in the file
-        //     Want to fix but need to move on for right now.
-        var myData = new Array();   //You need data...
-        $("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {
-            if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {
-                if(!myData.includes(chart_obj.data[$(this).val()]) ) {
-
-                    myData.push(chart_obj.data[$(this).val()]);
+    // var myData = new Array();   //You need data...
+    console.log('HISTOGRAM CHART PLOTLY')
+    console.log(chart_obj)
+    var loaded_data = []
+    $("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {
+        if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {
+            if(loaded_data[$(this).val()] == undefined) {
+                console.log('Plotting ' + $(this).val())
+                var line = chart_obj.data[$(this).val()]
+                var x = []
+                for (var i = 0; i < line.values.length; i++) {
+                    x.push(line.values[i].x)
                 }
+
+                // Build the trace object for Plotly
+                var trace = {}
+                if(chart_obj.histogram_dir != undefined && chart_obj.histogram_dir == "horizontal") {
+                    trace.y = x
+                }
+                else {
+                    trace.x = x
+                }
+                trace.opacity = '0.6'
+                trace.type = 'histogram'
+                // Name used for grouping bars
+                trace.name = line.key
+
+                data.push(trace)
+                console.log(trace)
+
+                // Store that this data is loaded
+                loaded_data[$(this).val()] = 1
             }
-        });
-        // Select the <svg> element you want to render the chart in.
-        $('#' + chart_obj.chart_id + ' svg').html('');
-
-        // Select the <svg> element you want to render the chart in.
-        d3.select('#' + chart_obj.chart_id + ' svg')
-                .datum(myData)         //Populate the <svg> element with chart data...
-                .call(this.chart);          //Finally, render the chart!
-        // Update the chart when window resizes.
-        nv.utils.windowResize(function() { this.chart.update() });
-        return this.chart;
-
+        }
     });
+
+    var layout = {
+        hovermode: 'closest',
+        margin: {
+            l: 70,
+            r: 20,
+            b: 70,
+            t: 20,
+            pad: 4
+        },
+        bargap: 0.05,
+        bargroupgap: 0.2,
+    }
+
+    if(chart_obj.histogram_stack != undefined) {
+        if(chart_obj.histogram_stack == "stacked") {
+            layout.barmode = "stack"
+        }
+        else if(chart_obj.histogram_stack == "overlay") {
+            layout.barmode = "overlay";
+        }
+    }
+
+
+    var WIDTH_IN_PERCENT_OF_PARENT = 100,
+            HEIGHT_IN_PERCENT_OF_PARENT = 100;
+
+    var gd3 = d3.select("#" + chart_obj.chart_id)
+            .append('div')
+            .style({
+                width: WIDTH_IN_PERCENT_OF_PARENT + '%',
+                'margin-left': (100 - WIDTH_IN_PERCENT_OF_PARENT) / 2 + '%',
+                height: (HEIGHT_IN_PERCENT_OF_PARENT/2) + 'vh',
+                'margin-top': '0vh'
+            });
+
+    var gd = gd3.node()
+
+    // Add plot div to active plots
+    page_plots.push(gd)
+
+    Plotly.newPlot(gd, data, layout).then(function(){
+
+        $("#plotlybars_" + chart_obj.chart_id).hide()
+    })
+
 }
 
+function polarChartPlotly(chart_obj) {
+
+    var data = []
+
+    // var myData = new Array();   //You need data...
+    console.log('POLAR CHART PLOTLY')
+    console.log(chart_obj)
+    var loaded_data = []
+    $("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {
+        if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {
+            if(loaded_data[$(this).val()] == undefined) {
+                console.log('Plotting ' + $(this).val())
+                var line = chart_obj.data[$(this).val()]
+                var x = []
+                var y = []
+                for (var i = 0; i < line.values.length; i++) {
+                    x.push(line.values[i].x)
+                    y.push(line.values[i].y)
+                }
+
+                // Build the trace object for Plotly
+                var trace = {}
+                trace.labels = x
+                trace.values = y
+                trace.type = 'pie'
+                data.push(trace)
+                console.log(data)
+
+                // Store that this data is loaded
+                loaded_data[$(this).val()] = 1
+            }
+        }
+    });
+
+
+    var layout = {
+        // title: 'Title of the Graph',
+        hovermode: 'closest',
+        // autosize: true,
+        margin: {
+            l: 30,
+            r: 30,
+            b: 30,
+            t: 30,
+            pad: 4
+        },
+        // paper_bgcolor: '#7f7f7f',
+        // plot_bgcolor: '#c7c7c7',
+    };
+
+    Plotly.newPlot(chart_obj.chart_id, data, layout).then(function(){
+        $("#plotlybars_" + chart_obj.chart_id).hide()
+    })
+
+}
+
+function barChartPlotly(chart_obj) {
+
+    var data = []
+
+    // var myData = new Array();   //You need data...
+    console.log('BAR CHART PLOTLY')
+    console.log(chart_obj)
+    var loaded_data = []
+    $("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {
+        if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {
+            if(loaded_data[$(this).val()] == undefined) {
+                console.log('Plotting ' + $(this).val())
+                var line = chart_obj.data[$(this).val()]
+                var x = []
+                var y = []
+                for (var i = 0; i < line.values.length; i++) {
+                    x.push(line.values[i].x)
+                    y.push(line.values[i].y)
+                }
+
+                // Build the trace object for Plotly
+                var trace = {}
+                trace.x = x
+                trace.y = y
+                trace.type = 'bar'
+                if (chart_obj.bar_type != undefined && chart_obj.bar_type == "horizontal") {
+                    trace.orientation = 'h'
+                }
+                else {
+                    trace.orientation = 'v'
+                }
+                // Name used for grouping bars
+                trace.name = line.key
+                data.push(trace)
+                console.log(trace)
+
+                // Store that this data is loaded
+                loaded_data[$(this).val()] = 1
+            }
+        }
+    });
+
+    var layout = {
+        // title: 'Title of the Graph',
+        hovermode: 'closest',
+        // autosize: true,
+        margin: {
+            l: 70,
+            r: 20,
+            b: 70,
+            t: 20,
+            pad: 4
+        },
+        // paper_bgcolor: '#7f7f7f',
+        // plot_bgcolor: '#c7c7c7',
+    };
+    if (chart_obj.bar_options != undefined && chart_obj.bar_options == "stacked") {
+        layout.barmode = 'stack'
+    }
+
+    Plotly.newPlot(chart_obj.chart_id, data, layout).then(function(){
+        $("#plotlybars_" + chart_obj.chart_id).hide()
+    })
+
+}
+
+function lineerrorChartPlotly(chart_obj) {
+
+    var data = []
+
+    // var myData = new Array();   //You need data...
+    console.log('LINEERROR CHART PLOTLY')
+    console.log(chart_obj)
+    var loaded_data = []
+    $("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {
+        if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {
+            if(loaded_data[$(this).val()] == undefined) {
+                console.log('Plotting ' + $(this).val())
+                var line = chart_obj.data[$(this).val()]
+                var x = []
+                var y = []
+                var e = []
+                var f = []
+                for (var i = 0; i < line.values.length; i++) {
+                    x.push(line.values[i].x)
+                    y.push(line.values[i].y)
+                    e.push(line.values[i].e)
+                    if(line.values[i].f != undefined && line.values[i].f != '') {
+                        f.push(line.values[i].f)
+                    }
+                }
+
+                // Build the trace object for Plotly
+                var trace = {}
+                trace.x = x
+                trace.y = y
+                trace.error_y = {}
+                trace.error_y.type = 'data'
+                if (f.length == e.length) {
+                    console.log('asymmetric')
+                    console.log(f.length)
+                    console.log(e.length)
+
+                    trace.error_y.symmetric = false
+                    trace.error_y.array = e
+                    trace.error_y.arrayminus = f
+                }
+                else {
+                    console.log('symmetric')
+                    trace.error_y.array = e
+                    trace.error_y.symmetric = true
+                    trace.error_y.visible = true
+                }
+
+                if (chart_obj.line_type != undefined) {
+                    trace.mode = chart_obj.line_type
+                }
+                else {
+                    trace.mode = 'lines'
+                }
+                trace.name = line.key
+                data.push(trace)
+
+                // Store that this data is loaded
+                loaded_data[$(this).val()] = 1
+            }
+        }
+    });
+
+    var xaxis_settings = {}
+    if(chart_obj.x_axis_dir == "desc" && (chart_obj.x_axis_min == "auto" || chart_obj.x_axis_max == "auto")) {
+        xaxis_settings.autorange = 'reversed'
+    }
+
+    if(chart_obj.x_axis_log == "yes")  {
+        xaxis_settings.type = 'log'
+    }
+
+    if(chart_obj.x_axis_caption != "") {
+        xaxis_settings.title = chart_obj.x_axis_caption
+    }
+
+    if (chart_obj.x_axis_tick_interval != "auto") {
+        xaxis_settings.dtick = chart_obj.x_axis_tick_interval
+        xaxis_settings.tick0 = chart_obj.x_axis_tick_start
+    }
+    else {
+        xaxis_settings.autottick = true
+    }
+
+    if(chart_obj.x_axis_labels != "yes") {
+        xaxis_settings.showticklabels = false
+    }
+
+    if(chart_obj.x_axis_min != "auto" && chart_obj.x_axis_max != "auto" ) {
+        xaxis_settings.range = [ chart_obj.x_axis_min, chart_obj.x_axis_max ]
+    }
+
+    xaxis_settings.showline = true
+    xaxis_settings.showgrid = true
+    xaxis_settings.zeroline = false
+
+    var yaxis_settings = {}
+    if(chart_obj.y_axis_dir == "desc" && (chart_obj.y_axis_min == "auto" || chart_obj.y_axis_max == "auto")) {
+        yaxis_settings.autorange = 'reversed'
+    }
+    if(chart_obj.y_axis_log == "yes") {
+        yaxis_settings.type = 'log'
+    }
+
+    if(chart_obj.y_axis_caption != "") {
+        yaxis_settings.title = chart_obj.y_axis_caption
+    }
+
+    if (chart_obj.y_axis_tick_interval != "auto") {
+        yaxis_settings.dtick = chart_obj.y_axis_tick_interval
+        yaxis_settings.tick0 = chart_obj.y_axis_tick_start
+    }
+    else {
+        yaxis_settings.autottick = true
+    }
+
+    if(chart_obj.x_axis_labels != "yes") {
+        yaxis_settings.showticklabels = false
+    }
+
+    if(chart_obj.y_axis_min != "auto" && chart_obj.y_axis_max != "auto" ) {
+        yaxis_settings.range = [ chart_obj.y_axis_min, chart_obj.y_axis_max ]
+    }
+
+    yaxis_settings.showline = true
+    yaxis_settings.showgrid = true
+    yaxis_settings.zeroline = false
+
+
+    var layout = {
+        // title: 'Title of the Graph',
+        hovermode: 'closest',
+        // autosize: true,
+        margin: {
+            l: 70,
+            r: 20,
+            b: 70,
+            t: 20,
+            pad: 4
+        },
+        // paper_bgcolor: '#7f7f7f',
+        // plot_bgcolor: '#c7c7c7',
+        xaxis: xaxis_settings,
+        yaxis: yaxis_settings
+    };
+
+    Plotly.newPlot(chart_obj.chart_id, data, layout).then(function(){
+        $("#plotlybars_" + chart_obj.chart_id).hide()
+    })
+
+}
+function pieChartPlotly(chart_obj) {
+
+    var data = []
+
+    // var myData = new Array();   //You need data...
+    console.log('PIE CHART PLOTLY')
+    console.log(chart_obj)
+    var loaded_data = []
+    $("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {
+        if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {
+            if(loaded_data[$(this).val()] == undefined) {
+                console.log('Plotting ' + $(this).val())
+                var line = chart_obj.data[$(this).val()]
+                var x = []
+                var y = []
+                for (var i = 0; i < line.values.length; i++) {
+                    x.push(line.values[i].x)
+                    y.push(line.values[i].y)
+                }
+
+                // Build the trace object for Plotly
+                var trace = {}
+                trace.labels = x
+                trace.values = y
+                trace.type = 'pie'
+                data.push(trace)
+                console.log(data)
+
+                // Store that this data is loaded
+                loaded_data[$(this).val()] = 1
+            }
+        }
+    });
+
+
+    var layout = {
+        // title: 'Title of the Graph',
+        hovermode: 'closest',
+        // autosize: true,
+        margin: {
+            l: 30,
+            r: 30,
+            b: 30,
+            t: 30,
+            pad: 4
+        },
+        // paper_bgcolor: '#7f7f7f',
+        // plot_bgcolor: '#c7c7c7',
+    };
+
+    Plotly.newPlot(chart_obj.chart_id, data, layout).then(function(){
+        $("#plotlybars_" + chart_obj.chart_id).hide()
+    })
+
+}
 function lineChartPlotly(chart_obj) {
 
     var data = []
@@ -497,6 +911,7 @@ function lineChartPlotly(chart_obj) {
 
     var layout = {
         // title: 'Title of the Graph',
+        hovermode: 'closest',
         // autosize: true,
         margin: {
             l: 70,
@@ -610,6 +1025,7 @@ var SetupGraphs_{{ nv_chart_id }} = function() {
         // Set the chart id
         odr_nv_{{ nv_chart_id }}.chart_id = '{{ nv_chart_id }}';
 
+        console.log('Setup Graphs')
         console.log( '{{ plugin_options.graph_type }}')
         // Get all Data
         var count = 0

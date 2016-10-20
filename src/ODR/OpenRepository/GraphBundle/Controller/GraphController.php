@@ -9,19 +9,13 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Controllers/Classes
 use ODR\AdminBundle\Controller\ODRCustomController;
 // Entities
-use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTypeMeta;
-use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\Cookie;
 
 class GraphController extends ODRCustomController
 {
@@ -40,16 +34,16 @@ class GraphController extends ODRCustomController
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                throw new \Exception("{ message: 'Item Deleted', detail: 'Data record no longer exists.'}");
+                throw new \Exception('{ "message": "Item Deleted", "detail": "Data record no longer exists."}');
 
             $datatype = $datarecord->getDataType();
             if ($datatype == null)
-                throw new \Exception("{ message: 'Item Deleted', detail: 'Data type no longer exists.'}");
+                throw new \Exception('{ "message": "Item Deleted", "detail": "Data type no longer exists."}');
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy(array('dataType' => $datatype->getId(), 'themeType' => 'master'));
             if ($theme == null)
-                throw new \Exception("{ message: 'Item Deleted', detail: 'Theme could not be found.'}");
+                throw new \Exception('{ "message": "Item Deleted", "detail": "Theme could not be found."}');
 
             // Save incase the user originally requested a child datarecord
             $original_datarecord = $datarecord;
@@ -59,18 +53,18 @@ class GraphController extends ODRCustomController
 
             // ...want the grandparent datarecord and datatype for everything else, however
             $is_top_level = 1;
-            if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() ) {
+            if ($datarecord->getId() !== $datarecord->getGrandparent()->getId()) {
                 $is_top_level = 0;
                 $datarecord = $datarecord->getGrandparent();
 
                 $datatype = $datarecord->getDataType();
                 if ($datatype == null)
-                    throw new \Exception("{ message: 'Item Deleted', detail: 'Data type no longer exists.'}");
+                    throw new \Exception('{ "message": "Item Deleted", "detail": "Data type no longer exists."}');
 
                 /** @var Theme $theme */
-                $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+                $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy(array('dataType' => $datatype->getId(), 'themeType' => 'master'));
                 if ($theme == null)
-                    throw new \Exception("{ message: 'Item Deleted', detail: 'Theme no longer exists.'}");
+                    throw new \Exception('{ "message": "Item Deleted", "detail": "Theme no longer exists."}');
             }
 
 
@@ -83,33 +77,30 @@ class GraphController extends ODRCustomController
             $datafield_permissions = array();
 
 
-            if ( $user === 'anon.' ) {
-                if ( $datatype->isPublic() && $datarecord->isPublic() ) {
+            if ($user === 'anon.') {
+                if ($datatype->isPublic() && $datarecord->isPublic()) {
                     /* anonymous users aren't restricted from a public datarecord that belongs to a public datatype */
-                }
-                else {
+                } else {
                     // ...if either the datatype is non-public or the datarecord is non-public, return false
-                    throw new \Exception("{ message: 'Permission Denied', detail: 'Data type  or data record is non-public.'}");
+                    throw new \Exception('{ "message": "Permission Denied", "detail": "Data type  or data record is non-public."}');
                 }
-            }
-            else {
+            } else {
                 // Grab user's permissions
                 $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
                 $datatype_permissions = $user_permissions['datatypes'];
                 $datafield_permissions = $user_permissions['datafields'];
-//                $datarecord_restriction = $user_permissions['datarecord_restriction'];  // TODO
 
                 $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dt_view' ]) )
+                if (isset($datatype_permissions[$original_datatype->getId()]) && isset($datatype_permissions[$original_datatype->getId()]['dt_view']))
                     $can_view_datatype = true;
 
                 $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dr_view' ]) )
+                if (isset($datatype_permissions[$original_datatype->getId()]) && isset($datatype_permissions[$original_datatype->getId()]['dr_view']))
                     $can_view_datarecord = true;
 
                 // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
-                if ( !($original_datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) )
-                    throw new \Exception("{ message: 'Permission Denied', detail: 'Insufficient permissions.'}");
+                if (!($original_datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord))
+                    throw new \Exception('{ "message": "Permission Denied", "detail": "Insufficient permissions."}');
             }
             // ----------------------------------------
 
@@ -122,11 +113,11 @@ class GraphController extends ODRCustomController
 
 
             // Grab all datarecords "associated" with the desired datarecord...
-            $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId())));
+            $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix . '.associated_datarecords_for_' . $datarecord->getId())));
             if ($bypass_cache || $associated_datarecords == false) {
                 $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord->getId()));
 
-                $redis->set($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId(), gzcompress(serialize($associated_datarecords)));
+                $redis->set($redis_prefix . '.associated_datarecords_for_' . $datarecord->getId(), gzcompress(serialize($associated_datarecords)));
             }
 
 //print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
@@ -134,7 +125,7 @@ class GraphController extends ODRCustomController
             // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
             $datarecord_array = array();
             foreach ($associated_datarecords as $num => $dr_id) {
-                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
+                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix . '.cached_datarecord_' . $dr_id)));
                 if ($bypass_cache || $datarecord_data == false)
                     $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
 
@@ -146,12 +137,12 @@ class GraphController extends ODRCustomController
 
             // If this request isn't for a top-level datarecord, then the datarecord array needs to have entries removed so twig doesn't render more than it should...TODO - still leaves more than it should...
             if ($is_top_level == 0) {
-                $target_datarecord_parent_id = $datarecord_array[ $original_datarecord->getId() ]['parent']['id'];
-                unset( $datarecord_array[$target_datarecord_parent_id] );
+                $target_datarecord_parent_id = $datarecord_array[$original_datarecord->getId()]['parent']['id'];
+                unset($datarecord_array[$target_datarecord_parent_id]);
 
                 foreach ($datarecord_array as $dr_id => $dr) {
-                    if ( $dr_id !== $original_datarecord->getId() && $dr['parent']['id'] == $target_datarecord_parent_id )
-                        unset( $datarecord_array[$dr_id] );
+                    if ($dr_id !== $original_datarecord->getId() && $dr['parent']['id'] == $target_datarecord_parent_id)
+                        unset($datarecord_array[$dr_id]);
                 }
             }
 
@@ -166,7 +157,7 @@ class GraphController extends ODRCustomController
             foreach ($datarecord_array as $dr_id => $dr) {
                 $dt_id = $dr['dataType']['id'];
 
-                if ( !in_array($dt_id, $associated_datatypes) )
+                if (!in_array($dt_id, $associated_datatypes))
                     $associated_datatypes[] = $dt_id;
             }
 
@@ -175,7 +166,7 @@ class GraphController extends ODRCustomController
             $datatype_array = array();
             foreach ($associated_datatypes as $num => $dt_id) {
                 // print $redis_prefix.'.cached_datatype_'.$dt_id;
-                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
+                $datatype_data = parent::getRedisData(($redis->get($redis_prefix . '.cached_datatype_' . $dt_id)));
                 if ($bypass_cache || $datatype_data == false)
                     $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
 
@@ -189,15 +180,21 @@ class GraphController extends ODRCustomController
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
-            throw new \Exception("{ message: 'Permission Denied', detail: 'Data type  or data record is non-public.'}");
+            // throw new \Exception('{ ""message"": "Permission Denied", "detail": "Data type  or data record is non-public."}');
+            // throw new \Exception("Data type  or data record is non-public.");
             // Call Render Plugin
-            // Re-organize list of datarecords into
-            // $datarecord_array = array();
-            // foreach ($datarecords as $num => $dr)
-            // $datarecord_array[ $dr['id'] ] = $dr;
+            // Filter Data Records to only include desired datatype
+            foreach ($datarecord_array as $dr_id => $dr) {
+                if ($dr['dataType']['id'] != $datatype_id) {
+                    unset($datarecord_array[$dr_id]);
+                }
+            }
+
+            // Determine if this is a single or rollup graph.
+            // If single only send the one datarecord
 
             // Load and execute the render plugin
-            $datatype = $datatype_data[$datatype_id];
+            $datatype = $datatype_array[$datatype_id];
             $render_plugin = $datatype['dataTypeMeta']['renderPlugin'];
             $theme = $datatype['themes'][$original_theme->getId()];
             $svc = $this->container->get($render_plugin['pluginClassName']);
@@ -214,14 +211,16 @@ class GraphController extends ODRCustomController
         }
         catch (\Exception $e) {
             $message = $e->getMessage();
-            if($message_data == json_decode($message)) {
-                $response = self::svgWarning($message_data['message'], $message_data['detail']);
+            $message_data = json_decode($message);
+            if($message_data) {
+                $response = self::svgWarning($message_data->message, $message_data->detail);
             }
             else {
                 $response = self::svgWarning($message);
             }
             $headers = array(
-                'Content-Type' => 'image:svg+xml'
+                'Content-Type' => 'image:svg+xml',
+                'Content-Disposition' => 'inline;filename=error_message.svg'
             );
             return new Response($response, '200', $headers);
         }
@@ -236,7 +235,7 @@ class GraphController extends ODRCustomController
             'ODROpenRepositoryGraphBundle:Graph:graph_error.html.twig',
             array(
                 'message' => $message,
-                'message' => $detail
+                'detail' => $detail
             )
         );
 
