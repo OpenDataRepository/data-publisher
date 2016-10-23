@@ -206,6 +206,9 @@ class GraphController extends ODRCustomController
             $rendering_options['display_type'] = 100000;
             $rendering_options['is_link'] = false;
             $rendering_options['build_graph'] = true;
+            $rendering_options['datarecord_id'] = $datarecord_id;
+
+            // Render the static graph
             $filename = $svc->execute($datarecord_array, $datatype, $render_plugin, $theme, $rendering_options);
             return $this->redirect("/uploads/files/graphs/" . $filename);
         }

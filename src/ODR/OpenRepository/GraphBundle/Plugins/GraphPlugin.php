@@ -255,22 +255,53 @@ class GraphPlugin
             }
 
 
+            // Initialize arrays
+            $odr_chart_ids = array();
+            $odr_chart_file_names = array();
+            $odr_chart_file_ids = array();
+            $odr_chart_file_records = array();
+            $odr_chart_output_files = array();
+            // We must create all file names if not using rollups
+
+            // Or create rollup name for rollup chart
+            foreach ($datarecords as $dr_id => $dr) {
+                $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
+                foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
+                    // File ID list is used only by rollup
+                    $file_ids[] = $file['id'];
+
+                    // Used by system to download data - possibly redundant with file records
+                    $odr_chart_file_names[$dr_id] = $file['localFileName'];
+
+                    // TODO - Possibly not needed - redundant with above but includes more info
+                    $odr_chart_file_records[$dr_id] = $file;
+
+                    // We need to generate a unique chart id for each chart
+                    $odr_chart_id = "Chart_" . Uuid::uuid4()->toString();
+                    $odr_chart_id = str_replace("-","_", $odr_chart_id);
+                    $odr_chart_ids[$dr_id] = $odr_chart_id;
 
 
+                    // This filename must remain predictable
+                    // TODO - Long term the UUID should be saved to database
+                    // whenever a new chart is created.  This UUID should be unique
+                    // to each file version to prevent scraping of data.
+                    $filename = 'Chart__' . $file['id'] . '_' . $max_option_date . '.svg';
+                    $odr_chart_output_files[$dr_id] = '/uploads/files/graphs/' . $filename;
+                }
+            }
 
+            // Rollup related calculations
+            $file_id_list = implode('_', $file_ids);
 
+            // Generate the rollup chart ID for the page chart object
+            $odr_chart_id = "Chart_" . Uuid::uuid4()->toString();
+            $odr_chart_id = str_replace("-","_", $odr_chart_id);
+            $filename = 'Chart__' . $file_id_list. '_' . $max_option_date . '.svg';
 
-
-
-
-
-
-
-
-
-
-
-
+            // Add a rollup chart
+            $odr_chart_ids['rollup'] = $odr_chart_id;
+            $odr_chart_output_files['rollup'] = '/uploads/files/graphs/' . $filename;
 
 
 
@@ -282,163 +313,91 @@ class GraphPlugin
                 'theme_id' => $theme['id'],
                 'target_datatype_id' => $datatype['id'],
 
+                // TODO - figure out what these do
                 'is_top_level' => $rendering_options['is_top_level'],
                 'is_link' => $rendering_options['is_link'],
                 'display_type' => $rendering_options['display_type'],
 
+                // Options for graph display
                 'render_plugin' => $render_plugin,
                 'plugin_options' => $options,
 
+                // All of these are indexed by datarecord id
                 'odr_chart_ids' => $odr_chart_ids,
                 'odr_chart_legend' => $legend_values,
                 'odr_chart_file_ids' => $odr_chart_file_ids,
-                'odr_chart_file_names' => $odr_chart_file_names
+                'odr_chart_file_names' => $odr_chart_file_names,
+                'odr_chart_file_records' => $odr_chart_file_records,
+                'odr_chart_output_files' => $odr_chart_output_files
             );
 
 
-            // We must create all file names if not using rollups
+            if(isset($rendering_options['build_graph'])) {
 
-            // Or create rollup name for rollup chart
-
-
-
-            if ( count($odr_chart_file_ids) > 0 ) {
-                $odr_chart_ids = array();
-                $odr_chart_file_names = array();
-                $odr_chart_file_ids = array();
-                $odr_chart_file_records = array();
-                $odr_chart_output_files = array();
-                if(isset($options['use_rollup']) && $options['use_rollup'] == "yes"){
-
-                    $file_ids = array();
-                    foreach ($datarecords as $dr_id => $dr) {
-                        $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
-                        foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
-                            $file_ids[] = $file['id'];
-                            $odr_chart_file_records[$dr_id] = $file;
-                        }
-                    }
-                    $file_id_list = implode('_', $file_ids);
-
-
-
-                    // Generate the rollup chart ID for the page chart object
-                    $odr_chart_id = "Chart_" . Uuid::uuid4()->toString();
-                    $odr_chart_id = str_replace("-","_", $odr_chart_id);
-                    $filename = 'Chart__'.$file_id_list. '_' . $max_option_date . '.svg';
-
-
-
-
-
-                    // Add a rollup chart
-                    $odr_chart_ids['rollup'] = $odr_chart_id;
-                    $odr_chart_output_files['rollup'] = '/uploads/files/graphs/'.$filename;
-
+                // Determine file name
+                $graph_filename = "";
+                if(isset($options['use_rollup']) && $options['use_rollup'] == "yes") {
+                    $graph_filename = $odr_chart_output_files['rollup'];
                 }
                 else {
-                    // Names needed for all datarecords
-
-                    foreach ($datarecords as $dr_id => $dr) {
-                        $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
-                        foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
-                            $odr_chart_file_names[$dr_id] = $file['localFileName'];
-
-                            // TODO - Possibly not needed
-                            $odr_chart_file_records[$dr_id] = $file;
-
-                            // We need to generate a unique chart id for each chart
-                            $odr_chart_id = "Chart_" . Uuid::uuid4()->toString();
-                            $odr_chart_id = str_replace("-","_", $odr_chart_id);
-                            $odr_chart_ids[$dr_id] = $odr_chart_id;
-
-
-                            // This filename must remain predictable
-                            // TODO - Long term the UUID should be saved to database
-                            // whenever a new chart is created.  This UUID should be unique
-                            // to each file version to prevent scraping of data.
-                            $filename = 'Chart__'.$file['id'] . '_' . $max_option_date . '.svg';
-                            $odr_chart_output_files[$dr_id] = '/uploads/files/graphs/'.$filename;
-                        }
+                    // Determine target datarecord
+                    if(isset($rendering_options['datarecord_id']) && preg_match("/^\d+$/", trim($rendering_options['datarecord_id']))) {
+                        $graph_filename = $odr_chart_output_files[$rendering_options['datarecord_id']];
+                    }
+                    else {
+                        throw new \Exception('Target data record id not set.');
                     }
                 }
 
+                // We need to know if this is a rollup or direct record request here...
+                if (file_exists(dirname(__FILE__).'/../../../../../web/uploads/files/graphs/'.$graph_filename)) {
+                    /* Pre-rendered graph file exists, do nothing */
+                    return $graph_filename;
+                }
+                else {
+                    // In this case, we should be buinding a single graph (either rollup or individual datarecord)
+                    $crypto_service = $this->container->get('odr.crypto_service');
 
-
-                // Are these needed???
-                $page_data['file_id_list'] = $file_id_list;
-                $page_data['file_ids'] = $file_ids;
-                $page_data['filename'] = $filename;
-
-
-                $page_data['odr_chart_output_files'] = $odr_chart_output_files;
-
-                $page_data['current_drcids'] = array_keys($datarecords);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                // Create the rollup graph.  This should respect permissions
-                // because files users don't have permissions to will not be
-                // passed to this function.  So, the filename will be unique
-                // to the permissions of the user.
-                if(isset($rendering_options['build_graph'])) {
-
-                    // We need to know if this is a rollup or direct record request here...
-                    if (file_exists(dirname(__FILE__).'/../../../../../web/uploads/files/graphs/'.$filename)) {
-                        /* Pre-rendered graph file exists, do nothing */
-                        // TODO Determine if we can do this earlier and avoid CPU time.
-                        return $filename;
-                    }
-                    else {
-                        // In this case, we should be buinding a single graph (either rollup or individual datarecord)
-                        $crypto_service = $this->container->get('odr.crypto_service');
-
+                    $files_to_delete = array();
+                    if(isset($options['use_rollup']) && $options['use_rollup'] == "yes") {
                         // Decrypt any non-public files (if needed - filter by target datarecord if not rollup)
-                        $files_to_delete = array();
-                        foreach($odr_chart_file_records as $dr_id => $file) {
+                        foreach ($odr_chart_file_records as $dr_id => $file) {
                             $public_date = new \DateTime($file['fileMeta']['publicDate']->date);
                             $now = new \DateTime();
-                            if($now < $public_date) {
+                            if ($now < $public_date) {
                                 // File is encrypted and must be decrypted temporarily to graph.
                                 $file_path = $crypto_service->decryptObject($file['id'], 'file');
                                 array_push($files_to_delete, $file_path);
                             }
                         }
-                        // Pre-rendered graph file does not exist...need to create it
-                        $output_filename = self::buildGraph($page_data, $filename);
-                        // Delete previously encrypted non-public files
-                        foreach($files_to_delete as $file_path) {
-                            unlink($file_path);
-                        }
-                        return $output_filename;
                     }
-                }
-                else {
-                    // ----------------------------------------
-                    // Render the graph html
-                    $output = $this->templating->render(
-                        'ODROpenRepositoryGraphBundle:Graph:graph_wrapper.html.twig', $page_data
-                    );
+                    else {
+                        // Only a single file will be needed.  Check if it needs to be decrypted.
+                        $dr_id = $rendering_options['datarecord_id'];
+                        $file = $odr_chart_file_records[$dr_id];
+                        $public_date = new \DateTime($file['fileMeta']['publicDate']->date);
+                        $now = new \DateTime();
+                        if ($now < $public_date) {
+                            // File is encrypted and must be decrypted temporarily to graph.
+                            $file_path = $crypto_service->decryptObject($file['id'], 'file');
+                            array_push($files_to_delete, $file_path);
+                        }
+                    }
+
+                    // Pre-rendered graph file does not exist...need to create it
+                    $output_filename = self::buildGraph($page_data, $filename);
+
+                    // Delete previously encrypted non-public files
+                    foreach($files_to_delete as $file_path) {
+                        unlink($file_path);
+                    }
+
+                    // File has been created.  Now can return it.
+                    return $output_filename;
                 }
             }
             else {
-                // No files exist to graph
+                // Render the graph html
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Graph:graph_wrapper.html.twig', $page_data
                 );

@@ -1,105 +1,38 @@
 {% spaceless %}
 
+    {# Create a dynamic or static graph - either rollup or individual #}
+
 {% set datatype = datatype_array[target_datatype_id] %}
 
 {% if odr_chart_legend|length %}
 
-    {#{% if datarecordchild.getdatatype.getdisplaytype != -1 %}#}
-    {% if display_type != -1 %}
-    <div class="ODRAccordionWrapper">
-        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-            <span class="ui-icon ui-icon-triangle-1-s"></span>
-            {#<a>{{ datarecordchild.getdatatype.shortname }}</a>#}
-            <a>{{ datatype.dataTypeMeta.shortName }}</a>
-            {#{% if datarecordchild.grandparent != null %}#}
-            {% if is_top_level == 0 %}
-                <span style="float: right;">
-                   <span id="Switch_{{ odr_chart_id }}" class="DynamicSwitch" style="cursor: pointer">Switch to Dynamic Charts</span>
-                &nbsp;&nbsp;&nbsp;
-                </span> Charts
-            {% endif %}
-        </h3>
-    {% endif %}
-
-
     <div class="pure-u-1 DynamicGraphs Hide">
-        <div id="{{ odr_chart_id }}_GraphWrapper">
-            <dl id="{{ odr_chart_id }}_GraphSelectTitle" class="ODRMultiDropdown Hide">
-                <dt>
-                    <span id="{{ odr_chart_id }}_GraphSelector" class="ODRSelectHeader">Select</span>
-                </dt>
-
-                <dd>
-                    <div class="ODRMultiSelect">
-                        <ul>
-                        {% if odr_chart_legend|length > 1 %}
-                            <li class="ODRCheckAll selected">
-                                <input name="checkall" checked="checked" type="checkbox" value="ALL" /> Check All
-                            </li>
-                        {% endif %}
-                        {# set counter = 0 #}
-                        {% for drcid, legend in odr_chart_legend %}
-                            <li class="ODRData{% if loop.last %} selected{% endif %}">
-                                <input {% if drcid not in odr_chart_files|keys %}class="NoGraph"{% endif %} {% if drcid in odr_chart_files|keys %}checked="checked"{% endif %} type="checkbox" value="{{ drcid }}" /> {{ legend }}
-                                {% if drcid not in odr_chart_files|keys %}
-                                    (No Graph Data)
-                                {% else %}
-                                    <span style="border: 1px solid #ddd; background-color:{# line_colors[counter] }}{% set counter = counter + 1 #}; float:right; width: 12px;">&nbsp;</span>
-                                {% endif %}
-                            </li>
-                        {% endfor %}
-                        </ul>
-                    </div><!-- end of .ODRMultiSelect -->
-                </dd>
-            </dl>
-        </div><!-- end of #{{ odr_chart_id }}_GraphWrapper -->
-        {% if odr_chart_files|length %}
-        <div id='{{ odr_chart_id }}' class="ODRGraph ODRDynamicGraph pure-u-1">
-            <div id="plotlybars_{{ odr_chart_id }}" class="plotlybars-wrapper">
-                <div class="plotlybars">
-                    <div class="plotlybars-bar b1"></div>
-                    <div class="plotlybars-bar b2"></div>
-                    <div class="plotlybars-bar b3"></div>
-                    <div class="plotlybars-bar b4"></div>
-                    <div class="plotlybars-bar b5"></div>
-                    <div class="plotlybars-bar b6"></div>
-                    <div class="plotlybars-bar b7"></div>
-                </div>
-                <div class="plotlybars-text">Loading graph</div>
-            </div>
-            <!-- <svg class="pure-u-1"></svg> -->
-        </div><!-- end of .ODRGraph -->
-        {% endif %}
-
+        <div id="{{ odr_chart_id }}_Dynamic_GraphWrapper">
+            {% if odr_chart_files|length %}
+                <div id='{{ odr_chart_id }}' class="ODRGraph ODRDynamicGraph pure-u-1">
+                    <div id="plotlybars_{{ odr_chart_id }}" class="plotlybars-wrapper">
+                        <div class="plotlybars">
+                            <div class="plotlybars-bar b1"></div>
+                            <div class="plotlybars-bar b2"></div>
+                            <div class="plotlybars-bar b3"></div>
+                            <div class="plotlybars-bar b4"></div>
+                            <div class="plotlybars-bar b5"></div>
+                            <div class="plotlybars-bar b6"></div>
+                            <div class="plotlybars-bar b7"></div>
+                        </div>
+                        <div class="plotlybars-text">Loading graph</div>
+                    </div>
+                    <!-- <svg class="pure-u-1"></svg> -->
+                </div><!-- end of .ODRGraph -->
+            {% endif %}
+        </div><!-- end of .DynamicGraph Wrapper -->
     </div><!-- end of .DynamicGraphs -->
 
     <div class="pure-u-1 StaticGraphs">
         <div id="{{ odr_chart_id }}_Static_GraphWrapper">
-            <dl id="{{ odr_chart_id }}_Static_GraphSelectTitle" class="ODRMultiDropdown Hide">
-                <dt>
-                    <span id="{{ odr_chart_id }}_Static_GraphSelector" class="ODRSelectHeader">Select</span>
-                </dt>
-                <dd>
-                    <div class="ODRMultiSelect">
-                        <ul>
-                        {# set counter = 0 #}
-                        {% for drcid, legend in odr_chart_output_files %}
-                            <li class="ODRData{% if loop.last %} selected{% endif %}">
-                                <input {% if drcid not in odr_chart_output_files|keys %}class="NoGraph"{% endif %} {% if drcid == "rollup" %}checked="checked"{% endif %} type="checkbox" value="{{ drcid }}" /> {{ odr_chart_legend[drcid] }}
-                                {% if drcid not in odr_chart_output_files|keys %}
-                                    (No Graph Data)
-                                {% else %}
-                                    <span style="display: none; border: 1px solid #ddd; background-color:{# jpgraph_line_colors[counter] }}{% set counter = counter + 1 #}; float:right; width: 12px;">&nbsp;</span>
-                                {% endif %}
-                            </li>
-                        {% endfor %}
-                        </ul>
-                    </div><!-- end of .ODRMultiSelect -->
-                </dd>
-            </dl>
-
             {% if odr_chart_output_files|length %}
                 {% for dr_id, nv_file_name in odr_chart_output_files %}
+                    {# determine rollup or individual #}
                     <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1" {% if dr_id != "rollup" %}style="display: none;"{% endif %}>
                         {# Add call for image by URL Here #}
                         <img class="pure-u-1" src="{{ path('odr_plugin_graph_static', { 'plugin_id': render_plugin.id, 'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id } ) }}.svg?nocache=1" />
@@ -108,23 +41,12 @@
             {% endif %}
         </div><!-- end of #{{ odr_chart_id }}_Static_GraphWrapper -->
     </div><!-- end of .StaticGraphs -->
-    </div>
 {% endif %}
 
-<style type="text/css">
-.nv-axisMaxMin,
-.nv-y .tick {
-    display: none;
-}
-</style>
-
 <script type="text/javascript">
-/*
-    Dropdown with Multiple checkbox select with jQuery - May 27, 2013
-    (c) 2013 @ElmahdiMahmoud
-    license: http://www.opensource.org/licenses/mit-license.php
-*/
 
+// Used to track active plots for resizing
+// Why is this not cleared every time?
 var page_plots = []
 jQuery(function() {
 
