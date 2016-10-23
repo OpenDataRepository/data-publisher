@@ -79,7 +79,7 @@
 
 {% set datatype = datatype_array[target_datatype_id] %}
 
-{% if nv_pivot|length %}
+{% if odr_chart_legend|length %}
 
     {#{% if datarecordchild.getdatatype.getdisplaytype != -1 %}#}
     {% if display_type != -1 %}
@@ -91,7 +91,7 @@
             {#{% if datarecordchild.grandparent != null %}#}
             {% if is_top_level == 0 %}
                 <span style="float: right;">
-                   <span id="Switch_{{ nv_chart_id }}" class="DynamicSwitch" style="cursor: pointer">Switch to Dynamic Charts</span>
+                   <span id="Switch_{{ odr_chart_id }}" class="DynamicSwitch" style="cursor: pointer">Switch to Dynamic Charts</span>
                     {#
                                     {% if datarecordchild.ispublic == true %}
                                         <i class="tooltip fa fa-globe fa-lg" title="Child Record is Public" rel="{{ datarecordchild.id }}"></i>
@@ -107,16 +107,16 @@
 
 
     <div class="pure-u-1 DynamicGraphs">
-        <div id="{{ nv_chart_id }}_GraphWrapper">
-            <dl id="{{ nv_chart_id }}_GraphSelectTitle" class="ODRMultiDropdown Hide">
+        <div id="{{ odr_chart_id }}_GraphWrapper">
+            <dl id="{{ odr_chart_id }}_GraphSelectTitle" class="ODRMultiDropdown Hide">
                 <dt>
-                    <span id="{{ nv_chart_id }}_GraphSelector" class="ODRSelectHeader">Select</span>
+                    <span id="{{ odr_chart_id }}_GraphSelector" class="ODRSelectHeader">Select</span>
                 </dt>
 
                 <dd>
                     <div class="ODRMultiSelect">
                         <ul>
-                            {% if nv_pivot|length > 1 %}
+                            {% if odr_chart_legend|length > 1 %}
                                 <li class="ODRCheckAll selected">
                                     <input name="checkall" checked="checked" type="checkbox" value="ALL" /> Check All
                                 </li>
@@ -124,8 +124,8 @@
                             {# set counter = 0 #}
                             {% for drcid in current_drcids %}
                                 <li class="ODRData{% if loop.last %} selected{% endif %}">
-                                    <input {% if drcid not in nv_files|keys %}class="NoGraph"{% endif %} {% if drcid in nv_files|keys %}checked="checked"{% endif %} type="checkbox" value="{{ drcid }}" /> {{ nv_pivot[drcid] }}
-                                    {% if drcid not in nv_files|keys %}
+                                    <input {% if drcid not in odr_chart_files|keys %}class="NoGraph"{% endif %} {% if drcid in odr_chart_files|keys %}checked="checked"{% endif %} type="checkbox" value="{{ drcid }}" /> {{ odr_chart_legend[drcid] }}
+                                    {% if drcid not in odr_chart_files|keys %}
                                         (No Graph Data)
                                     {% else %}
                                         <span style="border: 1px solid #ddd; background-color:{# line_colors[counter] }}{% set counter = counter + 1 #}; float:right; width: 12px;">&nbsp;</span>
@@ -136,9 +136,9 @@
                     </div><!-- end of .ODRMultiSelect -->
                 </dd>
             </dl>
-        </div><!-- end of #{{ nv_chart_id }}_GraphWrapper -->
-        {% if nv_files|length %}
-            <div id='{{ nv_chart_id }}' class="ODRGraph pure-u-1">
+        </div><!-- end of #{{ odr_chart_id }}_GraphWrapper -->
+        {% if odr_chart_files|length %}
+            <div id='{{ odr_chart_id }}' class="ODRGraph pure-u-1">
             </div><!-- end of .ODRGraph -->
             <!-- <div id='svg-export' class="ODRGraph pure-u-1"></div> -->
         {% endif %}
@@ -146,19 +146,19 @@
     </div><!-- end of .DynamicGraphs -->
 
     <div class="pure-u-1 StaticGraphs">
-        <div id="{{ nv_chart_id }}_Static_GraphWrapper">
-            <dl id="{{ nv_chart_id }}_Static_GraphSelectTitle" class="ODRMultiDropdown Hide">
+        <div id="{{ odr_chart_id }}_Static_GraphWrapper">
+            <dl id="{{ odr_chart_id }}_Static_GraphSelectTitle" class="ODRMultiDropdown Hide">
                 <dt>
-                    <span id="{{ nv_chart_id }}_Static_GraphSelector" class="ODRSelectHeader">Select</span>
+                    <span id="{{ odr_chart_id }}_Static_GraphSelector" class="ODRSelectHeader">Select</span>
                 </dt>
                 <dd>
                     <div class="ODRMultiSelect">
                         <ul>
                             {# set counter = 0 #}
-                            {% for drcid, pivot in nv_output_files %}
+                            {% for drcid, legend in odr_chart_output_files %}
                                 <li class="ODRData{% if loop.last %} selected{% endif %}">
-                                    <input {% if drcid not in nv_output_files|keys %}class="NoGraph"{% endif %} {% if drcid == "rollup" %}checked="checked"{% endif %} type="checkbox" value="{{ drcid }}" /> {{ nv_pivot[drcid] }}
-                                    {% if drcid not in nv_output_files|keys %}
+                                    <input {% if drcid not in odr_chart_output_files|keys %}class="NoGraph"{% endif %} {% if drcid == "rollup" %}checked="checked"{% endif %} type="checkbox" value="{{ drcid }}" /> {{ odr_chart_legend[drcid] }}
+                                    {% if drcid not in odr_chart_output_files|keys %}
                                         (No Graph Data)
                                     {% else %}
                                         <span style="display: none; border: 1px solid #ddd; background-color:{# jpgraph_line_colors[counter] }}{% set counter = counter + 1 #}; float:right; width: 12px;">&nbsp;</span>
@@ -170,14 +170,14 @@
                 </dd>
             </dl>
 
-            {% if nv_output_files|length %}
-                {% for jp_id, jp_file_name in nv_output_files %}
+            {% if odr_chart_output_files|length %}
+                {% for jp_id, jp_file_name in odr_chart_output_files %}
                     <div id="StaticGraph_{{ jp_id }}" class="ODRGraph pure-u-1" {% if jp_id != "rollup" %}style="display: none"{% endif %}>
                         <img class="pure-u-1" src="{{ jp_file_name }}" />
                     </div><!-- end of .ODRGraph -->
                 {% endfor %}
             {% endif %}
-        </div><!-- end of #{{ nv_chart_id }}_Static_GraphWrapper -->
+        </div><!-- end of #{{ odr_chart_id }}_Static_GraphWrapper -->
     </div><!-- end of .StaticGraphs -->
     </div>
 {% endif %}
@@ -223,22 +223,22 @@
         });
 
         // Setup Dynamic Graphs Selectors
-        $("#{{ nv_chart_id }}_GraphWrapper .ODRMultiDropdown dt").on('click', function () {
-            $("#{{ nv_chart_id }}_GraphWrapper .ODRMultiDropdown dd ul").slideToggle('fast');
+        $("#{{ odr_chart_id }}_GraphWrapper .ODRMultiDropdown dt").on('click', function () {
+            $("#{{ odr_chart_id }}_GraphWrapper .ODRMultiDropdown dd ul").slideToggle('fast');
         });
 
-        $("#{{ nv_chart_id }}_GraphWrapper .ODRMultiDropdown dd ul li span").on('click', function () {
-            $("#{{ nv_chart_id }}_GraphWrapper .ODRMultiDropdown dd ul").hide();
+        $("#{{ odr_chart_id }}_GraphWrapper .ODRMultiDropdown dd ul li span").on('click', function () {
+            $("#{{ odr_chart_id }}_GraphWrapper .ODRMultiDropdown dd ul").hide();
         });
 
 
         // Setup Static Graphs Selectors
-        $("#{{ nv_chart_id }}_Static_GraphWrapper .ODRMultiDropdown dt").on('click', function () {
-            $("#{{ nv_chart_id }}_Static_GraphWrapper .ODRMultiDropdown dd ul").slideToggle('fast');
+        $("#{{ odr_chart_id }}_Static_GraphWrapper .ODRMultiDropdown dt").on('click', function () {
+            $("#{{ odr_chart_id }}_Static_GraphWrapper .ODRMultiDropdown dd ul").slideToggle('fast');
         });
 
-        $("#{{ nv_chart_id }}_Static_GraphWrapper .ODRMultiDropdown dd ul li span").on('click', function () {
-            $("#{{ nv_chart_id }}_Static_GraphWrapper .ODRMultiDropdown dd ul").hide();
+        $("#{{ odr_chart_id }}_Static_GraphWrapper .ODRMultiDropdown dd ul li span").on('click', function () {
+            $("#{{ odr_chart_id }}_Static_GraphWrapper .ODRMultiDropdown dd ul").hide();
         });
 
         function getSelectedValue(id) {
@@ -249,32 +249,32 @@
         $(document).bind('click', function (e) {
             var $clicked = $(e.target);
             if (!$clicked.parents().hasClass("ODRMultiDropdown")) {
-                $("#{{ nv_chart_id }}_Static_GraphWrapper .ODRMultiDropdown dd ul").hide();
+                $("#{{ odr_chart_id }}_Static_GraphWrapper .ODRMultiDropdown dd ul").hide();
             }
         });
 
-        $('#{{ nv_chart_id }}_GraphWrapper .ODRMultiSelect li.ODRData').on('click', function () {
+        $('#{{ odr_chart_id }}_GraphWrapper .ODRMultiSelect li.ODRData').on('click', function () {
             var elem = $(this).find('input[type="checkbox"]');
             elem.prop("checked", !elem.prop("checked"));
             ODRMultiSetSelected_{{ unique_id }}(elem);
         });
 
-        $('#{{ nv_chart_id }}_GraphWrapper .ODRMultiSelect li.ODRData input[type="checkbox"]').on('click', function () {
+        $('#{{ odr_chart_id }}_GraphWrapper .ODRMultiSelect li.ODRData input[type="checkbox"]').on('click', function () {
             elem.prop("checked", !this.prop("checked"));
             ODRMultiSetSelected_{{ unique_id }}(this);
         });
 
         // Static Charts just remove all selections and highlight the current one
-        $('#{{ nv_chart_id }}_Static_GraphWrapper .ODRMultiSelect li.ODRData').on('click', function () {
+        $('#{{ odr_chart_id }}_Static_GraphWrapper .ODRMultiSelect li.ODRData').on('click', function () {
             $(this).parent().find('input[type="checkbox"]').prop('checked', false);
             var elem = $(this).find('input[type="checkbox"]');
             elem.prop("checked", true);
-            $("#{{ nv_chart_id }}_Static_GraphWrapper .ODRGraph").hide();
+            $("#{{ odr_chart_id }}_Static_GraphWrapper .ODRGraph").hide();
             $("#StaticGraph_" + elem.val()).show();
         });
 
-        $("#{{ nv_chart_id }}_GraphWrapper").parent().show();
-        window['SetupGraphs_{{ nv_chart_id }}']();
+        $("#{{ odr_chart_id }}_GraphWrapper").parent().show();
+        window['SetupGraphs_{{ odr_chart_id }}']();
 
     });
 
@@ -282,25 +282,25 @@
         var len = $(elem).closest('ul').find('li.ODRData input[type="checkbox"]:checked').length;
         var select_text = len + " selected.";
 
-        $('#{{ nv_chart_id }}_GraphWrapper').parent().children('.FieldArea').hide();
+        $('#{{ odr_chart_id }}_GraphWrapper').parent().children('.FieldArea').hide();
         resizeThemeElements();
-        $('#{{ nv_chart_id }}_GraphWrapper').parent().children('.ODRGraphWarning').hide();
+        $('#{{ odr_chart_id }}_GraphWrapper').parent().children('.ODRGraphWarning').hide();
         if(len < 1) {
-            $('#{{ nv_chart_id }}_GraphWrapper .ODRSelectHeader').html('Select');
-            $('#{{ nv_chart_id }}_GraphWrapper .ODRGraphWarning').show();
+            $('#{{ odr_chart_id }}_GraphWrapper .ODRSelectHeader').html('Select');
+            $('#{{ odr_chart_id }}_GraphWrapper .ODRGraphWarning').show();
         }
         else if (len == 1) {
             var val = $(elem).closest('ul').find('li.ODRData input[type="checkbox"]:checked').val();
             $('#FieldArea_' + val).show();
             resizeThemeElements();
 
-            $('#{{ nv_chart_id }}_GraphWrapper .ODRSelectHeader').html(select_text);
+            $('#{{ odr_chart_id }}_GraphWrapper .ODRSelectHeader').html(select_text);
         }
         else {
-            $('#{{ nv_chart_id }}_GraphWrapper .ODRSelectHeader').html(select_text);
-            $('#{{ nv_chart_id }}_GraphWrapper').parent().children('.ODRGraphWarning').show();
+            $('#{{ odr_chart_id }}_GraphWrapper .ODRSelectHeader').html(select_text);
+            $('#{{ odr_chart_id }}_GraphWrapper').parent().children('.ODRGraphWarning').show();
         }
-        odr_nv_{{ nv_chart_id }}.GraphData(odr_nv_{{ nv_chart_id }});
+        odr_nv_{{ odr_chart_id }}.GraphData(odr_nv_{{ odr_chart_id }});
     }
 
 </script>
@@ -409,7 +409,7 @@
         };
     }
 
-    var {{ nv_chart_id }}_initialized = false;
+    var {{ odr_chart_id }}_initialized = false;
 
     function focusLineGenerator(chart_obj) {
         nv.addGraph(function() {
@@ -688,31 +688,31 @@
     }
 
 
-    var {{ nv_chart_id }}_initialized = false;
+    var {{ odr_chart_id }}_initialized = false;
 
-    var SetupGraphs_{{ nv_chart_id }} = function() {
-        if(!{{ nv_chart_id }}_initialized) {
-            {{ nv_chart_id }}_initialized = true;
+    var SetupGraphs_{{ odr_chart_id }} = function() {
+        if(!{{ odr_chart_id }}_initialized) {
+            {{ odr_chart_id }}_initialized = true;
 
             // If not ODRNVGraph - load class
-            odr_nv_{{ nv_chart_id }} = new ODRNVGraph();
+            odr_nv_{{ odr_chart_id }} = new ODRNVGraph();
 
             // Set the chart id
-            odr_nv_{{ nv_chart_id }}.chart_id = '{{ nv_chart_id }}';
+            odr_nv_{{ odr_chart_id }}.chart_id = '{{ odr_chart_id }}';
 
             // Get all Data
-            {% for drcid, file in nv_files %}
+            {% for drcid, file in odr_chart_files %}
             var file = '{{ file }}';
             if(file != "") {
-                {% for filedrcid, filename in nv_filenames %}
-                    {% for mydrcid, pivot in nv_pivot %}
+                {% for filedrcid, filename in odr_chart_filenames %}
+                    {% for mydrcid, legend in odr_chart_legend %}
                         {% for index, current_drcid in current_drcids %}
                             {% if mydrcid == drcid and filedrcid == drcid and current_drcid == drcid %}
                                 console.log('made it in here===============================');
-                                console.log('pivot, mydrcid' + '{{ pivot }}' +', ' + '{{ mydrcid }}');
+                                console.log('legend, mydrcid' + '{{ legend }}' +', ' + '{{ mydrcid }}');
                                 console.log('index, current_drcid {{ index }} {{ current_drcid }}');
                                 console.log('filename, filedrcid {{ filename }} {{ filedrcid }}');
-                                odr_nv_{{ nv_chart_id }}.data[{{ drcid }}] = ODRGetGraphData(file, '{# line_colors[loop.index0] #}111111', '{{ pivot }}', '{{ filename }}');
+                                odr_nv_{{ odr_chart_id }}.data[{{ drcid }}] = ODRGetGraphData(file, '{# line_colors[loop.index0] #}111111', '{{ legend }}', '{{ filename }}');
                             {% endif %}
                         {% endfor %}
                     {% endfor %}
@@ -721,17 +721,17 @@
             {% endfor %}
 
 
-            odr_nv_{{ nv_chart_id }}.x_axis_label = '{{ plugin_options.x_axis_caption }}';
-            odr_nv_{{ nv_chart_id }}.y_axis_label = '{{ plugin_options.y_axis_caption }}';
+            odr_nv_{{ odr_chart_id }}.x_axis_label = '{{ plugin_options.x_axis_caption }}';
+            odr_nv_{{ odr_chart_id }}.y_axis_label = '{{ plugin_options.y_axis_caption }}';
 
             // Plot selected graphs
             // Get checked DRC IDs
-            odr_nv_{{ nv_chart_id }}.GraphData(odr_nv_{{ nv_chart_id }});
+            odr_nv_{{ odr_chart_id }}.GraphData(odr_nv_{{ odr_chart_id }});
 
 
             // Set CheckAll Handler
-            $('#{{ nv_chart_id }}_GraphWrapper input[name="checkall"]').unbind('click');
-            $('#{{ nv_chart_id }}_GraphWrapper input[name="checkall"]').click(function() {
+            $('#{{ odr_chart_id }}_GraphWrapper input[name="checkall"]').unbind('click');
+            $('#{{ odr_chart_id }}_GraphWrapper input[name="checkall"]').click(function() {
                 var checked = this.checked;
                 $(this).closest('ul').find('li.ODRData input[type=checkbox]').each(function() {
                     if(!checked) {
@@ -747,15 +747,15 @@
             });
             // Set handler to graph on select change
 
-            var height = $('#{{ nv_chart_id }}_GraphWrapper').parent().children('.FieldArea:first').height();
-            var width = $('#{{ nv_chart_id }}_GraphWrapper').parent().children('.FieldArea:first').width();
+            var height = $('#{{ odr_chart_id }}_GraphWrapper').parent().children('.FieldArea:first').height();
+            var width = $('#{{ odr_chart_id }}_GraphWrapper').parent().children('.FieldArea:first').width();
             var html = "<div class='ODRGraphWarning' style='min-height: 30px; width: " + width + "px;'><h2 style='margin-left: auto; margin-right:auto;'>To view files and data, please select a single data set.</h2></div>";
-            $('#{{ nv_chart_id }}_GraphWrapper').parent().children('.FieldArea:first').before(html);
-            {#$('#{{ nv_chart_id }}_GraphWrapper').parent().children('.FieldArea').show();#}
-            {#$('#{{ nv_chart_id }}_GraphWrapper').show();#}
-            {#$('#{{ nv_chart_id }}').show();#}
-            $("#{{ nv_chart_id }}_GraphWrapper").parent().show();
-            window['SetupGraphs_{{ nv_chart_id }}']();
+            $('#{{ odr_chart_id }}_GraphWrapper').parent().children('.FieldArea:first').before(html);
+            {#$('#{{ odr_chart_id }}_GraphWrapper').parent().children('.FieldArea').show();#}
+            {#$('#{{ odr_chart_id }}_GraphWrapper').show();#}
+            {#$('#{{ odr_chart_id }}').show();#}
+            $("#{{ odr_chart_id }}_GraphWrapper").parent().show();
+            window['SetupGraphs_{{ odr_chart_id }}']();
         }
     }
 

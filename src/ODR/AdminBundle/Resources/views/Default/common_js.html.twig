@@ -406,38 +406,6 @@
         };
     })();
 
-    /*
-    alert('2loaded')
-    // Clear resize events
-    $(window).bind('resize', function () {
-        console.log('resize function waitforfinalevent')
-
-        waitForFinalEvent(function(){
-            alert('Resize...');
-            var resized = []
-            $(".ODRDynamicGraph").each(function() {
-                console.log('start redraw: ' + $(this).attr('id'))
-                if($(this).has("div.plotly")) {
-                    if(!_.includes(resized, $(this).attr('id'))) {
-                        console.log('resize')
-                        Plotly.Plots.resize($(this).attr('id'));
-                        resized.push($(this).attr('id'))
-                    }
-                    else {
-                        console.log('already resized')
-                    }
-                    // $("#plotlybars_" + chart_obj.chart_id).hide()
-                }
-            })
-            // .then(function() {
-            // // Done resizing - clear resized array
-            // resized = []
-            // })
-            //...
-        }, 500, "PlotlyScreenResize");
-    });
-    */
-
 </script>
 
 {% include 'ODRAdminBundle:Default:file_handling.html.twig' %}

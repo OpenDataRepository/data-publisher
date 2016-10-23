@@ -18,6 +18,9 @@
         "display_type": display_type
     } %}
 
+    {#
+       Need to present rollup version separately from the accordion header area.
+    #}
     {% for dr_id, datarecord in datarecord_array %}
 
             {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {'datarecord': datarecord, 'datatype': datatype, 'is_top_level': is_top_level, 'display_type': display_type} %}
@@ -75,10 +78,10 @@
                         'is_top_level': is_top_level,
                         'display_type': display_type,
 
-                        'nv_chart_id': nv_chart_id,
-                        'nv_pivot': nv_pivot,
-                        'nv_files': nv_files,
-                        'nv_output_files': nv_output_files
+                        'odr_chart_id': odr_chart_id,
+                        'odr_chart_legend': odr_chart_legend,
+                        'odr_chart_files': odr_chart_files,
+                        'odr_chart_output_files': odr_chart_output_files
                     }  %}
 
                 </div>

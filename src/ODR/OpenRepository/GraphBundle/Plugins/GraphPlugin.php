@@ -8,7 +8,7 @@
  * Released under the GPLv2
  *
  * The graph plugin plots a line graph out of data files uploaded
- * to a File DataField, and labels them using a "pivot" field
+ * to a File DataField, and labels them using a "legend" field
  * selected when the graph plugin is created...
  *
  */
@@ -175,35 +175,6 @@ class GraphPlugin
                     $options[ $option['optionName'] ] = $option['optionValue'];
             }
 
-
-            // ----------------------------------------
-            // TODO - currently not using user-defined colors
-            // $line_colors = explode(',',$plugin_options['line_colors']);
-            /*
-            $this->line_colors = array(
-                'rgb(114,114,114)',
-                'rgb(241,89,95)',
-                'rgb(121,195,106)',
-                'rgb(89,154,211)',
-                'rgb(249,166,90)',
-                'rgb(158,102,171)',
-                'rgb(205,112,88)',
-                'rgb(215,127,179)'
-            );
-            $this->jpgraph_line_colors = array(
-                // '#00ffff',
-                '#ff00b5',
-                '#7bd1ff',
-                '#ffc200',
-                // '#99ffff',
-                '#ffe799',
-                '#ff4dcb',
-                '#b99236',
-                '#ffd54d'
-            );
-            */
-
-
             // Retrieve mapping between datafields and render plugin fields
             $datafield_mapping = array();
             foreach ($render_plugin_map as $rpm) {
@@ -237,21 +208,18 @@ class GraphPlugin
                 $datafield_mapping[$key] = array('datafield' => $df);
             }
 
-            // Switch to UUID?
-            $nv_chart_id = "Chart_" . Uuid::uuid4()->toString();
-            $nv_chart_id = str_replace("-","_", $nv_chart_id);
 
-            $pivot_values['rollup'] = 'Combined Chart';
+            $legend_values['rollup'] = 'Combined Chart';
             foreach ($datarecords as $dr_id => $dr) {
-                $pivot_datafield_id = $datafield_mapping['pivot_field']['datafield']['id'];
-                $pivot_datafield_typeclass = $datafield_mapping['pivot_field']['datafield']['dataFieldMeta']['fieldType']['typeClass'];
+                $legend_datafield_id = $datafield_mapping['pivot_field']['datafield']['id'];
+                $legend_datafield_typeclass = $datafield_mapping['pivot_field']['datafield']['dataFieldMeta']['fieldType']['typeClass'];
 
                 $entity = array();
                 // Check if Pivot Field is set
-                if(isset($dr['dataRecordFields'][$pivot_datafield_id])) {
+                if(isset($dr['dataRecordFields'][$legend_datafield_id])) {
 
-                    $drf = $dr['dataRecordFields'][$pivot_datafield_id];
-                    switch ($pivot_datafield_typeclass) {
+                    $drf = $dr['dataRecordFields'][$legend_datafield_id];
+                    switch ($legend_datafield_typeclass) {
                         case 'IntegerValue':
                             if(isset($drf['integerValue'])) {
                                 $entity = $drf['integerValue'];
@@ -274,35 +242,36 @@ class GraphPlugin
                             break;
 
                         default:
-                            throw new \Exception('Invalid Fieldtype for pivot_field');
+                            throw new \Exception('Invalid Fieldtype for legend_field');
                             break;
                     }
 
-                    $pivot_values[$dr_id] = $entity[0]['value'];
+                    $legend_values[$dr_id] = $entity[0]['value'];
                 }
                 else {
                     // Use Datafield ID as Pivot Value
-                    $pivot_values[$dr_id] = $pivot_datafield_id;
+                    $legend_values[$dr_id] = $legend_datafield_id;
                 }
             }
 
 
-            // ----------------------------------------
-            // For each datarecord that has been passed to this plugin, determine if the associated graph file exists
-            $unique_id = '';
-            $nv_filenames = array();
-            $nv_files = array();
-            $graph_files = array();
-            foreach ($datarecords as $dr_id => $dr) {
-                $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
-                foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
-                    $nv_files[$dr_id] = $file['id'];
-                    $nv_filenames[$dr_id] = $file['localFileName'];
-                    $graph_files[$dr_id] = $file;
-                }
 
-                $unique_id = $datatype['id'].'_'.$dr['parent']['id'];
-            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -318,68 +287,131 @@ class GraphPlugin
                 'display_type' => $rendering_options['display_type'],
 
                 'render_plugin' => $render_plugin,
-                // Required for the rest of the graph plugin
-                // 'line_colors' => $this->line_colors,
-                // 'jpgraph_line_colors' => $this->jpgraph_line_colors,
                 'plugin_options' => $options,
-                'unique_id' => $unique_id,
-                'nv_chart_id' => $nv_chart_id,
-                'nv_pivot' => $pivot_values,
-                'nv_files' => $nv_files,
-                'nv_filenames' => $nv_filenames
+
+                'odr_chart_ids' => $odr_chart_ids,
+                'odr_chart_legend' => $legend_values,
+                'odr_chart_file_ids' => $odr_chart_file_ids,
+                'odr_chart_file_names' => $odr_chart_file_names
             );
-            $graph_keys = array();
-            foreach($nv_files as $file_key => $file_value){
-                $graph_keys[] = $file_key;
-                $graph_values[] = $file_value;
-            }
 
-            $nv_sets = array();
 
-            if ( count($nv_files) > 0 ) {
-                /*
-                // If more than one element in the nv files array build the powerset of the elements, done to currently handle permissions.
-                if ( count($nv_files) > 1 ) {
-                    $nv_sets = self::powerSet($graph_keys, 1);
+            // We must create all file names if not using rollups
+
+            // Or create rollup name for rollup chart
+
+
+
+            if ( count($odr_chart_file_ids) > 0 ) {
+                $odr_chart_ids = array();
+                $odr_chart_file_names = array();
+                $odr_chart_file_ids = array();
+                $odr_chart_file_records = array();
+                $odr_chart_output_files = array();
+                if(isset($options['use_rollup']) && $options['use_rollup'] == "yes"){
+
+                    $file_ids = array();
+                    foreach ($datarecords as $dr_id => $dr) {
+                        $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
+                        foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
+                            $file_ids[] = $file['id'];
+                            $odr_chart_file_records[$dr_id] = $file;
+                        }
+                    }
+                    $file_id_list = implode('_', $file_ids);
+
+
+
+                    // Generate the rollup chart ID for the page chart object
+                    $odr_chart_id = "Chart_" . Uuid::uuid4()->toString();
+                    $odr_chart_id = str_replace("-","_", $odr_chart_id);
+                    $filename = 'Chart__'.$file_id_list. '_' . $max_option_date . '.svg';
+
+
+
+
+
+                    // Add a rollup chart
+                    $odr_chart_ids['rollup'] = $odr_chart_id;
+                    $odr_chart_output_files['rollup'] = '/uploads/files/graphs/'.$filename;
+
                 }
-                // If its one just set it in a an array, This is due to the fact that the powerset function does not handle arrays with length 1.
                 else {
-                    $nv_sets = array($graph_keys);
-                }
-                */
+                    // Names needed for all datarecords
 
-                $file_ids = array();
-                // for( $i = 0; $i < count($nv_files); $i++) {
-                foreach($nv_files as $key => $id) {
-                    $file_ids[] = $id;
-                }
-                $file_id_list = implode('_', $file_ids);
+                    foreach ($datarecords as $dr_id => $dr) {
+                        $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
+                        foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
+                            $odr_chart_file_names[$dr_id] = $file['localFileName'];
 
-                $filename = 'Chart__'.$file_id_list. '_' . $max_option_date . '.svg';
+                            // TODO - Possibly not needed
+                            $odr_chart_file_records[$dr_id] = $file;
+
+                            // We need to generate a unique chart id for each chart
+                            $odr_chart_id = "Chart_" . Uuid::uuid4()->toString();
+                            $odr_chart_id = str_replace("-","_", $odr_chart_id);
+                            $odr_chart_ids[$dr_id] = $odr_chart_id;
+
+
+                            // This filename must remain predictable
+                            // TODO - Long term the UUID should be saved to database
+                            // whenever a new chart is created.  This UUID should be unique
+                            // to each file version to prevent scraping of data.
+                            $filename = 'Chart__'.$file['id'] . '_' . $max_option_date . '.svg';
+                            $odr_chart_output_files[$dr_id] = '/uploads/files/graphs/'.$filename;
+                        }
+                    }
+                }
+
+
+
+                // Are these needed???
                 $page_data['file_id_list'] = $file_id_list;
                 $page_data['file_ids'] = $file_ids;
                 $page_data['filename'] = $filename;
-                $nv_output_files['rollup'] = '/uploads/files/graphs/'.$filename;
-                $page_data['nv_output_files'] = $nv_output_files;
+
+
+                $page_data['odr_chart_output_files'] = $odr_chart_output_files;
 
                 $page_data['current_drcids'] = array_keys($datarecords);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 // Create the rollup graph.  This should respect permissions
                 // because files users don't have permissions to will not be
                 // passed to this function.  So, the filename will be unique
                 // to the permissions of the user.
                 if(isset($rendering_options['build_graph'])) {
 
+                    // We need to know if this is a rollup or direct record request here...
                     if (file_exists(dirname(__FILE__).'/../../../../../web/uploads/files/graphs/'.$filename)) {
                         /* Pre-rendered graph file exists, do nothing */
                         // TODO Determine if we can do this earlier and avoid CPU time.
                         return $filename;
                     }
                     else {
+                        // In this case, we should be buinding a single graph (either rollup or individual datarecord)
                         $crypto_service = $this->container->get('odr.crypto_service');
 
-                        // Decrypt any non-public files
+                        // Decrypt any non-public files (if needed - filter by target datarecord if not rollup)
                         $files_to_delete = array();
-                        foreach($graph_files as $dr_id => $file) {
+                        foreach($odr_chart_file_records as $dr_id => $file) {
                             $public_date = new \DateTime($file['fileMeta']['publicDate']->date);
                             $now = new \DateTime();
                             if($now < $public_date) {
@@ -404,50 +436,12 @@ class GraphPlugin
                         'ODROpenRepositoryGraphBundle:Graph:graph_wrapper.html.twig', $page_data
                     );
                 }
-
-
-                // Iterate over the array, build the file names and check if they exist, if they dont then call build graph.
-
-            /*
-                $page_data['current_drcids'] = array();
-                foreach ($nv_sets as $nv_set){
-                    $file_ids = array();
-                    for( $i = 0; $i < count($nv_set); $i++) {
-                        $file_ids[] = $nv_files[$nv_set[$i]];
-                    }
-                    $page_data['file_ids'] = $file_ids;
-                    $page_data['current_drcids'] = $nv_set;
-                    $file_id_list = implode('_', $file_ids);
-                    // Use the Max Option Date to ensure graph is up-to-date option wise.
-                    $filename = 'Chart__'.$file_id_list. '_' . $max_option_date . '.svg';
-                    $page_data['file_id_list'] = $file_id_list;
-                    $page_data['filename'] = $filename;
-                    $nv_output_files['rollup'] = '/uploads/files/graphs/'.$filename;
-                    $page_data['nv_output_files'] = $nv_output_files;
-
-                    if(isset($rendering_options['build_graph'])) {
-
-                        if (file_exists(dirname(__FILE__).'/../../../../../web/uploads/files/graphs/'.$filename)) {
-                            // Pre-rendered graph file exists, do nothing
-                            // TODO Determine if we can do this earlier and avoid CPU time.
-                        }
-                        else {
-                            // Pre-rendered graph file does not exist...need to create it
-                            return self::buildGraph($page_data, $filename);
-                        }
-                    }
-                }
-                // ----------------------------------------
-                // Render the graph html
-                $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Graph:graph_wrapper.html.twig', $page_data
-                );
-            */
-
-
             }
             else {
                 // No files exist to graph
+                $output = $this->templating->render(
+                    'ODROpenRepositoryGraphBundle:Graph:graph_wrapper.html.twig', $page_data
+                );
             }
 
             if(!isset($rendering_options['build_graph'])) {
@@ -455,6 +449,7 @@ class GraphPlugin
             }
         }
         catch (\Exception $e) {
+            // TODO Can we remove this?...
             $output = $this->templating->render(
                 'ODROpenRepositoryGraphBundle:Default:default_error.html.twig',
                 array(
@@ -495,7 +490,7 @@ class GraphPlugin
         $json_data = array(
             "data" => array(
                 'URL' => $files_path . "Chart__" . $page_data['file_id_list'] . '.html',
-                'selector' => $page_data['nv_chart_id'],
+                'selector' => $page_data['odr_chart_id'],
                 'output' => $output_tmp_svg
             )
         );
