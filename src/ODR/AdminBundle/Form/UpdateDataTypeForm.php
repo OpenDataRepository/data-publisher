@@ -38,6 +38,11 @@ class UpdateDataTypeForm extends AbstractType
         // Load values passed in via constructor
         $datatype_id = $options['datatype_id'];
         $is_top_level = $options['is_top_level'];
+        $is_link = $options['is_link'];
+
+        // None of these should be changable if viewing the properties of a linked datatype...
+        if ($is_link == true)
+            return;
 
         $builder->add(
             'short_name',
@@ -213,9 +218,11 @@ class UpdateDataTypeForm extends AbstractType
             'data_class' => 'ODR\AdminBundle\Entity\DataTypeMeta',
             'datatype_id' => null,
             'is_top_level' => null,
+            'is_link' => null,
         ));
 
         $resolver->setRequired('datatype_id');
         $resolver->setRequired('is_top_level');
+        $resolver->setRequired('is_link');
     }
 }

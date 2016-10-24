@@ -3524,7 +3524,7 @@ class DisplaytemplateController extends ODRCustomController
 
         // Going to need this a lot...
         $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-
+//print '<pre>'.print_r($datatree_array, true).'</pre>';  exit();
 
         // ----------------------------------------
         // Load required objects based on parameters
@@ -3855,11 +3855,20 @@ class DisplaytemplateController extends ODRCustomController
 
             // Create the form for the Datatype
             $submitted_data = new DataTypeMeta();
+/*
             $is_top_level = true;
-            if ($datatree !== null)
+            if ($datatree != null)
+                $is_top_level = false;
+*/
+            $is_top_level = true;
+            if ( $parent_datatype_id !== '' && $parent_datatype_id !== $datatype_id )
                 $is_top_level = false;
 
-            $datatype_form = $this->createForm(UpdateDataTypeForm::class, $submitted_data, array('datatype_id' => $datatype->getId(), 'is_top_level' => $is_top_level));
+            $is_link = false;
+            if ($datatree != null && $datatree->getIsLink() == true)
+                $is_link = true;
+
+            $datatype_form = $this->createForm(UpdateDataTypeForm::class, $submitted_data, array('datatype_id' => $datatype->getId(), 'is_top_level' => $is_top_level, 'is_link' => $is_link));
             $datatype_form->handleRequest($request);
 
             if ($datatype_form->isSubmitted()) {
@@ -3965,11 +3974,13 @@ class DisplaytemplateController extends ODRCustomController
             else {
                 // Create the required form objects
                 $datatype_meta = $datatype->getDataTypeMeta();
+/*
                 $is_top_level = true;
                 if ( $parent_datatype_id !== '' && $parent_datatype_id !== $datatype_id )
                     $is_top_level = false;
+*/
 
-                $datatype_form = $this->createForm(UpdateDataTypeForm::class, $datatype_meta, array('datatype_id' => $datatype->getId(), 'is_top_level' => $is_top_level));
+                $datatype_form = $this->createForm(UpdateDataTypeForm::class, $datatype_meta, array('datatype_id' => $datatype->getId(), 'is_top_level' => $is_top_level, 'is_link' => $is_link));
 
 
                 // Create the form for the Datatree entity (stores whether the parent datatype is allowed to have multiple datarecords of the child datatype)

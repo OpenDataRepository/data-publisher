@@ -1018,9 +1018,12 @@ exit();
                 $datatree_array['linked_from'][$descendant_id][] = $ancestor_id;
             }
 
+            if ($multiple_allowed == 1) {
+                if ( !isset($datatree_array['multiple_allowed'][$descendant_id]) )
+                    $datatree_array['multiple_allowed'][$descendant_id] = array();
 
-            if ($multiple_allowed == 1)
-                $datatree_array['multiple_allowed'][$descendant_id] = $ancestor_id;
+                $datatree_array['multiple_allowed'][$descendant_id][] = $ancestor_id;
+            }
         }
 
         // Store in cache and return
@@ -4127,7 +4130,7 @@ if ($debug)
      *  updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
      *
      * The $properties parameter must contain at least one of the following keys...
-     * 'displayOrder', 'cssWidthMed', 'cssWidthXL'
+     * 'displayOrder', 'cssWidthMed', 'cssWidthXL', 'publicDate'
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                      The user requesting the modification of this meta entry.
@@ -4148,6 +4151,7 @@ if ($debug)
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
             'cssWidthMed' => $old_meta_entry->getCssWidthMed(),
             'cssWidthXL' => $old_meta_entry->getCssWidthXL(),
+            'publicDate' => $old_meta_entry->getPublicDate(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -4171,6 +4175,7 @@ if ($debug)
             $theme_element_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
             $theme_element_meta->setCssWidthMed( $old_meta_entry->getCssWidthMed() );
             $theme_element_meta->setCssWidthXL( $old_meta_entry->getCssWidthXL() );
+            $theme_element_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
             $theme_element_meta->setCreatedBy($user);
         }
@@ -4187,6 +4192,8 @@ if ($debug)
             $theme_element_meta->setCssWidthMed( $properties['cssWidthMed'] );
         if ( isset($properties['cssWidthXL']) )
             $theme_element_meta->setCssWidthXL( $properties['cssWidthXL'] );
+        if ( isset($properties['publicDate']) )
+            $theme_element_meta->setPublicDate( $properties['publicDate'] );
 
         $theme_element_meta->setUpdatedBy($user);
 
@@ -5451,7 +5458,7 @@ if ($debug)
                         else
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['is_link'] = 0;
 
-                        if ( isset($datatree_array['multiple_allowed'][$child_datatype_id]) && $datatree_array['multiple_allowed'][$child_datatype_id] == $datatype_id )
+                        if ( isset($datatree_array['multiple_allowed'][$child_datatype_id]) && in_array($datatype_id, $datatree_array['multiple_allowed'][$child_datatype_id]) )
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['multiple_allowed'] = 1;
                         else
                             $theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['multiple_allowed'] = 0;
