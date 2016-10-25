@@ -3,6 +3,8 @@
 <span id="DataTypeTools_{{ datatype.id }}" class="DataTypeTools" style="float:right;">
     {% if theme.themeType == 'derivative' %}
     <i class="Pointer tooltip fa fa-info-circle ODRDatatypeProperties" title="DataType Properties" rel="{{ datatype.id }}"></i>
+    {% else %}
+    <i class="Pointer tooltip fa fa-info-circle ODRThemeProperties" title="Theme Properties" rel="{{ theme.id }}"></i>
     {% endif %}
 
 {% if is_link == 0 %}

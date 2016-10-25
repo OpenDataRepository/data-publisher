@@ -1,5 +1,9 @@
 {% spaceless %}
 
+<div class="pure-u-3-4" style="visibility: hidden;">
+    <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
+</div>
+
 {{ form_start(theme_form, {
     'method': 'POST',
     'attr': {
@@ -45,6 +49,6 @@
 
 {{ form_end(theme_form) }}
 
-<button type="button" id="DeleteTheme_{{ theme.id }}" class="pure-button pure-button-primary ODRDeleteTheme" style="float:right;" rel="{{ datatype.id }}"><i class="fa fa-trash-o"></i>&nbsp;Delete Theme</button>
+<button type="button" id="DeleteTheme_{{ theme.id }}" class="pure-button pure-button-primary ODRDeleteTheme" style="float:left;" rel="{{ datatype.id }}"><i class="fa fa-trash-o"></i>&nbsp;Delete Theme</button>
 
 {% endspaceless %}

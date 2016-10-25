@@ -6,6 +6,7 @@
     <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
         <a>{{ group.groupMeta.groupName }}</a>
         <span style="margin-left: 10px;">
+            <i class="Pointer fa fa-lg fa-info-circle ODRGroupProperties" style="color:black;" title="Group Properties" rel="{{ group.id }}"></i>
             <i class="Cursor fa fa-lg fa-globe {% if datatype.dataTypeMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatatype" title="Datatype{% if datatype.dataTypeMeta.publicDate|is_public %} does not require{% else %} requires{% endif %} permission to view" rel="{{ datatype.id }}"></i>
         </span>
     {% if prevent_all_changes %}
@@ -53,6 +54,54 @@ function initPage() {
 
     // Create overlay divs for each of the datafields in the master theme area
     resizeOverlayDivs();
+
+    $(".ODRGroupProperties").unbind('click').click(function() {
+        // Grab the id of the group to load
+        var group_id = $(this).attr('rel');
+
+        // Load form for current group if not already loaded
+        $("#ODRGroupPropertiesFormDiv").hide().html("");
+        var url = '{{ path('odr_group_properties', { 'group_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += group_id;
+
+//alert(url);
+//return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    $("#ElementData").html(data.d).fadeIn('fast');
+
+                    if (data.prevent_all_changes != 1)
+                        InitGroupPropertyForm();
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    });
 
 {% if not prevent_all_changes %}
     $(".ODRCanViewDatatype").unbind('click').click(function() {

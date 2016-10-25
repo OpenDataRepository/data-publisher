@@ -18,7 +18,7 @@
 
         {% if datarecord.dataRecordMeta.publicDate|is_public and datarecord.id != datarecord.grandparent.id %}
             <span style="float: right;">
-                <i class="tooltip fa fa-lg fa-globe {% if not datarecord.dataRecordMeta.publicDate|is_public %}IconRed{% endif %}" title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}"></i> #}
+                <i class="tooltip fa fa-lg fa-globe {% if not datarecord.dataRecordMeta.publicDate|is_public %}IconRed{% endif %}" title="{% if is_link == 1 %}Linked{% else %}Child{% endif %} Record is {% if not datarecord.dataRecordMeta.publicDate|is_public %}not {% endif %}Public" rel="{{ datarecord.id }}"></i>
             </span>
         {% endif %}
         </h3>
