@@ -170,11 +170,11 @@ class UpdateDataTypeForm extends AbstractType
                 ChoiceType::class,
                 array(
                     'choices' => array(
-                        'TextResults' => 0,
-                        'ShortResults' => 1
+                        'Table' => 0,
+                        'Default' => 1
                     ),
                     'choices_as_values' => true,
-                    'label' => 'Short Display',
+                    'label' => 'Search Results Theme Type',
                     'expanded' => false,
                     'multiple' => false,
                     'placeholder' => false
