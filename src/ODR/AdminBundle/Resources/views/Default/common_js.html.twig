@@ -240,7 +240,7 @@
                 $(this).children(".ODRTabButton").each(function() {
                     $(this).unbind('click').click(function() {
                         // Hide all tabbed content divs
-                        $(this).parent().parent().children(".accordion-content").hide();
+                        $(this).parent().parent().find(".accordion-content").hide();
                         // Attach another (styling?) class to more clearly indicated the selected tab?
                         $(this).parent().children().each(function() {
                             $(this).removeClass('pure-button-active');
@@ -249,8 +249,9 @@
 
                         // Show the div that's linked to the clicked button
                         var id = $(this).attr('rel');
-                        $("#FieldArea_" + id).fadeIn();
-                        ODR_scrollIntoView( $("#FieldArea_" + id) );
+                        $("#FieldArea_" + id).fadeIn(
+                            ODR_scrollIntoView( $("#FieldArea_" + id) )
+                        );
 
                         // Resize any elements that were revealed
                         onWindowResize();
@@ -290,17 +291,16 @@
 
     // Modified from http://stackoverflow.com/a/18151491
     function ODR_scrollIntoView(element) {
+        /*
         var element_top = $(element).offset().top;
         var element_height = $(element).height();
-        var window_height = $(window).height();
-//console.log( 'element height: ' + element_height + '  window_height: ' + window_height + '  element_top: ' + element_top);
-        var offset;
-        if (element_height < (window_height-100)) {
-//console.log('scrolling to middle of element');
+        // Leave a margin of 100px at the top
+        var window_height = $(window).height() - 100;
+        var offset = 0;
+        if (element_height < window_height) {
             offset = element_top - ((window_height / 2) - (element_height / 2));
         }
         else {
-//console.log('scrolling to top of element');
             offset = element_top-175;   // scroll a bit higher on the page than otherwise to allow for the menubar across the top
         }
 
@@ -308,6 +308,7 @@
             offset = 0;
 
         $('html, body').scrollTo(offset);
+        */
     }
 
     var WindowResizeInterval = "";

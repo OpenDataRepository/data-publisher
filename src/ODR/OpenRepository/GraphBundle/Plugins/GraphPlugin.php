@@ -259,7 +259,7 @@ class GraphPlugin
             $odr_chart_ids = array();
             $odr_chart_file_names = array();
             $odr_chart_file_ids = array();
-            $odr_chart_file_records = array();
+            $odr_chart_files = array();
             $odr_chart_output_files = array();
             // We must create all file names if not using rollups
 
@@ -268,13 +268,13 @@ class GraphPlugin
                 $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
                 foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
                     // File ID list is used only by rollup
-                    $file_ids[] = $file['id'];
+                    $odr_chart_file_ids[] = $file['id'];
 
                     // Used by system to download data - possibly redundant with file records
                     $odr_chart_file_names[$dr_id] = $file['localFileName'];
 
                     // TODO - Possibly not needed - redundant with above but includes more info
-                    $odr_chart_file_records[$dr_id] = $file;
+                    $odr_chart_files[$dr_id] = $file;
 
                     // We need to generate a unique chart id for each chart
                     $odr_chart_id = "Chart_" . Uuid::uuid4()->toString();
@@ -292,7 +292,7 @@ class GraphPlugin
             }
 
             // Rollup related calculations
-            $file_id_list = implode('_', $file_ids);
+            $file_id_list = implode('_', $odr_chart_file_ids);
 
             // Generate the rollup chart ID for the page chart object
             $odr_chart_id = "Chart_" . Uuid::uuid4()->toString();
@@ -327,7 +327,7 @@ class GraphPlugin
                 'odr_chart_legend' => $legend_values,
                 'odr_chart_file_ids' => $odr_chart_file_ids,
                 'odr_chart_file_names' => $odr_chart_file_names,
-                'odr_chart_file_records' => $odr_chart_file_records,
+                'odr_chart_files' => $odr_chart_files,
                 'odr_chart_output_files' => $odr_chart_output_files
             );
 
@@ -361,7 +361,7 @@ class GraphPlugin
                     $files_to_delete = array();
                     if(isset($options['use_rollup']) && $options['use_rollup'] == "yes") {
                         // Decrypt any non-public files (if needed - filter by target datarecord if not rollup)
-                        foreach ($odr_chart_file_records as $dr_id => $file) {
+                        foreach ($odr_chart_files as $dr_id => $file) {
                             $public_date = new \DateTime($file['fileMeta']['publicDate']->date);
                             $now = new \DateTime();
                             if ($now < $public_date) {
@@ -374,7 +374,7 @@ class GraphPlugin
                     else {
                         // Only a single file will be needed.  Check if it needs to be decrypted.
                         $dr_id = $rendering_options['datarecord_id'];
-                        $file = $odr_chart_file_records[$dr_id];
+                        $file = $odr_chart_files[$dr_id];
                         $public_date = new \DateTime($file['fileMeta']['publicDate']->date);
                         $now = new \DateTime();
                         if ($now < $public_date) {

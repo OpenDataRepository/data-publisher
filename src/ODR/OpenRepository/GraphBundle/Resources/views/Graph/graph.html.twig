@@ -32,11 +32,11 @@
         <div id="{{ odr_chart_id }}_Static_GraphWrapper">
             {% if odr_chart_output_files|length %}
                 {% for dr_id, nv_file_name in odr_chart_output_files %}
-                    {# determine rollup or individual #}
-                    <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1" {% if dr_id != "rollup" %}style="display: none;"{% endif %}>
-                        {# Add call for image by URL Here #}
+                    {% if dr_id == "rollup" %}
+                    <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1">
                         <img class="pure-u-1" src="{{ path('odr_plugin_graph_static', { 'plugin_id': render_plugin.id, 'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id } ) }}.svg?nocache=1" />
                     </div><!-- end of .ODRGraph -->
+                    {% endif %}
                 {% endfor %}
             {% endif %}
         </div><!-- end of #{{ odr_chart_id }}_Static_GraphWrapper -->
@@ -53,7 +53,7 @@ jQuery(function() {
 
     window.onresize = function() {
         waitForFinalEvent(function() {
-            for(x in page_plots) {
+            for(var x in page_plots) {
                 console.log('resize')
                 Plotly.Plots.resize(page_plots[x]);
             }
@@ -117,12 +117,12 @@ jQuery(function() {
     $('#{{ odr_chart_id }}_GraphWrapper .ODRMultiSelect li.ODRData').on('click', function () {
         var elem = $(this).find('input[type="checkbox"]');
         elem.prop("checked", !elem.prop("checked"));
-        ODRMultiSetSelected_{{ unique_id }}(elem);
+        ODRMultiSetSelected_{{ odr_chart_id }}(elem);
     });
 
     $('#{{ odr_chart_id }}_GraphWrapper .ODRMultiSelect li.ODRData input[type="checkbox"]').on('click', function () {
         elem.prop("checked", !this.prop("checked"));
-        ODRMultiSetSelected_{{ unique_id }}(this);
+        ODRMultiSetSelected_{{ odr_chart_id }}(this);
     });
 
     // Static Charts just remove all selections and highlight the current one
@@ -136,7 +136,7 @@ jQuery(function() {
 
 });
 
-function ODRMultiSetSelected_{{ unique_id }}(elem) {
+function ODRMultiSetSelected_{{ odr_chart_id }}(elem) {
     var len = $(elem).closest('ul').find('li.ODRData input[type="checkbox"]:checked').length;
     var select_text = len + " selected.";
 
@@ -158,7 +158,6 @@ function ODRMultiSetSelected_{{ unique_id }}(elem) {
         $('#{{ odr_chart_id }}_GraphWrapper .ODRSelectHeader').html(select_text);
         $('#{{ odr_chart_id }}_GraphWrapper').parent().children('.ODRGraphWarning').show();
     }
-    {#odr_nv_{{ odr_chart_id }}.GraphData(odr_nv_{{ odr_chart_id }});#}
 }
 
 </script>
@@ -265,8 +264,8 @@ if(!window.ODRGetGraphData) {
     }
 }
 
-if(!window.ODRNVGraph) {
-    function ODRNVGraph(graph_type) {
+if(!window.ODRChart) {
+    function ODRChart(graph_type) {
         this.chart = "";
         this.chart_id = "";
         this.data = new Array(); // Graph Data for the available files
@@ -877,36 +876,36 @@ var SetupGraphs_{{ odr_chart_id }} = function() {
     if(!{{ odr_chart_id }}_initialized) {
         {{ odr_chart_id }}_initialized = true;
 
-        // If not ODRNVGraph - load class
-        odr_nv_{{ odr_chart_id }} = new ODRNVGraph('{{ plugin_options.graph_type }}');
+        // If not ODRChart - load class
+        odr_chart_{{ odr_chart_id }} = new ODRChart('{{ plugin_options.graph_type }}');
 
         // Set the chart id
-        odr_nv_{{ odr_chart_id }}.chart_id = '{{ odr_chart_id }}';
+        odr_chart_{{ odr_chart_id }}.chart_id = '{{ odr_chart_id }}';
 
         console.log('Setup Graphs')
         console.log( '{{ plugin_options.graph_type }}')
         // Get all Data
         var count = 0
         {% for drcid, file in odr_chart_files %}
-            var file = '{{ file }}';
+            var file = '{{ file.localFileName }}';
             var line_color = '{# line_colors[loop.index0] #}111111'
             if(file != "") {
                 {% for mydrcid, legend in odr_chart_legend %}
                     {% if mydrcid == drcid %}
                         count++;
-                        odr_nv_{{ odr_chart_id }}.data[{{ drcid}}] = ODRGetGraphData(file,  line_color, '{{ legend }}', '{{ plugin_options.graph_type }}');
+                        odr_chart_{{ odr_chart_id }}.data[{{ drcid}}] = ODRGetGraphData(file,  line_color, '{{ legend }}', '{{ plugin_options.graph_type }}');
                     {% endif %}
                 {% endfor %}
             }
         {% endfor %}
 
         {% for o_name, o_value in plugin_options %}
-        odr_nv_{{ odr_chart_id }}['{{ o_name }}'] = '{{ o_value }}';
+        odr_chart_{{ odr_chart_id }}['{{ o_name }}'] = '{{ o_value }}';
         {% endfor %}
 
         // Plot selected graphs
         // Get checked DRC IDs
-        odr_nv_{{ odr_chart_id }}.GraphData(odr_nv_{{ odr_chart_id }});
+        odr_chart_{{ odr_chart_id }}.GraphData(odr_chart_{{ odr_chart_id }});
 
 
         // Set CheckAll Handler
@@ -923,7 +922,7 @@ var SetupGraphs_{{ odr_chart_id }} = function() {
             });
 
             // Update Graph Accordingly
-            ODRMultiSetSelected_{{ unique_id }}(this);
+            ODRMultiSetSelected_{{ odr_chart_id }}(this);
         });
         // Set handler to graph on select change
 
