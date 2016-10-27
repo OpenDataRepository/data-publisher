@@ -1310,14 +1310,16 @@ if (isset($debug['timing'])) {
                     // NOTE - this purposefully ignores boolean...otherwise a general search string of '1' would return all checked boolean entities, and '0' would return all unchecked boolean entities
                     // TODO - include DecimalValue?  I think it's not included right now because the value is considered a string instead of a float...
 
-                    $datafield_array['general'][$df_id] = array(
-                        'typeclass' => $typeclass,
-                        'datatype' => $dt_id,
-                    );
+                    if ($searchable == 1 || $searchable == 2) {
+                        $datafield_array['general'][$df_id] = array(
+                            'typeclass' => $typeclass,
+                            'datatype' => $dt_id,
+                        );
+                    }
                 }
 
                 // If set for advanced search, also save it in the list of datafields to run an advanced search on
-                if ($searchable == 2) {
+                if ($searchable == 2 || $searchable == 3) {
                     $datafield_array['advanced'][$df_id] = array(
                         'typeclass' => $typeclass,
                         'datatype' => $dt_id,
@@ -1358,6 +1360,8 @@ if (isset($debug['timing'])) {
 
             $key = trim($matches[1]);
             $value = trim($matches[2]);
+
+            // TODO - get rid of extraneous extra spaces in $value?  e.g. the extra spaces in  "<df_id>=zip    ||  csv"
 
             // Determine whether this field is a radio fieldtype
             $is_radio = false;
@@ -1567,16 +1571,8 @@ if (isset($debug['timing'])) {
                         );
                     }
                     else if ($typeclass == 'File' || $typeclass == 'Image') {
-                        // Assume user wants existence of files/images...
-                        $condition = 'e.id IS NOT NULL';
-                        if ($initial_value == 0)
-                            $condition = 'e.id IS NULL';
-
-                        // Build array of search params for this datafield
-                        $search_params = array(
-                            'str' => $condition,
-                            'params' => array(),
-                        );
+                        $is_filename = true;
+                        $search_params = self::parseField($initial_value, $debug, $is_filename);
                     }
                     else if ($typeclass == 'DatetimeValue') {
                         // Datetime fields...
@@ -1608,8 +1604,10 @@ if (isset($debug['timing'])) {
                     }
                     else {
                         // Every other field...
-                        $search_params = self::parseField($initial_value, $debug);
+                        $is_filename = false;
+                        $search_params = self::parseField($initial_value, $debug, $is_filename);
                     }
+
                     $datafield_array['advanced'][$df_id]['search_params'] = $search_params;
                 }
 
@@ -2275,51 +2273,40 @@ if ( isset($debug['show_queries']) )
             $query .= $metadata_str;
         }
         else if ($typeclass == 'Image' || $typeclass == 'File') {
-            // Build the native SQL query that will check for (non)existence of files/images in this datafield
-            $query = $query_start.$drf_join;
+            // Assume that the datarecordfield entries might not exist...but require them to not be deleted if they do exist
+            $query = $query_start;
+            if (!$searching_linked_datatype)
+                $query .= 'LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL) ';
+            else
+                $query .= 'LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = ldr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL) ';
+
+            // The file/image entries might not exist either...but still require them to not be deleted if they do exist
             $query .= '
-                INNER JOIN '.$table_names[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                WHERE drf.data_field_id = '.$datafield_id.' AND e.id IS NOT NULL
-                AND drf.deletedAt IS NULL AND e.deletedAt IS NULL
-                '.$deleted_at;
+                LEFT JOIN '.$table_names[$typeclass].' AS e ON e.data_record_fields_id = drf.id AND (e.deletedAt IS NULL OR e.id IS NULL)
+                LEFT JOIN '.$table_names[$typeclass].'_meta AS e_m ON e_m.file_id = e.id AND (e_m.deletedAt IS NULL OR e_m.id IS NULL)
+                WHERE dr.data_type_id = '.$datatype_id;
 
-            $query .= $metadata_str;
 
-            // If the user is searching for datarecords which do NOT have files/images...
-            if ( strpos($search_params['str'], 'NOT') === false ) {
-                // Execute and store the results of the previous native SQL query
-if ( isset($debug['show_queries']) ) {
-    $query = preg_replace('/[ ]+/', ' ', $query);   // replace all consecutive spaces with at most one space
-    print $query."\n";
-    print '$parameters: '.print_r($parameters, true)."\n";
-}
-                $conn = $em->getConnection();
-                $results = $conn->fetchAll($query, $parameters);
-
-                // Extract the list of datarecord ids that do have files/images
-                $dr_list = array();
-                foreach ($results as $result)
-                    $dr_list[ $result['dr_id'] ] = 1;
-                $dr_list = implode(',', array_keys($dr_list));
-
-                // Build a new query to find all datarecords of the target datatype that aren't in the list of datarecords that have files/images
-                $query = $query_start;
-                if (!$searching_linked_datatype) {
-                    $query .= '
-                        WHERE dr.id NOT IN ('.$dr_list.') AND dr.data_type_id = '.$datatype_id.'
-                        AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL ';
-                }
-                else {
-                    $query .= '
-                        WHERE ldr.id NOT IN ('.$dr_list.') AND ldr.data_type_id = '.$datatype_id.'
-                        AND ldr.deletedAt IS NULL AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL ';
-                }
-
-                $query .= $metadata_str;
+            if ( !isset($parameters['term_1']) && $parameters['term_0'] == '' && strpos($search_params['str'], '!') === false ) {
+                // If the above conditions are true, then the user is effectively searching for datarecords without files/images uploaded to this datafield
+                // ...Can't just use count() due to potential metadata constraints also being in $parameters
+                $query .= ' AND e.id IS NULL ';
+            }
+            else {
+                // Otherwise, do a regular search for the original filename
+                $query .= ' AND ('.$search_params['str'].') ';
             }
 
-            // If user is searching for existence of files/images, then missing drf entries indicate no file/image...
-            // If user is searching for non-existence of files/images, then the second query will pick up the correct datarecords regardless...
+            // Debug readability newline...
+            $query .= "\n";
+
+            // Ensure that entities required to exist are not deleted...
+            if (!$searching_linked_datatype)
+                $query .= 'AND grandparent.deletedAt IS NULL AND dr.deletedAt IS NULL ';
+            else
+                $query .= 'AND grandparent.deletedAt IS NULL AND dr.deletedAt IS NULL AND ldr.deletedAt IS NULL ';
+
+            $query .= $metadata_str;
         }
         else {
             // Finish building the native SQL query that gets contents of all other storage entities
@@ -2344,7 +2331,7 @@ if ( isset($debug['show_queries']) ) {
 
                     if (!$searching_linked_datatype) {
                         $query .= $query_start.
-                           'LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND (drf.data_field_id = '.$datafield_id.' OR drf.id IS NULL)
+                           'LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
                             LEFT JOIN '.$table_names[$typeclass].' AS e ON e.data_record_fields_id = drf.id
                             WHERE dr.data_type_id = '.$datatype_id.'
                             AND e.id IS NULL
@@ -2354,7 +2341,7 @@ if ( isset($debug['show_queries']) ) {
                     }
                     else {
                         $query .= $query_start.
-                           'LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = ldr.id AND (drf.data_field_id = '.$datafield_id.' OR drf.id IS NULL)
+                           'LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = ldr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
                             LEFT JOIN '.$table_names[$typeclass].' AS e ON e.data_record_fields_id = drf.id
                             WHERE dr.data_type_id = '.$datatype_id.'
                             AND e.id IS NULL
@@ -2708,12 +2695,13 @@ if ( isset($debug['show_queries']) ) {
     /**
      * Turns a piece of the search string into a more DQL-friendly format.
      *
-     * @param string $str    The string to turn into DQL...
-     * @param array $debug Whether to print out debug info or not.
+     * @param string $str           The string to turn into DQL...
+     * @param array $debug          Whether to print out debug info or not.
+     * @param boolean $is_filename  Whether this is being parsed as a filename or not
      *
      * @return array
      */
-    private function parseField($str, $debug) {
+    private function parseField($str, $debug, $is_filename = false) {
         // ?
         $str = str_replace(array("\n", "\r"), '', $str);
 
@@ -2836,8 +2824,10 @@ if ( isset($debug['search_string_parsing']) )
                 continue;
             }
 
-            // delete consecutive operators 
-            if ( $pieces[$num] == '&&' && $pieces[$num+1] == '||' )
+            // Delete some consecutive logical operators
+            if ( $pieces[$num] == '&&' && $pieces[$num+1] == '&&' )
+                unset( $pieces[$num] );
+            else if ( $pieces[$num] == '&&' && $pieces[$num+1] == '||' )
                 unset( $pieces[$num] );
             else if ( self::isLogicalOperator($previous) && self::isLogicalOperator($piece) )
                 unset( $pieces[$num] );
@@ -2847,7 +2837,6 @@ if ( isset($debug['search_string_parsing']) )
             // legitimate token
             else
                 $previous = $piece;
-            
         }
 
         // remove trailing operators...they're unmatched by definition
@@ -2861,18 +2850,28 @@ if ( isset($debug['search_string_parsing']) )
 
         $negate = false;
         $inequality = false;
-        $str = 'e.value';
         $parameters = array();
+
+        $str = 'e.value';
+        if ($is_filename)
+            $str = 'e_m.original_file_name';
+
         $count = 0;
         foreach ($pieces as $num => $piece) {
             if ($piece == '!') {
                 $negate = true;
             }
             else if ($piece == '&&') {
-                $str .= ' AND e.value';
+                if (!$is_filename)
+                    $str .= ' AND e.value';
+                else
+                    $str .= ' AND e_m.original_file_name';
             }
             else if ($piece == '||') {
-                $str .= ' OR e.value';
+                if (!$is_filename)
+                    $str .= ' OR e.value';
+                else
+                    $str .= ' OR e_m.original_file_name';
             }
             else if ($piece == '>') {
                 $inequality = true;

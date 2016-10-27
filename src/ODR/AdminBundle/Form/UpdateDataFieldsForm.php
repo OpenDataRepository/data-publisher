@@ -146,6 +146,7 @@ class UpdateDataFieldsForm extends AbstractType
                     'No' => 0,
                     'General Only' => 1,
                     'Advanced' => 2,
+                    'Advanced Only' => 3,
                 ),
                 'choices_as_values' => true,
                 'label'  => 'Searchable',

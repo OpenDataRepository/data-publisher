@@ -44,7 +44,7 @@
             <div class="ODRAdvSearch_default">
             {% if searchable_datafields[ target_datatype.id ] is defined %}
                 {% for datafield in searchable_datafields[ target_datatype.id ] %}
-                    {% if datafield.getsearchable == 2 %}
+                    {% if datafield.getsearchable == 2 or datafield.getsearchable == 3 %}
                         {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with { 'datafield': datafield } %}
                     {% endif %}
                 {% endfor %}
@@ -72,7 +72,7 @@
                 <div class="ODRAdvSearch_content {#pure-u-23-24#} pure-u-1">
                 {% if searchable_datafields[child_datatype_id] is defined %}
                     {% for datafield in searchable_datafields[child_datatype_id] %}
-                        {% if datafield.getsearchable == 2 %}
+                        {% if datafield.getsearchable == 2 or datafield.getsearchable == 3 %}
                             {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with { 'datafield': datafield } %}
                         {% endif %}
                     {% endfor %}
@@ -101,7 +101,7 @@
                 {#<div class="pure-u-1-24"></div>#}
                 <div class="ODRAdvSearch_content {#pure-u-23-24#} pure-u-1">
                 {% for datafield in searchable_datafields[ linked_datatype_id ] %}
-                    {% if datafield.getsearchable == 2 %}
+                    {% if datafield.getsearchable == 2 or datafield.getsearchable == 3 %}
                         {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with { 'datafield': datafield } %}
                     {% endif %}
                 {% endfor %}
@@ -157,10 +157,10 @@
             doSearch();
         });
 
-        {% if search_string is defined and search_string != '' %}
+{% if search_string is defined and search_string != '' %}
         // No need to set up rest of form, just do an immediate search
         doSearch();
-        {% endif %}
+{% endif %}
 
 
         // Setup accordions
@@ -224,6 +224,25 @@
         $(".ODRAdvSearch_header").trigger('click');
         $(".ODRAdvSearch_default").prev().trigger('click');
         $(".ODRAdvSearch_header").parent().hide();
+
+        // File/Image stuff
+        $(".ODRFileDatafieldName").unbind('change keyup paste').on('keyup paste', function() {
+            var datafield_id_data = $(this).attr('id').split(/_/);
+            var datafield_id = datafield_id_data[1];
+
+            var value = $(this).val();
+            if ( value != '' )
+                $("#datafield_" + datafield_id + "_ex").prop('selectedIndex', '1').change();
+        });
+
+        $(".ODRFileDatafieldExist").unbind('change').change(function() {
+            var datafield_id_data = $(this).attr('id').split(/_/);
+            var datafield_id = datafield_id_data[1];
+
+            var value = $(this).val();
+            if ( value == '0' )
+                $("#datafield_" + datafield_id + "_fn").val('');
+        });
 
         // Tristate checkbox
         $(".ODRTristateCheckbox").unbind('click').click(function() {
@@ -418,7 +437,23 @@
             var name = $(this).attr('name');
             var type = $(this).attr('type');
             var value = $(this).attr('value');
-            var datatype_id = $(this).attr('rel');
+//            var datatype_id = $(this).attr('rel');
+
+            if ( $(this).hasClass('ODRFileDatafieldName') ) {
+                var df_id_data = $(this).attr('id').split(/_/);
+                var df_id = df_id_data[1];
+
+                var exist_value = $("#datafield_" + df_id + "_ex").val();
+                if ( exist_value == '') {
+                    /* do nothing */
+                }
+                else if ( exist_value == 0 ) {
+                    value = '""';   // If user wanted datarecords that do not have files/images, set this datafield's value to empty string
+                }
+                else if ( exist_value == 1 && value == '' ) {
+                    value = '!""';  // If user wanted datarecords that do have files/images, but didn't specify a filename, set this datafield's value to 'not empty'
+                }
+            }
 
             // Don't want empty values clogging the string
             if (name == undefined || value == '')

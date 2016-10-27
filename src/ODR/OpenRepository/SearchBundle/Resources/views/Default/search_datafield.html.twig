@@ -24,7 +24,10 @@
             </select>
 
         {% elseif field_typename == "File" or field_typename == "Image" %}
-            <select class="ODRInput pure-u-2-3" id="datafield_{{ datafield.id }}" name="{{ datafield.id }}" rel="{{ datatype_id }}">
+            <input type="text" class="ODRInput ODRFileDatafieldName pure-u-2-3" id="datafield_{{ datafield.id }}_fn" name="{{ datafield.id }}" rel="{{ datatype_id }}" title="Search based on the {{ field_typename }}'s filename"/>
+
+            <label class="pure-u-1-3"></label>
+            <select class="ODRInput ODRFileDatafieldExist pure-u-2-3" id="datafield_{{ datafield.id }}_ex" {#name="{{ datafield.id }}_ex"#} rel="{{ datatype_id }}" title="Search based on whether this Datafield has any {{ field_typename }}s uploaded or not">
                 <option value="">Any</option>
                 <option value="1">Has {{ field_typename }}s</option>
                 <option value="0">Does not have {{ field_typename }}s</option>
@@ -32,10 +35,7 @@
 
         {% elseif field_typename == 'DateTime' %}
             <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datafield_{{ datafield.id }}_start" name="{{ datafield.id }}_s" value="" rel="{{ datatype_id }}" title="Find Datarecords with a value AFTER this date" />
-{#
-            </div>
-        <div class="ODRAdvSearch pure-u-1">
-#}
+
             <label class="pure-u-1-3"></label>
             <input type="text" class="ODRInput ODRDatePicker pure-u-2-3" id="datafield_{{ datafield.id }}_end" name="{{ datafield.id }}_e" value="" rel="{{ datatype_id }}" title="Find Datarecords with a value BEFORE this date" />
 
