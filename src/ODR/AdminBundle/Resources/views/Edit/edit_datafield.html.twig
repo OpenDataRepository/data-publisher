@@ -158,7 +158,7 @@
     {% elseif field_typename == "Image" %}
         {% set has_image = false %}
         {#<fieldset>#}
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}" style="text-align: center;">{{ datafield.dataFieldMeta.fieldName }}</label>
             <div class="ODRSortableImage pure-u-1">
 
                 {% for image in valuefield %}

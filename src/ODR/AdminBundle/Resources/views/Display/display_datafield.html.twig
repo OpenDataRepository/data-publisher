@@ -123,8 +123,9 @@
 
     {% elseif field_typename == "Image" %}
         {#<fieldset>#}
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}" style="text-align: center;">{{ datafield.dataFieldMeta.fieldName }}</label>
             <div id="imagegallery_{{ datafield.id }}_{{ datarecord.id }}" class="ODRImageGallery pure-u-1">
-                <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+                {#<label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>#}
                 <i id="ODRImageLeft_{{ datafield.id }}_{{ datarecord.id }}" class="ODRGalleryLeftArrow Pointer fa fa-3x fa-chevron-left" rel="{{ datafield.id }}_{{ datarecord.id }}"></i>
                 <i id="ODRImageRight_{{ datafield.id }}_{{ datarecord.id }}" class="ODRGalleryRightArrow Pointer fa fa-3x fa-chevron-right" rel="{{ datafield.id }}_{{ datarecord.id }}"></i>
                 <div class="ODRImageGalleryImage pure-u-1"></div>

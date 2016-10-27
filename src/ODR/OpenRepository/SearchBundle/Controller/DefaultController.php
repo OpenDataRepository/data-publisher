@@ -2283,7 +2283,7 @@ if ( isset($debug['show_queries']) )
             // The file/image entries might not exist either...but still require them to not be deleted if they do exist
             $query .= '
                 LEFT JOIN '.$table_names[$typeclass].' AS e ON e.data_record_fields_id = drf.id AND (e.deletedAt IS NULL OR e.id IS NULL)
-                LEFT JOIN '.$table_names[$typeclass].'_meta AS e_m ON e_m.file_id = e.id AND (e_m.deletedAt IS NULL OR e_m.id IS NULL)
+                LEFT JOIN '.$table_names[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id AND (e_m.deletedAt IS NULL OR e_m.id IS NULL)
                 WHERE dr.data_type_id = '.$datatype_id;
 
 

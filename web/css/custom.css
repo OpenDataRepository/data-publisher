@@ -1007,6 +1007,7 @@ form .row {
 /* ODR Image Gallery */
 .ODRImageGallery {
     position: relative;
+    padding-top: 10px;
 }
 
 .ODRImageGallery label {
