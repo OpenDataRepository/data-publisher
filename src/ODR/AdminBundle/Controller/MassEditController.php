@@ -96,6 +96,24 @@ class MassEditController extends ODRCustomController
             // --------------------
 
             // ----------------------------------------
+            // Only allow one mass edit job per datatype at a time
+            $job_type = 'mass_edit';
+            $target_entity = 'datatype_'.$datatype_id;
+
+            $query = $em->createQuery(
+               'SELECT tj
+                FROM ODRAdminBundle:TrackedJob AS tj
+                WHERE tj.job_type = :job_type AND tj.target_entity = :target_entity
+                AND tj.deletedAt IS NULL AND tj.completed IS NULL'
+            )->setParameters( array('job_type' => $job_type, 'target_entity' => $target_entity) );
+            $results = $query->getArrayResult();
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+            if ( count($results) > 0 )
+                throw new \Exception('A mass edit job is already in progress for this Datatype');
+
+
+            // ----------------------------------------
             // Grab the tab's id, if it exists
             $params = $request->query->all();
             $odr_tab_id = '';
@@ -317,6 +335,24 @@ class MassEditController extends ODRCustomController
             if ( !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
                 return parent::permissionDeniedError("edit");
             // --------------------
+
+
+            // ----------------------------------------
+            // Only allow one mass edit job per datatype at a time
+            $job_type = 'mass_edit';
+            $target_entity = 'datatype_'.$datatype_id;
+
+            $query = $em->createQuery(
+               'SELECT tj
+                FROM ODRAdminBundle:TrackedJob AS tj
+                WHERE tj.job_type = :job_type AND tj.target_entity = :target_entity
+                AND tj.deletedAt IS NULL AND tj.completed IS NULL'
+            )->setParameters( array('job_type' => $job_type, 'target_entity' => $target_entity) );
+            $results = $query->getArrayResult();
+//print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+            if ( count($results) > 0 )
+                throw new \Exception('A mass edit job is already in progress for this Datatype');
 
 
             // ----------------------------------------
