@@ -29,12 +29,13 @@
     </div><!-- end of .DynamicGraphs -->
 
     <div class="pure-u-1 StaticGraphs">
-        <div id="{{ odr_chart_id }}_Static_GraphWrapper">
+        <div id="{{ odr_chart_id }}_Static_GraphWrapper" class="ODRStaticGraphWrapper">
             {% if odr_chart_output_files|length %}
                 {% for dr_id, nv_file_name in odr_chart_output_files %}
-                    {% if dr_id == "rollup" %}
+                    {% if dr_id == target_datarecord_id %}
                     <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1">
                         <img class="pure-u-1" src="{{ path('odr_plugin_graph_static', { 'plugin_id': render_plugin.id, 'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id } ) }}.svg?nocache=1" />
+                        <div class="ODRChartTrigger"><span>Click to switch to interactive charts.</span></div>
                     </div><!-- end of .ODRGraph -->
                     {% endif %}
                 {% endfor %}
@@ -60,28 +61,21 @@ jQuery(function() {
         }, 500, "plotly_window_resize")
     }
 
-    {#$("#DataType_{{ datarecordchild.getdatatype.id }}_dropdown").change(function() { #}
-    $("#DataType_{{ datatype.id }}_dropdown").change(function() {
-        alert('test');
+    $(".StaticGraphs").unbind('click').click(function() {
+        var parent = $(this).parent()
+        $(this).hide()
+        $(parent).find('.DynamicGraphs').show()
+
+        var chart_id = $(parent).find('.ODRDynamicGraph').attr('id')
+        window['SetupGraphs_' + chart_id]();
     });
 
-    // Dynamic Swtich
-    $(".DynamicSwitch").unbind('click');
-    $(".DynamicSwitch").bind('click', function(e) {
-        $clicked = $(e.target);
-        var chart_id = $clicked.prop('id').replace(/Switch_/, '');
-        if($("#" + chart_id + "_Static_GraphWrapper").is(":visible")) {
-            $clicked.text("Switch to Static Charts");
-            $("#" + chart_id + "_Static_GraphWrapper").parent().hide();
-            $("#" + chart_id + "_GraphWrapper").parent().show();
-            window['SetupGraphs_' + chart_id]();
-        }
-        else {
-            $clicked.text("Switch to Dynamic Charts");
-            $("#" + chart_id + "_GraphWrapper").parent().hide();
-            $("#" + chart_id + "_Static_GraphWrapper").parent().show();
-        }
+    $(".DynamicGraphs").unbind('click').click(function() {
+        var parent = $(this).parent()
+        $(this).hide()
+        $(parent).find('.StaticGraphs').show()
     });
+
 
     // Setup Dynamic Graphs Selectors
     $("#{{ odr_chart_id }}_GraphWrapper .ODRMultiDropdown dt").on('click', function () {
@@ -320,7 +314,7 @@ if(PLOTLY_GLOBALS == undefined) {
                 .style({
                     width: WIDTH_IN_PERCENT_OF_PARENT + '%',
                     'margin-left': (100 - WIDTH_IN_PERCENT_OF_PARENT) / 2 + '%',
-                    height: (HEIGHT_IN_PERCENT_OF_PARENT / 2) + 'vh',
+                    height: HEIGHT_IN_PERCENT_OF_PARENT + 'vh',
                     'margin-top': '0vh'
                 });
 
@@ -333,76 +327,110 @@ if(PLOTLY_GLOBALS == undefined) {
     var PLOTLY_GLOBALS = true
 }
 
+function odrCSV() {
+    return d3.xhr(arguments[0]).get(function (err, response) {
+        var dirtyCSV = response.responseText;
+        // Strip Headers
+        var cleanCSV = []
+        var tmpCSV = dirtyCSV.split('\n');
+        tmpCSV.forEach(function(line) {
+            if(!line.match(/^#/)) {
+                console.log('j')
+                cleanCSV.push(line)
+            }
+        })
+        console.log('csv cleaned')
+        return cleanCSV
+    })
+}
+
 function histogramChartPlotly(chart_obj) {
 
     var data = []
 
-    // var myData = new Array();   //You need data...
-    console.log('HISTOGRAM CHART PLOTLY')
-    console.log(chart_obj)
-    var loaded_data = []
-    $("#" + chart_obj.chart_id + '_GraphWrapper ul :checked').each(function() {
-        if($(this).val() != "ALL" && !$(this).hasClass('NoGraph')) {
-            if(loaded_data[$(this).val()] == undefined) {
-                console.log('Plotting ' + $(this).val())
-                var line = chart_obj.data[$(this).val()]
-                var x = []
-                for (var i = 0; i < line.values.length; i++) {
-                    x.push(line.values[i].x)
-                }
-
-                // Build the trace object for Plotly
-                var trace = {}
-                if(chart_obj.histogram_dir != undefined && chart_obj.histogram_dir == "horizontal") {
-                    trace.y = x
-                }
-                else {
-                    trace.x = x
-                }
-                trace.opacity = '0.6'
-                trace.type = 'histogram'
-                // Name used for grouping bars
-                trace.name = line.key
-
-                data.push(trace)
-                console.log(trace)
-
-                // Store that this data is loaded
-                loaded_data[$(this).val()] = 1
-            }
-        }
-    });
-
-    var layout = {
-        hovermode: 'closest',
-        margin: {
-            l: 70,
-            r: 20,
-            b: 70,
-            t: 20,
-            pad: 4
-        },
-        bargap: 0.05,
-        bargroupgap: 0.2,
+    var q = d3.queue();
+    for(var url in chart_obj.data_file_ids) {
+        q = q.defer(odrCSV, url);
     }
-
-    if(chart_obj.histogram_stack != undefined) {
-        if(chart_obj.histogram_stack == "stacked") {
-            layout.barmode = "stack"
-        }
-        else if(chart_obj.histogram_stack == "overlay") {
-            layout.barmode = "overlay";
-        }
-    }
+    q.await(
+            function(error)  {
+                console.log('function execute')
+                console.log(chart_obj)
+                if(error) { console.log(error); }
 
 
+                // skip 0 it's error variable
+                for (i = 1; i < arguments.length; i++) {
+                    var data = arguments[i];
+                }
+
+                // var myData = new Array();   //You need data...
+                console.log('HISTOGRAM CHART PLOTLY')
+                console.log(chart_obj)
+                var loaded_data = []
+                for(var dr_id in chart_obj.data) {
+                    if(dr_id != "rollup") {
+                        if(loaded_data[dr_id] == undefined) {
+                            console.log('Plotting ' + dr_id)
+                            var line = chart_obj.data[dr_id]
+                            var x = []
+                            for (var i = 0; i < line.values.length; i++) {
+                                x.push(line.values[i].x)
+                            }
+
+                            // Build the trace object for Plotly
+                            var trace = {}
+                            if(chart_obj.histogram_dir != undefined && chart_obj.histogram_dir == "horizontal") {
+                                trace.y = x
+                            }
+                            else {
+                                trace.x = x
+                            }
+                            trace.opacity = '0.6'
+                            trace.type = 'histogram'
+                            // Name used for grouping bars
+                            trace.name = line.key
+
+                            data.push(trace)
+                            console.log(trace)
+
+                            // Store that this data is loaded
+                            loaded_data[dr_id] = 1
+                        }
+                    }
+                }
+
+                var layout = {
+                    hovermode: 'closest',
+                    margin: {
+                        l: 70,
+                        r: 20,
+                        b: 70,
+                        t: 20,
+                        pad: 4
+                    },
+                    bargap: 0.05,
+                    bargroupgap: 0.2,
+                }
+
+                if(chart_obj.histogram_stack != undefined) {
+                    if(chart_obj.histogram_stack == "stacked") {
+                        layout.barmode = "stack"
+                    }
+                    else if(chart_obj.histogram_stack == "overlay") {
+                        layout.barmode = "overlay";
+                    }
+                }
 
 
-    // Create responsive div for automatic resizing
-    var graph_div = plotlyResponsiveDiv(chart_obj)
-    Plotly.newPlot(graph_div, data, layout).then(function(){
-        $("#plotlybars_" + chart_obj.chart_id).hide()
-    })
+
+
+                // Create responsive div for automatic resizing
+                var graph_div = plotlyResponsiveDiv(chart_obj)
+                Plotly.newPlot(graph_div, data, layout).then(function(){
+                    $("#plotlybars_" + chart_obj.chart_id).hide()
+                })
+            })
 
 }
 
@@ -881,19 +909,22 @@ var SetupGraphs_{{ odr_chart_id }} = function() {
 
         // Set the chart id
         odr_chart_{{ odr_chart_id }}.chart_id = '{{ odr_chart_id }}';
+        var file_url = "{{ path('odr_file_download', {'file_id': '0'}) }}";
+        file_url = file_url.substr(0, file_url.length - 1);
+        odr_chart_{{ odr_chart_id }}.data_file_ids = []
+
 
         console.log('Setup Graphs')
         console.log( '{{ plugin_options.graph_type }}')
         // Get all Data
-        var count = 0
+
         {% for drcid, file in odr_chart_files %}
-            var file = '{{ file.localFileName }}';
-            var line_color = '{# line_colors[loop.index0] #}111111'
+            var file = '{{ file.id }}';
+            // var line_color = '{# line_colors[loop.index0] #}111111'
             if(file != "") {
                 {% for mydrcid, legend in odr_chart_legend %}
                     {% if mydrcid == drcid %}
-                        count++;
-                        odr_chart_{{ odr_chart_id }}.data[{{ drcid}}] = ODRGetGraphData(file,  line_color, '{{ legend }}', '{{ plugin_options.graph_type }}');
+                        odr_chart_{{ odr_chart_id }}.data_file_ids[file_url + file] = '{{ legend }}'
                     {% endif %}
                 {% endfor %}
             }
@@ -904,33 +935,14 @@ var SetupGraphs_{{ odr_chart_id }} = function() {
         {% endfor %}
 
         // Plot selected graphs
-        // Get checked DRC IDs
         odr_chart_{{ odr_chart_id }}.GraphData(odr_chart_{{ odr_chart_id }});
 
 
-        // Set CheckAll Handler
-        $('#{{ odr_chart_id }}_GraphWrapper input[name="checkall"]').unbind('click');
-        $('#{{ odr_chart_id }}_GraphWrapper input[name="checkall"]').click(function() {
-            var checked = this.checked;
-            $(this).closest('ul').find('li.ODRData input[type=checkbox]').each(function() {
-                if(!checked) {
-                    $(this).attr('checked','checked');
-                }
-                else {
-                    $(this).removeAttr('checked');
-                }
-            });
-
-            // Update Graph Accordingly
-            ODRMultiSetSelected_{{ odr_chart_id }}(this);
-        });
-        // Set handler to graph on select change
-
-        var height = $('#{{ odr_chart_id }}_GraphWrapper').parent().children('.FieldArea:first').height();
+        /* var height = $('#{{ odr_chart_id }}_GraphWrapper').parent().children('.FieldArea:first').height();
         var width = $('#{{ odr_chart_id }}_GraphWrapper').parent().children('.FieldArea:first').width();
         var html = "<div class='ODRGraphWarning' style='min-height: 30px; width: " + width + "px;'><h2 style='margin-left: auto; margin-right:auto;'>To view files and data, please select a single data set.</h2></div>";
         $('#{{ odr_chart_id }}_GraphWrapper').parent().children('.FieldArea:first').before(html);
-        $('#{{ odr_chart_id }}_GraphWrapper').parent().children('.FieldArea').hide();
+        $('#{{ odr_chart_id }}_GraphWrapper').parent().children('.FieldArea').hide(); */
 
     }
 }
