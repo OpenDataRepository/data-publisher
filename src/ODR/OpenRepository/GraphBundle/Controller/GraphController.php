@@ -22,6 +22,13 @@ class GraphController extends ODRCustomController
     public function staticAction($plugin_id, $datatype_id, $datarecord_id, Request $request)
     {
         try {
+            $is_rollup = false;
+            // Check if this is a rollup and filter datarecord_id
+            if(preg_match('/rollup/', $datarecord_id)) {
+                $is_rollup = true;
+                $datarecord_id = preg_replace("/rollup/","",$datarecord_id);
+            }
+
             // Get Datarecord
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -120,8 +127,6 @@ class GraphController extends ODRCustomController
                 $redis->set($redis_prefix . '.associated_datarecords_for_' . $datarecord->getId(), gzcompress(serialize($associated_datarecords)));
             }
 
-//print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
-
             // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
             $datarecord_array = array();
             foreach ($associated_datarecords as $num => $dr_id) {
@@ -132,8 +137,6 @@ class GraphController extends ODRCustomController
                 foreach ($datarecord_data as $dr_id => $data)
                     $datarecord_array[$dr_id] = $data;
             }
-
-//print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 
             // If this request isn't for a top-level datarecord, then the datarecord array needs to have entries removed so twig doesn't render more than it should...TODO - still leaves more than it should...
             if ($is_top_level == 0) {
@@ -174,8 +177,6 @@ class GraphController extends ODRCustomController
                     $datatype_array[$dt_id] = $data;
             }
 
-//print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
-
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
@@ -206,7 +207,13 @@ class GraphController extends ODRCustomController
             $rendering_options['display_type'] = 100000;
             $rendering_options['is_link'] = false;
             $rendering_options['build_graph'] = true;
-            $rendering_options['datarecord_id'] = $datarecord_id;
+            if ($is_rollup) {
+                $rendering_options['datarecord_id'] = 'rollup';
+            }
+            else {
+                $rendering_options['datarecord_id'] = $datarecord_id;
+            }
+
 
             // Render the static graph
             $filename = $svc->execute($datarecord_array, $datatype, $render_plugin, $theme, $rendering_options);
