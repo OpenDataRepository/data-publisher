@@ -675,7 +675,8 @@ class ODRGroupController extends ODRCustomController
                     $admin_permission_count++;
             }
 
-            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )
+//            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )  // provide access to super admins or those with at least one 'is_datatype_admin' permission
+            if ( !$admin_user->hasRole('ROLE_ADMIN') || $admin_permission_count == 0 )          // deny access if user does not have any 'is_datatype_admin' permissions, or if user is not admin/super admin
                 return parent::permissionDeniedError();
             // --------------------
 
@@ -823,7 +824,7 @@ class ODRGroupController extends ODRCustomController
             $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
             $datatype_permissions = $admin_permissions['datatypes'];
 
-            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') )
+            if ( !$admin_user->hasRole('ROLE_ADMIN') )
                 return parent::permissionDeniedError();
 
             if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ]['dt_admin'])) )

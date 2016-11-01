@@ -828,7 +828,8 @@ class ODRUserController extends ODRCustomController
                     $admin_permission_count++;
             }
 
-            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )
+//            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )  // provide access to super admins or those with at least one 'is_datatype_admin' permission
+            if ( !$admin_user->hasRole('ROLE_ADMIN') || $admin_permission_count == 0 )          // deny access if user does not have any 'is_datatype_admin' permissions, or if user is not admin/super admin
                 return parent::permissionDeniedError();
             // --------------------
 
@@ -837,17 +838,17 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser[] $user_list */
             $user_list = $user_manager->findUsers();
 
-            // Reduce user list to those that possess a view permission to datatypes this user has admin permissions for, excluding super admins
+            // If the user is not a super admin, then only show users that have the 'can_view_datatype' permission for datatypes that the calling user has 'is_datatype_admin'
             if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') ) {
                 $tmp = array();
                 foreach ($user_list as $user) {
-                    // Don't add super admins to this list if the user isn't a super admin themself
-                    if (!$user->hasRole('ROLE_SUPER_ADMIN')) {
+                    // Because the calling user is not a super admin, don't add super admins to the list of users
+                    if ( !$user->hasRole('ROLE_SUPER_ADMIN') ) {
                         $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
                         $user_permissions = $user_permissions['datatypes'];
 
                         foreach ($user_permissions as $datatype_id => $up) {
-                            if ( isset($up['view']) && $up['view'] == '1' && isset($admin_permissions[$datatype_id]) ) {
+                            if ( isset($admin_permissions[$datatype_id]) && isset($admin_permissions[$datatype_id]['dt_admin']) && isset($up['dt_view']) ) {
                                 $tmp[] = $user;
                                 break;
                             }
@@ -1305,7 +1306,7 @@ class ODRUserController extends ODRCustomController
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Require admin user to have at least admin role to do this...
-            if ( $admin_user->hasRole('ROLE_SUPER_ADMIN') ) {
+            if ( $admin_user->hasRole('ROLE_ADMIN') ) {
                 // Grab permissions of both target user and admin
                 $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
                 $datatype_permissions = $admin_permissions['datatypes'];
@@ -1405,7 +1406,7 @@ class ODRUserController extends ODRCustomController
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Require admin user to have at least admin role to do this...
-            if ( $admin_user->hasRole('ROLE_SUPER_ADMIN') ) {
+            if ( $admin_user->hasRole('ROLE_ADMIN') ) {
                 // Grab permissions of both target user and admin
                 $admin_permissions = parent::getUserPermissionsArray($em, $admin_user->getId());
                 $datatype_permissions = $admin_permissions['datatypes'];

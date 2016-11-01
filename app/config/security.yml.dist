@@ -39,49 +39,59 @@ security:
             anonymous:    true
 
     access_control:
+##########
+# These need to stay anonymous, otherwise users are unable to log in
         - { path: ^/login$, role: IS_AUTHENTICATED_ANONYMOUSLY }
         - { path: ^/register, role: IS_AUTHENTICATED_ANONYMOUSLY }
         - { path: ^/resetting, role: IS_AUTHENTICATED_ANONYMOUSLY }
 
 ##########
+# These need to stay anonymous
         - { path: ^/search, role: IS_AUTHENTICATED_ANONYMOUSLY }     # search page
         - { path: ^/view, role: IS_AUTHENTICATED_ANONYMOUSLY }       # display mode
-        - { path: ^/api, role: ROLE_USER }                           # XML/XSD download
-        - { path: ^/beanstalk, role: IS_AUTHENTICATED_ANONYMOUSLY }  # beanstalk doesn't have a login
+        - { path: ^/beanstalk, role: IS_AUTHENTICATED_ANONYMOUSLY }  # beanstalk doesn't have a login, uses secret key defined in parameters.yml for authentication
 
 ##########
+# Regular use of site for logged-in users
+#        - { path: ^/api, role: ROLE_USER }                           # XML/XSD download
         - { path: ^/admin$, role: ROLE_USER }                     # front page
         - { path: ^/admin/dashboard, role: ROLE_USER }            # dashboard
         - { path: ^/profile, role: ROLE_USER }                    # ability to edit own profile
 
         - { path: ^/admin/type/list/records, role: ROLE_USER }    # can see page that provides links to add/edit/import datarecords for a datatype
         - { path: ^/edit, role: ROLE_USER }                       # Editing and CSV Import
-        - { path: ^/jobs, role: ROLE_USER }                       #
+        - { path: ^/jobs, role: ROLE_USER }                       # Active Jobs page
 
-##########
         - { path: ^/admin/type/list/design, role: ROLE_USER }     # can see page that provides links to design the layout of datatypes
-        - { path: ^/admin/type/add, role: ROLE_ADMIN }
-#        - { path: ^/admin/type/recache_all, role: ROLE_SUPER_ADMIN }
+        - { path: ^/admin/type/add, role: ROLE_ADMIN }            # Creating a new datatype
+
         - { path: ^/design, role: ROLE_USER }                     # ability to design results/records and shortresults layouts
 #        - { path: ^/plugin, role: ROLE_USER }                     # ability to modify render plugin settings
 
 ##########
-        - { path: ^/admin/user/list, role: ROLE_USER }
-        - { path: ^/admin/group, role: ROLE_USER }
-        - { path: ^/admin/user/managegroups, role: ROLE_USER }
-        - { path: ^/admin/user/changegroup, role: ROLE_USER }
+# These need to eventually get changed to "ROLE_USER"...
+        - { path: ^/admin/user/list, role: ROLE_ADMIN }           # View user list
+        - { path: ^/admin/group, role: ROLE_ADMIN }               # View/Add/Modify/Delete groups for a datatype
+        - { path: ^/admin/user/managegroups, role: ROLE_ADMIN }   # View user membership in groups
+        - { path: ^/admin/user/changegroup, role: ROLE_ADMIN }    # Change user membership in groups
+
+        - { path: ^/admin/user/view_as, role: ROLE_ADMIN }        # View effective permissions for a user
+        - { path: ^/admin/user/view_theme, role: ROLE_ADMIN }
 
         - { path: ^/admin/massedit, role: ROLE_ADMIN }            # Mass Edit
         - { path: ^/admin/csvexport, role: ROLE_ADMIN }           # CSV Download
 
-        - { path: ^/admin/new_user, role: ROLE_ADMIN }
+##########
+        - { path: ^/admin/new_user, role: ROLE_ADMIN }            # Create new user
 #        - { path: ^/admin/user/change_password, role: ROLE_ADMIN }
-        - { path: ^/admin/user/edit, role: ROLE_ADMIN }
-        - { path: ^/admin/user/save, role: ROLE_ADMIN }
+        - { path: ^/admin/user/edit, role: ROLE_ADMIN }           # View other users' profiles
+        - { path: ^/admin/user/save, role: ROLE_ADMIN }           # Make changes to other users' profiles
 
-        - { path: ^/admin/user/manage/roles, role: ROLE_SUPER_ADMIN }
-        - { path: ^/admin/user/setrole, role: ROLE_SUPER_ADMIN }
-        - { path: ^/admin/user/delete, role: ROLE_SUPER_ADMIN }
-        - { path: ^/admin/user/undelete, role: ROLE_SUPER_ADMIN }
+##########
+        - { path: ^/admin/user/manage/roles, role: ROLE_SUPER_ADMIN }   # View roles of other users
+        - { path: ^/admin/user/setrole, role: ROLE_SUPER_ADMIN }        # Change roles of other users
+        - { path: ^/admin/user/delete, role: ROLE_SUPER_ADMIN }         # Delete users
+        - { path: ^/admin/user/undelete, role: ROLE_SUPER_ADMIN }       # Un-delete users
 
+#        - { path: ^/admin/type/recache_all, role: ROLE_SUPER_ADMIN }
         - { path: ^/admin, role: ROLE_SUPER_ADMIN }                     # everything else should already be covered?
