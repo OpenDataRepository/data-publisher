@@ -1450,7 +1450,6 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
             $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
 
-
             /** @var ThemeElement $initial_theme_element */
             /** @var ThemeElement $ending_theme_element */
             $initial_theme_element = $repo_theme_element->find($initial_theme_element_id);
@@ -1463,10 +1462,9 @@ class ThemeController extends ODRCustomController
             if ( $initial_theme_element->getTheme()->getId() !== $ending_theme_element->getTheme()->getId() )
                 throw new \Exception('Unable to move a datafield between Themes');
 
-
             $theme = $initial_theme_element->getTheme();
             $datatype = $theme->getDataType();
-            if ( $datatype == null )
+            if ( $datatype->getDeletedAt() != null )
                 return parent::deletedEntityError('DataType');
 
             // --------------------
@@ -1481,6 +1479,16 @@ class ThemeController extends ODRCustomController
                 return parent::permissionDeniedError("edit");
             // --------------------
 
+
+            // ----------------------------------------
+            // Ensure there's not a child or linked datatype in the ending theme_element before actually moving this datafield into it
+            /** @var ThemeDataType[] $theme_datatypes */
+            $theme_datatypes = $em->getRepository('ODRAdminBundle:ThemeDataType')->findBy( array('themeElement' => $ending_theme_element_id) );
+            if ( count($theme_datatypes) > 0 )
+                throw new \Exception('Unable to move a Datafield into a ThemeElement that already has a child/linked Datatype');
+
+
+            // ----------------------------------------
             // Ensure datafield list in $post is valid
             $query = $em->createQuery(
                'SELECT dt.id AS dt_id

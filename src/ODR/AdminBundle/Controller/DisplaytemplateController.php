@@ -1215,6 +1215,14 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Ensure there's not a child or linked datatype in this theme_element before going and creating a new datafield
+            /** @var ThemeDataType[] $theme_datatypes */
+            $theme_datatypes = $em->getRepository('ODRAdminBundle:ThemeDataType')->findBy( array('themeElement' => $theme_element_id) );
+            if ( count($theme_datatypes) > 0 )
+                throw new \Exception('Unable to add a Datafield into a ThemeElement that already has a child/linked Datatype');
+
+
+            // ----------------------------------------
             // Grab objects required to create a datafield entity
             /** @var FieldType $fieldtype */
             $fieldtype = $em->getRepository('ODRAdminBundle:FieldType')->findOneBy( array('typeName' => 'Short Text') );
@@ -1790,8 +1798,18 @@ class DisplaytemplateController extends ODRCustomController
                 return parent::permissionDeniedError("edit");
             // --------------------
 
+
+            // ----------------------------------------
+            // Ensure that this action isn't being called on a derivative theme
             if ($theme->getThemeType() !== 'master')
                 throw new \Exception('Unable to create a new child Datatype outside of the master Theme');
+
+            // Ensure there are no datafields in this theme_element before going and creating a child datatype
+            /** @var ThemeDataField[] $theme_datafields */
+            $theme_datafields = $em->getRepository('ODRAdminBundle:ThemeDataField')->findBy( array('themeElement' => $theme_element_id) );
+            if ( count($theme_datafields) > 0 )
+                throw new \Exception('Unable to add a child Datatype into a ThemeElement that already has Datafields');
+
 
             // ----------------------------------------
             // Defaults
@@ -1982,10 +2000,20 @@ class DisplaytemplateController extends ODRCustomController
                 return parent::permissionDeniedError("edit");
             // --------------------
 
+
+            // ----------------------------------------
+            // Ensure that this action isn't being called on a derivative theme
             if ($theme->getThemeType() !== 'master')
                 throw new \Exception('Unable to link to a remote Datatype outside of the master Theme');
 
+            // Ensure there are no datafields in this theme_element before attempting to link to a remote datatype
+            /** @var ThemeDataField[] $theme_datafields */
+            $theme_datafields = $em->getRepository('ODRAdminBundle:ThemeDataField')->findBy( array('themeElement' => $theme_element_id) );
+            if ( count($theme_datafields) > 0 )
+                throw new \Exception('Unable to link a remote Datatype into a ThemeElement that already has Datafields');
 
+
+            // ----------------------------------------
             // Locate the previously linked datatype if it exists
             /** @var DataType|null $current_remote_datatype */
             $has_linked_datarecords = false;
@@ -2201,8 +2229,17 @@ class DisplaytemplateController extends ODRCustomController
                 return parent::permissionDeniedError('edit');
             // --------------------
 
+
+            // ----------------------------------------
+            // Ensure that this action isn't being called on a derivative theme
             if ($theme->getThemeType() !== 'master')
                 throw new \Exception('Unable to link to a remote Datatype outside of the master Theme');
+
+            // Ensure there are no datafields in this theme_element before attempting to link to a remote datatype
+            /** @var ThemeDataField[] $theme_datafields */
+            $theme_datafields = $em->getRepository('ODRAdminBundle:ThemeDataField')->findBy( array('themeElement' => $theme_element_id) );
+            if ( count($theme_datafields) > 0 )
+                throw new \Exception('Unable to link a remote Datatype into a ThemeElement that already has Datafields');
 
 
             // ----------------------------------------

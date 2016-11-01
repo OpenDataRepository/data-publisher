@@ -951,6 +951,7 @@ $ret .= '  Set current to '.$count."\n";
         foreach ($results as $result) {
             $dr_id = $result['dr_id'];
 
+            $redis->del($redis_prefix.'.associated_datarecords_for_'.$dr_id);
             $redis->del($redis_prefix.'.cached_datarecord_'.$dr_id);
             $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
         }
