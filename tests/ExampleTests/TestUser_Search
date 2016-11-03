@@ -51,7 +51,11 @@
 	<td>css=strong</td>
 	<td>You don't have permission to access this DataType.</td>
 </tr>
-
+<tr>
+	<td>assertText</td>
+	<td>id=content</td>
+	<td>You don't have permission to access this DataType.</td>
+</tr>
 </tbody></table>
 </body>
 </html>
