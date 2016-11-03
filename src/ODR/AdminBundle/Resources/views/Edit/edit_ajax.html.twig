@@ -15,6 +15,12 @@
             <button type="button" class="pure-button" onclick="LinkRecord({{ datatype.id }},{{ descendant_id }},{{ datarecord.id }});">Link to {{ descendant_name }}.</button>
         {% endif %}
     {% endfor %}
+
+    {% for dt_id, dt_name in disabled_datatype_links %}
+        {% if datatype_permissions[ dt_id ] is defined and datatype_permissions[ dt_id ][ 'dr_edit' ] is defined %}
+            <button type="button" class="pure-button pure-button-disabled" title="Unablet to link to Datarecords of this Datatype because it does not have a Table Theme.">Link to {{ dt_name }}.</button>
+        {% endif %}
+    {% endfor %}
 </div>
 
 

@@ -2220,6 +2220,13 @@ if ($debug) {
 if ($debug)
     print "\nremote datatype: ".$remote_datatype->getId()."\n";
 
+            // ----------------------------------------
+            // Ensure the remote datatype has a table theme...
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $remote_datatype->getId(), 'themeType' => 'table') );
+            if ($theme == null)
+                throw new \Exception('Remote Datatype does not have a Table Theme');
+
 
             // ----------------------------------------
             // Grab all datarecords currently linked to the local_datarecord
@@ -2327,12 +2334,6 @@ if ($debug) {
 
 
             // ----------------------------------------
-            // Convert the list of already-linked datarecords into table format for displaying and manipulation
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $remote_datatype->getId(), 'themeType' => 'table') );
-            if ($theme == null)
-                return parent::deletedEntityError('Theme');
-
             // Convert the list of linked datarecords into a slightly different format so renderTextResultsList() can build it
             $datarecord_list = array();
             foreach ($linked_datarecords as $dr_id => $value)
@@ -3002,8 +3003,6 @@ if ($debug)
 
 
         // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-        $stacked_datarecord_array[ $initial_datarecord_id ] = parent::stackDatarecordArray($datarecord_array, $initial_datarecord_id);
-
         $stacked_datarecord_array = array();
         $stacked_datatype_array = array();
         if ($template_name == 'default') {
@@ -3014,7 +3013,6 @@ if ($debug)
             $stacked_datarecord_array[ $initial_datarecord_id ] = parent::stackDatarecordArray($datarecord_array, $initial_datarecord_id);
             $stacked_datatype_array[ $child_datatype->getId() ] = parent::stackDatatypeArray($datatype_array, $child_datatype->getId(), $theme->getId());
         }
-
 //print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
 //print '<pre>'.print_r($stacked_datatype_array, true).'</pre>';  exit();
 
@@ -3025,7 +3023,7 @@ if ($debug)
 
         $html = '';
         if ($template_name == 'default') {
-
+            // ----------------------------------------
             // Need to determine ids and names of datatypes this datarecord can link to
             $query = $em->createQuery(
                'SELECT ancestor.id AS ancestor_id, ancestor_meta.shortName AS ancestor_name, descendant.id AS descendant_id, descendant_meta.shortName AS descendant_name
@@ -3049,6 +3047,38 @@ if ($debug)
                     $linked_datatype_ancestors[ $result['ancestor_id'] ] = $result['ancestor_name'];
             }
 
+            // ----------------------------------------
+            // Remove ids/names of datatypes this datarecord can link to if the datatype doesn't have a table theme
+            $disabled_datatype_links = array();
+            foreach ($linked_datatype_descendants as $dt_id => $dt_name) {
+
+                $has_table_theme = false;
+                foreach ($datatype_array[$dt_id]['themes'] as $num => $t) {
+                    if ($t['themeType'] == 'table')
+                        $has_table_theme = true;
+                }
+
+                if (!$has_table_theme) {
+                    $disabled_datatype_links[$dt_id] = $dt_name;
+                    unset( $linked_datatype_descendants[$dt_id] );
+                }
+            }
+            foreach ($linked_datatype_ancestors as $dt_id => $dt_name) {
+
+                $has_table_theme = false;
+                foreach ($datatype_array[$dt_id]['themes'] as $num => $t) {
+                    if ($t['themeType'] == 'table')
+                        $has_table_theme = true;
+                }
+
+                if (!$has_table_theme) {
+                    $disabled_datatype_links[$dt_id] = $dt_name;
+                    unset( $linked_datatype_ancestors[$dt_id] );
+                }
+            }
+
+
+            // ----------------------------------------
             // Generate a csrf token for each of the datarecord/datafield pairs
             $token_list = self::generateCSRFTokens($datatype_array, $datarecord_array);
 
@@ -3069,6 +3099,7 @@ if ($debug)
 
                     'linked_datatype_ancestors' => $linked_datatype_ancestors,
                     'linked_datatype_descendants' => $linked_datatype_descendants,
+                    'disabled_datatype_links' => $disabled_datatype_links,
 
                     'is_top_level' => $is_top_level,
                     'token_list' => $token_list,

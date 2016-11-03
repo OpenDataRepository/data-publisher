@@ -2119,6 +2119,19 @@ class DisplaytemplateController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Need to display a warning when the potential remote datatype doesn't have a table theme
+            $datatypes_with_table_themes = array();
+            foreach ($linkable_datatypes as $l_dt) {
+                foreach ($l_dt->getThemes() as $t) {
+                    /** @var Theme $t */
+                    if ($t->getThemeType() == 'table')
+                        $datatypes_with_table_themes[ $l_dt->getId() ] = 1;
+                }
+            }
+//print '<pre>'.print_r($datatypes_with_table_themes, true).'</pre>';  exit();
+
+
+            // ----------------------------------------
             // Get Templating Object
             $templating = $this->get('templating');
             $return['d'] = array(
@@ -2131,6 +2144,7 @@ class DisplaytemplateController extends ODRCustomController
                         'linkable_datatypes' => $linkable_datatypes,
 
                         'has_linked_datarecords' => $has_linked_datarecords,
+                        'datatypes_with_table_themes' => $datatypes_with_table_themes,
                     )
                 )
             );
