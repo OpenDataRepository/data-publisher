@@ -725,149 +725,11 @@ striping:
     border-bottom-width: 0;
 }
 
-/* from PURE menu-core.css */
-/*csslint adjoining-classes:false, outline-none:false*/
-/*TODO: Remove this lint rule override after a refactor of this code.*/ 
-
-.pure-skin-odr .pure-menu ul {
-    position: absolute;
-    visibility: hidden;
-}
-
-.pure-skin-odr .pure-menu.pure-menu-open {
-    visibility: visible;
-    z-index: 2;
-    width: 100%;
-}
-
-.pure-skin-odr .pure-menu ul {
-    left: -10000px;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    top: -10000px;
-    z-index: 1;
-}
-
-.pure-skin-odr .pure-menu > ul { position: relative; }
-
-.pure-skin-odr .pure-menu-open > ul {
-    left: 0;
-    top: 0;
-    visibility: visible;
-}
-
-.pure-skin-odr .pure-menu-open > ul:focus {
-    outline: 0;
-}
-
-.pure-skin-odr .pure-menu li {
-    position: relative;
-}
-
-.pure-skin-odr .pure-menu a, .pure-skin-odr .pure-menu .pure-menu-heading {
-    display: block;
-    color: inherit;
-    line-height: 1.5em;
-    padding: 0.55em 1.4em;
-    text-decoration: none;
-    white-space: nowrap;
-}
-
-.pure-skin-odr .pure-menu.pure-menu-horizontal > .pure-menu-heading {
-    display: inline-block;
-    *display: inline;
-    zoom: 1;
-    margin: 0;
-    vertical-align: middle;
-}
-.pure-skin-odr .pure-menu.pure-menu-horizontal > ul {
-    display: inline-block;
-    *display: inline;
-    zoom: 1;
-    vertical-align: middle;
-    /* height: 2.4em; removed for Skin Builder */
-}
-
-.pure-skin-odr .pure-menu li a { padding: 0.55em 1.4em; }
-
-.pure-skin-odr .pure-menu-can-have-children > .pure-menu-label:after {
-    content: '\25B8';
-    float: right;
-    font-family: 'Lucida Grande', 'Lucida Sans Unicode', 'DejaVu Sans', sans-serif; /* These specific fonts have the Unicode char we need. */
-    margin-right: -20px;
-    margin-top: -1px;
-}
-
-.pure-skin-odr .pure-menu-can-have-children > .pure-menu-label {
-    padding-right: 30px;
-}
-
-.pure-skin-odr .pure-menu-separator {
-    background-color: #ededed;
-    display: block;
-    height: 1px;
-    font-size: 0;
-    margin: 7px 2px;
-    overflow: hidden;
-}
-
-.pure-skin-odr .pure-menu-hidden {
-    display: none;
-}
-
-/* FIXED MENU */
-.pure-skin-odr .pure-menu-fixed {
-    position: fixed;
-    top:0;
-    left:0;
-    width: 100%;
-}
-
-
-/* HORIZONTAL MENU CODE */
-
-/* Initial menus should be inline-block so that they are horizontal */
-.pure-skin-odr .pure-menu-horizontal li {
-    display: inline-block;
-    *display: inline;
-    zoom: 1;
-    vertical-align: middle;
-}
-
-/* Submenus should still be display:block; */
-.pure-skin-odr .pure-menu-horizontal li li {
-    display: block;
-}
-
-/* Content after should be down arrow */
-.pure-skin-odr .pure-menu-horizontal > .pure-menu-children > .pure-menu-can-have-children > .pure-menu-label:after {
-    content: "\25BE";
-}
-/*Add extra padding to elements that have the arrow so that the hover looks nice */
-.pure-skin-odr .pure-menu-horizontal > .pure-menu-children > .pure-menu-can-have-children > .pure-menu-label {
-    padding-right: 30px;
-}
-
-/* Adjusting separator for vertical menus */
-.pure-skin-odr .pure-menu-horizontal li.pure-menu-separator {
-    height: 50%;
-    width: 1px;
-    margin: 0 7px;
-}
-
-/* Submenus should be horizontal separator again */
-.pure-skin-odr .pure-menu-horizontal li li.pure-menu-separator {
-height: 1px;
-width: auto;
-margin: 7px 2px;
-}
-
 
 /* end from yuicss/menu-core.css *******************************************/
 /* from yuicss menu-paginator.css */
 /*csslint box-model:false*/
-/*TODO: Remove this lint rule override after a refactor of this code.*/ 
+/*TODO: Remove this lint rule override after a refactor of this code.*/
 
 .pure-skin-odr .pure-paginator {
 
@@ -919,107 +781,6 @@ margin: 7px 2px;
 }
 /* end from PURE menu-paginator.css ******************************/
 /* from PURE menu.css *******************************************/
-/* MAIN MENU STYLING */
-/*csslint adjoining-classes:false*/
-/*TODO: Remove this lint rule override after a refactor of this code.*/ 
-
-.pure-skin-odr .pure-menu.pure-menu-open,
-.pure-skin-odr .pure-menu.pure-menu-horizontal li .pure-menu-children {
-    background: #fafafa; /* Old browsers */
-    border: 1px solid #ededed;
-}
-
-/* remove borders for horizontal menus */
-.pure-skin-odr .pure-menu.pure-menu-horizontal,
-.pure-skin-odr .pure-menu.pure-menu-horizontal .pure-menu-heading {
-    border: none;
-}
-
-
-/* LINK STYLES */
-
-.pure-skin-odr .pure-menu a {
-    border: 1px solid transparent;
-    border-left: none;
-    border-right: none;
-
-}
-
-.pure-skin-odr .pure-menu a,
-.pure-skin-odr .pure-menu .pure-menu-can-have-children > li:after {
-    color: #878787;
-}
-
-.pure-skin-odr .pure-menu .pure-menu-can-have-children > li:hover:after {
-    color: #6e6e6e;
-}
-
-/* Focus style for a dropdown menu-item when the parent has been opened */
-.pure-skin-odr .pure-menu .pure-menu-open {
-    background: #dedede;
-}
-
-.pure-skin-odr .pure-menu li a:hover,
-.pure-skin-odr .pure-menu li a:focus {
-    background: #dedede;
-}
-
-/* DISABLED STATES */
-.pure-skin-odr .pure-menu li.pure-menu-disabled a:hover,
-.pure-skin-odr .pure-menu li.pure-menu-disabled a:focus {
-    background: #fafafa;
-    color: #c7c7c7;
-}
-
-.pure-skin-odr .pure-menu .pure-menu-disabled > a {
-    background-image: none;
-    border-color: transparent;
-    cursor: default;
-}
-
-.pure-skin-odr .pure-menu .pure-menu-disabled > a,
-.pure-skin-odr .pure-menu .pure-menu-can-have-children.pure-menu-disabled > a:after {
-    color: #c7c7c7;
-}
-
-/* HEADINGS */
-.pure-skin-odr .pure-menu .pure-menu-heading {
-    color: #6e6e6e;
-    text-transform: uppercase;
-    font-size: 90%;
-    margin-top: 0.5em;
-    border-bottom: solid 1px #ededed;
-}
-
-
-/* SELECTED MENU ITEM */
-.pure-skin-odr .pure-menu li.pure-menu-selected a {
-    background-color: #9AB5EF;
-    color: #173f96;
-}
-
-/* FIXED MENU */
-.pure-skin-odr .pure-menu.pure-menu-open.pure-menu-fixed {
-    border: none;
-    border-bottom: 1px solid #ededed;
-}
-/* end from PURE menu.css ***********************************/
-/* from PURE menu-responsive.css ****************************/
-/* RESPONSIVE */
-
-@media (max-width: 480px) {
-
-    .pure-skin-odr .pure-menu-horizontal {
-        width:100%;
-    }
-
-    .pure-skin-odr .pure-menu-children li {
-        display: block;
-        border-bottom:1px solid #ededed;
-    }
-
-}
-/* end from menu-responsive.css ******************/
 
 
 h1 {
@@ -1287,141 +1048,6 @@ code {
 #layout.active .menu-link {
     left: 160px;
 }
-
-#menu {
-    margin-left: -160px; /* "#menu" width */
-    width: 160px;
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    z-index: 1000; /* so the menu or its navicon stays above all content */
-    background: #191818;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-}
-    #menu a {
-        color: #999;
-        border: none;
-        white-space: normal;
-        padding: 0.625em 1em;
-    }
-
-    #menu .pure-menu-open {
-        background: transparent;
-        border: 0;
-    }
-
-    #menu .pure-menu ul {
-        border: none;
-        background: transparent;
-    }
-
-    #menu .pure-menu ul,
-    #menu .pure-menu .menu-item-divided {
-        border-top: 1px solid #333;
-    }
-
-        #menu .pure-menu li a:hover,
-        #menu .pure-menu li a:focus {
-            background: #333;
-        }
-
-    .menu-link {
-        position: fixed;
-        display: block; /* show this only on small screens */
-        top: 0;
-        left: 0; /* "#menu width" */
-        background: #000;
-        background: rgba(0,0,0,0.7);
-        font-size: 11px; /* change this value to increase/decrease button size */
-        z-index: 10;
-        width: 4em;
-        height: 4em;
-        padding: 1em;
-    }
-
-        .menu-link:hover,
-        .menu-link:focus {
-            background: #000;
-        }
-
-        .menu-link span {
-            position: relative;
-            display: block;
-            margin-top: 0.9em;
-        }
-
-        .menu-link span,
-        .menu-link span:before,
-        .menu-link span:after {
-            background-color: #fff;
-            width: 100%;
-            height: .2em;
-            -webkit-transition: all 0.4s;
-               -moz-transition: all 0.4s;
-                -ms-transition: all 0.4s;
-                 -o-transition: all 0.4s;
-                    transition: all 0.4s;
-        }
-
-            .menu-link span:before,
-            .menu-link span:after {
-                position: absolute;
-                top: -.55em;
-                content: " ";
-            }
-
-            .menu-link span:after {
-                top: .55em;
-            }
-
-        .menu-link.active span {
-            background: transparent;
-        }
-
-            .menu-link.active span:before {
-                -webkit-transform: rotate(45deg) translate(.5em, .4em);
-                   -moz-transform: rotate(45deg) translate(.5em, .4em);
-                    -ms-transform: rotate(45deg) translate(.5em, .4em);
-                     -o-transform: rotate(45deg) translate(.5em, .4em);
-                        transform: rotate(45deg) translate(.5em, .4em);
-            }
-
-            .menu-link.active span:after {
-                -webkit-transform: rotate(-45deg) translate(.4em, -.3em);
-                   -moz-transform: rotate(-45deg) translate(.4em, -.3em);
-                    -ms-transform: rotate(-45deg) translate(.4em, -.3em);
-                     -o-transform: rotate(-45deg) translate(.4em, -.3em);
-                        transform: rotate(-45deg) translate(.4em, -.3em);
-            }
-
-    #menu .pure-menu-heading {
-        font-size: 125%;
-        font-weight: 300;
-        letter-spacing: 0.1em;
-        color: #fff;
-        margin-top: 0;
-        padding: 0.5em 0.8em;
-    }
-    #menu .pure-menu-heading:hover,
-    #menu .pure-menu-heading:focus {
-        color: #999;
-    }
-
-    #menu .pure-menu-selected {
-        background: #1f8dd6;
-    }
-
-        #menu .pure-menu-selected a {
-            color: #fff;
-        }
-
-        #menu li.pure-menu-selected a:hover,
-        #menu li.pure-menu-selected a:focus {
-            background: none;
-        }
-
 
 
 /* ---------------------
@@ -1927,10 +1553,6 @@ footer .ODRLogoImage img {
     margin: 5px;
 }
 
-
-
-
-
 /* pure-hidden-xs */
 @media screen and (max-width:567px) {
     .pure-visible-sm{display:none}
@@ -1938,6 +1560,15 @@ footer .ODRLogoImage img {
     .pure-visible-lg{display:none}
     .pure-visible-xl{display:none}
     .pure-hidden-xs{display:none}
+
+    .ODRDynamicGraph {
+        /* min-width: 300px; */
+        min-height: 100px;
+    }
+    .ODRStaticGraph {
+        /* min-width: 300px; */
+        min-height: 100px;
+    }
 }
 /* pure-hidden-sm */
 @media screen and (min-width:568px) and (max-width:767px) {
@@ -1946,6 +1577,15 @@ footer .ODRLogoImage img {
     .pure-visible-lg{display:none}
     .pure-visible-xl{display:none}
     .pure-hidden-sm{display:none}
+
+    .ODRDynamicGraph {
+        /* min-width: 500px; */
+        min-height: 166px;
+    }
+    .ODRStaticGraph {
+        /* min-width: 500px; */
+        min-height: 166px;
+    }
 }
 /* pure-hidden-md */
 @media screen and (min-width:768px) and (max-width:1023px) {
@@ -1954,6 +1594,15 @@ footer .ODRLogoImage img {
     .pure-visible-lg{display:none}
     .pure-visible-xl{display:none}
     .pure-hidden-md{display:none}
+
+    .ODRDynamicGraph {
+        /* min-width: 740px; */
+        min-height: 246px;
+    }
+    .ODRStaticGraph {
+        /* min-width: 740px; */
+        min-height: 246px;
+    }
 }
 /* pure-hidden-lg */
 @media screen and (min-width:1024px) and (max-width:1279px) {
@@ -1962,6 +1611,15 @@ footer .ODRLogoImage img {
     .pure-visible-md{display:none}
     .pure-visible-xl{display:none}
     .pure-hidden-lg{display:none}
+
+    .ODRDynamicGraph {
+        /* min-width: 960px; */
+        min-height: 320px;
+    }
+    .ODRStaticGraph {
+        /* min-width: 960px; */
+        min-height: 320px;
+    }
 }
 /* pure-hidden-xl */
 @media screen and (min-width:1280px) {
@@ -1970,83 +1628,47 @@ footer .ODRLogoImage img {
     .pure-visible-md{display:none}
     .pure-visible-lg{display:none}
     .pure-hidden-xl{display:none}
+
+    .ODRDynamicGraph {
+        /* min-width: 1200px; */
+        min-height: 400px;
+    }
+    .ODRStaticGraph {
+        /* min-width: 1200px; */
+        min-height: 400px;
+    }
 }
 
 
-.ODRMenuWrapper {
-    background-color: #ffd390;
-    margin-bottom: 1em;
-    -webkit-font-smoothing: antialiased;
-    height: 2.1em;
-    overflow: hidden;
-    -webkit-transition: height 0.5s;
-    -moz-transition: height 0.5s;
-    -ms-transition: height 0.5s;
-    transition: height 0.5s;
+
+
+
+.ODRStaticGraph:hover .ODRChartTrigger {
+    height: 100%;
+    display:block;
 }
 
-.ODRMenuWrapper.open {
-    height: 14em;
+.ODRStaticGraph {
+    position: relative;
+    cursor: pointer;
 }
 
-.odr-custom-menu-3 {
-    text-align: right;
-}
-
-.odr-custom-toggle {
-    width: 34px;
-    height: 34px;
-    display: block;
+.ODRChartTrigger {
+    color: #888888;
     position: absolute;
-    top: 0;
-    right: 0;
+    z-index: 100;
+    top: 0px;
+    height: 0px;
+    width: 100%;
+    text-align: center;
+    font-size: 24px;
     display: none;
+    background: rgba(255,255,255,0.7);
 }
 
-.odr-custom-toggle .bar {
-    background-color: #777;
-    display: block;
-    width: 20px;
-    height: 2px;
-    border-radius: 100px;
-    position: absolute;
-    top: 18px;
-    right: 7px;
-    -webkit-transition: all 0.5s;
-    -moz-transition: all 0.5s;
-    -ms-transition: all 0.5s;
-    transition: all 0.5s;
+.ODRChartTrigger span {
+    position: relative;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
-.odr-custom-toggle .bar:first-child {
-    -webkit-transform: translateY(-6px);
-    -moz-transform: translateY(-6px);
-    -ms-transform: translateY(-6px);
-    transform: translateY(-6px);
-}
-
-.odr-custom-toggle.x .bar {
-    -webkit-transform: rotate(45deg);
-    -moz-transform: rotate(45deg);
-    -ms-transform: rotate(45deg);
-    transform: rotate(45deg);
-}
-
-.odr-custom-toggle.x .bar:first-child {
-    -webkit-transform: rotate(-45deg);
-    -moz-transform: rotate(-45deg);
-    -ms-transform: rotate(-45deg);
-    transform: rotate(-45deg);
-}
-
-@media (max-width: 47.999em) {
-
-    .odr-custom-menu-3 {
-        text-align: left;
-    }
-
-    .odr-custom-toggle {
-        display: block;
-    }
-
-}

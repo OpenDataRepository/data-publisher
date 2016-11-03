@@ -22,62 +22,32 @@
     {% endfor %}
 {% endif %}
 
+{#{% set baseurl =  site_baseurl ~ "/" ~ search_slug %}#}
+<!-- This div is used to indicate the original position of the scrollable nav -->
+    <ul class="ODR-pure-submenu">
+        <li class="pure-menu-item"><a class="pure-menu-link" href="{{ path('odr_admin_homepage') }}"><i class="fa fa-lg fa-dashboard fa-fw"></i>Dashboard</a></li>
+        <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_self_profile_edit') }}"><i class="fa fa-lg fa-user fa-fw"></i>Profile</a></li>
+        <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_job_list') }}"><i class="fa fa-lg fa-cogs fa-fw"></i>Active Jobs</a></li>
 
-<nav class="pure-menu pure-menu-open">
-    <ul>
-        <li><a id="ODRMenu_dashboard" href="{{ path('odr_admin_homepage') }}"><i class="fa fa-lg fa-dashboard fa-fw"></i>Dashboard</a></li>
-        <li><a id="ODRMenu_profile" class="address" href="#{{ path('odr_self_profile_edit') }}"><i class="fa fa-lg fa-user fa-fw"></i>Profile</a></li>
-        <li><a id="ODRMenu_joblist" class="address" href="#{{ path('odr_job_list') }}"><i class="fa fa-lg fa-cogs fa-fw"></i>Active Jobs</a></li>
-
-        <li class="pure-menu-separator"></li>
-
-        <li><a id="ODRMenu_listrecords" class="address" href="#{{ path('odr_list_types', { 'section': 'records' } ) }}" title="List Records"><i class="fa fa-lg fa-fw fa-list"></i>List Records</a></li>
-{% if is_datatype_admin == true %}
-        <li><a id="ODRMenu_listtypes" class="address" href="#{{ path('odr_list_types', { 'section': 'design' } ) }}" title="List Databases"><i class="fa fa-lg fa-fw fa-cog"></i>List Databases</a></li>
-{% endif %}
+        <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_list_types', { 'section': 'records' } ) }}" title="List Records"><i class="fa fa-lg fa-fw fa-list"></i>List Records</a></li>
+        <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_list_types', { 'section': 'design' } ) }}" title="List Databases"><i class="fa fa-lg fa-fw fa-cog"></i>List Databases</a></li>
 
 {% if is_datatype_admin == true %}
-        <li class="ODRMenuExpand Pointer">
-            <a><i class="fa fa-lg fa-group fa-fw"></i>User Management</a>
-            <ul>
-                <li><a id="ODRMenu_listusers" class="address" href="#{{ path('odr_user_list') }}" title="List Users"><i class="fa fa-lg fa-fw fa-cog"></i>List Users</a></li>
+        <li class="pure-menu-item">
+            <span class="pure-menu-heading">User Management (i)</span>
+            <ul class="ODR-pure-submenu">
+                <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_user_list') }}" title="List Users"><i class="fa fa-lg fa-fw fa-cog"></i>List Users</a></li>
             {% if level == 3 or level == 7 %}
-                <li><a id="ODRMenu_adduser" class="address" href="#{{ path('odr_admin_new_user_create') }}" title="Add User"><i class="fa fa-lg fa-fw fa-cog"></i>Add User</a></li>
+                <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_admin_new_user_create') }}" title="Add User"><i class="fa fa-lg fa-fw fa-cog"></i>Add User</a></li>
             {% endif %}
             {% if level == 7 %}
-                <li><a id="ODRMenu_manageroles" class="address" href="#{{ path('odr_manage_user_roles') }}" title="Manage Roles"><i class="fa fa-lg fa-fw fa-cog"></i>Manage Roles</a></li>
+                <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_manage_user_roles') }}" title="Manage Roles"><i class="fa fa-lg fa-fw fa-cog"></i>Manage Roles</a></li>
             {% endif %}
             </ul>
         </li>
 {% endif %}
 
     </ul>
-</nav>
-
-<style type="text/css">
-    .ODRMenuExpand li {
-        margin-left: 10px;
-    }
-</style>
-
-<script type="text/javascript">
-    $(function() {
-        $("li.ODRMenuExpand > ul").removeAttr('style');
-        
-        $("li.ODRMenuExpand").unbind('click').click(function() {
-            $("li.ODRMenuExpand > ul").hide();
-            $(this).children("ul").css(
-                {
-                    'display': 'block',
-                    'top': '0px',
-                    'left': '0px',
-                    'visibility': 'visible',
-                    'position': 'relative'
-                }
-            );
-        });
-    });
-</script>
 
 {% endblock %}
 

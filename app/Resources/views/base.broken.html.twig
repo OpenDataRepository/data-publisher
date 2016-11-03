@@ -1,0 +1,304 @@
+<!doctype html>
+<!-- paulirish.com/2008/conditional-stylesheets-vs-css-hacks-answer-neither/ -->
+<!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7" lang="en"> <![endif]-->
+<!--[if IE 7]>    <html class="no-js lt-ie9 lt-ie8" lang="en"> <![endif]-->
+<!--[if IE 8]>    <html class="no-js lt-ie9" lang="en"> <![endif]-->
+
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en"> <!--<![endif]-->
+<head>
+    <meta charset="utf-8">
+
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    
+    <title>{% block title %}Welcome!{% endblock %}</title>
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}" />
+
+    <meta name="description" content="Open Data Repository">
+    <meta name="author" content="Open Data Repository (opendatarepository.org)">
+
+    <!-- Mobile viewport optimized: h5bp.com/viewport -->
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <!-- iPhone: Don't render numbers as call links -->
+    <meta name="format-detection" content="telephone=no">
+    
+    <link rel="shortcut icon" href="favicon.ico" />
+
+    <!-- Pure Layout -->
+    <link rel="stylesheet" href="/css/external/pure-min.css">
+    <!--[if gt IE 8]><!--><link rel="stylesheet" href="/css/external/pure-grids-responsive-min.css"><!--<![endif]-->
+
+
+    <!-- Icon Styles -->
+    <link rel="stylesheet" href="/css/fonts/font-awesome-4.6.3/css/font-awesome.css">
+
+    <!-- External Styles -->
+    <link rel="stylesheet" href="/css/external/jquery-ui-1.8.21.custom.css">
+    <link rel="stylesheet" href="/css/external/jquery.jgrowl.css">
+    <!-- <link rel="stylesheet" href="/css/external/jquery.dataTables.css"> -->
+    <link rel="stylesheet" href="/js/mylibs/jquery_datatables/datatables.min.css">
+
+    <!-- Symfony Stylesheets -->
+    <link href="/css/pure_odr_custom.css" type="text/css" rel="stylesheet"> 
+    <link href="/css/custom.css" type="text/css" rel="stylesheet" />
+    <link href="/css/purecss_responsive_horizontal.css" type="text/css" rel="stylesheet">
+
+    <!-- Plotly Bars Stylesheet -->
+    <link rel="stylesheet" href="/css/external/plotly_bars.css">
+
+    <!-- Theme CSS -->
+    <link rel="stylesheet" href="/css/themes/css_smart/style.css" >
+    <!-- TODO Use Stylsheets block to load theme -->
+    {% block stylesheets %}{% endblock %}
+
+    <!-- Scripts -->
+    <script defer async src="https://ajax.googleapis.com/ajax/libs/webfont/1.0.28/webfont.js"></script>
+    
+    <!-- Essential polyfills -->
+    <script src="/js/mylibs/polyfills/modernizr-2.6.1.min.js"></script>
+    <!--[if lt IE 9]><script src="/js/mylibs/polyfills/selectivizr.js"></script><![endif]-->
+    <!--[if lt IE 10]><script src="/js/mylibs/polyfills/excanvas.js"></script><![endif]-->
+    <!--[if lt IE 10]><script src="/js/mylibs/polyfills/classlist.js"></script><![endif]-->
+    
+    <!-- Grab Google CDN's jQuery, with a protocol relative URL; fall back to local if offline -->
+    <script src="/js/libs/jquery-1.7.2.js"></script>
+
+    <!-- Do the same with jQuery UI -->
+    <script src="/js/libs/jquery-ui-1.8.21.js"></script>
+    <script src="/js/libs/lo-dash.min.js"></script>
+
+    <!-- Load Webfont loader -->
+    <script type="text/javascript">
+        $(function() {
+            window.WebFontConfig = {
+                google: { families: [ 'PT Sans:400,700' ] },
+                active: function(){ $(window).trigger('fontsloaded') }
+            };
+        });
+    </script>
+    
+    <!-- scripts concatenated and minified via build script -->
+    
+    <!-- General Scripts -->
+    <script src="/js/mylibs/jquery.hashchange.js"></script>
+    <script src="/js/mylibs/jquery.idle-timer.js"></script>
+    <script src="/js/mylibs/jquery.plusplus.js"></script>
+    <script src="/js/mylibs/jquery.jgrowl.js"></script>
+    <script src="/js/mylibs/jquery.scrollTo.js"></script>
+    <script src="/js/mylibs/jquery.ui.touch-punch.js"></script>
+    <script src="/js/mylibs/jquery.ui.multiaccordion.js"></script>
+    <script src="/js/mylibs/number-functions.js"></script>
+    
+    <!-- Forms -->
+    <script src="/js/libs/plugins/jquery.validate.min.js"></script>
+        
+    <!-- Fullstats -->
+    <script src="/js/mylibs/fullstats/jquery.css-transform.js"></script>
+    <script src="/js/mylibs/fullstats/jquery.animate-css-rotate-scale.js"></script>
+    <script src="/js/mylibs/fullstats/jquery.sparkline.js"></script>
+    
+    <!-- Dynamic Tables -->
+    <!-- <script src="/js/mylibs/dynamic-tables/jquery.dataTables.js"></script>
+    <script src="/js/mylibs/dynamic-tables/jquery.dataTables.tableTools.zeroClipboard.js"></script>
+    <script src="/js/mylibs/dynamic-tables/jquery.dataTables.tableTools.js"></script> -->
+    <script src="/js/mylibs/jquery_datatables/datatables.min.js"></script>
+
+    <!-- Tooltips -->
+    <script src="/js/mylibs/tooltips/jquery.tipsy.js"></script>
+
+    <!-- Images Loaded -->
+    <script src="/js/mylibs/imagesloaded/imagesloaded.pkgd.js"></script>
+
+    <!-- Meltdown -->
+    <script src="/js/mylibs/meltdown/js-markdown-extra.js"></script>
+
+    <!-- Multiple/Large File Uploads -->
+    <script src="/js/mylibs/flow/flow.js"></script>
+
+    <!-- Ajax File Downloads -->
+    <script src="/js/mylibs/jquery.fileDownload.js"></script>
+
+    <!-- Plot.ly JS Plots Based on D3 -->
+    <!--
+    <script type="text/javascript" src="/js/mylibs/d3.v4.min.js"></script>
+    <script type="text/javascript" src="/js/mylibs/plotly.js-1.17.3/dist/plotly.min.js"></script>
+    -->
+    <script type="text/javascript" src="/js/mylibs/nvd3/d3.v3.min.js"></script>
+    <script type="text/javascript" src="/js/mylibs/plotly-1.5.0.min.js"></script>
+    <script type="text/javascript" src="/js/mylibs/d3-queue.v3.min.js"></script>
+    <script type="text/javascript" src="/js/mylibs/odr_plotly_graphs.js"></script>
+    <!-- App JS -->
+    <script src="/js/app.js"></script>
+
+    <!-- end scripts -->
+    
+</head>
+
+<body class="pure-skin-odr">
+    <!-- The toolbar at the top -->
+<!-- <section id="toolbar" class="pure-form pure-g"> -->
+
+<div class="ODRMenuWrapper pure-g" id="ODRMainMenu">
+    <div class="pure-menu pure-menu-horizontal odr-custom-can-transform pure-u-1 pure-u-md-7-24">
+        <span class="odr-custom-toggle" id="toggle"><i class="fa fa-lg fa-bars"></i> Menu</span>
+        <ul class="pure-menu-list">
+            <li class="pure-menu-item"><span class="pure-menu-heading odr-custom-brand">Admin</span>
+                {% block navigation_top %}
+                {% endblock %}
+            </li>
+            <li class="pure-menu-item"><a href="#" class="pure-menu-link">Search</a></li>
+        </ul>
+        {# block navigation_top %}
+        {% endblock #}
+    </div>
+    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-can-transform odr-menu-center pure-u-1 pure-u-md-10-24">
+        <ul class="pure-menu-list">
+            {# block center_navigation_top %}
+            {% endblock #}
+            <li class="pure-menu-item"><span class="pure-menu-heading">Home</span>
+                <ul class="ODR-pure-submenu">
+                    <li class="pure-menu-item"><span class="pure-menu-heading">TEST 1</span>
+                        <ul class="ODR-pure-submenu">
+                            <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 222</a></li>
+                            <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 222</a></li>
+                        </ul>
+                    </li>
+                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
+                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
+                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
+                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
+                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
+                </ul>
+            </li>
+            <li class="pure-menu-item"><a href="#" class="pure-menu-link">About</a></li>
+            <li class="pure-menu-item"><a href="#" class="pure-menu-link">Contact</a></li>
+        </ul>
+    </div>
+    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-6-24">
+        <ul class="pure-menu-list">
+            {% if current_user != '' %}
+                <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_self_profile_edit') }}"><i class="fa fa-lg fa-user fa-fw"></i><span class="pure-hidden-lg pure-hidden-md pure-hidden-sm">{{ current_user }}</span></a></li>
+            {% endif %}
+            {% if header_right_title != '' %}
+                <li class="pure-menu-item"><a class="pure-menu-link" {% if header_right_path != '' %}href="{{ header_right_path }}"{% endif %} {% if header_right_js != '' %}onclick="{{ header_right_js }}"{% endif %}>{{ header_right_title }}</a></li>
+            {% endif %}
+        </ul>
+    </div>
+    <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-1-24">
+        <ul class="pure-menu-list">
+            <li class="pure-menu-item"><span class="pure-menu-heading"><i class="fa fa-lg fa-question-circle"></i></span>
+            {# block help_navigation_top %}
+            {% endblock #}
+                <ul class="ODR-pure-submenu">
+                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 1    </a></li>
+                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+</div>
+
+
+<!-- </section><!-- End of #toolbar -->
+    
+<script>
+(function (window, document) {
+    var menu = document.getElementById('ODRMainMenu'),
+            WINDOW_CHANGE_EVENT = ('onorientationchange' in window) ? 'orientationchange':'resize';
+
+    // Add Click handler for all menu LI
+    jQuery("#ODRMainMenu .pure-menu-heading").unbind('click');
+    jQuery("#ODRMainMenu .pure-menu-heading").click(function() {
+        // jQuery("#ODRMainMenu .pure-menu-heading").parent().removeClass('show');
+        jQuery(this).parent().toggleClass('show');
+    });
+
+function toggleHorizontal() {
+    [].forEach.call(
+        document.getElementById('ODRMainMenu').querySelectorAll('.odr-custom-can-transform'),
+        function(el){
+            console.log('toggle horizontal interior')
+            el.classList.toggle('pure-menu-horizontal');
+        }
+    );
+};
+
+function toggleMenu() {
+    // set timeout so that the panel has a chance to roll up
+    // before the menu switches states
+    if (menu.classList.contains('open')) {
+        setTimeout(toggleHorizontal, 500);
+    }
+    else {
+        toggleHorizontal();
+    }
+    menu.classList.toggle('open');
+    document.getElementById('toggle').classList.toggle('x');
+};
+
+function closeMenu() {
+    if (menu.classList.contains('open')) {
+        toggleMenu();
+    }
+}
+
+document.getElementById('toggle').addEventListener('click', function (e) {
+    toggleMenu();
+});
+
+window.addEventListener(WINDOW_CHANGE_EVENT, closeMenu);
+})(this, this.document);
+
+</script>
+
+    {% if use_navigation_block == true %}
+        <!-- The container of the sidebar and content box -->
+        <!-- The Properties sidebar -->
+        <aside id="ODRNavRightWrapper">
+            <div id="ODRNavRight" class="NavSlideOut">
+                <div id="ODRMenuLabelRight">properties <i title="Click to stick in place." class="fa fa-thumb-tack Pointer TackProperties"></i></div>
+                <div class="top">
+                </div><!-- End of .top -->
+            </div>
+        </aside><!-- End of sidebar -->
+    {% endif %}
+
+    <div role="main" id="main" class="pure-form pure-g">
+        <section id="left-spacer" class="pure-u-md-1-24"></section>
+
+        <!-- Here goes the content. -->
+        <section id="content" class="pure-u-1 pure-u-md-22-24" data-sort=true style="margin-top: 10px;">
+        {% block body %}{% endblock %}
+        </section><!-- End of #content -->
+        
+        <section id="right-spacer" class="pure-u-md-1-24"></section>
+    </div><!-- End of #main -->
+    
+    <!-- The footer -->
+    <footer class="pure-u-1">
+        <span class="ODRMenuRight pure-menu pure-menu-open pure-menu-horizontal">
+            <ul>
+                <li><a class="ODRLogoImage" href="http://www.opendatarepository.org"><img src="/images/ODR_Logo_Final.svg" alt="Open Data Repository" /></a></li>
+                <li><a href="http://www.opendatarepository.org/about">About</a></li>
+                <li>&nbsp;&nbsp;&nbsp;</li>
+                <li>&copy; 2014&nbsp;&nbsp;</li>
+            </ul>
+        </span>
+    </footer> <!-- End of footer -->
+
+    <!-- The loading box -->
+    <div id="loading-overlay"></div>
+    <div id="loading">
+        <span>Loading...</span>
+    </div>
+    <!-- End of loading box -->
+
+    <!-- Spawn $$.loaded -->
+    <script>
+        $("#loading-overlay").hide();
+        $("#loading").hide();
+    </script>
+    
+    <!-- Symfony Javascripts -->
+    {% block javascripts %}{% endblock %}
+</body>
+</html>

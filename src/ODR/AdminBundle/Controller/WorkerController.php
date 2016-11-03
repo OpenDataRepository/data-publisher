@@ -57,7 +57,7 @@ class WorkerController extends ODRCustomController
 
         try {
 
-            throw new \Exception('DO NOT CONTINUE');
+            throw new \Exception('DO NOT CONTINUE [DEPRECATED]');
 
             $post = $_POST;
             if ( !isset($post['tracked_job_id']) || !isset($post['datarecord_id']) || !isset($post['api_key']) || !isset($post['scheduled_at']) )
@@ -1400,7 +1400,7 @@ $ret .= '  Set current to '.$count."\n";
             if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
                 throw new \Exception('Invalid Form');
 
-            throw new \Exception('DO NOT CONTINUE');
+            throw new \Exception('DO NOT CONTINUE [DEPRECATED]');
 
             // Pull data from the post
             $object_type = $post['object_type'];

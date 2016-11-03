@@ -3148,6 +3148,21 @@ class DisplaytemplateController extends ODRCustomController
                 $em->flush();
 
                 // Don't need to worry about datafield permissions here, those are taken care of inside ODR_addDataField()
+/*
+                // TODO Make this only flush affected users - this is inefficient.
+                // Since new datafields were created, wipe datafield permission entries for all users
+                $redis = $this->container->get('snc_redis.default');;
+                // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+                $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+                $user_manager = $this->container->get('fos_user.user_manager');
+                $user_list = $user_manager->findUsers();
+                foreach ($user_list as $u) {
+                    $redis->del($redis_prefix.'.user_'.$u->getId().'_datafield_permissions');
+
+                    // TODO - schedule a permissions recache via beanstalk?
+                }
+*/
             }
 
 

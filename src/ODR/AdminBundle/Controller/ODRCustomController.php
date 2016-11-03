@@ -4177,6 +4177,7 @@ if ($debug)
             $theme_element_meta->setCssWidthXL( $old_meta_entry->getCssWidthXL() );
             $theme_element_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
+            $theme_element_meta->setPublicDate( $old_meta_entry->getPublicDate());   // default to not public
             $theme_element_meta->setCreatedBy($user);
         }
         else {
@@ -4518,7 +4519,6 @@ if ($debug)
         if (!$changes_made)
             return $render_plugin_map;
 
-
         // Determine whether to create a new meta entry or modify the previous one
         $remove_old_entry = false;
         $new_rpm = null;
@@ -4630,6 +4630,7 @@ if ($debug)
             $new_rpo->setRenderPluginInstance( $render_plugin_option->getRenderPluginInstance() );
             $new_rpo->setOptionName( $render_plugin_option->getOptionName() );
             $new_rpo->setOptionValue( $render_plugin_option->getOptionValue() );
+            $new_rpo->setActive(true);
 
             $new_rpo->setCreatedBy($user);
         }
@@ -5047,6 +5048,9 @@ if ($debug)
         }
 
         // Store the resulting array back in memcached before returning it
+        // TODO - There should be no need to store the redis data again.  Data should not
+        // be modified during the rendering of the object.  The plugins should not be called
+        // during the creation of redis data so something is messed up here.
         $redis->set($redis_prefix.'.datarecord_table_data_'.$datarecord_id, gzcompress(serialize($data)));
         return $data;
     }
@@ -5611,7 +5615,7 @@ if ($timing) {
 }
 */
         // The entity -> entity_metadata relationships have to be one -> many from a database perspective, even though there's only supposed to be a single non-deleted entity_metadata object for each entity
-        // Therefore, the preceeding query generates an array that needs to be slightly flattened in a few places
+        // Therefore, the previous query generates an array that needs to be slightly flattened in a few places
         foreach ($datarecord_data as $dr_num => $dr) {
             // Flatten datarecord_meta
             $drm = $dr['dataRecordMeta'][0];

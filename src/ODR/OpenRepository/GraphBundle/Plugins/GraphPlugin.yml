@@ -18,10 +18,17 @@ ODR\OpenRepository\GraphBundle\Plugins\Graph:
         graph_type:
             name: Graph Type
             type: string
-            default: xy 
-            choices: xy||XY Scatter,line||Line,hbar||Horizontal Bar,vbar||Vertical Bar
+            default: xy
+            choices: xy||XY Plot,bar||Bar Chart (stacked/grouped/horizontal/vertical),windrose||WindRose,histogram||Histogram,polar||Polar,bubble||Bubble Chart,lineerror||Line w/Error Bars,stick||Stick Plot,starea||Stacked Area,piechart||Pie Chart
             description: Choose the graph type XY (scatter), Line, Horizontal Bar, or Vertical Bar.
-        graph_width: 
+        use_rollup:
+            name: Use Rollup Graph
+            type: string
+            default: no
+            choices: no||No,yes||Yes
+            description: Rollup graphs automatically co-plot data from multiple files on the same chart.
+            applies_to: xy
+        graph_width:
             name: Graph Width
             type: string
             default: 900 
@@ -30,12 +37,47 @@ ODR\OpenRepository\GraphBundle\Plugins\Graph:
             name: Graph Height
             type: string
             default: 300 
-            description: Enter a height in pixels for the graph. 
+            description: Enter a height in pixels for the graph.
+        line_type:
+            name: Line Type
+            type: string
+            default: line
+            choices: lines||Lines,markers||Markers,lines+markers||Lines and Markers
+            description: Choose how to display the connections between points.
+            applies_to: xy
+        bar_type:
+            name: Bar Type
+            type: string
+            default: vert
+            choices: vert||Vertical Bars,horizontal||Horizontal Bars
+            description: Direction of bars on bar graph.  Format: [bar_name, value] for vertical bars.  Format: [value, bar_name] for horizontal bars.
+            applies_to: bar
+        bar_options:
+            name: Bar Grouping Option
+            type: string
+            default: grouped
+            choices: grouped||Grouped bars,stacked||Stacked bars
+            description: When multiple bar data sets are plotted simultaneously, this option determines whether they will be stacked or grouped.
+            applies_to: bar
+        histogram_dir:
+            name: Histogram Direction
+            type: string
+            default: vert
+            choices: vert||Vertical,horizontal||Horizontal
+            description: Choose the direction of the bars used in the histogram.
+            applies_to: horizontal
+        histogram_stack:
+            name: Histogram Display Options
+            type: string
+            default: grouped
+            choices: grouped||Grouped,stacked||Stacked,overlay||Overlaid
+            description: Grouped will appear next to each other for a given value.  Stacked will sum the data showing the sets as different colors.  Overlaid will plot the bars in front of each other with a transparency effect.
+            applies_to: horizontal
         x_axis_min:
             name: X Axis Minimum
             type: string
             default: auto
-            description: Minimum X Value.  Defaults to "auto" which results in automatic calculation. 
+            description: Minimum X Value.  Defaults to "auto" which results in automatic calculation.
         x_axis_max:
             name: X Axis Maximum
             type: string
@@ -57,7 +99,12 @@ ODR\OpenRepository\GraphBundle\Plugins\Graph:
             name: X Axis Tick Interval
             type: string
             default: auto
-            description: Numeric value for tick placement.  Defaults to "auto" which results in automatic calculation. 
+            description: Numeric value for inteval bewtween tick markers.  Defaults to "auto" which results in automatic calculation.
+        x_axis_tick_start:
+            name: X Axis Tick Start
+            type: string
+            default: auto
+            description: Numeric value for placement of first tick.  If tick interval is not "auto", this value must be set. Defaults to "auto" which results in automatic calculation.
         x_axis_caption:
             name: X Axis Caption
             type: string

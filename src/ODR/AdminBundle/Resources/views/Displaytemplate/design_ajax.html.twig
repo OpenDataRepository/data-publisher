@@ -42,13 +42,11 @@ $(function() {
     InitSlideout();
 });
 
-function notifySaved() {
-//    $('#saved').fadeIn();
-    $('#saved').css('visibility', 'visible');   // trying out visibility property because normal display property causes slideout to jump around
+function notifySaved(element_id) {
+    $('#' + element_id  + ' #saved').css('visibility', 'visible');   // trying out visibility property because normal display property causes slideout to jump around
     setTimeout(function() {
-//        $('#saved').fadeOut();
-        $('#saved').css('visibility', 'hidden');
-    }, 2000);
+        $('#' + element_id  + ' #saved').css('visibility', 'hidden');
+    }, 1250);
 }
 
 function initPage() {
@@ -842,7 +840,7 @@ function SaveDatafieldProperty(datafield_id, reload_datafield) {
         data: post_data,
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
-                notifySaved();
+                notifySaved('ElementData');
 
                 // Only reload datafield if necessary
                 if (reload_datafield == true) {
@@ -921,11 +919,11 @@ function SaveThemeDatafieldProperty(theme_datafield_id) {
                 if (xl_width_current != undefined && xl_width_old != xl_width_current)
                     $("#Field_" + datafield_id).removeClass('pure-u-xl-' + xl_width_old).addClass('pure-u-xl-' + xl_width_current);
 
-                notifySaved();
+                notifySaved('ElementData');
 
                 // Forcibly reload slideout
-                $("#ElementData").html("");
-                $("#Field_" + datafield_id).trigger('click');
+                // $("#ElementData").html("");
+                // $("#Field_" + datafield_id).trigger('click');
             }
             else {
                 // An error has occurred.
@@ -1364,9 +1362,9 @@ function SaveDatatypeProperties(datatype_id, short_name) {
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
-//                notifySaved();
-                $("#ElementData").html('');
-                $("#DataTypeTools_" + datatype_id).children(".ODRDatatypeProperties").first().trigger('click');
+                notifySaved('ElementData');
+                // $("#ElementData").html('');
+                // $("#DataTypeTools_" + datatype_id).children(".ODRDatatypeProperties").first().trigger('click');
 
                 // If the datatype's short name got changed, update that on the page
                 if (short_name != '') {
