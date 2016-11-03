@@ -28,7 +28,7 @@
         <div id="{{ odr_chart_id }}_Static_GraphWrapper" class="ODRStaticGraphWrapper">
             {% if odr_chart_output_files|length %}
                 {% for dr_id, file_name in odr_chart_output_files %}
-                    {% if dr_id == target_datarecord_id %}
+                    {% if dr_id == target_datarecord_id or (target_datarecord_id matches '{^rollup}' and dr_id == "rollup") %}
                     <div id="StaticGraph_{{ dr_id }}" class="ODRGraph ODRStaticGraph pure-u-1">
                         <img class="pure-u-1" src="{{ path('odr_plugin_graph_static', { 'plugin_id': render_plugin.id, 'datarecord_id': target_datarecord_id, 'datatype_id': target_datatype_id } ) }}.svg?nocache=1" />
                         <div class="ODRChartTrigger"><span>Click to switch to interactive charts.</span></div>
@@ -65,11 +65,13 @@ jQuery(function() {
         window['SetupGraphs_' + chart_id]();
     });
 
+    /*
     $(".DynamicGraphs").unbind('click').click(function() {
         var parent = $(this).parent()
         $(this).hide()
         $(parent).find('.StaticGraphs').show()
     });
+    */
 
 });
 
@@ -124,14 +126,16 @@ var SetupGraphs_{{ odr_chart_id }} = function() {
 
         // Build array of file data
         {% for dr_id, file in odr_chart_files %}
-        var file = '{{ file.id }}';
-        if(file != "") {
-            {% for mydr_id, legend in odr_chart_legend %}
-            {% if mydr_id == dr_id %}
-            odr_chart_{{ odr_chart_id }}.data_files[{{ dr_id }}] = { "url": file_url + file, "legend": "{{ legend }}"};
+            {% if dr_id == target_datarecord_id or target_datarecord_id matches '{^rollup}' %}
+            var file = '{{ file.id }}';
+            if(file != "") {
+                {% for mydr_id, legend in odr_chart_legend %}
+                    {% if mydr_id == dr_id %}
+                        odr_chart_{{ odr_chart_id }}.data_files[{{ dr_id }}] = { "url": file_url + file, "legend": "{{ legend }}"};
+                    {% endif %}
+                {% endfor %}
+            }
             {% endif %}
-            {% endfor %}
-        }
         {% endfor %}
 
         // Map remaining options to chart

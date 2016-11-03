@@ -24,21 +24,21 @@ class GraphController extends ODRCustomController
         try {
             $is_rollup = false;
             // Check if this is a rollup and filter datarecord_id
-            if(preg_match('/rollup/', $datarecord_id)) {
+            if(preg_match('/rollup_/', $datarecord_id)) {
                 $is_rollup = true;
-                $datarecord_id = preg_replace("/rollup/","",$datarecord_id);
+                $datarecord_id = preg_replace("/rollup_/","",$datarecord_id);
             }
 
             // Get Datarecord
             // Load required objects
-            /** @var \Doctrine\ORM\EntityManager $em */
+            /* * @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $session = $request->getSession();
 
-            /** @var DataRecord $datarecord */
+            /* **  @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new \Exception('{ "message": "Item Deleted", "detail": "Data record no longer exists."}');
@@ -139,7 +139,7 @@ class GraphController extends ODRCustomController
             }
 
             // If this request isn't for a top-level datarecord, then the datarecord array needs to have entries removed so twig doesn't render more than it should...TODO - still leaves more than it should...
-            if ($is_top_level == 0) {
+            if ($is_top_level == 0 && !$is_rollup) {
                 $target_datarecord_parent_id = $datarecord_array[$original_datarecord->getId()]['parent']['id'];
                 unset($datarecord_array[$target_datarecord_parent_id]);
 

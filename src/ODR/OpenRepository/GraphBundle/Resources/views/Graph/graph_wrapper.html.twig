@@ -78,7 +78,7 @@
                    since the parent datarecord will be retrieved and all
                    children for plotting.
                 #}
-                {%  set rollup_id = "rollup_" + graph_datarecord_id %}
+                {%  set rollup_id = 'rollup_' ~ graph_datarecord_id %}
                 {% include "ODROpenRepositoryGraphBundle:Graph:graph.html.twig" with {
                     'render_plugin': render_plugin,
                     'plugin_options': plugin_options,

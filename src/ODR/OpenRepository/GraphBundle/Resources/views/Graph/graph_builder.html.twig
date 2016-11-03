@@ -24,20 +24,12 @@
     <!-- iPhone: Don't render numbers as call links -->
     <meta name="format-detection" content="telephone=no">
 
-    <!-- Pure Layout -->
-    <link rel="stylesheet" href="../../css/external/pure-min.css">
-    <!--[if gt IE 8]><!--><link rel="stylesheet" href="../../css/external/pure-grids-responsive-min.css"><!--<![endif]-->
-
     <!-- Icon Styles -->
     <link rel="stylesheet" src="../../css/fonts/font-awesome.css">
-
-    <!-- External Styles -->
-    <link rel="stylesheet" src="../../css/external/jquery-ui-1.8.21.custom.css">
 
     <!-- Symfony Stylesheets -->
     <link src="../../css/pure_odr_custom.css" type="text/css" rel="stylesheet">
     <link src="../../css/custom.css" type="text/css" rel="stylesheet" />
-    {% block stylesheets %}{% endblock %}
 
     <script src="../../js/libs/jquery-1.7.2.js"></script>
     <script src="../../js/libs/jquery-ui-1.8.21.js"></script>
@@ -51,12 +43,18 @@
             window.WebFontConfig = {
                 google: { families: [ 'PT Sans:400,700' ] },
                 active: function(){ $(window).trigger('fontsloaded') }
-            };
-        });
+       });
     </script>
 
     <!-- Plot.ly JS Plots Based on D3 -->
-    <script type="text/javascript" src="../../js/mylibs/plotly.js-1.17.3/dist/plotly.min.js"></script>
+    <!--
+    <script type="text/javascript" src="../../js/mylibs/d3.v4.min.js"></script>
+    -->
+    <script type="text/javascript" src="../../js/mylibs/nvd3/d3.v3.min.js"></script>
+    <script type="text/javascript" src="../../js/mylibs/plotly-1.5.0.min.js"></script>
+    <!--
+    <script type="text/javascript" src="../..//js/mylibs/plotly.js-1.17.3/dist/plotly.min.js"></script>
+    -->
     <script type="text/javascript" src="../..//js/mylibs/d3-queue.v3.min.js"></script>
     <script type="text/javascript" src="../..//js/mylibs/odr_plotly_graphs.js"></script>
 
@@ -73,9 +71,9 @@
     {% if odr_chart_legend|length %}
 
     <div class="pure-u-1 DynamicGraphs">
-        <div id="{{ odr_chart_id }}_Dynamic_GraphWrapper">
+        <div id="{{ odr_chart_id }}_Dynamic_GraphWrapper" style="width: {{ plugin_options.graph_width }}px; height: {{  plugin_options.graph_height }}px">
             {% if odr_chart_files|length %}
-                <div id='{{ odr_chart_id }}' class="ODRGraph ODRDynamicGraph pure-u-1">
+                <div id='{{ odr_chart_id }}' class="ODRGraph ODRDynamicGraph pure-u-1"  style="width: {{ plugin_options.graph_width }}px; height: {{  plugin_options.graph_height }}px">
                 </div><!-- end of .ODRGraph -->
             {% endif %}
         </div><!-- end of .DynamicGraph Wrapper -->
@@ -144,14 +142,15 @@
                 var file_url = "../../";
 
                 // Build array of file data
+                var file = "";
                 {% for dr_id, file in odr_chart_files %}
-                var file = '{{ file.localFileName }}';
+                file = '{{ file.localFileName }}';
                 if(file != "") {
                     {% for mydr_id, legend in odr_chart_legend %}
-                    {% if mydr_id == dr_id %}
-                    // Use Static File Path
-                    odr_chart_{{ odr_chart_id }}.data_files[{{ dr_id }}] = { "url": file_url + file, "legend": "{{ legend }}"};
-                    {% endif %}
+                        {% if mydr_id == dr_id %}
+                            // Use Static File Path
+                            odr_chart_{{ odr_chart_id }}.data_files[{{ dr_id }}] = { "url": file_url + file, "legend": "{{ legend }}"};
+                        {% endif %}
                     {% endfor %}
                 }
                 {% endfor %}

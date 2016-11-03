@@ -396,7 +396,7 @@ class GraphPlugin
 
                     // Delete previously encrypted non-public files
                     foreach($files_to_delete as $file_path) {
-                        unlink($file_path);
+                        // unlink($file_path);
                     }
 
                     // File has been created.  Now can return it.
@@ -485,8 +485,14 @@ class GraphPlugin
             $fixed_file = str_replace('viewbox', 'viewBox', $created_file);
             $fixed_file = str_replace('preserveaspectratio', 'preserveAspectRatio', $fixed_file);
             file_put_contents($output_svg, $fixed_file);
+
+            // Remove the HTML file
+            // unlink($files_path . "Chart__" . $file_id_list . '.html');
             return $filename;
         } else {
+            if(strlen($output_svg) > 40) {
+                $output_svg = "..." . substr($output_svg,(strlen($output_svg) - 40), strlen($output_svg));
+            }
             throw new \Exception('The file "'. $output_svg .'" does not exist');
         }
 

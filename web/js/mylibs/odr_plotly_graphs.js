@@ -10,19 +10,58 @@ if(ODR_PLOTLY_GLOBALS == undefined) {
     var HEIGHT_IN_PERCENT_OF_PARENT = 100
 
     function plotlyResponsiveDiv(chart_obj) {
-        var gd3 = d3.select("#" + chart_obj.chart_id)
-            .append('div')
-            .style({
-                width: WIDTH_IN_PERCENT_OF_PARENT + '%',
-                'margin-left': (100 - WIDTH_IN_PERCENT_OF_PARENT) / 2 + '%',
-                height: HEIGHT_IN_PERCENT_OF_PARENT + 'vh',
-                'margin-top': '0vh'
-            });
 
+        // d3.v3 version
+        var gd3 = d3.select("#" + chart_obj.chart_id)
+        .append('div')
+        .style({
+        width: WIDTH_IN_PERCENT_OF_PARENT + '%',
+        'margin-left': (100 - WIDTH_IN_PERCENT_OF_PARENT) / 2 + '%',
+        height: HEIGHT_IN_PERCENT_OF_PARENT + '%',
+        'margin-top': '0%'
+        });
+
+
+        console.log($(gd3).parent().html())
 
         var gd = gd3.node()
         page_plots.push(gd)
         return gd
+
+        /*
+        // D3.v4 Version
+        console.log(d3.version)
+        var gd3 = d3.select("#" + chart_obj.chart_id)
+            .append('div')
+            .style('width', WIDTH_IN_PERCENT_OF_PARENT + '%')
+            .style('margin-left', (100 - WIDTH_IN_PERCENT_OF_PARENT) / 2 + '%')
+            .style('height', HEIGHT_IN_PERCENT_OF_PARENT + '%')
+            .style('margin-top', '0%')
+
+        console.log($(gd3).html())
+
+        var gd = gd3.node()
+        page_plots.push(gd)
+        return gd
+         */
+
+
+        // jQuery Version
+        /*
+        var gd3 = $("#" + chart_obj.chart_id)
+            .append('<div class="testbitch">asdf</div>')
+
+        $(gd3).css('width', WIDTH_IN_PERCENT_OF_PARENT + '%')
+        $(gd3).css('margin-left', (100 - WIDTH_IN_PERCENT_OF_PARENT) / 2 + '%')
+        $(gd3).css('height', HEIGHT_IN_PERCENT_OF_PARENT + '%')
+        $(gd3).css('margin-top', '0%')
+
+        console.log($(gd3).parent().html())
+
+        var gd = $(gd3)
+        page_plots.push(gd)
+        return gd
+        */
     }
 
     var ODR_PLOTLY_GLOBALS = true
@@ -35,18 +74,25 @@ var clearPlotlyBars = function(chart_obj) {
 var preparePlotlyStatic = function(chart_obj) {
     console.log('Removing divs')
     // Need to remove non-svg items from Plotly Output
+    // Remove the Modebar Stuff
     var svgs = $("#" + chart_obj.chart_id + " svg.main-svg")
-    $("#" + chart_obj.chart_id + " div.plot-container").before(svgs)
+    $("#" + chart_obj.chart_id + " div.js-plotly-plot").before(svgs)
+    $("#" + chart_obj.chart_id + " div.modebar").remove()
     // Remove divs (not-SVG Compliant)
     $("#" + chart_obj.chart_id + " div").remove()
     // Add viewBox="0 0 1400 450" preserveAspectRatio="xMinYMin meet"
     var main_svg = $("#" + chart_obj.chart_id)
     $(main_svg).attr('preserveAspectRatio', 'xMinyMin meet')
-    $(main_svg).attr('viewBox', '0 0 ' + chart_obj.graph_width * 1.5  + ' ' + chart_obj.graph_height * 1.5)
-    $(body).append('<div id="PlotlyDone"></div>');
+    // $(main_svg).attr('viewBox', '0 0 ' + chart_obj.graph_width * 1.5  + ' ' + chart_obj.graph_height * 1.5)
+    $(main_svg).attr('viewBox', '0 0 ' + chart_obj.graph_width  + ' ' + chart_obj.graph_height)
+
+    console.log('appending div')
+    $('body').append('<div id="PlotlyDone"></div>');
 }
 
 function odrCSV(dr_id, file, callback) {
+
+    // d3.v3 version
     return d3.xhr(file.url).get(function (err, response) {
         console.log(file.url)
         var dirtyCSV = response.responseText;
@@ -66,6 +112,36 @@ function odrCSV(dr_id, file, callback) {
         console.log("Lines found: " + cleanCSV.length)
         return callback(null, data_file)
     })
+
+    /*
+    // D3.v4 Version
+    d3.request(file.url)
+        // Handle Error
+        .on('error', function(error) {
+            callback(error)
+        })
+        // Parse File
+        .on("load", function(xhr){
+            console.log(file.url)
+            var dirtyCSV = xhr.responseText;
+            // Strip Headers
+            var cleanCSV = []
+            var tmpCSV = dirtyCSV.split('\n');
+            tmpCSV.forEach(function(line) {
+                if(!line.match(/^#/)) {
+                    cleanCSV.push(line)
+                }
+            })
+            var data_file = {}
+            data_file.dr_id = dr_id
+            data_file.url = file.url
+            data_file.legend = file.legend
+            data_file.lines = cleanCSV
+            console.log("Lines found: " + cleanCSV.length)
+            callback(null, data_file)
+        })
+        .send("GET")
+        */
 }
 
 function histogramChartPlotly(chart_obj, onComplete) {
@@ -77,9 +153,11 @@ function histogramChartPlotly(chart_obj, onComplete) {
         q.defer(odrCSV, dr_id, chart_obj.data_files[dr_id]);
     }
 
-    // Load the data asnchronously and plot when ready
+    // Load the data asynchronously and plot when ready
     q.await(
         function(error) {
+
+
             if (error) {
                 // We can't proceed
                 // Should display error message
@@ -162,7 +240,7 @@ function histogramChartPlotly(chart_obj, onComplete) {
             console.log('div generated')
             Plotly.newPlot(graph_div, chart_data, layout).then(function() {
                     console.log('complete')
-                    // onComplete(chart_obj)
+                    onComplete(chart_obj)
                     console.log('post-complete')
             })
         }
@@ -178,7 +256,7 @@ function polarChartPlotly(chart_obj, onComplete) {
         q.defer(odrCSV, dr_id, chart_obj.data_files[dr_id]);
     }
 
-    // Load the data asnchronously and plot when ready
+    // Load the data asynchronously and plot when ready
     q.await(
         function(error) {
             if (error) {
@@ -275,7 +353,7 @@ function barChartPlotly(chart_obj, onComplete) {
         q.defer(odrCSV, dr_id, chart_obj.data_files[dr_id]);
     }
 
-    // Load the data asnchronously and plot when ready
+    // Load the data asynchronously and plot when ready
     q.await(
         function(error) {
             if (error) {
@@ -373,13 +451,19 @@ function lineerrorChartPlotly(chart_obj, onComplete) {
         q.defer(odrCSV, dr_id, chart_obj.data_files[dr_id]);
     }
 
-    // Load the data asnchronously and plot when ready
+    // Load the data asynchronously and plot when ready
     q.await(
-        function(error) {
-            if (error) {
+        function() {
+            console.log("can we get here")
+
+            var results = arguments
+
+            /* if (error) {
                 // We can't proceed
                 // Should display error message
-            }
+                console.log('JS error:')
+                console.log(error)
+            } */
 
             // Store data for filtering
             var file_data = []
@@ -552,14 +636,16 @@ function lineerrorChartPlotly(chart_obj, onComplete) {
 
 function pieChartPlotly(chart_obj, onComplete) {
 
+    console.log('plotting pie chart')
     var chart_data = []
 
     var q = d3.queue();
     for(var dr_id in chart_obj.data_files) {
+        console.log('file to process: ' + dr_id)
         q.defer(odrCSV, dr_id, chart_obj.data_files[dr_id]);
     }
 
-    // Load the data asnchronously and plot when ready
+    // Load the data asynchronously and plot when ready
     q.await(
         function(error) {
             if (error) {
@@ -580,7 +666,6 @@ function pieChartPlotly(chart_obj, onComplete) {
             for (var dr_id in file_data) {
                 if (dr_id != "rollup") {
                     if (loaded_data[dr_id] == undefined) {
-                        console.log('Plotting ' + dr_id)
 
                         var file = file_data[dr_id]
                         var lines = file.lines
@@ -630,9 +715,9 @@ function pieChartPlotly(chart_obj, onComplete) {
 
             // Create responsive div for automatic resizing
             var graph_div = plotlyResponsiveDiv(chart_obj)
-            Plotly.newPlot(graph_div, chart_data, layout).then(
-                onComplete(chart_obj)
-            )
+            Plotly.newPlot(graph_div, chart_data, layout).then(function() {
+                    onComplete(chart_obj)
+            })
         }
     )
 }
@@ -645,7 +730,7 @@ function lineChartPlotly(chart_obj, onComplete) {
         q.defer(odrCSV, dr_id, chart_obj.data_files[dr_id]);
     }
 
-    // Load the data asnchronously and plot when ready
+    // Load the data asynchronously and plot when ready
     q.await(
         function(error) {
             if (error) {
