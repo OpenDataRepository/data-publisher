@@ -64,7 +64,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
         'datarecord_array': datarecord_array,
         'theme_id': theme_id,
 
-        'target_datatype_id': child_datatype.id,
+        'target_datatype_id': target_datatype_id,
         'parent_datarecord_id': datarecord.id,
 
         'is_top_level': 0,
@@ -73,6 +73,6 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
     } %}
 {% endif %}
 
-</div><!-- End of #ChildTypeWrapper_{{ childtype.id }}_{{ parent_datarecord_id }} -->
+</div><!-- End of #ChildTypeWrapper_{{ target_datatype_id }}_{{ parent_datarecord_id }} -->
 
 {% endspaceless %}

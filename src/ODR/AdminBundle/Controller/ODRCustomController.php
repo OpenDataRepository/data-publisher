@@ -5926,4 +5926,79 @@ if ($timing) {
 
         return $linked_datarecord_ids;
     }
+
+
+    /**
+     * "Inflates" the normally flattened $datarecord_array...
+     *
+     * @param array $datarecord_array
+     * @param integer $initial_datarecord_id
+     *
+     * @return array
+     */
+    public function stackDatarecordArray($datarecord_array, $initial_datarecord_id)
+    {
+        $current_datarecord = array();
+        if ( isset($datarecord_array[$initial_datarecord_id]) ) {
+            $current_datarecord = $datarecord_array[$initial_datarecord_id];
+
+            if ( isset($current_datarecord['children']) ) {
+                foreach ($current_datarecord['children'] as $dt_id => $dr_list) {
+
+                    $tmp = array();
+
+                    foreach ($dr_list as $num => $dr_id) {
+                        if ( isset($datarecord_array[$dr_id]) )
+                            $tmp[$dr_id] = self::stackDatarecordArray($datarecord_array, $dr_id);
+                    }
+
+                    $current_datarecord['children'][$dt_id] = $tmp;
+                }
+            }
+        }
+
+        return $current_datarecord;
+    }
+
+
+    /**
+     * "Inflates" the normally flattened $datatype_array...
+     *
+     * @param array $datatype_array
+     * @param integer $initial_datatype_id
+     * @param integer $theme_id
+     *
+     * @return array
+     */
+    public function stackDatatypeArray($datatype_array, $initial_datatype_id, $theme_id)
+    {
+        $current_datatype = array();
+        if ( isset($datatype_array[$initial_datatype_id]) ) {
+            $current_datatype = $datatype_array[$initial_datatype_id];
+
+            foreach ($current_datatype['themes'][$theme_id]['themeElements'] as $num => $theme_element) {
+                if ( isset($theme_element['themeDataType']) ) {
+                    $theme_datatype = $theme_element['themeDataType'][0];
+
+                    $child_datatype_id = $theme_datatype['dataType']['id'];
+
+                    $tmp = array();
+                    if ( isset($datatype_array[$child_datatype_id]) ) {
+
+                        $child_theme_id = '';
+                        foreach ($datatype_array[$child_datatype_id]['themes'] as $t_id => $t) {
+                            if ( $t['themeType'] == 'master' )
+                                $child_theme_id = $t_id;
+                        }
+
+                        $tmp[$child_datatype_id] = self::stackDatatypeArray($datatype_array, $child_datatype_id, $child_theme_id);
+                    }
+
+                    $current_datatype['themes'][$theme_id]['themeElements'][$num]['themeDataType'][0]['dataType'] = $tmp;
+                }
+            }
+        }
+
+        return $current_datatype;
+    }
 }

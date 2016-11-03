@@ -79,37 +79,51 @@
 
     {% elseif theme_element.themeDataType is defined %}
         {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
+
             {% set child_datatype = theme_datatype.dataType %}
 
-            {% if datatype_array[ child_datatype.id ] is defined %}
-                {% set child_theme_id = 0 %}
-                {% for theme in datatype_array[ child_datatype.id ].themes %}
-                    {% if theme.themeType == 'master' %}
-                        {% set child_theme_id = theme.id %}
+            {# locate the child datatype's id #}
+            {% set child_datatype_id = '' %}
+            {% for c_dt_id, c_dt in child_datatype %}
+                {% set child_datatype_id = c_dt_id %}
+            {% endfor %}
+
+            {% if child_datatype_id != '' %}
+                {# locate the master theme id for this child datatype #}
+                {% set child_theme_id = '' %}
+                {% for t_id, t in child_datatype[ child_datatype_id ]['themes'] %}
+                    {% if t['themeType'] == 'master' %}
+                        {% set child_theme_id = t['id'] %}
                     {% endif %}
                 {% endfor %}
 
-                {% include 'ODRAdminBundle:Edit:edit_fieldarea_childtype.html.twig' with {
-                    'datatype_array': datatype_array,
-                    'datarecord_array': datarecord_array,
-                    'theme_id': child_theme_id,
+                {# pass all child datarecords of this child datatype at once... #}
+                {% if datarecord['children'][ child_datatype_id ] is defined %}
+                    {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
 
-                    'target_datatype_id': child_datatype.id,
-                    'parent_datarecord_id': datarecord.id,
+                    {% include 'ODRAdminBundle:Edit:edit_fieldarea_childtype.html.twig' with {
+                        'datatype_array': child_datatype,
+                        'datarecord_array': datarecord_array,
+                        'theme_id': child_theme_id,
 
-                    'datatype_permissions': datatype_permissions,
-                    'datafield_permissions': datafield_permissions,
+                        'target_datatype_id': child_datatype_id,
+                        'parent_datarecord_id': datarecord.id,
 
-                    'can_add_record': can_add_record,
-                    'can_edit_record': can_edit_record,
+                        'datatype_permissions': datatype_permissions,
+                        'datafield_permissions': datafield_permissions,
 
-                    'is_top_level': 0,
-                    'is_link': theme_datatype.is_link,
-                    'display_type': theme_datatype.display_type,
-                    'multiple_allowed': theme_datatype.multiple_allowed,
+                        'can_add_record': can_add_record,
+                        'can_edit_record': can_edit_record,
 
-                    'token_list': token_list,
-                } %}
+                        'is_top_level': 0,
+                        'is_link': theme_datatype.is_link,
+                        'display_type': theme_datatype.display_type,
+                        'multiple_allowed': theme_datatype.multiple_allowed,
+
+                        'token_list': token_list,
+                    } %}
+                {% endif %}
+
             {% endif %}
         {% endfor %}
 

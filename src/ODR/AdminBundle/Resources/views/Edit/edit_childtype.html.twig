@@ -16,35 +16,18 @@
 {% endif %}
 
 
-{# Determine the list of datarecords to display at this point in time #}
-{% set datarecord_list = {} %}
-{% if is_top_level == 1 %}
-    {% set datarecord_list = datarecord_list|merge({ (parent_datarecord_id): datarecord_array[parent_datarecord_id] }) %}   {# parent_datarecord_id will NOT be the key due to twig's use of php array_merge #}
-{% else %}
-    {% set parent_datarecord = datarecord_array[parent_datarecord_id] %}
-
-    {% if parent_datarecord['children'][target_datatype_id] is defined %}
-        {% for num, dr_id in parent_datarecord['children'][target_datatype_id] %}
-            {% if datarecord_array[dr_id] is defined %}
-                {% set datarecord_list = datarecord_list|merge({ (dr_id): datarecord_array[dr_id] }) %}     {# dr_id will NOT be the key due to twig's use of php array_merge #}
-            {% endif %}
-        {% endfor %}
-    {% endif %}
-{% endif %}
-
-
 <div class="ODRDataType pure-u-1" id="DataType_{{ datatype.id }}">
 
     {% include 'ODRAdminBundle:Default:fieldarea_header.html.twig' with {
         'datatype': datatype,
-        'datarecord_list': datarecord_list,
+        'datarecord_list': datarecord_array,
 
         'is_top_level': is_top_level,
         'is_link': is_link,
         'display_type': display_type
     } %}
 
-    {% for num, datarecord in datarecord_list %}
+    {% for dr_id, datarecord in datarecord_array %}
 {#
 ----------</br>
 datarecord: {{ datarecord.id }}...datatype {{ datarecord.dataType.id }}</br>
@@ -74,7 +57,7 @@ display_type: {{ display_type }}</br>
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
             {% include 'ODRAdminBundle:Edit:edit_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
-                'datarecord_array': datarecord_array,
+                'datarecord': datarecord,
 
                 'target_datatype_id': target_datatype_id,
                 'parent_datarecord_id': parent_datarecord_id,

@@ -133,6 +133,7 @@ class DisplayController extends ODRCustomController
                 if ( isset($datatype_permissions[ $original_datatype->getId() ]) && isset($datatype_permissions[ $original_datatype->getId() ][ 'dr_view' ]) )
                     $can_view_datarecord = true;
 
+                // TODO - should this check block viewing of a public child datarecord if the user isn't allowed to see its parent?
                 // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
                 if ( !($original_datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) )
                     return parent::permissionDeniedError('view');
@@ -266,17 +267,6 @@ class DisplayController extends ODRCustomController
 
 //print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 
-            // If this request isn't for a top-level datarecord, then the datarecord array needs to have entries removed so twig doesn't render more than it should...TODO - still leaves more than it should...
-            if ($is_top_level == 0) {
-                $target_datarecord_parent_id = $datarecord_array[ $original_datarecord->getId() ]['parent']['id'];
-                unset( $datarecord_array[$target_datarecord_parent_id] );
-
-                foreach ($datarecord_array as $dr_id => $dr) {
-                    if ( $dr_id !== $original_datarecord->getId() && $dr['parent']['id'] == $target_datarecord_parent_id )
-                        unset( $datarecord_array[$dr_id] );
-                }
-            }
-
 
             // ----------------------------------------
             //
@@ -310,8 +300,16 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
 //print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
+//print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
+
+
+            // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
+            $stacked_datarecord_array[ $original_datarecord->getId() ] = parent::stackDatarecordArray($datarecord_array, $original_datarecord->getId());
+            $stacked_datatype_array[ $original_datatype->getId() ] = parent::stackDatatypeArray($datatype_array, $original_datatype->getId(), $original_theme->getId());
+//print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
+//print '<pre>'.print_r($stacked_datatype_array, true).'</pre>';  exit();
+
 
             // ----------------------------------------
             // Render the DataRecord
@@ -319,8 +317,8 @@ class DisplayController extends ODRCustomController
             $page_html = $templating->render(
                 'ODRAdminBundle:Display:display_ajax.html.twig',
                 array(
-                    'datatype_array' => $datatype_array,
-                    'datarecord_array' => $datarecord_array,
+                    'datatype_array' => $stacked_datatype_array,
+                    'datarecord_array' => $stacked_datarecord_array,
 
                     'theme_id' => $original_theme->getId(),    // using these on purpose...user could have requested a child datarecord initially
                     'initial_datatype_id' => $original_datatype->getId(),
