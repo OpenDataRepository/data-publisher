@@ -3241,15 +3241,18 @@ if ($debug)
                 foreach ($theme['themeElements'] as $te_num => $te) {
                     if ( isset($te['themeDataFields']) ) {
                         foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                            if ( !isset($tdf['dataField']) )
-                                throw new \Exception('Datarecord '.$dr['id'].' ThemeDatafield '.$tdf['id'].' missing a datafield entry!');
+                            if ( !isset($tdf['dataField']) ) {
+                                // Don't throw an exception if the datafield entry in the array doesn't exist...it just means that the user can't see that datafield, so therefore no need for a csrf token
+                                //throw new \Exception('Datarecord '.$dr['id'].' ThemeDatafield '.$tdf['id'].' missing a datafield entry!');
+                            }
+                            else {
+                                $df_id = $tdf['dataField']['id'];
+                                $typeclass = $tdf['dataField']['dataFieldMeta']['fieldType']['typeClass'];
 
-                            $df_id = $tdf['dataField']['id'];
-                            $typeclass = $tdf['dataField']['dataFieldMeta']['fieldType']['typeClass'];
+                                $token_id = $typeclass.'Form_'.$dr_id.'_'.$df_id;
 
-                            $token_id = $typeclass.'Form_'.$dr_id.'_'.$df_id;
-
-                            $token_list[$dr_id][$df_id] = $token_generator->getToken($token_id)->getValue();
+                                $token_list[$dr_id][$df_id] = $token_generator->getToken($token_id)->getValue();
+                            }
                         }
                     }
                 }
