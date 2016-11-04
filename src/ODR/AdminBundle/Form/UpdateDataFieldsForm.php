@@ -155,7 +155,7 @@ class UpdateDataFieldsForm extends AbstractType
                 'placeholder' => false
             )
         );
-
+/*
         $builder->add(
             'user_only_search',
             CheckboxType::class,
@@ -164,7 +164,7 @@ class UpdateDataFieldsForm extends AbstractType
                 'required' => false
             )
         );
-
+*/
         $builder->add(
             'allow_multiple_uploads',
             CheckboxType::class,

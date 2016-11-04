@@ -296,7 +296,7 @@ exit();
 
         // Get all searchable datafields of all datatypes that the user is allowed to search on
         $query = $em->createQuery(
-           'SELECT dt.id AS dt_id, dfm.publicDate AS public_date, dfm.user_only_search AS user_only_search, df
+           'SELECT dt.id AS dt_id, dfm.publicDate AS public_date, df
             FROM ODRAdminBundle:DataType AS dt
             JOIN ODRAdminBundle:Theme AS t WITH t.dataType = dt
             JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
@@ -315,7 +315,6 @@ exit();
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $public_date = $result['public_date']->format('Y-m-d H:i:s');
-            $user_only_search = $result['user_only_search'];
 
             /** @var DataFields $datafield */
             $datafield = $result[0];
@@ -329,8 +328,8 @@ exit();
             if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
                 $can_view_datafield = true;
 
-            if ( (!$logged_in && $user_only_search == 1) || (!$datafield_is_public && !$can_view_datafield) ) {
-                // either the datafield isn't visible to non-logged in users, or the user lacks the view permission for this datafield...either way, don't save in $datafield_array
+            if ( !$datafield_is_public && !$can_view_datafield ) {
+                // the user lacks the view permission for this datafield...don't save in $datafield_array
             }
             else {
                 // The user has permissions to view this datafield...save it
@@ -1272,7 +1271,7 @@ if (isset($debug['timing'])) {
 
         // Get all searchable datafields of all datatypes that the user is allowed to search on
         $query = $em->createQuery(
-           'SELECT dt.id AS dt_id, dfm.publicDate AS public_date, df.id AS df_id, dfm.user_only_search AS user_only_search, dfm.searchable AS searchable, ft.typeClass AS type_class
+           'SELECT dt.id AS dt_id, dfm.publicDate AS public_date, df.id AS df_id, dfm.searchable AS searchable, ft.typeClass AS type_class
             FROM ODRAdminBundle:DataType AS dt
             JOIN ODRAdminBundle:Theme AS t WITH t.dataType = dt
             JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
@@ -1289,7 +1288,6 @@ if (isset($debug['timing'])) {
             $dt_id = $result['dt_id'];
             $public_date = $result['public_date']->format('Y-m-d H:i:s');
             $df_id = $result['df_id'];
-            $user_only_search = $result['user_only_search'];
             $searchable = $result['searchable'];
             $typeclass = $result['type_class'];
 
@@ -1301,8 +1299,8 @@ if (isset($debug['timing'])) {
             if ( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
                 $has_view_permission = true;
 
-            if ( (!$logged_in && $user_only_search == 1) || (!$datafield_is_public && !$has_view_permission) ) {
-                /* either the datafield isn't visible to non-logged in users, or the user lacks the view permission for this datafield...either way, don't save in $datafield_array */
+            if ( !$datafield_is_public && !$has_view_permission ) {
+                // the user lacks the view permission for this datafield...don't save in $datafield_array
             }
             else {
                 // Save the datafield id and typeclass in the list of datafields to run a general search on, assuming it's a valid fieldtype for general search
