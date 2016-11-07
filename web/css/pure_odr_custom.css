@@ -1672,3 +1672,33 @@ footer .ODRLogoImage img {
     transform: translateY(-50%);
 }
 
+
+/* DataTables has Z-index issue that causes
+   it to cover menus.  Removing position:relative;
+   fixes this for some reason. */
+.dataTables_wrapper {
+    position: inherit;
+}
+
+.ODRDatatypeInfoDiv {
+    /* position: relative; removed due to datatables z-index issue */
+    cursor: pointer;
+}
+.ODRDatatypeInfoDiv:hover .ODRDatatypeInfo {
+    visibility: visible;
+    top: 20px;
+    left: 20px;
+}
+.ODRDatatypeInfo {
+    visibility: hidden;
+    position: absolute;
+    background-color: lightyellow;
+    padding: 5px;
+    border: 1px dashed gray;
+    z-index: 999;
+    width: 500px;
+}
+
+.ODRHidden {
+    display: none;
+}

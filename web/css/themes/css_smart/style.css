@@ -156,106 +156,7 @@ input,
     left: 170px;
 }
 
-#ODRNav:focus,
-#ODRNav:hover,
-#ODRNav {
-    -webkit-transform: none;
-       -moz-transform: none;
-        -ms-transform: none;
-         -o-transform: none;
-            transform: none;
-    -webkit-transition: none;
-       -moz-transition: none;
-        -ms-transition: none;
-         -o-transition: none;
-            transition: none;
-    box-shadow: none;
-    background: white none;
-}
-#ODRNavWrapper {
-    /* position: relative; */
-    /* position: fixed;
-    top: 5px;
-    left: 0px; */
-    width: auto;
-    display: inline-block;
-    cursor: pointer;
-    margin-left: 1.2em;
-}
 
-#ODRNavWrapper input[type="checkbox"] {
-    /* visibility: hidden; */
-    cursor: pointer;
-}
-
-/*
-#ODRNavWrapper .ODRMenuIcon:before {
-    position: absolute;
-    font-family: FontAwesome;
-    content: "\f0c9";
-    cursor: pointer;
-    background: #1c81d0 none;
-    color: white;
-    cursor: pointer;
-    font-size: 1.4em;
-    margin-top: -0.3em;
-    vertical-align: middle;
-}
-*/
-
-#ODRNav:focus,
-#ODRNavWrapper:focus {
-    /* clicking on label should toggle the menu */
-    box-shadow: none;
-    outline-width: 0;
-}
-/*
-#ODRNavWrapper:focus #ODRNav {
-    /*  opacity is 1 in opened state (see below) */
-/*    opacity: 1;
-    /* visibility: visible; */
-/*    display: block;
-
-    /* don't let pointer-events affect descendant elements */
-    /* pointer-events: auto; */
-/* } */
-
-#ODRNav {
-    top: 34px;
-    left: -18px;
-    position: absolute;
-    z-index: 1;
-    color: white;
-
-    /* use opacity to fake immediate toggle */
-    /* opacity: 0;
-    visibility: hidden; */
-    display: none;
-    transition: visibility 0.5s;
-}
-
-.pure-skin-odr #ODRNav .pure-menu li a,
-.pure-skin-odr #ODRNav .pure-menu li a:hover,
-.pure-skin-odr #ODRNav .pure-menu li a:visited,
-.pure-skin-odr #ODRNav .pure-menu li a:active,
-.pure-skin-odr #ODRNav .pure-menu a,
-.pure-skin-odr #ODRNav .pure-menu a:hover,
-.pure-skin-odr #ODRNav .pure-menu a:visited,
-.pure-skin-odr #ODRNav .pure-menu a:active {
-    box-sizing: border-box;
-    background: #1c81d0 none;
-    color: white;
-    border-left: none;  /* 1px solid white; */
-    border-right: none; /* 1px solid white; */
-    border-top: none;
-    border-bottom: none;
-    border-radius: 0px;
-    height: 44px;
-    margin-bottom: 6px;
-}
-.pure-skin-odr #ODRNav .pure-menu li a:hover,
-.pure-skin-odr #ODRNav .pure-menu a:hover {
-    background: #7fb9d8 none;
 }
 
 .pure-skin-odr .pure-menu.pure-menu-open,
@@ -267,55 +168,6 @@ input,
     height: 42px;
 }
 
-.pure-skin-odr .ODRMenuLeft .pure-menu li a:hover,
-.pure-skin-odr .ODRMenuLeft .pure-menu li a:focus,
-.pure-skin-odr .ODRMenuRight .pure-menu li a:hover,
-.pure-skin-odr .ODRMenuRight .pure-menu li a:focus {
-    background: #7fb9d8 none;
-}
-
-.pure-skin-odr .ODRMenuRight.pure-menu li a:visited,
-.pure-skin-odr .ODRMenuRight.pure-menu li a:active,
-.pure-skin-odr .ODRMenuRight.pure-menu a,
-.pure-skin-odr .ODRMenuRight.pure-menu a:hover,
-.pure-skin-odr .ODRMenuRight.pure-menu a:visited,
-.pure-skin-odr .ODRMenuRight.pure-menu a:active,
-.pure-skin-odr .ODRMenuRight.pure-menu.pure-menu-open li a,
-.pure-skin-odr .ODRMenuRight .pure-menu li a:visited,
-.pure-skin-odr .ODRMenuRight .pure-menu li a:active,
-.pure-skin-odr .ODRMenuRight .pure-menu a,
-.pure-skin-odr .ODRMenuRight .pure-menu a:hover,
-.pure-skin-odr .ODRMenuRight .pure-menu a:visited,
-.pure-skin-odr .ODRMenuRight .pure-menu a:active,
-.pure-skin-odr .ODRMenuRight .pure-button:hover,
-.pure-skin-odr .ODRMenuRight .pure-button,
-.pure-skin-odr .ODRMenuRight .pure-button:active,
-.pure-skin-odr .ODRMenuRight .pure-button-active,
-.ODRMenuRight.pure-button:hover,
-.ODRMenuRight.pure-button,
-.pure-skin-odr .ODRMenuLeft .pure-menu li a,
-.pure-skin-odr .ODRMenuLeft .pure-menu li a:visited,
-.pure-skin-odr .ODRMenuLeft .pure-menu li a:active,
-.pure-skin-odr .ODRMenuLeft .pure-menu a,
-.pure-skin-odr .ODRMenuLeft .pure-menu a:hover,
-.pure-skin-odr .ODRMenuLeft .pure-menu a:visited,
-.pure-skin-odr .ODRMenuLeft .pure-menu a:active,
-.pure-skin-odr .ODRMenuLeft .pure-button:hover,
-.pure-skin-odr .ODRMenuLeft .pure-button,
-.pure-skin-odr .ODRMenuLeft .pure-button:active,
-.pure-skin-odr .ODRMenuLeft .pure-button-active,
-.ODRMenuLeft.pure-button:hover,
-.ODRMenuLeft.pure-button {
-    box-sizing: border-box;
-    background: #1c81d0 none;
-    color: white;
-    border-left: 1px solid white;
-    border-right: 1px solid white;
-    border-top: none;
-    border-bottom: none;
-    border-radius: 0px;
-    height: 42px;
-}
 /* END Toolbar and Menu */
 
 h1 {
@@ -443,57 +295,20 @@ footer {
     height: 48px;
 }
 
-footer .ODRLogoImage {
-    height: 48px;
+footer .ODRLogoImage img {
+    height: 42px;
     background: white;
 }
 
-.pure-skin-odr footer .ODRMenuRight.pure-menu li a:visited,
-.pure-skin-odr footer .ODRMenuRight.pure-menu li a:active,
-.pure-skin-odr footer .ODRMenuRight.pure-menu a,
-.pure-skin-odr footer .ODRMenuRight.pure-menu a:hover,
-.pure-skin-odr footer .ODRMenuRight.pure-menu a:visited,
-.pure-skin-odr footer .ODRMenuRight.pure-menu a:active,
-.pure-skin-odr footer .ODRMenuRight.pure-menu.pure-menu-open li a,
-.pure-skin-odr footer .ODRMenuRight .pure-menu li a:visited,
-.pure-skin-odr footer .ODRMenuRight .pure-menu li a:active,
-.pure-skin-odr footer .ODRMenuRight .pure-menu a,
-.pure-skin-odr footer .ODRMenuRight .pure-menu a:hover,
-.pure-skin-odr footer .ODRMenuRight .pure-menu a:visited,
-.pure-skin-odr footer .ODRMenuRight .pure-menu a:active,
-.pure-skin-odr footer .ODRMenuRight .pure-button:hover,
-.pure-skin-odr footer .ODRMenuRight .pure-button,
-.pure-skin-odr footer .ODRMenuRight .pure-button:active,
-.pure-skin-odr footer .ODRMenuRight .pure-button-active,
-.pure-skin-odr footer .ODRMenuLeft .pure-menu li a,
-.pure-skin-odr footer .ODRMenuLeft .pure-menu li a:visited,
-.pure-skin-odr footer .ODRMenuLeft .pure-menu li a:active,
-.pure-skin-odr footer .ODRMenuLeft .pure-menu a,
-.pure-skin-odr footer .ODRMenuLeft .pure-menu a:hover,
-.pure-skin-odr footer .ODRMenuLeft .pure-menu a:visited,
-.pure-skin-odr footer .ODRMenuLeft .pure-menu a:active,
-.pure-skin-odr footer .ODRMenuLeft .pure-button:hover,
-.pure-skin-odr footer .ODRMenuLeft .pure-button,
-.pure-skin-odr footer .ODRMenuLeft .pure-button:active,
-.pure-skin-odr footer .ODRMenuLeft .pure-button-active {
-    height: 48px;
-    vertical-align: middle;
-    margin-right: -4px;
+footer .pure-menu-item a {
+    /* padding: 0px 12px 0px 12px; */
+    line-height: 42px;
 }
 
-.pure-skin-odr .ODRMenuRight.pure-menu li a.ODRLogoImage,
-.pure-skin-odr footer .pure-menu li a.ODRLogoImage,
 footer li a.ODRLogoImage {
     background: white;
-    padding: 0px 16px 0px 12px;
+    padding: 3px 8px 3px 8px;
 }
-
-footer .ODRLogoImage img {
-    height: 40px;
-    padding: none;
-}
-
-
 
 
 /* Search Form */
@@ -719,3 +534,114 @@ footer .ODRLogoImage img {
 .ODRDatatypeProperties {
     background: #7fb9d8 none;
 }
+
+/* Main Menu ODR */
+.ODRMenuWrapper,
+.ODRMenuWrapper ul,
+#ODRMainMenu {
+    background-image: none;
+    background-color: #1c81d0;
+    box-shadow: none;
+    color: white;
+    height: 42px;
+}
+
+.ODR-pure-submenu li {
+    left: -40px;
+}
+.ODR-pure-submenu li span,
+.ODR-pure-submenu li a {
+    margin-left: 8px;
+}
+
+#ODRMainMenu .pure-menu-heading,
+#ODRMainMenu .pure-menu-link {
+    text-transform: none;
+    color: white;
+}
+#ODRMainMenu .pure-menu-item {
+    padding-left: 0px;
+}
+
+#ODRMainMenu .pure-menu-heading:hover,
+#ODRMainMenu .pure-menu-item:hover,
+#ODRMainMenu .pure-menu-link:hover,
+#ODRMainMenu .pure-menu-link:focus {
+    background-color: transparent;
+}
+
+/* Fancy CSS to make hover bars */
+.pure-menu-list {
+    text-align: center;
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+.pure-menu-list * {
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    -webkit-transition: all 0.35s ease;
+    transition: all 0.35s ease;
+}
+.pure-menu-list li {
+    display: inline-block;
+    list-style: outside none none;
+    /* margin: 0.5em 1.5em; */
+    /* padding: 0; */
+}
+
+.pure-menu-list span,
+.pure-menu-list a {
+    /* padding: 0.3em 0; */
+    color: rgba(255, 255, 255, 0.5);
+    position: relative;
+    text-decoration: none;
+    display: inline-block;
+}
+.pure-menu-list span:before,
+.pure-menu-list span:after,
+.pure-menu-list a:before,
+.pure-menu-list a:after {
+    height: 2px;
+    position: absolute;
+    content: '';
+    -webkit-transition: all 0.35s ease;
+    transition: all 0.35s ease;
+    background-color: #ffffff;
+    width: 0;
+}
+.pure-menu-list span:before,
+.pure-menu-list a:before {
+    top: 5px;
+    left: 0;
+}
+.pure-menu-list span:after,
+.pure-menu-list a:after {
+    bottom: 5px;
+    right: 0;
+}
+.pure-menu-list span:hover,
+.pure-menu-list .current span,
+.pure-menu-list a:hover,
+.pure-menu-list .current a {
+    color: rgba(255, 255, 255, 1.0);
+    /*  color: #ffffff; */
+}
+.pure-menu-list span:hover:before,
+.pure-menu-list .current span:before,
+.pure-menu-list span:hover:after,
+.pure-menu-list .current span:after,
+.pure-menu-list a:hover:before,
+.pure-menu-list .current a:before,
+.pure-menu-list a:hover:after,
+.pure-menu-list .current a:after {
+    width: 100%;
+}
+
+.odr-no-effects a:after,
+.odr-no-effects a:before {
+    -webkit-transition: none;
+    transition: none;
+    background-color: transparent;
+}
+
+/* End Hover Bar CSS */

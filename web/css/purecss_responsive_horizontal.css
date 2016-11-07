@@ -6,6 +6,7 @@
     -moz-transition: height 0.5s;
     -ms-transition: height 0.5s;
     transition: height 0.5s;
+    z-index: 10000000;
 }
 
 .ODRMenuWrapper,
@@ -24,15 +25,15 @@
 
 .odr-custom-toggle {
     margin-top: 4px;
-    padding-left: 4px;
-    display: block;
+    /* padding-left: 4px; */
+    /* display: block; */
     position: relative;
     cursor: pointer;
     display: none;
 }
 
 .odr-custom-toggle i {
-    padding-right: 4px;
+    /* padding-right: 4px; */
 }
 
 /* end from menu-responsive.css ******************/
@@ -48,42 +49,71 @@
     position: relative;
 }
 
-#ODRMainMenu ul ul {
-    display: none;
+/* #ODRMainMenu ul ul { */
+.ODR-pure-submenu {
+    /* display: none; */
+    width:225px;
     position: absolute;
     top: 100%;
     left: 0;
+    height: 0;
+    opacity: 0;
+    transition: opacity 0.4s ease-in-out, height 0.4s ease-in-out;
+    overflow: hidden;
 }
 
-#ODRMainMenu ul li.show > ul {
-    display:inherit;
+#ODRMainMenu ul li.show {
+    position: relative;
+}
+
+#ODRMainMenu ul li.show > ul.ODR-pure-submenu {
+    /* display:inherit; */
+    display: block;
+    width:225px;
+    opacity: 1;
+    height: auto;
+    transition: opacity 0.4s ease-in-out, height 0.4s ease-in-out;
+    overflow: visible;
+}
+
+#ODRMainMenu ul ul li.show > ul.ODR-pure-submenu {
+    /* display:inherit; */
+    display: block;
+    float: left;
+    position: absolute;
+    top: 0px;
+    left: 225px;
+    opacity: 1;
+    height: auto;
+    transition: opacity 0.4s ease-in-out, height 0.4s ease-in-out;
 }
 
 /* Fisrt Tier Dropdown */
+/*
 #ODRMainMenu ul ul li {
     min-width:170px;
     float:none;
     display:list-item;
     position: relative;
 }
+*/
 
 /* Second, Third and more Tiers	*/
+/*
 #ODRMainMenu ul ul ul li {
     position: relative;
-    /* top:-60px;
-    left:170px; */
 }
+*/
 
 /* Change this in order to change the Dropdown symbol */
+/*
 #ODRMainMenu li > span:after { content:  ' +'; }
 #ODRMainMenu li > span:only-child:after { content: ''; }
+*/
 
 #ODRMainMenu .pure-menu-heading {
     cursor: pointer;
 }
-/* #ODRMainMenu li:hover ul {
-    display: block;
-} */
 
 .odr-menu-center {
     text-align: center;
@@ -92,27 +122,24 @@
 .ODR-pure-submenu {
     text-align: left;
     list-style-type: none;
-    padding-left: 0.5em;
+    /* padding-left: 0.5em;
     padding-top: 0.25em;
-    padding-bottom: 0.25em;
+    padding-bottom: 0.25em; */
 }
 
 .ODR-pure-submenu li {
-    padding-top: 0.4em;
-    padding-bottom: 0.4em;
+    /* padding-top: 0.4em;
+    padding-bottom: 0.4em; */
 }
 
 #ODRMainMenu div.pure-u-1:last-child .ODR-pure-submenu {
     position: absolute;
     left: -130px;
-    min-width: 170px;
+    min-width: 225px;
 }
 
 /* Display Dropdowns on Hover */
 @media (min-width: 48em) {
-    /* #ODRMainMenu ul li:hover > ul {
-        display: inherit;
-    } */
 }
 /* Compress at Pure  < 768px */
 @media (max-width: 47.999em) {
@@ -124,11 +151,6 @@
     .odr-custom-toggle {
         display: block;
     }
-
-    /* #ODRMainMenu ul li:hover > ul {
-        position: relative;
-        display: block;
-    } */
 
     .ODRMenuWrapper {
         height: 2.5em;
@@ -152,13 +174,13 @@
         width: 100%;
         text-align: left;
         list-style-type: none;
-        padding-top: 0.5em;
-        padding-bottom: 0.5em;
+        /*  padding-top: 0.5em;
+        padding-bottom: 0.5em; */
     }
 
     .ODR-pure-submenu li {
-        padding-top: 0.4em;
-        padding-bottom: 0.4em;
+        /* padding-top: 0.4em;
+        padding-bottom: 0.4em; */
     }
 
     #ODRMainMenu div.pure-u-1:last-child .ODR-pure-submenu {
@@ -171,17 +193,8 @@
 
     #ODRMainMenu ul li.show > ul {
         position: relative;
-        display: block;
+        /* display: block; */
     }
 
-    /* DO NOT Display Dropdowns on Hover */
-    /*
-    #ODRMainMenu ul li:hover > ul {
-        display: none;
-    }
-
-    #ODRMainMenu ul li .show > ul {
-        display: block;
-    } */
 }
 

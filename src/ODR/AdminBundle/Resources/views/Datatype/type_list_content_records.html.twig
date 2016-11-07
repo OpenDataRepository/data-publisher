@@ -149,30 +149,7 @@
 </table>
 </div>
 
-<style>
-    .ODRDatatypeInfoDiv {
-        cursor: pointer;
-        position: relative;
-    }
-    .ODRDatatypeInfoDiv:hover .ODRDatatypeInfo {
-        visibility: visible;
-        top: 20px;
-        left: 20px;
-    }
-    .ODRDatatypeInfo {
-        visibility: hidden;
-        position: absolute;
-        background-color: lightyellow;
-        padding: 5px;
-        border: 1px dashed gray;
-        z-index: 999;
-        width: 500px;
-    }
 
-    .ODRHidden {
-        display: none;
-    }
-</style>
 
 <script>
     $(function() {
@@ -192,7 +169,7 @@
             "autoWidth": true,
             "paging": false,
             "fixedHeader": {
-                headerOffset: 42
+                /* headerOffset: 42 */
             },
             "info": false,
             "language": {
