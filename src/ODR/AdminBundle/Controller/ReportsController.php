@@ -702,7 +702,7 @@ print_r($grandparent_list);
             if ($datatype->getExternalIdField() == null) {
                 $use_external_id_field = false;
                 $query = $em->createQuery(
-                   'SELECT dr.id AS dr_id, e.value AS value, "" AS external_id
+                   'SELECT dr.id AS dr_id, e.value AS value
                     FROM ODRAdminBundle:DataRecord AS dr
                     JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
                     JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
@@ -733,7 +733,10 @@ print_r($grandparent_list);
             foreach ($results as $num => $result) {
                 $dr_id = $result['dr_id'];
                 $value = $result['value'];
-                $external_id = $result['external_id'];
+
+                $external_id = '';
+                if ($use_external_id_field)
+                    $external_id = $result['external_id'];
 
                 $content[$dr_id] = array('external_id' => $external_id, 'value' => $value);
             }

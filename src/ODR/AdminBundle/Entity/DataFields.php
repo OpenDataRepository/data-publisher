@@ -532,6 +532,7 @@ class DataFields
     }
 
     /**
+     * @deprecated
      * Get user_only_search
      *
      * @return boolean

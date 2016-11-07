@@ -98,6 +98,7 @@ class DataFieldsMeta
     private $searchable;
 
     /**
+     * @deprecated
      * @var boolean
      */
     private $user_only_search;
@@ -481,6 +482,7 @@ class DataFieldsMeta
     }
 
     /**
+     * @deprecated
      * Set user_only_search
      *
      * @param boolean $userOnlySearch
@@ -494,6 +496,7 @@ class DataFieldsMeta
     }
 
     /**
+     * @deprecated
      * Get user_only_search
      *
      * @return boolean 

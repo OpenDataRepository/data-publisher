@@ -186,7 +186,7 @@
             {{ form_errors(datafield_form.searchable) }}
             {{ form_widget(datafield_form.searchable, { 'attr': {'style': 'width:auto'} }) }}
         </div>
-
+{#
         <div class="pure-control-group">
             <label for="{{ datafield_form.user_only_search.vars.id }}">
                 <strong>{{ datafield_form.user_only_search.vars.label }}</strong>
@@ -194,6 +194,7 @@
             {{ form_errors(datafield_form.user_only_search) }}
             {{ form_widget(datafield_form.user_only_search, { 'attr': {'style': 'width:auto'} }) }}
         </div>
+#}
         {% endif %}
 
         {% if typename == 'File' or typename == 'Image' %}
