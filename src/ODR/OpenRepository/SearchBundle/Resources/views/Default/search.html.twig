@@ -26,12 +26,24 @@
 
         <fieldset>
             <div class="pure-u-1">
-                <label for="textbox_general" class="pure-u-1-3">Search for: <i class="fa fa-lg fa-question-circle Pointer ODRSearchHelp"></i></label>
+                <label for="textbox_general" class="pure-u-1-3">
+                    Search for:
+                    <i class="fa fa-lg fa-question-circle Pointer ODRSearchHelp" style="padding-left:5px;" title="Search Help"></i>
+                    <i class="fa fa-lg fa-info-circle Pointer ODRGeneralSearchList" style="padding-left:5px;" title="List of Datafields that will be searched"></i>
+                </label>
                 <input id="textbox_general" class="pure-u-2-3" type="text" name="gen" {% if search_string is defined and search_string != '' %}value="{{ search_string }}"{% endif %} {% if searchable_datafields|length == 0 %}disabled="disabled" title="This datatype has no searchable datafields"{% endif %} />
             </div>
 
             <div class="pure-u-1" id="ODRSearchHelp_div" style="display:none;">
                 {% include 'ODROpenRepositorySearchBundle:Default:search_help.html.twig' %}
+            </div>
+            <div class="pure-u-1" id="ODRGeneralSearchList_div" class="ODRTableWrap" style="display:none;">
+                {% include 'ODROpenRepositorySearchBundle:Default:search_datafield_list.html.twig' with {
+                    'target_datatype': target_datatype,
+                    'searchable_datafields': searchable_datafields,
+                    'related_datatypes': related_datatypes,
+                    'logged_in': logged_in,
+                } %}
             </div>
         </fieldset>
 
@@ -367,6 +379,10 @@
         // Slide out the help menu
         $(".ODRSearchHelp").unbind('click').click(function() {
             $("#ODRSearchHelp_div").slideToggle();
+        });
+
+        $(".ODRGeneralSearchList").unbind('click').click(function() {
+            $("#ODRGeneralSearchList_div").slideToggle();
         });
     });
 
