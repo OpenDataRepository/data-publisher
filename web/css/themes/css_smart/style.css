@@ -543,7 +543,6 @@ footer li a.ODRLogoImage {
     background-color: #1c81d0;
     box-shadow: none;
     color: white;
-    height: 42px;
 }
 
 .ODR-pure-submenu li {
@@ -571,77 +570,85 @@ footer li a.ODRLogoImage {
 }
 
 /* Fancy CSS to make hover bars */
-.pure-menu-list {
-    text-align: center;
-    font-weight: 500;
-    letter-spacing: 1px;
-}
-.pure-menu-list * {
-    -webkit-box-sizing: border-box;
-    box-sizing: border-box;
-    -webkit-transition: all 0.35s ease;
-    transition: all 0.35s ease;
-}
-.pure-menu-list li {
-    display: inline-block;
-    list-style: outside none none;
-    /* margin: 0.5em 1.5em; */
-    /* padding: 0; */
-}
+@media (min-width: 48em) {
+    .ODRMenuWrapper,
+    .ODRMenuWrapper ul,
+    #ODRMainMenu {
+        height: 42px;
+    }
 
-.pure-menu-list span,
-.pure-menu-list a {
-    /* padding: 0.3em 0; */
-    color: rgba(255, 255, 255, 0.5);
-    position: relative;
-    text-decoration: none;
-    display: inline-block;
-}
-.pure-menu-list span:before,
-.pure-menu-list span:after,
-.pure-menu-list a:before,
-.pure-menu-list a:after {
-    height: 2px;
-    position: absolute;
-    content: '';
-    -webkit-transition: all 0.35s ease;
-    transition: all 0.35s ease;
-    background-color: #ffffff;
-    width: 0;
-}
-.pure-menu-list span:before,
-.pure-menu-list a:before {
-    top: 5px;
-    left: 0;
-}
-.pure-menu-list span:after,
-.pure-menu-list a:after {
-    bottom: 5px;
-    right: 0;
-}
-.pure-menu-list span:hover,
-.pure-menu-list .current span,
-.pure-menu-list a:hover,
-.pure-menu-list .current a {
-    color: rgba(255, 255, 255, 1.0);
-    /*  color: #ffffff; */
-}
-.pure-menu-list span:hover:before,
-.pure-menu-list .current span:before,
-.pure-menu-list span:hover:after,
-.pure-menu-list .current span:after,
-.pure-menu-list a:hover:before,
-.pure-menu-list .current a:before,
-.pure-menu-list a:hover:after,
-.pure-menu-list .current a:after {
-    width: 100%;
-}
+    .pure-menu-list {
+        text-align: center;
+        font-weight: 500;
+        letter-spacing: 1px;
+    }
+    .pure-menu-list * {
+        -webkit-box-sizing: border-box;
+        box-sizing: border-box;
+        -webkit-transition: all 0.35s ease;
+        transition: all 0.35s ease;
+    }
+    .pure-menu-list li {
+        display: inline-block;
+        list-style: outside none none;
+        /* margin: 0.5em 1.5em; */
+        /* padding: 0; */
+    }
 
-.odr-no-effects a:after,
-.odr-no-effects a:before {
-    -webkit-transition: none;
-    transition: none;
-    background-color: transparent;
+    .pure-menu-list span,
+    .pure-menu-list a {
+        /* padding: 0.3em 0; */
+        color: rgba(255, 255, 255, 0.5);
+        position: relative;
+        text-decoration: none;
+        /* display: inline-block; */
+    }
+    .pure-menu-list span:before,
+    .pure-menu-list span:after,
+    .pure-menu-list a:before,
+    .pure-menu-list a:after {
+        height: 2px;
+        position: absolute;
+        content: '';
+        -webkit-transition: all 0.35s ease;
+        transition: all 0.35s ease;
+        background-color: #ffffff;
+        width: 0;
+    }
+    .pure-menu-list span:before,
+    .pure-menu-list a:before {
+        top: 5px;
+        left: 0;
+    }
+    .pure-menu-list span:after,
+    .pure-menu-list a:after {
+        bottom: 5px;
+        right: 0;
+    }
+    .pure-menu-list span:hover,
+    .pure-menu-list .current span,
+    .pure-menu-list a:hover,
+    .pure-menu-list .current a {
+        color: rgba(255, 255, 255, 1.0);
+        /*  color: #ffffff; */
+    }
+    .pure-menu-list span:hover:before,
+    .pure-menu-list .current span:before,
+    .pure-menu-list span:hover:after,
+    .pure-menu-list .current span:after,
+    .pure-menu-list a:hover:before,
+    .pure-menu-list .current a:before,
+    .pure-menu-list a:hover:after,
+    .pure-menu-list .current a:after {
+        width: 100%;
+    }
+
+    .odr-no-effects a:after,
+    .odr-no-effects a:before {
+        -webkit-transition: none;
+        transition: none;
+        background-color: transparent;
+    }
 }
 
 /* End Hover Bar CSS */

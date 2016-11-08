@@ -428,35 +428,12 @@ exit();
 
             // Need to grab all searchable datafields for the target_datatype and its descendants
 
-$debug = true;
-$debug = false;
-
             // ----------------------------------------
             // Grab ids of all datatypes related to the requested datatype that the user can view
             $related_datatypes = self::getRelatedDatatypes($em, $target_datatype_id, $datatype_permissions);
 
-if ($debug) {
-    print '<pre>';
-    print "\n\n\n";
-//    print '$user_permissions: '.print_r($user_permissions, true)."\n";
-    print '$related_datatypes: '.print_r($related_datatypes, true)."\n";
-}
-            // Grab all searchable datafields 
+            // Grab all searchable datafields
             $searchable_datafields = self::getSearchableDatafields($em, $related_datatypes, $logged_in, $datatype_permissions, $datafield_permissions);
-
-if ($debug) {
-    $print = array();
-    foreach ($searchable_datafields as $dt_id => $tmp) {
-        $print[$dt_id] = array();
-        foreach ($tmp as $num => $df)
-            $print[$dt_id][] = $df->getId();
-    }
-
-    print '$searchable_datafields: '.print_r($print, true)."\n";
-    print '</pre>';
-//exit();
-}
-
 
             // ----------------------------------------
             // Grab a random background image if one exists and the user is allowed to see it

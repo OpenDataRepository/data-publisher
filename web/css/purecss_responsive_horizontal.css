@@ -24,12 +24,12 @@
 }
 
 .odr-custom-toggle {
-    margin-top: 4px;
-    /* padding-left: 4px; */
-    /* display: block; */
+    margin-top: 6px;
+    padding-left: 4px;
     position: relative;
     cursor: pointer;
     display: none;
+    vertical-align: middle;
 }
 
 .odr-custom-toggle i {
@@ -122,14 +122,6 @@
 .ODR-pure-submenu {
     text-align: left;
     list-style-type: none;
-    /* padding-left: 0.5em;
-    padding-top: 0.25em;
-    padding-bottom: 0.25em; */
-}
-
-.ODR-pure-submenu li {
-    /* padding-top: 0.4em;
-    padding-bottom: 0.4em; */
 }
 
 #ODRMainMenu div.pure-u-1:last-child .ODR-pure-submenu {
@@ -144,57 +136,54 @@
 /* Compress at Pure  < 768px */
 @media (max-width: 47.999em) {
 
-    .odr-custom-menu-3 {
-        text-align: left;
-    }
-
     .odr-custom-toggle {
         display: block;
     }
 
     .ODRMenuWrapper {
-        height: 2.5em;
+        height: 42px;
         overflow: hidden;
     }
+    /*
 
-    .odr-menu-center {
-        text-align: left;
+    .overflow-visible {
+        display: block;
+        overflow: visible;
+        height: auto;
     }
+    */
 
-    .pure-menu-horizontal.odr-hide-small {
-        display: none;
+    .ODRMenuWrapper li {
+        width: 100%;
     }
 
     .ODR-pure-submenu {
         position: relative;
-        display: none;
-    }
-
-    .ODR-pure-submenu {
+        display: block;
+        height: 0px;
         width: 100%;
+        top: 0px;
+        left: 0px;
         text-align: left;
         list-style-type: none;
-        /*  padding-top: 0.5em;
-        padding-bottom: 0.5em; */
     }
 
-    .ODR-pure-submenu li {
-        /* padding-top: 0.4em;
-        padding-bottom: 0.4em; */
+    .ODR-pure-submenu .show {
+        display: block;
+        height: auto;
+    }
+    .pure-menu-list {
+        text-align: left;
     }
 
-    #ODRMainMenu div.pure-u-1:last-child .ODR-pure-submenu {
+    /* #ODRMainMenu div.pure-u-1:last-child .ODR-pure-submenu {
         position: relative;
-    }
-
-    .ODR-pure-submenu ul {
-        position: relative;
-    }
-
-    #ODRMainMenu ul li.show > ul {
-        position: relative;
-        /* display: block; */
+    } */
+    footer li:first {
+       background-color: white;
     }
 
 }
+
+
 
