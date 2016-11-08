@@ -291,23 +291,23 @@ h3.ui-accordion-header a {
 }
 
 footer {
+    color: white;
     background: #1C81D0 none;
     height: 48px;
 }
 
+footer ul {
+    height: 48px;
+}
+
 footer .ODRLogoImage img {
-    height: 42px;
+    height: 38px;
+    padding: 5px 6px 5px 6px;
     background: white;
 }
 
-footer .pure-menu-item a {
-    /* padding: 0px 12px 0px 12px; */
-    line-height: 42px;
-}
-
-footer li a.ODRLogoImage {
+footer ul li:first-child {
     background: white;
-    padding: 3px 8px 3px 8px;
 }
 
 

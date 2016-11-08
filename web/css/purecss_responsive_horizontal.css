@@ -133,6 +133,7 @@
 /* Display Dropdowns on Hover */
 @media (min-width: 48em) {
 }
+
 /* Compress at Pure  < 768px */
 @media (max-width: 47.999em) {
 
@@ -144,14 +145,6 @@
         height: 42px;
         overflow: hidden;
     }
-    /*
-
-    .overflow-visible {
-        display: block;
-        overflow: visible;
-        height: auto;
-    }
-    */
 
     .ODRMenuWrapper li {
         width: 100%;
@@ -172,15 +165,30 @@
         display: block;
         height: auto;
     }
+
+    #ODRMainMenu ul li.show > ul.ODR-pure-submenu {
+        /* display:inherit; */
+        display: block;
+        opacity: 1;
+        height: auto;
+        transition: opacity 0.4s ease-in-out, height 0.4s ease-in-out;
+    }
+
+
+    #ODRMainMenu ul ul li.show > ul.ODR-pure-submenu {
+        /* display:inherit; */
+        display: block;
+        opacity: 1;
+        height: auto;
+        transition: opacity 0.4s ease-in-out, height 0.4s ease-in-out;
+    }
+
     .pure-menu-list {
         text-align: left;
     }
 
-    /* #ODRMainMenu div.pure-u-1:last-child .ODR-pure-submenu {
+    #ODRMainMenu div.pure-u-1:last-child .ODR-pure-submenu {
         position: relative;
-    } */
-    footer li:first {
-       background-color: white;
     }
 
 }
