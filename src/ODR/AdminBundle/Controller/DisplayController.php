@@ -922,6 +922,240 @@ fclose($log_file);
 
 
     /**
+     * Assuming the user has the correct permissions, adds each file from this datarecord/datafield pair into a zip
+     * archive and returns that zip archive for download.
+     *
+     * @param integer $datarecord_id
+     * @param integer $datafield_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function downloadallfilesAction($datarecord_id, $datafield_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        /** @var \ZipArchive|null $zip_archive */
+        $zip_archive = null;
+        $archive_filepath = null;
+        $non_public_files_to_delete = array();
+
+        $response = new Response();
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            if ($datarecord == null)
+                return parent::deletedEntityError('Datarecord');
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                return parent::deletedEntityError('DataField');
+
+            if ( $datarecord->getDataType()->getId() !== $datafield->getDataType()->getId() )
+                throw new \Exception('Invalid Request');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                return parent::deletedEntityError('Datatype');
+
+
+            // ----------------------------------------
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            $logged_in = false;
+            $can_view_datarecord = false;
+
+            if ($user === 'anon.') {
+                // No permissions for an anonymous user...
+            }
+            else {
+                $logged_in = true;
+
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+                $datafield_permissions = $user_permissions['datafields'];
+
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                    $can_view_datatype = true;
+
+                $can_view_datarecord = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                    $can_view_datarecord = true;
+
+                $can_view_datafield = false;
+                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
+                    $can_view_datafield = true;
+
+                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+                if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
+                    return parent::permissionDeniedError();
+            }
+            // ----------------------------------------
+
+
+            // ----------------------------------------
+            // Locate all database entries for all the files uploaded to this datarecord/datafield
+            $query = $em->createQuery(
+               'SELECT drf, f, fm
+                FROM ODRAdminBundle:DataRecordFields AS drf
+                JOIN drf.file AS f
+                JOIN f.fileMeta AS fm
+                WHERE drf.dataRecord = :datarecord_id AND drf.dataField = :datafield_id
+                AND drf.deletedAt IS NULL AND f.deletedAt IS NULL AND fm.deletedAt IS NULL'
+            )->setParameters( array('datarecord_id' => $datarecord_id, 'datafield_id' => $datafield_id) );
+            $results = $query->getArrayResult();
+
+            $files = $results[0]['file'];
+//print '<pre>'.print_r($files, true).'</pre>';
+
+            // Filter out files the user isn't allowed to see
+            if ( count($files) > 0 ) {
+                foreach ($files as $num => $file) {
+
+                    $file_is_public = true;
+                    if ( $file['fileMeta'][0]['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' )
+                        $file_is_public = false;
+
+                    if ( !$file_is_public && !$can_view_datarecord )
+                        unset( $files[$num] );
+                    else
+                        $files[$num]['fileMeta'] = $files[$num]['fileMeta'][0];
+                }
+            }
+
+
+            // ----------------------------------------
+            // If any files remain...
+            if ( count($files) == 0 ) {
+                // TODO - what to return?
+                throw new \Exception('Nothing to download?');
+            }
+            else {
+                // ...create a zip archive to store them in
+                $zip_archive = new \ZipArchive();
+
+                // Create a filename for the zip archive
+                $tokenGenerator = $this->get('fos_user.util.token_generator');
+                $random_id = substr($tokenGenerator->generateToken(), 0, 12);
+
+                $archive_filename = $random_id.'.zip';
+                $archive_filepath = dirname(__FILE__).'/../../../../web/uploads/files/'.$archive_filename;
+
+                $zip_archive->open($archive_filepath,  \ZipArchive::CREATE);
+
+                foreach ($files as $file) {
+                    // Ensure the file exists on the server in decrypted format
+                    $filepath = parent::decryptObject($file['id'], 'file');
+
+                    // Add the file to the zip archive
+                    $display_filename = trim($file['fileMeta']['originalFileName']);
+                    if ($display_filename == '')
+                        $display_filename = 'File_'.$file['id'].'.'.$file['ext'];
+
+                    $zip_archive->addFile($filepath, $display_filename);
+
+                    // If file is non-public, ensure it gets deleted off the server since it's been decrypted...
+                    $file_is_public = true;
+                    if ( $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' )
+                        $file_is_public = false;
+
+                    if ( !$file_is_public )
+                        $non_public_files_to_delete[] = $file['localFileName'];
+                }
+
+                // Done with the zip archive
+                $zip_archive->close();
+
+
+                // Create a download response for the zip archive
+                $response = new StreamedResponse();
+
+                $handle = fopen($archive_filepath, 'r');
+                if ($handle === false)
+                    throw new \Exception('Unable to open existing file at "'.$archive_filepath.'"');
+
+                $response->setPrivate();
+                $response->headers->set('Content-Type', mime_content_type($archive_filepath));
+                $response->headers->set('Content-Length', filesize($archive_filepath));
+                $response->headers->set('Content-Disposition', 'attachment; filename="'.$archive_filename.'";');
+
+                // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
+                $response->headers->setCookie(
+                    new Cookie(
+                        'fileDownload', // name
+                        'true',         // value
+                        0,              // duration set to 'session'
+                        '/',            // default path
+                        null,           // default domain
+                        false,          // don't require HTTPS
+                        false           // allow cookie to be accessed outside HTTP protocol
+                    )
+                );
+
+                // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
+                $response->setCallback(function () use ($handle) {
+                    while (!feof($handle)) {
+                        $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
+                        echo $buffer;
+                        flush();
+                    }
+                    fclose($handle);
+                });
+
+                // Delete the zip archive
+                unlink( $archive_filepath );
+
+                // Delete any non-public files
+                foreach ($non_public_files_to_delete as $num => $filename) {
+                    if ( file_exists($filename) )
+                        unlink( $filename );
+                }
+            }
+        }
+        catch (\Exception $e) {
+            // Ensure the zip archive is closed
+            if ($zip_archive != null)
+                $zip_archive->close();
+            // Ensure the zip archive doesn't exist on the server
+            if ( $archive_filepath != null && file_exists($archive_filepath) )
+                unlink($archive_filepath);
+
+            // Delete any non-public files
+            foreach ($non_public_files_to_delete as $num => $filename) {
+                if ( file_exists($filename) )
+                    unlink( $filename );
+            }
+
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x4148561: ' . $e->getMessage();
+        }
+
+        if ($return['r'] !== 0) {
+            // If error encountered, do a json return
+            $response = new Response(json_encode($return));
+            $response->headers->set('Content-Type', 'application/json');
+            return $response;
+        }
+        else {
+            // Return the previously created response
+            return $response;
+        }
+    }
+
+
+    /**
      * Provides users the ability to cancel the decryption of a file.
      * TODO - all files moved into non-web-accessible directory so encryption/decryption not even needed?
      * TODO - allow anonymous users to download public files even if datatype/datarecord/datafield are non-public?
@@ -1181,5 +1415,4 @@ fclose($log_file);
             return $response;
         }
     }
-
 }

@@ -117,6 +117,53 @@ function initPage() {
         handleFileDownload(event, file_id, href, short_form, can_cancel);    // defined in Default::file_handling.html.twig
     });
 
+    $(".ODRDownloadAllFiles").unbind('click').click(function() {
+
+        if ( $(this).hasClass('fa-muted') )
+            return;
+
+        // Grab necessary attributes
+        var element = $(this);
+
+        var id_data = $(this).closest(".ODRDataField").first().attr('id').split(/_/);
+        var datarecord_id = id_data[1];
+        var datafield_id = id_data[2];
+
+        if ( $(this).closest(".pure-table").find("a.ODRFileDownload").length > 0 ) {
+
+            var url = '{{ path('odr_download_all_files', { 'datarecord_id': 0, 'datafield_id': 0 }) }}';
+            url = url.substring(0, (url.length-3));
+            url += datarecord_id + '/' + datafield_id;
+
+//alert(url);
+//return;
+
+            var label_div = $("#ODRDownloadAllLabel_" + datarecord_id + "_" + datafield_id);
+
+            $.fileDownload(url, {
+                prepareCallback: function(url) {
+                    $(label_div).show();
+                    $(element).addClass('fa-muted');
+                },
+                successCallback: function (url) {
+                    $(label_div).hide();
+                    $(element).removeClass('fa-muted');
+                },
+                failCallback: function (responseHtml, url, error) {
+                    // Something went wrong...
+                    $(label_div).hide();
+                    $(element).removeClass('fa-muted');
+
+                    responseHtml = responseHtml.substring(5);
+                    responseHtml = responseHtml.substring(0, (responseHtml.length-6));
+
+                    var jsonResponse = jQuery.parseJSON(responseHtml);
+                    alert (jsonResponse.d );
+                }
+            });
+        }
+    });
+
     $(".ODRDataField").find('.ODRDatafieldHistory').unbind('click').click(function(event) {
 
         // Don't trigger whatever the click normally would have done (mostly for boolean fields)

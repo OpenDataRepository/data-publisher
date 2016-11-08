@@ -726,6 +726,13 @@ odr_image_download:
     requirements:
         image_id:  \d+
 
+odr_download_all_files:
+    path:  /view/downloadall/{datarecord_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Display:downloadallfiles }
+    requirements:
+        datarecord_id: \d+
+        datafield_id: \d+
+
 #-----------------------------------------
 
 #-----------------------------------------
