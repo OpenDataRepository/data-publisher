@@ -829,15 +829,21 @@ dd {
     margin: 0 0 10px 0;
 }
 
+#ODRElementDataSaved {
+    visibility: hidden;
+    position: relative;
+    top: -20px;
+}
+
 aside {
     background: #1f8dd6; /* same color as selected state on site menu */
     padding: 0.3em 1em;
     border-radius: 3px;
-    color: #fff;
 }
-    aside a, aside a:visited {
-        color: rgb(169, 226, 255);
-    }
+
+aside a, aside a:visited {
+    color: rgb(169, 226, 255);
+}
 
 
 /* --------------------------

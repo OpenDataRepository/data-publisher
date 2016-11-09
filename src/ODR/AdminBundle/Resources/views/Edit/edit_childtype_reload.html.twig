@@ -12,7 +12,8 @@
 {% endif %}
 
 {% if datarecord_array[parent_datarecord_id]['children'][target_datatype_id] is defined %}
-    {% set datarecord_array = datarecord_array[parent_datarecord_id]['children'][ target_datatype_id ] %}
+    {% set parent_datarecord = datarecord_array[parent_datarecord_id] %}
+    {% set datarecord_array = parent_datarecord['children'][ target_datatype_id ] %}
 
     {% include 'ODRAdminBundle:Edit:edit_fieldarea_childtype.html.twig' with {
         'datatype_array': datatype_array,
@@ -20,7 +21,7 @@
         'theme_id': theme_id,
 
         'target_datatype_id': target_datatype_id,
-        'parent_datarecord_id': parent_datarecord_id,
+        'parent_datarecord': parent_datarecord,
 
         'datatype_permissions': datatype_permissions,
         'datafield_permissions': datafield_permissions,

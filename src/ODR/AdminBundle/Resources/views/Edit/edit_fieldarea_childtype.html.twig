@@ -1,16 +1,10 @@
 {% spaceless %}
 
 {% set childtype = datatype_array[target_datatype_id] %}
-{#{% set parent_datarecord = datarecord_array[parent_datarecord_id] %}#}
 
-{% set grandparent_datarecord = null %}
 {% set child_datarecord_count = 0 %}
 {% for dr_id, dr in datarecord_array %}
-    {% if grandparent_datarecord == null %}
-        {% set grandparent_datarecord = dr.grandparent %}
-    {% endif %}
-
-    {% if dr.parent.id == parent_datarecord_id and dr.dataType.id == childtype.id %}
+    {% if dr.parent.id == parent_datarecord.id and dr.dataType.id == childtype.id %}
         {% set child_datarecord_count = child_datarecord_count + 1 %}
     {% endif %}
 {% endfor %}
@@ -25,7 +19,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
 --------------------</br>
 #}
 
-<div class="ODRChildDatatype" id="ChildTypeWrapper_{{ childtype.id }}_{{ parent_datarecord_id }}">
+<div class="ODRChildDatatype" id="ChildTypeWrapper_{{ childtype.id }}_{{ parent_datarecord.id }}">
 
 {% if is_link == 0 %}
     {% include 'ODRAdminBundle:Edit:edit_childtype.html.twig' with {
@@ -34,7 +28,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
         'theme_id': theme_id,
 
         'target_datatype_id': target_datatype_id,
-        'parent_datarecord_id': parent_datarecord_id,
+        'parent_datarecord_id': parent_datarecord.id,
 
         'datatype_permissions': datatype_permissions,
         'datafield_permissions': datafield_permissions,
@@ -50,12 +44,12 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
 {#
     {% if is_link == 1 %}
         {% if can_edit_record == 1 %}
-        <button class="pure-button pure-button-primary" type="button" onclick="LinkRecord({{ datatype.id }},{{ childtype.id }},{{ parent_datarecord_id }});">Link {{ childtype.dataTypeMeta.shortName }} record.</button>
+        <button class="pure-button pure-button-primary" type="button" onclick="LinkRecord({{ datatype.id }},{{ childtype.id }},{{ parent_datarecord.id }});">Link {{ childtype.dataTypeMeta.shortName }} record.</button>
         {% endif %}
     {% elseif can_add_record == 1 and (multiple_allowed == 1 or child_datarecord_count < 1) %}
 #}
     {% if can_add_record == 1 and (multiple_allowed == 1 or child_datarecord_count < 1) %}
-        <button class="pure-button pure-button-primary" type="button" onclick="AddChildRecord({{ childtype.id }},{{ parent_datarecord_id }},{{ grandparent_datarecord.id }});">Add {{ childtype.dataTypeMeta.shortName }} record.</button>
+        <button class="pure-button pure-button-primary" type="button" onclick="AddChildRecord({{ childtype.id }},{{ parent_datarecord.id }},{{ parent_datarecord.grandparent.id }});">Add {{ childtype.dataTypeMeta.shortName }} record.</button>
     {% endif %}
     </div>
 {% else %}
@@ -73,6 +67,6 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}</br>
     } %}
 {% endif %}
 
-</div><!-- End of #ChildTypeWrapper_{{ target_datatype_id }}_{{ parent_datarecord_id }} -->
+</div><!-- End of #ChildTypeWrapper_{{ target_datatype_id }}_{{ parent_datarecord.id }} -->
 
 {% endspaceless %}

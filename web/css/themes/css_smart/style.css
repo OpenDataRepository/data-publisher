@@ -50,6 +50,7 @@ input,
 }
 
 /* Borders around top-level TEDs/Groups */
+.MenuDesignArea > .ODRThemeElement > .ODRInnerBox,
 .ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
 .ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
@@ -62,11 +63,9 @@ input,
     padding: 0px;
     border-radius: 4px;
     background-color: white;
-    /* padding: 0.3em;
-    border: 2px solid rgba(185, 186, 246, 0.25);
-    border-radius: 4px; */
-    /* background-color: rgba(0,0,0,0.045); */
 }
+
+.MenuDesignArea > .ODRThemeElement > .ODRInnerBox,
 .ODRShortResult > .ODRShortResults > .DataRecordShort,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement,
 .ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,
@@ -79,8 +78,6 @@ input,
     padding: 12px;
     border-radius: 4px;
     background-color: white;
-    /* padding-right: 0.4em;
-    /* border: 1px solid rgba(185, 186, 246, 0.8); */
 }
 
 .ODRDataField {
@@ -530,9 +527,40 @@ footer ul li:first-child {
     width: auto;
 }
 
+.MenuDesignArea > .ODRThemeElement {
+    box-sizing:border-box;
+    -moz-box-sizing:border-box;
+    -webkit-box-sizing:border-box;
+    padding: 8px;
+    min-height: 350px;
+}
+
+.MenuDesignArea > .ODRThemeElement > .ODRInnerBox {
+    box-sizing:border-box;
+    -moz-box-sizing:border-box;
+    -webkit-box-sizing:border-box;
+    min-height: 336px;
+}
+
+@media screen and ( max-height: 750px ) {
+    .MenuDesignArea > .ODRThemeElement {
+        height: 550px;
+    }
+    .MenuDesignArea > .ODRThemeElement > .ODRInnerBox {
+        height: 536px;
+        overflow: auto;
+    }
+}
+
 .NavSlideOut,
 .ODRDatatypeProperties {
     background: #7fb9d8 none;
+    padding-bottom: 0px;
+}
+
+#ODRMenuLabelRight {
+   color: white;
+   margin-left: -28px;
 }
 
 /* Main Menu ODR */

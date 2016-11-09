@@ -1,7 +1,7 @@
 {% spaceless %}
 
-<div class="pure-u-3-4" style="visibility: hidden;">
-    <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
+<div class="pure-u-3-4" id="ODRElementDataSaved">
+    <label id="saved">SAVED</label>
 </div>
 
 
@@ -9,95 +9,120 @@
     'method': 'POST',
     'attr': {
         'id': 'DatatypePropertiesForm_' ~ datatype.id,
-        'class': 'ODRDatatypePropertiesForm pure-form pure-form-aligned'
+        'class': 'ODRDatatypePropertiesForm pure-form'
     }
 }) }}
 
 {% if datatree == null or datatree.getislink == false %}    {# don't display datatype-specific properties if a linked type #}
 
-    <fieldset>
 
+    <div class="ODRFieldArea pure-u-1">
+    <div class="ODRDatafield pure-u-1">
+    <fieldset>
         <div class="pure-control-group">
-            <label for="{{ datatype_form.short_name.vars.id }}">
-                <strong>{{ datatype_form.short_name.vars.label }}</strong>
+            <label class="ODRFieldLabel" for="{{ datatype_form.short_name.vars.id }}">
+                {{ datatype_form.short_name.vars.label }}
             </label>
+            <div class="ODRFieldWrapper">
             {{ form_errors(datatype_form.short_name) }}
-            {{ form_widget(datatype_form.short_name, { 'attr': {'class': 'required ODRDatatypeShortName', 'data-error-type': 'inline' } }) }}
+            {{ form_widget(datatype_form.short_name, { 'attr': {'class': 'required ODRDatatypeShortName pure-u-1', 'data-error-type': 'inline' } }) }}
+            </div>
         </div>
+    </fieldset>
+    </div>
+    </div>
+
+    <fieldset>
         <div class="pure-control-group">
             <label for="{{ datatype_form.long_name.vars.id }}">
-                <strong>{{ datatype_form.long_name.vars.label }}</strong>
+                {{ datatype_form.long_name.vars.label }}
             </label>
+            <div class="ODRFieldWrapper">
             {{ form_errors(datatype_form.long_name) }}
-            {{ form_widget(datatype_form.long_name, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+            {{ form_widget(datatype_form.long_name, { 'attr': {'class': 'pure-u-1 required', 'data-error-type': 'inline' } }) }}
+            </div>
         </div>
         <div class="pure-control-group">
             <label for="{{ datatype_form.description.vars.id }}">
-                <strong>{{ datatype_form.description.vars.label }}</strong>
+                {{ datatype_form.description.vars.label }}
             </label>
+            <div class="ODRFieldWrapper">
             {{ form_errors(datatype_form.description) }}
-            {{ form_widget(datatype_form.description, { 'attr': {'class': 'required', 'data-error-type': 'inline', 'style': 'height:150px;' } }) }}
+            {{ form_widget(datatype_form.description, { 'attr': {'rows': '3', 'class': 'pure-u-1 required', 'data-error-type': 'inline' } }) }}
+            </div>
         </div>
 
 
         <div class="pure-control-group">
             <label for="{{ datatype_form.externalIdField.vars.id }}">
-                <strong>{{ datatype_form.externalIdField.vars.label }}</strong>
+                {{ datatype_form.externalIdField.vars.label }}
+                <span class="ODRHelp"><i class="fa fa-lg fa-question-circle Cursor" title="The contents of the selected Datafield will be used to identify and update Datarecords during CSV/XML Importing.  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use."></i></span>
             </label>
+            <div class="ODRFieldWrapper">
             {{ form_errors(datatype_form.externalIdField) }}
-            {{ form_widget(datatype_form.externalIdField, { 'attr': {'data-error-type': 'inline' } }) }}
-            <span style="color:black;">&nbsp;<i class="fa fa-lg fa-question-circle Cursor" title="The contents of the selected Datafield will be used to identify and update Datarecords during CSV/XML Importing.  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use."></i></span>
+            {{ form_widget(datatype_form.externalIdField, { 'attr': {'class': 'pure-u-1','data-error-type': 'inline' } }) }}
+            </div>
         </div>
         <div class="pure-control-group">
             <label for="{{ datatype_form.nameField.vars.id }}">
-                <strong>{{ datatype_form.nameField.vars.label }}</strong>
+                {{ datatype_form.nameField.vars.label }}
+                <span class="ODRHelp"><i class="fa fa-lg fa-question-circle Cursor" title="The contents of the selected Datafield will be used as a logical 'name' to label the Datarecord in lists and various other places.{#  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use.#}"></i></span>
             </label>
+            <div class="ODRFieldWrapper">
             {{ form_errors(datatype_form.nameField) }}
-            {{ form_widget(datatype_form.nameField, { 'attr': {'data-error-type': 'inline' } }) }}
-            <span style="color:black;">&nbsp;<i class="fa fa-lg fa-question-circle Cursor" title="The contents of the selected Datafield will be used as a logical 'name' to label the Datarecord in lists and various other places.{#  Only Datafields marked as 'Unique' in DisplayTemplate are eligible for use.#}"></i></span>
+            {{ form_widget(datatype_form.nameField, { 'attr': {'class': 'pure-u-1','data-error-type': 'inline' } }) }}
+            </div>
         </div>
 
         <div class="pure-control-group">
             <label for="{{ datatype_form.sortField.vars.id }}">
-                <strong>{{ datatype_form.sortField.vars.label }}</strong>
+                {{ datatype_form.sortField.vars.label }}
+                <span class="ODRHelp"><i class="fa fa-lg fa-question-circle Cursor" title="The contents of the selected Datafield will determine the sorting order of the Datarecords of this Datatype."></i></span>
             </label>
+            <div class="ODRFieldWrapper">
             {{ form_errors(datatype_form.sortField) }}
-            {{ form_widget(datatype_form.sortField, { 'attr': {'data-error-type': 'inline' } }) }}
-            <span style="color:black;">&nbsp;<i class="fa fa-lg fa-question-circle Cursor" title="The contents of the selected Datafield will determine the sorting order of the Datarecords of this Datatype."></i></span>
+            {{ form_widget(datatype_form.sortField, { 'attr': {'class': 'pure-u-1','data-error-type': 'inline' } }) }}
+            </div>
         </div>
 
         {% if is_top_level == true %}
         <div class="pure-control-group">
             <label for="{{ datatype_form.backgroundImageField.vars.id }}">
-                <strong>{{ datatype_form.backgroundImageField.vars.label }}</strong>
+                {{ datatype_form.backgroundImageField.vars.label }}
+                <span class="ODRHelp"><i class="fa fa-lg fa-question-circle Cursor" title="This Datatype's search page will select and display a random public Image uploaded to the selected Datafield."></i></span>
             </label>
+            <div class="ODRFieldWrapper">
             {{ form_errors(datatype_form.backgroundImageField) }}
-            {{ form_widget(datatype_form.backgroundImageField, { 'attr': {'data-error-type': 'inline' } }) }}
-            <span style="color:black;">&nbsp;<i class="fa fa-lg fa-question-circle Cursor" title="This Datatype's search page will select and display a random public Image uploaded to the selected Datafield."></i></span>
+            {{ form_widget(datatype_form.backgroundImageField, { 'attr': {'class': 'pure-u-1','data-error-type': 'inline' } }) }}
+            </div>
         </div>
 
         <div class="pure-control-group">
             <label for="{{ datatype_form.searchSlug.vars.id }}">
-                <strong>{{ datatype_form.searchSlug.vars.label }}</strong>
+                {{ datatype_form.searchSlug.vars.label }}
             </label>
+            <div class="ODRFieldWrapper">
             {{ form_errors(datatype_form.searchSlug) }}
             <span style="color:black; font-size:80%;">{{ site_baseurl ~ '/'}}</span>
-            <span>{{ form_widget(datatype_form.searchSlug, { 'attr': {'style': 'width:auto;', 'maxlength': '32'} }) }}</span>
+            <span>{{ form_widget(datatype_form.searchSlug, { 'attr': {'class': '','style': 'width:auto;', 'maxlength': '32'} }) }}</span>
+            </div>
         </div>
 
         <div class="pure-control-group">
             <label for="{{ datatype_form.useShortResults.vars.id }}">
-                <strong>{{ datatype_form.useShortResults.vars.label }}</strong>
+                {{ datatype_form.useShortResults.vars.label }}
             </label>
+            <div class="ODRFieldWrapper">
             {{ form_errors(datatype_form.useShortResults) }}
-            {{ form_widget(datatype_form.useShortResults, { 'attr': {'style': 'width:auto'} }) }}
+            {{ form_widget(datatype_form.useShortResults, { 'attr': {'class': 'pure-u-1','style': 'width:auto'} }) }}
+            </div>
         </div>
         {% endif %}
 
         {% if is_top_level == true and can_view_permissions == true %}
         <div class="pure-control-group">
             <label>
-                <strong>Datatype Permissions</strong>
+                Datatype Permissions
             </label>
             <span>
                 &nbsp;<a target="_blank" class="address" href="#{{ path( 'odr_manage_groups', {'datatype_id': datatype.id }) }}" style="color:black;" title="Manage Group permissions for this Datatype..."><i class="fa fa-cog fa-lg"></i></a>

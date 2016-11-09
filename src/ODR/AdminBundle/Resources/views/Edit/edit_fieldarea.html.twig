@@ -98,31 +98,32 @@
                 {% endfor %}
 
                 {# pass all child datarecords of this child datatype at once... #}
+                {% set datarecord_array = {} %}
                 {% if datarecord['children'][ child_datatype_id ] is defined %}
                     {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
-
-                    {% include 'ODRAdminBundle:Edit:edit_fieldarea_childtype.html.twig' with {
-                        'datatype_array': child_datatype,
-                        'datarecord_array': datarecord_array,
-                        'theme_id': child_theme_id,
-
-                        'target_datatype_id': child_datatype_id,
-                        'parent_datarecord_id': datarecord.id,
-
-                        'datatype_permissions': datatype_permissions,
-                        'datafield_permissions': datafield_permissions,
-
-                        'can_add_record': can_add_record,
-                        'can_edit_record': can_edit_record,
-
-                        'is_top_level': 0,
-                        'is_link': theme_datatype.is_link,
-                        'display_type': theme_datatype.display_type,
-                        'multiple_allowed': theme_datatype.multiple_allowed,
-
-                        'token_list': token_list,
-                    } %}
                 {% endif %}
+
+                {% include 'ODRAdminBundle:Edit:edit_fieldarea_childtype.html.twig' with {
+                    'datatype_array': child_datatype,
+                    'datarecord_array': datarecord_array,
+                    'theme_id': child_theme_id,
+
+                    'target_datatype_id': child_datatype_id,
+                    'parent_datarecord': datarecord,
+
+                    'datatype_permissions': datatype_permissions,
+                    'datafield_permissions': datafield_permissions,
+
+                    'can_add_record': can_add_record,
+                    'can_edit_record': can_edit_record,
+
+                    'is_top_level': 0,
+                    'is_link': theme_datatype.is_link,
+                    'display_type': theme_datatype.display_type,
+                    'multiple_allowed': theme_datatype.multiple_allowed,
+
+                    'token_list': token_list,
+                } %}
 
             {% endif %}
         {% endfor %}

@@ -444,7 +444,8 @@ h1:after {
 }
 
 #ElementDataWrapper {
-   padding-left: 4px; 
+    padding-left: 4px; 
+    margin: 0px;
 }
 
 .DataType {

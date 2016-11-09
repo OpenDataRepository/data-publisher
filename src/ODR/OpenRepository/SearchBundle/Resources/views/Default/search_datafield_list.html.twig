@@ -4,12 +4,15 @@
     <div class="pure-u-1" style="font-weight: bold;">List of Datafields that will be searched:</div>
 
     {# primary datatype #}
-    <div class="pure-u-1" style="font-weight: bold;">{{ target_datatype.getshortname }}</div>
-    {% for datafield in searchable_datafields[ target_datatype.id ] %}
-        {% if datafield.getsearchable == 1 or datafield.getsearchable == 2 %}
-            <div class="pure-u-1-3">{{ datafield.getfieldname }}</div>
-        {% endif %}
-    {% endfor %}
+    {% if searchable_datafields[ target_datatype.id ] is defined %}
+        <div class="pure-u-1" style="font-weight: bold;">{{ target_datatype.getshortname }}</div>
+
+        {% for datafield in searchable_datafields[ target_datatype.id ] %}
+            {% if datafield.getsearchable == 1 or datafield.getsearchable == 2 %}
+                <div class="pure-u-1-3">{{ datafield.getfieldname }}</div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
 
     {# child datatypes #}
     {% for child_datatype_id, datafield_list in related_datatypes['child_datatypes'] %}

@@ -494,7 +494,8 @@ return;
                 else {
                     // An error has occurred.
                     // Show Error message dialog
-                    alert(data.d);
+                    console.log(data.d);    
+                    // Need to convert this data to a growl message for user.
                 }
             },
             complete: function(jqXHR, textStatus) {
@@ -1351,9 +1352,6 @@ function SaveDatatypeProperties(datatype_id, short_name) {
     url = url.substring(0, (url.length - 1));
     url += datatype_id;
 
-//alert( url );
-//return;
-    
     var form_data = $("#DatatypePropertiesForm_" + datatype_id).serialize();
     $.ajax({
         type: 'POST',
@@ -1675,6 +1673,7 @@ function SaveThemeElementProperties(theme_element_id) {
 
 function InitDatatypePropertiesForm() {
     // Init Datatype Properties forms
+
     $("#ElementData .ODRDatatypePropertiesForm").find("select").each(function() {
         var datatype_id_data = $("#ElementData .ODRDatatypePropertiesForm").attr('id').split(/_/);
         var datatype_id = datatype_id_data[1];
@@ -1728,6 +1727,7 @@ function InitDatatypePropertiesForm() {
             });
         }
     });
+
 
     $("#ElementData .ODRDatatreePropertiesForm").find("input").each(function() {
         var datatype_id_data = $("#ElementData .ODRDatatypePropertiesForm").attr('id').split(/_/);
