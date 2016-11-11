@@ -32,6 +32,9 @@
 </style>
 
 <script>
+    //var SaveTimeout = 750;
+    var SaveTimeout = 2000;
+
     $(function() {
         InitSlideout();
         LoadGroupList({{ datatype.id }});
@@ -42,15 +45,33 @@
             WindowResizeInterval = window.clearInterval(WindowResizeInterval);
             WindowResizeInterval = window.setInterval("resizeOverlayDivs()", 50);
         });
+
+        // Setup Properties Tack
+        $(".TackProperties").unbind('click').click(function() {
+            if ($(this).hasClass('tacked')) {
+                // Remove tacked
+                $(this).removeClass('tacked');
+                $("#ODRNavRight").removeClass('StickOpen');
+                // $("#ODRNavRight").css('right', 0);
+            }
+            else {
+                $(this).addClass('tacked');
+                $("#ODRNavRight").addClass('StickOpen');
+                // $("#ODRNavRight").css('right', 400);
+            }
+        });
+
+        $(".ODRThemeListContentHeader").last().next().show();
     });
 
     function notifySaved() {
-//    $('#saved').fadeIn();
+{#
         $('#saved').css('visibility', 'visible');   // trying out visibility property because normal display property causes slideout to jump around
         setTimeout(function() {
-//        $('#saved').fadeOut();
             $('#saved').css('visibility', 'hidden');
         }, 2000);
+#}
+        $.jGrowl('SAVED');
     }
 
     function InitSlideout() {
@@ -69,17 +90,16 @@
                             $(".MenuDesignArea").remove();
                             $("#ODRNavRight .top").append(data.d);
                             $("#ODRNavRightWrapper").fadeIn('fast');
-                            $("#MenuManageDataTypes").click();
-                            $(".MenuDesignArea a").click();
+//                            $(".MenuDesignArea a").click();
 
                             // Clear Element Data Holder
                             $("#ElementData").html("");
-                            break;
+                        break;
 
                         case 'func':
                             // Call External Function
                             data.d.func(data);
-                            break;
+                        break;
                     }
                 }
                 else {
@@ -469,7 +489,7 @@
             var datatype_id = $("#GroupPropertiesForm_" + group_id).attr('rel');
 
             // Save changes
-            if($(this).is(":checkbox")) {
+            if( $(this).is(":checkbox") ) {
                 $(this).unbind('change').change(function() {
                     SaveGroupPropertyInterval[group_id] = window.clearInterval(SaveGroupPropertyInterval[group_id]);
                     SaveGroupPropertyInterval[group_id] = window.setInterval("SaveGroupProperties(" + datatype_id + "," + group_id + ", true)", SaveTimeout);

@@ -35,18 +35,21 @@
 
 <script>
 
-//var SaveTimeout = 250;
-var SaveTimeout = 750;
+//var SaveTimeout = 750;
+var SaveTimeout = 2000;
 $(function() {
     initPage();
     InitSlideout();
 });
 
-function notifySaved(element_id) {
-    $('#' + element_id  + ' #saved').css('visibility', 'visible');   // trying out visibility property because normal display property causes slideout to jump around
+function notifySaved() {
+{#
+    $('#saved').css('visibility', 'visible');   // trying out visibility property because normal display property causes slideout to jump around
     setTimeout(function() {
-        $('#' + element_id  + ' #saved').css('visibility', 'hidden');
+        $('#saved').css('visibility', 'hidden');
     }, 1250);
+#}
+    $.jGrowl('SAVED');
 }
 
 function initPage() {
@@ -535,7 +538,7 @@ return;
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
+                if (data.r == 0) {
                     $("#ElementData").html(data.d).fadeIn('fast');
                     InitThemeElementPropertiesForm();
                 }
@@ -810,13 +813,14 @@ return;
         placeholder: "ui-state-highlight",
         connectWith: ".ODRInnerBox"
     });
-    $(".ODRInnerBox").disableSelection();
+    // Don't want to call disabledSelection() on the right slideout
+    $("#content").find(".ODRInnerBox").disableSelection();
 
     // Prevent re-ordering of theme_elements and datafields inside Linked Datatypes
     $(".ODRLinkedType").find(".ODRFieldArea").sortable("destroy");
     $(".ODRLinkedType").find(".ODRInnerBox").sortable("destroy");
     $(".ODRThemeElement > .ODRInnerBox > .ODRDataType").parent().sortable("destroy");    // prevent sortable datafields attaching before/after datatypes
-
+    $("#ElementData").parent(".ODRInnerBox").sortable("destroy");                        // prevent sortable datafields from attaching to the right slideout
 }
 
 var datafield_properties_xhr = null;
@@ -841,7 +845,7 @@ function SaveDatafieldProperty(datafield_id, reload_datafield) {
         data: post_data,
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
-                notifySaved('ElementData');
+                notifySaved();
 
                 // Only reload datafield if necessary
                 if (reload_datafield == true) {
@@ -885,22 +889,16 @@ function SaveDatafieldProperty(datafield_id, reload_datafield) {
 }
 
 var starting_field_top, starting_field_left;
-var SaveThemeDatafieldPropertyInterval = [];
-function SaveThemeDatafieldProperty(theme_datafield_id) {
-    if(SaveThemeDatafieldPropertyInterval[theme_datafield_id] != undefined)
-        SaveThemeDatafieldPropertyInterval[theme_datafield_id] = window.clearInterval(SaveThemeDatafieldPropertyInterval[theme_datafield_id]);
+function SaveThemeDatafieldProperties(theme_element_id, datafield_id) {
 
-    var url = '{{ path('odr_design_save_theme_datafield', {'theme_datafield_id': 0}) }}';
-    url = url.substring(0, url.length-1);
-    url += theme_datafield_id;
+    var url = '{{ path('odr_design_save_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}';
+    url = url.substring(0, url.length-3);
+    url += theme_element_id + '/' + datafield_id;
 
 //alert( url );
 //return;
 
-    var datafield = $("#ThemeDatafieldPropertiesForm_" + theme_datafield_id).next().attr('id').split(/_/);
-    var datafield_id = datafield[1];
-
-    var post_data = $("#ThemeDatafieldPropertiesForm_" + theme_datafield_id).serialize();
+    var post_data = $("#ThemeDatafieldPropertiesForm_" + theme_element_id + "_" + datafield_id).serialize();
     $.ajax({
         type: 'POST',
         url: url,
@@ -920,11 +918,7 @@ function SaveThemeDatafieldProperty(theme_datafield_id) {
                 if (xl_width_current != undefined && xl_width_old != xl_width_current)
                     $("#Field_" + datafield_id).removeClass('pure-u-xl-' + xl_width_old).addClass('pure-u-xl-' + xl_width_current);
 
-                notifySaved('ElementData');
-
-                // Forcibly reload slideout
-                // $("#ElementData").html("");
-                // $("#Field_" + datafield_id).trigger('click');
+                notifySaved();
             }
             else {
                 // An error has occurred.
@@ -1045,8 +1039,7 @@ function InitDatafieldPropertiesForm() {
         var datafield_id_data = $(this).attr('id').split(/_/);
         var datafield_id = datafield_id_data[1];
 
-        $(this).unbind('click');
-        $(this).click(function() {
+        $(this).unbind('click').click(function() {
             if ( $(this).hasClass('pure-button-disabled') ) {
                 return;
             }
@@ -1059,8 +1052,7 @@ function InitDatafieldPropertiesForm() {
         var datafield_id_data = $(this).attr('id').split(/_/);
         var datafield_id = datafield_id_data[1];
 
-        $(this).unbind('click');
-        $(this).click(function() {
+        $(this).unbind('click').click(function() {
             if(confirm("The current layout of this field will be copied into a new field.")) {
                 CopyDatafield(datafield_id);
             }
@@ -1069,14 +1061,14 @@ function InitDatafieldPropertiesForm() {
 
     // Attach event handlers to the css width selectors in the datafield properties slideout
     $("#ElementData .ODRThemeDatafieldPropertiesForm").find("select").each(function() {
-        // Grab ThemeDatafield id
-        var theme_datafield_id_data = $("#ElementData .ODRThemeDatafieldPropertiesForm").attr('id').split(/_/);
-        var theme_datafield_id =  theme_datafield_id_data[1];
+        // Grab necessary ids
+        var id_data = $("#ElementData .ODRThemeDatafieldPropertiesForm").attr('id').split(/_/);
+        var theme_element_id =  id_data[1];
+        var datafield_id = id_data[2];
 
         // Save changes
-        $(this).unbind('change');
-        $(this).change(function() {
-            SaveThemeDatafieldProperty(theme_datafield_id);
+        $(this).unbind('change').change(function() {
+            SaveThemeDatafieldProperties(theme_element_id, datafield_id);
         });
     });
 
@@ -1087,8 +1079,7 @@ function InitDatafieldPropertiesForm() {
         var datafield_id = datafield_id_data[1];
 
         // Save changes
-        $(this).unbind('change');
-        $(this).change(function() {
+        $(this).unbind('change').change(function() {
             // fieldtype selector gets overridden further down 
 
             // 
@@ -1131,8 +1122,7 @@ function InitDatafieldPropertiesForm() {
 
         // Save changes
         if($(this).is(":checkbox")) {
-            $(this).unbind('change');
-            $(this).change(function() {
+            $(this).unbind('change').change(function() {
                 // 
                 var reload_datafield = false;
                 if ( $(this).hasClass('ODRDatafieldNameSort') )
@@ -1174,8 +1164,7 @@ function InitDatafieldPropertiesForm() {
         var datafield_id =  datafield_id_data[1];
 
         // ...
-        $(this).unbind('change');
-        $(this).change(function() {
+        $(this).unbind('change').change(function() {
 
             // If datatype has datarecords, changing a fieldtype might cause loss of data
             var str = "WARNING: Changing the type of this Datafield will cause the loss of ALL data currently in this Datafield.";
@@ -1305,8 +1294,7 @@ function InitSlideout() {
                         $(".MenuDesignArea").remove();
                         $("#ODRNavRight .top").append(data.d);
                         $("#ODRNavRightWrapper").fadeIn('fast');
-                        $("#MenuManageDataTypes").click();
-                        $(".MenuDesignArea a").click();
+//                        $(".MenuDesignArea a").click();
 
                         // Clear Element Data Holder
                         $("#ElementData").html("");
@@ -1360,7 +1348,7 @@ function SaveDatatypeProperties(datatype_id, short_name) {
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
-                notifySaved('ElementData');
+                notifySaved();
                 // $("#ElementData").html('');
                 // $("#DataTypeTools_" + datatype_id).children(".ODRDatatypeProperties").first().trigger('click');
 
@@ -1396,14 +1384,12 @@ function SaveDatatypeProperties(datatype_id, short_name) {
     });
 }
 
-var SaveDataTreeInterval = [];
-function SaveDatatreeProperties(datatype_id, datatree_id) {
-    if (SaveDataTreeInterval[datatree_id] != undefined)
-        SaveDataTreeInterval[datatree_id] = window.clearInterval(SaveDataTreeInterval[datatree_id]);
 
-    var url = '{{ path('odr_design_save_datatree', {'datatype_id': 0, 'datatree_id': 0}) }}';
-    url = url.substring(0, (url.length - 3));
-    url += datatype_id + '/' + datatree_id;
+function SaveDatatreeProperties(datatree_id) {
+
+    var url = '{{ path('odr_design_save_datatree', {'datatree_id': 0}) }}';
+    url = url.substring(0, (url.length - 1));
+    url += datatree_id;
 
 //alert( url );
 //return;
@@ -1415,10 +1401,8 @@ function SaveDatatreeProperties(datatype_id, datatree_id) {
         data: form_data,
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-//                notifySaved();
-                $("#ElementData").html('');
-                $("#DataTypeTools_" + datatype_id).children(".ODRDatatypeProperties").first().trigger('click');
+            if (data.r == 0) {
+                notifySaved();
             }
             else {
                 // An error has occurred.
@@ -1443,19 +1427,17 @@ function SaveDatatreeProperties(datatype_id, datatree_id) {
     });
 }
 
-var SaveThemeDatatypeInterval = [];
-function SaveThemeDatatypeProperties(datatype_id, theme_datatype_id) {
-    if (SaveThemeDatatypeInterval[theme_datatype_id] != undefined)
-        SaveThemeDatatypeInterval[theme_datatype_id] = window.clearInterval(SaveThemeDatatypeInterval[theme_datatype_id]);
 
-    var url = '{{ path('odr_design_save_theme_datatype', {'theme_datatype_id': 0}) }}';
-    url = url.substring(0, (url.length - 1));
-    url += theme_datatype_id;
+function SaveThemeDatatypeProperties(theme_element_id, datatype_id) {
+
+    var url = '{{ path('odr_design_save_theme_datatype', {'theme_element_id': 0, 'datatype_id': 0}) }}';
+    url = url.substring(0, (url.length - 3));
+    url += theme_element_id + '/' + datatype_id;
 
 //alert( url );
 //return;
 
-    var form_data = $("#ThemeDatafieldPropertiesForm_" + theme_datatype_id).serialize();
+    var form_data = $("#ThemeDatatypePropertiesForm_" + theme_element_id + "_" + datatype_id).serialize();
     $.ajax({
         type: 'POST',
         url: url,
@@ -1463,9 +1445,7 @@ function SaveThemeDatatypeProperties(datatype_id, theme_datatype_id) {
         dataType: "json",
         success: function(data, textStatus, jqXHR) {
             if(data.r == 0) {
-//                notifySaved();
-                $("#ElementData").html('');
-                $("#DataTypeTools_" + datatype_id).children(".ODRDatatypeProperties").first().trigger('click');
+                notifySaved();
             }
             else {
                 // An error has occurred.
@@ -1613,10 +1593,7 @@ function SaveDatafieldOrder(container, initial_theme_element_id, ending_theme_el
 }
 
 
-var SaveThemeElementInterval = [];
 function SaveThemeElementProperties(theme_element_id) {
-    if(SaveThemeElementInterval[theme_element_id] != undefined)
-        SaveThemeElementInterval[theme_element_id] = window.clearInterval(SaveThemeElementInterval[theme_element_id]);
 
     var url = '{{ path('odr_design_get_theme_element_properties', { 'theme_element_id': 0 } ) }}';
     url = url.substring(0, (url.length - 1));
@@ -1678,8 +1655,7 @@ function InitDatatypePropertiesForm() {
         var datatype_id_data = $("#ElementData .ODRDatatypePropertiesForm").attr('id').split(/_/);
         var datatype_id = datatype_id_data[1];
 
-        $(this).unbind('change');
-        $(this).change(function() {
+        $(this).unbind('change').change(function() {
             SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
             SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '","")', SaveTimeout);
         });
@@ -1702,8 +1678,7 @@ function InitDatatypePropertiesForm() {
         var datatype_id = datatype_id_data[1];
 
         if( $(this).is(":checkbox") ) {
-            $(this).unbind('change');
-            $(this).change(function() {
+            $(this).unbind('change').change(function() {
                 SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
                 SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '","")', SaveTimeout);
             });
@@ -1730,32 +1705,23 @@ function InitDatatypePropertiesForm() {
 
 
     $("#ElementData .ODRDatatreePropertiesForm").find("input").each(function() {
-        var datatype_id_data = $("#ElementData .ODRDatatypePropertiesForm").attr('id').split(/_/);
-        var datatype_id = datatype_id_data[1];
-
-        var datatree_id_data = $("#ElementData .ODRDatatreePropertiesForm").attr('id').split(/_/);
-        var datatree_id = datatree_id_data[1];
+        var id_data = $("#ElementData .ODRDatatreePropertiesForm").attr('id').split(/_/);
+        var datatree_id = id_data[1];
 
         if( $(this).is(":checkbox") ) {
-            $(this).unbind('change');
-            $(this).change(function() {
-                SaveDataTreeInterval[datatree_id] = window.clearInterval(SaveDataTreeInterval[datatree_id]);
-                SaveDataTreeInterval[datatree_id] = window.setInterval('SaveDatatreeProperties("' + datatype_id + '","' + datatree_id + '")', SaveTimeout);
+            $(this).unbind('change').change(function() {
+                SaveDatatreeProperties(datatree_id);
             });
         }
     });
 
     $("#ElementData .ODRThemeDatatypePropertiesForm").find("select").each(function() {
-        var datatype_id_data = $("#ElementData .ODRDatatypePropertiesForm").attr('id').split(/_/);
-        var datatype_id = datatype_id_data[1];
+        var id_data = $("#ElementData .ODRThemeDatatypePropertiesForm").attr('id').split(/_/);
+        var theme_element_id = id_data[1];
+        var datatype_id = id_data[2];
 
-        var theme_datatype_id_data = $("#ElementData .ODRThemeDatatypePropertiesForm").attr('id').split(/_/);
-        var theme_datatype_id = theme_datatype_id_data[1];
-
-        $(this).unbind('change');
-        $(this).change(function() {
-            SaveThemeDatatypeInterval[theme_datatype_id] = window.clearInterval(SaveThemeDatatypeInterval[theme_datatype_id]);
-            SaveThemeDatatypeInterval[theme_datatype_id] = window.setInterval('SaveThemeDatatypeProperties("' + datatype_id + '","' + theme_datatype_id + '")', SaveTimeout);
+        $(this).unbind('change').change(function() {
+            SaveThemeDatatypeProperties(theme_element_id, datatype_id);
         });
     });
 }
@@ -1763,13 +1729,11 @@ function InitDatatypePropertiesForm() {
 function InitThemeElementPropertiesForm() {
     // Init Theme Element Properties forms
     $("#ElementData .ODRThemeElementPropertiesForm").find("select").each(function() {
-        var theme_element_id_data = $("#ElementData .ODRThemeElementPropertiesForm").attr('id').split(/_/);
-        var theme_element_id = theme_element_id_data[1];
+        var id_data = $("#ElementData .ODRThemeElementPropertiesForm").attr('id').split(/_/);
+        var theme_element_id = id_data[1];
 
-        $(this).unbind('change');
-        $(this).change(function() {
-            SaveThemeElementInterval[theme_element_id] = window.clearInterval(SaveThemeElementInterval[theme_element_id]);
-            SaveThemeElementInterval[theme_element_id] = window.setInterval("SaveThemeElementProperties('" + theme_element_id + "')", SaveTimeout);
+        $(this).unbind('change').change(function() {
+            SaveThemeElementProperties(theme_element_id);
         });
     });
 }

@@ -14,6 +14,9 @@
 
 namespace ODR\AdminBundle\Form;
 
+// ODR
+use ODR\AdminBundle\Form\Type\DatatypeType;
+use ODR\AdminBundle\Form\Type\ThemeElementType;
 // Symfony Forms
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -30,6 +33,16 @@ class UpdateThemeDatatypeForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
+        $builder->add(
+            'dataType',
+            DatatypeType::class
+        );
+
+        $builder->add(
+            'themeElement',
+            ThemeElementType::class
+        );
+
         $builder->add(
             'display_type',
             ChoiceType::class,

@@ -34,6 +34,9 @@
 </style>
 
 <script>
+    //var SaveTimeout = 750;
+    var SaveTimeout = 2000;
+
     $(function() {
         $(".ODRThemeListContentHeader").next().hide();
         $("#ODRThemeListContent").hide();
@@ -43,7 +46,7 @@
 
         // Setup Properties Tack
         $(".TackProperties").unbind('click').click(function() {
-            if($(this).hasClass('tacked')) {
+            if ($(this).hasClass('tacked')) {
                 // Remove tacked
                 $(this).removeClass('tacked');
                 $("#ODRNavRight").removeClass('StickOpen');
@@ -60,12 +63,13 @@
     });
 
     function notifySaved() {
-//    $('#saved').fadeIn();
+{#
         $('#saved').css('visibility', 'visible');   // trying out visibility property because normal display property causes slideout to jump around
         setTimeout(function() {
-//        $('#saved').fadeOut();
             $('#saved').css('visibility', 'hidden');
         }, 2000);
+#}
+        $.jGrowl('SAVED');
     }
 
     function InitSlideout() {
@@ -84,17 +88,16 @@
                             $(".MenuDesignArea").remove();
                             $("#ODRNavRight .top").append(data.d);
                             $("#ODRNavRightWrapper").fadeIn('fast');
-                            $("#MenuManageDataTypes").click();
-                            $(".MenuDesignArea a").click();
+//                            $(".MenuDesignArea a").click();
 
                             // Clear Element Data Holder
                             $("#ElementData").html("");
-                            break;
+                        break;
 
                         case 'func':
                             // Call External Function
                             data.d.func(data);
-                            break;
+                        break;
                     }
                 }
                 else {
@@ -135,7 +138,7 @@
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
+                if (data.r == 0) {
                     $("#ODRThemeListHeader").html(data.d.html).fadeIn('fast');
                     InitHeader();
                 }
@@ -360,6 +363,7 @@
             var theme_id = $(this).attr('rel');
 
             // Load form for current theme if not already loaded
+            $("#ElementData").hide().html("");
             var url = '{{ path('odr_design_get_theme_properties', { 'theme_id': 0 } ) }}';
             url = url.substring(0, (url.length - 1));
             url += theme_id;
@@ -373,8 +377,7 @@
                 url: url,
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        $("#ElementData").html('');
+                    if (data.r == 0) {
                         $("#ElementData").html(data.d).fadeIn('fast');
                         InitThemePropertyForm();
                     }
@@ -590,9 +593,8 @@
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
-                        $("#ElementData").html('');
                         $("#ElementData").html(data.d).fadeIn('fast');
-                        InitThemeDatafieldPropertyForm(datafield_id);
+                        InitThemeDatafieldPropertyForm();
                     }
                     else {
                         // An error has occurred.
@@ -717,18 +719,20 @@
             placeholder: "ui-state-highlight",
             connectWith: ".ODRInnerBox"
         });
-        $(".ODRInnerBox").disableSelection();
+        // Don't want to call disabledSelection() on the right slideout
+        $("#content").find(".ODRInnerBox").disableSelection();
 
         // Prevent re-ordering of theme_elements and datafields inside the master theme
         $("#ODRThemeListDesign_master").find(".ODRFieldArea").sortable("destroy");
         $("#ODRThemeListDesign_master").find(".ODRInnerBox").sortable("destroy");
         $(".ODRThemeElement > .ODRInnerBox > .ODRDataType").parent().sortable("destroy");    // prevent sortable datafields attaching before/after datatypes
+        $("#ElementData").parent(".ODRInnerBox").sortable("destroy");                        // prevent sortable datafields from attaching to the right slideout
     }
 
 
     var SaveThemePropertyInterval = [];
     function SaveThemeProperties(datatype_id, theme_id, reload_theme_list) {
-        if(SaveThemePropertyInterval[theme_id] != undefined)
+        if (SaveThemePropertyInterval[theme_id] != undefined)
             SaveThemePropertyInterval[theme_id] = window.clearInterval(SaveThemePropertyInterval[theme_id]);
 
         var url = '{{ path('odr_design_get_theme_properties', { 'theme_id': 0 } ) }}';
@@ -801,7 +805,7 @@
             var datatype_id = $("#ThemePropertiesForm_" + theme_id).attr('rel');
 
             // Save changes
-            if($(this).is(":checkbox")) {
+            if ( $(this).is(":checkbox") ) {
                 $(this).unbind('change').change(function() {
                     SaveThemePropertyInterval[theme_id] = window.clearInterval(SaveThemePropertyInterval[theme_id]);
                     SaveThemePropertyInterval[theme_id] = window.setInterval("SaveThemeProperties(" + datatype_id + "," + theme_id + ", true)", SaveTimeout);
@@ -868,10 +872,7 @@
         });
     }
 
-    var SaveThemeElementPropertyInterval = [];
     function SaveThemeElementProperties(theme_element_id) {
-        if (SaveThemeElementPropertyInterval[theme_element_id] != undefined)
-            SaveThemeElementPropertyInterval[theme_element_id] = window.clearInterval(SaveThemeElementPropertyInterval[theme_element_id]);
 
         var url = '{{ path('odr_design_get_theme_element_properties', { 'theme_element_id': 0 } ) }}';
         url = url.substring(0, (url.length - 1));
@@ -887,7 +888,7 @@
             data: form_data,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
+                if (data.r == 0) {
                     // Grab css strings from the ajax return
                     var med_width_old = data.widths.med_width_old;
                     var xl_width_old = data.widths.xl_width_old;
@@ -928,37 +929,32 @@
     function InitThemeElementPropertyForm() {
         // Init Theme Element Properties forms
         $("#ElementData .ODRThemeElementPropertiesForm").find("select").each(function() {
-            var theme_element_id_data = $("#ElementData .ODRThemeElementPropertiesForm").attr('id').split(/_/);
-            var theme_element_id = theme_element_id_data[1];
+            var id_data = $("#ElementData .ODRThemeElementPropertiesForm").attr('id').split(/_/);
+            var theme_element_id = id_data[1];
 
             $(this).unbind('change').change(function() {
-                SaveThemeElementPropertyInterval[theme_element_id] = window.clearInterval(SaveThemeElementPropertyInterval[theme_element_id]);
-                SaveThemeElementPropertyInterval[theme_element_id] = window.setInterval("SaveThemeElementProperties('" + theme_element_id + "')", SaveTimeout);
+                SaveThemeElementProperties(theme_element_id);
             });
         });
     }
 
-    var SaveThemeDatafieldPropertyInterval = [];
-    function SaveThemeDatafieldProperties(datafield_id, theme_datafield_id) {
-        if(SaveThemeDatafieldPropertyInterval[theme_datafield_id] != undefined)
-            SaveThemeDatafieldPropertyInterval[theme_datafield_id] = window.clearInterval(SaveThemeDatafieldPropertyInterval[theme_datafield_id]);
+    function SaveThemeDatafieldProperties(theme_element_id, datafield_id) {
 
-        var url = '{{ path('odr_design_save_theme_datafield', {'theme_datafield_id': 0}) }}';
-        url = url.substring(0, url.length-1);
-        url += theme_datafield_id;
+        var url = '{{ path('odr_design_save_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}';
+        url = url.substring(0, (url.length-3));
+        url += theme_element_id + '/' + datafield_id;
 
 //alert( url );
 //return;
 
-
-        var post_data = $("#ThemeDatafieldPropertiesForm_" + theme_datafield_id).serialize();
+        var post_data = $("#ThemeDatafieldPropertiesForm_" + theme_element_id + "_" + datafield_id).serialize();
         $.ajax({
             type: 'POST',
             url: url,
             dataType: "json",
             data: post_data,
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
+                if (data.r == 0) {
                     // Grab css strings from the ajax return
                     var med_width_old = data.widths.med_width_old;
                     var xl_width_old = data.widths.xl_width_old;
@@ -972,10 +968,6 @@
                         $("#Field_" + datafield_id).removeClass('pure-u-xl-' + xl_width_old).addClass('pure-u-xl-' + xl_width_current);
 
                     notifySaved();
-
-                    // Forcibly reload slideout
-                    $("#ElementData").html("");
-                    $("#Field_" + datafield_id).trigger('click');
                 }
                 else {
                     // An error has occurred.
@@ -1000,24 +992,22 @@
         });
     }
 
-    function InitThemeDatafieldPropertyForm(df_id) {
+    function InitThemeDatafieldPropertyForm() {
         // Attach event handlers to the css width selectors in the datafield properties slideout
         $("#ElementData .ODRThemeDatafieldPropertiesForm").find("select").each(function() {
-            // Grab ThemeDatafield id
-            var theme_datafield_id_data = $("#ElementData .ODRThemeDatafieldPropertiesForm").attr('id').split(/_/);
-            var theme_datafield_id =  theme_datafield_id_data[1];
-
-            var datafield_id = df_id;
+            // Grab necessary ids
+            var id_data = $("#ElementData .ODRThemeDatafieldPropertiesForm").attr('id').split(/_/);
+            var theme_element_id =  id_data[1];
+            var datafield_id = id_data[2];
 
             // Save changes
             $(this).unbind('change').change(function() {
-                SaveThemeDatafieldProperties(datafield_id, theme_datafield_id);
+                SaveThemeDatafieldProperties(theme_element_id, datafield_id);
             });
         });
     }
 
-    var SaveThemeDatatypePropertyInterval = [];
-    function SaveThemeDatatypeProperties(theme_datatype_id) {
+    function SaveThemeDatatypeProperties() {
         // TODO
     }
 

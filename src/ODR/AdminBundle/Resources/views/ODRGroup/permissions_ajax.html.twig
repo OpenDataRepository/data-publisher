@@ -39,6 +39,9 @@ function initPage() {
 
     // Hide all TEDs without input fields
     $(".ODRThemeElement").each(function() {
+        if ( $(this).parent().hasClass("MenuDesignArea") )
+            return;
+
         var found = false;
         $(this).find(".ODRFieldArea").each(function() {
             found = true;
@@ -78,7 +81,7 @@ function initPage() {
                     $("#ElementData").html(data.d).fadeIn('fast');
 
                     if (data.prevent_all_changes != 1)
-                        InitGroupPropertyForm();
+                        InitGroupPropertyForm();    // defined in permissions_wrapper.html.twig
                 }
                 else {
                     // An error has occurred.
@@ -132,9 +135,15 @@ function initPage() {
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
-                    // If this permission got removed, just reload the entire permissions UI area...easier that way
-                    if (value == 0)
-                        $("#edit_group_" + group_id).trigger('click');
+
+                    if (value == 0) {
+                        // If this permission got removed, show all the icons over each of the permissions
+                        $(element).parent().find('.fa-ban').show();
+                    }
+                    else {
+                        // Otherwise, just hide the icon indicating this group doesn't have the permission
+                        $(element).children('.fa-ban').hide();
+                    }
                 }
                 else {
                     // An error has occurred.

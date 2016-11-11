@@ -1,13 +1,10 @@
 {% spaceless %}
 
-<div class="pure-u-3-4" style="visibility: hidden;">
-    <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
-</div>
-
+{# "theme_datafield_form.vars.value.dataField" and "theme_datafield_form.vars.value.themeElement" get actual ODR entities... #}
 {{ form_start(theme_datafield_form, {
     'method': 'POST',
     'attr': {
-        'id': 'ThemeDatafieldPropertiesForm_' ~ theme_datafield.id,
+        'id': 'ThemeDatafieldPropertiesForm_' ~ theme_datafield_form.vars.value.themeElement.id ~ '_' ~ theme_datafield_form.vars.value.dataField.id,
         'class': 'ODRThemeDatafieldPropertiesForm pure-form pure-form-aligned'
     }
 }) }}
@@ -24,7 +21,7 @@
                 <strong>{{ theme_datafield_form.cssWidthMed.vars.label }}</strong>
             </label>
             {{ form_errors(theme_datafield_form.cssWidthMed) }}
-            {{ form_widget(theme_datafield_form.cssWidthMed, { 'attr': {'style': 'width:auto'} }) }}
+            {{ form_widget(theme_datafield_form.cssWidthMed, { 'attr': {'style': 'width:auto', 'data-error-type': 'inline'} }) }}
         </div>
 
         <div class="pure-control-group">
@@ -32,7 +29,7 @@
                 <strong>{{ theme_datafield_form.cssWidthXL.vars.label }}</strong>
             </label>
             {{ form_errors(theme_datafield_form.cssWidthXL) }}
-            {{ form_widget(theme_datafield_form.cssWidthXL, { 'attr': {'style': 'width:auto'} }) }}
+            {{ form_widget(theme_datafield_form.cssWidthXL, { 'attr': {'style': 'width:auto', 'data-error-type': 'inline'} }) }}
         </div>
 
         <div style="display: none">

@@ -14,6 +14,9 @@
 
 namespace ODR\AdminBundle\Form;
 
+// ODR
+use ODR\AdminBundle\Form\Type\DatafieldType;
+use ODR\AdminBundle\Form\Type\ThemeElementType;
 // Symfony Forms
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -30,6 +33,16 @@ class UpdateThemeDatafieldForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
+        $builder->add(
+            'dataField',
+            DatafieldType::class
+        );
+
+        $builder->add(
+            'themeElement',
+            ThemeElementType::class
+        );
+
         $builder->add(
             'cssWidthMed',
             ChoiceType::class,
@@ -101,6 +114,6 @@ class UpdateThemeDatafieldForm extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\ThemeDatafield'));
+        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\ThemeDataField'));
     }
 }

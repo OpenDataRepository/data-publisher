@@ -7,11 +7,7 @@
 {% if datafield.datatype.externalIdField != null and datafield.id == datafield.datatype.externalIdField.id %}
     {% set is_external_id_field = true %}
 {% endif %}
-{#
-<div class="pure-u-3-4" style="visibility: hidden;">
-    <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
-</div>
-#}
+
 {% include 'ODRAdminBundle:Theme:theme_datafield_properties_form.html.twig' with {'theme_datafield': theme_datafield, 'theme_datafield_form': theme_datafield_form} %}
 
 {{ form_start(datafield_form, {

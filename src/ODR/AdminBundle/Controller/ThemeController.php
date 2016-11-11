@@ -1603,7 +1603,7 @@ class ThemeController extends ODRCustomController
                 return parent::deletedEntityError('Theme');
 
             $datatype = $theme->getDataType();
-            if ($datatype == null)
+            if ($datatype->getDeletedAt() != null)
                 return parent::deletedEntityError('Datatype');
 
             if ( $datafield->getDataType()->getId() !== $datatype->getId() )
@@ -1669,12 +1669,13 @@ class ThemeController extends ODRCustomController
      * the 'master' theme designed by DisplaytemplateController.php needs to combine Datafield and ThemeDatafield forms
      * onto a single slideout, but every other theme is only allowed to modify ThemeDatafield entries.
      *
-     * @param integer $theme_datafield_id
+     * @param integer $theme_element_id
+     * @param integer $datafield_id
      * @param Request $request
      *
      * @return Response
      */
-    public function savethemedatafieldAction($theme_datafield_id, Request $request)
+    public function savethemedatafieldAction($theme_element_id, $datafield_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1687,16 +1688,24 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ThemeDataField $theme_datafield */
-            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->find($theme_datafield_id);
+            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('themeElement' => $theme_element_id, 'dataField' => $datafield_id) );
             if ($theme_datafield == null)
                 return parent::deletedEntityError('ThemeDatafield');
 
+            $theme_element = $theme_datafield->getThemeElement();
+            if ($theme_element->getDeletedAt() != null)
+                return parent::deletedEntityError('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ($theme->getDeletedAt() != null)
+                return parent::deletedEntityError('Theme');
+
             $datafield = $theme_datafield->getDataField();
-            if ($datafield == null)
+            if ($datafield->getDeletedAt() != null)
                 return parent::deletedEntityError('Datafield');
 
             $datatype = $datafield->getDataType();
-            if ($datatype == null)
+            if ($datatype->getDeletedAt() != null)
                 return parent::deletedEntityError('Datatype');
 
             // --------------------
@@ -1710,6 +1719,11 @@ class ThemeController extends ODRCustomController
             if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
+
+
+            //
+            if ($theme->getThemeType() == 'table')
+                throw new \Exception('Unable to change properties of a Table theme');
 
 
             // Populate new ThemeDataField form
@@ -1839,12 +1853,13 @@ class ThemeController extends ODRCustomController
      * the 'master' theme designed by DisplaytemplateController.php needs to combine Datatype, Datatree, and ThemeDatatype forms
      * onto a single slideout, but every other theme is only allowed to modify ThemeDatatype entries.
      *
-     * @param integer $theme_datatype_id
+     * @param integer $theme_element_id
+     * @param integer $datatype_id
      * @param Request $request
      *
      * @return Response
      */
-    public function savethemedatatypeAction($theme_datatype_id, Request $request)
+    public function savethemedatatypeAction($theme_element_id, $datatype_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1857,20 +1872,20 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ThemeDataType $theme_datatype */
-            $theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDataType')->find($theme_datatype_id);
+            $theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDataType')->findOneBy( array('themeElement' => $theme_element_id, 'dataType' => $datatype_id) );
             if ($theme_datatype == null)
                 return parent::deletedEntityError('ThemeDatatype');
 
             $theme_element = $theme_datatype->getThemeElement();
-            if ($theme_element == null)
+            if ($theme_element->getDeletedAt() != null)
                 return parent::deletedEntityError('ThemeElement');
 
             $theme = $theme_element->getTheme();
-            if ($theme == null)
+            if ($theme->getDeletedAt() != null)
                 return parent::deletedEntityError('Theme');
 
-            $datatype = $theme->getDataType();
-            if ($datatype == null)
+            $datatype = $theme->getDataType();                  // Note that this is $datatype_id's parent datatype
+            if ($datatype->getDeletedAt() != null)
                 return parent::deletedEntityError('Datatype');
 
             // --------------------
@@ -1886,6 +1901,11 @@ class ThemeController extends ODRCustomController
             // --------------------
 
 
+            // Only allow on a master theme for right now
+            if ($theme->getThemeType() !== 'master')
+                throw new \Exception('Unable to save changes outside of a master theme');
+
+
             // Populate new ThemeDataType form
             $submitted_data = new ThemeDataType();
             $theme_datatype_form = $this->createForm(UpdateThemeDatatypeForm::class, $submitted_data);
@@ -1893,7 +1913,6 @@ class ThemeController extends ODRCustomController
             $theme_datatype_form->handleRequest($request);
 
             if ($theme_datatype_form->isSubmitted()) {
-
 //$theme_datatype_form->addError( new FormError('do not save') );
 
                 if ($theme_datatype_form->isValid()) {

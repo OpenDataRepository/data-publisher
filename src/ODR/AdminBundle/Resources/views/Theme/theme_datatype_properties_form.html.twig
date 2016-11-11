@@ -1,13 +1,10 @@
 {% spaceless %}
-{#
-<div class="pure-u-3-4" style="visibility: hidden;">
-    <label id="saved" style="margin: 10px; float: right; color: black; font-size:1.25em;"><strong>SAVED</strong></label></br>
-</div>
-#}
+
+{# "theme_datatype_form.vars.value.dataType" and "theme_datatype_form.vars.value.themeElement" get actual ODR entities... #}
 {{ form_start(theme_datatype_form, {
     'method': 'POST',
     'attr': {
-        'id': 'ThemeDatafieldPropertiesForm_' ~ theme_datatype.id,
+        'id': 'ThemeDatatypePropertiesForm_' ~ theme_datatype_form.vars.value.themeElement.id ~ '_' ~ theme_datatype_form.vars.value.dataType.id,
         'class': 'ODRThemeDatatypePropertiesForm pure-form pure-form-aligned'
     }
 }) }}

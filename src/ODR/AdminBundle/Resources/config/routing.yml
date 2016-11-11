@@ -384,18 +384,20 @@ odr_design_load_theme_datafield:
         theme_id: \d+
 
 odr_design_save_theme_datafield:
-    path:  /design/displaytemplate/themedatafieldproperties/{theme_datafield_id}
+    path:  /design/displaytemplate/themedatafieldproperties/{theme_element_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Theme:savethemedatafield }
     methods: [POST]
     requirements:
-        theme_datafield_id: \d+
+        theme_element_id: \d+
+        datafield_id: \d+
 
 odr_design_save_theme_datatype:
-    path:  /design/displaytemplate/themedatatypeproperties/{theme_datatype_id}
+    path:  /design/displaytemplate/themedatatypeproperties/{theme_element_id}/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Theme:savethemedatatype }
     methods: [POST]
     requirements:
-        theme_datatype_id: \d+
+        theme_element_id: \d+
+        datatype_id: \d+
 
 #-----------------------------------------
 
@@ -435,11 +437,10 @@ odr_design_get_datatype_properties:
         parent_datatype_id: \d+
 
 odr_design_save_datatree:
-    path:  /design/displaytemplate/savedatatree/{datatype_id}/{datatree_id}
+    path:  /design/displaytemplate/savedatatree/{datatree_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:savedatatree }
     methods: [POST]
     requirements:
-        datatype_id: \d+
         datatree_id: \d+
 
 odr_design_get_link_datatypes:

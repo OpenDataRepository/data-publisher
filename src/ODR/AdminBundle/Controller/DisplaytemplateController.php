@@ -1001,13 +1001,12 @@ class DisplaytemplateController extends ODRCustomController
     /**
      * Saves changes made to a Datatree entity.
      * 
-     * @param integer $datatype_id  The id of the DataType entity this Datatree belongs to
      * @param integer $datatree_id  The id of the Datatree entity being changed
      * @param Request $request
      * 
      * @return Response
      */
-    public function savedatatreeAction($datatype_id, $datatree_id, Request $request)
+    public function savedatatreeAction($datatree_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1023,9 +1022,9 @@ class DisplaytemplateController extends ODRCustomController
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($datatree_id);
             if ($datatree == null)
                 return parent::deletedEntityError('Datatree');
-            /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
-            if ($datatype == null)
+
+            $ancestor_datatype = $datatree->getAncestor();
+            if ($ancestor_datatype->getDeletedAt() != null)
                 return parent::deletedEntityError('Datatype');
 
             // --------------------
@@ -1036,7 +1035,7 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_permissions = $user_permissions['datatypes'];
 
             // Ensure user has permissions to be doing this
-            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+            if ( !(isset($datatype_permissions[ $ancestor_datatype->getId() ]) && isset($datatype_permissions[ $ancestor_datatype->getId() ][ 'dt_admin' ])) )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -1112,7 +1111,7 @@ class DisplaytemplateController extends ODRCustomController
                     $redis->del($redis_prefix.'.cached_datatree_array');
 
                     // TODO - modify cached version of datatype directly?
-                    parent::tmp_updateDatatypeCache($em, $datatype, $user);
+                    parent::tmp_updateDatatypeCache($em, $ancestor_datatype, $user);
                 }
                 else {
                     // Form validation failed
@@ -1120,7 +1119,6 @@ class DisplaytemplateController extends ODRCustomController
                     throw new \Exception($error_str);
                 }
             }
-
         }
         catch (\Exception $e) {
             $return['r'] = 1;

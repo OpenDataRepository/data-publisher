@@ -9,7 +9,8 @@
     {% if is_top_level == 0 %} {# not allowed to delete top-level datatypes from here #}
         <i id="ODRDatatype_{{ datatype.id }}_delete" class="Pointer tooltip fa fa-trash-o ODRDeleteDatatype" title="Delete DataType" rel="{{ datatype.id }}"></i>
     {% endif %}
-    <i id="ODRDatatype_{{ datatype.id }}_undeleteDatafields" class="Pointer tooltip fa fa-undo ODRUndeleteFields" title="Undelete Datafields" rel="{{ datatype.id }}"></i>
+
+    {#<i id="ODRDatatype_{{ datatype.id }}_undeleteDatafields" class="Pointer tooltip fa fa-undo ODRUndeleteFields" title="Undelete Datafields" rel="{{ datatype.id }}"></i>#}
 
     {% if datatype.dataTypeMeta.renderPlugin.id != 1 %}
         <i id="ODRDatatype_{{ datatype.id }}_renderPlugin" class="Pointer tooltip fa fa-bar-chart-o ODRRenderPlugin ODRActiveIcon" title="RenderPlugin Settings (using {{ datatype.dataTypeMeta.renderPlugin.pluginName }})" rel="{{ datatype.id }}"></i>

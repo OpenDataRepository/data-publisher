@@ -1,13 +1,15 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* Radio Form
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-*/
+ * @deprecated
+ *
+ * Open Data Repository Data Publisher
+ * Radio Form
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ */
 
 namespace ODR\AdminBundle\Form;
 use Symfony\Component\Form\AbstractType;
