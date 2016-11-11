@@ -266,28 +266,30 @@ class GraphPlugin
             // Or create rollup name for rollup chart
             foreach ($datarecords as $dr_id => $dr) {
                 $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
-                foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
-                    // File ID list is used only by rollup
-                    $odr_chart_file_ids[] = $file['id'];
+                if(isset($dr['dataRecordFields'][$graph_datafield_id])) {
+                    foreach ($dr['dataRecordFields'][$graph_datafield_id]['file'] as $file_num => $file) {
+                        // File ID list is used only by rollup
+                        $odr_chart_file_ids[] = $file['id'];
 
-                    // Used by system to download data - possibly redundant with file records
-                    $odr_chart_file_names[$dr_id] = $file['localFileName'];
+                        // TODO - Possibly still used by system to download data - possibly redundant with file records DEPRECATED
+                        $odr_chart_file_names[$dr_id] = $file['localFileName'];
 
-                    // TODO - Possibly not needed - redundant with above but includes more info
-                    $odr_chart_files[$dr_id] = $file;
+                        // This is the master data used to graph
+                        $odr_chart_files[$dr_id] = $file;
 
-                    // We need to generate a unique chart id for each chart
-                    $odr_chart_id = "plotly_" . Uuid::uuid4()->toString();
-                    $odr_chart_id = str_replace("-","_", $odr_chart_id);
-                    $odr_chart_ids[$dr_id] = $odr_chart_id;
+                        // We need to generate a unique chart id for each chart
+                        $odr_chart_id = "plotly_" . Uuid::uuid4()->toString();
+                        $odr_chart_id = str_replace("-","_", $odr_chart_id);
+                        $odr_chart_ids[$dr_id] = $odr_chart_id;
 
 
-                    // This filename must remain predictable
-                    // TODO - Long term the UUID should be saved to database
-                    // whenever a new chart is created.  This UUID should be unique
-                    // to each file version to prevent scraping of data.
-                    $filename = 'Chart__' . $file['id'] . '_' . $max_option_date . '.svg';
-                    $odr_chart_output_files[$dr_id] = '/uploads/files/graphs/' . $filename;
+                        // This filename must remain predictable
+                        // TODO - Long term the UUID should be saved to database
+                        // whenever a new chart is created.  This UUID should be unique
+                        // to each file version to prevent scraping of data.
+                        $filename = 'Chart__' . $file['id'] . '_' . $max_option_date . '.svg';
+                        $odr_chart_output_files[$dr_id] = '/uploads/files/graphs/' . $filename;
+                    }
                 }
             }
 
@@ -302,9 +304,6 @@ class GraphPlugin
             // Add a rollup chart
             $odr_chart_ids['rollup'] = $odr_chart_id;
             $odr_chart_output_files['rollup'] = '/uploads/files/graphs/' . $filename;
-
-
-
 
             // Pulled up here so build graph can access the data.
             $page_data = array(
