@@ -38,15 +38,13 @@
     <link rel="stylesheet" href="/js/mylibs/jquery_datatables/datatables.min.css">
 
     <!-- Symfony Stylesheets -->
-    <link href="/css/pure_odr_custom.css" type="text/css" rel="stylesheet">
-    <link href="/css/custom.css" type="text/css" rel="stylesheet" />
-    <link href="/css/purecss_responsive_horizontal.css" type="text/css" rel="stylesheet">
+    <link href="/css/odr.1.6.02.css" type="text/css" rel="stylesheet">
 
     <!-- Plotly Bars Stylesheet -->
     <link rel="stylesheet" href="/css/external/plotly_bars.css">
 
     <!-- Theme CSS -->
-    <link rel="stylesheet" href="/css/themes/css_smart/style.css" >
+    <link rel="stylesheet" href="/css/themes/css_smart/style.1.6.0.css" >
     <!-- TODO Use Stylsheets block to load theme -->
     {% block stylesheets %}{% endblock %}
 
@@ -193,8 +191,8 @@
         <ul class="pure-menu-list">
             {% if current_user != '' %}
                 <li class="pure-menu-item">
-                    <a class="pure-hidden-sm pure-hidden-xs pure-menu-link" href="#{{ path('odr_self_profile_edit') }}"><span>{{ user.firstName }} {{  user.lastName }}</span></a>
-                    <a class="pure-hidden-xl pure-hidden-lg pure-hidden-md pure-menu-link" href="#{{ path('odr_self_profile_edit') }}"><span>Profile</span></a>
+                    <a class="pure-hidden-sm pure-hidden-xs pure-menu-link" href="#{{ path('odr_self_profile_edit') }}">{{ user.firstName }} {{  user.lastName }}</a>
+                    <a class="pure-hidden-xl pure-hidden-lg pure-hidden-md pure-menu-link" href="#{{ path('odr_self_profile_edit') }}">Profile</a>
                 </li>
             {% endif %}
             {% if header_right_title != '' %}

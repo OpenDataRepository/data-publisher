@@ -46,7 +46,7 @@
 
             {% if datarecord_list|length > 0 %}
             <span style="float:right;">
-                <select id="DataType_{{ datatype.id }}_dropdown" class="accordion" style="padding: 0.6em 0.78em;">
+                <select id="DataType_{{ datatype.id }}_dropdown" class="accordion">
                 {% for num, datarecord in datarecord_list %}
                     <option value="{{ datarecord.id }}">{{ datarecord.nameField_value }}</option>
                 {% endfor %}
