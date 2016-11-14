@@ -598,6 +598,7 @@ footer ul li:first-child {
 }
 
 /* Fancy CSS to make hover bars */
+/*
 @media (min-width: 48em) {
     .ODRMenuWrapper,
     .ODRMenuWrapper ul,
@@ -619,17 +620,13 @@ footer ul li:first-child {
     .pure-menu-list li {
         display: inline-block;
         list-style: outside none none;
-        /* margin: 0.5em 1.5em; */
-        /* padding: 0; */
     }
 
     .pure-menu-list span,
     .pure-menu-list a {
-        /* padding: 0.3em 0; */
         color: rgba(255, 255, 255, 0.5);
         position: relative;
         text-decoration: none;
-        /* display: inline-block; */
     }
     .pure-menu-list span:before,
     .pure-menu-list span:after,
@@ -658,7 +655,6 @@ footer ul li:first-child {
     .pure-menu-list a:hover,
     .pure-menu-list .current a {
         color: rgba(255, 255, 255, 1.0);
-        /*  color: #ffffff; */
     }
     .pure-menu-list span:hover:before,
     .pure-menu-list .current span:before,
@@ -678,5 +674,5 @@ footer ul li:first-child {
         background-color: transparent;
     }
 }
-
+*/
 /* End Hover Bar CSS */
