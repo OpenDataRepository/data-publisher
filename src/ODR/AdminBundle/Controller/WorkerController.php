@@ -1339,6 +1339,8 @@ $ret .= '  Set current to '.$count."\n";
 
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
+            throw new \Exception('DO NOT CONTINUE [DEPRECATED]');
+
             // --------------------
             // Determine user privileges
             /** @var User $user */

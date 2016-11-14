@@ -1194,11 +1194,11 @@ odr_permissions_clear:
 #-----------------------------------------
 
 #-----------------------------------------
-build_group_data:
-    path:  /admin/build_group_data
-    defaults: { _controller:ODRAdminBundle:Worker:startbuildgroupdata }
+#build_group_data:
+#    path:  /admin/build_group_data
+#    defaults: { _controller:ODRAdminBundle:Worker:startbuildgroupdata }
 
-odr_group_metadata:
-    path:  /beanstalk/build_group_data
-    defaults: { _controller:ODRAdminBundle:Worker:buildgroupdata }
-    requirements: { methods: POST }
+#odr_group_metadata:
+#    path:  /beanstalk/build_group_data
+#    defaults: { _controller:ODRAdminBundle:Worker:buildgroupdata }
+#    requirements: { methods: POST }

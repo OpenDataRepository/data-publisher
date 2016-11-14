@@ -368,29 +368,6 @@ exit();
 
             $cookies = $request->cookies;
 
-            // Locate the datatype referenced by the search slug, if possible...
-            $target_datatype = null;
-            if ($search_slug == '') {
-                if ( $cookies->has('prev_searched_datatype') ) {
-                    $search_slug = $cookies->get('prev_searched_datatype');
-                    return $this->redirect( $this->generateURL('odr_search', array( 'search_slug' => $search_slug ) ));
-                }
-                else {
-                    return self::searchPageError("Page not found", $request);
-                }
-            }
-            else {
-                /** @var DataTypeMeta $meta_entry */
-                $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('searchSlug' => $search_slug) );
-                if ($meta_entry == null)
-                    return self::searchPageError("Page not found", $request);
-                $target_datatype = $meta_entry->getDataType();
-                if ($target_datatype == null)
-                    return self::searchPageError("Page not found", $request);
-            }
-            /** @var DataType $target_datatype */
-
-
             // ------------------------------
             // Grab user and their permissions if possible
             /** @var User $admin_user */
@@ -411,6 +388,40 @@ exit();
                 $datafield_permissions = $user_permissions['datafields'];
             }
             // ------------------------------
+
+
+            // Locate the datatype referenced by the search slug, if possible...
+            $target_datatype = null;
+            if ($search_slug == '') {
+                if ( $cookies->has('prev_searched_datatype') ) {
+                    $search_slug = $cookies->get('prev_searched_datatype');
+                    return $this->redirect( $this->generateUrl('odr_search', array( 'search_slug' => $search_slug ) ));
+                }
+                else {
+                    if ($logged_in) {
+                        // Instead of displaying a "page not found", redirect to the datarecord list
+                        $baseurl = $this->generateUrl('odr_admin_homepage');
+                        $hash = $this->generateUrl('odr_list_types', array( 'section' => 'records') );
+
+                        return $this->redirect( $baseurl.'#'.$hash );
+                    }
+                    else {
+                        // This'll probably never get used, but just in case...
+                        return $this->redirect( $this->generateUrl('odr_admin_homepage') );
+                    }
+                }
+            }
+            else {
+                /** @var DataTypeMeta $meta_entry */
+                $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('searchSlug' => $search_slug) );
+                if ($meta_entry == null)
+                    return self::searchPageError("Page not found", $request);
+                $target_datatype = $meta_entry->getDataType();
+                if ($target_datatype == null)
+                    return self::searchPageError("Page not found", $request);
+            }
+            /** @var DataType $target_datatype */
+
 
             // Check if user has permission to view datatype
             $target_datatype_id = $target_datatype->getId();

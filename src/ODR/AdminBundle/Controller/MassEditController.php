@@ -91,7 +91,7 @@ class MassEditController extends ODRCustomController
                 $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
-            if ( !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
+            if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
@@ -332,7 +332,7 @@ class MassEditController extends ODRCustomController
                 $can_edit_datarecord = true;
 
             // Ensure user has permissions to be doing this
-            if ( !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
+            if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
                 return parent::permissionDeniedError("edit");
             // --------------------
 
