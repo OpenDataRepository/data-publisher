@@ -1341,8 +1341,7 @@ class DisplaytemplateController extends ODRCustomController
                 'radio_option_name_sort' => $old_datafield->getRadioOptionNameSort(),
                 'radio_option_display_unselected' => $old_datafield->getRadioOptionDisplayUnselected(),
                 'searchable' => $old_datafield->getSearchable(),
-                'user_only_search' => $old_datafield->getUserOnlySearch(),
-                'public_date' => $old_datafield->getPublicDate(),
+                'publicDate' => $old_datafield->getPublicDate(),
             );
             parent::ODR_copyDatafieldMeta($em, $user, $new_datafield, $properties);
 
@@ -4549,8 +4548,7 @@ class DisplaytemplateController extends ODRCustomController
                         'radio_option_name_sort' => $submitted_data->getRadioOptionNameSort(),
                         'radio_option_display_unselected' => $submitted_data->getRadioOptionDisplayUnselected(),
                         'searchable' => $submitted_data->getSearchable(),
-                        'user_only_search' => $submitted_data->getUserOnlySearch(),
-                        'public_date' => $submitted_data->getPublicDate(),
+                        'publicDate' => $submitted_data->getPublicDate(),
                     );
                     parent::ODR_copyDatafieldMeta($em, $user, $datafield, $properties);
 

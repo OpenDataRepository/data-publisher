@@ -43,12 +43,6 @@ class ThemeElementMeta
     private $cssWidthXL;
 
     /**
-     * @deprecated
-     * @var \DateTime
-     */
-    private $publicDate;
-
-    /**
      * @var \DateTime
      */
     private $created;
@@ -156,31 +150,6 @@ class ThemeElementMeta
     public function getCssWidthXL()
     {
         return $this->cssWidthXL;
-    }
-
-    /**
-     * Set publicDate
-     * @deprecated
-     *
-     * @param \DateTime $publicDate
-     * @return ThemeElementMeta
-     */
-    public function setPublicDate($publicDate)
-    {
-        $this->publicDate = $publicDate;
-
-        return $this;
-    }
-
-    /**
-     * Get publicDate
-     * @deprecated
-     *
-     * @return \DateTime 
-     */
-    public function getPublicDate()
-    {
-        return $this->publicDate;
     }
 
     /**

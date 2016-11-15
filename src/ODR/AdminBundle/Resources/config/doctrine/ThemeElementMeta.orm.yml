@@ -25,12 +25,6 @@ ODR\AdminBundle\Entity\ThemeElementMeta:
             type: string
             length: 32
 
-        # @deprecated
-        publicDate:
-            type: datetime
-            nullable: false
-            column: public_date
-
         created:
             type: datetime
             gedmo:
