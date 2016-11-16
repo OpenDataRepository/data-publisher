@@ -87,7 +87,11 @@
                 <table class="NotODRTable pure-table pure-u-1">
                     <thead class="pure-u-1">
                         <tr class="pure-u-1">
-                            <th class="pure-u-20-24" style="cursor:default;">{{ datafield.dataFieldMeta.fieldName }}<i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" style="padding-left: 20px;"></i><span id="ODRDownloadAllLabel_{{ datarecord.id }}_{{ datafield.id }}" style="padding-left:15px; display:none;">Preparing...</span></th>
+                            <th class="pure-u-20-24" style="cursor:default;">
+                                <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
+                                <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield" style="padding-left: 20px;"></i>
+                                <span id="ODRDownloadAllLabel_{{ datarecord.id }}_{{ datafield.id }}" style="padding-left:15px; display:none;">Preparing...</span>
+                            </th>
                             <th class="pure-u-1-24">Options</th>
                         </tr>
                     </thead>
@@ -127,7 +131,7 @@
 
                             <td class="pure-u-4-24">
                                 {% if file.original_checksum != '' %}
-                                    <a><i class="Pointer tooltip fa fa-globe fa-lg ODRPublicFile {% if not file.fileMeta.publicDate|is_public %}IconRed{% endif %}" title="{% if not file.fileMeta.publicDate|is_public %}File is not public{% else %}Public since {{ file.fileMeta.publicDate|date('Y-m-d') }}{% endif %}" rel="{{ file.id }}"></i></a>
+                                    <a><i class="Pointer tooltip fa fa-globe fa-lg ODRPublicFile {% if not file.fileMeta.publicDate|is_public %}IconRed{% endif %}" title="{% if not file.fileMeta.publicDate|is_public %}File is not public{% else %}File was made public on {{ file.fileMeta.publicDate|date('Y-m-d') }}{% endif %}" rel="{{ file.id }}"></i></a>
                                     <i class="Cursor tooltip fa fa-calendar fa-lg" title="Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy|user_string }}"></i>
                                     <a><i class="Pointer tooltip fa fa-trash-o fa-lg ODRDeleteFile" title="Delete File" rel="{{ file.id }}"></i></a>
                                 {% else %}

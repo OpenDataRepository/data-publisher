@@ -406,7 +406,6 @@ exit();
                         return $this->redirect( $baseurl.'#'.$hash );
                     }
                     else {
-                        // This'll probably never get used, but just in case...
                         return $this->redirect( $this->generateUrl('odr_admin_homepage') );
                     }
                 }

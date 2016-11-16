@@ -40,7 +40,7 @@ parameters:
         link_plugin:
             name: 'Link Plugin'
             filename: LinkPlugin
-            bundle_path: /ODROpenRepository/GraphBundle
+            bundle_path: /ODR/OpenRepository/GraphBundle
         url_plugin:
             name: 'URL Field'
             filename: URLPlugin

@@ -2506,8 +2506,9 @@ exit();
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
                     FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.id IN (:datarecord_ids) AND dr.public_date = "2200-01-01 00:00:00"
-                    AND dr.deletedAt IS NULL'
+                    JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                    WHERE dr.id IN (:datarecord_ids) AND drm.publicDate = "2200-01-01 00:00:00"
+                    AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
                 )->setParameters( array('datarecord_ids' => $remote_datarecord_ids) );
                 $results = $query->getArrayResult();
 
@@ -3053,9 +3054,11 @@ if ($debug)
             foreach ($linked_datatype_descendants as $dt_id => $dt_name) {
 
                 $has_table_theme = false;
-                foreach ($datatype_array[$dt_id]['themes'] as $num => $t) {
-                    if ($t['themeType'] == 'table')
-                        $has_table_theme = true;
+                if ( isset($datatype_array[$dt_id]) ) {
+                    foreach ($datatype_array[$dt_id]['themes'] as $num => $t) {
+                        if ($t['themeType'] == 'table')
+                            $has_table_theme = true;
+                    }
                 }
 
                 if (!$has_table_theme) {
@@ -3066,9 +3069,11 @@ if ($debug)
             foreach ($linked_datatype_ancestors as $dt_id => $dt_name) {
 
                 $has_table_theme = false;
-                foreach ($datatype_array[$dt_id]['themes'] as $num => $t) {
-                    if ($t['themeType'] == 'table')
-                        $has_table_theme = true;
+                if ( isset($datatype_array[$dt_id]) ) {
+                    foreach ($datatype_array[$dt_id]['themes'] as $num => $t) {
+                        if ($t['themeType'] == 'table')
+                            $has_table_theme = true;
+                    }
                 }
 
                 if (!$has_table_theme) {
