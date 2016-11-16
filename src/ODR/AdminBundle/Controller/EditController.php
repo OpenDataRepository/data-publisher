@@ -448,11 +448,11 @@ class EditController extends ODRCustomController
 
             if ( count($remaining) > 0 ) {
                 // Return to the list of datarecords since at least one datarecord of this datatype still exists
-                $url = $this->generateURL('odr_search_render', array('search_key' => $search_key));
+                $url = $this->generateUrl('odr_search_render', array('search_key' => $search_key));
             }
             else {
                 // ...otherwise, return to the list of datatypes
-                $url = $this->generateURL('odr_list_types', array('section' => 'records'));
+                $url = $this->generateUrl('odr_list_types', array('section' => 'records'));
             }
 
             $return['d'] = $url;

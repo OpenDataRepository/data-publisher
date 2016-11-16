@@ -133,7 +133,7 @@ class MassEditController extends ODRCustomController
                 // If there is no tab id for some reason, or the user is attempting to view a datarecord from a search that returned no results...
                 if ( $odr_tab_id === '' || $data['redirect'] == true || ($encoded_search_key !== '' && $datarecord_list === '') ) {
                     // ...get the search controller to redirect to "no results found" page
-                    $url = $this->generateUrl('odr_search_render', array('search_key' => $data['encoded_search_key'], 'offset' => 1, 'source' => 'searching'));
+                    $url = $this->generateUrl('odr_search_render', array('search_key' => $data['encoded_search_key']));
                     return parent::searchPageRedirect($user, $url);
                 }
 

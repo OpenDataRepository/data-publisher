@@ -7,16 +7,13 @@ odr_search_box:
 odr_search_results:
     path: /search/results/{search_key}
     defaults: { _controller:ODROpenRepositorySearchBundle:Default:search }
-#    requirements: { _method: POST, search_key: '[a-zA-Z0-9\-\_]{15}|' }
     requirements:
-        search_key: .*
+        search_key: '[^\/]*'
 
 odr_search_render:
     path: /search/render/{search_key}/{offset}/{source}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:render, offset: 1, source: 'searching' }
     requirements:
-#        search_key: '[a-zA-Z0-9\-\_]{15}|'
- # 15 characters or empty string
         search_key: '[^\/]*'
         offset: \d+
         source: searching|linking
