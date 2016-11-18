@@ -44,9 +44,12 @@
 } %}
 
 <div id="field_history_dialog_wrapper">
-{% include 'ODRAdminBundle:Edit:field_history_dialog.html.twig' %}
+    {% include 'ODRAdminBundle:Edit:field_history_dialog.html.twig' %}
 </div>
 
+<div id="download_files_dialog_wrapper">
+    {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
+</div>
 {% endspaceless %}
 
 <script>

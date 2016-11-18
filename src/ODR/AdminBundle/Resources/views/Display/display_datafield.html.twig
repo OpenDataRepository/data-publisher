@@ -84,9 +84,7 @@
                         <tr id="File_{{ file.id }}" class="pure-u-1">
                             <td class="pure-u-20-24" {% if file.fileMeta.originalFileName != null and datafield.dataFieldMeta.shorten_filename == 1 and file.fileMeta.originalFileName|length > 35 %}title="{{ file.fileMeta.originalFileName }}"{% endif %}>
                                 {% if file.original_checksum != '' %}
-                                    <a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="truncate ODRFileDownload" rel="{{ file.id }}">
-                                        {% if file.fileMeta.originalFileName == null %}File_{{ file.id }}.{{ file.getext }}{% else %}{{ file.fileMeta.originalFileName }}{% endif %}
-                                    </a>
+                                    <a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="truncate ODRFileDownload" rel="{{ file.id }}">{% if file.fileMeta.originalFileName == null %}File_{{ file.id }}.{{ file.getext }}{% else %}{{ file.fileMeta.originalFileName }}{% endif %}</a>
                                     <span id="ODRFileDownload_{{ file.id }}" class="ODRFileDownloadProgress" style="cursor:default; margin-left:10px;">
                                         <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRProgressBar" style="margin-left:15px; display:inline-block;">
                                             <span class="ODRProgressBarLabel" style="left:35%;">Decrypting...</span>

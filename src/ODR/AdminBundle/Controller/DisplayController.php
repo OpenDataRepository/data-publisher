@@ -1415,4 +1415,256 @@ fclose($log_file);
             return $response;
         }
     }
+
+
+    /**
+     * Creates and renders an HTML list of all files/images that the user is allowed to see in the given datarecord
+     *
+     * @param integer $datarecord_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    function listallfilesAction($datarecord_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            // Get necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            if ($datarecord == null)
+                return parent::deletedEntityError('DataRecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                return parent::deletedEntityError('DataType');
+
+
+            // ----------------------------------------
+            // Ensure user has permissions to be doing this
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            // Grab the user's permission list
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                $can_view_datarecord = true;
+
+
+            // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+            if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) )
+                return parent::permissionDeniedError();
+            // ----------------------------------------
+
+
+            // ----------------------------------------
+            // Always bypass cache if in dev mode?
+            $bypass_cache = false;
+//            if ($this->container->getParameter('kernel.environment') === 'dev')
+//                $bypass_cache = true;
+
+
+            // Grab all datarecords "associated" with the desired datarecord...
+            $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId())));
+            if ($bypass_cache || $associated_datarecords == false) {
+                $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord->getId()));
+
+                $redis->set($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId(), gzcompress(serialize($associated_datarecords)));
+            }
+
+
+            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
+            $datarecord_array = array();
+            foreach ($associated_datarecords as $num => $dr_id) {
+                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
+                if ($bypass_cache || $datarecord_data == false)
+                    $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
+
+                foreach ($datarecord_data as $dr_id => $data)
+                    $datarecord_array[$dr_id] = $data;
+            }
+
+
+            // ----------------------------------------
+            //
+            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+
+            // Grab all datatypes associated with the desired datarecord
+            // NOTE - not using parent::getAssociatedDatatypes() here on purpose...that would always return child/linked datatypes for the datatype even if this datarecord isn't making use of them
+            $associated_datatypes = array();
+            foreach ($datarecord_array as $dr_id => $dr) {
+                $dt_id = $dr['dataType']['id'];
+
+                if ( !in_array($dt_id, $associated_datatypes) )
+                    $associated_datatypes[] = $dt_id;
+            }
+
+
+            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+            $datatype_array = array();
+            foreach ($associated_datatypes as $num => $dt_id) {
+                // print $redis_prefix.'.cached_datatype_'.$dt_id;
+                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
+                if ($bypass_cache || $datatype_data == false)
+                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
+
+                foreach ($datatype_data as $dt_id => $data)
+                    $datatype_array[$dt_id] = $data;
+            }
+
+            // ----------------------------------------
+            // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
+            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+            // Get rid of all non-file/image datafields while the datarecord array is still "deflated"
+            $datafield_ids = array();
+            $datatype_ids = array();
+            foreach ($datarecord_array as $dr_id => $dr) {
+                foreach ($dr['dataRecordFields'] as $df_id => $drf) {
+                    if ( count($drf['file']) == 0 && count($drf['image']) == 0 )
+                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
+                    else {
+                        $datafield_ids[] = $df_id;
+                        $datatype_ids[] = $dr['dataType']['id'];
+                    }
+                }
+            }
+            $datafield_ids = array_unique($datafield_ids);
+            $datatype_ids = array_unique($datatype_ids);
+
+            $query = $em->createQuery(
+               'SELECT df.id, dfm.fieldName
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                WHERE df.id IN (:datafield_ids)
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
+            )->setParameters( array('datafield_ids' => $datafield_ids) );
+            $results = $query->getArrayResult();
+
+            $datafield_names = array();
+            foreach ($results as $result) {
+                $df_id = $result['id'];
+                $df_name = $result['fieldName'];
+
+                $datafield_names[$df_id] = $df_name;
+            }
+
+            $query = $em->createQuery(
+               'SELECT dt.id, dtm.shortName
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                WHERE dt.id IN (:datatype_ids)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $datatype_ids) );
+            $results = $query->getArrayResult();
+
+            $datatype_names = array();
+            foreach ($results as $result) {
+                $dt_id = $result['id'];
+                $dt_name = $result['shortName'];
+
+                $datatype_names[$dt_id] = $dt_name;
+            }
+
+
+            // ----------------------------------------
+            // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
+            $stacked_datarecord_array[ $datarecord->getId() ] = parent::stackDatarecordArray($datarecord_array, $datarecord->getId());
+//print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
+
+            $ret = self::locateFilesforDownloadAll($stacked_datarecord_array, $datarecord->getId());
+            if ( is_null($ret) ) {
+                $return['d'] = 'NO FILES/IMAGES IN HERE';
+            }
+            else {
+                $stacked_datarecord_array = array($datarecord_id => $ret);
+//print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
+
+                $templating = $this->get('templating');
+                $return['d'] = $templating->render(
+                    'ODRAdminBundle:Default:file_download_dialog_form.html.twig',
+                    array(
+                        'datarecord_array' => $stacked_datarecord_array,
+                        'datarecord_id' => $datarecord_id,
+                        'datafield_names' => $datafield_names,
+                        'datatype_names' => $datatype_names,
+
+                        'is_top_level' => true,
+                    )
+                );
+            }
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x848418124: ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Recursively goes through an "inflated" datarecord array entry and deletes all (child) datarecords that don't have files/images.
+     * @see parent::stackDatarecordArray()
+     *
+     * @param array $dr_array         An already "inflated" array of all datarecord entries for this datatype
+     * @param integer $datarecord_id  The specific datarecord to check
+     *
+     * @return null|array
+     */
+    private function locateFilesforDownloadAll($dr_array, $datarecord_id)
+    {
+        // Probably going to be deleting entries from $dr_array, so make a copy for looping purposes
+        $dr = $dr_array[$datarecord_id];
+
+        if ( count($dr['children']) > 0 ) {
+            foreach ($dr['children'] as $child_dt_id => $child_datarecords) {
+
+                foreach ($child_datarecords as $child_dr_id => $child_dr) {
+                    // Determine whether this child datarecord has files/images, or has (grand)children with files/images
+                    $ret = self::locateFilesforDownloadAll($child_datarecords, $child_dr_id);
+
+                    if ( is_null($ret) ) {
+                        // This child datarecord didn't have any files/images, and also didn't have any children of its own with files/images...don't want to see it later
+                        unset($dr_array[$datarecord_id]['children'][$child_dt_id][$child_dr_id]);
+
+                        // If this datarecord has no child datarecords of this child datatype with files/images, then get rid of the entire array entry for the child datatype
+                        if ( count($dr_array[$datarecord_id]['children'][$child_dt_id] ) == 0)
+                            unset( $dr_array[$datarecord_id]['children'][$child_dt_id] );
+                    }
+                    else {
+                        // Otherwise, save the (probably) modified version of the datarecord entry
+                        $dr_array[$datarecord_id]['children'][$child_dt_id][$child_dr_id] = $ret;
+                    }
+                }
+            }
+        }
+
+        if ( count($dr_array[$datarecord_id]['children']) == 0 && count($dr_array[$datarecord_id]['dataRecordFields']) == 0 )
+            // If the datarecord has no child datarecords, and doesn't have any files/images, return null
+            return null;
+        else
+            // Otherwise, return the (probably) modified version of the datarecord entry
+            return $dr_array[$datarecord_id];
+    }
 }

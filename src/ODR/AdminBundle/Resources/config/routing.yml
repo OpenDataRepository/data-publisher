@@ -734,6 +734,12 @@ odr_download_all_files:
         datarecord_id: \d+
         datafield_id: \d+
 
+odr_get_file_list:
+    path:  /view/file_list/{datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Display:listallfiles }
+    requirements:
+        datarecord_id: \d+
+
 #-----------------------------------------
 
 #-----------------------------------------
