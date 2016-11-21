@@ -26,6 +26,7 @@ use ODR\OpenRepository\UserBundle\Entity\User;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Cookie;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 
 class DefaultController extends ODRCustomController
@@ -40,28 +41,36 @@ class DefaultController extends ODRCustomController
      */
     public function indexAction(Request $request)
     {
-        // Grab the current user
-        /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
-        /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+        $html = '';
 
-        $datatype_permissions = array();
-        if ($user !== 'anon.') {
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+        try {
+            // Grab the current user
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            $datatype_permissions = array();
+            if ($user !== 'anon.') {
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
 //            $user_permissions = parent::getUserPermissionsArray($em, $user->getId(), true);
-            $datatype_permissions = $user_permissions['datatypes'];
+                $datatype_permissions = $user_permissions['datatypes'];
+            }
+
+
+            // Render the base html for the page...$this->render() apparently creates a full Reponse object
+            $html = $this->renderView(
+                'ODRAdminBundle:Default:index.html.twig',
+                array(
+                    'user' => $user,
+                    'user_permissions' => $datatype_permissions,
+                )
+            );
         }
-
-
-        // Render the base html for the page...$this->render() apparently creates a full Reponse object
-        $html = $this->renderView(
-            'ODRAdminBundle:Default:index.html.twig',
-            array(
-                'user' => $user,
-                'user_permissions' => $datatype_permissions,
-            )
-        );
+        catch (\Exception $e) {
+            // This and ODROpenRepositorySearchBundle:Default:searchAction() are currently the only two controller actions that make Symfony handle the errors instead of AJAX popups
+            throw new HttpException( 500, 'Error 0x1436562', $e );
+        }
 
         $response = new Response($html);
         $response->headers->set('Content-Type', 'text/html');
