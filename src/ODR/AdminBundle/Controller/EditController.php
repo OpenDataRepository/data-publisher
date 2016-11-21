@@ -3068,12 +3068,15 @@ if ($debug)
             }
             foreach ($linked_datatype_ancestors as $dt_id => $dt_name) {
 
+                // $datatype_array won't have data on an "ancestor" datatype, so have to load data for each of them from the cache...
+                $anc_dt_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
+                if ($anc_dt_data == false)
+                    $anc_dt_data = parent::getDatatypeData($em, $datatree_array, $dt_id);
+
                 $has_table_theme = false;
-                if ( isset($datatype_array[$dt_id]) ) {
-                    foreach ($datatype_array[$dt_id]['themes'] as $num => $t) {
-                        if ($t['themeType'] == 'table')
-                            $has_table_theme = true;
-                    }
+                foreach ($anc_dt_data[$dt_id]['themes'] as $num => $t) {
+                    if ( $t['themeType'] == 'table' )
+                        $has_table_theme = true;
                 }
 
                 if (!$has_table_theme) {

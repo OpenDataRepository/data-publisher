@@ -379,15 +379,21 @@ function barChartPlotly(chart_obj, onComplete) {
                         var lines = file.lines
                         var x = []
                         var y = []
+                        var e = []
                         for (var i = 0; i < lines.length; i++) {
                             var values = lines[i].split(",")
                             for(var j in values) {
                                 values[j] = values[j].trim()
                             }
                             // Load the numeric values
-                            if(values.length == 2 && !values[0].match(/^#/) && !values[1].match(/^#/)) {
+                            if(values.length == 2 && !values[0].match(/^#/) && values[1].match(/^[0-9\.]/)) {
                                 x.push(values[0])
                                 y.push(values[1])
+                            }
+                            else if(values.length == 3 && !values[0].match(/^#/) && values[1].match(/^[0-9]/) && values[2].match(/^[0-9\.]/)) {
+                                x.push(values[0])
+                                y.push(values[1])
+                                e.push(values[2])
                             }
                         }
 
@@ -396,6 +402,13 @@ function barChartPlotly(chart_obj, onComplete) {
                         trace.x = x
                         trace.y = y
                         trace.type = 'bar'
+                        if(e.length > 0) {
+                            trace.error_y = {
+                                type: 'data',
+                                array: e,
+                                visible: true
+                            }
+                        }
                         if (chart_obj.bar_type != undefined && chart_obj.bar_type == "horizontal") {
                             trace.orientation = 'h'
                         }

@@ -410,8 +410,22 @@ exit();
                         $df_value = $df_data['value'];
                         $df_is_public = $df_data['is_public'];
 
-                        if ( $df_is_public || (isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view'])) )
-                            $dr_data[] = $df_value;
+                        if ( $df_is_public || (isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view'])) ) {
+                            if ( is_array($df_value) ) {
+                                // Need to ensure that names/links to non-public Files aren't displayed to people that don't have permission to view them
+                                $file_publicDate = $df_value['publicDate'];
+                                $file_url = $df_value['url'];
+
+                                if ( $can_view_datarecord || $file_publicDate != '2200-01-01' )
+                                    $dr_data[] = $file_url;
+                                else
+                                    $dr_data[] = '';
+                            }
+                            else {
+                                // Everything else is just a text string, and is always visible if the datafield itself is visible
+                                $dr_data[] = $df_value;
+                            }
+                        }
                     }
 
                     // If the user isn't prevented from seeing all datafields comprising this layout, store the data in an array
@@ -5016,7 +5030,10 @@ if ($debug)
                                     $file = $drf['file'][0];    // should only ever be one file in here anyways
 
                                     $url = $router->generate( 'odr_file_download', array('file_id' => $file['id']) );
-                                    $df_value = '<a href='.$url.'>'.$file['fileMeta']['originalFileName'].'</a>';
+                                    $df_value = array(
+                                        'publicDate' => $file['fileMeta']['publicDate']->format('Y-m-d'),
+                                        'url' => '<a href='.$url.'>'.$file['fileMeta']['originalFileName'].'</a>',
+                                    );
                                 }
                                 break;
 

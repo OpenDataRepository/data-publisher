@@ -316,7 +316,7 @@ function initPage() {
                     if ( data.d.is_public ) {
                         // File is now public
                         $(public_div).removeClass('IconRed');
-                        $(public_div).parent().next().attr('title', 'Public since ' + data.d.public_date);
+                        $(public_div).attr('title', 'File was made public on ' + data.d.public_date);
 
                         // Hide the decryption progress bar
                         $("#ODRFileDownload_" + file_id).hide();
@@ -324,7 +324,7 @@ function initPage() {
                     else {
                         // File is now non-public
                         $(public_div).addClass('IconRed');
-                        $(public_div).parent().next().attr('title', 'File is not public');
+                        $(public_div).attr('title', 'File is not public');
                     }
 
                 }
