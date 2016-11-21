@@ -31,6 +31,7 @@ use ODR\OpenRepository\UserBundle\Entity\User;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Cookie;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 
 class DefaultController extends Controller
@@ -571,9 +572,8 @@ exit();
             $session->set('scroll_target', '');
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x81286282 ' . $e->getMessage();
+            // This and ODRAdminBundle:Default:indexAction() are currently the only two controller actions that make Symfony handle the errors instead of AJAX popups
+            throw new HttpException( 500, 'Error 0x81286282', $e );
         }
 
         $response = new Response($html);
