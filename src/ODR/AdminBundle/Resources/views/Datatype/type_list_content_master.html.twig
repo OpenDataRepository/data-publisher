@@ -15,7 +15,7 @@
 <div class="tabletools">
     {% if level > 1 %}
     <div>
-        <button id="ODRDatatypeList_createDatatype" class="pure-button pure-button-primary ODRCreateDatatype"><i class="fa fa-lg fa-plus"></i> New Database</button>
+        <button id="ODRDatatypeList_createMasterTemplate" class="pure-button pure-button-primary ODRCreateDatatype"><i class="fa fa-lg fa-plus"></i> New Master Template</button>
     </div>
     {% endif %}
 </div>
@@ -25,14 +25,9 @@
     <thead>
         <tr>
             <th></th>
-            <th></th>
             <th>Database Name</th>
-            <th>Viewable Records</th>
             <th>Master Layout</th>
             <th>Derivative Layouts</th>
-            <th>Manage Groups</th>
-            <th>CSV Import</th>
-            <th>Delete</th>
         </tr>
     </thead>
     <tbody>
@@ -53,7 +48,7 @@
         {% if is_datatype_admin == true %}
         <tr>
             <td>{{ datatype.id }}</td>
-            <td>
+            <td id="ODRDatatypeList_{{ datatype.id }}_name">
                 <span class="ODRDatatypeInfoDiv">
                     <i class="fa fa-lg fa-info-circle"></i>
                     <span class="ODRDatatypeInfo">
@@ -65,17 +60,8 @@
                         </div>
                     </span>
                 </span>
+                {{ datatype.dataTypeMeta.shortName }}
             </td>
-            <td id="ODRDatatypeList_{{ datatype.id }}_name">{{ datatype.dataTypeMeta.shortName }}</td>
-
-
-            {# number of datarecords for this datatype #}
-            {% set datarecord_count = 0 %}
-            {% if metadata[ datatype.id ] is defined %}
-                {% set datarecord_count = metadata[ datatype.id ] %}
-            {% endif %}
-            <td id="ODRDatarecordList_{{ datatype.id }}_count">{{ datarecord_count }}</td>
-
 
             {# master layout designer link #}
             <td>
@@ -93,28 +79,6 @@
             {% else %}
                 <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a>
             {% endif %}
-            </td>
-
-
-            {# Group management link for this datatype #}
-            <td>
-                <a id="ODRDatatypeList_{{ datatype.id }}_manage_groups" class="address" href="{{ datatype_baseurl }}#{{ path('odr_manage_groups', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-cog"></i>&nbsp;Manage Groups</a>
-            </td>
-
-
-            {# CSV import link for this datatype #}
-            <td>
-            {% if datatype.dataTypeMeta.searchSlug == '' %}
-                <a id="ODRDatatypeList_{{ datatype.id }}_csv_import" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
-            {% else %}
-                <a class="address" href="{{ datatype_baseurl }}#{{ path('odr_csv_import', { 'datatype_id': datatype.id }) }}"><i class="fa fa-lg fa-upload"></i>&nbsp;Import</a>
-            {% endif %}
-            </td>
-
-
-            {# deletion link for this datatype #}
-            <td>
-                <a id="ODRDatatypeList_{{ datatype.id }}_delete" class="Pointer" onclick="deleteDataType({{ datatype.id }});"><i class="fa fa-lg fa-trash-o"></i>&nbsp;Delete</a>
             </td>
         </tr>
         {% endif %}
@@ -142,7 +106,7 @@
                     "visible": false,
                 },
                 {
-                    "targets": [1,4,5,6,7,8],
+                    "targets": [1],
                     "orderable": false,
                     "searchable": false,
                 }
@@ -156,7 +120,7 @@
             "paging": false,
             "info": false,
             "language": {
-                "emptyTable": "No Datatypes found"
+                "emptyTable": "No Master Templates found."
             }
         });
 
@@ -204,42 +168,6 @@
             });
         }
     }
-{#
-    function recacheAll() {
-        // Rebuild all cache entries for all datatypes
-        var url = '{{ path('odr_recache_all') }}';
-
-        var dataType = "json";
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: dataType,
-            success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
-                    alert( 'All DataTypes scheduled for recache...this may take awhile...' );
-                }
-                else {
-                    // Error occurred
-                    alert( data.d );
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-    }
-#}
 </script>
 
 {% endspaceless %}

@@ -13,6 +13,32 @@ ODR\AdminBundle\Entity\DataTypeMeta:
             generator:
                 strategy: IDENTITY
 
+
+        # This value tracks the current published
+        # revision of the master template.
+        master_published_revision:
+            type: integer
+            unsigned: true
+            nullable: false
+            default: 0
+            column: master_published_version
+
+        # Master Templates increment revision using
+        # this column.
+        master_revision:
+            type: integer
+            unsigned: true
+            nullable: false
+            default: 0
+
+        # Databases created from master templates
+        # track the revision they are in compliance with here.
+        tracking_master_revision:
+            type: integer
+            unsigned: true
+            nullable: false
+            default: 0
+
         searchSlug:
             type: string
             length: 32

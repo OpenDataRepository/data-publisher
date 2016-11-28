@@ -72,15 +72,30 @@ class DatatypeController extends ODRCustomController
             $top_level_datatypes = parent::getTopLevelDatatypes();
 
             // Grab each top-level datatype from the repository
-            $query = $em->createQuery(
-               'SELECT dt, dtm, dt_cb, dt_ub
+            if($section == "master") {
+                $query = $em->createQuery(
+                    'SELECT dt, dtm, dt_cb, dt_ub
                 FROM ODRAdminBundle:DataType AS dt
                 JOIN dt.dataTypeMeta AS dtm
                 JOIN dt.createdBy AS dt_cb
                 JOIN dt.updatedBy AS dt_ub
                 WHERE dt.id IN (:datatypes)
+                AND dt.is_master_type = 1
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-            )->setParameters( array('datatypes' => $top_level_datatypes) );
+                )->setParameters( array('datatypes' => $top_level_datatypes) );
+            }
+            else {
+                $query = $em->createQuery(
+                    'SELECT dt, dtm, dt_cb, dt_ub
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN dt.dataTypeMeta AS dtm
+                JOIN dt.createdBy AS dt_cb
+                JOIN dt.updatedBy AS dt_ub
+                WHERE dt.id IN (:datatypes)
+                AND dt.is_master_type = 0
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+                )->setParameters( array('datatypes' => $top_level_datatypes) );
+            }
             $results = $query->getArrayResult();
 
             $datatypes = array();
@@ -94,7 +109,6 @@ class DatatypeController extends ODRCustomController
 
                 $datatypes[$dt_id] = $dt;
             }
-//print_r($datatypes);  exit();
 
             // Determine whether user has the ability to view non-public datarecords for this datatype
             $can_view_public_datarecords = array();
@@ -142,12 +156,9 @@ class DatatypeController extends ODRCustomController
                 foreach ($results as $result) {
                     $dt_id = $result['dt_id'];
                     $count = $result['datarecord_count'];
-
                     $metadata[$dt_id] = $count;
                 }
             }
-//print_r($metadata);  exit();
-
 
             // Build a form for creating a new datatype, if needed
             $new_datatype_data = new DataTypeMeta();
@@ -186,9 +197,9 @@ class DatatypeController extends ODRCustomController
 
     /**
      * Creates a new top-level DataType.
-     * 
+     *
      * @param Request $request
-     * 
+     *
      * @return Response
      */
     public function addAction(Request $request)
@@ -226,8 +237,6 @@ class DatatypeController extends ODRCustomController
                 if ($short_name == '' || $long_name == '')
                     $form->addError( new FormError('New Datatypes require both a short name and a long name') );
 
-//$form->addError( new FormError('do not save') );
-
                 if ($form->isValid()) {
                     // ----------------------------------------
                     // Create a new Datatype entity
@@ -236,6 +245,17 @@ class DatatypeController extends ODRCustomController
                     $datatype->setHasShortresults(false);
                     $datatype->setHasTextresults(false);
 
+                    // This is a Master Type
+                    if($form['is_master_type']->getData() > 0) {
+                        $datatype->setIsMasterType(true);
+                    }
+
+                    // Need to define the setup steps:
+                    // create - creating the database and setting initial metadata
+                    // required_themes - setting the required themes
+                    $datatype->setSetupStep('create');
+
+
                     $datatype->setCreatedBy($admin);
                     $datatype->setUpdatedBy($admin);
 
@@ -243,7 +263,6 @@ class DatatypeController extends ODRCustomController
                     $em->persist($datatype);
                     $em->flush();
                     $em->refresh($datatype);
-
 
                     // Fill out the rest of the metadata properties for this datatype...don't need to set short/long name
                     $submitted_data->setDataType($datatype);
@@ -254,6 +273,22 @@ class DatatypeController extends ODRCustomController
                     $submitted_data->setDescription('');
                     $submitted_data->setSearchSlug(null);
                     $submitted_data->setXmlShortName('');
+
+                    // Master Template Metadata
+                    $submitted_data->setMasterRevision(0);
+                    $submitted_data->setMasterPublishedRevision(0);
+                    $submitted_data->setTrackingMasterRevision(0);
+
+                    if($form['is_master_type']->getData() > 0) {
+                        // Master Templates must increment revision
+                        // so that data fields can reference the "to be published"
+                        // revision.  Whenever an update is made to any data field
+                        // the revision should be updated.  Master Published revision
+                        // should only be updated when curators "publish" the latest
+                        // revisions through the publication dialog.
+                        $submitted_data->setMasterPublishedRevision(0);
+                        $submitted_data->setMasterRevision(1);
+                    }
 
                     $submitted_data->setUseShortResults(true);
                     $submitted_data->setPublicDate( new \DateTime('1980-01-01 00:00:00') );
@@ -316,7 +351,7 @@ class DatatypeController extends ODRCustomController
             else {
                 // Otherwise, this was a GET request
                 $return['d'] = $templating->render(
-                    'ODRAdminBundle:Datatype:add_type_dialog_form.html.twig', 
+                    'ODRAdminBundle:Datatype:add_type_dialog_form.html.twig',
                     array(
                         'form' => $form->createView()
                     )
@@ -328,12 +363,11 @@ class DatatypeController extends ODRCustomController
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x3184489: '.$e->getMessage();
         }
-    
-        $response = new Response(json_encode($return));  
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;  
-    }
 
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 
     /**
      * Triggers a recache of all datarecords of all datatypes.

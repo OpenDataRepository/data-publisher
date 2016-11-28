@@ -13,6 +13,9 @@ namespace ODR\AdminBundle\Form;
 
 // Symfony Forms
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
+use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 // Symfony Form classes
@@ -34,6 +37,9 @@ class CreateDatatypeForm extends AbstractType
             array(
                 'required' => true,
                 'label'  => 'Short Name',
+                'attr' => array(
+                    'maxlength' => 32,
+                ),
             )
         );
 
@@ -43,6 +49,28 @@ class CreateDatatypeForm extends AbstractType
             array(
                 'required' => true,
                 'label'  => 'Full TypeName',
+                'attr' => array(
+                    'maxlength' => 32,
+                ),
+            )
+        );
+
+        $builder->add(
+            'description',
+            TextareaType::class,
+            array(
+                'required' => true,
+                'label' => 'Enter a description for this database.'
+            )
+        );
+
+        // Adding a non-tracked field to allow master template creation.
+        $builder->add(
+            'is_master_type',
+            HiddenType::class,
+            array(
+                'mapped' => false,
+                'data' => 0
             )
         );
 

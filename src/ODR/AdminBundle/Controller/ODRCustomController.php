@@ -3375,6 +3375,13 @@ if ($debug)
             $em->persist($radio_option_meta);
             $em->flush($radio_option_meta);
 
+            // Master Template Data Fields must increment Master Revision
+            // on all change requests.
+            if($datafield->getIsMasterField()) {
+                $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+                self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
+            }
+
             return $radio_option;
         }
         else {
@@ -3434,6 +3441,13 @@ if ($debug)
                     // Now that it exists, fill out the properties of a RadioOptionMeta entity that were skipped during the manual creation...
                     $radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOption' => $radio_option->getId()) );
                 }
+            }
+
+            // Master Template Data Fields must increment Master Revision
+            // on all change requests.
+            if($datafield->getIsMasterField()) {
+                $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+                self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
             }
 
             return $radio_option;
@@ -3521,6 +3535,14 @@ if ($debug)
         // Save the new meta entry
         $em->persist($new_radio_option_meta);
         $em->flush();
+
+        // Master Template Data Fields must increment Master Revision
+        // on all change requests.
+        if($radio_option->getDataField()->getIsMasterField()) {
+            $datafield = $radio_option->getDataField();
+            $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+            self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
+        }
 
         // Return the new entry
         return $new_radio_option_meta;
@@ -3670,6 +3692,9 @@ if ($debug)
 
             'useShortResults' => $old_meta_entry->getUseShortResults(),
             'publicDate' => $old_meta_entry->getPublicDate(),
+            'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
+            'master_revision' => $old_meta_entry->getMasterRevision(),
+            'tracking_master_revision' => $old_meta_entry->getTrackingMasterRevision(),
         );
 
         // These Datafields entries can be null
@@ -3727,6 +3752,10 @@ if ($debug)
             $new_datatype_meta->setUseShortResults( $old_meta_entry->getUseShortResults() );
             $new_datatype_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
+            $new_datatype_meta->setMasterRevision( $old_meta_entry->getMasterRevision() );
+            $new_datatype_meta->setMasterPublishedRevision( $old_meta_entry->getMasterPublishedRevision() );
+            $new_datatype_meta->setTrackingMasterRevision( $old_meta_entry->getTrackingMasterRevision() );
+
             $new_datatype_meta->setCreatedBy($user);
         }
         else {
@@ -3780,8 +3809,28 @@ if ($debug)
         if ( isset($properties['publicDate']) )
             $new_datatype_meta->setPublicDate( $properties['publicDate'] );
 
+        if ( isset($properties['master_revision']) )
+            $new_datatype_meta->setMasterRevision( $properties['master_revision'] );
+        if ( isset($properties['master_published_revision']) )
+            $new_datatype_meta->setMasterPublishedRevision( $properties['master_published_revision'] );
+        if ( isset($properties['master_published_revision']) )
+            $new_datatype_meta->setTrackingMasterRevision( $properties['tracking_master_revision'] );
+
         $new_datatype_meta->setUpdatedBy($user);
 
+        if($datatype->getIsMasterType()) {
+            // Update grandparent master revision
+            $datatree_array = self::getDatatreeArray($em);
+            $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype->getId());
+
+            if($grandparent_datatype_id != $datatype->getId()) {
+                $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+                $grandparent_datatype = $repo_datatype->find($grandparent_datatype_id);
+
+                $gp_properties['master_revision'] = $grandparent_datatype->getDataTypeMeta()->getMasterRevision() + 1;
+                self::ODR_copyDatatypeMeta($em, $user, $grandparent_datatype, $gp_properties);
+            }
+        }
 
         // Delete the old entry if needed
         if ($remove_old_entry)
@@ -3815,6 +3864,17 @@ if ($debug)
 
         $datafield->setCreatedBy($user);
 
+        // This will always be zero unless
+        // created from a Master Template data field.
+        // $datafield->setMasterDataField(0);
+
+        // Add master flags
+        $datafield->setIsMasterField(0);
+
+        if($datatype->getIsMasterType() > 0) {
+            $datafield->setIsMasterField(1);
+        }
+
         $em->persist($datafield);
         $em->flush();
         $em->refresh($datafield);
@@ -3824,6 +3884,15 @@ if ($debug)
         $datafield_meta->setDataField($datafield);
         $datafield_meta->setFieldType($fieldtype);
         $datafield_meta->setRenderPlugin($renderplugin);
+
+        // Master Revision defaults to zero.  When
+        // created from a Master Template field, this will
+        // track the data field Master Published Revision.
+        $datafield_meta->setMasterRevision(0);
+        // Will need to set the tracking revision if created
+        // from master template field.
+        $datafield_meta->setTrackingMasterRevision(0);
+        $datafield_meta->setMasterPublishedRevision(0);
 
         $datafield_meta->setFieldName('New Field');
         $datafield_meta->setDescription('Field description.');
@@ -3853,6 +3922,16 @@ if ($debug)
         $datafield_meta->setUpdatedBy($user);
 
         $em->persist($datafield_meta);
+        $em->flush();
+        $em->refresh($datafield_meta);
+
+        if($datatype->getIsMasterType() > 0) {
+            // A datafield publishes its own revision number.
+            // This number will be incremented whenever a change is made
+            // to the master data field.
+            $dfm_properties['master_revision'] = $datafield_meta->getMasterRevision() + 1;
+            self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
+        }
 
 
         // Add the datafield to all groups for this datatype
@@ -3904,6 +3983,9 @@ if ($debug)
             'searchable' => $old_meta_entry->getSearchable(),
             'user_only_search' => $old_meta_entry->getUserOnlySearch(),
             'publicDate' => $old_meta_entry->getPublicDate(),
+            'master_revision' => $old_meta_entry->getMasterRevision(),
+            'tracking_master_revision' => $old_meta_entry->getTrackingMasterRevision(),
+            'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
         );
 
         foreach ($existing_values as $key => $value) {
@@ -3944,12 +4026,19 @@ if ($debug)
             $new_datafield_meta->setUserOnlySearch( $old_meta_entry->getUserOnlySearch() );
             $new_datafield_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
+            // Master Template Related
+            $new_datafield_meta->setMasterRevision( $old_meta_entry->getMasterRevision() );
+            $new_datafield_meta->setTrackingMasterRevision( $old_meta_entry->getTrackingMasterRevision() );
+            $new_datafield_meta->setMasterPublishedRevision( $old_meta_entry->getMasterPublishedRevision() );
+
             $new_datafield_meta->setCreatedBy($user);
         }
         else {
             // Update the existing meta entry
             $new_datafield_meta = $old_meta_entry;
         }
+
+
 
         // Set any new properties
         if ( isset($properties['fieldType']) )
@@ -3989,22 +4078,43 @@ if ($debug)
             $new_datafield_meta->setUserOnlySearch( $properties['user_only_search'] );
         if ( isset($properties['publicDate']) )
             $new_datafield_meta->setPublicDate( $properties['publicDate'] );
+        if ( isset($properties['master_revision']) ) {
+            $new_datafield_meta->setMasterRevision( $properties['master_revision'] );
+        }
+        // Check in case master revision needs to be updated.
+        else if($datafield->getIsMasterField() > 0) {
+            // We always increment the Master Revision for master data fields
+            $new_datafield_meta->setMasterRevision($new_datafield_meta->getMasterRevision() + 1);
+        }
+
+        if ( isset($properties['tracking_master_revision']) )
+            $new_datafield_meta->setTrackingMasterRevision( $properties['tracking_master_revision'] );
+        if ( isset($properties['master_published_revision']) )
+            $new_datafield_meta->setMasterPublishedRevision( $properties['master_published_revision'] );
 
         $new_datafield_meta->setUpdatedBy($user);
-
-
-        // Delete the old meta entry if necessary
-        if ($remove_old_entry)
-            $em->remove($old_meta_entry);
 
         //Save the new meta entry
         $em->persist($new_datafield_meta);
         $em->flush();
 
+        // Delete the old meta entry if necessary
+        if ($remove_old_entry)
+            $em->remove($old_meta_entry);
+
+        // All metadata changes result in a new
+        // Data Field Master Published Revision.  Revision
+        // changes are picked up by derivative data types
+        // when the parent data type revision is changed.
+        if($datafield->getIsMasterField() > 0) {
+            $datatype = $datafield->getDataType();
+            $properties['master_revision'] = $datatype->getDataTypeMeta()->getMasterRevision() + 1;
+            self::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+        }
+
         // Return the new entry
         return $new_datafield_meta;
     }
-
 
     /**
      * Copies the contents of the given ThemeMeta entity into a new ThemeMeta entity if something was changed
@@ -5119,6 +5229,7 @@ if ($debug)
 
             if ($transparency >= 0) {
                 // TODO figure out what trnprt_index is used for.
+                $trnprt_indx = null;
                 $transparent_color  = imagecolorsforindex($image, $trnprt_indx);
                 $transparency       = imagecolorallocate($image_resized, $transparent_color['red'], $transparent_color['green'], $transparent_color['blue']);
                 imagefill($image_resized, 0, 0, $transparency);

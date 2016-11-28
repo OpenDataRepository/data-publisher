@@ -1819,9 +1819,15 @@ class DisplaytemplateController extends ODRCustomController
             $child_datatype->setRevision(0);
             $child_datatype->setHasShortresults(false);
             $child_datatype->setHasTextresults(false);
-
             $child_datatype->setCreatedBy($user);
             $child_datatype->setUpdatedBy($user);
+
+            $child_datatype->setIsMasterType(false);
+            // TODO Figure out if setup steps are needed for child datatypes.
+            $child_datatype->setSetupStep("child-complete");
+            if($parent_datatype->getIsMasterType()) {
+                $child_datatype->setIsMasterType(true);
+            }
 
             // Save all changes made
             $em->persist($child_datatype);
@@ -1846,6 +1852,14 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_meta->setNameField(null);
             $datatype_meta->setSortField(null);
             $datatype_meta->setBackgroundImageField(null);
+
+            $datatype_meta->setMasterPublishedRevision(0);
+            $datatype_meta->setMasterRevision(0);
+            $datatype_meta->setTrackingMasterRevision(0);
+            if($child_datatype->getIsMasterType()) {
+                // Set the initial Master Revision
+                $datatype_meta->setMasterRevision(1);
+            }
 
             $datatype_meta->setCreatedBy($user);
             $datatype_meta->setUpdatedBy($user);
@@ -3303,6 +3317,29 @@ class DisplaytemplateController extends ODRCustomController
                 }
             }
 
+
+            // Deal with updating field & datatype
+            if ($local_datafield_id == 0) {
+                // Master Template Data Types must increment Master Revision
+                // on all change requests.
+                if($target_datatype->getIsMasterType()) {
+                    $dtm_properties['master_revision'] = $target_datatype->getDataTypeMeta()->getMasterRevision() + 1;
+                    parent::ODR_copyDatatypeMeta($em, $user, $target_datatype, $dtm_properties);
+                }
+            }
+            else {
+                // Master Template Data Types must increment Master Revision
+                // on all change requests.
+                if($target_datafield->getIsMasterField()) {
+                    $dfm_properties['master_revision'] = $target_datafield->getDataFieldMeta()->getMasterRevision() + 1;
+                    parent::ODR_copyDatafieldMeta($em, $user, $target_datafield, $dfm_properties);
+                }
+            }
+
+
+            /** @var RenderPlugin $render_plugin */
+            $render_plugin = $repo_render_plugin->find($selected_plugin_id);
+
             $em->flush();
 
             $return['d'] = array(
@@ -4024,7 +4061,18 @@ class DisplaytemplateController extends ODRCustomController
                     if ( $submitted_data->getBackgroundImageField() !== null )
                         $properties['backgroundImageField'] = $submitted_data->getBackgroundImageField()->getId();
 
+                    // Master Template Data Types must increment Master Revision
+                    // on all change requests.
+                    if($datatype->getIsMasterType() > 0) {
+                        $properties['master_revision'] = $datatype->getDataTypeMeta()->getMasterRevision() + 1;
+                    }
                     parent::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+
+                    // Master Template Data Types must increment parent master template
+                    // revision when changed.
+                    if(!$is_link && $datatype->getIsMasterType() > 0) {
+                        // TODO Need to update datatype revision for grandparent
+                    }
 
                     // TODO - modify cached version of datatype directly?
                     parent::tmp_updateDatatypeCache($em, $datatype, $user);
@@ -4292,6 +4340,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // Determine if the datafield's datatype has a render plugin applied to it...
             $dt_fieldtypes = $allowed_fieldtypes;
+            // if ( $datatype->getDataTypeMeta()->getRenderPlugin()->getId() != '1' ) {
             if ( $datatype->getRenderPlugin()->getId() != '1' ) {
                 // Datafield is part of a Datatype using a render plugin...check to see if the Datafield is actually in use for the render plugin
                 /** @var RenderPluginInstance $rpi */

@@ -25,6 +25,13 @@
             {{ form_errors(form.longName) }}
             {{ form_widget(form.longName, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
         </div>
+        <div class="pure-control-group">
+            <label for="{{ form.description.vars.id }}">
+                <strong>{{ form.description.vars.label }}</strong>
+            </label>
+            {{ form_errors(form.description) }}
+            {{ form_widget(form.description, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+        </div>
 
         <div style="display: none">
             {{ form_rest(form) }}

@@ -712,4 +712,33 @@ class DataFieldsMeta
     {
         return $this->updatedBy;
     }
+    /**
+     * @var integer
+     */
+    private $master_revision;
+
+
+    /**
+     * Set masterRevision
+     *
+     * @param integer $masterRevision
+     *
+     * @return DataFieldsMeta
+     */
+    public function setMasterRevision($masterRevision)
+    {
+        $this->master_revision = $masterRevision;
+
+        return $this;
+    }
+
+    /**
+     * Get masterRevision
+     *
+     * @return integer
+     */
+    public function getMasterRevision()
+    {
+        return $this->master_revision;
+    }
 }

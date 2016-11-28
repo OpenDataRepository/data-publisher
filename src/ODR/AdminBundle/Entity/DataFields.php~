@@ -571,4 +571,130 @@ class DataFields
     {
         return $this->getDataFieldMeta()->getRenderPlugin();
     }
+    /**
+     * @var boolean
+     */
+    private $is_master_field;
+
+    /**
+     * @var integer
+     */
+    private $master_published_revision;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $relatedMasterFields;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\DataFields
+     */
+    private $masterDataField;
+
+
+    /**
+     * Set isMasterField
+     *
+     * @param boolean $isMasterField
+     *
+     * @return DataFields
+     */
+    public function setIsMasterField($isMasterField)
+    {
+        $this->is_master_field = $isMasterField;
+
+        return $this;
+    }
+
+    /**
+     * Get isMasterField
+     *
+     * @return boolean
+     */
+    public function getIsMasterField()
+    {
+        return $this->is_master_field;
+    }
+
+    /**
+     * Set masterPublishedRevision
+     *
+     * @param integer $masterPublishedRevision
+     *
+     * @return DataFields
+     */
+    public function setMasterPublishedRevision($masterPublishedRevision)
+    {
+        $this->master_published_revision = $masterPublishedRevision;
+
+        return $this;
+    }
+
+    /**
+     * Get masterPublishedRevision
+     *
+     * @return integer
+     */
+    public function getMasterPublishedRevision()
+    {
+        return $this->master_published_revision;
+    }
+
+    /**
+     * Add relatedMasterField
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $relatedMasterField
+     *
+     * @return DataFields
+     */
+    public function addRelatedMasterField(\ODR\AdminBundle\Entity\DataFields $relatedMasterField)
+    {
+        $this->relatedMasterFields[] = $relatedMasterField;
+
+        return $this;
+    }
+
+    /**
+     * Remove relatedMasterField
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $relatedMasterField
+     */
+    public function removeRelatedMasterField(\ODR\AdminBundle\Entity\DataFields $relatedMasterField)
+    {
+        $this->relatedMasterFields->removeElement($relatedMasterField);
+    }
+
+    /**
+     * Get relatedMasterFields
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRelatedMasterFields()
+    {
+        return $this->relatedMasterFields;
+    }
+
+    /**
+     * Set masterDataField
+     *
+     * @param \ODR\AdminBundle\Entity\DataFields $masterDataField
+     *
+     * @return DataFields
+     */
+    public function setMasterDataField(\ODR\AdminBundle\Entity\DataFields $masterDataField = null)
+    {
+        $this->masterDataField = $masterDataField;
+
+        return $this;
+    }
+
+    /**
+     * Get masterDataField
+     *
+     * @return \ODR\AdminBundle\Entity\DataFields
+     */
+    public function getMasterDataField()
+    {
+        return $this->masterDataField;
+    }
 }
