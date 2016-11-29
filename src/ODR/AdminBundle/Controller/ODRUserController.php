@@ -848,7 +848,7 @@ class ODRUserController extends ODRCustomController
                         $user_permissions = $user_permissions['datatypes'];
 
                         foreach ($user_permissions as $datatype_id => $up) {
-                            if ( isset($admin_permissions[$datatype_id]) && isset($admin_permissions[$datatype_id]['dt_admin']) && isset($up['dt_view']) ) {
+                            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_admin']) && isset($up['dt_view']) ) {
                                 $tmp[] = $user;
                                 break;
                             }

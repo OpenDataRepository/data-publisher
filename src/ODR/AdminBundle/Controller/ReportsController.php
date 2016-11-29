@@ -911,19 +911,22 @@ print_r($grandparent_list);
                 return parent::deletedEntityError('DataType');
 
             // Files that aren't done encrypting shouldn't be checked for decryption progress
-            if ($file->getOriginalChecksum() == '')
+            if ($file->getProvisioned() == true)
                 return parent::deletedEntityError('File');
 
             // --------------------
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            if ( $file->isPublic() ) {
-                // public file, anybody can view
-            }
-            else if ( $user === 'anon.' ) {
-                // non-public file and anonymous user, can't view
-                return parent::permissionDeniedError('view');
+
+            if ( $user === 'anon.' ) {
+                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() && $file->isPublic() ) {
+                    // user is allowed to download this file
+                }
+                else {
+                    // something is non-public, therefore an anonymous user isn't allowed to download this file
+                    return parent::permissionDeniedError('view');
+                }
             }
             else {
                 // Grab user's permissions
@@ -951,6 +954,8 @@ print_r($grandparent_list);
             }
             // --------------------
 
+
+            // ----------------------------------------
             $progress = array('current_value' => 0, 'max_value' => 100);
 
             // Shouldn't really be necessary if the file is public, but including anyways for completeness/later use
@@ -1043,42 +1048,34 @@ print_r($grandparent_list);
             // Determine user privileges
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-            if ( $file->isPublic() ) {
-                // public file, anybody can view
-            }
-            else if ( $user === 'anon.' ) {
-                // non-public file and anonymous user, can't view
+
+            // Grab user's permissions
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                $can_view_datatype = true;
+
+            // If user has view permissions, show non-public sections of the datarecord
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                $can_view_datarecord = true;
+
+            // Ensure user can view datafield
+            $can_view_datafield = false;
+            if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
+                $can_view_datafield = true;
+
+            // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($datafield->isPublic() || $can_view_datafield) || !($file->isPublic() || $can_view_datarecord) )
                 return parent::permissionDeniedError('view');
-            }
-            else {
-                // Grab user's permissions
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                // If user has view permissions, show non-public sections of the datarecord
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                // Ensure user can view datafield
-                $can_view_datafield = false;
-                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                    $can_view_datafield = true;
-
-                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !($datatype->isPublic() || $can_view_datatype) || !($datafield->isPublic() || $can_view_datafield) || !($file->isPublic() || $can_view_datarecord) )
-                    return parent::permissionDeniedError('view');
-            }
             // --------------------
 
             $progress = array('current_value' => 100, 'max_value' => 100);
 
-            if ( $file->getOriginalChecksum() != null && $file->getOriginalChecksum() != '' ) {
+            if ($file->getProvisioned() == false) {
                 // Figure out whether the cached version of this datarecord lists this file as fully decrypted or not...
                 $redis = $this->container->get('snc_redis.default');;
                 // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);

@@ -709,12 +709,19 @@ odr_display_reload_datafield:
         datafield_id: \d+
         theme_id: \d+
 
+odr_file_download_start:
+    path:  /view/downloadfilestart/{file_id}
+    defaults: { _controller: ODRAdminBundle:Display:filedownloadstart }
+    requirements:
+        file_id:  \d+
+
 odr_file_download:
     path:  /view/downloadfile/{file_id}
     defaults: { _controller: ODRAdminBundle:Display:filedownload }
     requirements:
         file_id:  \d+
 
+# deprecated?
 odr_cancel_file_decrypt:
     path:  /view/downloadfile_cancel/{file_id}
     defaults: { _controller: ODRAdminBundle:Display:cancelfiledecrypt }

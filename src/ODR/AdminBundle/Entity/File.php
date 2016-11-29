@@ -53,6 +53,11 @@ class File
     private $filesize;
 
     /**
+     * @var boolean
+     */
+    private $provisioned;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -235,6 +240,30 @@ class File
     public function getFilesize()
     {
         return $this->filesize;
+    }
+
+    /**
+     * Set provisioned
+     *
+     * @param boolean $provisioned
+     *
+     * @return File
+     */
+    public function setProvisioned($provisioned)
+    {
+        $this->provisioned = $provisioned;
+
+        return $this;
+    }
+
+    /**
+     * Get provisioned
+     *
+     * @return boolean
+     */
+    public function getProvisioned()
+    {
+        return $this->provisioned;
     }
 
     /**

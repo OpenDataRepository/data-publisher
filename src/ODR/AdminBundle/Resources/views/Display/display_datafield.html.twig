@@ -67,60 +67,55 @@
         </fieldset>
 
     {% elseif field_typename == "File" %}
-        <fieldset class="pure-u-1">
-            <div class="pure-u-1">
-                <table class="NotODRTable pure-table pure-u-1">
-                    <thead class="pure-u-1">
-                        <tr class="pure-u-1">
-                            <th class="pure-u-20-24" style="cursor:default;">
-                                <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
-                                <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield" style="padding-left: 20px;"></i>
-                                <span id="ODRDownloadAllLabel_{{ datarecord.id }}_{{ datafield.id }}" style="padding-left:15px; display:none;">Preparing...</span>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody class="pure-u-1">
-                    {% for file in valuefield %}
-                        <tr id="File_{{ file.id }}" class="pure-u-1">
-                            <td class="pure-u-20-24" {% if file.fileMeta.originalFileName != null and datafield.dataFieldMeta.shorten_filename == 1 and file.fileMeta.originalFileName|length > 35 %}title="{{ file.fileMeta.originalFileName }}"{% endif %}>
-                                {% if file.original_checksum != '' %}
-                                    <a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="truncate ODRFileDownload" rel="{{ file.id }}">{% if file.fileMeta.originalFileName == null %}File_{{ file.id }}.{{ file.getext }}{% else %}{{ file.fileMeta.originalFileName }}{% endif %}</a>
-                                    <span id="ODRFileDownload_{{ file.id }}" class="ODRFileDownloadProgress" style="cursor:default; margin-left:10px;">
-                                        <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRProgressBar" style="margin-left:15px; display:inline-block;">
-                                            <span class="ODRProgressBarLabel" style="left:35%;">Decrypting...</span>
-                                        </span>
-                                        <span id="ODRFileDownload_{{ file.id }}_cancel" class="ODRFileDownloadCancel pure-button pure-button-primary" rel="{{ file.id }}" style="vertical-align: top; margin-left: 10px;">Cancel</span>
-                                    </span>
-                                {% else %}
-                                    <span class="Cursor">
-                                        {% if file.fileMeta.originalFileName == null %}File_{{ file.id }}.{{ file.getext }}{% else %}{{ file.fileMeta.originalFileName }}{% endif %}
-                                    </span>
-                                    <span id="ODRFileEncrypt_{{ file.id }}_progress" class="ODRProgressBar" style="margin-left:15px; display:inline-block;">
-                                        <span class="ODRProgressBarLabel" style="left:35%;">Encrypting...</span>
-                                    </span>
-                                    <script>
-                                        $(function() {
-                                            createFileEncryptProgressCheck({{ file.id }}, {{ datarecord.id }}, {{ datafield.id }});
-                                            $("#ODRFileEncrypt_{{ file.id }}_progress").progressbar({
-                                                value: false
-                                            });
-                                        });
-                                    </script>
-                                {% endif %}
-                            </td>
-                            
-                            <td class="pure-u-4-24">
-                                {% if file.original_checksum != '' %}
-                                    <i class="Cursor FRight tooltip fa fa-globe fa-lg ODRPublicFile {% if not file.fileMeta.publicDate|is_public %}IconRed{% endif %}" title="{% if not file.fileMeta.publicDate|is_public %}File is not public{% else %}File was made public on {{ file.fileMeta.publicDate|date('Y-m-d') }}{% endif %}" rel="{{ file.id }}"></i>
-                                    <i class="Cursor FRight tooltip fa fa-calendar fa-lg" title="Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy|user_string }}"></i>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
+        {#<fieldset class="pure-u-1">#}
+            <div class="ODRFileDatafield_header pure-u-1">
+                <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
+                <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
             </div>
-        </fieldset>
+            {% for file in valuefield %}
+                <div id="File_{{ file.id }}" class="ODRFileDatafield_file pure-u-1">
+                    <span class="ODRFileSpacer {% if file.fileMeta.publicDate|is_public %}ODRFileSpacer_public{% else %}ODRFileSpacer_nonpublic{% endif %}">&nbsp;</span>
+
+                    <span class="ODRTruncateFilename">
+                        {% set filename = file.fileMeta.originalFileName %}
+                        {% if file.fileMeta.originalFileName == null %}
+                            {% set filename = 'File_' ~ file.id ~ '.' ~ file.ext %}
+                        {% endif %}
+
+                        <span class="ODRFileInfoDiv">
+                            <i class="fa fa-lg fa-info-circle"></i>
+                            <span class="ODRFileInfo">
+                                <div>
+                                    <i class="fa fa-globe ODRPublicFile"></i>&nbsp;
+                                    {% if not file.fileMeta.publicDate|is_public %}File is not public{% else %}File was made public on {{ file.fileMeta.publicDate|date('Y-m-d') }}{% endif %}
+                                </div>
+                                <div>
+                                    <i class="fa fa-calendar"></i>&nbsp;
+                                    Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy|user_string }}
+                                </div>
+                                <div>
+                                    <i class="fa fa-file-o"></i>&nbsp;
+                                    {{ file.filesize|filesize }}
+                                </div>
+                            </span>
+                        </span>
+                        <a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="ODRFileDownload" title="{{ filename }}" rel="{{ file.id }}">{{ filename }}</a>
+                    </span>
+
+                    <span id="ODRFileDecrypt_{{ file.id }}_overlay" class="ODRFakeProgressBar_overlay" {% if file.original_checksum != '' %}style="visibility:hidden;"{% endif %}>
+                        <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRFakeProgressBar"></span>
+                    </span>
+
+                    {% if file.provisioned == true %}
+                        <script>
+                            $(function() {
+                                createFileEncryptProgressCheck({{ file.id }}, {{ datarecord.id }}, {{ datafield.id }});
+                            });
+                        </script>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {#</fieldset>#}
 
     {% elseif field_typename == "Image" %}
         {#<fieldset>#}

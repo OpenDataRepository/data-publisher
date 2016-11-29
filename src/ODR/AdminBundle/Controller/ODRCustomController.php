@@ -2828,6 +2828,7 @@ if ($debug)
         else if ($typeclass == 'File') {
             /** @var File $my_obj */
             $my_obj->setFilesize(0);
+            $my_obj->setProvisioned(true);
         }
 
         // Save changes
@@ -2952,7 +2953,7 @@ if ($debug)
                 array(
                     "object_type" => $typeclass,
                     "object_id" => $my_obj->getId(),
-                    "target_filepath" => '',
+                    "target_filename" => '',
                     "crypto_type" => 'encrypt',
                     "redis_prefix" => $redis_prefix,    // debug purposes only
                     "url" => $url,
