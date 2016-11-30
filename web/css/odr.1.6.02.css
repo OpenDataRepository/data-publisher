@@ -178,7 +178,7 @@ Forms Core
 .pure-skin-odr .pure-form select,
 .pure-skin-odr .pure-form textarea {
     font-size: 100%; /* 1 */
-    margin: 0; /* 2 */
+    margin: 0 0 2px 0; /* 2 */
     vertical-align: baseline; /* 3 */
     *vertical-align: middle; /* 3 */
 }
@@ -409,7 +409,7 @@ Forms Core
 .pure-skin-odr .pure-form .ODRResults input[type="color"],
 /* .pure-skin-odr .pure-form .ODRResults select, */
 .pure-skin-odr .pure-form .ODRResults textarea {
-    padding: 0.2em 0.2em 0.2em 0.2em;
+    padding: 0 0.2em 0.2em 0.2em;
     display: inline-block;
     border: none;
     font-size: 0.8em;
@@ -521,7 +521,8 @@ Forms Core
 .pure-skin-odr .pure-form fieldset {
     margin: 0;
     /* padding: 0.35em 0 0.75em; */
-    padding: 0.15em 0 0.25em 0; /* Mod NAS 20141222 */
+    /* padding: 0.15em 0 0.25em 0; /* Mod NAS 20141222 */
+    padding: 0 0 0 0; /* Mod NAS 20161129 */
     border: 0;
 }
 .pure-skin-odr .pure-form legend {
@@ -954,13 +955,14 @@ aside a, aside a:visited {
         display: block;
         height: 100%;
         width: 20px;
-        background: transparent url('/img/link-icon.png') no-repeat center center;
+        /* background: transparent url('/img/link-icon.png') no-repeat center center; */
+        background: transparent;
         background-size: 20px 20px;
     }
 
     @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 2dppx) {
         .content-link {
-            background-image: url('/img/link-icon@2x.png');
+            /* background-image: url('/img/link-icon@2x.png'); */
         }
     }
 
@@ -2177,7 +2179,8 @@ h1:after {
 
     float: right;
     position: relative;
-    top: -38px;
+    top: -48px;
+    height: 0px;
     line-height: 0px;
 
     padding: 0px 0px 4px 0px;
@@ -2424,7 +2427,7 @@ form .row {
 }
 
 .ODRFieldWrapper {
-    line-height: 1.4em;
+    line-height: 1.1em;
     margin-right: 0.25em;
     margin-left: 0.25em;
 }
@@ -2447,7 +2450,7 @@ form .row {
 
 .ODRDesign .ODRFieldLabel {
     font-weight: bold;
-    margin-left 0.6em;
+    /* margin-left 0.6em; */
 }
 
 .ODRShortResults .ODRFieldLabel {
@@ -2702,7 +2705,7 @@ form .row {
 .pure-table td {
     /* white-space: nowrap; */
     overflow: hidden;
-    text-overflow: hidden;
+    text-overflow: clip;
 }
 
 .FRight {
@@ -2737,7 +2740,8 @@ form .row {
 }
 
 .ODRImageGalleryImage {
-    margin-top: 1.6em;
+    /* margin-top: 1.6em; */
+    margin-top: 0;
 }
 
 .ODRImageGalleryImage .ODRImage img {
@@ -2782,7 +2786,7 @@ form .row {
     font-size: 0.8em;
     padding-left: 0.8em;
     padding-top: 0.3em;
-    padding-bottom: 1.4em;
+    padding-bottom: 0.6em;
 }
 
 .ODRListDisplayHeader {

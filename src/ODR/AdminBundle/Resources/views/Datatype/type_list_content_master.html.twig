@@ -27,7 +27,7 @@
             <th></th>
             <th>Database Name</th>
             <th>Master Layout</th>
-            <th>Derivative Layouts</th>
+            <th>Test Record</th>
         </tr>
     </thead>
     <tbody>
@@ -72,12 +72,16 @@
             {% endif %}
             </td>
 
-            {# derivative layout designer link #}
+            {# Sample Data Record #}
+            {% set datarecord_count = 0 %}
+            {% if metadata[ datatype.id ] is defined %}
+                {% set datarecord_count = metadata[ datatype.id ] %}
+            {% endif %}
             <td>
-            {% if datatype.dataTypeMeta.searchSlug == '' %}
-                <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-exclamation-triangle"></i>&nbsp;No Search Abbreviation!</a>
+            {% if datarecord_count == 0 %}
+                <a id="ODRDatarecordList_{{ datatype.id }}_add" class="Pointer" onclick="addDataRecord('{{ datatype_baseurl }}',{{ datatype.id }});"><i class="fa fa-lg fa-plus-circle"></i>&nbsp;Create Test Record</a>
             {% else %}
-                <a id="ODRDatatypeList_{{ datatype.id }}_derivative_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Derivative Layouts"><i class="fa fa-lg fa-list-alt"></i>&nbsp;Manage</a>
+                <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_search_render', {'search_key': 'dt_id='~datatype.id} ) }}" title="View {{ datatype.dataTypeMeta.shortName }} DataRecords"><i class="fa fa-lg fa-list"></i>&nbsp;View Test Record</a>
             {% endif %}
             </td>
         </tr>
@@ -126,6 +130,51 @@
 
         $("#ODRDatatypeList").removeAttr('style');
     });
+
+    function addDataRecord(urlpath, datatype_id) {
+        if ( confirm('Are you sure you want to create a new Datarecord?') ) {
+            var url = '{{ path('odr_record_add', { 'datatype_id': 0 }) }}';
+            url = url.substring(0, (url.length - 1));
+            url += datatype_id;
+
+            var dataType = "json";
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: dataType,
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+                        // Reload this area of the page
+                        var datarecord_id = data.d.datarecord_id;
+
+                        var url = urlpath + '#{{ path('odr_record_edit', { 'datarecord_id': 0 }) }}';
+                        url = url.substring(0, (url.length-1));
+                        url += datarecord_id;
+
+                        window.location = url;
+                    }
+                    else {
+                        // Error occurred
+                        alert( data.d );
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        }
+    }
 
     function deleteDataType(datatype_id) {
         var datatype_name = $("#ODRDatatypeList_" + datatype_id + "_name").html();

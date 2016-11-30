@@ -1,9 +1,16 @@
 {% spaceless %}
 
 <!-- Add Datatype Dialog -->
-<div class="pure-form pure-g" style="display: none;" id="dialog_add_datatype" title="Add Datatype Dialog">
+<div class="pure-form pure-g" style="display: none;" id="dialog_add_datatype" title="Create a new database">
     <div class="form_contents pure-u-1">
         {% include 'ODRAdminBundle:Datatype:add_type_dialog_form.html.twig' with {'form': form} %}
+    </div>
+    <div class="form_contents pure-u-1">
+        <ul>
+            {% for datatype in master_templates %}
+                <li>{{ datatype.dataTypeMeta[0].shortName }}</li>
+            {% endfor %}
+        </ul>
     </div>
 </div>
 <!--  End of Add DataType Dialog -->

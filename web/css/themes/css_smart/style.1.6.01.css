@@ -81,7 +81,8 @@ input,
 }
 
 .ODRDataField {
-    padding: 16px;
+    margin-bottom: 0px;
+    padding-left: 0px;
     box-sizing:border-box;
     -moz-box-sizing:border-box;
     -webkit-box-sizing:border-box;
@@ -147,14 +148,12 @@ input,
     padding-left: 74px;
     padding-bottom: 0px;
     width: 300px;
-    margin-top: ;
+    /* margin-top: ; */
     top: 100px;
     position: relative;
     left: 170px;
 }
 
-
-}
 
 .pure-skin-odr .pure-menu.pure-menu-open,
 #toolbar {
@@ -168,7 +167,7 @@ input,
 /* END Toolbar and Menu */
 
 h1 {
-    padding-left: 10px;
+    padding-left: 4px;
 }
 
 h3.ui-accordion-header,
@@ -209,6 +208,10 @@ h3.ui-accordion-header a {
     color: rgb(85,85,85);
 }
 
+.NotODRTable {
+    margin-bottom: 4px;
+}
+
 /* File list tables */
 .NotODRTable tbody {
     background: #b8e8fa;
@@ -230,7 +233,7 @@ h3.ui-accordion-header a {
 
 /* Tab Header */
 .ODRTabButtonHeader {
-    padding: 12px;
+    padding: 4px;
 }
 
 .pure-skin-odr .ODRExportButtons .pure-button:hover {
@@ -326,9 +329,9 @@ footer ul li:first-child {
 
 /* ===============  forms.css =================================*/
 .pure-skin-odr .pure-form button {
-    margin-right: 0.8em;
-    margin-left: 0.8em;
-    margin-bottom: 0.8em;
+    margin-right: 0.4em;
+    margin-left: 0px;
+    margin-bottom: 0px;
 }
 .ODRFormHeader {
     margin-left: 0px;
@@ -509,7 +512,7 @@ footer ul li:first-child {
 #ODRPageSelect {
     background: white none;
     padding: 10px;
-    border: 2px solid #white;
+    border: 2px solid white;
     border-radius: 4px;
     box-shadow: none;
 }

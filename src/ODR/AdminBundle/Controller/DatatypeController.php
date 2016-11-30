@@ -160,6 +160,19 @@ class DatatypeController extends ODRCustomController
                 }
             }
 
+            $query = $em->createQuery(
+                'SELECT dt, dtm, dt_cb, dt_ub
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN dt.dataTypeMeta AS dtm
+                JOIN dt.createdBy AS dt_cb
+                JOIN dt.updatedBy AS dt_ub
+                WHERE dt.id IN (:datatypes)
+                AND dt.is_master_type = 1
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+                )->setParameters( array('datatypes' => $top_level_datatypes) );
+            $master_templates = $query->getArrayResult();
+
+
             // Build a form for creating a new datatype, if needed
             $new_datatype_data = new DataTypeMeta();
             $form = $this->createForm(CreateDatatypeForm::class, $new_datatype_data);
@@ -173,6 +186,7 @@ class DatatypeController extends ODRCustomController
                         'datatype_permissions' => $datatype_permissions,
                         'section' => $section,
                         'datatypes' => $datatypes,
+                        'master_templates' => $master_templates,
                         'metadata' => $metadata,
                         'form' => $form->createView()
                     )
