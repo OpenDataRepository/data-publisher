@@ -371,6 +371,10 @@ footer ul li:first-child {
     margin-right: 0px;
 }
 
+.pure-skin-odr .pure-form .ODRRecord label {
+    padding-left: 0.6em;
+}
+
 .pure-skin-odr .pure-form .ODRRecord input[type="text"],
 .pure-skin-odr .pure-form .ODRRecord input[type="password"],
 .pure-skin-odr .pure-form .ODRRecord input[type="email"],
@@ -395,7 +399,7 @@ footer ul li:first-child {
     border: 1px solid rgba(184,232,250, 0.7); 
     border-radius: 2px;
     background: #ECF7FB none;
-    margin-left: -0.8em;
+    /* margin-left: -0.8em; */
     /* -webkit-transition: 0.3s linear border;
     -moz-transition: 0.3s linear border;
     -ms-transition: 0.3s linear border;
