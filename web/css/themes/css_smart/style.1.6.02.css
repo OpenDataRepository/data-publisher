@@ -3,6 +3,14 @@
  * Copyright 2016 - Open Data Repository
  * Author: Nate Stone
  *
+ *
+
+Color Palette:
+body text: #666666;
+label text : #000000;
+page header: #1f8dd6
+child header/h1: #6fa5c7
+file_header: #7fb9d8;
  */
 
 @font-face {
@@ -31,6 +39,10 @@ body {
     background-position: center top;
     background-attachment: fixed;
     font-family: "Lato-Reg", sans-serif;
+}
+
+h3 {
+    font-weight: normal;
 }
 
 /* Font Overrides */
@@ -88,6 +100,27 @@ input,
     -webkit-box-sizing:border-box;
 }
 
+.ODRDataField h3 {
+    box-sizing:border-box;
+    -moz-box-sizing:border-box;
+    -webkit-box-sizing:border-box;
+    margin-top: 0px;
+    margin-bottom: 0px;
+    padding-top: 0.58em;
+    padding-bottom: 0.58em;
+    padding-left: 24px;
+    font-size: 16px;
+    color: white;
+    width: 100%;
+    background-color: #6fa5c7;
+}
+
+.ODRResults label {
+    font-size: 0.8em;
+    font-weight: normal;
+    color: #888888;
+    padding-left: 0.5em;
+}
 /* END Input Decorations */
 
 
@@ -176,7 +209,7 @@ h3.ui-accordion-header a:visited,
 h3.ui-accordion-header a:hover,
 h3.ui-accordion-header a {
     background-image: none;
-    background-color: #7fb9d8;
+    background-color: #6fa5c7;
     box-shadow: none;
     color: white;
 }
@@ -444,6 +477,7 @@ footer ul li:first-child {
     padding-right: 3px;
     vertical-align: middle;
 }
+
 
 .ODRTristateCheckbox {
     background: white none;
