@@ -786,7 +786,7 @@ exit();
                 }
             }
 
-            if ($datatype_id == '')
+            if ( $datatype_id == ''|| !is_numeric($datatype_id) )
                 throw new \Exception('Invalid search string');
 
 
@@ -816,7 +816,7 @@ exit();
 
                 // Can't use $this->redirect, because it won't update the hash...
                 $return['r'] = 2;
-                $return['d'] = array( 'url' => $this->generateURL('odr_display_view', array('datarecord_id' => $datarecord_id)) );
+                $return['d'] = array( 'url' => $this->generateUrl('odr_display_view', array('datarecord_id' => $datarecord_id)) );
 
                 $response = new Response(json_encode($return));
                 $response->headers->set('Content-Type', 'application/json');
@@ -888,8 +888,8 @@ exit();
             if ( $search_params['error'] == true ) {
                 throw new \Exception( $search_params['message'] );
             }
-            // Theoretically, this should never be true...
             else if ( $search_params['redirect'] == true ) {
+                // Theoretically, this should never be true...
                 /** @var ODRCustomController $odrcc */
                 $odrcc = $this->get('odr_custom_controller', $request);
                 $odrcc->setContainer($this->container);
@@ -900,6 +900,7 @@ exit();
                 return $odrcc->searchPageRedirect($user, $url);
             }
 
+            // Intentionally does nothing...ODROpenRepository::Default::search.html.twig will force a URL change once this controller action returns
         }
         catch (\Exception $e) {
             $return['r'] = 1;

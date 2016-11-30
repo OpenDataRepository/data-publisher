@@ -43,6 +43,11 @@ ODR\AdminBundle\Entity\File:
             unsigned: true
             nullable: false
 
+        provisioned:
+            type: boolean
+            nullable: false
+            default: true
+
         created:
             type: datetime
             gedmo:

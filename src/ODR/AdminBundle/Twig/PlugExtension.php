@@ -47,6 +47,7 @@ class PlugExtension extends \Twig_Extension
             new \Twig_SimpleFilter('xml', array($this, 'xmlFilter')),
             new \Twig_SimpleFilter('is_public', array($this, 'isPublicFilter')),
             new \Twig_SimpleFilter('user_string', array($this, 'userStringFilter')),
+            new \Twig_SimpleFilter('filesize', array($this, 'filesizeFilter')),
         );
     }
 
@@ -190,6 +191,51 @@ class PlugExtension extends \Twig_Extension
         }
         catch (\Exception $e) {
             throw new \Exception( "Error executing user_string filter: ".$e->getMessage() );
+        }
+    }
+
+
+    /**
+     * Converts a filesize in bytes to a more human-friendly format.
+     *
+     * @param string $obj
+     *
+     * @return string
+     * @throws \Exception
+     */
+    public function filesizeFilter($obj)
+    {
+        try {
+            if ( !is_numeric($obj) )
+                throw new \Exception('Did not receive a numeric value');
+
+            $filesize = floatval($obj);
+            $ext = '';
+
+            if ($filesize < 1024) {
+                $ext = ' B';
+            }
+            else if ($filesize < 1048576) {
+                $filesize = floor(($filesize / 1024.0) * 10.0) / 10.0;
+                $ext = ' Kb';
+            }
+            else if ($filesize < 1073741824) {
+                $filesize = floor(($filesize / 1024.0 / 1024.0) * 100.0) / 100.0;
+                $ext = ' Mb';
+            }
+            else if ($filesize < 1099511627776) {
+                $filesize = floor(($filesize / 1024.0 / 1024.0 / 1024.0) * 100.0) / 100.0;
+                $ext = ' Gb';
+            }
+            else {
+                $filesize = floor(($filesize / 1024.0 / 1024.0 / 1024.0 / 1024.0) * 100.0) / 100.0;
+                $ext = ' Tb';
+            }
+
+            return strval($filesize).$ext;
+        }
+        catch (\Exception $e) {
+            throw new \Exception( "Error executing filesize filter: ".$e->getMessage() );
         }
     }
 

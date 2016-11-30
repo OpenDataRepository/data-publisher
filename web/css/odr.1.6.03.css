@@ -3015,3 +3015,82 @@ form .row {
 
 
 
+.ODRFileDatafield_header {
+    background: #7fb9d8 none repeat scroll 0 0;
+    color: white;
+    padding: 4px 0 4px 8px;
+}
+.ODRFileDatafield_file {
+    background: #b8e8fa none repeat scroll 0 0;
+    padding-right: 8px;
+    position: relative;
+
+    display: -webkit-flex;
+    display: -moz-flex;
+    display: -ms-flexbox;
+    display: flex;
+}
+.ODRDownloadAllFiles {
+    padding-right: 5px;
+}
+
+.ODRFileSpacer {
+    flex: 0 0 auto;
+
+    width: 7px;
+    display: inline-block;
+    cursor: default;
+}
+.ODRFileSpacer_public {
+    background: green none repeat scroll 0 0;
+}
+.ODRFileSpacer_nonpublic {
+    background: red none repeat scroll 0 0;
+}
+
+.ODRFileInfoDiv {
+    cursor: pointer;
+    padding-left: 5px;
+    padding-right: 5px;
+    display: inline-block;
+}
+.ODRFileInfo {
+    background-color: lightyellow;
+    border: 1px dashed gray;
+    padding: 5px;
+    position: absolute;
+    visibility: hidden;
+    max-width: 500px;
+    z-index: 999;
+    cursor: default;
+}
+.ODRFileInfoDiv:hover .ODRFileInfo {
+    visibility: visible;
+}
+
+.ODRTruncateFilename {
+    display: inline-block;
+    height: 2em;
+
+    flex: 0 1 auto;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.ODRFakeProgressBar_overlay {
+    height: 2em;
+    left: 7px;
+    position: absolute;
+    width: 100%;
+}
+.ODRFakeProgressBar {
+    background: white none repeat scroll 0 0;
+    height: 2em;
+    left: 0;
+    opacity: 0.6;
+    position: absolute;
+}
+

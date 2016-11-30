@@ -53,6 +53,8 @@
         {% if can_add_record == 1 and is_top_level == 1 %}
             <button type="button" class="pure-button pure-button-primary" onclick="addDataRecord( {{ datatype.id }} );">Add New DataRecord</button>
         {% endif %}
+
+        <button type="button" class="pure-button pure-button-primary" onclick="openFileDownloadDialog( {{ datarecord.id }} );">Download Files...</button>
     </div>
 </div>
 
@@ -187,6 +189,11 @@
         }
     }
 {% endif %}
+
+    function openFileDownloadDialog() {
+        // Open the dialog to create a new datatype
+        $("#dialog_file_downloads").dialog( "open" );
+    }
 </script>
 
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}

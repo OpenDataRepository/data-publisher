@@ -320,31 +320,6 @@ class ThemeElement
         return $this->deletedBy;
     }
 
-    /**
-     * Is public
-     * @deprecated
-     * 
-     * @return bool
-     */
-    public function isPublic()
-    {
-        if ($this->getPublicDate()->format('Y-m-d H:i:s') == '2200-01-01 00:00:00')
-            return false;
-        else
-            return true;
-    }
-
-
-    /**
-     * Get publicDate
-     * @deprecated
-     *
-     * @return \DateTime
-     */
-    public function getPublicDate()
-    {
-        return $this->getThemeElementMeta()->getPublicDate();
-    }
 
     /**
      * Get displayOrder

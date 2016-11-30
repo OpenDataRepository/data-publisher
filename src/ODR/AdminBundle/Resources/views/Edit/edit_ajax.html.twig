@@ -18,7 +18,7 @@
 
     {% for dt_id, dt_name in disabled_datatype_links %}
         {% if datatype_permissions[ dt_id ] is defined and datatype_permissions[ dt_id ][ 'dr_edit' ] is defined %}
-            <button type="button" class="pure-button pure-button-disabled" title="Unablet to link to Datarecords of this Datatype because it does not have a Table Theme.">Link to {{ dt_name }}.</button>
+            <button type="button" class="pure-button pure-button-disabled" title="Unable to link to Datarecords of this Datatype because it does not have a Table Theme.">Link to {{ dt_name }}.</button>
         {% endif %}
     {% endfor %}
 </div>
@@ -44,9 +44,12 @@
 } %}
 
 <div id="field_history_dialog_wrapper">
-{% include 'ODRAdminBundle:Edit:field_history_dialog.html.twig' %}
+    {% include 'ODRAdminBundle:Edit:field_history_dialog.html.twig' %}
 </div>
 
+<div id="download_files_dialog_wrapper">
+    {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
+</div>
 {% endspaceless %}
 
 <script>
@@ -113,10 +116,11 @@ function initPage() {
         var href = $(this).attr('href');
 
         var short_form = false;
-        var can_cancel = true;
+//        var can_cancel = true;
+        var can_cancel = false;
         handleFileDownload(event, file_id, href, short_form, can_cancel);    // defined in Default::file_handling.html.twig
     });
-
+{#
     $(".ODRDownloadAllFiles").unbind('click').click(function() {
 
         if ( $(this).hasClass('fa-muted') )
@@ -163,7 +167,7 @@ function initPage() {
             });
         }
     });
-
+#}
     $(".ODRDataField").find('.ODRDatafieldHistory').unbind('click').click(function(event) {
 
         // Don't trigger whatever the click normally would have done (mostly for boolean fields)
@@ -277,10 +281,11 @@ function initPage() {
 
     $(".ODRPublicFile").unbind('click').click(function(event) {
         // Grab necessary attributes
-        var file_id = $(this).attr('rel');
-        var href = $(this).attr('href');
+        var icon_div = $(this);
+        var file_id = $(icon_div).attr('rel');
+        var href = $(icon_div).closest('.ODRTruncateFilename').children('a.ODRFileDownload').first().attr('href');
 
-        var public_div = $(this);
+        var public_div = $(icon_div).closest('.ODRFileDatafield_file').children('.ODRFileSpacer').first();
 
         // Don't change public status of file if it's currently being decrypted
         if ( pending_file_decryptions[file_id] != null || pending_file_decryptions[file_id] != undefined || file_decrypt_timeouts[file_id] != null || file_decrypt_timeouts[file_id] != undefined) {
@@ -288,11 +293,15 @@ function initPage() {
             return false;
         }
 
-        if ( $(public_div).hasClass('IconRed') ) {
-            // Only display decryption progress bar if file is being made public
-            var short_form = false;
-            var can_cancel = false;
-            handleFileDownload(event, file_id, href, short_form, can_cancel);
+        if ( $(public_div).hasClass('ODRFileSpacer_nonpublic') ) {
+            // Show div for decryption progress
+            var download_div = $("#ODRFileDecrypt_" + file_id + "_overlay");
+            var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress");
+
+            $(download_div).css('visibility', 'visible');
+            $(decrypt_progress).css('width', '100%');
+
+            createFileDecryptProgressCheck(file_id, 0);     // do not download file after it finishes decrypting
         }
 
         var url  = '{{ path('odr_record_public_file', {'file_id': 0} ) }}';
@@ -309,21 +318,16 @@ function initPage() {
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
                 if(data.r == 0) {
-
                     if ( data.d.is_public ) {
                         // File is now public
-                        $(public_div).removeClass('IconRed');
-                        $(public_div).attr('title', 'File was made public on ' + data.d.public_date);
-
-                        // Hide the decryption progress bar
-                        $("#ODRFileDownload_" + file_id).hide();
+                        $(public_div).removeClass('ODRFileSpacer_nonpublic').addClass('ODRFileSpacer_public');
+                        $(icon_div).parent().children('span').first().html('File was made public on ' + data.d.public_date);
                     }
                     else {
                         // File is now non-public
-                        $(public_div).addClass('IconRed');
-                        $(public_div).attr('title', 'File is not public');
+                        $(public_div).removeClass('ODRFileSpacer_public').addClass('ODRFileSpacer_nonpublic');
+                        $(icon_div).parent().children('span').first().html('File is not public');
                     }
-
                 }
                 else {
                     // An error has occurred.
