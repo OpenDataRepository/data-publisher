@@ -1,0 +1,51 @@
+{% spaceless %}
+
+{% set datarecord = datarecord_array[datarecord_id] %}
+
+{% if not is_top_level %}
+<ul>
+    <li rel="{{ datarecord['id'] }}">{{ datarecord['nameField_value'] }}
+{% endif %}
+        <ul>
+        {% if datarecord['dataRecordFields'] is defined and datarecord['dataRecordFields']|length > 0 %}
+            {% for df_id, drf in datarecord['dataRecordFields'] %}
+                <li rel="{{ df_id }}">{{ datafield_names[df_id] }}
+                    <ul>
+                    {% if drf['file']|length > 0 %}
+                        {% for num, file in drf['file'] %}
+                            <li rel="{{ file['id'] }}">{{ file['fileMeta']['originalFileName'] }}</li>
+                        {% endfor %}
+                    {% endif %}
+
+                    {% if drf['image']|length > 0 %}
+                        {% for num, image in drf['image'] %}
+                            <li rel="{{ image['id'] }}">{{ image['parent']['imageMeta']['originalFileName'] }}</li>
+                        {% endfor %}
+                    {% endif %}
+                    </ul>
+                </li>
+            {% endfor %}
+        {% endif %}
+
+        {% if datarecord['children'] is defined and datarecord['children']|length > 0 %}
+            {% for child_dt_id, child_dr_list in datarecord['children'] %}
+                <li rel="{{ child_dt_id }}">{{ datatype_names[child_dt_id] }}
+                {% for child_dr_id, child_dr in child_dr_list %}
+                    {% include 'ODRAdminBundle:Default:file_download_dialog_form.html.twig' with {
+                        'datarecord_array': child_dr_list,
+                        'datarecord_id': child_dr_id,
+                        'datafield_names': datafield_names,
+                        'datatype_names': datatype_names,
+                        'is_top_level': false,
+                    } %}
+                {% endfor %}
+                </li>
+            {% endfor %}
+        {% endif %}
+        </ul>
+{% if not is_top_level %}
+    </li>
+</ul>
+{% endif %}
+
+{% endspaceless %}

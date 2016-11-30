@@ -526,31 +526,25 @@ class DisplayController extends ODRCustomController
 
 
     /**
-     * Creates a Symfony response that so browsers can download files from the server.
-     * TODO - all files moved into non-web-accessible directory so encryption/decryption not even needed?
-     * TODO - allow anonymous users to download public files even if datatype/datarecord/datafield are non-public?
+     * Starts the process of downloading a file from the server.
      *
      * @param integer $file_id The database id of the file to download.
      * @param Request $request
      *
      * @return Response
      */
-    public function filedownloadAction($file_id, Request $request)
+    public function filedownloadstartAction($file_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
 
-        $file_decryptions = array();
-        $temp_filename = '';
-
         try {
             // ----------------------------------------
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -561,68 +555,32 @@ class DisplayController extends ODRCustomController
             if ($file == null)
                 return parent::deletedEntityError('File');
             $datafield = $file->getDataField();
-            if ($datafield == null)
+            if ($datafield->getDeletedAt() != null)
                 return parent::deletedEntityError('DataField');
             $datarecord = $file->getDataRecord();
-            if ($datarecord == null)
+            if ($datarecord->getDeletedAt() != null)
                 return parent::deletedEntityError('DataRecord');
             $datatype = $datarecord->getDataType();
-            if ($datatype == null)
+            if ($datatype->getDeletedAt() != null)
                 return parent::deletedEntityError('DataType');
 
             // Files that aren't done encrypting shouldn't be downloaded
-            if ($file->getOriginalChecksum() == '')
+            if ($file->getProvisioned() == true)
                 return parent::deletedEntityError('File');
 
-            // ----------------------------------------
-            // Public files are quicker/easier to deal with
-            if ( $file->isPublic() ) {
-                $local_filepath = realpath( dirname(__FILE__).'/../../../../web/'.$file->getLocalFileName() );
-                if (!$local_filepath) {
-                    // File is public, but doesn't exist in decrypted format for some reason
-                    $local_filepath = parent::decryptObject($file_id, 'file');
-                }
-                else if ( filesize($local_filepath) < $file->getFilesize() ) {
-                    // File exists but isn't fully decrypted yet for some reason...it's most likely in the process of being decrypted
-                    $previous_filesize = null;
-                    $current_filesize = filesize($local_filepath);
-
-                    $tries = 0;
-                    while ( $current_filesize < $file->getFilesize() ) {
-                        // Grab current filesize of decrypted file
-                        clearstatcache(true, $local_filepath);
-                        $current_filesize = filesize($local_filepath);
-
-                        if ($previous_filesize !== $current_filesize) {
-                            // Keep track of progress of file decryption
-                            $previous_filesize = $current_filesize;
-                            $tries = 0;
-                        }
-                        else {
-                            // ...No progress was made on the file decryption for some reason
-                            $tries++;
-                            if ($tries >= 15)
-                                throw new \Exception('Decryption of public File '.$file_id.' appears to be frozen, aborting...');
-                        }
-
-                        // Sleep for 2 seconds to give whatever process is decrypting the file time to finish
-                        sleep(2);
-                    }
-                }
-
-                // File exists and is fully decrypted...stream it to the requesting user
-                $response = self::createDownloadResponse($file, $local_filepath);
-                return $response;
-            }
-
 
             // ----------------------------------------
-            // Non-Public files are more work because they always need decryption...but first, ensure user is permitted to download
+            // First, ensure user is permitted to download
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ($user === 'anon.') {
-                // Non-logged in users not allowed to download non-public files
-                return parent::permissionDeniedError();
+                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() && $file->isPublic() ) {
+                    // user is allowed to download this file
+                }
+                else {
+                    // something is non-public, therefore an anonymous user isn't allowed to download this file
+                    return parent::permissionDeniedError();
+                }
             }
             else {
                 // Grab the user's permission list
@@ -646,220 +604,235 @@ class DisplayController extends ODRCustomController
                 if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
                     return parent::permissionDeniedError();
             }
-
-            // Determine the temporary filename for this file
-            $temp_filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId());
-            $temp_filename .= '.'.$file->getExt();
-            $local_filepath = dirname(__FILE__).'/../../../../web/uploads/files/'.$temp_filename;
-
-            // Determine whether the user is already decrypting this file
-            $request_number = 1;
-            $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
-            if ( $file_decryptions == false ) {
-                // User is either not decrypting any file at the moment
-                $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize(array($temp_filename => 1))));
-            }
-            else {
-                // User is currently decrypting something...
-                if ( !isset($file_decryptions[$temp_filename]) ) {
-                    // ...but not this specific file, which is fine
-                    $file_decryptions[$temp_filename] = 1;
-                    $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
-                }
-                else {
-                    // ...and they happen to somehow have already requested a decryption on this file
-
-                    // Store that another process is requesting this file...
-                    // The first process will finish decrypting, but only the most recent requesting process should serve the file
-                    $request_number = $file_decryptions[$temp_filename] + 1;
-                    $file_decryptions[$temp_filename] = $request_number;
-                    $redis->set($redis_prefix.'_file_decryptions', gzcompress($redis->__serialize($file_decryptions)));
-                }
-            }
-/*
-$log_file = fopen( dirname(__FILE__).'/../../../../app/logs/test_'.$request_number.'.log', 'w');
-if (!$log_file)
-    print 'could not open log file';
-fwrite($log_file, time().': request number: '.$request_number."\n");
-*/
-            // User is allowed to download file...
-            if ($request_number == 1) {
-                // This is (currently) the only request the user has made for this file...begin manually decrypting it because the crypto bundle offers limited control over filenames
-                $crypto = $this->get("dterranova_crypto.crypto_adapter");
-                $crypto_dir = dirname(__FILE__).'/../../../../app/crypto_dir/';     // TODO - load from config file somehow?
-                $crypto_dir .= 'File_'.$file_id;
-
-                // Grab the hex string representation that the file was encrypted with
-                $key = $file->getEncryptKey();
-                // Convert the hex string representation to binary...php had a function to go bin->hex, but didn't have a function for hex->bin for at least 7 years?!?
-                $key = pack("H*" , $key);   // don't have hex2bin() in current version of php...this appears to work based on the "if it decrypts to something intelligible, you did it right" theory
-
-                // Open the target file
-                $handle = fopen($local_filepath, "wb");
-                if (!$handle)
-                    throw new \Exception('Unable to open "'.$local_filepath.'" for writing');
-
-                // Decrypt each chunk and write to target file
-                $chunk_id = 0;
-                while( file_exists($crypto_dir.'/'.'enc.'.$chunk_id) ) {
-                    if ( !file_exists($crypto_dir.'/'.'enc.'.$chunk_id) )
-                        throw new \Exception('Encrypted chunk not found: '.$crypto_dir.'/'.'enc.'.$chunk_id);
-
-                    $data = file_get_contents($crypto_dir.'/'.'enc.'.$chunk_id);
-                    fwrite($handle, $crypto->decrypt($data, $key));
-                    $chunk_id++;
-
-//fwrite($log_file, time().': decrypted chunk '.$chunk_id."\n");
-
-                    // Check occasionally to see if the decryption was cancelled
-                    if ( ($chunk_id % 50) == 0 ) {
-                        $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
-/*
-fwrite($log_file, time().': checking memcached...');
-fwrite($log_file, print_r($file_decryptions, true) );
-fwrite($log_file, "\n");
-*/
-
-                        if ( $file_decryptions == false || !isset($file_decryptions[$temp_filename]) ) {
-                            // Memcached claims no ongoing file decryption requests, or a cancellation of this decryption request...stop decrypting this file immediately
-//fwrite($log_file, time().': aborting decryption'."\n");
-                            break;
-                        }
-                    }
-                }
-
-                // Done decrypting the file
-                fclose($handle);
-            }
-            else {
-                // This is another request made for the same file by the same user...
-                // Only way happen is by attempting to download the same file on multiple tabs, or downloading then refreshing page then downloading same file again
-                // Regardless of how it happened, the server should only decrypt the file once, then stream the file to the most recent response, then delete the file
-
-                // Ensure file exists...
-                $tries = 0;
-                while ( !file_exists($local_filepath) ) {
-                    $tries++;
-                    if ($tries > 15)
-                        throw new \Exception('Decryption of non-public File '.$file_id.' appears to be frozen, aborting...');
-
-                    // Sleep for 2 seconds to try to give whichever process is decrypting the file a chance to create it...
-                    sleep(2);
-                }
-
-                // File exists but isn't fully decrypted yet...it's most likely in the process of being decrypted
-                $previous_filesize = null;
-                $current_filesize = filesize($local_filepath);
-
-                $tries = 0;
-                while ( $current_filesize < $file->getFilesize() ) {
-                    // Grab current filesize of decrypted file
-                    clearstatcache(true, $local_filepath);
-                    $current_filesize = filesize($local_filepath);
-
-//fwrite($log_file, time().': previous_filesize '.$previous_filesize.'  current_filesize '.$current_filesize."\n");
-
-                    if ($previous_filesize !== $current_filesize) {
-                        // Keep track of progress of file decryption
-                        $previous_filesize = $current_filesize;
-                        $tries = 0;
-                    }
-                    else {
-                        // ...No progress was made on the file decryption for some reason
-                        $tries++;
-                        if ($tries >= 15)
-                            throw new \Exception('File decryption seems stuck...');
-                    }
-
-                    // If the decryption process got cancelled by the user, or the user somehow managed to start yet another decryption request for this file...don't sit around waiting
-                    $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
-/*
-fwrite($log_file, time().': checking memcached...');
-fwrite($log_file, print_r($file_decryptions, true) );
-fwrite($log_file, "\n");
-*/
-
-                    if ( $file_decryptions == false || !isset($file_decryptions[$temp_filename]) ) {
-                        // Memcached claims no ongoing file decryption requests, or a cancellation of this decryption request...stop decrypting this file immediately
-//fwrite($log_file, time().': decryption cancelled, aborting wait process...'."\n");
-                        break;
-                    }
-
-                    // Sleep for 2 seconds to give whatever process is decrypting the file time to finish
-                    sleep(2);
-                }
-            }
+            // ----------------------------------------
 
 
             // ----------------------------------------
-            // File decryption is done
+            // Generate the url for cURL to use
+            $pheanstalk = $this->get('pheanstalk');
+            $router = $this->container->get('router');
+            $url = $this->container->getParameter('site_baseurl');
+            $url .= $router->generate('odr_crypto_request');
+
+            $api_key = $this->container->getParameter('beanstalk_api_key');
             $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
-            if ( $file_decryptions != false && isset($file_decryptions[$temp_filename]) ) {
 
-                if ( $file_decryptions[$temp_filename] == $request_number ) {
-/*
-fwrite($log_file, time().': returning file...'."\n");
-fclose($log_file);
-*/
-                    // Decryption wasn't cancelled, and this is the most recent request for the file...create the streaming response
-                    $response = self::createDownloadResponse($file, $local_filepath);
 
-                    // Delete the file off the server...this still works, despite the order sounding odd
-                    if (file_exists($local_filepath))
-                        unlink($local_filepath);
+            // ----------------------------------------
+            // Slightly different courses of action depending on the public status of the file
+            if ( $file->isPublic() ) {
+                // Check that the file exists...
+                $local_filepath = realpath( dirname(__FILE__).'/../../../../web/'.$file->getLocalFileName() );
+                if (!$local_filepath) {
+                    // File does not exist for some reason...see if it's getting decrypted right now
+                    $target_filename = 'File_'.$file_id.'.'.$file->getExt();
 
-                    // No longer waiting on this file to decrypt
-                    unset($file_decryptions[$temp_filename]);
-                    $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
+                    if ( !isset($file_decryptions[$target_filename]) ) {
+                        // File is not scheduled to get decrypted at the moment, store that it will be decrypted
+                        $file_decryptions[$target_filename] = 1;
+                        $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
 
-                    // Start the file download
-                    return $response;
+                        // Schedule a beanstalk job to start decrypting the file
+                        $priority = 1024;   // should be roughly default priority
+                        $payload = json_encode(
+                            array(
+                                "object_type" => 'File',
+                                "object_id" => $file_id,
+                                "target_filename" => $target_filename,
+                                "crypto_type" => 'decrypt',
+                                "redis_prefix" => $redis_prefix,    // debug purposes only
+                                "url" => $url,
+                                "api_key" => $api_key,
+                            )
+                        );
+
+                        //$delay = 1;
+                        $delay = 0;
+                        $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+                    }
                 }
                 else {
-                    /* do nothing, a different process has everything under control */
-/*
-fwrite($log_file, time().': stepping down...'."\n");
-fclose($log_file);
-*/
+                    // Grab current filesize of file
+                    clearstatcache(true, $local_filepath);
+                    $current_filesize = filesize($local_filepath);
+
+                    if ( $file->getFilesize() == $current_filesize ) {
+
+                        // File exists and is fully decrypted, determine path to download it
+                        $download_url = $this->generateUrl('odr_file_download', array('file_id' => $file_id));
+
+                        // Return a link to the download URL
+                        $response = new Response();
+                        $response->setStatusCode(200);
+                        $response->headers->set('Location', $download_url);
+
+                        return $response;
+                    }
+                    else {
+                        /* otherwise, decryption in progress, do nothing */
+                    }
                 }
             }
-            else if ( $request_number == 1 ) {
-/*
-fwrite($log_file, time().': attempting to delete decrypted file...'."\n");
-fclose($log_file);
-*/
-                // Decryption was cancelled...only have the first process delete the decrypted file
-                if ( file_exists($local_filepath) )
-                    unlink($local_filepath);
+            else {
+                // File is not public...see if it's getting decrypted right now
+                // Determine the temporary filename for this file
+                $target_filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId());
+                $target_filename .= '.'.$file->getExt();
+
+                if ( !isset($file_decryptions[$target_filename]) ) {
+                    // File is not scheduled to get decrypted at the moment, store that it will be decrypted
+                    $file_decryptions[$target_filename] = 1;
+                    $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
+
+                    // Schedule a beanstalk job to start decrypting the file
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+                            "object_type" => 'File',
+                            "object_id" => $file_id,
+                            "target_filename" => $target_filename,
+                            "crypto_type" => 'decrypt',
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
+
+                    //$delay = 1;
+                    $delay = 0;
+                    $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+                }
+
+                /* otherwise, decryption already in progress, do nothing */
             }
 
-            // If the process didn't return the file download, then return nothing
-            $response = new Response();
-            $response->setStatusCode(503);  // TODO - 503 works as a status code to return?
-            return $response;
+            // Return a URL to monitor decryption progress
+            $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', array('file_id' => $file_id));
 
+            $response = new Response();
+            $response->setStatusCode(202);
+            $response->headers->set('Location', $monitor_url);
+
+            return $response;
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x3835385 ' . $e->getMessage();
+
+            $response = new Response(json_encode($return));
+            $response->headers->set('Content-Type', 'application/json');
+            return $response;
+        }
+    }
+
+
+    /**
+     * Creates a Symfony response that so browsers can download files from the server.
+     *
+     * @param integer $file_id The database id of the file to download.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function filedownloadAction($file_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            // ----------------------------------------
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // Locate the file in the database
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            if ($file == null)
+                return parent::deletedEntityError('File');
+            $datafield = $file->getDataField();
+            if ($datafield->getDeletedAt() != null)
+                return parent::deletedEntityError('DataField');
+            $datarecord = $file->getDataRecord();
+            if ($datarecord->getDeletedAt() != null)
+                return parent::deletedEntityError('DataRecord');
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                return parent::deletedEntityError('DataType');
+
+            // Files that aren't done encrypting shouldn't be downloaded
+            if ($file->getProvisioned() == true)
+                return parent::deletedEntityError('File');
+
+
+            // ----------------------------------------
+            // First, ensure user is permitted to download
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            if ($user === 'anon.') {
+                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() && $file->isPublic() ) {
+                    // user is allowed to download this file
+                }
+                else {
+                    // something is non-public, therefore an anonymous user isn't allowed to download this file
+                    return parent::permissionDeniedError();
+                }
+            }
+            else {
+                // Grab the user's permission list
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+                $datafield_permissions = $user_permissions['datafields'];
+
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                    $can_view_datatype = true;
+
+                $can_view_datarecord = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                    $can_view_datarecord = true;
+
+                $can_view_datafield = false;
+                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
+                    $can_view_datafield = true;
+
+                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+                if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
+                    return parent::permissionDeniedError();
+            }
+            // ----------------------------------------
+
+
+            // ----------------------------------------
+            // Ensure file exists before attempting to download it
+            $filename = 'File_'.$file_id.'.'.$file->getExt();
+            if ( !$file->isPublic() )
+                $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
+
+            $local_filepath = realpath( dirname(__FILE__).'/../../../../web/'.$file->getUploadDir().'/'.$filename );
+            if (!$local_filepath)
+                throw new \Exception('File at "'.$local_filepath.'" does not exist');
+
+            $response = self::createDownloadResponse($file, $local_filepath);
+
+            // If the file is non-public, then delete it off the server...despite technically being deleted prior to serving the download, it still works
+            if ( !$file->isPublic() && file_exists($local_filepath) )
+                unlink($local_filepath);
+
+            return $response;
         }
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
             $return['d'] = 'Error 0x848418123: ' . $e->getMessage();
 
-            // No longer waiting on this file to decrypt
-            if ( isset($file_decryptions[$temp_filename]) ) {
-                $redis = $this->container->get('snc_redis.default');;
-                // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-                $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-
-                unset($file_decryptions[$temp_filename]);
-                $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
-            }
-
-            // If error encountered, do a json return
-            $response = new Response(json_encode($return));
-            $response->headers->set('Content-Type', 'application/json');
+            // The jquery $.fileDownload() behaves better if an error is returned as the responseHTML...
+            $response = new Response($return['d']);
             return $response;
         }
-
     }
 
 
@@ -1157,8 +1130,7 @@ fclose($log_file);
 
     /**
      * Provides users the ability to cancel the decryption of a file.
-     * TODO - all files moved into non-web-accessible directory so encryption/decryption not even needed?
-     * TODO - allow anonymous users to download public files even if datatype/datarecord/datafield are non-public?
+     * @deprecated?
      *
      * @param integer $file_id  The database id of the file currently being decrypted
      * @param Request $request
@@ -1259,8 +1231,6 @@ fclose($log_file);
 
     /**
      * Creates a Symfony response that so browsers can download images from the server.
-     * TODO - all files moved into non-web-accessible directory so encryption/decryption not even needed?
-     * TODO - allow anonymous users to download public files even if datatype/datarecord/datafield are non-public?
      *
      * @param integer $image_id The database_id of the image to download.
      * @param Request $request
@@ -1287,57 +1257,57 @@ fclose($log_file);
             if ($image == null)
                 return parent::deletedEntityError('Image');
             $datafield = $image->getDataField();
-            if ($datafield == null)
+            if ($datafield->getDeletedAt() != null)
                 return parent::deletedEntityError('DataField');
             $datarecord = $image->getDataRecord();
-            if ($datarecord == null)
+            if ($datarecord->getDeletedAt() != null)
                 return parent::deletedEntityError('DataRecord');
             $datatype = $datarecord->getDataType();
-            if ($datatype == null)
+            if ($datatype->getDeletedAt() != null)
                 return parent::deletedEntityError('DataType');
 
             // Images that aren't done encrypting shouldn't be downloaded
             if ($image->getEncryptKey() == '')
                 return parent::deletedEntityError('Image');
 
-            // --------------------
-            // Check to see if the user is permitted to download this image
-            if ( !$image->isPublic() ) {
-                // Determine user privileges
-                /** @var User $user */
-                $user = $this->container->get('security.token_storage')->getToken()->getUser();
-                if ($user === 'anon.') {
-                    // Non-logged in users not allowed to download non-public images
-                    return parent::permissionDeniedError();
+
+            // ----------------------------------------
+            // Non-Public images are more work because they always need decryption...but first, ensure user is permitted to download
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ($user === 'anon.') {
+                if ( $datatype->isPublic() && $datarecord->isPublic() && $datafield->isPublic() && $image->isPublic() ) {
+                    // user is allowed to download this image
                 }
                 else {
-                    // Grab the user's permission list
-                    $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                    $datatype_permissions = $user_permissions['datatypes'];
-                    $datafield_permissions = $user_permissions['datafields'];
-
-                    $can_view_datatype = false;
-                    if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                        $can_view_datatype = true;
-
-                    $can_view_datarecord = false;
-                    if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                        $can_view_datarecord = true;
-
-                    $can_view_datafield = false;
-                    if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                        $can_view_datafield = true;
-
-                    // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                    if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
-                        return parent::permissionDeniedError();
+                    // something is non-public, therefore an anonymous user isn't allowed to download this image
+                    return parent::permissionDeniedError();
                 }
             }
             else {
-                /* image is public, so no restrictions on who can download it */
-                // TODO - verify this should be allowed when non-public datatype/datarecord/datafield + public image?
+                // Grab the user's permission list
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+                $datafield_permissions = $user_permissions['datafields'];
+
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                    $can_view_datatype = true;
+
+                $can_view_datarecord = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                    $can_view_datarecord = true;
+
+                $can_view_datafield = false;
+                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
+                    $can_view_datafield = true;
+
+                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+                if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
+                    return parent::permissionDeniedError();
             }
-            // --------------------
+            // ----------------------------------------
 
 
             // Ensure the image exists in decrypted format
@@ -1414,5 +1384,257 @@ fclose($log_file);
             // Return the previously created response
             return $response;
         }
+    }
+
+
+    /**
+     * Creates and renders an HTML list of all files/images that the user is allowed to see in the given datarecord
+     *
+     * @param integer $datarecord_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    function listallfilesAction($datarecord_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            // Get necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            if ($datarecord == null)
+                return parent::deletedEntityError('DataRecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                return parent::deletedEntityError('DataType');
+
+
+            // ----------------------------------------
+            // Ensure user has permissions to be doing this
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            // Grab the user's permission list
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                $can_view_datarecord = true;
+
+
+            // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
+            if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) )
+                return parent::permissionDeniedError();
+            // ----------------------------------------
+
+
+            // ----------------------------------------
+            // Always bypass cache if in dev mode?
+            $bypass_cache = false;
+//            if ($this->container->getParameter('kernel.environment') === 'dev')
+//                $bypass_cache = true;
+
+
+            // Grab all datarecords "associated" with the desired datarecord...
+            $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId())));
+            if ($bypass_cache || $associated_datarecords == false) {
+                $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord->getId()));
+
+                $redis->set($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId(), gzcompress(serialize($associated_datarecords)));
+            }
+
+
+            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
+            $datarecord_array = array();
+            foreach ($associated_datarecords as $num => $dr_id) {
+                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
+                if ($bypass_cache || $datarecord_data == false)
+                    $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
+
+                foreach ($datarecord_data as $dr_id => $data)
+                    $datarecord_array[$dr_id] = $data;
+            }
+
+
+            // ----------------------------------------
+            //
+            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+
+            // Grab all datatypes associated with the desired datarecord
+            // NOTE - not using parent::getAssociatedDatatypes() here on purpose...that would always return child/linked datatypes for the datatype even if this datarecord isn't making use of them
+            $associated_datatypes = array();
+            foreach ($datarecord_array as $dr_id => $dr) {
+                $dt_id = $dr['dataType']['id'];
+
+                if ( !in_array($dt_id, $associated_datatypes) )
+                    $associated_datatypes[] = $dt_id;
+            }
+
+
+            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+            $datatype_array = array();
+            foreach ($associated_datatypes as $num => $dt_id) {
+                // print $redis_prefix.'.cached_datatype_'.$dt_id;
+                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
+                if ($bypass_cache || $datatype_data == false)
+                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
+
+                foreach ($datatype_data as $dt_id => $data)
+                    $datatype_array[$dt_id] = $data;
+            }
+
+            // ----------------------------------------
+            // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
+            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+            // Get rid of all non-file/image datafields while the datarecord array is still "deflated"
+            $datafield_ids = array();
+            $datatype_ids = array();
+            foreach ($datarecord_array as $dr_id => $dr) {
+                foreach ($dr['dataRecordFields'] as $df_id => $drf) {
+                    if ( count($drf['file']) == 0 && count($drf['image']) == 0 )
+                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
+                    else {
+                        $datafield_ids[] = $df_id;
+                        $datatype_ids[] = $dr['dataType']['id'];
+                    }
+                }
+            }
+            $datafield_ids = array_unique($datafield_ids);
+            $datatype_ids = array_unique($datatype_ids);
+
+            $query = $em->createQuery(
+               'SELECT df.id, dfm.fieldName
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                WHERE df.id IN (:datafield_ids)
+                AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
+            )->setParameters( array('datafield_ids' => $datafield_ids) );
+            $results = $query->getArrayResult();
+
+            $datafield_names = array();
+            foreach ($results as $result) {
+                $df_id = $result['id'];
+                $df_name = $result['fieldName'];
+
+                $datafield_names[$df_id] = $df_name;
+            }
+
+            $query = $em->createQuery(
+               'SELECT dt.id, dtm.shortName
+                FROM ODRAdminBundle:DataType AS dt
+                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                WHERE dt.id IN (:datatype_ids)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $datatype_ids) );
+            $results = $query->getArrayResult();
+
+            $datatype_names = array();
+            foreach ($results as $result) {
+                $dt_id = $result['id'];
+                $dt_name = $result['shortName'];
+
+                $datatype_names[$dt_id] = $dt_name;
+            }
+
+
+            // ----------------------------------------
+            // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
+            $stacked_datarecord_array[ $datarecord->getId() ] = parent::stackDatarecordArray($datarecord_array, $datarecord->getId());
+//print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
+
+            $ret = self::locateFilesforDownloadAll($stacked_datarecord_array, $datarecord->getId());
+            if ( is_null($ret) ) {
+                $return['d'] = 'NO FILES/IMAGES IN HERE';
+            }
+            else {
+                $stacked_datarecord_array = array($datarecord_id => $ret);
+//print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
+
+                $templating = $this->get('templating');
+                $return['d'] = $templating->render(
+                    'ODRAdminBundle:Default:file_download_dialog_form.html.twig',
+                    array(
+                        'datarecord_array' => $stacked_datarecord_array,
+                        'datarecord_id' => $datarecord_id,
+                        'datafield_names' => $datafield_names,
+                        'datatype_names' => $datatype_names,
+
+                        'is_top_level' => true,
+                    )
+                );
+            }
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x848418124: ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Recursively goes through an "inflated" datarecord array entry and deletes all (child) datarecords that don't have files/images.
+     * @see parent::stackDatarecordArray()
+     *
+     * @param array $dr_array         An already "inflated" array of all datarecord entries for this datatype
+     * @param integer $datarecord_id  The specific datarecord to check
+     *
+     * @return null|array
+     */
+    private function locateFilesforDownloadAll($dr_array, $datarecord_id)
+    {
+        // Probably going to be deleting entries from $dr_array, so make a copy for looping purposes
+        $dr = $dr_array[$datarecord_id];
+
+        if ( count($dr['children']) > 0 ) {
+            foreach ($dr['children'] as $child_dt_id => $child_datarecords) {
+
+                foreach ($child_datarecords as $child_dr_id => $child_dr) {
+                    // Determine whether this child datarecord has files/images, or has (grand)children with files/images
+                    $ret = self::locateFilesforDownloadAll($child_datarecords, $child_dr_id);
+
+                    if ( is_null($ret) ) {
+                        // This child datarecord didn't have any files/images, and also didn't have any children of its own with files/images...don't want to see it later
+                        unset($dr_array[$datarecord_id]['children'][$child_dt_id][$child_dr_id]);
+
+                        // If this datarecord has no child datarecords of this child datatype with files/images, then get rid of the entire array entry for the child datatype
+                        if ( count($dr_array[$datarecord_id]['children'][$child_dt_id] ) == 0)
+                            unset( $dr_array[$datarecord_id]['children'][$child_dt_id] );
+                    }
+                    else {
+                        // Otherwise, save the (probably) modified version of the datarecord entry
+                        $dr_array[$datarecord_id]['children'][$child_dt_id][$child_dr_id] = $ret;
+                    }
+                }
+            }
+        }
+
+        if ( count($dr_array[$datarecord_id]['children']) == 0 && count($dr_array[$datarecord_id]['dataRecordFields']) == 0 )
+            // If the datarecord has no child datarecords, and doesn't have any files/images, return null
+            return null;
+        else
+            // Otherwise, return the (probably) modified version of the datarecord entry
+            return $dr_array[$datarecord_id];
     }
 }

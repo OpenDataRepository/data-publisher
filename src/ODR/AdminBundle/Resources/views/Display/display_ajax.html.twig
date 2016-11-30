@@ -17,6 +17,9 @@
     'is_top_level': is_top_level,
 } %}
 
+<div id="download_files_dialog_wrapper">
+    {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
+</div>
 
 <script>
 
@@ -69,10 +72,11 @@ function initPage() {
 
         // Prevent the click handler for <tr> elements from firing if a file download href is clicked
         var short_form = false;
-        var can_cancel = true;
+//        var can_cancel = true;
+        var can_cancel = false;
         handleFileDownload(event, file_id, href, short_form, can_cancel);    // defined in Default::file_handling.html.twig
     });
-
+{#
     $(".ODRDownloadAllFiles").unbind('click').click(function() {
 
         if ( $(this).hasClass('fa-muted') )
@@ -119,6 +123,7 @@ function initPage() {
             });
         }
     });
+#}
 }
 
 function ReloadDatafield(datarecord_id, datafield_id) {

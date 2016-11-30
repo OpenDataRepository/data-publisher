@@ -410,8 +410,22 @@ exit();
                         $df_value = $df_data['value'];
                         $df_is_public = $df_data['is_public'];
 
-                        if ( $df_is_public || (isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view'])) )
-                            $dr_data[] = $df_value;
+                        if ( $df_is_public || (isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view'])) ) {
+                            if ( is_array($df_value) ) {
+                                // Need to ensure that names/links to non-public Files aren't displayed to people that don't have permission to view them
+                                $file_publicDate = $df_value['publicDate'];
+                                $file_url = $df_value['url'];
+
+                                if ( $can_view_datarecord || $file_publicDate != '2200-01-01' )
+                                    $dr_data[] = $file_url;
+                                else
+                                    $dr_data[] = '';
+                            }
+                            else {
+                                // Everything else is just a text string, and is always visible if the datafield itself is visible
+                                $dr_data[] = $df_value;
+                            }
+                        }
                     }
 
                     // If the user isn't prevented from seeing all datafields comprising this layout, store the data in an array
@@ -2814,6 +2828,7 @@ if ($debug)
         else if ($typeclass == 'File') {
             /** @var File $my_obj */
             $my_obj->setFilesize(0);
+            $my_obj->setProvisioned(true);
         }
 
         // Save changes
@@ -2938,7 +2953,7 @@ if ($debug)
                 array(
                     "object_type" => $typeclass,
                     "object_id" => $my_obj->getId(),
-                    "target_filepath" => '',
+                    "target_filename" => '',
                     "crypto_type" => 'encrypt',
                     "redis_prefix" => $redis_prefix,    // debug purposes only
                     "url" => $url,
@@ -3169,7 +3184,7 @@ if ($debug)
      *  updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
      *
      * The $properties parameter must contain at least one of the following keys...
-     * 'description', 'original_filename', 'external_id', and/or 'public_date' (MUST BE A DATETIME OBJECT).
+     * 'description', 'original_filename', 'external_id', and/or 'publicDate' (MUST BE A DATETIME OBJECT).
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                       The user requesting the modification of this meta entry.
@@ -3252,7 +3267,7 @@ if ($debug)
      *  updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
      *
      * The $properties parameter must contain at least one of the following keys...
-     * 'caption', 'original_filename', 'external_id', 'public_date' (MUST BE A DATETIME OBJECT), and/or 'display_order.
+     * 'caption', 'original_filename', 'external_id', 'publicDate' (MUST BE A DATETIME OBJECT), and/or 'display_order.
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                       The user requesting the modification of this meta entry.
@@ -3904,7 +3919,6 @@ if ($debug)
         $datafield_meta->setIsUnique(false);
         $datafield_meta->setRequired(false);
         $datafield_meta->setSearchable(0);
-        $datafield_meta->setUserOnlySearch(false);
         $datafield_meta->setPublicDate( new \DateTime('2200-01-01 00:00:00') );
 
         $datafield_meta->setChildrenPerRow(1);
@@ -3981,7 +3995,6 @@ if ($debug)
             'radio_option_name_sort' => $old_meta_entry->getRadioOptionNameSort(),
             'radio_option_display_unselected' => $old_meta_entry->getRadioOptionDisplayUnselected(),
             'searchable' => $old_meta_entry->getSearchable(),
-            'user_only_search' => $old_meta_entry->getUserOnlySearch(),
             'publicDate' => $old_meta_entry->getPublicDate(),
             'master_revision' => $old_meta_entry->getMasterRevision(),
             'tracking_master_revision' => $old_meta_entry->getTrackingMasterRevision(),
@@ -4023,7 +4036,6 @@ if ($debug)
             $new_datafield_meta->setRadioOptionNameSort( $old_meta_entry->getRadioOptionNameSort() );
             $new_datafield_meta->setRadioOptionDisplayUnselected( $old_meta_entry->getRadioOptionDisplayUnselected() );
             $new_datafield_meta->setSearchable( $old_meta_entry->getSearchable() );
-            $new_datafield_meta->setUserOnlySearch( $old_meta_entry->getUserOnlySearch() );
             $new_datafield_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
             // Master Template Related
@@ -4074,8 +4086,6 @@ if ($debug)
             $new_datafield_meta->setRadioOptionDisplayUnselected( $properties['radio_option_display_unselected'] );
         if ( isset($properties['searchable']) )
             $new_datafield_meta->setSearchable( $properties['searchable'] );
-        if ( isset($properties['user_only_search']) )
-            $new_datafield_meta->setUserOnlySearch( $properties['user_only_search'] );
         if ( isset($properties['publicDate']) )
             $new_datafield_meta->setPublicDate( $properties['publicDate'] );
         if ( isset($properties['master_revision']) ) {
@@ -4224,7 +4234,6 @@ if ($debug)
         $theme_element_meta->setDisplayOrder(-1);
         $theme_element_meta->setCssWidthMed('1-1');
         $theme_element_meta->setCssWidthXL('1-1');
-        $theme_element_meta->setPublicDate(new \DateTime('2200-01-01 00:00:00'));
 
         $theme_element_meta->setCreatedBy($user);
         $theme_element_meta->setUpdatedBy($user);
@@ -4240,7 +4249,7 @@ if ($debug)
      *  updating the property(s) that got changed based on the $properties parameter, then deleting the old entry.
      *
      * The $properties parameter must contain at least one of the following keys...
-     * 'displayOrder', 'cssWidthMed', 'cssWidthXL', 'publicDate'
+     * 'displayOrder', 'cssWidthMed', 'cssWidthXL'
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param User $user                      The user requesting the modification of this meta entry.
@@ -4261,7 +4270,6 @@ if ($debug)
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
             'cssWidthMed' => $old_meta_entry->getCssWidthMed(),
             'cssWidthXL' => $old_meta_entry->getCssWidthXL(),
-            'publicDate' => $old_meta_entry->getPublicDate(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -4285,9 +4293,7 @@ if ($debug)
             $theme_element_meta->setDisplayOrder( $old_meta_entry->getDisplayOrder() );
             $theme_element_meta->setCssWidthMed( $old_meta_entry->getCssWidthMed() );
             $theme_element_meta->setCssWidthXL( $old_meta_entry->getCssWidthXL() );
-            $theme_element_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
-            $theme_element_meta->setPublicDate( $old_meta_entry->getPublicDate());   // default to not public
             $theme_element_meta->setCreatedBy($user);
         }
         else {
@@ -4303,8 +4309,6 @@ if ($debug)
             $theme_element_meta->setCssWidthMed( $properties['cssWidthMed'] );
         if ( isset($properties['cssWidthXL']) )
             $theme_element_meta->setCssWidthXL( $properties['cssWidthXL'] );
-        if ( isset($properties['publicDate']) )
-            $theme_element_meta->setPublicDate( $properties['publicDate'] );
 
         $theme_element_meta->setUpdatedBy($user);
 
@@ -5137,7 +5141,10 @@ if ($debug)
                                     $file = $drf['file'][0];    // should only ever be one file in here anyways
 
                                     $url = $router->generate( 'odr_file_download', array('file_id' => $file['id']) );
-                                    $df_value = '<a href='.$url.'>'.$file['fileMeta']['originalFileName'].'</a>';
+                                    $df_value = array(
+                                        'publicDate' => $file['fileMeta']['publicDate']->format('Y-m-d'),
+                                        'url' => '<a href='.$url.'>'.$file['fileMeta']['originalFileName'].'</a>',
+                                    );
                                 }
                                 break;
 

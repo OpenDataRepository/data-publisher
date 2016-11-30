@@ -68,6 +68,7 @@ a {
     -ms-transition: 0.1s linear box-shadow;
     -o-transition: 0.1s linear box-shadow;
     transition: 0.1s linear box-shadow;
+    margin-top: 4px;
 }
 
 .pure-skin-odr .pure-button-hover,
@@ -173,7 +174,7 @@ Forms Core
  * 3. Improves appearance and consistency in all browsers.
  */
 
-.pure-skin-odr .pure-form button,
+/* .pure-skin-odr .pure-form button, */
 .pure-skin-odr .pure-form input,
 .pure-skin-odr .pure-form select,
 .pure-skin-odr .pure-form textarea {
@@ -2195,24 +2196,11 @@ h1:after {
 .DataTypeTools {
     font-size: 18px;
     color: #888;
-/*
     float: right;
-    width: 125px;
-    position: absolute;
-*/
-    /*top: 0px;*/
-    /*right: 100px;*/
-/*
-    right: 4%;
-    border-bottom-left-radius: 4px;
-    border-left: 1px solid #eee;
-    border-bottom: 1px solid #eee;
-    background-color: #fff;
-    -webkit-box-shadow: -2px 2px 4px 0px rgba(0,0,0,0.05);
-    -moz-box-shadow: -2px 2px 4px 0px rgba(0,0,0,0.05);
-    box-shadow: -2px 2px 4px 0px rgba(0,0,0,0.05);
-    opacity: 0.85;
-*/
+    position: relative;
+    top: -48px;
+    height: 0px;
+    line-height: 0px;
     padding: 0px 0px 0px 0px;
     z-index: 500;
 }
@@ -2220,11 +2208,11 @@ h1:after {
 .ODRThemeElement > .DataTypeTools {
     margin: 5px 0px;
 }
-/*.DataTypeTools*/.tooltip {
+
+.tooltip {
     float: left;
     margin-top: 4px;
     margin-right: 4px;
-    /*cursor: pointer;*/
 }
 .fa-muted {
     cursor: not-allowed;
@@ -3013,5 +3001,109 @@ form .row {
 
 }
 
+.ODRFileUpload {
+    margin-bottom: 4px;
+    margin-left: 4px;
+}
 
+.ODRFileUpload .pure-button {
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box; /* 2 */
+    box-sizing: border-box;
+    white-space: normal;
+    min-width: 0px;
+}
+
+.ODRFileDatafield {
+    margin-bottom: 4px;
+}
+
+.ODRFileDatafield_header {
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box; /* 2 */
+    box-sizing: border-box;
+    background: #7fb9d8 none repeat scroll 0 0;
+    color: white;
+    padding: 4px 0 4px 8px;
+    font-size: 0.8em;
+}
+.ODRFileDatafield_file {
+    font-size: 0.8em;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box; /* 2 */
+    box-sizing: border-box;
+    background: #b8e8fa none repeat scroll 0 0;
+    padding-right: 8px;
+    position: relative;
+
+    display: -webkit-flex;
+    display: -moz-flex;
+    display: -ms-flexbox;
+    display: flex;
+}
+
+.ODRDownloadAllFiles {
+    padding-right: 5px;
+}
+
+.ODRFileSpacer {
+    flex: 0 0 auto;
+
+    width: 4px;
+    display: inline-block;
+    cursor: default;
+}
+.ODRFileSpacer_public {
+    background: green none repeat scroll 0 0;
+}
+.ODRFileSpacer_nonpublic {
+    background: red none repeat scroll 0 0;
+}
+
+.ODRFileInfoDiv {
+    line-height: 2.0em;
+    cursor: pointer;
+    padding-left: 5px;
+    padding-right: 5px;
+    display: inline-block;
+}
+.ODRFileInfo {
+    background-color: lightyellow;
+    border: 1px dashed gray;
+    padding: 5px;
+    position: absolute;
+    visibility: hidden;
+    max-width: 500px;
+    z-index: 999;
+    cursor: default;
+}
+.ODRFileInfoDiv:hover .ODRFileInfo {
+    visibility: visible;
+}
+
+.ODRTruncateFilename {
+    display: inline-block;
+    height: 2em;
+
+    flex: 0 1 auto;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.ODRFakeProgressBar_overlay {
+    height: 2em;
+    left: 7px;
+    position: absolute;
+    width: 100%;
+}
+.ODRFakeProgressBar {
+    background: white none repeat scroll 0 0;
+    height: 2em;
+    left: 0;
+    opacity: 0.6;
+    position: absolute;
+}
 

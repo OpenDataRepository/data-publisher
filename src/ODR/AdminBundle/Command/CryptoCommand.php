@@ -56,8 +56,11 @@ class CryptoCommand extends ContainerAwareCommand
                 // 
                 $logger->info('CryptoCommand.php: '.$data->crypto_type.' request for '.$data->object_type.' '.$data->object_id.' from '.$data->redis_prefix.'...');
                 $current_time = new \DateTime();
-                $output->writeln( $current_time->format('Y-m-d H:i:s').' (UTC-5)' );                
-                $output->writeln($data->crypto_type.' request for '.$data->object_type.' '.$data->object_id.' from '.$data->redis_prefix.'...');
+
+                if ($data->crypto_type == 'encrypt') {
+                    $output->writeln($current_time->format('Y-m-d H:i:s').' (UTC-5)');
+                    $output->writeln($data->crypto_type.' request for '.$data->object_type.' '.$data->object_id.' from '.$data->redis_prefix.'...');
+                }
 
                 // Need to use cURL to send a POST request
                 $ch = curl_init();
@@ -66,13 +69,14 @@ class CryptoCommand extends ContainerAwareCommand
                 $parameters = array(
                     'object_type' => $data->object_type,
                     'object_id' => $data->object_id,
-                    'target_filepath' => $data->target_filepath,
+                    'target_filename' => $data->target_filename,
                     'crypto_type' => $data->crypto_type,
                     'api_key' => $data->api_key
                 );
 
                 // Set the options for the POST request
-                curl_setopt_array($ch, array(
+                curl_setopt_array($ch,
+                    array(
                         CURLOPT_POST => 1,
                         CURLOPT_HEADER => 0,
                         CURLOPT_URL => $data->url,
@@ -98,7 +102,7 @@ class CryptoCommand extends ContainerAwareCommand
                 // Do things with the response returned by the controller?
                 $result = json_decode($ret);
                 if ( isset($result->r) && isset($result->d) ) {
-                    if ( $result->r == 0 )
+                    if ( $result->r == 0 && $data->crypto_type == 'encrypt' )
                         $output->writeln( $result->d );
                     else
                         throw new \Exception( $result->d );
@@ -117,7 +121,6 @@ class CryptoCommand extends ContainerAwareCommand
 
                 // Sleep for a bit
                 usleep(200000);
-
             }
             catch (\Exception $e) {
                 if ( $e->getMessage() == 'retry' ) {

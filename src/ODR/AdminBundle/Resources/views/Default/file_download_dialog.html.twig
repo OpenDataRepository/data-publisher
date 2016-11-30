@@ -1,0 +1,92 @@
+{% spaceless %}
+    <!-- File Download Dialog -->
+    <div class="pure-form pure-g" style="display: none;" id="dialog_file_downloads" title="File Download Selector Dialog">
+        <div class="form_contents pure-u-1">
+
+            <div id="FileDownloadForm_loading" class="pure-u-1" style="font-weight:bold; text-align:center;">Loading...</div>
+
+            <div style="max-height: 700px; overflow:auto;">
+                <form id="FileDownloadForm" method="POST"></form>
+            </div>
+
+            <button id="FileDownloadForm_cancel" class="pure-button ODRCancelButton">Cancel</button>
+            <button id="FileDownloadForm_submit" class="pure-button pure-button-primary ODRSubmitButton">Download Selected Files</button>
+        </div>
+    </div>
+    <!--  End of File Download Dialog -->
+
+<script>
+    $(function() {
+        var dialog_form = $("#dialog_file_downloads");
+
+        $(dialog_form).dialog({
+            autoOpen: false,
+            modal: true,
+            width: 900,
+            open: function() {
+                $(this).parent().css('overflow', 'visible');
+
+                // Load files/image selector into the form
+                locateFileIds();
+            }
+        });
+        $(dialog_form).find('.ODRSubmitButton').click(function() {
+            var $el = $(this).parents('.ui-dialog-content');
+
+            // Create/send a POST request of file ids
+
+            $el.find('form')[0].reset();
+            $el.dialog('close');
+        });
+        $(dialog_form).find('.ODRCancelButton').click(function() {
+            var $el = $(this).parents('.ui-dialog-content');
+
+            $el.find('form')[0].reset();
+            $el.dialog('close');
+        });
+    });
+
+    function locateFileIds() {
+        $("#FileDownloadForm").html('');
+        $("#FileDownloadForm_loading").show();
+
+        var id_data = $("#content > .ODRFormWrap > .ODRDataType > .ODRFormAccordion > .ODRFieldArea").attr('id').split(/_/);
+        var datarecord_id = id_data[1];
+
+        var url = '{{ path('odr_get_file_list', {'datarecord_id': 0}) }}';
+        url = url.substring(0, (url.length-1));
+        url += datarecord_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                if (data.r == 0) {
+                    $("#FileDownloadForm_loading").hide();
+                    $("#FileDownloadForm").html( data.d );
+
+                    $("#dialog_file_downloads").dialog({ position: { my: "center", at: "center", of: window } });
+                }
+                else {
+                    alert(data.d);
+                }
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+{% endspaceless %}

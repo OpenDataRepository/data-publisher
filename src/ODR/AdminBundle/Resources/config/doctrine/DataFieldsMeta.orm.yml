@@ -124,11 +124,6 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             default: 0
             nullable: false
 
-        user_only_search:
-            type: boolean
-            default: false
-            nullable: false
-
         publicDate:
             type: datetime
             nullable: false

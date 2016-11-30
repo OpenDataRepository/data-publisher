@@ -448,11 +448,11 @@ class EditController extends ODRCustomController
 
             if ( count($remaining) > 0 ) {
                 // Return to the list of datarecords since at least one datarecord of this datatype still exists
-                $url = $this->generateURL('odr_search_render', array('search_key' => $search_key));
+                $url = $this->generateUrl('odr_search_render', array('search_key' => $search_key));
             }
             else {
                 // ...otherwise, return to the list of datatypes
-                $url = $this->generateURL('odr_list_types', array('section' => 'records'));
+                $url = $this->generateUrl('odr_list_types', array('section' => 'records'));
             }
 
             $return['d'] = $url;
@@ -708,7 +708,7 @@ class EditController extends ODRCustomController
             $datatype_id = $datatype->getId();
 
             // Files that aren't done encrypting shouldn't be modified
-            if ($file->getOriginalChecksum() == '')
+            if ($file->getProvisioned() == true)
                 return parent::deletedEntityError('File');
 
 
@@ -800,6 +800,9 @@ class EditController extends ODRCustomController
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Grab the necessary entities
             /** @var File $file */
@@ -808,21 +811,21 @@ class EditController extends ODRCustomController
                 return parent::deletedEntityError('File');
 
             $datafield = $file->getDataField();
-            if ( $datafield == null )
+            if ($datafield->getDeletedAt() != null)
                 return parent::deletedEntityError('DataField');
             $datafield_id = $datafield->getId();
 
             $datarecord = $file->getDataRecord();
-            if ( $datarecord == null )
+            if ($datarecord->getDeletedAt() != null)
                 return parent::deletedEntityError('DataRecord');
 
             $datatype = $datarecord->getDataType();
-            if ( $datatype == null )
+            if ($datatype->getDeletedAt() != null)
                 return parent::deletedEntityError('DataType');
             $datatype_id = $datatype->getId();
 
             // Files that aren't done encrypting shouldn't be modified
-            if ($file->getOriginalChecksum() == '')
+            if ($file->getProvisioned() == true)
                 return parent::deletedEntityError('File');
 
             // --------------------
@@ -875,8 +878,42 @@ class EditController extends ODRCustomController
                 $properties = array('publicDate' => $public_date);
                 parent::ODR_copyFileMeta($em, $user, $file, $properties);
 
-                // Immediately decrypt the file
-                parent::decryptObject($file->getId(), 'file');
+                // ----------------------------------------
+                // Generate the url for cURL to use
+                $pheanstalk = $this->get('pheanstalk');
+                $router = $this->container->get('router');
+                $url = $this->container->getParameter('site_baseurl');
+                $url .= $router->generate('odr_crypto_request');
+
+                $api_key = $this->container->getParameter('beanstalk_api_key');
+                $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
+
+                // Determine the filename after decryption
+                $target_filename = 'File_'.$file_id.'.'.$file->getExt();
+                if ( !isset($file_decryptions[$target_filename]) ) {
+                    // File is not scheduled to get decrypted at the moment, store that it will be decrypted
+                    $file_decryptions[$target_filename] = 1;
+                    $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
+
+                    // Schedule a beanstalk job to start decrypting the file
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+                            "object_type" => 'File',
+                            "object_id" => $file_id,
+                            "target_filename" => $target_filename,
+                            "crypto_type" => 'decrypt',
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
+
+                    $delay = 0;
+                    $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+                }
+
+                /* otherwise, decryption already in progress, do nothing */
             }
 
             // Reload the file entity so its associated meta entry gets updated in the EntityManager
@@ -895,7 +932,26 @@ class EditController extends ODRCustomController
             // TODO - execute graph plugin?
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
 
-            // TODO - update cached search results?
+
+            // ----------------------------------------
+            // See if any cached search results need to be deleted...
+            $datatree_array = parent::getDatatreeArray($em);
+            $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $datatype->getId());
+
+            $cached_searches = parent::getRedisData(($redis->get($redis_prefix.'.cached_search_results')));
+            if ( $cached_searches != false && isset($cached_searches[$grandparent_datatype_id]) ) {
+                // Delete all cached search results for this datatype that were run with criteria for this specific datafield
+                foreach ($cached_searches[$grandparent_datatype_id] as $search_checksum => $search_data) {
+                    $searched_datafields = $search_data['searched_datafields'];
+                    $searched_datafields = explode(',', $searched_datafields);
+
+                    if ( in_array($datafield_id, $searched_datafields) )
+                        unset( $cached_searches[$grandparent_datatype_id][$search_checksum] );
+                }
+
+                // Save the collection of cached searches back to memcached
+                $redis->set($redis_prefix.'.cached_search_results', gzcompress(serialize($cached_searches)));
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -2506,8 +2562,9 @@ exit();
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
                     FROM ODRAdminBundle:DataRecord AS dr
-                    WHERE dr.id IN (:datarecord_ids) AND dr.public_date = "2200-01-01 00:00:00"
-                    AND dr.deletedAt IS NULL'
+                    JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                    WHERE dr.id IN (:datarecord_ids) AND drm.publicDate = "2200-01-01 00:00:00"
+                    AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
                 )->setParameters( array('datarecord_ids' => $remote_datarecord_ids) );
                 $results = $query->getArrayResult();
 
@@ -3053,9 +3110,11 @@ if ($debug)
             foreach ($linked_datatype_descendants as $dt_id => $dt_name) {
 
                 $has_table_theme = false;
-                foreach ($datatype_array[$dt_id]['themes'] as $num => $t) {
-                    if ($t['themeType'] == 'table')
-                        $has_table_theme = true;
+                if ( isset($datatype_array[$dt_id]) ) {
+                    foreach ($datatype_array[$dt_id]['themes'] as $num => $t) {
+                        if ($t['themeType'] == 'table')
+                            $has_table_theme = true;
+                    }
                 }
 
                 if (!$has_table_theme) {
@@ -3065,9 +3124,14 @@ if ($debug)
             }
             foreach ($linked_datatype_ancestors as $dt_id => $dt_name) {
 
+                // $datatype_array won't have data on an "ancestor" datatype, so have to load data for each of them from the cache...
+                $anc_dt_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
+                if ($anc_dt_data == false)
+                    $anc_dt_data = parent::getDatatypeData($em, $datatree_array, $dt_id);
+
                 $has_table_theme = false;
-                foreach ($datatype_array[$dt_id]['themes'] as $num => $t) {
-                    if ($t['themeType'] == 'table')
+                foreach ($anc_dt_data[$dt_id]['themes'] as $num => $t) {
+                    if ( $t['themeType'] == 'table' )
                         $has_table_theme = true;
                 }
 

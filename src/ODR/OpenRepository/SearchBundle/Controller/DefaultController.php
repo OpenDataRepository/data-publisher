@@ -31,6 +31,7 @@ use ODR\OpenRepository\UserBundle\Entity\User;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Cookie;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 
 class DefaultController extends Controller
@@ -406,7 +407,6 @@ exit();
                         return $this->redirect( $baseurl.'#'.$hash );
                     }
                     else {
-                        // This'll probably never get used, but just in case...
                         return $this->redirect( $this->generateUrl('odr_admin_homepage') );
                     }
                 }
@@ -572,9 +572,8 @@ exit();
             $session->set('scroll_target', '');
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x81286282 ' . $e->getMessage();
+            // This and ODRAdminBundle:Default:indexAction() are currently the only two controller actions that make Symfony handle the errors instead of AJAX popups
+            throw new HttpException( 500, 'Error 0x81286282', $e );
         }
 
         $response = new Response($html);
@@ -787,7 +786,7 @@ exit();
                 }
             }
 
-            if ($datatype_id == '')
+            if ( $datatype_id == ''|| !is_numeric($datatype_id) )
                 throw new \Exception('Invalid search string');
 
 
@@ -817,7 +816,7 @@ exit();
 
                 // Can't use $this->redirect, because it won't update the hash...
                 $return['r'] = 2;
-                $return['d'] = array( 'url' => $this->generateURL('odr_display_view', array('datarecord_id' => $datarecord_id)) );
+                $return['d'] = array( 'url' => $this->generateUrl('odr_display_view', array('datarecord_id' => $datarecord_id)) );
 
                 $response = new Response(json_encode($return));
                 $response->headers->set('Content-Type', 'application/json');
@@ -889,8 +888,8 @@ exit();
             if ( $search_params['error'] == true ) {
                 throw new \Exception( $search_params['message'] );
             }
-            // Theoretically, this should never be true...
             else if ( $search_params['redirect'] == true ) {
+                // Theoretically, this should never be true...
                 /** @var ODRCustomController $odrcc */
                 $odrcc = $this->get('odr_custom_controller', $request);
                 $odrcc->setContainer($this->container);
@@ -901,6 +900,7 @@ exit();
                 return $odrcc->searchPageRedirect($user, $url);
             }
 
+            // Intentionally does nothing...ODROpenRepository::Default::search.html.twig will force a URL change once this controller action returns
         }
         catch (\Exception $e) {
             $return['r'] = 1;
