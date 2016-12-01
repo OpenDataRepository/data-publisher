@@ -3328,6 +3328,128 @@ if ($debug)
 
 
     /**
+     * Given a datarecord and datafield, re-render and return the html for files uploaded to that datafield.
+     *
+     * @param integer $datafield_id  The database id of the DataField inside the DataRecord to re-render.
+     * @param integer $datarecord_id The database id of the DataRecord to re-render
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function reloadfiledatafieldAction($datafield_id, $datarecord_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            if ($datafield == null)
+                return parent::deletedEntityError('Datafield');
+
+            $datatype = $datafield->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+            $datatype_id = $datatype->getId();
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            if ($datarecord == null)
+                return parent::deletedEntityError('Datarecord');
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+            $datafield_permissions = $user_permissions['datafields'];
+
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_view']) )
+                $can_view_datatype = true;
+
+            $can_view_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_view']) )
+                $can_view_datarecord = true;
+
+            $can_edit_datarecord = false;
+            if ( isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dr_edit']) )
+                $can_edit_datarecord = true;
+
+            $can_view_datafield = false;
+            if ( isset($datafield_permissions[$datafield_id]) && isset($datafield_permissions[$datafield_id]['view']) )
+                $can_view_datafield = true;
+
+            // If the datatype/datarecord/datafield is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't reload the datafield HTML
+            if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) || !$can_edit_datarecord )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+            // Don't run if the datafield isn't a file datafield
+            if ( $datafield->getFieldType()->getTypeClass() !== 'File' )
+                throw new \Exception('Datafield is not of a File Typeclass');
+
+
+            // Load all files uploaded to this datafield
+            $query = $em->createQuery(
+               'SELECT f, fm, f_cb
+                FROM ODRAdminBundle:File AS f
+                JOIN f.fileMeta AS fm
+                JOIN f.createdBy AS f_cb
+                WHERE f.dataRecord = :datarecord_id AND f.dataField = :datafield_id
+                AND f.deletedAt IS NULL AND fm.deletedAt IS NULL'
+            )->setParameters( array('datarecord_id' => $datarecord->getId(), 'datafield_id' => $datafield->getId()) );
+            $results = $query->getArrayResult();
+
+            $file_list = array();
+            foreach ($results as $num => $result) {
+                $file = $result;
+                $file['fileMeta'] = $result['fileMeta'][0];
+                $file['createdBy'] = parent::cleanUserData($result['createdBy']);
+
+                $file_list[$num] = $file;
+            }
+
+            // Render and return the HTML for the list of files
+            $templating = $this->get('templating');
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Edit:edit_file_datafield.html.twig',
+                    array(
+                        'datafield' => $datafield,
+                        'datarecord' => $datarecord,
+
+                        'files' => $file_list,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x833871285 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Renders the edit form for a DataRecord if the user has the requisite permissions.
      * 
      * @param integer $datarecord_id The database id of the DataRecord the user wants to edit

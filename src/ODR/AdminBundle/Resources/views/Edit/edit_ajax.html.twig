@@ -250,10 +250,12 @@ function initPage() {
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
                         // Remove file data from table area
-                        if (data.d.need_reload == true)
-                            ReloadDatafield(datarecord_id, datafield_id);
-                        else
-                            $("#File_" + file_id).remove();
+                        $("#File_" + file_id).remove();
+
+                        if (data.d.need_reload == true) {
+                            //ReloadDatafield(datarecord_id, datafield_id);
+                            $("#ODRFileUpload_drf_" + datarecord_id + "_" + datafield_id).parent().show();
+                        }
                     }
                     else {
                         // An error has occurred.
@@ -1096,6 +1098,43 @@ function ReloadDatafield(datarecord_id, datafield_id) {
         success: function(data, textStatus, jqXHR) {
             if (data.r == 0) {
                 $(datafield_div).append(data.d.html);
+                initPage();
+            }
+            else {
+                alert( data.d );
+            }
+        },
+        complete: function(jqXHR, textStatus) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
+    });
+}
+
+function ReloadFileDatafield(datarecord_id, datafield_id) {
+    var url = '{{ path('odr_record_reload_file_datafield', { 'datarecord_id': 0, 'datafield_id': 0 }) }}';
+    url = url.substring(0, (url.length - 3));
+    url += datarecord_id + '/' + datafield_id;
+
+    var file_datafield_div = $("#Field_" + datarecord_id + "_" + datafield_id + " .ODRFileDatafield");
+
+    $.ajax({
+        cache: false,
+        type: 'GET',
+        url: url,
+        dataType: "json",
+        success: function(data, textStatus, jqXHR) {
+            if (data.r == 0) {
+                $(file_datafield_div).html(data.d.html);
                 initPage();
             }
             else {

@@ -578,7 +578,12 @@ odr_record_reload_datafield:
     requirements:
         datarecord_id: \d+
         datafield_id: \d+
-
+odr_record_reload_file_datafield:
+    path: /edit/filedatafieldreload/{datarecord_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Edit:reloadfiledatafield }
+    requirements:
+        datarecord_id: \d+
+        datafield_id: \d+
 
 odr_record_save:
 #    path:  /edit/save/{record_type}/{datarecord_id}

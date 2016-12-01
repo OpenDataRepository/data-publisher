@@ -3107,3 +3107,22 @@ form .row {
     position: absolute;
 }
 
+
+.ODRUploadDragHighlight {
+    background: green !important;
+}
+.ODRFileUploadProgress {
+    width: 300px;
+}
+
+.cancel-button {
+    background: rgb(202, 60, 60); /* this is a maroon */
+}
+.ODRUploadError {
+    color: #FF0000;
+    size: 0.75em;
+}
+.ODRProgressBar {
+    display: block;
+}
+
