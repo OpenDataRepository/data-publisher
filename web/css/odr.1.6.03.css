@@ -1523,6 +1523,9 @@ pre .support.value  {
     .ODRTristateCheckbox > .fa-check {
         color: green;
     }
+    .ODRTristateCheckbox > .fa-check.partial {
+        color: grey;
+    }
     .ODRTristateCheckbox {
         cursor: pointer;
         border: 2px solid #666;
@@ -1530,14 +1533,16 @@ pre .support.value  {
         height: 1.5em;
         width: 1.5em;
         display: inline-block;
+        margin-right: 5px;
     }
     .ODRTristateCheckbox > .fa {
-        line-height: 1.25em;
-        margin-left: -0.1em;
+        /*line-height: 1.25em;*/
+        /*margin-left: -0.1em;*/
     }
     .ODRTristateCheckbox:hover, .ODRTristateCheckbox:active, .ODRTristateCheckbox:focus {
         background: #9cd4d4;
     }
+
     .ODRSelectAll,.ODRDeselectAll,.ODRClearAll {
         cursor: pointer;
         font-size: 90%;
@@ -3044,6 +3049,10 @@ form .row {
 
 .ODRDownloadAllFiles {
     padding-right: 5px;
+}
+
+#FileDownloadForm ul {
+    list-style: none;
 }
 
 .ODRFileSpacer {

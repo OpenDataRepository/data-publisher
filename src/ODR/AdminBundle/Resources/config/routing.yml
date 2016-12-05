@@ -740,17 +740,20 @@ odr_image_download:
         image_id:  \d+
 
 odr_download_all_files:
-    path:  /view/downloadall/{datarecord_id}/{datafield_id}
+    path:  /view/downloadallfiles
     defaults: { _controller: ODRAdminBundle:Display:downloadallfiles }
+    methods: [ POST ]
     requirements:
         datarecord_id: \d+
         datafield_id: \d+
 
 odr_get_file_list:
-    path:  /view/file_list/{datarecord_id}
-    defaults: { _controller: ODRAdminBundle:Display:listallfiles }
+    path:  /view/file_list/{grandparent_datarecord_id}/{datarecord_id}/{datafield_id}
+    defaults: { _controller: ODRAdminBundle:Display:listallfiles, datarecord_id: 0, datafield_id: 0 }
     requirements:
+        grandparent_datarecord_id: \d+
         datarecord_id: \d+
+        datafield_id: \d+
 
 #-----------------------------------------
 

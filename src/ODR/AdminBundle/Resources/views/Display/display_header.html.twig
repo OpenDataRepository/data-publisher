@@ -35,8 +35,8 @@
     });
 
     function openFileDownloadDialog() {
-        // Open the dialog to create a new datatype
         $("#dialog_file_downloads").dialog( "open" );
+        locateFileIds({{ datarecord.id }}, 0, 0);      // defined in ODRAdminBundle:Default:file_download_dialog.html.twig
     }
 </script>
 

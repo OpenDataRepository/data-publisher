@@ -23,6 +23,7 @@ use ODR\OpenRepository\SearchBundle\Controller\DefaultController as SearchContro
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Theme;
@@ -919,6 +920,9 @@ class DisplayController extends ODRCustomController
         $response = new Response();
 
         try {
+            $post = $_POST;
+print_r($post);  exit();
+
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -1390,12 +1394,14 @@ class DisplayController extends ODRCustomController
     /**
      * Creates and renders an HTML list of all files/images that the user is allowed to see in the given datarecord
      *
+     * @param integer $grandparent_datarecord_id
      * @param integer $datarecord_id
+     * @param integer $datafield_id
      * @param Request $request
      *
      * @return Response
      */
-    function listallfilesAction($datarecord_id, Request $request)
+    function listallfilesAction($grandparent_datarecord_id, $datarecord_id, $datafield_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1410,14 +1416,40 @@ class DisplayController extends ODRCustomController
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-            /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if ($datarecord == null)
-                return parent::deletedEntityError('DataRecord');
+            /** @var DataRecord $grandparent_datarecord */
+            $grandparent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($grandparent_datarecord_id);
+            if ($grandparent_datarecord == null)
+                return parent::deletedEntityError('Grandparent DataRecord');
 
-            $datatype = $datarecord->getDataType();
-            if ($datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('DataType');
+            $grandparent_datatype = $grandparent_datarecord->getDataType();
+            if ($grandparent_datatype->getDeletedAt() != null)
+                return parent::deletedEntityError('Grandparent DataType');
+
+
+            if ( ($datarecord_id === 0 && $datafield_id !== 0) || ($datarecord_id !== 0 && $datafield_id === 0) )
+                throw new \Exception('Invalid arguments');
+
+            /** @var DataType|null $datatype */
+            $datatype = null;
+            /** @var DataRecord|null $datarecord */
+            $datarecord = null;
+            if ($datarecord_id !== 0) {
+                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+                if ($datarecord == null)
+                    return parent::deletedEntityError('DataRecord');
+
+                $datatype = $datarecord->getDataType();
+                if ($datatype->getDeletedAt() != null)
+                    return parent::deletedEntityError('DataType');
+            }
+
+            /** @var DataFields|null $datafield */
+            $datafield = null;
+            if ($datafield_id !== 0) {
+                $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+                if ($datafield == null)
+                    return parent::deletedEntityError('DataField');
+            }
 
 
             // ----------------------------------------
@@ -1429,18 +1461,43 @@ class DisplayController extends ODRCustomController
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_datatype = false;
-            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                $can_view_datatype = true;
+            $can_view_grandparent_datatype = false;
+            if ( isset($datatype_permissions[ $grandparent_datatype->getId() ]) && isset($datatype_permissions[ $grandparent_datatype->getId() ][ 'dt_view' ]) )
+                $can_view_grandparent_datatype = true;
 
-            $can_view_datarecord = false;
-            if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                $can_view_datarecord = true;
+            $can_view_grandparent_datarecord = false;
+            if ( isset($datatype_permissions[ $grandparent_datatype->getId() ]) && isset($datatype_permissions[ $grandparent_datatype->getId() ][ 'dr_view' ]) )
+                $can_view_grandparent_datarecord = true;
 
-
-            // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-            if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) )
+            // If grandparent datatype is not public and user doesn't have permissions to view anything other than public sections of the grandparent datarecord, then don't allow them to view
+            if ( !($grandparent_datatype->isPublic() || $can_view_grandparent_datatype)  || !($grandparent_datarecord->isPublic() || $can_view_grandparent_datarecord) )
                 return parent::permissionDeniedError();
+
+
+            // Check permissions on the specified datarecord if it exists
+            if ($datarecord != null) {
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                    $can_view_datatype = true;
+
+                $can_view_datarecord = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                    $can_view_datarecord = true;
+
+                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the grandparent datarecord, then don't allow them to view
+                if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) )
+                    return parent::permissionDeniedError();
+            }
+
+            // Check permissions on the specified datafield if it exists
+            if ($datafield != null) {
+                $can_view_datafield = false;
+                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ]['view']) )
+                    $can_view_datafield = true;
+
+                if ( !($datafield->isPublic() || $can_view_datafield) )
+                    return parent::permissionDeniedError();
+            }
             // ----------------------------------------
 
 
@@ -1452,11 +1509,11 @@ class DisplayController extends ODRCustomController
 
 
             // Grab all datarecords "associated" with the desired datarecord...
-            $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId())));
+            $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId())));
             if ($bypass_cache || $associated_datarecords == false) {
-                $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord->getId()));
+                $associated_datarecords = parent::getAssociatedDatarecords($em, array($grandparent_datarecord->getId()));
 
-                $redis->set($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId(), gzcompress(serialize($associated_datarecords)));
+                $redis->set($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId(), gzcompress(serialize($associated_datarecords)));
             }
 
 
@@ -1490,7 +1547,6 @@ class DisplayController extends ODRCustomController
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
             $datatype_array = array();
             foreach ($associated_datatypes as $num => $dt_id) {
-                // print $redis_prefix.'.cached_datatype_'.$dt_id;
                 $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
                 if ($bypass_cache || $datatype_data == false)
                     $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
@@ -1556,23 +1612,24 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
-            $stacked_datarecord_array[ $datarecord->getId() ] = parent::stackDatarecordArray($datarecord_array, $datarecord->getId());
+            $stacked_datarecord_array[ $grandparent_datarecord->getId() ] = parent::stackDatarecordArray($datarecord_array, $grandparent_datarecord->getId());
 //print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
 
-            $ret = self::locateFilesforDownloadAll($stacked_datarecord_array, $datarecord->getId());
+            $ret = self::locateFilesforDownloadAll($stacked_datarecord_array, $grandparent_datarecord->getId());
             if ( is_null($ret) ) {
                 $return['d'] = 'NO FILES/IMAGES IN HERE';
             }
             else {
-                $stacked_datarecord_array = array($datarecord_id => $ret);
+                $stacked_datarecord_array = array($grandparent_datarecord->getId() => $ret);
 //print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
 
                 $templating = $this->get('templating');
                 $return['d'] = $templating->render(
                     'ODRAdminBundle:Default:file_download_dialog_form.html.twig',
                     array(
+                        'datarecord_id' => $grandparent_datarecord_id,
+
                         'datarecord_array' => $stacked_datarecord_array,
-                        'datarecord_id' => $datarecord_id,
                         'datafield_names' => $datafield_names,
                         'datatype_names' => $datatype_names,
 
@@ -1595,6 +1652,7 @@ class DisplayController extends ODRCustomController
 
     /**
      * Recursively goes through an "inflated" datarecord array entry and deletes all (child) datarecords that don't have files/images.
+     * Assumes that all non-file/image datafields have already been deleted out of the "inflated" array prior to calling this function, so the recursive logic is somewhat simplified.
      * @see parent::stackDatarecordArray()
      *
      * @param array $dr_array         An already "inflated" array of all datarecord entries for this datatype
