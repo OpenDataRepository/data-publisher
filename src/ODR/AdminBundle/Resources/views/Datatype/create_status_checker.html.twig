@@ -1,0 +1,43 @@
+{% spaceless %}
+
+<ul id="wizardStatus">
+    {# Only template-based databases will see this page. #}
+    <li class="current">Step 1. <span class="wizardStatusText">Choose a template.</span></li>
+    <li class="">Step 2. <span class="wizardStatusText">Database information.</span></li>
+    <li class="">Step 3. <span class="wizardStatusText">Add or change fields.</span></li>
+    <li>Step 4. <span class="wizardStatusText">Setup search templates.</span></li>
+</ul>
+
+
+<div class="ODRContentWrapper pure-u-1">
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Please wait while the database is created.</h3>
+            <div class="ODRBodyContent">
+                <div class="ODRCenterText pure-hidden-xs pure-u-1 pure-u-lg-4-24 pure-u-md-5-24 pure-u-sm-8-24">
+                    <i class="fa fa-5x fa-cog fa-spin"></i>
+                </div>
+                <div class="ODRCenterText pure-hidden-sm pure-hidden-md pure-hidden-lg pure-hidden-xl pure-u-1-6">
+                    <i class="fa fa-2x fa-cog fa-spin"></i>
+                </div>
+                <div class="pure-u-5-6 pure-u-lg-20-24 pure-u-md-19-24 pure-u-sm-16-24 pure-u-">
+                    <p>Please wait while the system generates your database from the requested template.</p>
+                    <p>This operation should take no more than 30 seconds.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function CheckStatus() {
+        LoadContentFullAjax('{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}', false);
+    }
+    $(function() {
+        console.log('setup monitor')
+        // Reload this box every 5 seconds
+        timer = setTimeout("CheckStatus()", 5000);
+    });
+</script>
+
+{% endspaceless %}

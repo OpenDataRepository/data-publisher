@@ -15,7 +15,7 @@
 <div class="tabletools">
     {% if level > 1 %}
     <div>
-        <button id="ODRDatatypeList_createMasterTemplate" class="pure-button pure-button-primary ODRCreateDatatype"><i class="fa fa-lg fa-plus"></i> New Master Template</button>
+        <a id="ODRDatatypeList_createMasterTemplate" class="pure-button pure-button-primary ODRCreateDatatype" href="#{{ path('odr_create_type', { 'create_master': 1}) }}"><i class="fa fa-lg fa-plus"></i> New Master Template</a>
     </div>
     {% endif %}
 </div>
@@ -93,43 +93,6 @@
 </div>
 
 <script>
-    $(function() {
-        $(".ODRCreateDatatype").unbind('click').click(function() {
-            if($(this).attr('id') == "ODRDatatypeList_createMasterTemplate") {
-                // Set the Master Template flag
-                $("#CreateDatatypeForm_is_master_type").val(1);
-            }
-            // Open the dialog to create a new datatype
-            $("#dialog_add_datatype").dialog( "open" );
-        });
-
-        $("#ODRDatatypeList").dataTable({
-            "columnDefs": [
-                {
-                    "targets": [0],
-                    "visible": false,
-                },
-                {
-                    "targets": [1],
-                    "orderable": false,
-                    "searchable": false,
-                }
-            ],
-            "order": [[ 2, "asc" ]],
-            "fixedHeader": {
-                // headerOffset: 42
-            },
-            responsive: true,
-//            "paging": true,
-            "paging": false,
-            "info": false,
-            "language": {
-                "emptyTable": "No Master Templates found."
-            }
-        });
-
-        $("#ODRDatatypeList").removeAttr('style');
-    });
 
     function addDataRecord(urlpath, datatype_id) {
         if ( confirm('Are you sure you want to create a new Datarecord?') ) {

@@ -272,6 +272,21 @@ odr_list_types:
     requirements:
         section: design|records|master
 
+odr_create_type:
+    path:  /admin/type/create/{create_master}
+    defaults: { _controller: ODRAdminBundle:Datatype:create }
+    requirements: { methods: GET, create_master: \d }
+
+odr_create_type_info:
+    path:  /admin/type/create/info/{template_choice}
+    defaults: { _controller: ODRAdminBundle:Datatype:createinfo }
+    requirements: { methods: GET, template_choice: -?\d+ }
+
+odr_create_from_master:
+    path:  /admin/type/create/masterbased/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:ODRCustom:copyfrommaster }
+    requirements: { methods: GET, datatype_id: -?\d+ }
+
 odr_add_types:
     path:  /admin/type/add
     defaults: { _controller: ODRAdminBundle:Datatype:add }

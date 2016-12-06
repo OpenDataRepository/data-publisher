@@ -31,6 +31,9 @@ class CreateDatatypeForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
+
+        $this->form_settings = $options['form_settings'];
+
         $builder->add(
             'shortName', 
             TextType::class,
@@ -38,11 +41,12 @@ class CreateDatatypeForm extends AbstractType
                 'required' => true,
                 'label'  => 'Short Name',
                 'attr' => array(
-                    'maxlength' => 32,
+                    // 'maxlength' => 32,
                 ),
             )
         );
 
+        /*
         $builder->add(
             'longName', 
             TextType::class,
@@ -50,10 +54,11 @@ class CreateDatatypeForm extends AbstractType
                 'required' => true,
                 'label'  => 'Full TypeName',
                 'attr' => array(
-                    'maxlength' => 32,
+                    // 'maxlength' => 32,
                 ),
             )
         );
+        */
 
         $builder->add(
             'description',
@@ -64,28 +69,38 @@ class CreateDatatypeForm extends AbstractType
             )
         );
 
+        /*
+                $builder->add(
+                    'description',
+                    'text',
+                    array(
+                        'required' => true,
+                        'label'  => 'Description',
+                    )
+                );
+        */
+
         // Adding a non-tracked field to allow master template creation.
         $builder->add(
             'is_master_type',
             HiddenType::class,
             array(
                 'mapped' => false,
-                'data' => 0
+                'data' => $this->form_settings['is_master_type']
+            )
+        );
+
+        $builder->add(
+            'master_type_id',
+            HiddenType::class,
+            array(
+                'mapped' => false,
+                'data' => $this->form_settings['master_type_id']
             )
         );
 
         $builder->add('save', SubmitType::class);
 
-/*
-        $builder->add(
-            'description', 
-            'text', 
-            array(
-                'required' => true,
-                'label'  => 'Description',
-            )
-        );
-*/
     }
 
 
@@ -118,8 +133,12 @@ class CreateDatatypeForm extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-//        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataType'));
-        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataTypeMeta'));
+        $resolver->setDefaults(
+            array(
+                'data_class' => 'ODR\AdminBundle\Entity\DataTypeMeta',
+                'form_settings' => null
+            )
+        );
     }
 
 

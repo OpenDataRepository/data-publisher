@@ -540,7 +540,7 @@ exit();
     public function getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype_id, $search_key, Request $request)
     {
         // Get necessary objects
-        $redis = $this->container->get('snc_redis.default');;
+        $redis = $this->container->get('snc_redis.default');
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 

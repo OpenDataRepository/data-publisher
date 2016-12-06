@@ -124,10 +124,10 @@ ODR\AdminBundle\Entity\DataType:
         # TODO These will probably need to be moved to map tables
         # so that child types can be re-used across multiple master
         # data types.
-        relatedMasterTypes:
-            targetEntity: DataRecord
-            mappedBy: masterDataType
-            fetch: EXTRA_LAZY
+#        relatedMasterTypes:
+#            targetEntity: DataRecord
+#            mappedBy: masterDataType
+#            fetch: EXTRA_LAZY
 
         dataTypeMeta:
             targetEntity: DataTypeMeta

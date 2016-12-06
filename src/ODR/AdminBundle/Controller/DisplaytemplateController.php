@@ -981,10 +981,26 @@ class DisplaytemplateController extends ODRCustomController
                 return parent::permissionDeniedError("edit");
             // --------------------
 
-            $return['d'] = array(
-                'datatype_id' => $datatype->getId(),
-                'html' => self::GetDisplayData($datatype_id, 'default', $datatype_id, $request),
-            );
+
+
+            // Check if this is a master template based datatype that is still
+            // in the creation process.  If so, redirect to progress system.
+            if($datatype->getSetupStep() == "create") {
+                // Return creating datatype template
+                $templating = $this->get('templating');
+                $return['t'] = "html";
+                $return['d'] = array();
+                $return['d']['html'] = $templating->render(
+                    'ODRAdminBundle:Datatype:create_status_checker.html.twig',
+                    array("datatype" => $datatype)
+                );
+            }
+            else {
+                $return['d'] = array(
+                    'datatype_id' => $datatype->getId(),
+                    'html' => self::GetDisplayData($datatype_id, 'default', $datatype_id, $request),
+                );
+            }
         }
         catch (\Exception $e) {
             $return['r'] = 1;
@@ -2056,7 +2072,7 @@ class DisplaytemplateController extends ODRCustomController
             // ----------------------------------------
             // Grab all the ids of all datatypes currently in the database
             $query = $em->createQuery(
-               'SELECT dt.id AS dt_id, dtm.publicDate AS public_date
+               'SELECT dt.id AS dt_id, dt.is_master_type as is_master_type, dtm.publicDate AS public_date
                 FROM ODRAdminBundle:DataType AS dt
                 JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
                 WHERE dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
@@ -2070,7 +2086,15 @@ class DisplaytemplateController extends ODRCustomController
                 if ( $result['public_date']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' )
                     $is_public = false;
 
-                $all_datatype_ids[$dt_id] = $is_public;
+                // Check if this is a Master Template.  If so, only
+                // other master templates (isMasterType = 1) can be
+                // linked.
+                if($local_datatype->getIsMasterType() && $result['is_master_type'] > 0) {
+                    $all_datatype_ids[$dt_id] = $is_public;
+                }
+                else if (!$local_datatype->getIsMasterType()) {
+                    $all_datatype_ids[$dt_id] = $is_public;
+                }
             }
 
             // Ensure user can't link to a datatype they aren't able to see

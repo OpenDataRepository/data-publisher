@@ -144,16 +144,30 @@
     }
 
     var xhr = null;
-    function LoadContentFullAjax(url) {
+    var timer = null;
+    function LoadContentFullAjax(url, use_fade) {
+        if (timer) {
+            window.clearTimeout(timer)
+        }
+        // Default use_fade to 1
+        if (undefined == use_fade)
+            use_fade = true
+
         // TODO Determine if this HACK is needed
         // Delete the DataTables fixed headers and bindings.
- 	jQuery(window).unbind('scroll');
- 	jQuery('.fixedHeader-floating').remove();
+ 	    jQuery(window).unbind('scroll');
+ 	    jQuery('.fixedHeader-floating').remove();
+
+
+        var faded_opacity = 0.15
+        if(!use_fade) {
+            faded_opacity = 1
+        }
 
         // Hide the properties menu
         $("#ODRNavRightWrapper").fadeOut('fast');
-        $("#content").fadeTo(300, 0.15, function() {
-            //
+        $("#content").fadeTo(300, faded_opacity, function() {
+            // TODO Document what this is doing.
             if (xhr != null)
                 xhr.abort();
 
@@ -174,7 +188,7 @@
                     if ((data.r == 0) || (data.r == 403)) {
 
                         $("#content").html(data.d.html);
-                        $("#content").fadeTo(1000, 1.0);
+                        $("#content").fadeTo(500, 1.0);
 
                         xhr = null;
                     }
@@ -413,6 +427,44 @@
         };
     })();
 
+    /*
+    var scrollTop = '';
+    var newHeight = '100';
+    function initODRDialog(elem) {
+        /*
+        $(window).bind('scroll', function() {
+            scrollTop = $( window ).scrollTop();
+            newHeight = scrollTop + 100;
+        });
+
+        if($(window).width() < 767) {
+            $(elem).show().addClass('odr-popup-mobile').css('top', 0);
+            $('html, body').animate({
+                scrollTop: $(elem).offset().top
+            }, 500);
+        } else {
+            $(elem).hide();
+            $(elem).removeClass('odr-popup-mobile').css('top', newHeight).toggle();
+        };
+
+        $(elem).append('<span class="odr-popup-btn-close">close</span>');
+
+        $('html').unbind('click')
+        .click(function() {
+            $('.odr-popup').hide();
+        });
+
+        $('.odr-popup-btn-close').unbind('click')
+        .click(function(e){
+            $(this).parent().hide();
+        });
+
+        $('.odr-popup').unbind('click')
+        .click(function(e){
+            e.stopPropagation();
+        });
+     }
+        */
 </script>
 
 {% include 'ODRAdminBundle:Default:file_handling.html.twig' %}

@@ -5,6 +5,45 @@
 <h1 class="no-margin-top-phone">
     <span>Master Layout Design &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
 </h1>
+
+    {%  if datatype.setup_step != "complete" %}
+    <ul id="wizardStatus">
+        <li class="completed">Step 1. <span class="wizardStatusText">Choose a template.</span></li>
+        <li class="completed">Step 2. <span class="wizardStatusText">Database information.</span></li>
+        <li class="current">Step 3. <span class="wizardStatusText">Add or change fields.</span></li>
+        <li>Step 4. <span class="wizardStatusText">Setup search templates.</span></li>
+        <!-- <li>Step 4. <span class="wizardStatusText">Book/Order repair</span></li> -->
+    </ul>
+
+    <div class="ODRContentWrapper pure-u-1">
+        <div class="ODRThemeElement pure-u-1">
+            <div class="ODRInnerBox pure-u-1">
+                <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Enter Database Information</h3>
+                {% if datatype.is_master_type == 1 %} {# Master Template Creation #}
+                    <div class="ODRBodyContent">
+                        <p>Please choose a name for your database template and
+                            enter a description so users can identify the purpose of the template.</p>
+                    </div>
+                {# elseif datatype.master_type_id == 0 #} {# Custom Database #}
+                    {#
+                    <div class="ODRBodyContent">
+                        <p>Please choose a name for your database and enter the relevant info to ensure proper attribution of your database.</p>
+                        <p>After completing the information below, you will be forwarded to the database management
+                            system to design your database by adding fields and display preferences.</p>
+                    </div>
+                    #}
+                {% else %} {# Database from template#}
+                    <div class="ODRBodyContent">
+                        <p>Please choose a name for your database and enter the relevant info to ensure proper attribution of your database.</p>
+                        <p>{{ datatype.dataTypeMeta.shortName }}</p>
+                        <p><a class="pure-button" href="#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}">Save and Create Search Themes</a></p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
 <input type="hidden" id="has_datarecords" value="{{ has_datarecords }}" />
 
 {% include 'ODRAdminBundle:Displaytemplate:design_area.html.twig' with {
