@@ -641,6 +641,10 @@ class DisplayController extends ODRCustomController
                                 "object_id" => $file_id,
                                 "target_filename" => $target_filename,
                                 "crypto_type" => 'decrypt',
+
+                                "archive_filepath" => '',
+                                "desired_filename" => '',
+
                                 "redis_prefix" => $redis_prefix,    // debug purposes only
                                 "url" => $url,
                                 "api_key" => $api_key,
@@ -693,6 +697,10 @@ class DisplayController extends ODRCustomController
                             "object_id" => $file_id,
                             "target_filename" => $target_filename,
                             "crypto_type" => 'decrypt',
+
+                            "archive_filepath" => '',
+                            "desired_filename" => '',
+
                             "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
@@ -892,243 +900,6 @@ class DisplayController extends ODRCustomController
         });
 
         return $response;
-    }
-
-
-    /**
-     * Assuming the user has the correct permissions, adds each file from this datarecord/datafield pair into a zip
-     * archive and returns that zip archive for download.
-     *
-     * @param integer $datarecord_id
-     * @param integer $datafield_id
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function downloadallfilesAction($datarecord_id, $datafield_id, Request $request)
-    {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = 'html';
-        $return['d'] = '';
-
-        /** @var \ZipArchive|null $zip_archive */
-        $zip_archive = null;
-        $archive_filepath = null;
-        $non_public_files_to_delete = array();
-
-        $response = new Response();
-
-        try {
-            $post = $_POST;
-print_r($post);  exit();
-
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
-
-            /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if ($datarecord == null)
-                return parent::deletedEntityError('Datarecord');
-
-            /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-            if ($datafield == null)
-                return parent::deletedEntityError('DataField');
-
-            if ( $datarecord->getDataType()->getId() !== $datafield->getDataType()->getId() )
-                throw new \Exception('Invalid Request');
-
-            $datatype = $datarecord->getDataType();
-            if ($datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('Datatype');
-
-
-            // ----------------------------------------
-            /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-
-            $logged_in = false;
-            $can_view_datarecord = false;
-
-            if ($user === 'anon.') {
-                // No permissions for an anonymous user...
-            }
-            else {
-                $logged_in = true;
-
-                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-                $datatype_permissions = $user_permissions['datatypes'];
-                $datafield_permissions = $user_permissions['datafields'];
-
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                $can_view_datafield = false;
-                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ][ 'view' ]) )
-                    $can_view_datafield = true;
-
-                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
-                    return parent::permissionDeniedError();
-            }
-            // ----------------------------------------
-
-
-            // ----------------------------------------
-            // Locate all database entries for all the files uploaded to this datarecord/datafield
-            $query = $em->createQuery(
-               'SELECT drf, f, fm
-                FROM ODRAdminBundle:DataRecordFields AS drf
-                JOIN drf.file AS f
-                JOIN f.fileMeta AS fm
-                WHERE drf.dataRecord = :datarecord_id AND drf.dataField = :datafield_id
-                AND drf.deletedAt IS NULL AND f.deletedAt IS NULL AND fm.deletedAt IS NULL'
-            )->setParameters( array('datarecord_id' => $datarecord_id, 'datafield_id' => $datafield_id) );
-            $results = $query->getArrayResult();
-
-            $files = $results[0]['file'];
-//print '<pre>'.print_r($files, true).'</pre>';
-
-            // Filter out files the user isn't allowed to see
-            if ( count($files) > 0 ) {
-                foreach ($files as $num => $file) {
-
-                    $file_is_public = true;
-                    if ( $file['fileMeta'][0]['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' )
-                        $file_is_public = false;
-
-                    if ( !$file_is_public && !$can_view_datarecord )
-                        unset( $files[$num] );
-                    else
-                        $files[$num]['fileMeta'] = $files[$num]['fileMeta'][0];
-                }
-            }
-
-
-            // ----------------------------------------
-            // If any files remain...
-            if ( count($files) == 0 ) {
-                // TODO - what to return?
-                throw new \Exception('Nothing to download?');
-            }
-            else {
-                // ...create a zip archive to store them in
-                $zip_archive = new \ZipArchive();
-
-                // Create a filename for the zip archive
-                $tokenGenerator = $this->get('fos_user.util.token_generator');
-                $random_id = substr($tokenGenerator->generateToken(), 0, 12);
-
-                $archive_filename = $random_id.'.zip';
-                $archive_filepath = dirname(__FILE__).'/../../../../web/uploads/files/'.$archive_filename;
-
-                $zip_archive->open($archive_filepath,  \ZipArchive::CREATE);
-
-                foreach ($files as $file) {
-                    // Ensure the file exists on the server in decrypted format
-                    $filepath = parent::decryptObject($file['id'], 'file');
-
-                    // Add the file to the zip archive
-                    $display_filename = trim($file['fileMeta']['originalFileName']);
-                    if ($display_filename == '')
-                        $display_filename = 'File_'.$file['id'].'.'.$file['ext'];
-
-                    $zip_archive->addFile($filepath, $display_filename);
-
-                    // If file is non-public, ensure it gets deleted off the server since it's been decrypted...
-                    $file_is_public = true;
-                    if ( $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' )
-                        $file_is_public = false;
-
-                    if ( !$file_is_public )
-                        $non_public_files_to_delete[] = $file['localFileName'];
-                }
-
-                // Done with the zip archive
-                $zip_archive->close();
-
-
-                // Create a download response for the zip archive
-                $response = new StreamedResponse();
-
-                $handle = fopen($archive_filepath, 'r');
-                if ($handle === false)
-                    throw new \Exception('Unable to open existing file at "'.$archive_filepath.'"');
-
-                $response->setPrivate();
-                $response->headers->set('Content-Type', mime_content_type($archive_filepath));
-                $response->headers->set('Content-Length', filesize($archive_filepath));
-                $response->headers->set('Content-Disposition', 'attachment; filename="'.$archive_filename.'";');
-
-                // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
-                $response->headers->setCookie(
-                    new Cookie(
-                        'fileDownload', // name
-                        'true',         // value
-                        0,              // duration set to 'session'
-                        '/',            // default path
-                        null,           // default domain
-                        false,          // don't require HTTPS
-                        false           // allow cookie to be accessed outside HTTP protocol
-                    )
-                );
-
-                // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
-                $response->setCallback(function () use ($handle) {
-                    while (!feof($handle)) {
-                        $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
-                        echo $buffer;
-                        flush();
-                    }
-                    fclose($handle);
-                });
-
-                // Delete the zip archive
-                unlink( $archive_filepath );
-
-                // Delete any non-public files
-                foreach ($non_public_files_to_delete as $num => $filename) {
-                    if ( file_exists($filename) )
-                        unlink( $filename );
-                }
-            }
-        }
-        catch (\Exception $e) {
-            // Ensure the zip archive is closed
-            if ($zip_archive != null)
-                $zip_archive->close();
-            // Ensure the zip archive doesn't exist on the server
-            if ( $archive_filepath != null && file_exists($archive_filepath) )
-                unlink($archive_filepath);
-
-            // Delete any non-public files
-            foreach ($non_public_files_to_delete as $num => $filename) {
-                if ( file_exists($filename) )
-                    unlink( $filename );
-            }
-
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x4148561: ' . $e->getMessage();
-        }
-
-        if ($return['r'] !== 0) {
-            // If error encountered, do a json return
-            $response = new Response(json_encode($return));
-            $response->headers->set('Content-Type', 'application/json');
-            return $response;
-        }
-        else {
-            // Return the previously created response
-            return $response;
-        }
     }
 
 
@@ -1456,48 +1227,66 @@ print_r($post);  exit();
             // Ensure user has permissions to be doing this
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            // Grab the user's permission list
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-            $datatype_permissions = $user_permissions['datatypes'];
-            $datafield_permissions = $user_permissions['datafields'];
 
-            $can_view_grandparent_datatype = false;
-            if ( isset($datatype_permissions[ $grandparent_datatype->getId() ]) && isset($datatype_permissions[ $grandparent_datatype->getId() ][ 'dt_view' ]) )
-                $can_view_grandparent_datatype = true;
+            $user_permissions = array();
 
-            $can_view_grandparent_datarecord = false;
-            if ( isset($datatype_permissions[ $grandparent_datatype->getId() ]) && isset($datatype_permissions[ $grandparent_datatype->getId() ][ 'dr_view' ]) )
-                $can_view_grandparent_datarecord = true;
+            if ($user === 'anon.') {
+                if ( !$grandparent_datatype->isPublic() || !$grandparent_datarecord->isPublic() )
+                    return parent::permissionDeniedError();
 
-            // If grandparent datatype is not public and user doesn't have permissions to view anything other than public sections of the grandparent datarecord, then don't allow them to view
-            if ( !($grandparent_datatype->isPublic() || $can_view_grandparent_datatype)  || !($grandparent_datarecord->isPublic() || $can_view_grandparent_datarecord) )
-                return parent::permissionDeniedError();
+                // Check permissions on the specified datarecord if it exists
+                if ( $datarecord != null && !$datarecord->isPublic() )
+                    return parent::permissionDeniedError();
 
-
-            // Check permissions on the specified datarecord if it exists
-            if ($datarecord != null) {
-                $can_view_datatype = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $can_view_datatype = true;
-
-                $can_view_datarecord = false;
-                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
-                    $can_view_datarecord = true;
-
-                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the grandparent datarecord, then don't allow them to view
-                if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) )
+                // Check permissions on the specified datafield if it exists
+                if ( $datafield != null && !$datafield->isPublic() )
                     return parent::permissionDeniedError();
             }
+            else {
+                // Grab the user's permission list
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+                $datatype_permissions = $user_permissions['datatypes'];
+                $datafield_permissions = $user_permissions['datafields'];
 
-            // Check permissions on the specified datafield if it exists
-            if ($datafield != null) {
-                $can_view_datafield = false;
-                if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ]['view']) )
-                    $can_view_datafield = true;
+                $can_view_grandparent_datatype = false;
+                if ( isset($datatype_permissions[ $grandparent_datatype->getId() ]) && isset($datatype_permissions[ $grandparent_datatype->getId() ][ 'dt_view' ]) )
+                    $can_view_grandparent_datatype = true;
 
-                if ( !($datafield->isPublic() || $can_view_datafield) )
+                $can_view_grandparent_datarecord = false;
+                if ( isset($datatype_permissions[ $grandparent_datatype->getId() ]) && isset($datatype_permissions[ $grandparent_datatype->getId() ][ 'dr_view' ]) )
+                    $can_view_grandparent_datarecord = true;
+
+                // If grandparent datatype is not public and user doesn't have permissions to view anything other than public sections of the grandparent datarecord, then don't allow them to view
+                if ( !($grandparent_datatype->isPublic() || $can_view_grandparent_datatype)  || !($grandparent_datarecord->isPublic() || $can_view_grandparent_datarecord) )
                     return parent::permissionDeniedError();
+
+
+                // Check permissions on the specified datarecord if it exists
+                if ($datarecord != null) {
+                    $can_view_datatype = false;
+                    if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
+                        $can_view_datatype = true;
+
+                    $can_view_datarecord = false;
+                    if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                        $can_view_datarecord = true;
+
+                    // If datatype is not public and user doesn't have permissions to view anything other than public sections of the grandparent datarecord, then don't allow them to view
+                    if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) )
+                        return parent::permissionDeniedError();
+                }
+
+                // Check permissions on the specified datafield if it exists
+                if ($datafield != null) {
+                    $can_view_datafield = false;
+                    if ( isset($datafield_permissions[ $datafield->getId() ]) && isset($datafield_permissions[ $datafield->getId() ]['view']) )
+                        $can_view_datafield = true;
+
+                    if ( !($datafield->isPublic() || $can_view_datafield) )
+                        return parent::permissionDeniedError();
+                }
             }
+
             // ----------------------------------------
 
 
@@ -1564,7 +1353,7 @@ print_r($post);  exit();
             $datatype_ids = array();
             foreach ($datarecord_array as $dr_id => $dr) {
                 foreach ($dr['dataRecordFields'] as $df_id => $drf) {
-                    if ( count($drf['file']) == 0 && count($drf['image']) == 0 )
+                    if ( count($drf['file']) == 0 /*&& count($drf['image']) == 0*/ )    // TODO - download images in zip too?
                         unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
                     else {
                         $datafield_ids[] = $df_id;
@@ -1694,5 +1483,348 @@ print_r($post);  exit();
         else
             // Otherwise, return the (probably) modified version of the datarecord entry
             return $dr_array[$datarecord_id];
+    }
+
+
+    /**
+     * Assuming the user has the correct permissions, adds each file from this datarecord/datafield pair into a zip
+     * archive and returns that zip archive for download.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function startdownloadarchiveAction($grandparent_datarecord_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            $post = $_POST;
+//print_r($post);  exit();
+
+            $file_ids = array();
+            if ( isset($post['files']) )
+                $file_ids = $post['files'];
+
+            $image_ids = array();
+            if ( isset($post['images']) )
+                $image_ids = $post['images'];
+
+
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+
+            /** @var DataRecord $grandparent_datarecord */
+            $grandparent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($grandparent_datarecord_id);
+            if ($grandparent_datarecord == null)
+                return parent::deletedEntityError('DataRecord');
+
+            $grandparent_datatype = $grandparent_datarecord->getDataType();
+            if ($grandparent_datatype->getDeletedAt() != null)
+                return parent::deletedEntityError('DataType');
+
+
+            // ----------------------------------------
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = array();
+
+            if ($user === 'anon.') {
+                // No permissions for an anonymous user...
+            }
+            else {
+                $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+
+                // Don't need to check whether user has permissions to view grandparent datarecord/datatype...the filter will take care of that
+            }
+            // ----------------------------------------
+
+
+            // ----------------------------------------
+            // Always bypass cache if in dev mode?
+            $bypass_cache = false;
+//            if ($this->container->getParameter('kernel.environment') === 'dev')
+//                $bypass_cache = true;
+
+
+            // Grab all datarecords "associated" with the desired datarecord...
+            $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId())));
+            if ($bypass_cache || $associated_datarecords == false) {
+                $associated_datarecords = parent::getAssociatedDatarecords($em, array($grandparent_datarecord->getId()));
+
+                $redis->set($redis_prefix.'.associated_datarecords_for_'.$grandparent_datarecord->getId(), gzcompress(serialize($associated_datarecords)));
+            }
+
+
+            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
+            $datarecord_array = array();
+            foreach ($associated_datarecords as $num => $dr_id) {
+                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
+                if ($bypass_cache || $datarecord_data == false)
+                    $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
+
+                foreach ($datarecord_data as $dr_id => $data)
+                    $datarecord_array[$dr_id] = $data;
+            }
+
+
+            // ----------------------------------------
+            //
+            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+
+            // Grab all datatypes associated with the desired datarecord
+            // NOTE - not using parent::getAssociatedDatatypes() here on purpose...that would always return child/linked datatypes for the datatype even if this datarecord isn't making use of them
+            $associated_datatypes = array();
+            foreach ($datarecord_array as $dr_id => $dr) {
+                $dt_id = $dr['dataType']['id'];
+
+                if ( !in_array($dt_id, $associated_datatypes) )
+                    $associated_datatypes[] = $dt_id;
+            }
+
+
+            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+            $datatype_array = array();
+            foreach ($associated_datatypes as $num => $dt_id) {
+                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
+                if ($bypass_cache || $datatype_data == false)
+                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
+
+                foreach ($datatype_data as $dt_id => $data)
+                    $datatype_array[$dt_id] = $data;
+            }
+
+            // ----------------------------------------
+            // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
+            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+
+            // Intersect the array of desired file/image ids with the array of permitted files/ids to determine which files/images to add to the zip archive
+            $file_list = array();
+            $filename_list = array();
+
+            $image_list = array();
+            $imagename_list = array();
+            foreach ($datarecord_array as $dr_id => $dr) {
+                foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
+                    if ( count($drf['file']) > 0 ) {
+                        foreach ($drf['file'] as $f_num => $f) {
+                            if ( in_array($f['id'], $file_ids) ) {
+                                // Store by original checksum so multiples of the same file only get decrypted/stored once
+                                $original_checksum = $f['original_checksum'];
+                                $file_list[$original_checksum] = $f;
+
+                                // Also store the file's name to detect different files with the same filename
+                                $filename = $f['fileMeta']['originalFileName'];
+                                $filename_list[$original_checksum] = $filename;
+                            }
+                        }
+                    }
+/*
+                    // TODO - download images in a zip archive?
+                    else if ( count($drf['image']) > 0 ) {
+                        foreach ($drf['image'] as $i_num => $i) {
+                            if ( in_array($i['parent']['id'], $image_ids) ) {
+                                // Store by original checksum so multiples of the same image only get decrypted once
+                                //$original_checksum = $i['original_checksum'];
+                                //$image_list[$original_checksum] = $i;
+                            }
+                        }
+                    }
+*/
+                }
+            }
+
+
+            // If needed, tweak the file list so different files that have the same filename on the server have different filenames in the zip archive
+            asort($filename_list);
+            $prev_filename = '';
+            $num = 2;
+            foreach($filename_list as $file_checksum => $filename) {
+                if ($filename == $prev_filename) {
+                    // This filename maches the previous one...insert a numerical string in this filename to differentiate between the two
+                    $file_ext = $file_list[$file_checksum]['ext'];
+                    $tmp_filename = substr($filename, 0, strlen($filename)-strlen($file_ext)-1);
+                    $tmp_filename .= ' ('.$num.').'.$file_ext;
+                    $num++;
+
+                    // Save the new filename back in the array
+                    $file_list[$file_checksum]['fileMeta']['originalFileName'] = $tmp_filename;
+                }
+                else {
+                    // This filename is different from the previous one, reset for next potential indentical filename
+                    $prev_filename = $filename;
+                    $num = 2;
+                }
+            }
+
+            // TODO - do the same for image names?
+/*
+print '<pre>'.print_r($file_list, true).'</pre>';
+print '<pre>'.print_r($image_list, true).'</pre>';
+exit();
+*/
+            // ----------------------------------------
+            // If any files/images remain...
+            if ( count($file_list) == 0 && count($image_list) == 0 ) {
+                // TODO - what to return?
+                throw new \Exception('Nothing to download?');
+            }
+            else {
+                // Generate the url for cURL to use
+                $pheanstalk = $this->get('pheanstalk');
+                $router = $this->container->get('router');
+                $url = $this->container->getParameter('site_baseurl');
+                $url .= $router->generate('odr_crypto_request');
+
+                $api_key = $this->container->getParameter('beanstalk_api_key');
+
+
+                // Create a filename for the zip archive
+                $tokenGenerator = $this->get('fos_user.util.token_generator');
+                $random_id = substr($tokenGenerator->generateToken(), 0, 12);
+
+                $archive_filename = $random_id.'.zip';
+                $archive_filepath = dirname(__FILE__).'/../../../../web/uploads/files/'.$archive_filename;
+
+                $archive_size = count($file_list) + count($image_list);
+
+                foreach ($file_list as $f_checksum => $file) {
+                    // Determine the decrypted filename
+                    $desired_filename = $file['fileMeta']['originalFileName'];
+
+                    $target_filename = '';
+                    if ( $file['fileMeta']['publicDate']->format('Y-m-d') == '2200-01-01' ) {
+                        // non-public files need to be decrypted to something difficult to guess
+                        $target_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.$user->getId());
+                        $target_filename .= '.'.$file['ext'];
+                    }
+                    else {
+                        // public files need to be decrypted to this format
+                        $target_filename = 'File_'.$file['id'].'.'.$file['ext'];
+                    }
+
+                    // Schedule a beanstalk job to start decrypting the file
+                    $priority = 1024;   // should be roughly default priority
+                    $payload = json_encode(
+                        array(
+                            "object_type" => 'File',
+                            "object_id" => $file['id'],
+                            "target_filename" => $target_filename,
+                            "crypto_type" => 'decrypt',
+
+                            "archive_filepath" => $archive_filepath,
+                            "desired_filename" => $desired_filename,
+
+                            "redis_prefix" => $redis_prefix,    // debug purposes only
+                            "url" => $url,
+                            "api_key" => $api_key,
+                        )
+                    );
+
+                    $delay = 0;
+                    $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+                }
+            }
+
+            $return['d'] = array('archive_filename' => $archive_filename, 'archive_size' => $archive_size);
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x4148561: ' . $e->getMessage();
+        }
+
+        // If error encountered, do a json return
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     *
+     *
+     * @param string $archive_filename
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function downloadarchiveAction($archive_filename, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = 'html';
+        $return['d'] = '';
+
+        try {
+            // Can't really check permissions...
+
+            // Ensure zip archive exists before attempting to download it
+            if ($archive_filename == '0')
+                throw new \Exception('Invalid archive filename');
+
+            $archive_filepath = dirname(__FILE__).'/../../../../web/uploads/files/'.$archive_filename;
+            if ( !file_exists($archive_filepath) )
+                throw new \Exception('Invalid archive filename');
+
+            $handle = fopen($archive_filepath, 'r');
+            if ($handle === false)
+                throw new \Exception('Unable to open existing file at "'.$archive_filepath.'"');
+
+
+            // Set up a response to send the file back
+            $response = new StreamedResponse();
+            $response->setPrivate();
+            $response->headers->set('Content-Type', mime_content_type($archive_filepath));
+            $response->headers->set('Content-Length', filesize($archive_filepath));
+            $response->headers->set('Content-Disposition', 'attachment; filename="'.$archive_filename.'";');
+
+            // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
+            $response->headers->setCookie(
+                new Cookie(
+                    'fileDownload', // name
+                    'true',         // value
+                    0,              // duration set to 'session'
+                    '/',            // default path
+                    null,           // default domain
+                    false,          // don't require HTTPS
+                    false           // allow cookie to be accessed outside HTTP protocol
+                )
+            );
+
+            //$response->sendHeaders();
+
+            // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
+            $response->setCallback(function () use ($handle) {
+                while (!feof($handle)) {
+                    $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
+                    echo $buffer;
+                    flush();
+                }
+                fclose($handle);
+            });
+
+            // Delete the zip archive off the server
+            unlink($archive_filepath);
+
+            return $response;
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x848418123: ' . $e->getMessage();
+
+            // The jquery $.fileDownload() behaves better if an error is returned as the responseHTML...
+            $response = new Response($return['d']);
+            return $response;
+        }
     }
 }

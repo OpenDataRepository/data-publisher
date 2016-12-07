@@ -2955,6 +2955,10 @@ if ($debug)
                     "object_id" => $my_obj->getId(),
                     "target_filename" => '',
                     "crypto_type" => 'encrypt',
+
+                    "archive_filepath" => '',
+                    "desired_filename" => '',
+
                     "redis_prefix" => $redis_prefix,    // debug purposes only
                     "url" => $url,
                     "api_key" => $api_key,

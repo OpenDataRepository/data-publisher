@@ -903,6 +903,10 @@ class EditController extends ODRCustomController
                             "object_id" => $file_id,
                             "target_filename" => $target_filename,
                             "crypto_type" => 'decrypt',
+
+                            "archive_filepath" => '',
+                            "desired_filename" => '',
+
                             "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,

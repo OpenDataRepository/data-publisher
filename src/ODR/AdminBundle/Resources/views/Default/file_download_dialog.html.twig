@@ -6,7 +6,7 @@
             <div id="FileDownloadForm_loading" class="pure-u-1" style="font-weight:bold; text-align:center;">Loading...</div>
 
             <div style="max-height: 700px; overflow:auto;">
-                <form id="FileDownloadForm" method="POST" action="{{ path('odr_download_all_files') }}"></form>
+                <form id="FileDownloadForm" method="POST"></form>
             </div>
 
             <button id="FileDownloadForm_cancel" class="pure-button ODRCancelButton">Cancel</button>
@@ -168,8 +168,15 @@
             }
         });
 
-        var url = $("#FileDownloadForm").attr('action');
+        var id_data = $("#FileDownloadForm > ul").attr('id').split(/_/);
+        var grandparent_datarecord_id = id_data[1];
+
+        var url = '{{ path('odr_start_zip_archive_download', {'grandparent_datarecord_id': 0}) }}';
+        url = url.substring(0, (url.length-1));
+        url += grandparent_datarecord_id;
+
         var file_list = $("#FileDownloadForm").serialize();
+        $("#FileDownloadForm_submit").attr('disabled', 'disabled');
 
         $.ajax({
             type: 'POST',
@@ -177,13 +184,12 @@
             dataType: 'json',
             data: file_list,
             success: function(data, textStatus, jqXHR) {
+                var archive_filename = data.d.archive_filename;
+                var archive_size = data.d.archive_size;
 
+                createZipArchiveProgressCheck(archive_filename, archive_size);
             },
             complete: function(jqXHR, textStatus) {
-                $("#loading-overlay").fadeOut();
-                $("#loading").fadeOut();
-                $("#loading").html('<span>Loading...</span>');
-
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 

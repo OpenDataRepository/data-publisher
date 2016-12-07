@@ -739,14 +739,6 @@ odr_image_download:
     requirements:
         image_id:  \d+
 
-odr_download_all_files:
-    path:  /view/downloadallfiles
-    defaults: { _controller: ODRAdminBundle:Display:downloadallfiles }
-    methods: [ POST ]
-    requirements:
-        datarecord_id: \d+
-        datafield_id: \d+
-
 odr_get_file_list:
     path:  /view/file_list/{grandparent_datarecord_id}/{datarecord_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Display:listallfiles, datarecord_id: 0, datafield_id: 0 }
@@ -754,6 +746,19 @@ odr_get_file_list:
         grandparent_datarecord_id: \d+
         datarecord_id: \d+
         datafield_id: \d+
+
+odr_start_zip_archive_download:
+    path:  /view/start_archive_build/{grandparent_datarecord_id}
+    defaults: { _controller: ODRAdminBundle:Display:startdownloadarchive }
+    methods: [ POST ]
+    requirements:
+        grandparent_datarecord_id: \d+
+
+odr_download_zip_archive:
+    path:  /view/zip_archive_download/{archive_filename}
+    defaults: { _controller: ODRAdminBundle:Display:downloadarchive }
+    requirements:
+        archive_filename: 0|[0-9a-zA-Z\-\_]{12}.zip
 
 #-----------------------------------------
 
@@ -1171,6 +1176,12 @@ odr_get_file_encrypt_progress:
     defaults: { _controller: ODRAdminBundle:Reports:getfileencryptprogress }
     requirements:
         file_id: \d+
+
+odr_get_zip_archive_progress:
+    path:  /view/zip_archive_progress/{archive_filename}
+    defaults: { _controller: ODRAdminBundle:Reports:getziparchiveprogress }
+    requirements:
+        archive_filename: 0|[0-9a-zA-Z\-\_]{12}.zip
 
 #-----------------------------------------
 
