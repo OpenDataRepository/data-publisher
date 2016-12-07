@@ -985,7 +985,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // Check if this is a master template based datatype that is still
             // in the creation process.  If so, redirect to progress system.
-            if($datatype->getSetupStep() == "create") {
+            if($datatype->getSetupStep() == "create" && $datatype->getIsMasterType() == 0) {
                 // Return creating datatype template
                 $templating = $this->get('templating');
                 $return['t'] = "html";

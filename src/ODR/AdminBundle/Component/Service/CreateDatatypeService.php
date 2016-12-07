@@ -76,6 +76,8 @@ class CreateDatatypeService
      */
     private $logger;
 
+    private $user;
+    private $created_datatypes;
 
     /**
      * @var mixed
@@ -103,21 +105,17 @@ class CreateDatatypeService
     {
         try {
 
-            $bypass_cache = false;
-            $em = $this->em;
             $redis = $this->container->get('snc_redis.default');
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             $user_manager = $this->container->get('fos_user.user_manager');
-            $user = $user_manager->findUserBy(array('id' => $user_id));
+            $this->user = $user_manager->findUserBy(array('id' => $user_id));
 
-            print "test 1 - " . $datatype_id . "\n";
             $datatype_info_service = $this->container->get('odr.datatype_info_service');
 
             // Get the DataType to work with
             $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
             $datatype = $repo_datatype->find($datatype_id);
-            print "test 2\n";
 
             if($datatype == null) {
                 throw new \Exception("Datatype is null.");
@@ -135,36 +133,39 @@ class CreateDatatypeService
             // Get the Master Datatype to Clone
             $master_datatype = $datatype->getMasterDataType();
             $associated_datatypes = $datatype_info_service->getAssociatedDatatypes(array($master_datatype->getId()));
-            print "test 3\n";
 
             // Clone Associated Datatypes
+            $this->created_datatypes = array();
             foreach($associated_datatypes as $dt_id) {
                 $new_datatype = null;
                 $dt_master = null;
-                if($dt_id == $datatype->getId()) {
+                if($dt_id == $master_datatype->getId()) {
                     $new_datatype = $datatype;
                     $dt_master = $master_datatype;
-                    print "test 4a - " . $dt_id . " - " . $dt_master->getId() . "\n";
                 }
                 else {
                     $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
                     $dt_master = $repo_datatype->find($dt_id);
-                    print "test 4b - " . $dt_id . " - " . $dt_master->getId() . "\n";
                 }
 
                 self::cloneDatatype($dt_master, $new_datatype);
+                if($dt_id == $datatype->getId()) {
+                    $datatype = $new_datatype;
+                }
+
             }
 
+            // Clone Data Tree and Data Tree Meta
+            self::cloneDataTree($this->created_datatypes, $master_datatype);
+
             // Clone associated datatype themes
-            /*
-            foreach($associated_datatypes as $dt_id) {
-                $new_datatype = null;
-                if($dt_id == $datatype->getId()) {
-                    $new_datatype = $datatype;
-                }
-                self::cloneDatatype($master_datatype, $new_datatype);
+            foreach($this->created_datatypes as $datatype) {
+                self::cloneDatatypeTheme($datatype);
             }
-            */
+
+            // Save state change of data type
+            $datatype->setSetupStep('design');
+            self::persistObject($datatype);
 
             return "Clone datatype complete.";
         }
@@ -173,57 +174,108 @@ class CreateDatatypeService
         }
     }
 
-    protected function persistObject($obj) {
-        print "jjj\n";
+    protected function cloneDataTree($created_datatypes, Datatype $parent_datatype) {
+        $repo_dt = $this->em->getRepository('ODRAdminBundle:DataTree');
+        $dt_array = $repo_dt->findBy(
+            array(
+                'ancestor' => $parent_datatype->getId(),
+            )
+        );
+
+        $current_ancestor = null;
+        foreach($this->created_datatypes as $num => $datatype) {
+            if($datatype->getMasterDataType()->getId() == $parent_datatype->getId()) {
+                $current_ancestor = $datatype;
+            }
+        }
+
+        // We get the descendants
+        foreach($dt_array as $dt) {
+            foreach($created_datatypes as $datatype) {
+                if($dt->getDescendant()->getId() == $datatype->getMasterDataType()->getId()) {
+                    $new_dt = new DataTree();
+                    $new_dt->setAncestor($current_ancestor);
+                    $new_dt->setDescendant($datatype);
+                    self::persistObject($new_dt);
+
+                    // Clone meta
+                    $new_meta = clone $dt->getDataTreeMeta();
+                    $new_meta->setDataTree($new_dt);
+                    self::persistObject($new_meta);
+
+                    // Check children
+                    self::cloneDataTree($created_datatypes, $datatype->getMasterDataType());
+                }
+            }
+        }
+    }
+
+
+    protected function persistObject($obj, $update_user_info = false) {
+        if($update_user_info) {
+            if(method_exists($obj, "setCreatedBy")) {
+                $obj->setCreatedBy($this->user);
+            }
+            if(method_exists($obj, "setUpdatedBy")) {
+                $obj->setUpdatedBy($this->user);
+            }
+            if(method_exists($obj, "setCreated")) {
+                $obj->setCreated(time());
+            }
+            if(method_exists($obj, "setUpdated")) {
+                $obj->setUpdated(time());
+            }
+        }
         $this->em->persist($obj);
-        print "kkkjjj\n";
-        // $this->em->detach($obj);
-        print "nnnjjj\n";
         $this->em->flush();
-        print "llljjj\n";
         $this->em->refresh($obj);
     }
 
     protected function cloneDatatype(DataType $parent_datatype, DataType $new_datatype = null)
     {
 
-        print "test 5\n";
         if ($new_datatype == null) {
             // Clone the parent to create a new datatype
             $new_datatype = clone $parent_datatype;
         }
         $new_datatype->setIsMasterType(false);
         $new_datatype->setMasterDataType($parent_datatype);
-        print "id = " . $new_datatype->getId() . "\n";
-        print "test 5a\n";
         self::persistObject($new_datatype);
-        print "test 5b\n";
+        array_push($this->created_datatypes, $new_datatype);
 
-        print "test 6\n";
         $parent_meta = $parent_datatype->getDataTypeMeta();
+        // Meta might already exist - need to copy relevant fields and delete
+        $existing_meta = $new_datatype->getDataTypeMeta();
+
         $new_meta = clone $parent_meta;
+        if($existing_meta != null) {
+            $new_meta->setShortName($existing_meta->getShortName());
+            $new_meta->setSearchSlug($existing_meta->getSearchSlug());
+            $new_meta->setLongName($existing_meta->getLongName());
+            $new_meta->setDescription($existing_meta->getDescription());
+            // Delete Entity
+            $this->em->remove($existing_meta);
+            $this->em->flush();
+        }
         $new_meta->setDataType($new_datatype);
         $new_meta->setMasterRevision(0);
         $new_meta->setMasterPublishedRevision(0);
         // Track the published version
-        if($parent_datatype->getMasterPublishedRevision() == null) {
+        if($parent_datatype->getDataTypeMeta()->getMasterPublishedRevision() == null) {
             $new_meta->setTrackingMasterRevision(-100);
         }
         else {
-            $new_meta->setTrackingMasterRevision($parent_datatype->getMasterPublishedRevision());
+            $new_meta->setTrackingMasterRevision($parent_datatype->getDataTypeMeta()->getMasterPublishedRevision());
         }
-
 
         // Get Render Plugins
         //  LEFT JOIN dtm.renderPlugin AS dt_rp
         $parent_render_plugin = $parent_meta->getRenderPlugin();
         $new_render_plugin = clone $parent_render_plugin;
         self::persistObject($new_render_plugin);
-        print "test 7\n";
 
         $new_meta->setRenderPlugin($new_render_plugin);
         self::persistObject($new_meta);
-        print "test 8\n";
 
         // Process data fields so themes and render plugin map can be created
         $parent_df_array = $parent_datatype->getDataFields();
@@ -233,7 +285,6 @@ class CreateDatatypeService
             $new_df->setIsMasterField(false);
             $new_df->setMasterDatafield($parent_df);
             self::persistObject($new_df);
-            print "test 9\n";
 
             // Process Meta Records
             $parent_df_meta = $parent_df->getDataFieldMeta();
@@ -243,24 +294,56 @@ class CreateDatatypeService
             $new_df_meta->setMasterPublishedRevision(0);
             $new_df_meta->setTrackingMasterRevision($parent_df_meta->getMasterPublishedRevision());
             self::persistObject($new_df_meta);
-            print "test 10\n";
+
+            // Need to process Radio Options....
+            $parent_ro_array = $parent_df->getRadioOptions();
+            if(count($parent_ro_array) > 0) {
+                foreach($parent_ro_array as $parent_ro) {
+                    $new_ro = clone $parent_ro;
+                    $new_ro->setDataField($new_df);
+                    self::persistObject($new_ro);
+
+                    $parent_ro_meta = $parent_ro->getRadioOptionMeta();
+                    $new_ro_meta = clone $parent_ro_meta;
+                    $new_ro_meta->setRadioOption($new_ro);
+                    self::persistObject($new_ro_meta);
+                }
+            }
+
+            // Process field plugins
+            self::cloneRenderPluginSettings($parent_df->getRenderPlugin(), null, $new_df);
         }
 
-        // Get Field Render Plugins
+        // Now that fields are created, get Process Datatype Render Plugin.
+        self::cloneRenderPluginSettings($parent_datatype->getRenderPlugin(), $new_datatype);
+
+    }
+
+    protected function cloneRenderPluginSettings(RenderPlugin $parent_render_plugin, Datatype $datatype = null, DataFields $datafield = null) {
 
         //  LEFT JOIN dt_rp.renderPluginInstance AS dt_rpi WITH (dt_rpi.dataType = dt)
         $repo_rpi = $this->em->getRepository('ODRAdminBundle:RenderPluginInstance');
-        $parent_rpi = $repo_rpi->findOneBy(
-            array(
-                'dataType' => $parent_datatype->getId(),
-                'renderPlugin' => $parent_render_plugin->getId()
-            )
-        );
+        if($datatype != null) {
+            $parent_rpi = $repo_rpi->findOneBy(
+                array(
+                    'dataType' => $datatype->getId(),
+                    'renderPlugin' => $parent_render_plugin->getId()
+                )
+            );
+        }
+        else {
+            $parent_rpi = $repo_rpi->findOneBy(
+                array(
+                    'dataField' => $datafield->getId(),
+                    'renderPlugin' => $parent_render_plugin->getId()
+                )
+            );
+        }
+
         if($parent_rpi != null) {
             $new_rpi = clone $parent_rpi;
             $new_rpi->setDataType($new_datatype);
             self::persistObject($new_rpi);
-            print "test 11\n";
 
             //  LEFT JOIN dt_rpi.renderPluginOptions AS dt_rpo
             $parent_rpo_array = $parent_rpi->getRenderPluginOptions();
@@ -268,27 +351,73 @@ class CreateDatatypeService
                 $new_rpo = clone $parent_rpo;
                 $new_rpo->setRenderPluginInstance($new_rpi);
                 self::persistObject($new_rpo);
-                print "test 12\n";
+            }
+
+            //  LEFT JOIN dt_rpi.renderPluginMap AS dt_rpm
+            $parent_rpm_array = $parent_rpi->getRenderPluginMap();
+            foreach ($parent_rpm_array as $parent_rpm) {
+                $new_rpm = clone $parent_rpm;
+                $new_rpm->setRenderPluginInstance($new_rpi);
+                if($datatype != null) {
+                    $new_rpm->setDataType($datatype);
+                }
+                else {
+                    $datatype = $datafield->getDataType();
+                }
+                $repo_df = $this->em->getRepository('ODRAdminBundle:DataFields');
+                $matching_df = $repo_df->findOneBy(
+                    array(
+                        'dataType' => $datatype->getId(),
+                        'masterDatafield' => $parent_rpm->getDataField()
+                    )
+                );
+                $new_rpm->setDataField($matching_df);
+
+                self::persistObject($new_rpm);
             }
         }
     }
 
-    protected function cloneDatatypeTheme(DataType $parent_datatype, DataType $new_datatype = null) {
+    protected function cloneDatatypeTheme(DataType $datatype) {
         // Get Themes
+        $parent_datatype = $datatype->getMasterDataType();
         $repo_theme = $this->em->getRepository('ODRAdminBundle:Theme');
         $parent_theme = $repo_theme->findOneBy(
             array(
-                'data_type' => $parent_datatype->getId(),
-                'theme_type' => 'master'
+                'dataType' => $parent_datatype->getId(),
+                'themeType' => 'master'
             )
         );
+
+        $repo_theme = $this->em->getRepository('ODRAdminBundle:Theme');
+        $datatype_theme = $repo_theme->findOneBy(
+            array(
+                'dataType' => $datatype->getId(),
+                'themeType' => 'master'
+            )
+        );
+
+        // Need to delete any existing theme
+        if($datatype_theme != null) {
+            $this->em->remove($datatype_theme);
+            $this->em->flush();
+        }
+
         $new_theme = clone $parent_theme;
-        $new_theme->setDataType($new_datatype);
+        $new_theme->setDataType($datatype);
         self::persistObject($new_theme);
+
+        // Theme Meta
+        $new_theme_meta = clone $parent_theme->getThemeMeta();
+        $new_theme_meta->setTheme($new_theme);
+        self::persistObject($new_theme_meta);
+
+        // Get the DataFields
+        $datafields = $datatype->getDataFields();
 
         // Get Theme Elements
         $parent_te_array = $parent_theme->getThemeElements();
-        foreach($parent_te_array as $parent_te) {
+        foreach($parent_te_array as  $parent_te) {
             $new_te = clone $parent_te;
             $new_te->setTheme($new_theme);
             self::persistObject($new_te);
@@ -298,11 +427,34 @@ class CreateDatatypeService
             $new_te_meta = clone $parent_te_meta;
             $new_te_meta->setThemeElement($new_te);
             self::persistObject($new_te_meta);
+
+            // Theme Data Field - possibly not used
+            $parent_theme_df_array = $parent_te->getThemeDataFields();
+            foreach($parent_theme_df_array as $parent_tdf) {
+                $new_tdf = clone $parent_tdf;
+                $new_tdf->setThemeElement($new_te);
+                foreach($datafields as $datafield) {
+                    if($datafield->getMasterDataField()->getId() == $parent_tdf->getDataField()->getId()) {
+                        $new_tdf->setDataField($datafield);
+                        self::persistObject($new_tdf);
+                        break;
+                    }
+                }
+            }
+
+            // Theme Data Type - possibly not used
+            $parent_theme_dt_array = $parent_te->getThemeDataType();
+            foreach($parent_theme_dt_array as $parent_tdt) {
+                $new_tdt = clone $parent_tdt;
+                $new_tdt->setThemeElement($new_te);
+                foreach($this->created_datatypes as $created_datatype) {
+                    if($created_datatype->getMasterDataType()->getId() == $parent_tdt->getDataType()->getId()) {
+                        $new_tdt->setDataType($created_datatype);
+                        self::persistObject($new_tdt);
+                    }
+                }
+            }
         }
 
-        //  Need to do these after creating fields?
-        //  LEFT JOIN dt_rpi.renderPluginMap AS dt_rpm
-        //  LEFT JOIN dt_rpm.renderPluginFields AS dt_rpf
-        //  LEFT JOIN dt_rpm.dataField AS dt_rpm_df
     }
 }
