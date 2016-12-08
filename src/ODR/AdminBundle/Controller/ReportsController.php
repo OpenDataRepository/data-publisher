@@ -1138,4 +1138,50 @@ print_r($grandparent_list);
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
+
+
+    /**
+     * Reports on the progress of building a zip archive...
+     *
+     * @param string $archive_filename
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function getziparchiveprogressAction($archive_filename, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Can't really test permissions...
+
+            // Ensure zip archive exists first
+            if ($archive_filename == '0')
+                throw new \Exception('Invalid archive filename');
+
+            $archive_filepath = dirname(__FILE__).'/../../../../web/uploads/files/'.$archive_filename;
+            if ( !file_exists($archive_filepath) )
+                throw new \Exception('Invalid archive filename');
+
+            // Load the number of files currently in the archive
+            $zip_archive = new \ZipArchive();
+            $zip_archive->open($archive_filepath, \ZipArchive::CREATE);
+
+            $archive_filecount = $zip_archive->numFiles;
+
+            $return['d'] = array('archive_filecount' => $archive_filecount);
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x15523361 '. $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
 }

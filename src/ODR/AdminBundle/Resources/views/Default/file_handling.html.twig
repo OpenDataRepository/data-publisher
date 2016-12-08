@@ -298,5 +298,78 @@
             }
         });
     }
+
+    var zip_archive_timeouts = {};
+    function createZipArchiveProgressCheck(archive_filename, archive_size) {
+        // Ensure that at most a single timeout is running for a given zip archive at any given time
+        if ( zip_archive_timeouts[ archive_filename ] == null || zip_archive_timeouts[ archive_filename ] == undefined ) {
+            zip_archive_timeouts[ archive_filename ] = 1;
+            window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "');", decrypt_check_timeout );
+        }
+    }
+
+    function checkZipArchiveProgress(archive_filename, archive_size) {
+        // Get progress of zip archive from server
+        var url = "{{ path('odr_get_zip_archive_progress', {'archive_filename': 0}) }}";
+        url = url.substr(0, url.length-1);
+        url += archive_filename;
+
+        archive_size = parseInt(archive_size);
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data, textStatus, jqXHR) {
+                // If some sort of error returned from server...
+                if (data != undefined && data.r == 1) {
+                    zip_archive_timeouts[ archive_filename ] = null;
+                    alert( data.d );
+                    return;
+                }
+
+                var archive_filecount = parseInt(data.d.archive_filecount);
+
+                var download_url = "{{ path('odr_download_zip_archive', {'archive_filename': 0}) }}";
+                download_url = download_url.substr(0, download_url.length-1);
+                download_url += archive_filename;
+
+                if ( archive_size == archive_filecount ) {
+                    var download = $.fileDownload(download_url, {
+                        prepareCallback: function(url) {
+
+                        },
+                        successCallback: function (url) {
+                            // File is finished
+                            zip_archive_timeouts[ archive_filename ] = null;
+                        },
+                        failCallback: function (responseHtml, url, error) {
+                            // Something went wrong...
+                            zip_archive_timeouts[ archive_filename ] = null;
+
+                            alert(responseHtml);
+                        }
+                    });
+                }
+                else {
+                    window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "');", decrypt_check_timeout );
+                }
+            },
+            complete: function (jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
 </script>
 {% endspaceless %}

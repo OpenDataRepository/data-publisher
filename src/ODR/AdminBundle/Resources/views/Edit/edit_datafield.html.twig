@@ -82,73 +82,26 @@
 
     {% elseif field_typename == "File" %}
         {% set has_file = false %}
+        {% if valuefield|length > 0 %}
+            {% set has_file = true %}
+        {% endif %}
 
         {#<fieldset>#}
-            <div class="ODRFileDatafield_header pure-u-1">
-                <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
-                <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
-            </div>
-        {% for file in valuefield %}
-            <div id="File_{{ file.id }}" class="ODRFileDatafield_file pure-u-1">
-                <span class="ODRFileSpacer {% if file.fileMeta.publicDate|is_public %}ODRFileSpacer_public{% else %}ODRFileSpacer_nonpublic{% endif %}">&nbsp;</span>
+        <div class="ODRFileDatafield">
+            {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {'files': valuefield, 'datafield': datafield, 'datarecord': datarecord} %}
+        </div>
 
-                <span class="ODRTruncateFilename">
-                    {% set filename = file.fileMeta.originalFileName %}
-                    {% if file.fileMeta.originalFileName == null %}
-                        {% set filename = 'File_' ~ file.id ~ '.' ~ file.ext %}
-                    {% endif %}
-
-                    <span class="ODRFileInfoDiv">
-                        <i class="fa fa-lg fa-info-circle"></i>
-                        <span class="ODRFileInfo">
-                            <div>
-                                <i class="fa fa-globe ODRPublicFile Pointer" rel="{{ file.id }}"></i>&nbsp;
-                                <span>{% if not file.fileMeta.publicDate|is_public %}File is not public{% else %}File was made public on {{ file.fileMeta.publicDate|date('Y-m-d') }}{% endif %}</span>
-                            </div>
-                            <div>
-                                <i class="fa fa-calendar"></i>&nbsp;
-                                <span>Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy|user_string }}</span>
-                            </div>
-                            <div>
-                                <i class="fa fa-trash-o ODRDeleteFile Pointer" rel="{{ file.id }}"></i>&nbsp;
-                                <span>Delete File</span>
-                            </div>
-                            <div>
-                                <i class="fa fa-file-o"></i>&nbsp;
-                                <span>{{ file.filesize|filesize }}</span>
-                            </div>
-                        </span>
-                    </span>
-                    <a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="ODRFileDownload" title="{{ filename }}" rel="{{ file.id }}">{{ filename }}</a>
-                </span>
-
-                <span id="ODRFileDecrypt_{{ file.id }}_overlay" class="ODRFakeProgressBar_overlay" {% if file.original_checksum != '' %}style="visibility:hidden;"{% endif %}>
-                    <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRFakeProgressBar"></span>
-                </span>
-
-                {% if file.provisioned == true %}
-                <script>
-                    $(function() {
-                        createFileEncryptProgressCheck({{ file.id }}, {{ datarecord.id }}, {{ datafield.id }});
-                    });
-                </script>
-                {% endif %}
-            </div>
-        {% endfor %}
-
-            <div class="pure-u-1">
-            {% if datafield.dataFieldMeta.allow_multiple_uploads == 1 or has_file == false %}
-                {# show upload area only if multiples are allowed or nothing has been uploaded yet #}
-                {% set target = 'drf_' ~ datarecord.id ~ '_' ~ datafield.id %}
-                {% set single_file = true %}
-                {% if datafield.dataFieldMeta.allow_multiple_uploads == 1 %}
-                    {% set single_file = false %}
-                {% endif %}
-                {% set callback = 'ReloadDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
-
-                {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'file', 'datatype_id': datatype.id, 'datarecord_id': datarecord.id, 'datafield_id': datafield.id, 'callback': callback} %}
+        <div class="pure-u-1" {% if datafield.dataFieldMeta.allow_multiple_uploads == 0 and has_file == true %}style="display: none;"{% endif %}>
+            {# show upload area only if multiples are allowed or nothing has been uploaded yet #}
+            {% set target = 'drf_' ~ datarecord.id ~ '_' ~ datafield.id %}
+            {% set single_file = true %}
+            {% if datafield.dataFieldMeta.allow_multiple_uploads == 1 %}
+                {% set single_file = false %}
             {% endif %}
-            </div>
+            {% set callback = 'ReloadFileDatafield(' ~ datarecord.id ~ ',' ~ datafield.id ~ ');' %}
+
+            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {'target': target, 'single_file': single_file, 'upload_type': 'file', 'datatype_id': datatype.id, 'datarecord_id': datarecord.id, 'datafield_id': datafield.id, 'callback': callback} %}
+        </div>
         {#</fieldset>#}
 
     {% elseif field_typename == "Image" %}

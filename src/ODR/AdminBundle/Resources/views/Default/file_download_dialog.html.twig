@@ -10,7 +10,7 @@
             </div>
 
             <button id="FileDownloadForm_cancel" class="pure-button ODRCancelButton">Cancel</button>
-            <button id="FileDownloadForm_submit" class="pure-button pure-button-primary ODRSubmitButton">Download Selected Files</button>
+            <button id="FileDownloadForm_submit" class="pure-button pure-button-primary ODRSubmitButton" disabled>Download Selected Files</button>
         </div>
     </div>
     <!--  End of File Download Dialog -->
@@ -25,15 +25,13 @@
             width: 900,
             open: function() {
                 $(this).parent().css('overflow', 'visible');
-
-                // Load files/image selector into the form
-                locateFileIds();
             }
         });
         $(dialog_form).find('.ODRSubmitButton').click(function() {
             var $el = $(this).parents('.ui-dialog-content');
 
             // Create/send a POST request of file ids
+            submitForm();
 
             $el.find('form')[0].reset();
             $el.dialog('close');
@@ -46,16 +44,15 @@
         });
     });
 
-    function locateFileIds() {
+    function locateFileIds(grandparent_datarecord_id, datarecord_id, datafield_id) {
         $("#FileDownloadForm").html('');
         $("#FileDownloadForm_loading").show();
 
-        var id_data = $("#content > .ODRFormWrap > .ODRDataType > .ODRFormAccordion > .ODRFieldArea").attr('id').split(/_/);
-        var datarecord_id = id_data[1];
-
-        var url = '{{ path('odr_get_file_list', {'datarecord_id': 0}) }}';
+        var url = '{{ path('odr_get_file_list', {'grandparent_datarecord_id': 0}) }}';
         url = url.substring(0, (url.length-1));
-        url += datarecord_id;
+        url += grandparent_datarecord_id;
+        if (datarecord_id != 0 || datafield_id != 0)
+            url += '/' + datarecord_id + '/' + datafield_id;
 
         $.ajax({
             cache: false,
@@ -68,6 +65,7 @@
                     $("#FileDownloadForm").html( data.d );
 
                     $("#dialog_file_downloads").dialog({ position: { my: "center", at: "center", of: window } });
+                    initForm(datarecord_id, datafield_id);
                 }
                 else {
                     alert(data.d);
@@ -84,6 +82,124 @@
 
                     // Load the data of the given xdebug token into the current toolbar wrapper
                     Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    function initForm(target_datarecord_id, target_datafield_id) {
+        $(".ODRTristateCheckbox").unbind('click').click(function() {
+            var icon_div = $(this).children('.fa').first();
+
+            if ( $(this).hasClass('binary') ) {
+                // This is a file/image-level checkbox
+                if ( $(icon_div).hasClass('fa-check') ) {
+                    // File/image currently selected, mark as unselected
+                    $(icon_div).removeClass('fa-check');
+                }
+                else {
+                    // File/image currently unselected, mark as selected
+                    $(icon_div).addClass('fa-check');
+                }
+            }
+            else {
+                // This is a datafield/datarecord/datatype-level checkbox
+                if ( $(icon_div).hasClass('fa-check') ) {
+                    if ( $(icon_div).hasClass('partial') ) {
+                        // Currently has some descendants selected...select all descendants
+                        $(this).parent().find('.ODRTristateCheckbox .fa').addClass('fa-check').removeClass('partial');
+                    }
+                    else {
+                        // Currently has all descendants selected...deselect all descendants
+                        $(this).parent().find('.ODRTristateCheckbox .fa').removeClass('fa-check partial');
+                    }
+                }
+                else {
+                    // Currently has no descendants selected...Select all descendants
+                    $(this).parent().find('.ODRTristateCheckbox .fa').addClass('fa-check').removeClass('partial');
+                }
+            }
+
+            // Update classes for parent elements
+            applyToParents( $(this) );
+
+            // If no files/images selected for download, disable the submit button
+            if ( $("#FileDownloadForm").find('.fa.fa-check').length > 0 )
+                $("#FileDownloadForm_submit").removeAttr('disabled');
+            else
+                $("#FileDownloadForm_submit").attr('disabled', 'disabled');
+        });
+
+        if (target_datarecord_id != 0 && target_datafield_id != 0) {
+            $("#FileList_" + target_datarecord_id + "_" + target_datafield_id + " > .ODRTristateCheckbox").trigger('click');
+        }
+    }
+
+    function applyToParents(source_element) {
+        var parent_list_element = $(source_element).parent().parent().parent().not('form');
+        if (parent_list_element.length == 0)
+            return;
+
+        var parent_checkbox_element = $(parent_list_element).children('.ODRTristateCheckbox').first();
+
+        var selected_count = $(parent_list_element).children('ul').find('.fa-check').length;
+        var total_count = $(parent_list_element).children('ul').find('.fa').length;
+
+        if (selected_count == 0) {
+            // No children selected, so this one should be unselected too
+            $(parent_checkbox_element).children('i').removeClass('fa-check partial');
+        }
+        else if (selected_count == total_count) {
+            // All children selected, so this one should be selected too
+            $(parent_checkbox_element).children('i').addClass('fa-check').removeClass('partial');
+        }
+        else {
+            // Some children selected, so this one should be partially selected
+            $(parent_checkbox_element).children('i').addClass('fa-check partial');
+        }
+
+        applyToParents(parent_checkbox_element);
+    }
+
+    function submitForm() {
+        $("#FileDownloadForm").find('.binary').each(function() {
+            if ( $(this).children('.fa').first().hasClass('fa-check') ) {
+                $(this).children('input').removeProp('disabled');
+            }
+        });
+
+        var id_data = $("#FileDownloadForm > ul").attr('id').split(/_/);
+        var grandparent_datarecord_id = id_data[1];
+
+        var url = '{{ path('odr_start_zip_archive_download', {'grandparent_datarecord_id': 0}) }}';
+        url = url.substring(0, (url.length-1));
+        url += grandparent_datarecord_id;
+
+        var file_list = $("#FileDownloadForm").serialize();
+        $("#FileDownloadForm_submit").attr('disabled', 'disabled');
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            dataType: 'json',
+            data: file_list,
+            success: function(data, textStatus, jqXHR) {
+                var archive_filename = data.d.archive_filename;
+                var archive_size = data.d.archive_size;
+
+                createZipArchiveProgressCheck(archive_filename, archive_size);
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                 }
             }
         });

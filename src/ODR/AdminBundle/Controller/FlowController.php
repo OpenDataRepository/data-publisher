@@ -25,6 +25,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\DataType;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
@@ -125,23 +126,19 @@ class FlowController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // uploads to file/image datafields MUST have datarecord/datafield ids
+            if ( ($upload_type == 'file' || $upload_type == 'image') && ($datarecord_id == 0 || $datafield_id == 0) )
+                return self::flowAbort('Invalid parameters');
+
+            // everyt other kind of upload MUST NOT have datarecord/datafield ids
+            if ( !($upload_type == 'file' || $upload_type == 'image') && ($datarecord_id != 0 || $datafield_id != 0) )
+                return self::flowAbort('Invalid parameters');
+
+
+            /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
                 return self::flowAbort('Datatype does not exist');
-
-            // Ensure datatype exists
-            $query = $em->createQuery(
-               'SELECT dt.id
-                FROM ODRAdminBundle:DataType AS dt
-                WHERE dt.id = :datatype
-                AND dt.deletedAt IS NULL'
-            )->setParameters( array('datatype' => $datatype_id) );
-            $result = $query->getArrayResult();
-
-            if ( !isset($result[0]) ) {
-                // Datatype doesn't exist
-                return self::flowAbort('DataType does not exist');
-            }
 
             // If datarecordfield is specified, ensure it exists
             $datarecord = null;
@@ -198,6 +195,21 @@ class FlowController extends ODRCustomController
 
                 if ( !$can_edit_datafield )
                     return self::flowAbort('Not allowed to edit this Datafield');
+
+                // If user is trying to upload to a datafield that only allows a single file/image to be uploaded...
+                if ( !$datafield->getAllowMultipleUploads() ) {
+                    // ...ensure the datafield doesn't already have a file/image uploaded
+                    if ($upload_type == 'file') {
+                        $files = $em->getRepository('ODRAdminBundle:File')->findBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId()) );
+                        if ( count($files) > 0 )
+                            return self::flowAbort('This Datafield already has a file uploaded to it');
+                    }
+                    else if ($upload_type == 'image') {
+                        $images = $em->getRepository('ODRAdminBundle:Image')->findBy( array('dataRecord' => $datarecord->getId(), 'dataField' => $datafield->getId(), 'original' => 1) );
+                        if ( count($images) > 0 )
+                            return self::flowAbort('This Datafield already has an image uploaded to it');
+                    }
+                }
             }
 
 

@@ -2,7 +2,7 @@
 
 <script>
     // Called by a flow.js instance when a file is slated for upload
-    function ODRFileUpload_filesAdded(files, event, target) {
+    function ODRFileUpload_filesAdded(files, event, target, upload_type) {
         // Hide any current progress bars
         //$("#ODRFileUploadProgress_" + target).html('');
 
@@ -12,32 +12,49 @@
             var filename = file.name;
             var filesize = file.size;
 
-            var html = '<div class="pure-u-1 ODRFileUploadProgressDiv" id="' + id + '"><span class="pure-u-1">' + filename + '</span><span class="pure-u-1 ODRProgressBar" value="0" max="' + filesize + '"></span><span class="ODRFileUploadCancel pure-u-1-4 cancel-button pure-button">Cancel</span><span class="pure-u-3-4 ODRUploadError"></span></div>';
-            $("#ODRFileUploadProgress_" + target).append(html);
+            if (upload_type == 'file') {
+                var html =
+                    '<div id="' + id + '" class="ODRFileDatafield_file pure-u-1">' +
+                        '<span class="ODRFileSpacer ODRFileSpacer_nonpublic">&nbsp;</span>' +
+                        '<span class="ODRTruncateFilename">' +
+                            '<span class="ODRFileInfoDiv"><i class="fa fa-lg fa-info-circle"></i>' +
+//                                '<span class="ODRFileInfo">&nbsp;</span>' +
+                            '</span>Uploading "' + filename + '"...' +
+                        '</span>' +
+                        '<span class="ODRFakeProgressBar_overlay"><span class="ODRFakeProgressBar"></span></span>' +
+                    '</div>';
 
-            // Attach a cancel handler for this file
-            $("#" + id + " > .ODRFileUploadCancel").unbind('click').on('click', function() {
-                // Abort uploading this file
-                file.cancel();
+                var anchor = $("#ODRFileUpload_" + target).parent().prev();
+                $(anchor).append(html);
+            }
+            else {
+                var html = '<div class="pure-u-1 ODRFileUploadProgressDiv" id="' + id + '"><span class="pure-u-1">' + filename + '</span><span class="pure-u-1 ODRProgressBar" value="0" max="' + filesize + '"></span><span class="ODRFileUploadCancel pure-u-1-4 cancel-button pure-button">Cancel</span><span class="pure-u-3-4 ODRUploadError"></span></div>';
+                $("#ODRFileUploadProgress_" + target).append(html);
 
-                // If cancel button clicked when file encountered some sort of error, remove the upload divs
-                if (file.error == true) {
-                    $(this).parent().hide();
-                    $(this).parent().remove();
-                }
+                // Attach a cancel handler for this file
+                $("#" + id + " > .ODRFileUploadCancel").unbind('click').on('click', function() {
+                    // Abort uploading this file
+                    file.cancel();
 
-                // Remove this progress div since the user cancelled the upload
-                $("#" + id).remove();
+                    // If cancel button clicked when file encountered some sort of error, remove the upload divs
+                    if (file.error == true) {
+                        $(this).parent().hide();
+                        $(this).parent().remove();
+                    }
 
-                // Re-enable file upload on cancel
-                //$("#ODRFileUpload_" + target + " input").removeAttr('disabled');
-                //$("#ODRFileUpload_" + target + " .ODRUploadBlurb").show();
+                    // Remove this progress div since the user cancelled the upload
+                    $("#" + id).remove();
 
-                // TODO - Notify server to delete all chunks of this file?                
-            });
+                    // Re-enable file upload on cancel
+                    //$("#ODRFileUpload_" + target + " input").removeAttr('disabled');
+                    //$("#ODRFileUpload_" + target + " .ODRUploadBlurb").show();
 
-            // Update progress bar div
-            ODRFileUpload_progressUpdate(id);
+                    // TODO - Notify server to delete all chunks of this file?
+                });
+
+                // Update progress bar div
+                ODRFileUpload_progressUpdate(id);
+            }
         });
     }
 
@@ -47,27 +64,28 @@
     }
 
     // Called by a flow.js instance when it calculates progress of an uploading file
-    function ODRFileUpload_fileProgress(file, chunk, target) {
-        // Locate target progress bar
-        var id = file.uniqueIdentifier + '_' + target;
-        var progress_bar = '#' + id + ' > .ODRProgressBar';
+    function ODRFileUpload_fileProgress(file, chunk, target, upload_type) {
+        if (upload_type == 'file') {
+            // Locate target progress bar
+            var id = file.uniqueIdentifier + '_' + target;
+            var progress_bar = '#' + id + ' .ODRFakeProgressBar';
 
-        // Update value attribute of progress bar
-        var current_value = file.progress() * file.size;
-        $(progress_bar).attr('value', current_value);
+            // Update width attribute of progress bar
+            var current_width = file.progress() * 100;
+            $(progress_bar).css('width', current_width + '%');
+        }
+        else {
+            // Locate target progress bar
+            var id = file.uniqueIdentifier + '_' + target;
+            var progress_bar = '#' + id + ' > .ODRProgressBar';
 
-        // Update progress bar div
-        ODRFileUpload_progressUpdate(id);
-    }
+            // Update value attribute of progress bar
+            var current_value = file.progress() * file.size;
+            $(progress_bar).attr('value', current_value);
 
-    // Called by a flow.js instance when it encounters some sot of error
-    function ODRFileUpload_fileError(file, message, target) {
-        // Locate target progress bar
-        var id = file.uniqueIdentifier + '_' + target;
-        var error_div = '#' + id + ' .ODRUploadError';
-
-        // Insert error into correct div
-        $(error_div).html(message);
+            // Update progress bar div
+            ODRFileUpload_progressUpdate(id);
+        }
     }
 
     // Rebuild the specified jQuery ProgressBar instance to indicate progress of file upload
@@ -81,6 +99,24 @@
             value: current_value,
             max: max_value,
         });
+    }
+
+    // Called by a flow.js instance when it encounters some sot of error
+    function ODRFileUpload_fileError(file, message, target, upload_type) {
+        var id = file.uniqueIdentifier + '_' + target;
+
+        if (upload_type == 'file') {
+            $.jGrowl(message, {header: "Error", sticky: true});
+
+            $("#" + id).remove();
+        }
+        else {
+            // Locate target progress bar
+            var error_div = '#' + id + ' .ODRUploadError';
+
+            // Insert error into correct div
+            $(error_div).html(message);
+        }
     }
 </script>
 

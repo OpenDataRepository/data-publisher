@@ -682,7 +682,7 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
-     * TODO
+     * Performs an asynchronous encrypt or decrypt on a specified file.  Also has the option
      *
      * @param Request $request
      *
@@ -696,6 +696,7 @@ $ret .= '  Set current to '.$count."\n";
         $return['d'] = "";
 
         $error_prefix = 'Error 0x65384782: ';
+        $handle = null;
 
         try {
             $post = $_POST;
@@ -712,6 +713,16 @@ $ret .= '  Set current to '.$count."\n";
             $api_key = $post['api_key'];
 
             $error_prefix .= $crypto_type.' for '.$object_type.' '.$object_id.'...';
+
+            // These two are only used if the files are being decrypted into a zip archive
+            $archive_filepath = '';
+            if ( isset($post['archive_filepath']) )
+                $archive_filepath = $post['archive_filepath'];
+
+            $desired_filename = '';
+            if ( isset($post['desired_filename']) )
+                $desired_filename = $post['desired_filename'];
+
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -780,35 +791,70 @@ $ret .= '  Set current to '.$count."\n";
                 $base_filepath = dirname(__FILE__).'/../../../../web/'.$base_obj->getUploadDir();
                 $local_filepath = $base_filepath.'/'.$target_filename;
 
-                // Grab the hex string representation that the file was encrypted with
-                $key = $base_obj->getEncryptKey();
-                // Convert the hex string representation to binary...php had a function to go bin->hex, but didn't have a function for hex->bin for at least 7 years?!?
-                $key = pack("H*" , $key);   // don't have hex2bin() in current version of php...this appears to work based on the "if it decrypts to something intelligible, you did it right" theory
+                // Don't decrypt the file if it already exists on the server
+                if ( !file_exists($local_filepath) ) {
+                    // Grab the hex string representation that the file was encrypted with
+                    $key = $base_obj->getEncryptKey();
+                    // Convert the hex string representation to binary...php had a function to go bin->hex, but didn't have a function for hex->bin for at least 7 years?!?
+                    $key = pack("H*", $key);   // don't have hex2bin() in current version of php...this appears to work based on the "if it decrypts to something intelligible, you did it right" theory
 
-                // Open the target file
-                $handle = fopen($local_filepath, "wb");
-                if (!$handle)
-                    throw new \Exception('Unable to open "'.$local_filepath.'" for writing');
+                    // Open the target file
+                    $handle = fopen($local_filepath, "wb");
+                    if (!$handle)
+                        throw new \Exception('Unable to open "'.$local_filepath.'" for writing');
 
-                // Decrypt each chunk and write to target file
-                $chunk_id = 0;
-                while ( file_exists($crypto_dir.'/'.'enc.'.$chunk_id) ) {
-                    if ( !file_exists($crypto_dir.'/'.'enc.'.$chunk_id) )
-                        throw new \Exception('Encrypted chunk not found: '.$crypto_dir.'/'.'enc.'.$chunk_id);
+                    // Decrypt each chunk and write to target file
+                    $chunk_id = 0;
+                    while (file_exists($crypto_dir.'/'.'enc.'.$chunk_id)) {
+                        if (!file_exists($crypto_dir.'/'.'enc.'.$chunk_id))
+                            throw new \Exception('Encrypted chunk not found: '.$crypto_dir.'/'.'enc.'.$chunk_id);
 
-                    $data = file_get_contents($crypto_dir.'/'.'enc.'.$chunk_id);
-                    fwrite($handle, $crypto->decrypt($data, $key));
-                    $chunk_id++;
+                        $data = file_get_contents($crypto_dir.'/'.'enc.'.$chunk_id);
+                        fwrite($handle, $crypto->decrypt($data, $key));
+                        $chunk_id++;
+                    }
                 }
 
-                $redis = $this->container->get('snc_redis.default');;
-                // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-                $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+                if ( $archive_filepath == '' ) {
+                    $redis = $this->container->get('snc_redis.default');;
+                    // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+                    $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-                $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
+                    $file_decryptions = parent::getRedisData(($redis->get($redis_prefix.'_file_decryptions')));
 
-                unset( $file_decryptions[$target_filename] );
-                $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
+                    unset($file_decryptions[$target_filename]);
+                    $redis->set($redis_prefix.'_file_decryptions', gzcompress(serialize($file_decryptions)));
+                }
+                else {
+                    // Attempt to open the specified zip archive
+                    $handle = fopen($archive_filepath, 'c');    // create file if it doesn't exist, otherwise do not fail and position pointer at beginning of file
+                    if (!$handle)
+                        throw new \Exception('unable to open "'.$archive_filepath.'" for writing');
+
+                    // Attempt to acquire a lock on the zip archive so only one process is adding to it at a time
+                    $lock = false;
+                    while (!$lock) {
+                        $lock = flock($handle, LOCK_EX);
+                        if (!$lock)
+                            usleep(200000);     // sleep for a fifth of a second to try to acquire a lock...
+                    }
+
+                    // Open the archive for appending, or create if it doesn't exist
+                    $zip_archive = new \ZipArchive();
+                    $zip_archive->open($archive_filepath, \ZipArchive::CREATE);
+
+                    // Add the specified file to the zip archive
+                    $zip_archive->addFile($local_filepath, $desired_filename);
+                    $zip_archive->close();
+
+                    // Delete decrypted version of non-public files off the server
+                    if (!$base_obj->isPublic())
+                        unlink($local_filepath);
+
+                    // Release the lock on the zip archive
+                    flock($handle, LOCK_UN);
+                    fclose($handle);
+                }
             }
             else {
                 throw new \Exception('bad value for $crypto_type, got "'.$crypto_type.'"');
@@ -821,6 +867,11 @@ $ret .= '  Set current to '.$count."\n";
             $return['d'] = $error_prefix.$e->getMessage();
 
             // TODO - delete the partial non-public file if some sort of error during decryption?
+
+            if ($handle != null) {
+                flock($handle, LOCK_UN);
+                fclose($handle);
+            }
         }
 
         $response = new Response(json_encode($return));
@@ -1170,8 +1221,8 @@ $ret .= '  Set current to '.$count."\n";
 
             if ($object_type == 'file' || $object_type == 'File')
                 $object_type = 'File';
-            else if ($object_type == 'image' || $object_type == 'Image')
-                $object_type = 'Image';
+//            else if ($object_type == 'image' || $object_type == 'Image')
+//                $object_type = 'Image';
             else
                 return null;
 
@@ -1183,6 +1234,7 @@ $ret .= '  Set current to '.$count."\n";
                     WHERE e.deletedAt IS NULL AND (e.original_checksum IS NULL OR e.filesize = 0)'
                 );
             }
+/*
             else if ($object_type == 'Image') {
                 $query = $em->createQuery(
                     'SELECT e.id
@@ -1190,6 +1242,7 @@ $ret .= '  Set current to '.$count."\n";
                     WHERE e.deletedAt IS NULL AND e.original_checksum IS NULL'
                 );
             }
+*/
             $results = $query->getResult();
 
             $object_type = strtolower($object_type);
@@ -1202,6 +1255,10 @@ $ret .= '  Set current to '.$count."\n";
                         "object_id" => $file['id'],
                         "target_filename" => '',
                         "crypto_type" => 'decrypt',
+
+                        "archive_filepath" => '',
+                        "desired_filename" => '',
+
                         "redis_prefix" => $redis_prefix,    // debug purposes only
                         "url" => $url,
                         "api_key" => $api_key,
@@ -1226,67 +1283,8 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
-     * Called by the mass_encrypt worker background process to decrypt a single file/image.
+     * @deprecated
      *
-     * @param Request $request
-     *
-     * @return Response
-     */
-    public function decryptAction(Request $request)
-    {
-/*
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = "";
-        $return['d'] = "";
-
-        try {
-            $post = $_POST;
-            if ( !isset($post['object_type']) || !isset($post['object_id']) || !isset($post['api_key']) )
-                throw new \Exception('Invalid Form');
-
-            // Pull data from the post
-            $object_type = $post['object_type'];
-            $object_id = $post['object_id'];
-            $api_key = $post['api_key'];
-
-            // Load symfony objects
-            $em = $this->getDoctrine()->getManager();
-
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
-
-            $obj = null;
-            if ($object_type == 'file')
-                $obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
-//            else if ($object_type == 'image')
-//                $obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
-
-            $absolute_path = parent::decryptObject($object_id, $object_type);
-            $return['d'] = '>> Decrypted '.$object_type.' '.$object_id."\n";
-
-            $obj->setFilesize( filesize($absolute_path) );
-
-            $em->persist($obj);
-            $em->flush();
-
-            unlink($absolute_path);
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x38373431 ' . $e->getMessage();
-        }
-
-        $response = new Response(json_encode($return));
-        $response->headers->set('Content-Type', 'application/json');
-        return $response;
-*/
-    }
-
-
-    /**
      * @param Request $request
      *
      * @return Response
@@ -1359,6 +1357,8 @@ $ret .= '  Set current to '.$count."\n";
 
 
     /**
+     * @deprecated
+     *
      * @param Request $request
      *
      * @return Response

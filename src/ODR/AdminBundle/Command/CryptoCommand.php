@@ -71,6 +71,10 @@ class CryptoCommand extends ContainerAwareCommand
                     'object_id' => $data->object_id,
                     'target_filename' => $data->target_filename,
                     'crypto_type' => $data->crypto_type,
+
+                    'archive_filepath' => $data->archive_filepath,
+                    'desired_filename' => $data->desired_filename,
+
                     'api_key' => $data->api_key
                 );
 
@@ -102,10 +106,13 @@ class CryptoCommand extends ContainerAwareCommand
                 // Do things with the response returned by the controller?
                 $result = json_decode($ret);
                 if ( isset($result->r) && isset($result->d) ) {
-                    if ( $result->r == 0 && $data->crypto_type == 'encrypt' )
-                        $output->writeln( $result->d );
-                    else
-                        throw new \Exception( $result->d );
+                    if ( $result->r == 0 ) {
+                        if ($data->crypto_type == 'encrypt')
+                            $output->writeln($result->d);
+                    }
+                    else {
+                        throw new \Exception($result->d);
+                    }
                 }
                 else {
                     // Should always be a json return...
