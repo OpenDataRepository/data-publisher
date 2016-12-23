@@ -1154,6 +1154,8 @@ class CSVImportController extends ODRCustomController
 
                     $filenames = explode( $column_delimiters[$column_num], $value );
                     foreach ($filenames as $filename) {
+                        $filename = trim($filename);
+
                         if ( isset($unique_filenames[$filename]) ) {
                             // Encountered duplicate value
                             $errors[] = array(
@@ -1164,7 +1166,7 @@ class CSVImportController extends ODRCustomController
                                 ),
                             );
                         }
-                        else {
+                        else if ($filename !== '') {
                             // ...otherwise, not found, just store the value
                             $unique_filenames[$filename] = $line_num;
                         }
@@ -1682,6 +1684,11 @@ class CSVImportController extends ODRCustomController
                             $filenames = explode( $column_delimiters[$column_num], $value );
                             $total_file_count = count($filenames) + count($already_uploaded_files);
                             foreach ($filenames as $filename) {
+                                // Don't attempt to upload files with no name
+                                $filename = trim($filename);
+                                if ($filename === '')
+                                    continue;
+
                                 // Determine whether the file is already uploaded to the server
                                 $already_uploaded = false;
                                 if ( in_array($filename, $already_uploaded_files) )
@@ -2817,6 +2824,11 @@ print_r($new_mapping);
                             // For each file/image listed in the csv file...
                             $csv_filenames = explode( $column_delimiters[$column_num], $column_data );
                             foreach ($csv_filenames as $csv_filename) {
+                                // Don't attempt to upload files with no name
+                                $csv_filename = trim($csv_filename);
+                                if ($csv_filename === '')
+                                    continue;
+
                                 // ...there are three possibilities...
                                 if ( !isset($existing_files[$csv_filename]) ) {
                                     // ...need to add a new file/image
