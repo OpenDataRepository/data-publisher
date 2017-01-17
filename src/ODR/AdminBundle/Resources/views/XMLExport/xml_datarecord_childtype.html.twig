@@ -36,7 +36,9 @@ is_link: {{ is_link }}</br>
 
             {% if using_metadata == true %}
                 <_datarecord_metadata>
+                    <_internal_id>{{ datarecord.id }}</_internal_id>
                     <_external_id>{{ datarecord.externalIdField_value|xml }}</_external_id>
+                    <_datarecord_name>{{ datarecord.nameField_value|xml }}</_datarecord_name>
                     <_create_date>{{ datarecord.created|date('Y-m-d H:i:s') }}</_create_date>
                     <_create_auth>{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string|xml }}{% endif %}</_create_auth>
                     <_public_date>{{ datarecord.dataRecordMeta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
@@ -67,8 +69,9 @@ is_link: {{ is_link }}</br>
         {% else %}
             {# only display external and internal ids for linked datarecords #}
             <datarecord>
-                <_external_id>{{ datarecord.externalIdField_value|xml }}</_external_id>
                 <_internal_id>{{ datarecord.id }}</_internal_id>
+                <_external_id>{{ datarecord.externalIdField_value|xml }}</_external_id>
+                <_datarecord_name>{{ datarecord.nameField_value|xml }}</_datarecord_name>
             </datarecord>
         {% endif %}
     {% endif %}

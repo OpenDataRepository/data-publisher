@@ -76,10 +76,11 @@
 
             {% if using_metadata == true %}
             <_file_metadata>
+                <_internal_id>{{ file.id }}</_internal_id>
+                <_external_id>{{ file.fileMeta.external_id }}</_external_id>
                 <_create_date>{{ file.created|date('Y-m-d H:i:s') }}</_create_date>
                 <_create_auth>{% if file.createdBy != '' %}{{ file.createdBy|user_string }}{% endif %}</_create_auth>
                 <_public_date>{{ file.fileMeta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
-                <_external_id>{{ file.fileMeta.external_id }}</_external_id>
             </_file_metadata>
             {% endif %}
 
@@ -104,11 +105,12 @@
 
             {% if using_metadata == true %}
             <_image_metadata>
-                <_display_order>{{ oimage.imageMeta.displayorder}}</_display_order>
+                <_internal_id>{{ oimage.id }}</_internal_id>
+                <_external_id>{{ oimage.imageMeta.external_id }}</_external_id>
                 <_create_date>{{ oimage.created|date('Y-m-d H:i:s') }}</_create_date>
                 <_create_auth>{% if oimage.createdBy != '' %}{{ oimage.createdBy|user_string }}{% endif %}</_create_auth>
                 <_public_date>{{ oimage.imageMeta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
-                <_external_id>{{ oimage.imageMeta.external_id }}</_external_id>
+                <_display_order>{{ oimage.imageMeta.displayorder}}</_display_order>
             </_image_metadata>
             {% endif %}
         </image>
