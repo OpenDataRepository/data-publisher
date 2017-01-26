@@ -1042,6 +1042,10 @@ class ThemeController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
             /** @var ThemeElement $theme_element */
             $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
@@ -1117,6 +1121,20 @@ class ThemeController extends ODRCustomController
                 }
 
                 // TODO - empty table themes still count as having table themes?
+
+                // Since a datafield got attached to this table theme, the cached table versions of all affected datarecords need to be deleted
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.dataType = :datatype_id
+                    AND dr.deletedAt IS NULL'
+                )->setParameters(array('datatype_id' => $datatype->getId()));
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    $dr_id = $result['dr_id'];
+                    $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
+                }
             }
 
             // TODO - other stuff?
@@ -1155,6 +1173,10 @@ class ThemeController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             /** @var ThemeElement $theme_element */
             $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
@@ -1238,6 +1260,20 @@ class ThemeController extends ODRCustomController
                 }
 
                 // TODO - empty table themes still count as having table themes?
+
+                // Since a datafield got detached from this table theme, the cached table versions of all affected datarecords need to be deleted
+                $query = $em->createQuery(
+                   'SELECT dr.id AS dr_id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.dataType = :datatype_id
+                    AND dr.deletedAt IS NULL'
+                )->setParameters(array('datatype_id' => $datatype->getId()));
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    $dr_id = $result['dr_id'];
+                    $redis->del($redis_prefix.'.datarecord_table_data_'.$dr_id);
+                }
             }
 
             // TODO - other stuff?
