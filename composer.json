@@ -33,7 +33,8 @@
         "phpunit/phpunit": "^4.8",
         "predis/predis": "^1.1",
         "snc/redis-bundle": "2.x-dev",
-        "ramsey/uuid": "^3.5"
+        "ramsey/uuid": "^3.5",
+        "neitanod/forceutf8": "dev-master"
     },
     "require-dev": {
         "sensio/generator-bundle": "~3.0",

@@ -956,6 +956,10 @@ odr_csv_import_delimiter_changed:
     requirements:
         delimiter: 'tab|space|comma|semicolon|colon|pipe|'
 
+odr_csv_file_redownload:
+    path: /edit/csv_import/redownload
+    defaults: { _controller: ODRAdminBundle:CSVImport:redownloadfile }
+
 odr_csv_refresh_filelist:
     path: /edit/csv_import/filelist/refresh
     defaults: { _controller: ODRAdminBundle:CSVImport:refreshfilelist }

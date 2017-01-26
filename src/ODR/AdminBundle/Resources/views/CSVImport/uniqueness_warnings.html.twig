@@ -3,20 +3,26 @@
     {% set external_id_field = datatype.getexternalidfield %}
 
     <div class="csv_import_header pure-u-2-3">
+        {% if file_encoding_converted %}
+            {# notify that the file's encoding got changed #}
+            <div id="external_id_field_warning" class="pure-u-1" style="margin-bottom:20px;">
+                <span><i class="fa fa-lg fa-info-circle Cursor"></i></span>
+                <span>The uploaded CSV file had a number of invalid UTF-8 characters..as such, the server attempted to rewrite the file to convert it into valid UTF-8.  The modified file is available for download <a href="{{ path('odr_csv_file_redownload') }}" style="text-decoration: underline;">HERE</a> if you wish to verify that the automatic conversion worked properly.</span>
+            </div>
+        {% endif %}
+
         {% if external_id_field == null %}
             {# notify that the datatype doesn't have an external id field #}
             <div class="pure-u-1">
                 <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                 <span>&nbsp;This Datatype doesn't have an "External ID" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported will ALWAYS create new Datarecords.</span>
             </div>
-
         {% else %}
             {# notify that the external id field is not mapped #}
             <div id="external_id_field_warning" class="pure-u-1">
                 <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                 <span>&nbsp;This Datatype's External ID Datafield, "{{ external_id_field.getfieldname }}", is currently not mapped to a column of the CSV File...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported WILL create new Datarecords.</span>
             </div>
-
         {% endif %}
 
         {# every other unique datafield needs a warning too #}

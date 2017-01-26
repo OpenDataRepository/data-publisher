@@ -22,7 +22,7 @@
         {% endif %}
 
 {% if not linked_importing %}
-        {% include 'ODRAdminBundle:CSVImport:uniqueness_warnings.html.twig' with {'datatype': datatype, 'datafields': datafields} %}
+        {% include 'ODRAdminBundle:CSVImport:uniqueness_warnings.html.twig' with {'datatype': datatype, 'datafields': datafields, 'file_encoding_converted': file_encoding_converted} %}
 
         <table id="csv_import_table" class="pure-table pure-table-striped" style="font-size: 1.25em;">
             <thead>
