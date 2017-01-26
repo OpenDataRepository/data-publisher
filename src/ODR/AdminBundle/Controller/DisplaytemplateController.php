@@ -3937,7 +3937,21 @@ class DisplaytemplateController extends ODRCustomController
             if ($datatype_form->isSubmitted()) {
 
                 if ( $submitted_data->getSearchSlug() !== $datatype->getSearchSlug() ) {
-                    // ...check that a change to the search slug doesn't collide with an existing search slug
+                    // ...check that the new search slug is restricted to alphanumeric characters and a few symbols
+                    $pattern = '/^[0-9a-zA-Z][0-9a-zA-Z\_\-]+$/';
+                    if ( !preg_match($pattern, $submitted_data->getSearchSlug()) )
+                        $datatype_form->addError( new FormError('The abbreviation must consist an alphanumeric character; followed by any number of alphanumeric characters, hyphens, or underscores') );
+
+                    // ...check that the new search slug isn't going to collide with other parts of the site
+                    // TODO - make this automatic based on contents of routing files?
+                    $invalid_slugs = array(
+                        "admin", "api", "beanstalk", "design", "edit", "jobs", "login", "logout", "profile", "search", "view",
+                        "app", "bin", "docs", "src", "vendor", "web",
+                    );
+                    if ( in_array($submitted_data->getSearchSlug(), $invalid_slugs) )
+                        $datatype_form->addError( new FormError('This abbreviation is reserved for use by ODR') );
+
+                    // ...check that the new search slug doesn't collide with an existing search slug
                     $query = $em->createQuery(
                        'SELECT dtym.id
                         FROM ODRAdminBundle:DataTypeMeta AS dtym
