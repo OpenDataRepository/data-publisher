@@ -1406,7 +1406,7 @@ class DisplayController extends ODRCustomController
 
             $ret = self::locateFilesforDownloadAll($stacked_datarecord_array, $grandparent_datarecord->getId());
             if ( is_null($ret) ) {
-                $return['d'] = 'NO FILES/IMAGES IN HERE';
+                $return['d'] = 'No files are available to download';
             }
             else {
                 $stacked_datarecord_array = array($grandparent_datarecord->getId() => $ret);
@@ -1675,7 +1675,7 @@ exit();
             // If any files/images remain...
             if ( count($file_list) == 0 && count($image_list) == 0 ) {
                 // TODO - what to return?
-                throw new \Exception('Nothing to download?');
+                throw new \Exception('No files are available to download');
             }
             else {
                 // Generate the url for cURL to use

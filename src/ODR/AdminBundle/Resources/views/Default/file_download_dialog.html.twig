@@ -2,15 +2,20 @@
     <!-- File Download Dialog -->
     <div class="pure-form pure-g" style="display: none;" id="dialog_file_downloads" title="File Download Selector Dialog">
         <div class="form_contents pure-u-1">
+            <div id="FileDownloadForm_build">
+                <div id="FileDownloadForm_loading" class="pure-u-1" style="font-weight:bold; text-align:center;">Loading...</div>
 
-            <div id="FileDownloadForm_loading" class="pure-u-1" style="font-weight:bold; text-align:center;">Loading...</div>
+                <div style="max-height: 700px; overflow:auto;">
+                    <form id="FileDownloadForm" method="POST"></form>
+                </div>
 
-            <div style="max-height: 700px; overflow:auto;">
-                <form id="FileDownloadForm" method="POST"></form>
+                <button id="FileDownloadForm_cancel" class="pure-button ODRCancelButton">Cancel</button>
+                <button id="FileDownloadForm_submit" class="pure-button pure-button-primary ODRSubmitButton" disabled>Download Selected Files</button>
             </div>
 
-            <button id="FileDownloadForm_cancel" class="pure-button ODRCancelButton">Cancel</button>
-            <button id="FileDownloadForm_submit" class="pure-button pure-button-primary ODRSubmitButton" disabled>Download Selected Files</button>
+            <div id="FileDownloadForm_progress" style="display:none; font-size:1.2em;">
+                Processing... <span id="FileDownloadForm_current"></span> of <span id="FileDownloadForm_total"></span> files added to archive...
+            </div>
         </div>
     </div>
     <!--  End of File Download Dialog -->
@@ -31,10 +36,10 @@
             var $el = $(this).parents('.ui-dialog-content');
 
             // Create/send a POST request of file ids
-            submitForm();
+            submitForm( $el.attr('id') );
 
             $el.find('form')[0].reset();
-            $el.dialog('close');
+//            $el.dialog('close');
         });
         $(dialog_form).find('.ODRCancelButton').click(function() {
             var $el = $(this).parents('.ui-dialog-content');
@@ -161,7 +166,7 @@
         applyToParents(parent_checkbox_element);
     }
 
-    function submitForm() {
+    function submitForm(form_id) {
         $("#FileDownloadForm").find('.binary').each(function() {
             if ( $(this).children('.fa').first().hasClass('fa-check') ) {
                 $(this).children('input').removeProp('disabled');
@@ -187,7 +192,14 @@
                 var archive_filename = data.d.archive_filename;
                 var archive_size = data.d.archive_size;
 
-                createZipArchiveProgressCheck(archive_filename, archive_size);
+                var element = $('#' + form_id);
+                $(element).find('#FileDownloadForm_build').hide();
+
+                $(element).find('#FileDownloadForm_current').html("0");
+                $(element).find('#FileDownloadForm_total').html(archive_size);
+                $(element).find('#FileDownloadForm_progress').show();
+
+                createZipArchiveProgressCheck(archive_filename, archive_size, form_id);
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers

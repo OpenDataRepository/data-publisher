@@ -300,15 +300,15 @@
     }
 
     var zip_archive_timeouts = {};
-    function createZipArchiveProgressCheck(archive_filename, archive_size) {
+    function createZipArchiveProgressCheck(archive_filename, archive_size, form_id) {
         // Ensure that at most a single timeout is running for a given zip archive at any given time
         if ( zip_archive_timeouts[ archive_filename ] == null || zip_archive_timeouts[ archive_filename ] == undefined ) {
             zip_archive_timeouts[ archive_filename ] = 1;
-            window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "');", decrypt_check_timeout );
+            window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + form_id + "');", decrypt_check_timeout );
         }
     }
 
-    function checkZipArchiveProgress(archive_filename, archive_size) {
+    function checkZipArchiveProgress(archive_filename, archive_size, form_id) {
         // Get progress of zip archive from server
         var url = "{{ path('odr_get_zip_archive_progress', {'archive_filename': 0}) }}";
         url = url.substr(0, url.length-1);
@@ -331,11 +331,23 @@
 
                 var archive_filecount = parseInt(data.d.archive_filecount);
 
-                var download_url = "{{ path('odr_download_zip_archive', {'archive_filename': 0}) }}";
-                download_url = download_url.substr(0, download_url.length-1);
-                download_url += archive_filename;
+                // Update the progress indicator
+                var element = $('#' + form_id);
+                $(element).find('#FileDownloadForm_current').html(archive_filecount);
+
 
                 if ( archive_size == archive_filecount ) {
+                    // Reset and close the file download dialog form
+                    $(element).find('#FileDownloadForm_progress').hide();
+                    $(element).find('#FileDownloadForm_build').show();
+                    $(element).dialog('close');
+
+                    // Construct the URL to download the archive
+                    var download_url = "{{ path('odr_download_zip_archive', {'archive_filename': 0}) }}";
+                    download_url = download_url.substr(0, download_url.length-1);
+                    download_url += archive_filename;
+
+                    // Start downloading the archive
                     var download = $.fileDownload(download_url, {
                         prepareCallback: function(url) {
 
@@ -353,7 +365,7 @@
                     });
                 }
                 else {
-                    window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "');", decrypt_check_timeout );
+                    window.setTimeout( "checkZipArchiveProgress('" + archive_filename + "', '" + archive_size + "', '" + form_id + "');", decrypt_check_timeout );
                 }
             },
             complete: function (jqXHR, textStatus) {
