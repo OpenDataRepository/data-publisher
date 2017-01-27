@@ -33,17 +33,20 @@
             } %}
         </div><!-- End of #FieldArea_{{ datatype.id }} -->
     {% else %}
-        {# current datatype is top-level #}
-        {% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {
+
+        <div class="ODRTHemeElement pure-u-1">
+            <div class="ODRInnerBox pure-u-1">
+            <h3 class="ODRHeader" id="Datatype_{{ datatype.id }}_ShortName">{{ datatype.dataTypeMeta.shortName }}
+            {# current datatype is top-level #}
+            {% include 'ODRAdminBundle:Displaytemplate:design_area_datatypetools_div.html.twig' with {
             'datatype': datatype,
             'theme_id': theme_id,
 
             'is_top_level': is_top_level,
             'is_link': is_link,
-        } %}
-
-        <div class="header">
-            <h3 id="Datatype_{{ datatype.id }}_ShortName">{{ datatype.dataTypeMeta.shortName }}</h3>
+            } %}
+            </h3>
+            </div>
         </div>
 
         <div class="ODRFieldArea pure-u-1" id="FieldArea_{{ datatype.id }}">

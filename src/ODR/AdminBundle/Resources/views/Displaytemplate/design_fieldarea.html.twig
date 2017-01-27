@@ -22,7 +22,7 @@
         <div class="ODRInnerBox">
 
         {% if is_link == 0 %}
-            <div id="ThemeElementTools_{{ theme_element.id }}" class="DataTypeTools pure-u-1"><span style="float:right;">
+            <div id="ThemeElementTools_{{ theme_element.id }}" class="ThemeElementTools pure-u-1"><span style="float:right;">
                 <i id="ODRThemeElement_{{ theme_element.id }}_properties" class="Pointer tooltip fa fa-info-circle ODRThemeElementProperties" title="ThemeElement Properties"></i>
                 <i id="ODRThemeElement_{{ theme_element.id }}_addDF" class="Pointer tooltip fa fa-plus-square {% if has_childtype %}fa-muted{% endif %} ODRAddDatafield" title="Add DataField" rel="{{ datatype.id }}"></i>
                 <i id="ODRThemeElement_{{ theme_element.id }}_addCDT" class="Pointer tooltip fa fa-list-alt {% if has_childtype or has_datafields %}fa-muted{% endif %} ODRAddChildtype" title="Add Child Type" rel="{{ datatype.id }}"></i>

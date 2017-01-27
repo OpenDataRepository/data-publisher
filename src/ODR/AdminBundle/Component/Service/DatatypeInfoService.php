@@ -348,6 +348,23 @@ class DatatypeInfoService
 
 
     /**
+     * Returns the id of the grandparent of the given datatype
+     *
+     * @param array $datatree_array         @see self::getDatatreeArray()
+     * @param integer $initial_datatype_id
+     *
+     * @return integer
+     */
+    public function getGrandparentDatatypeId($datatree_array, $initial_datatype_id)
+    {
+        $grandparent_datatype_id = $initial_datatype_id;
+        while( isset($datatree_array['descendant_of'][$grandparent_datatype_id]) && $datatree_array['descendant_of'][$grandparent_datatype_id] !== '' )
+            $grandparent_datatype_id = $datatree_array['descendant_of'][$grandparent_datatype_id];
+
+        return $grandparent_datatype_id;
+    }
+
+    /**
      * Utility function to returns the DataTree table in array format
      * TODO: This function is a really bad idea - will be absolutely GIGANTIC at some point.
      * Why is this needed? Plus, how do you know when it needs to be flushed?
@@ -412,6 +429,50 @@ class DatatypeInfoService
         // Store in cache and return
         $redis->set($redis_prefix.'.cached_datatree_array', gzcompress(serialize($datatree_array)));
         return $datatree_array;
+    }
+
+
+    /**
+     * Determines and returns an array of top-level datatype ids
+     *
+     * @return int[]
+     */
+    public function getTopLevelDatatypes()
+    {
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $query = $this->em->createQuery(
+            'SELECT dt.id AS datatype_id
+            FROM ODRAdminBundle:DataType AS dt
+            WHERE dt.deletedAt IS NULL'
+        );
+        $results = $query->getArrayResult();
+
+        $all_datatypes = array();
+        foreach ($results as $num => $result)
+            $all_datatypes[] = $result['datatype_id'];
+
+        $query = $this->em->createQuery(
+            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+            FROM ODRAdminBundle:DataTree AS dt
+            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+            JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
+            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
+            WHERE dtm.is_link = 0
+            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
+        );
+        $results = $query->getArrayResult();
+
+        $parent_of = array();
+        foreach ($results as $num => $result)
+            $parent_of[ $result['descendant_id'] ] = $result['ancestor_id'];
+
+        $top_level_datatypes = array();
+        foreach ($all_datatypes as $datatype_id) {
+            if ( !isset($parent_of[$datatype_id]) )
+                $top_level_datatypes[] = $datatype_id;
+        }
+
+        return $top_level_datatypes;
     }
 
 }

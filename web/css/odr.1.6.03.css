@@ -1918,8 +1918,8 @@ footer {
 }
 
 .ODRFormWrap {
-    margin-left: 10px; 
-    margin-right: 10px;
+    margin-left: 0px;
+    margin-right: 0px;
     /* background-color: #FAFAFA; */
     border: 0px solid #B9B9B9;
     border-radius: 2px;
@@ -2051,9 +2051,8 @@ header a {
     width: 450px;
     min-height: 350px;
     right: 0px;
-    background: #eee;
-    border-radius-top-right: 16px;
-    border-radius-bottom-right: 16px;
+    background-color: #6fa5c7;
+    border-radius: 6px;
     padding-top: 8px;
     padding-bottom: 8px;
 
@@ -2207,6 +2206,51 @@ h1:after {
 
 .ODRThemeElement > .DataTypeTools {
     margin: 5px 0px;
+}
+
+#ODRDatatypeDesign .fa {
+    margin-top: 1px;
+}
+#ODRDatatypeDesign .ODRDataField {
+    margin-bottom: 4px;
+}
+
+#ODRDatatypeDesign > .ODRThemeElement > .ThemeElementTools {
+    color: #eeeeee;
+}
+#ODRDatatypeDesign .ODRFieldArea > .ODRThemeElement > .ThemeElementTools {
+    color: black;
+}
+#ODRDatatypeDesign .ThemeElementTools {
+    font-size: 18px;
+    color: #eeeeee;
+    float: right;
+    position: relative;
+    top: 0px;
+    height: 0px;
+    line-height: 0px;
+    padding: 0px 0px 0px 0px;
+    z-index: 500;
+}
+#ODRDatatypeDesign .ThemeElementTools i {
+    margin-top: 6px;
+}
+
+#ODRDatatypeDesign .DataTypeTools {
+    font-size: 18px;
+    color: #eeeeee;
+    float: none;
+    position: relative;
+    /* margin-top: 6px; */
+    top: 0px;
+    height: 0px;
+    line-height: 0px;
+    padding: 0px 0px 0px 0px;
+    z-index: 500;
+}
+
+#ODRDatatypeDesign .ODRMarkdownContent .ODRPublicStatusIndicator {
+    float: left;
 }
 
 .tooltip {
@@ -3111,6 +3155,11 @@ form .row {
     position: absolute;
 }
 
+.ODRActiveIcon {
+    /*border: 1px solid #00FF00;
+    border-radius: 8px; */
+    color: gold;
+}
 
 /*
     ODR Responsive Modal

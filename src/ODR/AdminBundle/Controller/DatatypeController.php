@@ -308,15 +308,27 @@ class DatatypeController extends ODRCustomController
 
             // Build a form for creating a new datatype, if needed
             $new_datatype_data = new DataTypeMeta();
+            $params = array(
+                'form_settings' => array(
+                    'is_master_type' => 0,
+                    'master_type_id' => $template_choice
+                )
+            );
+
+            // If Master Template (-1), set field.
+            if($template_choice < 0) {
+                $params = array(
+                    'form_settings' => array(
+                        'is_master_type' => 1,
+                        'master_type_id' => $template_choice
+                    )
+                );
+            }
+
             $form = $this->createForm(
                 CreateDatatypeForm::class,
                 $new_datatype_data,
-                array(
-                    'form_settings' => array(
-                        'is_master_type' => 0,
-                        'master_type_id' => $template_choice
-                    )
-                )
+                $params
             );
 
             // Grab a list of top top-level datatypes

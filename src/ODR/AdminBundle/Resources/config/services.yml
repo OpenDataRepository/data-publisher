@@ -45,6 +45,13 @@ services:
     odr_search_controller:
         class: ODR\OpenRepository\SearchBundle\Controller\DefaultController
 
+    odr.permissions_management_service:
+        class: ODR\AdminBundle\Component\Service\PermissionsManagementService
+        arguments:
+            container: "@service_container"
+            entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+
     odr.datatype_info_service:
         class: ODR\AdminBundle\Component\Service\DatatypeInfoService
         arguments:
@@ -58,6 +65,13 @@ services:
             container: "@service_container"
             entity_manager: "@doctrine.orm.entity_manager"
             logger: "@logger"
+
+#    odr.permissions_management_service:
+#        class: ODR\AdminBundle\Component\Service\PermissionsManagementService
+#        arguments:
+#            container: "@service_container"
+#            entity_manager: "@doctrine.orm.entity_manager"
+#            logger: "@logger"
 
     odr.crypto_service:
         class: ODR\AdminBundle\Component\Service\CryptoService

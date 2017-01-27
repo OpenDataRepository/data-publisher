@@ -130,6 +130,8 @@ class CreateDatatypeService
                 throw new \Exception("Invalid master template id.");
             }
 
+            $datatype_prefix = $datatype->getShortName();
+
             // Get the Master Datatype to Clone
             $master_datatype = $datatype->getMasterDataType();
             $associated_datatypes = $datatype_info_service->getAssociatedDatatypes(array($master_datatype->getId()));
@@ -148,7 +150,8 @@ class CreateDatatypeService
                     $dt_master = $repo_datatype->find($dt_id);
                 }
 
-                self::cloneDatatype($dt_master, $new_datatype);
+                self::cloneDatatype($dt_master, $new_datatype, $datatype_prefix);
+
                 if($dt_id == $datatype->getId()) {
                     $datatype = $new_datatype;
                 }
@@ -220,10 +223,10 @@ class CreateDatatypeService
                 $obj->setUpdatedBy($this->user);
             }
             if(method_exists($obj, "setCreated")) {
-                $obj->setCreated(time());
+                // $obj->setCreated(new DateTime(time()));
             }
             if(method_exists($obj, "setUpdated")) {
-                $obj->setUpdated(time());
+                // $obj->setUpdated(new DateTime(time()));
             }
         }
         $this->em->persist($obj);
@@ -231,7 +234,7 @@ class CreateDatatypeService
         $this->em->refresh($obj);
     }
 
-    protected function cloneDatatype(DataType $parent_datatype, DataType $new_datatype = null)
+    protected function cloneDatatype(DataType $parent_datatype, DataType $new_datatype = null, $datatype_prefix = "")
     {
 
         if ($new_datatype == null) {
@@ -257,6 +260,11 @@ class CreateDatatypeService
             $this->em->remove($existing_meta);
             $this->em->flush();
         }
+
+        // Use a prefix if short name not equal prefix
+        if($new_meta->getShortName() != $datatype_prefix) {
+            $new_meta->setLongName($datatype_prefix . " - " . $new_meta->getShortName());
+        }
         $new_meta->setDataType($new_datatype);
         $new_meta->setMasterRevision(0);
         $new_meta->setMasterPublishedRevision(0);
@@ -271,11 +279,14 @@ class CreateDatatypeService
         // Get Render Plugins
         //  LEFT JOIN dtm.renderPlugin AS dt_rp
         $parent_render_plugin = $parent_meta->getRenderPlugin();
-        $new_render_plugin = clone $parent_render_plugin;
-        self::persistObject($new_render_plugin);
 
-        $new_meta->setRenderPlugin($new_render_plugin);
+        $new_meta->setRenderPlugin($parent_render_plugin);
         self::persistObject($new_meta);
+
+        // Create DataType Permissions for child/linked types
+        $pms = $this->container->get('odr.permissions_management_service');
+        $pms->createGroupsForDatatype($this->user, $new_datatype);
+
 
         // Process data fields so themes and render plugin map can be created
         $parent_df_array = $parent_datatype->getDataFields();
@@ -284,38 +295,47 @@ class CreateDatatypeService
             $new_df->setDataType($new_datatype);
             $new_df->setIsMasterField(false);
             $new_df->setMasterDatafield($parent_df);
-            self::persistObject($new_df);
+            self::persistObject($new_df, true);
 
             // Process Meta Records
             $parent_df_meta = $parent_df->getDataFieldMeta();
-            $new_df_meta = clone $parent_df_meta;
-            $new_df_meta->setDataField($new_df);
-            $new_df_meta->setMasterRevision(0);
-            $new_df_meta->setMasterPublishedRevision(0);
-            $new_df_meta->setTrackingMasterRevision($parent_df_meta->getMasterPublishedRevision());
-            self::persistObject($new_df_meta);
+            if($parent_df_meta) {
+                // TODO This should always exist.  Likely issue was caused by
+                // the fact that a previous test failed. It's bad news that these
+                // things can fail and now warn the user...
+                $new_df_meta = clone $parent_df_meta;
+                $new_df_meta->setDataField($new_df);
+                $new_df_meta->setMasterRevision(0);
+                $new_df_meta->setMasterPublishedRevision(0);
+                $new_df_meta->setTrackingMasterRevision($parent_df_meta->getMasterPublishedRevision());
+                self::persistObject($new_df_meta, true);
 
-            // Need to process Radio Options....
-            $parent_ro_array = $parent_df->getRadioOptions();
-            if(count($parent_ro_array) > 0) {
-                foreach($parent_ro_array as $parent_ro) {
-                    $new_ro = clone $parent_ro;
-                    $new_ro->setDataField($new_df);
-                    self::persistObject($new_ro);
+                // Need to process Radio Options....
+                $parent_ro_array = $parent_df->getRadioOptions();
+                if(count($parent_ro_array) > 0) {
+                    foreach($parent_ro_array as $parent_ro) {
+                        $new_ro = clone $parent_ro;
+                        $new_ro->setDataField($new_df);
+                        self::persistObject($new_ro, true);
 
-                    $parent_ro_meta = $parent_ro->getRadioOptionMeta();
-                    $new_ro_meta = clone $parent_ro_meta;
-                    $new_ro_meta->setRadioOption($new_ro);
-                    self::persistObject($new_ro_meta);
+                        $parent_ro_meta = $parent_ro->getRadioOptionMeta();
+                        $new_ro_meta = clone $parent_ro_meta;
+                        $new_ro_meta->setRadioOption($new_ro);
+                        self::persistObject($new_ro_meta, true);
+                    }
                 }
             }
-
             // Process field plugins
-            self::cloneRenderPluginSettings($parent_df->getRenderPlugin(), null, $new_df);
+            if($parent_df->getRenderPlugin()) {
+                self::cloneRenderPluginSettings($parent_df->getRenderPlugin(), null, $new_df);
+            }
+
+            $pms->createGroupsForDatafield($this->user, $new_df);
         }
 
         // Now that fields are created, get Process Datatype Render Plugin.
         self::cloneRenderPluginSettings($parent_datatype->getRenderPlugin(), $new_datatype);
+
 
     }
 
@@ -342,7 +362,8 @@ class CreateDatatypeService
 
         if($parent_rpi != null) {
             $new_rpi = clone $parent_rpi;
-            $new_rpi->setDataType($new_datatype);
+            // TODO - This used to be $new_datatype - why is this?
+            $new_rpi->setDataType($datatype);
             self::persistObject($new_rpi);
 
             //  LEFT JOIN dt_rpi.renderPluginOptions AS dt_rpo
@@ -428,7 +449,7 @@ class CreateDatatypeService
             $new_te_meta->setThemeElement($new_te);
             self::persistObject($new_te_meta);
 
-            // Theme Data Field - possibly not used
+            // Theme Data Field
             $parent_theme_df_array = $parent_te->getThemeDataFields();
             foreach($parent_theme_df_array as $parent_tdf) {
                 $new_tdf = clone $parent_tdf;
@@ -442,7 +463,7 @@ class CreateDatatypeService
                 }
             }
 
-            // Theme Data Type - possibly not used
+            // Theme Data Type
             $parent_theme_dt_array = $parent_te->getThemeDataType();
             foreach($parent_theme_dt_array as $parent_tdt) {
                 $new_tdt = clone $parent_tdt;

@@ -70,11 +70,14 @@
             $("#selected_datatype").unbind('change').change(function() {
                 // Disable submission if already linked to current selection
                 var current_remote_datatype = $("#ODRLinkDatatypeForm_previous").val();
+                /*
                 if ( $(this).val() == current_remote_datatype )
                     $("#ODRLinkDatatypeFormSubmit").attr('disabled', 'disabled');
                 else
                     $("#ODRLinkDatatypeFormSubmit").removeAttr('disabled');
+                */
 
+                $("#ODRLinkDatatypeFormSubmit").removeAttr('disabled');
                 // Warn about missing table theme if necessary
                 if ( $(this).children('option:selected').first().attr('rel') == 'warn' )
                     $("#ODRRemoteDatatypeLacksTableTheme").show();

@@ -18,11 +18,11 @@
     <div class="ODRContentWrapper pure-u-1">
         <div class="ODRThemeElement pure-u-1">
             <div class="ODRInnerBox pure-u-1">
-                <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Enter Database Information</h3>
+                <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Add or change database fields.</h3>
                 {% if datatype.is_master_type == 1 %} {# Master Template Creation #}
                     <div class="ODRBodyContent">
-                        <p>Please choose a name for your database template and
-                            enter a description so users can identify the purpose of the template.</p>
+                        <p>Use this design system to create and map the fields for the database template.</p>
+                        <p><a class="pure-button" href="#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}">Save and Create Search Themes</a></p>
                     </div>
                 {# elseif datatype.master_type_id == 0 #} {# Custom Database #}
                     {#
@@ -34,8 +34,8 @@
                     #}
                 {% else %} {# Database from template#}
                     <div class="ODRBodyContent">
-                        <p>Please choose a name for your database and enter the relevant info to ensure proper attribution of your database.</p>
-                        <p>{{ datatype.dataTypeMeta.shortName }}</p>
+                        <p>The database may be extended or modified using this design system.  The system will alert you when a change will
+                            break compatibility with the parent template.</p>
                         <p><a class="pure-button" href="#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}">Save and Create Search Themes</a></p>
                     </div>
                 {% endif %}
@@ -66,15 +66,8 @@
 
 {% endspaceless %}
 
-<style>
-    .ODRActiveIcon {
-        background: #00FF00;
-    }
-</style>
-
 <script>
 
-//var SaveTimeout = 750;
 var SaveTimeout = 2000;
 $(function() {
     initPage();
@@ -82,12 +75,6 @@ $(function() {
 });
 
 function notifySaved() {
-{#
-    $('#saved').css('visibility', 'visible');   // trying out visibility property because normal display property causes slideout to jump around
-    setTimeout(function() {
-        $('#saved').css('visibility', 'hidden');
-    }, 1250);
-#}
     $.jGrowl('SAVED');
 }
 
@@ -123,9 +110,6 @@ function initPage() {
 
         var url = '{{ path('odr_design_get_link_datatypes', {'datatype_id': 0, 'theme_element_id': 0 } ) }}';
         url = url.substring(0,(url.length - 3)) + local_datatype_id + "/" + theme_element_id;
-
-//alert( url );
-//return;
 
         $.ajax({
             cache: false,
@@ -173,9 +157,6 @@ function initPage() {
 
         var url  = '{{ path('odr_design_get_deleted_datafields', {'datatype_id': 0 } ) }}';
         url = url.substring(0,(url.length - 1)) + datatype_id;
-
-alert( url );
-return;
 
         $.ajax({
             cache: false,
@@ -240,9 +221,6 @@ return;
         var url  = '{{ path('odr_design_add_childtype', {'theme_element_id': 0 } ) }}';
         url = url.substring(0,(url.length - 1)) + theme_element_id;
 
-//alert( url );
-//return;
-
         $.ajax({
             cache: false,
             type: 'GET',
@@ -291,9 +269,6 @@ return;
         var url = '{{ path('odr_design_add_datafield', { 'theme_element_id': 0 }) }}';
         url = url.substring(0, (url.length - 1)) + theme_element_id;
 
-//alert( url );
-//return;
-
         $.ajax({
             cache: false,
             type: 'GET',
@@ -340,9 +315,6 @@ return;
 
         var url = '{{ path('odr_design_add_theme_element', { 'theme_id': 0 }) }}';
         url = url.substring(0, url.length-1) + theme_id;
-
-//alert( url );
-//return;
 
         $.ajax({
             cache: false,
@@ -405,9 +377,6 @@ return;
             url = url.substring(0, (url.length - 1));
             url += datatype_id;
 
-//alert( url );
-//return;
-
             $.ajax({
                 cache: false,
                 type: 'GET',
@@ -458,9 +427,6 @@ return;
             var url = '{{ path('odr_design_delete_theme_element', { 'theme_element_id': 0 } ) }}';
             url = url.substring(0, (url.length - 1));
             url += theme_element_id;
-
-//alert( url );
-//return;
 
             $.ajax({
                 cache: false,
@@ -520,9 +486,6 @@ return;
         if (parent_datatype_id != '')
             url += '/' + parent_datatype_id;
 
-//alert( url );
-//return;
-
         $.ajax({
             cache: false,
             type: 'GET',
@@ -568,9 +531,6 @@ return;
         url = url.substring(0, (url.length - 1));
         url += theme_element_id;
 
-//alert( url );
-//return;
-
         $.ajax({
             cache: false,
             type: 'GET',
@@ -611,9 +571,6 @@ return;
         var url  = '{{ path('odr_design_public_datatype', {'datatype_id': 0} ) }}';
         url = url.substring(0,(url.length-1));
         url += datatype_id;
-
-//alert( url );
-//return;
 
         $.ajax({
             cache: false,
@@ -661,9 +618,6 @@ return;
         var url  = '{{ path('odr_design_public_datafield', {'datafield_id': 0} ) }}';
         url = url.substring(0,(url.length-1));
         url += datafield_id;
-
-//alert( url );
-//return;
 
         $.ajax({
             cache: false,
@@ -714,9 +668,6 @@ return;
         var url  = '{{ path('odr_design_get_radio_options', {'datafield_id': 0} ) }}';
         url = url.substring(0,(url.length-1));
         url += datafield_id;
-
-//alert( url );
-//return;
 
         $.ajax({
             cache: false,
@@ -774,11 +725,9 @@ return;
 
             // If the theme element ended up in a different fieldarea, don't save the change and revert the layout
             if (starting_fieldarea == ending_fieldarea) {
-//alert('legal');
                 SaveThemeElementOrder($(ui.item).parent());
             }
             else {
-//alert('illegal');
                 $(".ODRFieldArea").sortable('cancel');
             }
 
@@ -814,17 +763,12 @@ return;
             var ending_theme_element = $(ui.item).parent().parent().attr('id');
             var ending_fieldarea = $(ui.item).parent().parent().parent().attr('id');
 
-//alert( 'start_ted: ' + starting_theme_element + ' end_ted: ' + ending_theme_element );
-//alert( 'start_fieldarea: ' + starting_fieldarea + ' end_fieldarea: ' + ending_fieldarea );
-
             // If the datafield ended up in the same fieldarea...
             if (starting_fieldarea == ending_fieldarea) {
-//alert('legal');
                 // Just need to save the destination theme element
                 SaveDatafieldOrder($(ui.item).parent(), starting_theme_element, ending_theme_element);
             }
             else {
-//alert('illegal');
                 // ...if not, don't save the change and revert the layout
                 $(".ODRInnerBox").sortable('cancel');
             }
@@ -840,15 +784,6 @@ return;
             starting_fieldarea = null;
             $(ui.placeholder).removeAttr('css');
         },
-/*
-        // Triggers each time the datafield moves into a different TEDs
-        over: function( event, ui ) {
-            if ( $(ui.placeholder).hasClass('ODRActiveIcon') )
-                $(ui.placeholder).removeClass('ODRActiveIcon');
-            else
-                $(ui.placeholder).addClass('ODRActiveIcon');
-        },
-*/
         placeholder: "ui-state-highlight",
         connectWith: ".ODRInnerBox"
     });
@@ -872,9 +807,6 @@ function SaveDatafieldProperty(datafield_id, reload_datafield) {
     var url = '{{ path('odr_design_get_datafield_properties', { 'datafield_id': 0 } ) }}';
     url = url.substring(0, (url.length - 1));
     url += datafield_id;
-
-//alert( url );
-//return;
 
     var post_data = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
     $.ajax({
@@ -933,9 +865,6 @@ function SaveThemeDatafieldProperties(theme_element_id, datafield_id) {
     var url = '{{ path('odr_design_save_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}';
     url = url.substring(0, url.length-3);
     url += theme_element_id + '/' + datafield_id;
-
-//alert( url );
-//return;
 
     var post_data = $("#ThemeDatafieldPropertiesForm_" + theme_element_id + "_" + datafield_id).serialize();
     $.ajax({
@@ -1023,9 +952,6 @@ function SetupDataFields() {
             var url = '{{ path('odr_design_get_datafield_properties', { 'datafield_id': 0 } ) }}';
             url = url.substring(0, (url.length - 1));
             url += datafield_id;
-
-//alert( url );
-//return;
 
             // Attempt to ensure only the most recent datafield property request goes through
             if (datafield_properties_xhr !== null)
