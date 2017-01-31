@@ -77,7 +77,7 @@
 
     <div id="layout_content">
     {% if presets != null %}
-        {% include 'ODRAdminBundle:CSVImport:layout.html.twig' with {'columns': columns, 'datatype': datatype, 'datafields': datafields, 'fieldtypes': fieldtypes, 'allowed_fieldtypes': allowed_fieldtypes, 'presets': presets} %}
+        {% include 'ODRAdminBundle:CSVImport:layout.html.twig' with {'columns': columns, 'datatype': datatype, 'datafields': datafields, 'fieldtypes': fieldtypes, 'allowed_fieldtypes': allowed_fieldtypes, 'presets': presets, 'file_encoding_converted': file_encoding_converted} %}
     {% endif %}
     </div>
 </div>

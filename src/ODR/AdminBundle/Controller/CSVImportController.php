@@ -21,7 +21,6 @@ use ODR\AdminBundle\Entity\Boolean as ODRBoolean;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataFieldsMeta;
 use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
@@ -43,14 +42,18 @@ use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
 // Symfony
+use Symfony\Component\HttpFoundation\Cookie;
+use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 // CSV Reader
 use Ddeboer\DataImport\Reader;
 use Ddeboer\DataImport\Writer;
 use Ddeboer\DataImport\Filter;
 use Ddeboer\DataImport\Reader\CsvReader;
+// ForceUTF8
+use \ForceUTF8\Encoding;
 
 
 class CSVImportController extends ODRCustomController
@@ -390,7 +393,7 @@ class CSVImportController extends ODRCustomController
                 throw new \Exception('No CSV file uploaded');
 
             // Remove any completely blank columns and rows from the csv file
-            self::trimCSVFile($user->getId(), $request);
+            $file_encoding_converted = self::trimCSVFile($user->getId(), $request);
 
             $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user->getId().'/';
             $csv_filename = $session->get('csv_file');
@@ -407,30 +410,11 @@ class CSVImportController extends ODRCustomController
             $reader = new CsvReader($csv_file, $delimiter);
             $reader->setHeaderRowNumber(0);     // want associative array for the column names
 
-            // Get the first row of the csv file
-            $file_headers = $reader->getColumnHeaders();
-            $line_num = 1;
-            $encoding_errors = array();
-
-            foreach ($reader as $row) {
-                // Keep track of the line number so UTF-8 errors can be accurately listed
-                $line_num++;
-
-                // TODO - this eventually needs to be done via beanstalk?  but can't json_encode the data unless it passes this check...
-                if ( count($row) > 0 ) {
-                    foreach ($row as $col_name => $col_data) {
-                        // Check each piece of data for encoding errors
-                        if ( mb_check_encoding($col_data, "utf-8") == false )       // this check needs to be performed prior to a json_encode
-                            $encoding_errors[$line_num][] = $col_name;
-                    }
-                }
-            }
-
-//print_r($encoding_errors);
-//exit();
 
             // ----------------------------------------
             // Grab column names from first row
+            $file_headers = $reader->getColumnHeaders();
+
             $error_messages = array();
             foreach ($file_headers as $column_num => $value) {
                 if ($value == '')
@@ -438,17 +422,7 @@ class CSVImportController extends ODRCustomController
             }
 
             // Notify of "syntax" errors in the csv file
-            if ( count($encoding_errors) > 0 || count($reader->getErrors()) > 0 ) {
-
-                // Warn about invalid encoding
-                foreach ($encoding_errors as $line_num => $errors) {
-                    $str = ' the column "'.$errors[0].'"';
-                    if ( count($errors) > 1 )
-                        $str = ' the columns "'.implode('", "', $errors).'"';
-
-                    $error_messages[] = array( 'error_level' => 'Error', 'error_body' => array('line_num' => $line_num+1, 'message' => 'Invalid UTF-8 character in'.$str) );
-                }
-
+            if ( count($reader->getErrors()) > 0 ) {
                 // Warn about wrong number of columns
                 foreach ($reader->getErrors() as $line_num => $errors) {
                     $error_messages[] = array( 'error_level' => 'Error', 'error_body' => array('line_num' => $line_num+1, 'message' => 'Found '.count($errors).' columns on this line, expected '.count($file_headers)) );
@@ -476,6 +450,7 @@ class CSVImportController extends ODRCustomController
                             'allowed_fieldtypes' => $allowed_fieldtypes,
 
                             'presets' => null,
+                            'file_encoding_converted' => $file_encoding_converted,
                         )
                     )
                 );
@@ -515,6 +490,7 @@ class CSVImportController extends ODRCustomController
      * @param integer $user_id
      * @param Request $request
      *
+     * @return boolean true if the function had to attempt to force UTF-8 encoding in the file, false otherwise
      */
     private function trimCSVFile($user_id, Request $request)
     {
@@ -560,17 +536,20 @@ class CSVImportController extends ODRCustomController
         $blank_header = false;
         $column_use = array();
         for ($i = 0; $i < count($header_row); $i++) {
-            if ( $header_row[$i] !== '' )
+            if ( $header_row[$i] !== '' ) {
+                // This column has a non-empty header
                 $column_use[$i] = true;
-            else
+            }
+            else {
+                // This column has an empty header...mark as a possibility of removing later
                 $column_use[$i] = false;
-        }
-        foreach ($column_use as $column_id => $in_use) {
-            if ($in_use == false)
                 $blank_header = true;
+            }
         }
 
 
+        // Store whether there's any invalid UTF-8 characters in a specific row...
+        $encoding_errors = array();
         // Also need to determine if any of the rows in the file are completely blank...
         $blank_rows = array();
 
@@ -589,17 +568,25 @@ class CSVImportController extends ODRCustomController
             if ( count($row) !== count($header_row) ) {
 //print 'column mismatch';
                 $csv_file = null;
-                return;
+                return false;   // file might have had encoding errors, but the user needs to fix the number of columns in the file first
             }
 
             // Check for any values in this row/column
             $blank_row = true;
             foreach ($row as $column_id => $value) {
                 if ($value !== '') {
-                    // Note that this column and this row have at least one value
+                    // Store that this column and this row have at least one value
                     if ($column_use[$column_id] == false)
                         $column_use[$column_id] = true;
                     $blank_row = false;
+
+                    // Check whether this string is valid UTF-8
+                    if ( !mb_check_encoding($value, 'UTF-8') ) {
+                        if ( !isset($encoding_errors[$line_num]) )
+                            $encoding_errors[$line_num] = array();
+
+                        $encoding_errors[$line_num][$column_id] = 1;
+                    }
                 }
             }
 
@@ -619,13 +606,13 @@ class CSVImportController extends ODRCustomController
             }
         }
 
-        if ( count($blank_rows) > 0 || $headers_trimmed || $blank_header )
+        if ( count($blank_rows) > 0 || count($encoding_errors) > 0 || $headers_trimmed || $blank_header )
             $rewrite_file = true;
 
         if (!$rewrite_file) {
 //print "don't need to rewrite file";
             $csv_file = null;
-            return;
+            return false;   // file does not have encoding errors (or any other errors for that matter...therefore, no need to rewrite)
         }
 
 
@@ -667,6 +654,14 @@ class CSVImportController extends ODRCustomController
                 unset( $row[$column_id] );
 //print_r($row);
 
+            // If any column in this row had an invalid UTF-8 character...
+            if ( isset($encoding_errors[$line_num]) ) {
+                // ...assume that the original file was encoded with either the windows-1252 or the ISO-8859-1 encodings, and attempt to convert every column with an invalid UTF-8 character to valid UTF-8
+                // TODO - this "works" for right now because ODR is only targeted towards English users...a more comprehensive system will be needed if the ODR ever starts targeting other regions too
+                foreach ($encoding_errors[$line_num] as $column_id => $num)
+                    $row[$column_id] = Encoding::toUTF8($row[$column_id]);
+            }
+
             // Don't print the completely blank rows from the original csv file
             if ( !in_array($line_num, $blank_rows) )
                 fputcsv($new_csv_file, $row, $delimiter);
@@ -677,7 +672,93 @@ class CSVImportController extends ODRCustomController
         fclose($new_csv_file);
 
         rename($csv_import_path.$tmp_filename, $csv_import_path.$csv_filename);
-        return;
+
+        if ( count($encoding_errors) > 0 )
+            return true;    // file had encoding errors
+        else
+            return false;   // file did not have encoding errors
+    }
+
+
+    /**
+     * Creates a response to redownload the most recently uploaded CSV file from this user.
+     *
+     * @param Request $request
+     *
+     * @return Response|StreamedResponse
+     */
+    public function redownloadfileAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $response = new StreamedResponse();
+
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_id = $user->getId();
+
+            // Attempt to load the previously uploaded csv file
+            $session = $request->getSession();
+            if ( !$session->has('csv_file') )
+                throw new \Exception('No CSV file uploaded');
+
+            $csv_import_path = dirname(__FILE__).'/../../../../web/uploads/csv/user_'.$user_id.'/';
+            $csv_filename = $session->get('csv_file');
+            $absolute_filepath = $csv_import_path.$csv_filename;
+
+            $handle = fopen($absolute_filepath, 'r');
+            if ($handle === false)
+                throw new \Exception('Unable to open existing file at "'.$absolute_filepath.'"');
+
+            // Attach the original filename to the download
+            $display_filename = substr($csv_filename, 0, strrpos($csv_filename, '.'));
+
+            // Set up a response to send the file back
+            $response->setPrivate();
+            $response->headers->set('Content-Type', mime_content_type($absolute_filepath));
+            $response->headers->set('Content-Length', filesize($absolute_filepath));
+            $response->headers->set('Content-Disposition', 'attachment; filename="'.$display_filename.'";');
+
+            // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
+            $response->headers->setCookie(
+                new Cookie(
+                    'fileDownload', // name
+                    'true',         // value
+                    0,              // duration set to 'session'
+                    '/',            // default path
+                    null,           // default domain
+                    false,          // don't require HTTPS
+                    false           // allow cookie to be accessed outside HTTP protocol
+                )
+            );
+
+            //$response->sendHeaders();
+
+            // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
+            $response->setCallback(function () use ($handle) {
+                while (!feof($handle)) {
+                    $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
+                    echo $buffer;
+                    flush();
+                }
+                fclose($handle);
+            });
+
+            return $response;
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x11533537 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
     }
 
 
@@ -1154,6 +1235,8 @@ class CSVImportController extends ODRCustomController
 
                     $filenames = explode( $column_delimiters[$column_num], $value );
                     foreach ($filenames as $filename) {
+                        $filename = trim($filename);
+
                         if ( isset($unique_filenames[$filename]) ) {
                             // Encountered duplicate value
                             $errors[] = array(
@@ -1164,7 +1247,7 @@ class CSVImportController extends ODRCustomController
                                 ),
                             );
                         }
-                        else {
+                        else if ($filename !== '') {
                             // ...otherwise, not found, just store the value
                             $unique_filenames[$filename] = $line_num;
                         }
@@ -1682,6 +1765,11 @@ class CSVImportController extends ODRCustomController
                             $filenames = explode( $column_delimiters[$column_num], $value );
                             $total_file_count = count($filenames) + count($already_uploaded_files);
                             foreach ($filenames as $filename) {
+                                // Don't attempt to upload files with no name
+                                $filename = trim($filename);
+                                if ($filename === '')
+                                    continue;
+
                                 // Determine whether the file is already uploaded to the server
                                 $already_uploaded = false;
                                 if ( in_array($filename, $already_uploaded_files) )
@@ -2817,6 +2905,11 @@ print_r($new_mapping);
                             // For each file/image listed in the csv file...
                             $csv_filenames = explode( $column_delimiters[$column_num], $column_data );
                             foreach ($csv_filenames as $csv_filename) {
+                                // Don't attempt to upload files with no name
+                                $csv_filename = trim($csv_filename);
+                                if ($csv_filename === '')
+                                    continue;
+
                                 // ...there are three possibilities...
                                 if ( !isset($existing_files[$csv_filename]) ) {
                                     // ...need to add a new file/image

@@ -18,6 +18,13 @@
             Upload {{ upload_text }} or Drop Here
         </span>
     </span>
+
+    {% if upload_type == 'csv' or upload_type == 'xml' %}
+    <span style="margin-left: 20px;">
+        <span><i class="fa fa-lg fa-info-circle Cursor"></i></span>
+        <span>The {{ upload_type|upper }} file should be in UTF-8 format.  If not, the server will have to attempt to convert the file to UTF-8, and a 100% accurate conversion can't be guaranteed.</span>
+    </span>
+    {% endif %}
 </div>
 
 <div id="ODRFileUploadProgress_{{ target }}" class="ODRFileUploadProgress"></div>

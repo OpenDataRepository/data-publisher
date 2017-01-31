@@ -272,6 +272,19 @@ class DatatypeController extends ODRCustomController
                     $is_top_level = true;
                     parent::ODR_createGroupsForDatatype($em, $admin, $datatype, $is_top_level);
 
+                    // Ensure the user who created this datatype becomes a member of the new datatype's "is_datatype_admin" group
+                    if ( !$admin->hasRole('ROLE_SUPER_ADMIN') ) {
+                        $admin_group = $em->getRepository('ODRAdminBundle:Group')->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'admin') );
+                        parent::ODR_createUserGroup($em, $admin, $admin_group, $admin);
+
+                        // Delete cached version of this user's permissions
+                        $redis = $this->container->get('snc_redis.default');;
+                        // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+                        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+                        $redis->del($redis_prefix.'.user_'.$admin->getId().'_permissions');
+                    }
+
 
                     // ----------------------------------------
                     // Create a new master theme for this new datatype
