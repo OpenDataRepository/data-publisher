@@ -322,8 +322,10 @@
     {# handled elsewhere by flow.js #}
 {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Paragraph Text" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
     <script type="text/javascript">
+
         window.{{ field_typeclass }}Interval_{{ unique_id }} = null;
-        $("#EditForm_{{ unique_id }}").find("{% if field_typename == 'Paragraph Text' %}textarea{% else %}input{% endif %}[name='{{ input_name }}'").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+
+        $("#EditForm_{{ unique_id }}").find("{% if field_typename == 'Paragraph Text' %}textarea{% else %}input{% endif %}[name='{{ input_name }}']").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
             window.{{ field_typeclass }}Interval_{{ unique_id }} = window.clearInterval( window.{{ field_typeclass }}Interval_{{ unique_id }} );
             window.{{ field_typeclass }}Interval_{{ unique_id }} = window.setInterval( "$('#EditForm_{{ unique_id }}').submit()", SaveTimeout );
         });
