@@ -16,7 +16,8 @@ namespace ODR\OpenRepository\UserBundle\Entity;
 
 use FOS\UserBundle\Model\User as BaseUser;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Validator\ExecutionContextInterface;
+//use Symfony\Component\Validator\ExecutionContextInterface;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 /**
  * @ORM\Entity
@@ -234,13 +235,9 @@ class User extends BaseUser
 
     /**
      * Custom callback to validate the plainPassword
-     * @see http://symfony.com/doc/2.3/reference/constraints/Callback.html
+     * @see http://symfony.com/doc/2.8/reference/constraints/Callback.html
      *
-     * changes made to password rules should also be made in these files:
-     *  ODR\OpenRepository\UserBundle\Resources\views\ChangePassword\changePassword_content.html.twig
-     *  ODR\OpenRepository\UserBundle\Resources\views\Resetting\reset_content.html.twig
-     *  ODR\OpenRepository\UserBundle\Entity\User.php
-     *  ODR\AdminBundle\Resources\views\ODRUser\change_password.html.twig
+     * Any change to the password rules also needs to be made in ODR\AdminBundle\Resources\views\ODRUser\change_password.html.twig
      */
     public function isPasswordValid(ExecutionContextInterface $context)
     {
@@ -248,35 +245,20 @@ class User extends BaseUser
         if ($this->plainPassword == null)
             return;
 
-        if ( preg_match('/[a-z]/', $this->plainPassword) !== 1 ) {
-            $context->addViolationAt(
-                'plainPassword',
-                'Password must contain at least one lowercase letter'
-            );
-        }
-        if ( preg_match('/[A-Z]/', $this->plainPassword) !== 1 ) {
-            $context->addViolationAt(
-                'plainPassword',
-                'Password must contain at least one uppercase letter'
-            );
-        }
-        if ( preg_match('/[0-9]/', $this->plainPassword) !== 1 ) {
-            $context->addViolationAt(
-                'plainPassword',
-                'Password must contain at least one numerical character'
-            );
-        }
-        if ( preg_match('/[\`\~\!\@\#\$\%\^\&\*\(\)\-\_\=\+\[\{\]\}\\\|\;\:\'\"\,\<\.\>\/\?]/', $this->plainPassword) !== 1 ) {
-            $context->addViolationAt(
-                'plainPassword',
-                'Password must contain at least one symbol'
-            );
-        }
-        if ( strlen($this->plainPassword) < 8 ) {
-            $context->addViolationAt(
-                'plainPassword',
-                'Password must be at least 8 characters long'
-            );
-        }
+        if ( preg_match('/[a-z]/', $this->plainPassword) !== 1 )
+            $context->buildViolation('Password must contain at least one lowercase letter')->atPath('plainPassword')->addViolation();
+
+        if ( preg_match('/[A-Z]/', $this->plainPassword) !== 1 )
+            $context->buildViolation('Password must contain at least one uppercase letter')->atPath('plainPassword')->addViolation();
+
+        if ( preg_match('/[0-9]/', $this->plainPassword) !== 1 )
+            $context->buildViolation('Password must contain at least one numerical letter')->atPath('plainPassword')->addViolation();
+
+        if ( preg_match('/[\`\~\!\@\#\$\%\^\&\*\(\)\-\_\=\+\[\{\]\}\\\|\;\:\'\"\,\<\.\>\/\?]/', $this->plainPassword) !== 1 )
+            $context->buildViolation('Password must contain at least one symbol')->atPath('plainPassword')->addViolation();
+
+        if ( strlen($this->plainPassword) < 8 )
+            $context->buildViolation('Password must be at least 8 characters long')->atPath('plainPassword')->addViolation();
+
     }
 }
