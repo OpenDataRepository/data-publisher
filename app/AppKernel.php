@@ -22,6 +22,7 @@ class AppKernel extends Kernel
             new ODR\AdminBundle\ODRAdminBundle(),
 //            new ODR\LoginBundle\ODRLoginBundle(),
             new FOS\UserBundle\FOSUserBundle(),
+            new FOS\OAuthServerBundle\FOSOAuthServerBundle(),
             new ODR\OpenRepository\UserBundle\ODROpenRepositoryUserBundle(),
             new ODR\OpenRepository\SearchBundle\ODROpenRepositorySearchBundle(),
             new ODR\OpenRepository\ApiBundle\ODROpenRepositoryApiBundle(),

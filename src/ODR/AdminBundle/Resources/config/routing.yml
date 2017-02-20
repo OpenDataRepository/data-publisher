@@ -1238,3 +1238,10 @@ odr_permissions_clear:
 #    path:  /beanstalk/build_group_data
 #    defaults: { _controller:ODRAdminBundle:Worker:buildgroupdata }
 #    requirements: { methods: POST }
+
+
+#-----------------------------------------
+# API Controller
+api_userdata:
+    path: /api/userdata
+    defaults: { _controller: ODRAdminBundle:API:userdata }
