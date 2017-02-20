@@ -6,24 +6,16 @@ parameters:
     database_name: odr_master
     database_user: odr_master
     database_password: aisufh83409res8uf
-    #database_name: odr_localhost
-    #database_user: odr_localhost
-    #database_password: 8929asf2jlasdfk2asdfa
     mailer_transport: smtp
     mailer_host: localhost
     mailer_user: null
     mailer_password: null
     locale: en
     secret: 3894eruifsro8945uitrosaughjkrehsduiosreqjwhsdfjk
-    #secret: a8910801jwqersjfdk8wfdnsjadflask2093810923809ae9r0af9iau2jlkjwehasdfkjh12
     odr_plugins:
         graph_plugin:
             name: 'Graph Plugin'
             filename: GraphPlugin
-            bundle_path: /ODR/OpenRepository/GraphBundle
-        gcms_plugin:
-            name: 'GCMassSpec Plugin'
-            filename: GCMassSpecPlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
         chemistry_plugin:
             name: 'Chemistry Field'

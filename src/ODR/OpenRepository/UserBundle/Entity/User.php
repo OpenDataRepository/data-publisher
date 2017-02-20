@@ -1,22 +1,20 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* User Entity (override)
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* Extends the default FOS User Entity to add some additional data,
-* and adds a password validation function.
-*/
-
+ * Open Data Repository Data Publisher
+ * User Entity (override)
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * Extends the default FOS User Entity to add some additional data,
+ * and adds a password validation function.
+ */
 
 namespace ODR\OpenRepository\UserBundle\Entity;
 
 use FOS\UserBundle\Model\User as BaseUser;
 use Doctrine\ORM\Mapping as ORM;
-//use Symfony\Component\Validator\ExecutionContextInterface;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 /**
@@ -32,6 +30,9 @@ class User extends BaseUser
      */
     protected $id;
 
+    /**
+     * @inheritdoc
+     */
     public function __construct()
     {
         parent::__construct();

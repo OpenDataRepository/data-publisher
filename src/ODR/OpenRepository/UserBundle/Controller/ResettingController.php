@@ -1,16 +1,16 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* Resetting Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* Overrides FOSUserBundle's password reset controller so logged-in
-* users get redirected to their profile page instead of getting an
-* email to reset their password.
-*/
+ * Open Data Repository Data Publisher
+ * Resetting Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * Overrides FOSUserBundle's password reset controller so logged-in
+ * users get redirected to their profile page instead of getting an
+ * email to reset their password.
+ */
 
 
 namespace ODR\OpenRepository\UserBundle\Controller;
