@@ -2,25 +2,25 @@
 
 /**
  * Open Data Repository Data Publisher
- * AccessToken Entity (override)
+ * RefreshToken Entity (override)
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Extends the default FOS OAuth AccessToken Entity to work with the
+ * Extends the default FOS OAuth RefreshToken Entity to work with the
  * existing overridden FOS User Entity.
  */
 
-namespace ODR\OpenRepository\UserBundle\Entity;
+namespace ODR\OpenRepository\OAuthBundle\Entity;
 
-use FOS\OAuthServerBundle\Entity\AccessToken as BaseAccessToken;
+use FOS\OAuthServerBundle\Entity\RefreshToken as BaseRefreshToken;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * @ORM\Entity
- * @ORM\Table(name="fos_access_token")
+ * @ORM\Table(name="fos_refresh_token")
  */
-class AccessToken extends BaseAccessToken
+class RefreshToken extends BaseRefreshToken
 {
     /**
      * @ORM\Id
@@ -36,7 +36,7 @@ class AccessToken extends BaseAccessToken
     protected $client;
 
     /**
-     * @ORM\ManyToOne(targetEntity="User")
+     * @ORM\ManyToOne(targetEntity="ODR\OpenRepository\UserBundle\Entity\User")
      */
     protected $user;
 }

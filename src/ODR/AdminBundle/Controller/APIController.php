@@ -37,12 +37,12 @@ class APIController extends ODRCustomController
         /** @var ODRUser $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-        if ($user) {
+        if ($user && $user->hasRole('ROLE_SUPER_ADMIN')) {  // TODO - need an additional role to fulfill this
             return new JsonResponse(
                 array(
                     'user_id' => $user->getId(),
                     'email' => $user->getEmail(),
-                    'jupyterhub_username' => 'ubuntu',    // TEMP
+                    'jupyterhub_username' => 'jupyter_user_'.$user->getId(),
                 )
             );
         }

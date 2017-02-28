@@ -2,25 +2,25 @@
 
 /**
  * Open Data Repository Data Publisher
- * AuthCode Entity (override)
+ * AccessToken Entity (override)
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Extends the default FOS OAuth AuthCode Entity to work with the
+ * Extends the default FOS OAuth AccessToken Entity to work with the
  * existing overridden FOS User Entity.
  */
 
-namespace ODR\OpenRepository\UserBundle\Entity;
+namespace ODR\OpenRepository\OAuthBundle\Entity;
 
-use FOS\OAuthServerBundle\Entity\AuthCode as BaseAuthCode;
+use FOS\OAuthServerBundle\Entity\AccessToken as BaseAccessToken;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * @ORM\Entity
- * @ORM\Table(name="fos_auth_code")
+ * @ORM\Table(name="fos_access_token")
  */
-class AuthCode extends BaseAuthCode
+class AccessToken extends BaseAccessToken
 {
     /**
      * @ORM\Id
@@ -36,7 +36,7 @@ class AuthCode extends BaseAuthCode
     protected $client;
 
     /**
-     * @ORM\ManyToOne(targetEntity="User")
+     * @ORM\ManyToOne(targetEntity="ODR\OpenRepository\UserBundle\Entity\User")
      */
     protected $user;
 }

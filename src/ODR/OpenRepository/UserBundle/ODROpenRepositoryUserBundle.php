@@ -1,17 +1,15 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* ODROpenRepository User Bundle
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* This bundle is declared as a child of the FriendsOfSymfony
-* bundle, to permit extending of the password reset/change
-* functionality.
-*/
-
+ * Open Data Repository Data Publisher
+ * ODROpenRepository User Bundle
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * This bundle is declared as a child of the FOSUserBundle, to
+ * permit extending of the password reset/change functionality.
+ */
 
 namespace ODR\OpenRepository\UserBundle;
 
@@ -21,11 +19,19 @@ use ODR\OpenRepository\UserBundle\DependencyInjection\Compiler\ValidatorPass;
 
 class ODROpenRepositoryUserBundle extends Bundle
 {
+
+    /**
+     * @inheritdoc
+     */
     public function getParent()
     {
         return 'FOSUserBundle';
     }
 
+
+    /**
+     * @inheritdoc
+     */
     public function build(ContainerBuilder $container)
     {
         parent::build($container);
