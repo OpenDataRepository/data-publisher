@@ -27,6 +27,7 @@ class APIController extends ODRCustomController
 {
 
     /**
+     * Used by JupyterHub to determine which user has logged in via ODR's OAuth
      *
      * @param Request $request
      *
@@ -37,10 +38,10 @@ class APIController extends ODRCustomController
         /** @var ODRUser $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-        if ($user && $user->hasRole('ROLE_SUPER_ADMIN')) {  // TODO - need an additional role to fulfill this
+        if ($user && $user->hasRole('ROLE_JUPYTERHUB_USER')) {
             return new JsonResponse(
                 array(
-                    'user_id' => $user->getId(),
+                    'username' => $user->getUserString(),
                     'email' => $user->getEmail(),
                     'jupyterhub_username' => 'jupyter_user_'.$user->getId(),
                 )

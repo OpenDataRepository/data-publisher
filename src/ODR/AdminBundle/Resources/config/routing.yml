@@ -78,7 +78,7 @@ odr_set_user_role:
     defaults: { _controller: ODRAdminBundle:ODRUser:setrole }
     requirements:
         user_id:  \d+
-        role:  '|user|admin|sadmin'
+        role:  '|user|admin|sadmin|jupyterhub'
 
 odr_delete_user:
     path:  /admin/user/delete/{user_id}

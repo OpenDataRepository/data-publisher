@@ -1,17 +1,16 @@
-# This file is auto-generated during the composer install
 parameters:
     database_driver: pdo_mysql
     database_host: localhost
     database_port: null
     database_name: odr_master
     database_user: odr_master
-    database_password: aisufh83409res8uf
+    database_password: [[ ENTER DATABASE PASSWORD HERE ]]
     mailer_transport: smtp
     mailer_host: localhost
     mailer_user: null
     mailer_password: null
     locale: en
-    secret: 3894eruifsro8945uitrosaughjkrehsduiosreqjwhsdfjk
+    secret: [[ ENTER RANDOM KEY HERE - Text String ]]
     odr_plugins:
         graph_plugin:
             name: 'Graph Plugin'
@@ -57,10 +56,14 @@ parameters:
         -
             host: 127.0.0.1
             port: 11211
-    site_baseurl: 'http://odr.localhost'
+    site_baseurl: [[ ENTER URL OF ODR DOMAIN HERE ]]
     memcached_key_prefix: odr_master
     session_memcached_expire: 3600
     session_memcached_prefix: odr_master
     session_memcached_host: 127.0.0.1
     session_memcached_port: 11211
-    beanstalk_api_key: 01938reuifq39uwehirjfa3iuw4edjksaluih
+    beanstalk_api_key: [[ ENTER RANDOM KEY HERE - Text String ]]
+
+    jupyterhub_config:
+        use_jupyterhub: false    # set to true to enable jupyterhub integration
+        jupyterhub_server: [[ ENTER URL OF JUPYTERHUB DOMAIN HERE ]]

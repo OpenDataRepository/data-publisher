@@ -10,9 +10,11 @@ security:
         FOS\UserBundle\Model\UserInterface: sha512
 
     role_hierarchy:
-        ROLE_USER:           ROLE_USER
-        ROLE_ADMIN:          ROLE_ADMIN
-        ROLE_SUPER_ADMIN:    ROLE_SUPER_ADMIN
+        ROLE_USER:            ROLE_USER
+        ROLE_ADMIN:           ROLE_ADMIN
+        ROLE_SUPER_ADMIN:     ROLE_SUPER_ADMIN
+
+        ROLE_JUPYTERHUB_USER: ROLE_JUPYTERHUB_USER
 
     providers:
         fos_userbundle:
@@ -36,7 +38,7 @@ security:
             pattern:    ^/api
             fos_oauth:  true
             stateless:  true
-
+#            anonymous:  false # can be omitted as its default value
 
         main:
             pattern: ^/
