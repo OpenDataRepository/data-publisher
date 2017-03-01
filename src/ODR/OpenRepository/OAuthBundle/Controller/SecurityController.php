@@ -7,29 +7,18 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Overrides FOSUserBundle's default SecurityController, to allow for
- * separating a regular login and an OAuth login.
+ * @see https://github.com/FriendsOfSymfony/FOSOAuthServerBundle/blob/master/Resources/doc/a_note_about_security.md
+ * @see http://symfony.com/blog/new-in-symfony-2-6-security-component-improvements#added-a-security-error-helper
  */
 
-namespace ODR\OpenRepository\UserBundle\Controller;
+namespace ODR\OpenRepository\OAuthBundle\Controller;
 
-use FOS\UserBundle\Controller\SecurityController as BaseController;
+use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\Request;
 
 
-class SecurityController extends BaseController
+class SecurityController extends Controller
 {
-
-    /**
-     * This function is needed to separate the OAuth login from the regular login.
-     *
-     * @inheritdoc
-     */
-    public function loginAction(Request $request)
-    {
-        return parent::loginAction($request);
-    }
-
 
     /**
      * @param Request $request
@@ -47,10 +36,10 @@ class SecurityController extends BaseController
             }
         }
 
-        // @see http://symfony.com/blog/new-in-symfony-2-6-security-component-improvements#added-a-security-error-helper
+        // TODO - this doesn't seem to actually do anything on authentication failure
         $helper = $this->get('security.authentication_utils');
 
-        return $this->render('ODROpenRepositoryUserBundle:Security:oauth_login.html.twig', array(
+        return $this->render('ODROpenRepositoryOAuthBundle:Security:oauth_login.html.twig', array(
             'last_username' => $helper->getLastUsername(),
             'error'         => $helper->getLastAuthenticationError(),
         ));
