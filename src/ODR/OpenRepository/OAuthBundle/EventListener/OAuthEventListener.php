@@ -1,33 +1,31 @@
 <?php
 
+/**
+ * Open Data Repository Data Publisher
+ * OAuth Event Listener
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * Listens to the FOSOAuthServer's pre/post authorization events so users only have to authorize a client once.
+ *
+ * @see https://github.com/FriendsOfSymfony/FOSOAuthServerBundle/blob/master/Resources/doc/the_oauth_event_class.md
+ *
+ */
+
 namespace ODR\OpenRepository\OAuthBundle\EventListener;
 
-/*
-use FOS\UserBundle\FOSUserEvents;
-use FOS\UserBundle\Event\FormEvent;
-use Symfony\Component\HttpFoundation\RedirectResponse;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-*/
-
+// Entities
+use ODR\OpenRepository\OAuthBundle\Entity\Client;
+use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+// Events
 use FOS\OAuthServerBundle\Event\OAuthEvent;
-use OAuth2\OAuth2;
-use OAuth2\OAuth2AuthenticateException;
-use OAuth2\OAuth2ServerException;
+// Symfony
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 
 class OAuthEventListener implements EventSubscriberInterface
 {
-/*
-    private $router;
-    private $site_baseurl;
-
-    public function __construct(UrlGeneratorInterface $router, $site_baseurl)
-    {
-        $this->router = $router;
-        $this->site_baseurl = $site_baseurl;
-    }
-*/
 
     /**
      * {@inheritDoc}
@@ -40,27 +38,45 @@ class OAuthEventListener implements EventSubscriberInterface
         );
     }
 
+
+    /**
+     * Called during @see FOS/OAuthServerBundle/Controller/AuthorizeController::authorizeAction()
+     *
+     * By setting $event->isAuthorizedClient() to true, the authorization dialog of "Do you want to allow <CLIENT> to
+     * access your data" dialog can be skipped.
+     *
+     * @param OAuthEvent $event
+     */
     public function onPreAuthorizationProcess(OAuthEvent $event)
     {
-
+        /** @var ODRUser $user */
         $user = $event->getUser();
-        $roles = $user->getRoles();
-/*
-        throw new \Exception('do not continue');
+        /** @var Client $client */
+        $client = $event->getClient();
 
-        if (in_array('ROLE_JUPYTERHUB_USER', $roles))
-//            $event->setAuthorizedClient(true);
-//            throw new OAuth2AuthenticateException(OAuth2::HTTP_UNAUTHORIZED, OAuth2::TOKEN_TYPE_BEARER, '', OAuth2::ERROR_USER_DENIED, 'user has role' );
-        throw new OAuth2ServerException(OAuth2::HTTP_UNAUTHORIZED, OAuth2::ERROR_USER_DENIED, 'user has role');
-        else
-//            $event->setAuthorizedClient(false);
-//            throw new OAuth2AuthenticateException(OAuth2::HTTP_UNAUTHORIZED, OAuth2::TOKEN_TYPE_BEARER, '', OAuth2::ERROR_USER_DENIED, 'user does not have role' );
-            throw new OAuth2ServerException(OAuth2::HTTP_UNAUTHORIZED, OAuth2::ERROR_USER_DENIED, 'user does not have role');
-*/
+        // If the user has previously authorized this client, then allow the OAuth login flow to bypass the authorization dialog
+        if ($user && $client)
+            $event->setAuthorizedClient( $user->isAuthorizedClient($client) );
     }
 
+
+    /**
+     * Called during @see FOS/OAuthServerBundle/Controller/AuthorizeController::processSuccess()
+     *
+     * At that point in the OAuth flow, the user has authorized <CLIENT> to do what it wants...to prevent them from
+     * having to authorize the <CLIENT> repeatedly.
+     *
+     * @param OAuthEvent $event
+     */
     public function onPostAuthorizationProcess(OAuthEvent $event)
     {
+        /** @var ODRUser $user */
+        $user = $event->getUser();
+        /** @var Client $client */
+        $client = $event->getClient();
 
+        // Store that this user authorized this client so they don't have to authorize it again later
+        if ($user && $client && $event->isAuthorizedClient() && !$user->isAuthorizedClient($client))
+            $user->addClient($client);
     }
 }

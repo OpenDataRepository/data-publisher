@@ -5,9 +5,9 @@
         {% if is_granted('ROLE_JUPYTERHUB_USER') %}
         <h2>The application "JupyterHub" would like to connect to your account</h2>
 
-        {{ form_start(form, {'method': 'POST', 'action': path('fos_oauth_server_authorize'), 'label_attr': {'class': 'fos_oauth_server_authorize'} }) }}
-            <input class="pure-button" type="submit" name="rejected" value="{{ 'authorize.reject'|trans({}, 'FOSOAuthServerBundle') }}" />
-            <input class="pure-button pure-button-primary" type="submit" name="accepted" value="{{ 'authorize.accept'|trans({}, 'FOSOAuthServerBundle') }}" />
+        {{ form_start(form, {'method': 'POST', 'action': path('fos_oauth_server_authorize'), 'label_attr': {'class': 'fos_oauth_server_authorize pure-form pure-form-aligned'} }) }}
+            <button class="pure-button" type="submit" name="rejected">{{ 'authorize.reject'|trans({}, 'FOSOAuthServerBundle') }}</button>
+            <button class="pure-button pure-button-primary" type="submit" name="accepted">{{ 'authorize.accept'|trans({}, 'FOSOAuthServerBundle') }}</button>
 
             {{ form_row(form.client_id) }}
             {{ form_row(form.response_type) }}

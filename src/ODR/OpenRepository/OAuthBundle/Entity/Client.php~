@@ -30,10 +30,63 @@ class Client extends BaseClient
     protected $id;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     *
+     * @ORM\ManyToMany(targetEntity="ODR\OpenRepository\UserBundle\Entity\User", mappedBy="clients")
+     */
+    private $users;
+
+    /**
      * @inheritdoc
      */
     public function __construct()
     {
         parent::__construct();
+
+        $this->users = new \Doctrine\Common\Collections\ArrayCollection();
+    }
+
+    /**
+     * Get id
+     *
+     * @return integer
+     */
+    public function getId()
+    {
+        return $this->id;
+    }
+
+    /**
+     * Add user
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $user
+     *
+     * @return Client
+     */
+    public function addUser(\ODR\OpenRepository\UserBundle\Entity\User $user)
+    {
+        $this->users[] = $user;
+
+        return $this;
+    }
+
+    /**
+     * Remove user
+     *
+     * @param \ODR\OpenRepository\UserBundle\Entity\User $user
+     */
+    public function removeUser(\ODR\OpenRepository\UserBundle\Entity\User $user)
+    {
+        $this->users->removeElement($user);
+    }
+
+    /**
+     * Get users
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getUsers()
+    {
+        return $this->users;
     }
 }
