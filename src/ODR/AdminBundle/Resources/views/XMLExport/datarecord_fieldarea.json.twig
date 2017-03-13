@@ -1,0 +1,126 @@
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = datatype.themes[theme_id] %}
+{% set datarecord = datarecord_array[target_datarecord_id] %}
+
+{# describe datafields first #}
+"datafields": {
+{% for theme_element in theme.themeElements %}
+    {% if theme_element.themeDataFields is defined %}
+
+        {% for theme_datafield in theme_element.themeDataFields %}
+            {% if theme_datafield.dataField is defined %}
+                {% set datafield = theme_datafield.dataField %}
+
+                {% if datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
+                    {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
+                        'datarecord': datarecord,
+                        'datafield': datafield,
+
+                        'is_link': is_link,
+
+                        'using_metadata': using_metadata,
+                        'baseurl': baseurl,
+                        'version': version,
+                    } %}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endfor %}
+},
+
+{# describe child datarecords second #}
+"child_datarecords": {
+{% for theme_element in theme.themeElements %}
+    {% if theme_element.themeDataType is defined %}
+
+        {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
+            {% set child_datatype = theme_datatype.dataType %}
+
+            {% if datatype_array[ child_datatype.id ] is defined %}
+                {% set child_theme_id = 0 %}
+                {% for theme in datatype_array[ child_datatype.id ].themes %}
+                    {% if theme.themeType == 'master' %}
+                        {% set child_theme_id = theme.id %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if theme_datatype.is_link == 0 %}
+                    {% set is_top_level = 0 %}
+
+                    {# using macro on purpose to get the template as a string #}
+                    {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+                    {% set content = mychildform.input(datatype_array, datarecord_array, child_theme_id, child_datatype.id, datarecord.id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
+
+                    {% if "{" in content|trim %}
+                        {% set child_datatype = datatype_array[ child_datatype.id ] %}
+
+                        {% if version == 'v1' %}
+                            "datatype_{{ child_datatype.id }}": {
+                                "datatype_name": {{ child_datatype.dataTypeMeta.shortName|json_encode|raw }},
+                        {% else %}
+                            "datatype_{{ child_datatype.dataTypeMeta.xml_shortName }}": {
+                        {% endif %}
+
+                        {{ content }}
+
+                            },
+
+                        {% endif %}
+                    {% endif %}
+
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endfor %}
+},
+
+{# describe linked datarecords last #}
+"linked_datarecords": {
+{% for theme_element in theme.themeElements %}
+    {% if theme_element.themeDataType is defined %}
+
+        {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
+            {% set child_datatype = theme_datatype.dataType %}
+
+            {% if datatype_array[ child_datatype.id ] is defined %}
+                {% set child_theme_id = 0 %}
+                {% for theme in datatype_array[ child_datatype.id ].themes %}
+                    {% if theme.themeType == 'master' %}
+                        {% set child_theme_id = theme.id %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if theme_datatype.is_link == 1 %}
+                    {% set is_top_level = 0 %}
+
+                    {# using macro on purpose to get the template as a string #}
+                    {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+                    {% set content = mychildform.input(datatype_array, datarecord_array, child_theme_id, child_datatype.id, datarecord.id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
+
+                    {% if "{" in content|trim %}
+                        {% set child_datatype = datatype_array[ child_datatype.id ] %}
+
+                        {% if version == 'v1' %}
+                            "datatype_{{ child_datatype.id }}": {
+                                "datatype_name": {{ child_datatype.dataTypeMeta.shortName|json_encode|raw }},
+                        {% else %}
+                            "datatype_{{ child_datatype.dataTypeMeta.xml_shortName }}": {
+                        {% endif %}
+
+                        {{ content }}
+
+                            },
+
+                    {% endif %}
+                {% endif %}
+
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endfor %}
+}
+
+{% endspaceless %}

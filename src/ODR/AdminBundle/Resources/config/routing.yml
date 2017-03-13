@@ -862,11 +862,12 @@ odr_xml_import_file_download:
 #        datarecord_id: \d+
 
 odr_get_datarecord_xml:
-    path:  /api/datarecord/{version}/{datarecord_id}
-    defaults: { _controller: ODRAdminBundle:XMLExport:getDatarecordXML }
+    path:  /api/datarecord/{version}/{datarecord_id}/{format}
+    defaults: { _controller: ODRAdminBundle:XMLExport:getDatarecordXML, format: 'xml' }
     requirements:
         version: 'v1|v2'
         datarecord_id: \d+
+        format: '|xml|json'
 
 #-----------------------------------------
 
@@ -909,15 +910,15 @@ odr_get_datarecord_xml:
 
 #-----------------------------------------
 # Worker Controller
-odr_recache_type:
-    path: /beanstalk/recache_type
-    defaults: { _controller: ODRAdminBundle:Worker:recachetype }
-    requirements: { methods: POST }
+#odr_recache_type:
+#    path: /beanstalk/recache_type
+#    defaults: { _controller: ODRAdminBundle:Worker:recachetype }
+#    requirements: { methods: POST }
 
-odr_recache_record:
-    path: /beanstalk/recache_record
-    defaults: { _controller: ODRAdminBundle:Worker:recacherecord }
-    requirements: { methods: POST }
+#odr_recache_record:
+#    path: /beanstalk/recache_record
+#    defaults: { _controller: ODRAdminBundle:Worker:recacherecord }
+#    requirements: { methods: POST }
 
 odr_migrate_field:
     path: /beanstalk/migrate

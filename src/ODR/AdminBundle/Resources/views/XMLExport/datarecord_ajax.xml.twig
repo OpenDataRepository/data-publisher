@@ -9,7 +9,7 @@
         {% set is_link = 0 %}
 
         {# using macro on purpose #}
-        {% import "ODRAdminBundle:XMLExport:xml_datarecord_childtype.html.twig" as mychildform %}
+        {% import "ODRAdminBundle:XMLExport:datarecord_childtype.xml.twig" as mychildform %}
         {{ mychildform.input(datatype_array, datarecord_array, theme_id, initial_datatype_id, initial_datarecord_id, is_top_level, is_link, using_metadata, baseurl, version) }}
 
     </datarecord>

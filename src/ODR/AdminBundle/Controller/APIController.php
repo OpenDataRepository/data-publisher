@@ -44,6 +44,7 @@ class APIController extends ODRCustomController
                     'username' => $user->getUserString(),
                     'email' => $user->getEmail(),
                     'jupyterhub_username' => 'jupyter_user_'.$user->getId(),
+                    'baseurl' => $this->getParameter('site_baseurl'),
                 )
             );
         }
