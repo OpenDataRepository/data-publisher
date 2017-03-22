@@ -288,4 +288,33 @@ class ThemeDataType
     {
         return $this->deletedBy;
     }
+    /**
+     * @var integer
+     */
+    private $hidden;
+
+
+    /**
+     * Set hidden
+     *
+     * @param integer $hidden
+     *
+     * @return ThemeDataType
+     */
+    public function setHidden($hidden)
+    {
+        $this->hidden = $hidden;
+
+        return $this;
+    }
+
+    /**
+     * Get hidden
+     *
+     * @return integer
+     */
+    public function getHidden()
+    {
+        return $this->hidden;
+    }
 }

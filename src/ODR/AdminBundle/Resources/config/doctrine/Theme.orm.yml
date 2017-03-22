@@ -56,6 +56,23 @@ ODR\AdminBundle\Entity\Theme:
             orphanRemoval: false
 
     manyToOne:
+        parentTheme:
+            targetEntity: Theme
+            fetch: EXTRA_LAZY
+            inversedBy: relatedThemes
+            joinColumns:
+                parent_theme_id:
+                    referencedColumnName: id
+
+        sourceTheme:
+            targetEntity: Theme
+            fetch: EXTRA_LAZY
+            inversedBy: relatedSourceThemes
+            joinColumns:
+                source_theme_id:
+                    referencedColumnName: id
+
+
         dataType:
             targetEntity: DataType
             cascade: {  }

@@ -5459,7 +5459,7 @@ if ($timing)
         // Otherwise...get all non-layout data for a given grandparent datarecord
         $query = $em->createQuery(
            'SELECT
-                t, tm,
+                t, pt, st, tm,
                 dt, dtm, dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
                 te, tem,
                 tdf, df, ro, rom,
@@ -5470,6 +5470,8 @@ if ($timing)
             LEFT JOIN dt.dataTypeMeta AS dtm
 
             LEFT JOIN dt.themes AS t
+            LEFT JOIN t.parentTheme AS pt
+            LEFT JOIN t.sourceTheme AS st
             LEFT JOIN t.themeMeta AS tm
 
             LEFT JOIN dtm.renderPlugin AS dt_rp

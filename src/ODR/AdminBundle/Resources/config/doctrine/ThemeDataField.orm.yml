@@ -18,9 +18,15 @@ ODR\AdminBundle\Entity\ThemeDataField:
             nullable: false
             column: display_order
 
+        hidden:
+            type: integer
+            nullable: false
+            default: 0
+
         cssWidthMed:
             type: string
             length: 32
+
         cssWidthXL:
             type: string
             length: 32

@@ -289,4 +289,91 @@ class ThemeMeta
     {
         return $this->updatedBy;
     }
+    /**
+     * @var \DateTime
+     */
+    private $public;
+
+
+    /**
+     * Set public
+     *
+     * @param \DateTime $public
+     *
+     * @return ThemeMeta
+     */
+    public function setPublic($public)
+    {
+        $this->public = $public;
+
+        return $this;
+    }
+
+    /**
+     * Get public
+     *
+     * @return \DateTime
+     */
+    public function getPublic()
+    {
+        return $this->public;
+    }
+    /**
+     * @var \DateTime
+     */
+    private $sourceSyncCheck;
+
+
+    /**
+     * Set sourceSyncCheck
+     *
+     * @param \DateTime $sourceSyncCheck
+     *
+     * @return ThemeMeta
+     */
+    public function setSourceSyncCheck($sourceSyncCheck)
+    {
+        $this->sourceSyncCheck = $sourceSyncCheck;
+
+        return $this;
+    }
+
+    /**
+     * Get sourceSyncCheck
+     *
+     * @return \DateTime
+     */
+    public function getSourceSyncCheck()
+    {
+        return $this->sourceSyncCheck;
+    }
+    /**
+     * @var integer
+     */
+    private $displayOrder;
+
+
+    /**
+     * Set displayOrder
+     *
+     * @param integer $displayOrder
+     *
+     * @return ThemeMeta
+     */
+    public function setDisplayOrder($displayOrder)
+    {
+        $this->displayOrder = $displayOrder;
+
+        return $this;
+    }
+
+    /**
+     * Get displayOrder
+     *
+     * @return integer
+     */
+    public function getDisplayOrder()
+    {
+        return $this->displayOrder;
+    }
 }

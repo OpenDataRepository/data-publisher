@@ -1,47 +1,41 @@
 {% spaceless %}
 
-{% set derivative_theme = datatype_array[initial_datatype_id]['themes'][target_theme_id] %}
-{% set derivative_themetype = 'Derivative' %}
-{% if derivative_theme.themeType == 'search_results' %}
-    {% set derivative_themetype = 'Search Results' %}
-{% elseif derivative_theme.themeType == 'table' %}
-    {% set derivative_themetype = 'Table' %}
-{% endif %}
+    {% set datatype = datatype_array[initial_datatype_id] %}
 
-<input type="hidden" id="master_theme_id" value="{{ master_theme_id }}" />
-<input type="hidden" id="target_theme_id" value="{{ target_theme_id }}" />
-<input type="hidden" id="target_theme_type" value="{{ derivative_themetype }}" />
+    <h1 class="no-margin-top-phone">
+        <span>Search Template Design &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+    </h1>
 
-<div class="ODRAccordionWrapper ODRFormAccordion ODRThemeListContentHeader Pointer pure-u-23-24">
-    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-        <span style="float: right;"><i class="fa fa-lg fa-caret-up"></i></span>
-        <a>Master Layout</a>
-    </h3>
-</div>
-<div id="ODRThemeListDesign_master" class="pure-u-23-24" style="padding-bottom:30px;">
+    {%  if datatype.setup_step != "complete" %}
+        <ul id="wizardStatus">
+            <li class="completed">Step 1. <span class="wizardStatusText">Choose a template.</span></li>
+            <li class="completed">Step 2. <span class="wizardStatusText">Database information.</span></li>
+            <li class="completed">Step 3. <span class="wizardStatusText">Add or change fields.</span></li>
+            <li class="current">Step 4. <span class="wizardStatusText">Setup search templates.</span></li>
+            <!-- <li>Step 4. <span class="wizardStatusText">Book/Order repair</span></li> -->
+        </ul>
+
+        <div class="ODRContentWrapper pure-u-1">
+            <div class="ODRThemeElement pure-u-1">
+                <div class="ODRInnerBox pure-u-1">
+                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Configure search view..</h3>
+                        <div class="ODRBodyContent">
+                            <p>
+                                Click a field to hide it from the search view.  To view hidden fields, toggle the "show fields" toggle below.
+                            </p>
+                        </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <input type="hidden" id="has_datarecords" value="{{ has_datarecords }}" />
+
     {% include 'ODRAdminBundle:Theme:theme_area.html.twig' with {
         'datatype_array': datatype_array,
         'initial_datatype_id': initial_datatype_id,
-
-        'theme_id': master_theme_id,
-        'target_themetype': derivative_theme.themeType,
+        'theme_id': theme_id,
+        'is_datatype_admin': is_datatype_admin,
     } %}
-</div>
-
-<div class="ODRAccordionWrapper ODRFormAccordion ODRThemeListContentHeader Pointer pure-u-23-24">
-    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
-        <span style="float: right;"><i class="fa fa-lg fa-caret-down"></i></span>
-        <a>{{ derivative_themetype }} Layout</a>
-    </h3>
-</div>
-<div id="ODRThemeListDesign_derivative" class="pure-u-23-24" style="padding-bottom:30px;">
-    {% include 'ODRAdminBundle:Theme:theme_area.html.twig' with {
-        'datatype_array': datatype_array,
-        'initial_datatype_id': initial_datatype_id,
-
-        'theme_id': target_theme_id,
-        'target_themetype': derivative_theme.themeType,
-    } %}
-</div>
 
 {% endspaceless %}

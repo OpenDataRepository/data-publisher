@@ -66,6 +66,13 @@ services:
             entity_manager: "@doctrine.orm.entity_manager"
             logger: "@logger"
 
+    odr.theme_service:
+        class: ODR\AdminBundle\Component\Service\ThemeService
+        arguments:
+            container: "@service_container"
+            entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+
 #    odr.permissions_management_service:
 #        class: ODR\AdminBundle\Component\Service\PermissionsManagementService
 #        arguments:

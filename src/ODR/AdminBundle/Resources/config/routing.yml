@@ -430,12 +430,14 @@ odr_design_reload_child:
     requirements:
         source_datatype_id: \d+
         datatype_id: \d+
+
 odr_design_reload_theme_element:
     path: /design/displaytemplate/themeelementreload/{source_datatype_id}/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:reloadthemeelement }
     requirements:
         source_datatype_id: \d+
         theme_element_id: \d+
+
 odr_design_reload_datafield:
     path: /design/displaytemplate/datafieldreload/{source_datatype_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:reloaddatafield }
