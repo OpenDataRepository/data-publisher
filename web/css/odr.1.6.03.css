@@ -2201,10 +2201,10 @@ h1:after {
 .DataTypeTools {
     font-size: 18px;
     color: #888;
-    float: right;
+    /*float: right;*/
     position: relative;
-    top: -48px;
-    height: 0px;
+    /*top: -48px;*/
+    /*height: 0px;*/
     line-height: 0px;
     padding: 0px 0px 0px 0px;
     z-index: 500;
