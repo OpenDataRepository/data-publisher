@@ -1705,8 +1705,8 @@ footer .ODRLogoImage img {
 }
 .ODRDatatypeInfoDiv:hover .ODRDatatypeInfo {
     visibility: visible;
-    top: 20px;
-    left: 20px;
+    /*top: 20px;*/
+    /*left: 20px;*/
 }
 .ODRDatatypeInfo {
     visibility: hidden;
@@ -1715,7 +1715,7 @@ footer .ODRLogoImage img {
     padding: 5px;
     border: 1px dashed gray;
     z-index: 999;
-    width: 500px;
+    max-width: 500px;
 }
 
 .ODRHidden {
