@@ -20,3 +20,28 @@ c.ODROAuthenticator.client_secret = '[[ ENTER OAUTH CLIENT_SECRET HERE ]]'
 # Instruct JupyterHub to create system users based on the OAuth server
 c.LocalAuthenticator.create_system_users = True
 
+
+# Needed to secure a route to the OAuth token manager...can use "openssl rand -hex 32".  Shouldn't match other keys.
+c.ODROAuthenticator.manager_token = '[[ ENTER SOME SECRET KEY HERE ]]'
+
+# API tokens to allow JupyterHub services to communicate with JupyterHub's API...can use "openssl rand -hex 32".
+c.JupyterHub.service_tokens = {
+    '[[ ENTER SOME OTHER SECRET KEY HERE ]]': 'odr_oauth_manager'
+}
+
+# JupyterHub service definition
+c.JupyterHub.services = [
+    {
+        'name': 'odr_oauth_manager',
+        'admin': True,      # DEBUG - needed to test access to jupyterhub api
+        'command': ['python', 'odr_oauth_manager.py'],
+        'url': 'http://127.0.0.1:8094',     # port number needs to match value defined towards the end of odr_oauth_manager.py
+        'environment': {
+            'oauth_client_id': c.ODROAuthenticator.client_id,
+            'oauth_client_secret': c.ODROAuthenticator.client_secret,
+            'oauth_token_url': c.ODROAuthenticator.token_url,
+
+            'oauth_manager_token': c.ODROAuthenticator.manager_token,
+        },
+    }
+]

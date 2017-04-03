@@ -38,7 +38,11 @@ class APIController extends ODRCustomController
         /** @var ODRUser $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-        if ($user && $user->hasRole('ROLE_JUPYTERHUB_USER')) {
+        $logged_in = true;
+        if ($user && $user === 'anon.')
+            $logged_in = false;
+
+        if ($logged_in && $user->hasRole('ROLE_JUPYTERHUB_USER')) {
             return new JsonResponse(
                 array(
                     'username' => $user->getUserString(),

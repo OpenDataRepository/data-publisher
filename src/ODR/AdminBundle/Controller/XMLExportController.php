@@ -200,7 +200,7 @@ class XMLExportController extends ODRCustomController
                 return parent::deletedEntityError('Datarecord');
 
             $datatype = $datarecord->getDataType();
-            if ($datatype == null)
+            if ($datatype->getDeletedAt() != null)
                 return parent::deletedEntityError('Datatype');
 
             /** @var Theme $theme */
@@ -237,6 +237,8 @@ class XMLExportController extends ODRCustomController
             }
             // ----------------------------------------
 
+            if ($format == '')
+                throw new \Exception('Invalid Format: Must request either XML or JSON');
 
             // ----------------------------------------
             // Render the requested datarecord

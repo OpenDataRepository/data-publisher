@@ -128,9 +128,16 @@ fos_oauth_server:
     access_token_class:  ODR\OpenRepository\OAuthBundle\Entity\AccessToken
     refresh_token_class: ODR\OpenRepository\OAuthBundle\Entity\RefreshToken
     auth_code_class:     ODR\OpenRepository\OAuthBundle\Entity\AuthCode
-#    service:
-#        options:
-#            supported_scopes: jupyterhub
+    service:
+        options:
+            # Changing tokens and authcode lifetime
+#            access_token_lifetime: 3600
+#            refresh_token_lifetime: 1209600
+#            auth_code_lifetime: 30
+
+            # Enforce state to be passed in authorization (see RFC 6749, section 10.12)
+#            enforce_state: true
+
 
 snc_redis:
     clients:
