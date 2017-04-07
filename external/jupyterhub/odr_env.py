@@ -6,7 +6,7 @@
 
 """
 This file contains utility methods to ease use of ODR's API, and is intentionally not editable by regular JupyterHub users.
-The authenticator should automatically create this file for each user.
+The authenticator should automatically create this file for each user...
 
 Will (hopefully) be rendered obsolete by https://github.com/jupyterhub/jupyterhub/pull/938 , whenever that is done.
 """
@@ -14,7 +14,6 @@ Will (hopefully) be rendered obsolete by https://github.com/jupyterhub/jupyterhu
 import json
 import os
 import requests
-#import sys
 
 from tornado.httputil import url_concat
 
@@ -44,7 +43,56 @@ def __useRefreshToken():
     return data
 
 
-def downloadDatarecord(datarecord_id):
+def getDatatypeList():
+    """
+    Attempts to download a JSON list of all top-level datatypes the user can access from ODR.
+    If the 'list_type' argument is set to 'all', then the list also includes child datatypes.
+
+    Returns a dict of datatypes from ODR
+    """
+
+    # TODO - handle xml format as well?
+    file_format = 'json'
+    list_type = ''
+
+    # Ensure arguments are valid
+    if not (file_format == 'xml' or file_format == 'json'):
+        raise ValueError('file_format must be either "xml" or "json"')
+    if not (list_type == '' or list_type == 'all'):
+        raise ValueError('list_type must be either "" or "all"')
+
+
+    # Send an API request to ODR
+    api_url = os.environ['ODR_BASEURL'] + '/api/datatype_list'
+    if (list_type == "all"):
+        api_url = api_url + '/all'
+
+    return _makeRequest(api_url, 'datatypes')
+
+
+def getDatarecordList(datatype_id):
+    """
+    Attempts to download a brief JSON list of all datarecords the user can see in a given datatype.
+
+    Returns a dict
+    """
+
+    # TODO - handle xml format as well?
+    file_format = 'json'
+
+    # Ensure arguments are valid
+    if not isinstance(datatype_id, int):
+        raise ValueError('datatype_id must be numeric')
+    if not (file_format == 'xml' or file_format == 'json'):
+        raise ValueError('file_format must be either "xml" or "json"')
+
+
+    # Send an API request to ODR
+    api_url = os.environ['ODR_BASEURL'] + '/api/datarecord_list/' + str(datatype_id)
+    return _makeRequest(api_url, 'datarecords')
+
+
+def getDatarecordData(datarecord_id):
     """
     Attempts to download a JSON representation of the given datarecord from ODR
 
@@ -54,7 +102,7 @@ def downloadDatarecord(datarecord_id):
     # TODO - handle xml format as well?
     file_format = 'json'
 
-    # Ensure arguments are vaild
+    # Ensure arguments are valid
     if not isinstance(datarecord_id, int):
         raise ValueError('datarecord_id must be numeric')
     if not (file_format == 'xml' or file_format == 'json'):
@@ -63,18 +111,28 @@ def downloadDatarecord(datarecord_id):
 
     # Send an API request to ODR
     api_url = os.environ['ODR_BASEURL'] + '/api/datarecord/v1/' + str(datarecord_id) + '/' + file_format
+    return _makeRequest(api_url, 'datarecords')
+
+
+def _makeRequest(api_url, success_key):
+    """
+    Makes a request to the specified api_url, and attempts to deal with any errors that arise.
+
+    Returns a dict of the request data if successful
+    """
+
     access_token = __getAccessToken()
 
-    r = requests.get( api_url + '?access_token=' + access_token)
+    r = requests.get(api_url + '?access_token=' + access_token)
     data = json.loads(r.text)
 
     # Deal with the response...
-    if "datarecords" in data:
+    if success_key in data:
         # Nothing went wrong, return the result as a dict
         return data
     elif "d" in data:
         # Got an ODR error...TODO - FIX ODR SO ITS ERRORS ARE CONSISTENT
-        return data['d']['html']
+        raise RuntimeError( data )
     elif "error_description" in data:
         # Got an OAuth error, assume it's most likely to be an access token issue...
         if data['error_description'] == 'The access token provided has expired.':
@@ -92,12 +150,12 @@ def downloadDatarecord(datarecord_id):
                 r = requests.get(request_url)
                 data = json.loads(r.text)
 
-                if "datarecords" in data:
+                if success_key in data:
                     # Nothing wrong with the second request, return the result as a dict
                     return data
                 elif "d" in data:
                     # Got an ODR error on the second request...TODO - FIX ODR SO ITS ERRORS ARE CONSISTENT
-                    return data['d']['html']
+                    raise RuntimeError( data )
                 elif "error_description" in data:
                     # Got an OAUth error again, most likely the refresh token is no longer valid
                     raise RuntimeError( data['error_description'] + "\nTry logging out, and then logging back into JupyterHub to fix this...")

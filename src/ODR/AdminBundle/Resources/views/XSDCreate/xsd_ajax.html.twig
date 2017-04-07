@@ -12,12 +12,12 @@
     <!-- more normal datetime string definition... -->
     <xsd:simpleType name="normal_date">
         <xsd:restriction base="xsd:string">
-            <xsd:pattern value="([0-9]{4})-(0[0-9]|1[0-2])-(0[0-9]|1[0-9]|2[0-9]|3[0-1])" />
+            <xsd:pattern value="(\s*)|(([0-9]{4})-(0[0-9]|1[0-2])-(0[0-9]|1[0-9]|2[0-9]|3[0-1]))" />    {# empty string or Y-m-d format #}
         </xsd:restriction>
     </xsd:simpleType>
     <xsd:simpleType name="normal_datetime">
         <xsd:restriction base="xsd:string">
-            <xsd:pattern value="([0-9]{4})-(0[0-9]|1[0-2])-(0[0-9]|1[0-9]|2[0-9]|3[0-1]) (0[0-9]|1[0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])" />
+            <xsd:pattern value="(\s*)|(([0-9]{4})-(0[0-9]|1[0-2])-(0[0-9]|1[0-9]|2[0-9]|3[0-1]) (0[0-9]|1[0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9]))" />   {# empty string or Y-m-d format #}
         </xsd:restriction>
     </xsd:simpleType>
 
@@ -30,10 +30,11 @@
             <xsd:element name="_file_metadata" minOccurs="0">
                 <xsd:complexType>
                     <xsd:all>
+                        <xsd:element name="_internal_id" type="xsd:string" minOccurs="0" />
+                        <xsd:element name="_external_id" type="xsd:string" minOccurs="0" />
                         <xsd:element name="_create_date" type="normal_datetime" minOccurs="0" />
                         <xsd:element name="_create_auth" type="xsd:string" minOccurs="0" />
                         <xsd:element name="_public_date" type="normal_datetime" minOccurs="0" />
-                        <xsd:element name="_external_id" type="xsd:string" minOccurs="0" />
                     </xsd:all>
                 </xsd:complexType>
             </xsd:element>
@@ -50,11 +51,12 @@
             <xsd:element name="_image_metadata" minOccurs="0">
                 <xsd:complexType>
                     <xsd:all>
-                        <xsd:element name="_display_order" type="xsd:string" minOccurs="0" />
+                        <xsd:element name="_internal_id" type="xsd:string" minOccurs="0" />
+                        <xsd:element name="_external_id" type="xsd:string" minOccurs="0" />
                         <xsd:element name="_create_date" type="normal_datetime" minOccurs="0" />
                         <xsd:element name="_create_auth" type="xsd:string" minOccurs="0" />
                         <xsd:element name="_public_date" type="normal_datetime" minOccurs="0" />
-                        <xsd:element name="_external_id" type="xsd:string" minOccurs="0" />
+                        <xsd:element name="_display_order" type="xsd:string" minOccurs="0" />
                     </xsd:all>
                 </xsd:complexType>
             </xsd:element>
@@ -64,7 +66,9 @@
     <!-- metadata definition for datarecord -->
     <xsd:complexType name="datarecord_metadata_type">
         <xsd:all>
+            <xsd:element name="_internal_id" type="xsd:string" minOccurs="0" />
             <xsd:element name="_external_id" type="xsd:string" minOccurs="0" />
+            <xsd:element name="_datarecord_name" type="xsd:string" minOccurs="0" />
             <xsd:element name="_create_date" type="normal_datetime" minOccurs="0" />
             <xsd:element name="_create_auth" type="xsd:string" minOccurs="0" />
             <xsd:element name="_public_date" type="normal_datetime" minOccurs="0" />

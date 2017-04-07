@@ -435,9 +435,14 @@ class XMLExportController extends ODRCustomController
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-
 //print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 //print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
+
+            // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
+            $stacked_datarecord_array[$datarecord_id] = parent::stackDatarecordArray($datarecord_array, $datarecord_id);
+            $stacked_datatype_array[$datarecord_id] = parent::stackDatatypeArray($datatype_array, $datatype->getId(), $theme->getId());
+//print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
+//print '<pre>'.print_r($stacked_datatype_array, true).'</pre>';  exit();
 
 
             // ----------------------------------------
@@ -451,8 +456,8 @@ class XMLExportController extends ODRCustomController
             $html = $templating->render(
                 $template,
                 array(
-                    'datatype_array' => $datatype_array,
-                    'datarecord_array' => $datarecord_array,
+                    'datatype_array' => $stacked_datatype_array,
+                    'datarecord_array' => $stacked_datarecord_array,
                     'theme_id' => $theme->getId(),
 
                     'initial_datatype_id' => $datatype->getId(),

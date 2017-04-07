@@ -1,18 +1,10 @@
-{% spaceless %}
-
 {% set datatype = datatype_array[initial_datatype_id] %}
 
+{% set is_top_level = 1 %}
+{% set is_link = 0 %}
+
 {
-    "datarecords": {
-        "datarecord": {
-            {% set is_top_level = 1 %}
-            {% set is_link = 0 %}
-
-            {# using macro on purpose #}
-            {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
-            {{ mychildform.input(datatype_array, datarecord_array, theme_id, initial_datatype_id, initial_datarecord_id, is_top_level, is_link, using_metadata, baseurl, version) }}
-        }
-    }
+    {# using macro on purpose #}
+    {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+    {{ mychildform.input(datatype_array, datarecord_array, theme_id, initial_datatype_id, initial_datarecord_id, is_top_level, is_link, using_metadata, baseurl, version) }}
 }
-
-{% endspaceless %}

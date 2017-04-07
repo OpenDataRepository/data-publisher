@@ -1,14 +1,12 @@
 {% macro input(datatype_array, datarecord_array, theme_id, target_datatype_id, parent_datarecord_id, is_top_level, is_link, using_metadata, baseurl, version) %}
 
-{% spaceless %}
-
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = datatype.themes[theme_id] %}
 {% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
 
-{% if is_top_level == 0 %}
-    "datarecords": [
-{% endif %}
+{# all lists of datarecords are wrapped in an array structure #}
+"datarecords": [
+{# ---------- #}
 
 {% for dr_id, datarecord in datarecord_array %}
 
@@ -26,64 +24,60 @@ is_link: {{ is_link }}</br>
 ----------</br>
 #}
 
-    {% if (is_link == 1 or datarecord.parent.id == parent_datarecord_id) and datarecord.dataType.id == target_datatype_id %}
+    {% if is_link == 0 %}
 
-        {% if is_link == 0 %}
+        {# each datarecord is its own JSON object #}
+        {
+        {# ---------- #}
+
+        {% if using_metadata == true %}
             {# display metadata and datafields for top-level and child datarecords #}
-            {% if is_top_level == 0 %}
-                {
-            {% endif %}
-
-            {% if using_metadata == true %}
-                "_datarecord_metadata": {
-                    "_internal_id": {{ datarecord.id }},
-                    "_external_id": {{ datarecord.externalIdField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
-                    "_datarecord_name": {{ datarecord.nameField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
-                    "_create_date": "{{ datarecord.created|date('Y-m-d H:i:s') }}",
-                    "_create_auth": "{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string|xml }}{% endif %}",
-                    "_public_date": "{{ datarecord.dataRecordMeta.publicDate|date('Y-m-d H:i:s') }}"
-                },
-            {% endif %}
-
-            {% include 'ODRAdminBundle:XMLExport:datarecord_fieldarea.json.twig' with {
-                'datatype_array': datatype_array,
-                'datarecord_array': datarecord_array,
-
-                'target_datatype_id': target_datatype_id,
-                'parent_datarecord_id': parent_datarecord_id,
-                'target_datarecord_id': datarecord.id,
-                'theme_id': theme_id,
-
-                'is_top_level': is_top_level,
-                'is_link': is_link,
-
-                'using_metadata': using_metadata,
-                'baseurl': baseurl,
-                'version': version,
-            } %}
-
-            {% if is_top_level == 0 %}
-                },
-            {% endif %}
-
-        {% else %}
-            {# only display external and internal ids for linked datarecords #}
-            {
-                "_datarecord_metadata": {
-                    "_internal_id": {{ datarecord.id }},
-                    "_external_id": {{ datarecord.externalIdField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
-                    "_datarecord_name": {{ datarecord.nameField_value|json_encode|raw }}   {# lack of surrounding quotation marks necessary #}
-                }
+            "_datarecord_metadata": {
+                "_internal_id": {{ datarecord.id }},
+                "_external_id": {{ datarecord.externalIdField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
+                "_datarecord_name": {{ datarecord.nameField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
+                "_create_date": "{{ datarecord.created|date('Y-m-d H:i:s') }}",
+                "_create_auth": "{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string|xml }}{% endif %}",
+                "_public_date": "{{ datarecord.dataRecordMeta.publicDate|date('Y-m-d H:i:s') }}"
             },
         {% endif %}
+
+        {% include 'ODRAdminBundle:XMLExport:datarecord_fieldarea.json.twig' with {
+            'datatype_array': datatype_array,
+            'datarecord_array': datarecord_array,
+
+            'target_datatype_id': target_datatype_id,
+            'parent_datarecord_id': parent_datarecord_id,
+            'target_datarecord_id': datarecord.id,
+            'theme_id': theme_id,
+
+            'is_top_level': is_top_level,
+            'is_link': is_link,
+
+            'using_metadata': using_metadata,
+            'baseurl': baseurl,
+            'version': version,
+        } %}
+
+        {# each datarecord is its own JSON object#}
+        },
+        {# ---------- #}
+
+    {% else %}
+        {# only display external and internal ids for linked datarecords #}
+        {
+            "_datarecord_metadata": {
+                "_internal_id": {{ datarecord.id }},
+                "_external_id": {{ datarecord.externalIdField_value|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
+                "_datarecord_name": {{ datarecord.nameField_value|json_encode|raw }}   {# lack of surrounding quotation marks necessary #}
+            }
+        },
     {% endif %}
 
 {% endfor %}
 
-{% if is_top_level == false %}
-    ]
-{% endif %}
-
-{% endspaceless %}
+{# all lists of datarecords are wrapped in an array structure #}
+]
+{# ---------- #}
 
 {% endmacro %}
