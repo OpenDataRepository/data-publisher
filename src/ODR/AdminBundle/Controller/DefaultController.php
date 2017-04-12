@@ -57,7 +57,6 @@ class DefaultController extends ODRCustomController
                 $datatype_permissions = $user_permissions['datatypes'];
             }
 
-
             // Render the base html for the page...$this->render() apparently creates a full Reponse object
             $html = $this->renderView(
                 'ODRAdminBundle:Default:index.html.twig',
@@ -97,6 +96,12 @@ class DefaultController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // No caching in dev environment
+            $bypass_cache = false;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
+
+
             /** @var User $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
@@ -108,27 +113,44 @@ class DefaultController extends ODRCustomController
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
             // Only want to create dashboard html graphs for top-level datatypes...
+            $datatree_array = parent::getDatatreeArray($em);
             $datatypes = parent::getTopLevelDatatypes();
-//print_r($datatypes);
+
 
             $dashboard_order = array();
             $dashboard_headers = array();
             $dashboard_graphs = array();
             foreach ($datatypes as $num => $datatype_id) {
-                // Don't display dashboard stuff that the user doesn't have permission to see
-                if ( !(isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_view' ])) ) {
-//print 'no permissions for datatype '.$datatype_id."\n";
+                // Don't display datatype if user isn't allowed to view it
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_view' ]) )
+                    $can_view_datatype = true;
+
+                $can_view_datarecord = false;
+                if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dr_view' ]) )
+                    $can_view_datarecord = true;
+
+                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype_id)));
+                if ($bypass_cache || $datatype_data == false)
+                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $datatype_id, $bypass_cache);
+
+                $public_date = $datatype_data[$datatype_id]['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s');
+                if ($public_date == '2200-01-01 00:00:00' && !$can_view_datatype)
                     continue;
+
+
+                // Attempt to load existing cache entry for this datatype's dashboard html
+                $cache_entry = $redis_prefix.'.dashboard_'.$datatype_id;
+                if (!$can_view_datarecord)
+                    $cache_entry .= '_public_only';
+
+                $data = parent::getRedisData(($redis->get($cache_entry)));
+                if ($bypass_cache || $data == false) {
+                    self::getDashboardHTML($em, $datatype_id);
+
+                    // Cache entry should now exist, reload it
+                    $data = parent::getRedisData(($redis->get($cache_entry)));
                 }
-
-                // No caching in dev environment
-                $bypass_cache = false;
-                if ($this->container->getParameter('kernel.environment') === 'dev')
-                    $bypass_cache = true;
-
-                $data = parent::getRedisData(($redis->get($redis_prefix.'.dashboard_'.$datatype_id)));
-                if ($data == false || $bypass_cache)
-                    $data = self::getDashboardHTML($em, $datatype_id);
 
                 $total = $data['total'];
                 $header = $data['header'];
@@ -146,9 +168,9 @@ class DefaultController extends ODRCustomController
             $graph_str = '';
             $count = 0;
             foreach ($dashboard_order as $datatype_id => $total) {
-                // Only display the top 8 datatypes with the most datarecords
+                // Only display the top 9 datatypes with the most datarecords
                 $count++;
-                if ($count > 8)
+                if ($count > 9)
                     continue;
 
                 $header_str .= $dashboard_headers[$datatype_id];
@@ -184,8 +206,6 @@ class DefaultController extends ODRCustomController
      *
      * @param \Doctrine\ORM\EntityManager $em
      * @param integer $datatype_id             Which datatype is having its dashboard blurb rebuilt.
-     *
-     * @return array
      */
     private function getDashboardHTML($em, $datatype_id)
     {
@@ -196,17 +216,18 @@ class DefaultController extends ODRCustomController
         // Temporarily disable the code that prevents the following query from returning deleted rows
         $em->getFilters()->disable('softdeleteable');
         $query = $em->createQuery(
-           'SELECT dr.id AS datarecord_id, dr.created AS created, dr.deletedAt AS deleted, dr.updated AS updated
+           'SELECT dr.id AS datarecord_id, dr.created AS created, dr.deletedAt AS deleted, dr.updated AS updated, drm.publicDate AS public_date
             FROM ODRAdminBundle:DataRecord AS dr
+            JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
             JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-            WHERE dr.dataType = :datatype AND dr.provisioned = false'
+            WHERE dr.dataType = :datatype AND dr.provisioned = false
+            AND drm.deletedAt IS NULL AND dt.deletedAt IS NULL'
         )->setParameters( array('datatype' => $datatype_id) );
         $results = $query->getArrayResult();
         $em->getFilters()->enable('softdeleteable');    // Re-enable it
 
 
         // Build the array of date objects so datarecords created/deleted in the past 6 weeks can be counted
-//        $current_date = new \DateTime();
         $cutoff_dates = array();
         for ($i = 1; $i < 7; $i++) {
             $tmp_date = new \DateTime();
@@ -216,34 +237,52 @@ class DefaultController extends ODRCustomController
         }
 
         $total_datarecords = 0;
-        $values = array();
+        $total_public_datarecords = 0;
 
-        //
-        $values['created'] = array();
-        $values['updated'] = array();
+        // Initialize the created/updated date arrays
+        $tmp = array(
+            'created' => array(),
+            'updated' => array(),
+        );
         for ($i = 0; $i < 6; $i++) {
-            $values['created'][$i] = 0;
-            $values['updated'][$i] = 0;
+            $tmp['created'][$i] = 0;
+            $tmp['updated'][$i] = 0;
         }
+        // Works since php arrays are assigned via copy
+        $values = $tmp;
+        $public_values = $tmp;
 
-        // 
-        foreach ($results as $num => $result) {
-//            $datarecord_id = $result['datarecord_id'];
-            $create_date = $result['created'];
-            $delete_date = $result['deleted'];
+
+        // Classify each datarecord of this datatype
+        foreach ($results as $num => $dr) {
+            $create_date = $dr['created'];
+            $delete_date = $dr['deleted'];
             if ($delete_date == '')
                 $delete_date = null;
-            $modify_date = $result['updated'];
+            $modify_date = $dr['updated'];
+            $public_date = $dr['public_date']->format('Y-m-d H:i:s');
+
+            // Determine whether the datarecord is public or not
+            $is_public = true;
+            if ($public_date == '2200-01-01 00:00:00')
+                $is_public = false;
 
             // Don't count deleted datarecords towards the total number of datarecords for this datatype
             if ($delete_date == null) {
                 $total_datarecords++;
+
+                if ($is_public)
+                    $total_public_datarecords++;
             }
 
             // If this datarecord was created in the past 6 weeks, store which week it was created in
             for ($i = 0; $i < 6; $i++) {
                 if ($create_date > $cutoff_dates[$i]) {
                     $values['created'][$i]++;
+
+                    if ($is_public)
+                        $public_values['created'][$i]++;
+
                     break;
                 }
             }
@@ -253,6 +292,10 @@ class DefaultController extends ODRCustomController
                 for ($i = 0; $i < 6; $i++) {
                     if ($delete_date > $cutoff_dates[$i]) {
                         $values['created'][$i]--;
+
+                        if ($is_public)
+                            $public_values['created'][$i]--;
+
                         break;
                     }
                 }
@@ -263,40 +306,53 @@ class DefaultController extends ODRCustomController
                 for ($i = 0; $i < 6; $i++) {
                     if ($modify_date > $cutoff_dates[$i]) {
                         $values['updated'][$i]++;
+
+                        if ($is_public)
+                            $public_values['updated'][$i]++;
+
                         break;
                     }
                 }
             }
-
         }
 
 //print $datatype_name."\n";
 //print_r($values);
 
-        //
-        $created = $values['created'];
-        $updated = $values['updated'];
-
         // Calculate the total added/deleted since six weeks ago
         $total_created = 0;
+        $total_public_created = 0;
         $total_updated = 0;
+        $total_public_updated = 0;
+
         for ($i = 0; $i < 6; $i++) {
-            $total_created += $created[$i];
-            $total_updated += $updated[$i];
+            $total_created += $values['created'][$i];
+            $total_updated += $values['updated'][$i];
+
+            $total_public_created += $public_values['created'][$i];
+            $total_public_updated += $public_values['updated'][$i];
         }
 
-        $value_str = $created[5].':'.$updated[5];
+        $value_str = $values['created'][5].':'.$values['updated'][5];
+        $public_value_str = $public_values['created'][5].':'.$public_values['updated'][5];
         for ($i = 4; $i >= 0; $i--) {
-            $value_str .= ','.$created[$i].':'.$updated[$i];
+            $value_str .= ','.$values['created'][$i].':'.$values['updated'][$i];
+            $public_value_str .= ','.$public_values['created'][$i].':'.$public_values['updated'][$i];
         }
 
         $created_str = '';
-        if ( $total_created < 0 )
+        $public_created_str = '';
+        if ( $total_created < 0 ) {
             $created_str = abs($total_created).' deleted';
-        else
+            $public_created_str = abs($total_public_created).' deleted';
+        }
+        else {
             $created_str = $total_created.' created';
+            $public_created_str = $total_public_created.' created';
+        }
 
         $updated_str = $total_updated.' modified';
+        $public_updated_str = $total_public_updated.' modified';
 
 
         // Render the actual html
@@ -304,12 +360,22 @@ class DefaultController extends ODRCustomController
         $header = $templating->render(
             'ODRAdminBundle:Default:dashboard_header.html.twig',
             array(
-		'search_slug' => $datatype->getSearchSlug(),
+                'search_slug' => $datatype->getSearchSlug(),
                 'datatype_id' => $datatype_id,
                 'total_datarecords' => $total_datarecords,
                 'datatype_name' => $datatype_name,
             )
         );
+        $public_header = $templating->render(
+            'ODRAdminBundle:Default:dashboard_header.html.twig',
+            array(
+                'search_slug' => $datatype->getSearchSlug(),
+                'datatype_id' => $datatype_id,
+                'total_datarecords' => $total_public_datarecords,
+                'datatype_name' => $datatype_name,
+            )
+        );
+
         $graph = $templating->render(
             'ODRAdminBundle:Default:dashboard_graph.html.twig',
             array(
@@ -319,11 +385,25 @@ class DefaultController extends ODRCustomController
                 'value_str' => $value_str,
             )
         );
+        $public_graph = $templating->render(
+            'ODRAdminBundle:Default:dashboard_graph.html.twig',
+            array(
+                'datatype_name' => $datatype_name,
+                'created_str' => $public_created_str,
+                'updated_str' => $public_updated_str,
+                'value_str' => $public_value_str,
+            )
+        );
 
         $data = array(
             'total' => $total_datarecords,
             'header' => $header,
             'graph' => $graph,
+        );
+        $public_data = array(
+            'total' => $total_public_datarecords,
+            'header' => $public_header,
+            'graph' => $public_graph,
         );
 
         // Grab memcached stuff
@@ -331,14 +411,14 @@ class DefaultController extends ODRCustomController
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
-        // Store the dashboard data in memcached
-        // TODO Figure out how to set an lifetime using PREDIS
-        $redis->set($redis_prefix.'.dashboard_'.$datatype_id, gzcompress(serialize($data))); // Cache this dashboard entry for upwards of one day
+        // TODO - Figure out how to set an lifetime using PREDIS
+        // Store the dashboard data for all datarecords of this datatype
+        $redis->set($redis_prefix.'.dashboard_'.$datatype_id, gzcompress(serialize($data)));
         $redis->expire($redis_prefix.'.dashboard_'.$datatype_id, 1*24*60*60); // Cache this dashboard entry for upwards of one day
-        // $redis->set($redis_prefix.'.dashboard_'.$datatype_id, gzcompress(serialize($data)), 1*24*60*60); // Cache this dashboard entry for upwards of one day
 
-        // 
-        return $data;
+        // Store the dashboard data for all public datarecords of this datatype
+        $redis->set($redis_prefix.'.dashboard_'.$datatype_id.'_public_only', gzcompress(serialize($public_data)));
+        $redis->expire($redis_prefix.'.dashboard_'.$datatype_id.'_public_only', 1*24*60*60); // Cache this dashboard entry for upwards of one day
     }
 
 }
