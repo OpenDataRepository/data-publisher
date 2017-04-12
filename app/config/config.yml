@@ -112,6 +112,12 @@ fos_user:
     db_driver: orm # other valid values are 'mongodb', 'couchdb' and 'propel'
     firewall_name: main
     user_class: ODR\OpenRepository\UserBundle\Entity\User
+    from_email:
+#        address: "%mailer_user%"
+#        sender_name: "%mailer_user%"
+    # apparently FOSUserBundle currently DEMANDS non-empty values for these, even if you're not using the mailer service...no way to disable it either from the looks of it
+        address: admin@localhost
+        sender_name: admin
     change_password:
         form:
             type: odr_user_change_password
@@ -124,6 +130,23 @@ fos_user:
     change_password:
         form:
             type: odr_user_change_password
+
+
+fos_oauth_server:
+    db_driver: orm
+    client_class:        ODR\OpenRepository\OAuthBundle\Entity\Client
+    access_token_class:  ODR\OpenRepository\OAuthBundle\Entity\AccessToken
+    refresh_token_class: ODR\OpenRepository\OAuthBundle\Entity\RefreshToken
+    auth_code_class:     ODR\OpenRepository\OAuthBundle\Entity\AuthCode
+    service:
+        options:
+            # Changing tokens and authcode lifetime
+#            access_token_lifetime: 3600
+#            refresh_token_lifetime: 1209600
+#            auth_code_lifetime: 30
+
+            # Enforce state to be passed in authorization (see RFC 6749, section 10.12)
+#            enforce_state: true
 
 
 snc_redis:

@@ -17,6 +17,10 @@
                 <th class="Pointer ODRCenterText" title="Restricted to datatypes they have permissions for">User</th>
                 <th class="Pointer ODRCenterText" title="Able to create new datatypes and delete datatypes they are admin of, but still restricted by datatype permissions">Admin</th>
                 <th class="Pointer ODRCenterText" title="Able to create new users, change user roles, and perform any action to any datatype">Super Admin</th>
+
+                {% if using_jupyterhub %}
+                    <th class="Pointer ODRCenterText" title="Able to access JupyterHub">JupyterHub User</th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
@@ -46,12 +50,22 @@
                 <td class="ODRCenterText">
                     <input id="sadmin_{{ user.id }}" onclick="setRole('sadmin_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 7 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
                 </td>
+
+                {% if using_jupyterhub %}
+                    <td class="ODRCenterText">
+                        <input id="jupyterhub_{{ user.id }}" onclick="setRole('jupyterhub_{{ user.id }}');" type="checkbox" name="user_{{ user.id }}" {% if user.hasRole('ROLE_JUPYTERHUB_USER') %}checked{% endif %} />
+                    </td>
+                {% endif %}
             </tr>
             {% endif %}
 
         {% else %}
             <tr>
-                <td colspan="3">No Users Found</td>
+                {% if using_jupyterhub %}
+                    <td colspan="4">No Users Found</td>
+                {% else %}
+                    <td colspan="3">No Users Found</td>
+                {% endif %}
             </tr>
         {% endfor %}
 

@@ -1,0 +1,80 @@
+{% macro input(datatype_array, datarecord_array, theme_id, target_datatype_id, parent_datarecord_id, is_top_level, is_link, using_metadata, baseurl, version) %}
+
+{% spaceless %}
+
+{% set datatype = datatype_array[target_datatype_id] %}
+{% set theme = datatype.themes[theme_id] %}
+{% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
+
+{# all lists of datarecords are wrapped #}
+<datarecords>
+
+{% for dr_id, datarecord in datarecord_array %}
+
+{#
+----------</br>
+datarecord: {{ datarecord.id }}...datatype {{ datarecord.dataType.id }}</br>
+parent: {{ datarecord.parent.id }}</br>
+grandparent: {{ datarecord.grandparent.id }}</br>
+</br>
+parent_datarecord_id: {{ parent_datarecord_id }}</br>
+target_datatype_id: {{ target_datatype_id }}</br>
+</br>
+is_top_level: {{ is_top_level }}</br>
+is_link: {{ is_link }}</br>
+----------</br>
+#}
+
+    {% if is_link == 0 %}
+        {# each datarecord is its own object #}
+        <datarecord>
+
+        {% if using_metadata == true %}
+            {# display metadata and datafields for top-level and child datarecords #}
+            <_datarecord_metadata>
+                <_internal_id>{{ datarecord.id }}</_internal_id>
+                <_external_id>{{ datarecord.externalIdField_value|xml }}</_external_id>
+                <_datarecord_name>{{ datarecord.nameField_value|xml }}</_datarecord_name>
+                <_create_date>{{ datarecord.created|date('Y-m-d H:i:s') }}</_create_date>
+                <_create_auth>{% if datarecord.createdBy != '' %}{{ datarecord.createdBy|user_string|xml }}{% endif %}</_create_auth>
+                <_public_date>{{ datarecord.dataRecordMeta.publicDate|date('Y-m-d H:i:s') }}</_public_date>
+            </_datarecord_metadata>
+        {% endif %}
+
+        {% include 'ODRAdminBundle:XMLExport:datarecord_fieldarea.xml.twig' with {
+            'datatype_array': datatype_array,
+            'datarecord_array': datarecord_array,
+
+            'target_datatype_id': target_datatype_id,
+            'parent_datarecord_id': parent_datarecord_id,
+            'target_datarecord_id': datarecord.id,
+            'theme_id': theme_id,
+
+            'is_top_level': is_top_level,
+            'is_link': is_link,
+
+            'using_metadata': using_metadata,
+            'baseurl': baseurl,
+            'version': version,
+        } %}
+
+        {# each datarecord is its own object #}
+        </datarecord>
+
+    {% else %}
+        {# only display external and internal ids for linked datarecords #}
+        <datarecord>
+            <_internal_id>{{ datarecord.id }}</_internal_id>
+            <_external_id>{{ datarecord.externalIdField_value|xml }}</_external_id>
+            <_datarecord_name>{{ datarecord.nameField_value|xml }}</_datarecord_name>
+        </datarecord>
+    {% endif %}
+
+{% endfor %}
+
+{# all lists of datarecords are wrapped #}
+</datarecords>
+
+{% endspaceless %}
+
+{% endmacro %}

@@ -1,4 +1,4 @@
-# Allows users to resend a password reset email
+# FOSUserBundle - Allows users to resend a password reset email
 fos_user_resetting_resend_email:
     path:  /resetting/resend-email   # needs to have the same prefix as the fos_user_resetting resource in /app/config/routing.yml
     defaults: { _controller: ODROpenRepositoryUserBundle:Resetting:resend }

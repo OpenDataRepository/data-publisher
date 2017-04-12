@@ -22,9 +22,11 @@ class AppKernel extends Kernel
             new ODR\AdminBundle\ODRAdminBundle(),
 //            new ODR\LoginBundle\ODRLoginBundle(),
             new FOS\UserBundle\FOSUserBundle(),
+            new FOS\OAuthServerBundle\FOSOAuthServerBundle(),
             new ODR\OpenRepository\UserBundle\ODROpenRepositoryUserBundle(),
+            new ODR\OpenRepository\OAuthBundle\ODROpenRepositoryOAuthBundle(),
             new ODR\OpenRepository\SearchBundle\ODROpenRepositorySearchBundle(),
-            new ODR\OpenRepository\ApiBundle\ODROpenRepositoryApiBundle(),
+            new ODR\OpenRepository\ApiBundle\ODROpenRepositoryApiBundle(),          // why is this a thing?
             new ODR\OpenRepository\GraphBundle\ODROpenRepositoryGraphBundle(),
             new drymek\PheanstalkBundle\drymekPheanstalkBundle(),
             new dterranova\Bundle\CryptoBundle\dterranovaCryptoBundle(),

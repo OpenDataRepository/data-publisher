@@ -14,8 +14,6 @@
  * Password resetting and changing are handled by the ODR UserBundle,
  * which overrides the relevant sections of the FoS bundle.
  *
- * @see src\ODR\OpenRepository\UserBundle
- *
  */
 
 namespace ODR\AdminBundle\Controller;
@@ -914,6 +912,14 @@ class ODRUserController extends ODRCustomController
             // Prevent the admin from modifying his own role (potentially removing his own admin role)
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            // Determine whether the Jupyterhub role needs to be displayed
+            $using_jupyterhub = false;
+            if ( $this->container->hasParameter('jupyterhub_config') ) {
+                $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
+
+                $using_jupyterhub = $jupyterhub_config['use_jupyterhub'];
+            }
+
             // Render them in a list
             $templating = $this->get('templating');
             $return['d'] = array(
@@ -921,7 +927,8 @@ class ODRUserController extends ODRCustomController
                     'ODRAdminBundle:ODRUser:manage_roles.html.twig',
                     array(
                         'users' => $users,
-                        'admin_user' => $admin_user
+                        'admin_user' => $admin_user,
+                        'using_jupyterhub' => $using_jupyterhub,
                     )
                 )
             );
@@ -973,13 +980,32 @@ class ODRUserController extends ODRCustomController
 
             if (!$user->isEnabled())
                 throw new \Exception('Unable to change role of a deleted User');
-            if ($user->getId() == $admin_user->getId())
+            if ( $user->getId() == $admin_user->getId() && $role !== 'jupyterhub' )
                 throw new \Exception('Unable to change own role');
 //            if ( $user->hasRole('ROLE_SUPER_ADMIN') )
 //                throw new \Exception('Unable to change role of another Super-Admin');
 
 
             // ----------------------------------------
+            // Determine whether the Jupyterhub role needs to be dealt with
+            $using_jupyterhub = false;
+            if ( $this->container->hasParameter('jupyterhub_config') ) {
+                $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
+
+                $using_jupyterhub = $jupyterhub_config['use_jupyterhub'];
+            }
+
+            if ($using_jupyterhub && $role == 'jupyterhub') {
+                // Unlike the other roles, this one is a toggle
+                if ( $user->hasRole('ROLE_JUPYTERHUB_USER') )
+                    $user->removeRole('ROLE_JUPYTERHUB_USER');
+                else
+                    $user->addRole('ROLE_JUPYTERHUB_USER');
+            }
+
+
+            // ----------------------------------------
+            // Users are only allowed to have one of the ODR-specific roles at once
             if ($role == 'user') {
                 // User got demoted to the regular user group
                 $user->addRole('ROLE_USER');

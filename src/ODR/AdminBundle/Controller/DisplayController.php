@@ -70,7 +70,7 @@ class DisplayController extends ODRCustomController
                 return parent::deletedEntityError('Datarecord');
 
             $datatype = $datarecord->getDataType();
-            if ($datatype == null)
+            if ($datatype->getDeletedAt() != null)
                 return parent::deletedEntityError('Datatype');
 
             /** @var Theme $theme */
@@ -91,7 +91,7 @@ class DisplayController extends ODRCustomController
                 $datarecord = $datarecord->getGrandparent();
 
                 $datatype = $datarecord->getDataType();
-                if ($datatype == null)
+                if ($datatype->getDeletedAt() != null)
                     return parent::deletedEntityError('Datatype');
 
                 /** @var Theme $theme */
@@ -905,7 +905,7 @@ class DisplayController extends ODRCustomController
 
     /**
      * Provides users the ability to cancel the decryption of a file.
-     * @deprecated?
+     * @deprecated
      *
      * @param integer $file_id  The database id of the file currently being decrypted
      * @param Request $request

@@ -78,7 +78,7 @@ odr_set_user_role:
     defaults: { _controller: ODRAdminBundle:ODRUser:setrole }
     requirements:
         user_id:  \d+
-        role:  '|user|admin|sadmin'
+        role:  '|user|admin|sadmin|jupyterhub'
 
 odr_delete_user:
     path:  /admin/user/delete/{user_id}
@@ -726,12 +726,12 @@ odr_file_download:
     requirements:
         file_id:  \d+
 
-# deprecated?
-odr_cancel_file_decrypt:
-    path:  /view/downloadfile_cancel/{file_id}
-    defaults: { _controller: ODRAdminBundle:Display:cancelfiledecrypt }
-    requirements:
-        file_id:  \d+
+# deprecated
+#odr_cancel_file_decrypt:
+#    path:  /view/downloadfile_cancel/{file_id}
+#    defaults: { _controller: ODRAdminBundle:Display:cancelfiledecrypt }
+#    requirements:
+#        file_id:  \d+
 
 odr_image_download:
     path:  /view/downloadimage/{image_id}
@@ -862,62 +862,26 @@ odr_xml_import_file_download:
 #        datarecord_id: \d+
 
 odr_get_datarecord_xml:
-    path:  /api/datarecord/{version}/{datarecord_id}
-    defaults: { _controller: ODRAdminBundle:XMLExport:getDatarecordXML }
+    path:  /api/datarecord/{version}/{datarecord_id}/{format}
+    defaults: { _controller: ODRAdminBundle:XMLExport:getDatarecordXML, format: 'xml' }
     requirements:
         version: 'v1|v2'
         datarecord_id: \d+
+        format: '|xml|json'
 
-#-----------------------------------------
-
-#-----------------------------------------
-# API stuff?
-#odr_api_generate:
-#    path:  /admin/api/generate
-#    defaults: { _controller:ODRAdminBundle:Default:buildsitemap }
-
-#odr_api_list_types:
-#    path:  /api/list/types
-#    defaults: { _controller: ODRAdminBundle:Datatype:getlist }
-
-#odr_api_list_records:
-#    path:  /api/list/records/{datatype_id}
-#    defaults: { _controller: ODRAdminBundle:ShortResults:recordlist }
-#    requirements:
-#        datatype_id: \d+
-
-#odr_api_list_record:
-#    path:  /api/get/record/{datarecord_id}
-#    defaults: { _controller: ODRAdminBundle:XML:getXML }
-#    requirements:
-#        datarecord_id: \d+
-
-#odr_api_map_datatype:
-#    path:  /map/datatype/{datatype_id}/{datatype_name}
-#    defaults: { _controller: ODRAdminBundle:ShortResults:map, datatype_name: '' }
-#    requirements:
-#        datatype_id: \d+
-        # does this need some sort of restriction for datatype name?  theoretically it's just discarded, but...
-
-#odr_api_map_datarecord:
-#    path:  /map/datarecord/{datarecord_id}/{datarecord_name}
-#    defaults: { _controller: ODRAdminBundle:Results:map, datarecord_name: '' }
-#    requirements:
-#        datarecord_id: \d+
-        # does this need some sort of restriction for datarecord name?  theoretically it's just discarded, but...
 #-----------------------------------------
 
 #-----------------------------------------
 # Worker Controller
-odr_recache_type:
-    path: /beanstalk/recache_type
-    defaults: { _controller: ODRAdminBundle:Worker:recachetype }
-    requirements: { methods: POST }
+#odr_recache_type:
+#    path: /beanstalk/recache_type
+#    defaults: { _controller: ODRAdminBundle:Worker:recachetype }
+#    requirements: { methods: POST }
 
-odr_recache_record:
-    path: /beanstalk/recache_record
-    defaults: { _controller: ODRAdminBundle:Worker:recacherecord }
-    requirements: { methods: POST }
+#odr_recache_record:
+#    path: /beanstalk/recache_record
+#    defaults: { _controller: ODRAdminBundle:Worker:recacherecord }
+#    requirements: { methods: POST }
 
 odr_migrate_field:
     path: /beanstalk/migrate
@@ -1238,3 +1202,28 @@ odr_permissions_clear:
 #    path:  /beanstalk/build_group_data
 #    defaults: { _controller:ODRAdminBundle:Worker:buildgroupdata }
 #    requirements: { methods: POST }
+
+
+#-----------------------------------------
+# API Controller
+odr_api_userdata:
+    path: /api/userdata
+    defaults: { _controller: ODRAdminBundle:API:userdata }
+
+odr_api_datatype_list:
+    path: /api/datatype_list/{type}
+    defaults: { _controller: ODRAdminBundle:API:datatypelist, type: '' }
+    requirements:
+        type: '|all'
+
+odr_api_datarecord_list:
+    path: /api/datarecord_list/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:API:datarecordlist }
+    requirements:
+        datatype_id: \d+
+
+odr_api_download_file:
+    path: /api/file_download/{file_id}
+    defaults: { _controller: ODRAdminBundle:API:filedownload }
+    requirements:
+        file_id: \d+
