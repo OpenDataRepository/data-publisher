@@ -233,8 +233,9 @@ class DatatypeController extends ODRCustomController
                     // Create a new Datatype entity
                     $datatype = new DataType();
                     $datatype->setRevision(0);
-                    $datatype->setHasShortresults(false);
-                    $datatype->setHasTextresults(false);
+                    // Set to true so we can default to master if needed
+                    $datatype->setHasShortresults(true);
+                    $datatype->setHasTextresults(true);
 
                     $datatype->setCreatedBy($admin);
                     $datatype->setUpdatedBy($admin);
@@ -252,7 +253,8 @@ class DatatypeController extends ODRCustomController
                     $submitted_data->setRenderPlugin($default_render_plugin);
 
                     $submitted_data->setDescription('');
-                    $submitted_data->setSearchSlug(null);
+                    // Default search slug to Database ID
+                    $submitted_data->setSearchSlug($datatype->getId());
                     $submitted_data->setXmlShortName('');
 
                     $submitted_data->setUseShortResults(true);

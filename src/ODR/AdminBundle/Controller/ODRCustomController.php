@@ -5963,6 +5963,11 @@ if ($timing) {
                             $tmp[$dr_id] = self::stackDatarecordArray($datarecord_array, $dr_id);
                     }
 
+                    // Sort array of datarecords by their respective sortvalue
+                    uasort($tmp, function ($a, $b) {
+                        return strnatcmp($a['sortField_value'], $b['sortField_value']);
+                    });
+
                     $current_datarecord['children'][$dt_id] = $tmp;
                 }
             }

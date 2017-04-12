@@ -368,8 +368,6 @@ class CSVImportController extends ODRCustomController
             )->setParameters( array('datatype' => $target_datatype->getId()) );
             /** @var DataFields[] $datafields */
             $datafields = $query->getResult();
-//print_r($results);
-//exit();
 
             // Grab the FieldTypes that the csv importer can read data into
             /** @var FieldType[] $fieldtypes */
@@ -471,7 +469,7 @@ class CSVImportController extends ODRCustomController
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
-            $return['d'] = 'Error 0x224681522 ' . $e->getMessage();
+            $return['d'] = 'Error 0x224681522 ' . Encoding::toUTF8( $e->getMessage() );    // json_encode() will a boolean when it attempts to encode non-UTF8 characters...which is a possibility here because of how the CsvReader class works
         }
 
         $response = new Response(json_encode($return));
@@ -525,10 +523,12 @@ class CSVImportController extends ODRCustomController
         // Trim headers
         $headers_trimmed = false;
         foreach ($header_row as $num => $header) {
-            $new_header = trim($header);
-            if ( $header !== $new_header ) {
+            $trimmed_header = trim($header, " \t\n\r\0\x0B\xA0");    // want to also get rid of html non-breaking space, trim() doesn't by default
+            $converted_header = Encoding::toUTF8($trimmed_header);
+
+            if ( $header !== $converted_header ) {
                 $headers_trimmed = true;
-                $header_row[$num] = $new_header;
+                $header_row[$num] = $converted_header;
             }
         }
 

@@ -755,15 +755,20 @@ print_r($line);
 //print 'rows affected: '.$rowsAffected."\n";
             }
 
-            // Open the indicated file
-            $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/csv_export/';
 
-            // Ensure directory exists
+            // Ensure directories exists
+            $csv_export_path = dirname(__FILE__).'/../../../../web/uploads/csv_export/';
             if ( !file_exists($csv_export_path) )
                 mkdir( $csv_export_path );
 
+            $csv_export_path .= 'tmp/';
+            if ( !file_exists($csv_export_path) )
+                mkdir( $csv_export_path );
+
+
+            // Open the indicated file
             $filename = 'f_'.$random_key.'.csv';
-            $handle = fopen($csv_export_path.'tmp/'.$filename, 'a');
+            $handle = fopen($csv_export_path.$filename, 'a');
             if ($handle !== false) {
                 // Write the line given to the file
                 // https://github.com/ddeboer/data-import/blob/master/src/Ddeboer/DataImport/Writer/CsvWriter.php

@@ -593,8 +593,8 @@ footer ul li:first-child {
     }
 }
 
-.NavSlideOut,
-.ODRDatatypeProperties {
+/*.NavSlideOut, .ODRDatatypeProperties {*/
+.NavSlideOut {
     background: #7fb9d8 none;
     padding-bottom: 0px;
 }
