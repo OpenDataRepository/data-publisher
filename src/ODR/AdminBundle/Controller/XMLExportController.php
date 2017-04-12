@@ -226,19 +226,26 @@ class XMLExportController extends ODRCustomController
                 $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
                 $datatype_permissions = $user_permissions['datatypes'];
 
-                // If user has view permissions, show non-public sections of the datarecord
-                $has_view_permission = false;
+                $can_view_datatype = false;
                 if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_view' ]) )
-                    $has_view_permission = true;
+                    $can_view_datatype = true;
 
-                // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
-                if ( !($datatype->isPublic() || $has_view_permission) )
+                $can_view_datarecord = false;
+                if ( isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dr_view' ]) )
+                    $can_view_datarecord = true;
+
+                // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
+                if ( (!$datatype->isPublic() && !$can_view_datatype) || (!$datarecord->isPublic() && !$can_view_datarecord) )
                     return parent::permissionDeniedError('view');
             }
             // ----------------------------------------
 
             if ($format == '')
                 throw new \Exception('Invalid Format: Must request either XML or JSON');
+
+            if ($datarecord->getId() != $datarecord->getGrandparent()->getId())
+                throw new \Exception('Only permitted on top-level datarecords');
+
 
             // ----------------------------------------
             // Render the requested datarecord
@@ -440,7 +447,7 @@ class XMLExportController extends ODRCustomController
 
             // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
             $stacked_datarecord_array[$datarecord_id] = parent::stackDatarecordArray($datarecord_array, $datarecord_id);
-            $stacked_datatype_array[$datarecord_id] = parent::stackDatatypeArray($datatype_array, $datatype->getId(), $theme->getId());
+            $stacked_datatype_array[ $datatype->getId() ] = parent::stackDatatypeArray($datatype_array, $datatype->getId(), $theme->getId());
 //print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
 //print '<pre>'.print_r($stacked_datatype_array, true).'</pre>';  exit();
 

@@ -59,16 +59,16 @@
         "files": [
         {% for file in valuefield %}
             {
-                "original_name>": "{% if file.fileMeta.originalFileName != null %}{{ file.fileMeta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}",
+                "original_name": "{% if file.fileMeta.originalFileName != null %}{{ file.fileMeta.originalFileName|raw }}{% else %}File_{{ file.id }}{% endif %}",
                 "href": "{{ baseurl ~ path('odr_file_download', {'file_id': file.id}) }}",
 
                 {% if using_metadata == true %}
                 "_file_metadata": {
                     "_internal_id": "{{ file.id }}",
                     "_external_id": "{{ file.fileMeta.external_id }}",
-                    "_create_date>": "{{ file.created|date('Y-m-d H:i:s') }}",
-                    "_create_auth>": "{% if file.createdBy != '' %}{{ file.createdBy|user_string }}{% endif %}",
-                    "_public_date>": "{{ file.fileMeta.publicDate|date('Y-m-d H:i:s') }}"
+                    "_create_date": "{{ file.created|date('Y-m-d H:i:s') }}",
+                    "_create_auth": "{% if file.createdBy != '' %}{{ file.createdBy|user_string }}{% endif %}",
+                    "_public_date": "{{ file.fileMeta.publicDate|date('Y-m-d H:i:s') }}"
                 }
                 {% endif %}
             },
@@ -107,7 +107,7 @@
                     "_display_order": "{{ oimage.imageMeta.displayorder}}"
                 }
                 {% endif %}
-            }
+            },
         {% endfor %}
         ]
     },

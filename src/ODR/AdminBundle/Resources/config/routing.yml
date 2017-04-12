@@ -1222,8 +1222,8 @@ odr_api_datarecord_list:
     requirements:
         datatype_id: \d+
 
-odr_api_file_list:
-    path: /api/file_list/{datarecord_id}
-    defaults: { _controller: ODRAdminBundle:API:filelist }
+odr_api_download_file:
+    path: /api/file_download/{file_id}
+    defaults: { _controller: ODRAdminBundle:API:filedownload }
     requirements:
-        datarecord_id: \d+
+        file_id: \d+

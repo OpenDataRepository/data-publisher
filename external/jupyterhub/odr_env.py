@@ -26,6 +26,9 @@ def __getAccessToken():
     """
 
     r = requests.get( 'http://127.0.0.1:8094/services/odr_oauth_manager/get_access_token/' + os.environ['OAUTH_SESSION_TOKEN'] )
+    if (r.status_code != 200):
+        raise RuntimeError( r.json() )
+
     data = json.loads(r.text)
     return data['access_token']
 
@@ -39,6 +42,9 @@ def __useRefreshToken():
     """
 
     r = requests.get( 'http://127.0.0.1:8094/services/odr_oauth_manager/get_new_access_token/' + os.environ['OAUTH_SESSION_TOKEN'] )
+    if (r.status_code != 200):
+        raise RuntimeError( r.json() )
+
     data = json.loads(r.text)
     return data
 
@@ -124,6 +130,9 @@ def _makeRequest(api_url, success_key):
     access_token = __getAccessToken()
 
     r = requests.get(api_url + '?access_token=' + access_token)
+    if (r.status_code != 200):
+        raise RuntimeError( r.json() )
+
     data = json.loads(r.text)
 
     # Deal with the response...
@@ -148,6 +157,9 @@ def _makeRequest(api_url, success_key):
                 # Run the http request again with the new access token
                 request_url = api_url + '?access_token=' + new_access_token
                 r = requests.get(request_url)
+                if (r.status_code != 200):
+                    raise RuntimeError( r.json() )
+
                 data = json.loads(r.text)
 
                 if success_key in data:
@@ -172,30 +184,93 @@ def _makeRequest(api_url, success_key):
         raise RuntimeError( data )
 
 
-#    def downloadFile(file_id):
-#        """Attempts to download a specified file from ODR
-#
-#        Returns a
-#        """
-#        # Ensure arguments are vaild
-#        if not file_id.isnumeric():
-#            raise InvalidArgumentException('file_id must be numeric')
-#
-#        # 
-#        api_url = self.baseurl + '/api/file/' + str(file_id)
-#        return __makeAPIRequest(api_url)
+def getFileList(datarecord_id):
+    """
+    Given a top-level datarecord id, returns a dict where that datarecord's data has been reduced to just file information.
+
+    Returns a dict.
+    """
+
+    # TODO - handle xml format as well?
+    file_format = 'json'
+
+    # Ensure arguments are valid
+    if not isinstance(datarecord_id, int):
+        raise ValueError('datarecord_id must be numeric')
+    if not (file_format == 'xml' or file_format == 'json'):
+        raise ValueError('file_format must be either "xml" or "json"')
 
 
-#    def downloadImage(image_id):
-#        """Attempts to download a specified image from ODR
-#
-#        Returns a
-#        """
-#        # Ensure arguments are vaild
-#        if not image_id.isnumeric():
-#            raise InvalidArgumentException('image_id must be numeric')
-#
-#        # 
-#        api_url = self.baseurl + '/api/image/' + str(image_id) 
-#        return __makeAPIRequest(api_url)
+    # Get the JSON version of the top-level datarecord from ODR
+    dr_data = getDatarecordData(datarecord_id)
+
+    # Parse the returned data to get the listing of files
+    return _buildFileListJSON(dr_data, dict())
+
+
+def _buildFileListJSON(datarecord_list, file_list):
+    """
+    Traverses a JSON representation of a list of ODR datarecords, and extracts file information from it.
+
+    Returns a dict of file information.
+    """
+
+    for dr in datarecord_list['datarecords']:
+        # Grab the name to identify this datarecord by
+        dr_name = dr['_datarecord_metadata']['_datarecord_name']
+
+        for df_name, df in dr['datafields'].items():
+            # In earlier versions of the spec, the datafield name is a value inside the datafield object
+            if 'datafield_name' in df:
+                df_name = df['datafield_name']
+
+            if 'files' in df:
+                for f in df['files']:
+                    # Grab the identifiers for each file
+                    f_id = f['_file_metadata']['_internal_id']
+                    f_name = f['original_name']
+
+                    # Store them in the dict
+                    data = dict()
+                    data['filename'] = f_name
+                    data['datafield_name'] = df_name
+                    data['datarecord_name'] = dr_name
+
+                    file_list[f_id] = data
+
+        # If this datarecord has children, recursively iterate through them looking for files as well
+        if 'child_datarecords' in dr:
+            for child_dt_name, child_dt in dr['child_datarecords'].items():
+                file_list = _buildFileListJSON(child_dt, file_list)
+
+    return file_list
+
+
+def downloadFile(file_id, filename):
+    """
+    Attempts to download a specified file from ODR
+
+    Returns the path to the downloaded file, or some other error...
+    """
+
+    # Ensure arguments are valid
+    if not isinstance(file_id, int):
+        raise ValueError('file_id must be numeric')
+
+    # Attempt to download the file from ODR
+    api_url = os.environ['ODR_BASEURL'] + '/api/file_download/' + str(file_id)
+
+    r = requests.get(api_url, stream=True)
+    if (r.status_code != 200):
+        raise RuntimeError( r.json() )
+
+    # Apparently Symfony doesn't send a 'Content-Length' header despite ODR specifying one?
+#    expected_filesize = float(r.headers['Content-Length']) / 1024.0 / 1024.0
+
+    with open(filename, 'wb') as fd:
+        for chunk in r.iter_content(chunk_size=65536):  # Attempt to read 64kb at a time? - TODO
+            fd.write(chunk)
+
+#    print( 'Wrote ' + str(expected_filesize) + ' Mb to "' + filename + '"' )
+    print( 'Wrote requested file to "' + filename + '"' )
 
