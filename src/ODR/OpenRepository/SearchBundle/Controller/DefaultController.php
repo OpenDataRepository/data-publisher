@@ -1,18 +1,18 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* Search Controller
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* The search controller handles rendering of search pages and
-* the actual process of searching.
-*
-* The rendering of the results from searching is handled by
-* ODRCustomController.
-*/
+ * Open Data Repository Data Publisher
+ * Search Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * The search controller handles rendering of search pages and
+ * the actual process of searching.
+ *
+ * The rendering of the results from searching is handled by
+ * ODRCustomController.
+ */
 
 namespace ODR\OpenRepository\SearchBundle\Controller;
 

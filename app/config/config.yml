@@ -121,15 +121,6 @@ fos_user:
     change_password:
         form:
             type: odr_user_change_password
-    from_email:
-#        address: "%mailer_user%"
-#        sender_name: "%mailer_user%"
-    # apparently FOSUserBundle currently DEMANDS non-empty values for these, even if you're not using the mailer service...no way to disable it either from the looks of it
-        address: admin@localhost
-        sender_name: admin
-    change_password:
-        form:
-            type: odr_user_change_password
 
 
 fos_oauth_server:

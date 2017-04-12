@@ -21,7 +21,6 @@ security:
             id: fos_user.user_provider.username
 
     firewalls:
-        # The following three entries are semi-temporary oauth deals...
         oauth_token:
             pattern:    ^/oauth/v2/token
             security:   false
@@ -34,11 +33,13 @@ security:
                 login_path: odr_oauth_server_auth_login
             anonymous: true
 
+            context: odr_firewall
+
         api:
             pattern:    ^/api
             fos_oauth:  true
             stateless:  true
-#            anonymous:  false # can be omitted as its default value
+            anonymous:  true
 
         main:
             pattern: ^/
@@ -59,10 +60,11 @@ security:
                 target: /
             anonymous:    true
 
+            context: odr_firewall
+
     access_control:
 ##########
-# Temporary oauth security route
-        - { path: ^/api, roles: [ IS_AUTHENTICATED_FULLY ] }
+        - { path: ^/api, roles: [ IS_AUTHENTICATED_ANONYMOUSLY ] }
 
 ##########
 # These need to stay anonymous, otherwise users are unable to log in
