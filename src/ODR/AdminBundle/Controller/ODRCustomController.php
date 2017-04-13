@@ -1850,9 +1850,12 @@ exit();
                 // TODO - datarecord restriction?
 
                 foreach ($group_permission['datatypes'] as $dt_id => $dt_permissions) {
-                    foreach ($dt_permissions as $permission => $num) {
+                    foreach ($dt_permissions as $permission => $num)
                         $user_permissions['datatypes'][$dt_id][$permission] = 1;
-                    }
+
+                    // If the user is an admin for the datatype, ensure they're allowed to edit datarecords of the datatype
+                    if ( isset($user_permissions['datatypes'][$dt_id]['dt_admin']) )
+                        $user_permissions['datatypes'][$dt_id]['dr_edit'] = 1;
                 }
 
                 foreach ($group_permission['datafields'] as $dt_id => $datafields) {
@@ -4843,8 +4846,8 @@ if ($debug)
             JOIN ODRAdminBundle:DataRecord AS dr WITH drf_1.dataRecord = dr
             JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
             JOIN ODRAdminBundle:DataRecordFields AS drf_2 WITH drf_2.dataRecord = parent
-            JOIN ODRAdminBundle:'.$parent_typeclass.' AS e_2
-            WHERE e_1.dataField = :child_datafield AND e_1.value = :child_value AND e_2.dataField = :parent_datafield AND e_2.value = :parent_value
+            JOIN ODRAdminBundle:'.$parent_typeclass.' AS e_2 WITH e_2.dataRecordFields = drf_2
+            WHERE dr.id != parent.id AND e_1.dataField = :child_datafield AND e_1.value = :child_value AND e_2.dataField = :parent_datafield AND e_2.value = :parent_value
             AND e_1.deletedAt IS NULL AND drf_1.deletedAt IS NULL AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND drf_2.deletedAt IS NULL AND e_2.deletedAt IS NULL'
         )->setParameters( array('child_datafield' => $child_datafield_id, 'child_value' => $child_external_id_value, 'parent_datafield' => $parent_datafield_id, 'parent_value' => $parent_external_id_value) );
         $results = $query->getResult();

@@ -2327,6 +2327,8 @@ class CSVImportController extends ODRCustomController
 
                         'tracked_job_id' => $tracked_job_id,
                         'allow_import' => $allow_import,
+
+                        'file_encoding_converted' => false,
                     )
                 )
             );
