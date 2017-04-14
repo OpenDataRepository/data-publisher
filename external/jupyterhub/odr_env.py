@@ -13,9 +13,17 @@ Will (hopefully) be rendered obsolete by https://github.com/jupyterhub/jupyterhu
 
 import json
 import os
+import random
 import requests
+import shutil
+import string
 
 from tornado.httputil import url_concat
+
+
+# Found at http://stackoverflow.com/a/2257449
+def _id_generator(size=15, chars=string.ascii_letters + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
 
 
 def __getAccessToken():
@@ -246,7 +254,7 @@ def _buildFileListJSON(datarecord_list, file_list):
     return file_list
 
 
-def downloadFile(file_id, filename):
+def downloadFile(file_id):
     """
     Attempts to download a specified file from ODR
 
@@ -264,13 +272,22 @@ def downloadFile(file_id, filename):
     if (r.status_code != 200):
         raise RuntimeError( r.json() )
 
+    # Name of file is stored within the Content-Disposition header, which is 'attachment; filename="<filename>";'
+    filename_header = r.headers['Content-Disposition']
+    final_filename = filename_header[22:-2]
+
     # Apparently Symfony doesn't send a 'Content-Length' header despite ODR specifying one?
 #    expected_filesize = float(r.headers['Content-Length']) / 1024.0 / 1024.0
 
-    with open(filename, 'wb') as fd:
+    # Download the file from ODR
+    temp_filename = _id_generator() + '.tmp'
+    with open(temp_filename, 'wb') as fd:
         for chunk in r.iter_content(chunk_size=65536):  # Attempt to read 64kb at a time? - TODO
             fd.write(chunk)
 
+    # Rename the downloaded file to match the original name provided by the server
+    shutil.move(temp_filename, final_filename)
+
 #    print( 'Wrote ' + str(expected_filesize) + ' Mb to "' + filename + '"' )
-    print( 'Wrote requested file to "' + filename + '"' )
+    print( 'Saved "' + final_filename + '"' )
 

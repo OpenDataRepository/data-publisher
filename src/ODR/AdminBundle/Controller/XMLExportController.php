@@ -215,7 +215,7 @@ class XMLExportController extends ODRCustomController
             if ( $user === 'anon.' ) {
                 if ( !$datatype->isPublic() || !$datarecord->isPublic() ) {
                     // non-public datatype and anonymous user, can't view
-                    return parent::permissionDeniedError('view');
+                    return parent::permissionDeniedError();
                 }
                 else {
                     // public datatype, anybody can view
@@ -236,7 +236,7 @@ class XMLExportController extends ODRCustomController
 
                 // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
                 if ( (!$datatype->isPublic() && !$can_view_datatype) || (!$datarecord->isPublic() && !$can_view_datarecord) )
-                    return parent::permissionDeniedError('view');
+                    return parent::permissionDeniedError();
             }
             // ----------------------------------------
 
