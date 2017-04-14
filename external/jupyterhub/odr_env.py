@@ -291,3 +291,5 @@ def downloadFile(file_id):
 #    print( 'Wrote ' + str(expected_filesize) + ' Mb to "' + filename + '"' )
     print( 'Saved "' + final_filename + '"' )
 
+    return final_filename
+
