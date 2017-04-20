@@ -12,13 +12,13 @@
     <fieldset>
         {% if datafield_name is defined %}
             <div class="pure-control-group pure-u-1">
-                <h3>{{ datafield_name }}</h3>
+                <span class="ODRDatafieldName">{{ datafield_name }}</span>
             </div>
         {% endif %}
 
         <div class="pure-control-group pure-u-1">
             <label for="{{ theme_datafield_form.hidden.vars.id }}" class="pure-u-1">
-                <strong>{{ theme_datafield_form.hidden.vars.label }}</strong>
+                {{ theme_datafield_form.hidden.vars.label }}
             </label>
             {{ form_errors(theme_datafield_form.hidden) }}
             {{ form_widget(theme_datafield_form.hidden, { 'attr': {'style': 'width:auto', 'data-error-type': 'inline'} }) }}

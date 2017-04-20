@@ -12,7 +12,7 @@
     <fieldset>
         <div class="pure-control-group">
             <label for="{{ theme_datatype_form.display_type.vars.id }}">
-                <strong>{{ theme_datatype_form.display_type.vars.label }}</strong>
+                {{ theme_datatype_form.display_type.vars.label }}
             </label>
             {{ form_errors(theme_datatype_form.display_type) }}
             {{ form_widget(theme_datatype_form.display_type, { 'attr': {'style': 'width:auto'} }) }}

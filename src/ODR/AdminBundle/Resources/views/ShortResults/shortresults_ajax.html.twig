@@ -11,7 +11,8 @@
             'initial_datatype_id': initial_datatype_id,
             'initial_datarecord_id': dr_id,
             'is_top_level': true,
-            'search_key': ''
+            'search_key': '',
+            'record_display_view': 'short_results'
         } %}
     </div>
 {% endfor %}
@@ -24,6 +25,13 @@
                     loadDataRecord(id)
                 })
             })
+
+            if(typeof initPage === "undefined") {
+                initPage();
+                // TODO Determine if this is needed
+                $(".MenuDesignArea").remove();
+                window.scrollTo(0, 0);
+            }
         })
     </script>
 {% endspaceless %}

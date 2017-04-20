@@ -855,6 +855,7 @@ ul#wizardStatus li.completed:before{
 }
 
 .ODRThemeDesignSettings div {
+    margin-top: 6px;
     margin-left: 6px;
 }
 
@@ -869,6 +870,14 @@ ul#wizardStatus li.completed:before{
     min-height: 200px;
 }
 
+#ThemeDesignForm form {
+    margin-top: 6px;
+    margin-left: 6px;
+}
+#ThemeDesignForm form label {
+    display: block;
+    text-align: left;
+}
 #ThemeDesignKey {
     line-height: normal;
 
@@ -901,6 +910,10 @@ ul#wizardStatus li.completed:before{
     bottom: -4px;
     background-image: none;
     color: #888;
+}
+
+#ODRThemeShowHidden {
+    vertical-align: middle;
 }
 
 .ODRThemeHiddenElement {
