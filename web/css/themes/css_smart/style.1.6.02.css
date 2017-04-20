@@ -84,12 +84,12 @@ input,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement,
 .ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,
 .ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement  {
-    border: 1px solid #7fb9d8;
+    /* border: 1px solid #7fb9d8; */
     box-sizing:border-box;
     -moz-box-sizing:border-box;
     -webkit-box-sizing:border-box;
 
-    padding: 12px;
+    padding: 8px;
     border-radius: 4px;
     background-color: white;
 }
@@ -820,7 +820,7 @@ ul#wizardStatus li.current{
 }
 
 ul#wizardStatus li.current:after,
-ul#wizardStatus li.current:before{
+ul#wizardStatus li.current:before {
     background-color:#0597c5
 }
 
@@ -841,4 +841,90 @@ ul#wizardStatus li.completed:before{
     ul#wizardStatus li {
         padding: 0 25px 0 25px;
     }
+}
+
+.pure-skin-odr .ODRThemeForm fieldset {
+    margin-left: 6px;
+}
+.ODRThemeForm h3 {
+    font-size: 14px;
+}
+
+.ODRThemeForm label {
+    text-align: left;
+}
+
+.ODRThemeDesignSettings div {
+    margin-left: 6px;
+}
+
+.ThemeDesignArea .ODRDataField {
+    -webkit-transition: all 0.5s ease;
+    -moz-transition: all 0.5s ease;
+    -o-transition: all 0.5s ease;
+    transition: all 0.5s ease;
+}
+
+#ThemeDesignForm {
+    min-height: 200px;
+}
+
+#ThemeDesignKey {
+    line-height: normal;
+
+}
+
+#ThemeDesignWrapper {
+    width: 1286px;
+    overflow: hidden;
+}
+
+#ThemeLeftColumn {
+    background: white;
+    border-radius: 4px;
+    width: 255px;
+    min-height: 700px;
+    float: left;
+}
+
+#ThemeLeftColumn > div.ODRThemeElement:first-of-type > .ODRInnerBox {
+    min-height: 700px;
+    height: 100%;
+}
+
+#ThemeDesignArea {
+    width: 1024px;
+    margin-left: 260px;
+}
+
+#ThemeDesignArea .ui-resizable-se {
+    bottom: -4px;
+    background-image: none;
+    color: #888;
+}
+
+.ODRThemeHiddenElement {
+    display: none;
+}
+
+h3.ODRThemeVisibleHiddenElement {
+    box-shadow: inset 0 0 10px #0f0;
+}
+.ODRThemeVisibleHiddenElement {
+    box-shadow: 0 0 4px 4px rgba(0,255,0,0.7);
+}
+.ODRDataField.ODRThemeVisibleHiddenElement {
+    box-shadow: none;
+}
+.ODRDataField.ODRThemeVisibleHiddenElement form {
+    margin: 4px;
+    border-radius: 4px;
+    /* box-shadow: inset 0 0 8px 8px rgba(255,0,0,0.3) */
+    background: rgba(255,0,0,0.15);
+    box-shadow: none;
+}
+
+
+.Pad10 {
+    padding: 10px;
 }

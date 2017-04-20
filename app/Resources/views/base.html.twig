@@ -33,6 +33,8 @@
 
     <!-- External Styles -->
     <link rel="stylesheet" href="/css/external/jquery-ui-1.8.21.custom.css">
+    <link rel="stylesheet" href="/css/external/jquery.switchButton.css">
+    <link rel="stylesheet" href="/css/external/introjs.min.css">
     <link rel="stylesheet" href="/css/external/jquery.jgrowl.css">
     <!-- <link rel="stylesheet" href="/css/external/jquery.dataTables.css"> -->
     <link rel="stylesheet" href="/js/mylibs/jquery_datatables/datatables.min.css">
@@ -86,6 +88,8 @@
     <script src="/js/mylibs/jquery.ui.touch-punch.js"></script>
     <script src="/js/mylibs/jquery.ui.multiaccordion.js"></script>
     <script src="/js/mylibs/number-functions.js"></script>
+    <script src="/js/mylibs/jquery.switchButton.js"></script>
+    <script src="/js/mylibs/introjs.min.js"></script>
 
     <!-- Forms -->
     <script src="/js/libs/plugins/jquery.validate.min.js"></script>
@@ -202,12 +206,12 @@
     </div>
     <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-1-24">
         <ul class="pure-menu-list">
-            <li class="pure-menu-item"><span class="pure-menu-heading"><i class="fa fa-lg fa-question-circle"></i></span>
+            <li class="pure-menu-item"><span class="pure-menu-heading"><i id="ODRHelpButton" class="Pointer fa fa-lg fa-question-circle"></i></span>
                 {# block help_navigation_top %}
-                {% endblock #}
                 <ul class="ODR-pure-submenu">
                     <li class="pure-menu-item"><a href="#" class="pure-menu-link">Wiki - Coming Soon</a></li>
                 </ul>
+                {% endblock #}
             </li>
         </ul>
     </div>

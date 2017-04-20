@@ -52,6 +52,13 @@ services:
             entity_manager: "@doctrine.orm.entity_manager"
             logger: "@logger"
 
+    odr.datarecord_info_service:
+        class: ODR\AdminBundle\Component\Service\DatarecordInfoService
+        arguments:
+            container: "@service_container"
+            entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+
     odr.datatype_info_service:
         class: ODR\AdminBundle\Component\Service\DatatypeInfoService
         arguments:

@@ -556,4 +556,84 @@ class PermissionsManagementService
             $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
     }
 
+
+
+    /**
+     * Given a group's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.
+     *
+     * @param array &$datatype_array    @see self::getDatatypeArray()
+     * @param array &$datarecord_array  @see self::getDatarecordArray()
+     * @param array $permissions_array  @see self::getUserPermissionsArray()
+     */
+    public function filterByGroupPermissions(&$datatype_array, &$datarecord_array, $permissions_array)
+    {
+
+        // Save relevant permissions...
+        $datatype_permissions = array();
+        if ( isset($permissions_array['datatypes']) )
+            $datatype_permissions = $permissions_array['datatypes'];
+        $datafield_permissions = array();
+        if ( isset($permissions_array['datafields']) )
+            $datafield_permissions = $permissions_array['datafields'];
+
+        $can_view_datatype = array();
+        $can_view_datarecord = array();
+        $datafields_to_remove = array();
+        foreach ($datatype_array as $dt_id => $dt) {
+            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dt_view' ]) )
+                $can_view_datatype[$dt_id] = true;
+            else
+                $can_view_datatype[$dt_id] = false;
+
+            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dr_view' ]) )
+                $can_view_datarecord[$dt_id] = true;
+            else
+                $can_view_datarecord[$dt_id] = false;
+        }
+
+
+        // For each datatype in the provided array...
+        foreach ($datatype_array as $dt_id => $dt) {
+
+            // If there was no datatype permission entry for this datatype, have it default to false
+            if ( !isset($can_view_datatype[$dt_id]) )
+                $can_view_datatype[$dt_id] = false;
+
+            // If datatype is non-public and user does not have the 'can_view_datatype' permission, then remove the datatype from the array
+            if ( $dt['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datatype[$dt_id] ) {
+                unset( $datatype_array[$dt_id] );
+
+                // Also remove all datarecords of that datatype
+                foreach ($datarecord_array as $dr_id => $dr) {
+                    if ($dt_id == $dr['dataType']['id'])
+                        unset( $datarecord_array[$dr_id] );
+                }
+
+                // No sense checking anything else for this datatype, skip to the next one
+                continue;
+            }
+
+            // Otherwise, the user is allowed to see this datatype...
+            foreach ($dt['themes'] as $theme_id => $theme) {
+                foreach ($theme['themeElements'] as $te_num => $te) {
+
+                    // For each datafield in this theme element...
+                    if ( isset($te['themeDataFields']) ) {
+                        foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                            $df_id = $tdf['dataField']['id'];
+
+                            // If the user doesn't have the 'can_view_datafield' permission for that datafield...
+                            if ( $tdf['dataField']['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00'
+                                && !( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
+                            ) {
+                                // ...remove it from the layout
+                                unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry on purpose
+                                $datafields_to_remove[$df_id] = 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

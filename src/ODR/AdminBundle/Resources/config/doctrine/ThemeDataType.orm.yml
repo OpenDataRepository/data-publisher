@@ -29,11 +29,13 @@ ODR\AdminBundle\Entity\ThemeDataType:
             gedmo:
                 timestampable:
                     on: create
+
         updated:
             type: datetime
             gedmo:
                 timestampable:
                     on: update
+
         deletedAt:
             type: datetime
             nullable: true

@@ -7,3 +7,25 @@ services:
 #        arguments: [@service_id, "plain_value", %parameter%]
     odr_custom_controller:
         class: ODR\AdminBundle\Controller\ODRCustomController
+
+    odr.permissions_management_service:
+        class: ODR\AdminBundle\Component\Service\PermissionsManagementService
+        arguments:
+            container: "@service_container"
+            entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+
+    odr.datarecord_info_service:
+        class: ODR\AdminBundle\Component\Service\DatarecordInfoService
+        arguments:
+            container: "@service_container"
+            entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+
+    odr.datatype_info_service:
+        class: ODR\AdminBundle\Component\Service\DatatypeInfoService
+        arguments:
+            container: "@service_container"
+            entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+

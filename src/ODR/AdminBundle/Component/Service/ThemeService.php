@@ -384,13 +384,14 @@ class ThemeService
             foreach($parent_theme_df_array as $parent_tdf) {
                 $new_tdf = clone $parent_tdf;
                 $new_tdf->setThemeElement($new_te);
-                foreach($datafields as $datafield) {
-                    if($datafield->getMasterDataField()->getId() == $parent_tdf->getDataField()->getId()) {
-                        $new_tdf->setDataField($datafield);
-                        self::persistObject($new_tdf);
-                        break;
-                    }
-                }
+                // foreach($datafields as $datafield) {
+                    // if($datafield->getMasterDataField()->getId() == $parent_tdf->getDataField()->getId()) {
+                //         $new_tdf->setDataField($datafield);
+                $new_tdf->setDataField($parent_tdf->getDataField());
+                self::persistObject($new_tdf);
+                        // break;
+                    // }
+                // }
             }
 
             // Theme Data Type

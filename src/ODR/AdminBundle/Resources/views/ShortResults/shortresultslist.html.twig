@@ -12,7 +12,10 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-<div class="ODRFormWrap"> 
+{% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
+{{ js.write(target, search_key, offset) }}
+
+<div class="ODRFormWrap">
     <div class="header">
     {% if datatype != null %}
         {% if target == "results" %}
@@ -270,5 +273,3 @@
 </script>
 {% endspaceless %}
 
-{% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
-{{ js.write(target, search_key, offset) }}

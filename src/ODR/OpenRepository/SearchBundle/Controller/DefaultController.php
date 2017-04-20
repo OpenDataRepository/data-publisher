@@ -835,6 +835,17 @@ exit();
 
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
+
+            // Lets just use master if theme is null....
+            if ($theme == null) {
+                $theme_type = 'master';
+                $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
+            }
+
+            // Temporarily set theme to master...
+            // $theme_type = 'master';
+            // $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
+
             if ($theme == null)
                 throw new \Exception('The datatype "'.$datatype->getShortName().'" wants to use a "'.$theme_type.'" theme to render search results, but no such theme exists.');
 
@@ -847,6 +858,7 @@ exit();
             $target = 'results';
             if ($source == 'linking')
                 $target = $source;
+
             $html = $odrcc->renderList($datarecords, $datatype, $theme, $user, $path_str, $target, $encoded_search_key, $offset, $request);
 
              $return['d'] = array(

@@ -202,7 +202,7 @@ class ODRCustomController extends Controller
 
         // -----------------------------------
         $final_html = '';
-        if ( $theme->getThemeType() == 'search_results' ) {
+        if ( $theme->getThemeType() == 'search_results' || $theme->getThemeType() == 'master' ) {
             // -----------------------------------
             // Ensure offset exists for shortresults list
             if ( (($offset-1) * $page_length) > count($datarecords) )
@@ -235,24 +235,45 @@ class ODRCustomController extends Controller
             if ($this->container->getParameter('kernel.environment') === 'dev')
                 $bypass_cache = true;
 
+            // Initialize services
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            // $pm_service = $this->container->get('odr.permissions_management_service');
 
+            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
+            $datarecord_array = array();
+            $related_datarecord_array = array();
+            foreach ($datarecord_list as $num => $dr_id) {
+                $datarecord_info = $dri_service->getRelatedDatarecords($dr_id);
+
+                $stacked_datarecord_array = array();
+                $stacked_datarecord_array[ $dr_id ] = self::stackDatarecordArray($datarecord_info, $dr_id);
+                $datarecord_array[$dr_id] = $stacked_datarecord_array;
+                // $datarecord_array[$dr_id] = $datarecord_info;
+
+
+                foreach ($datarecord_info as $local_dr_id => $data)
+                    $related_datarecord_array[$local_dr_id] = $data;
+
+
+            }
+
+
+            // Get Associated Datatypes
+            $datatype_array = $dti_service->getRecordDatatypes($related_datarecord_array);
+            $datatype_array[ $datatype->getId() ] = self::stackDatatypeArray($datatype_array, $datatype->getId(), $theme->getId());
+
+
+
+            /*
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
             // print $redis_prefix.'.cached_datatype_'.$datatype->getId();
             $datatype_array = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype->getId())));
             if ($bypass_cache || $datatype_array == false) {
                 $datatype_array = self::getDatatypeData($em, self::getDatatreeArray($em, $bypass_cache), $datatype->getId(), $bypass_cache);
             }
+            */
 
-            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
-            $datarecord_array = array();
-            foreach ($datarecord_list as $num => $dr_id) {
-                $datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
-                if ($bypass_cache || $datarecord_data == false)
-                    $datarecord_data = self::getDatarecordData($em, $dr_id, $bypass_cache);
-
-                foreach ($datarecord_data as $dr_id => $data)
-                    $datarecord_array[$dr_id] = $data;
-            }
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             self::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
@@ -286,7 +307,6 @@ class ODRCustomController extends Controller
                     'offset' => $offset,
                 )
             );
-
         }
         else if ( $theme->getThemeType() == 'table' ) {
             // -----------------------------------
@@ -294,12 +314,6 @@ class ODRCustomController extends Controller
             $column_data = self::getDatatablesColumnNames($em, $theme, $datafield_permissions);
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
-/*
-print '<pre>';
-print_r($column_data);
-print '</pre>';
-exit();
-*/
 
             // Don't render the starting textresults list here, it'll always be loaded via ajax later
 
@@ -2060,58 +2074,6 @@ if ($debug)
     print 'removed datafield '.$df_id.' from theme_element '.$te['id'].' datatype '.$dt_id.' theme '.$theme_id.' ('.$theme['themeType'].')'."\n";
                             }
                         }
-                    }
-                }
-            }
-        }
-
-        // Also need to go through the datarecord array and remove both datarecords and datafields that the user isn't allowed to see
-        foreach ($datarecord_array as $dr_id => $dr) {
-            // Save datatype id of this datarecord
-            $dt_id = $dr['dataType']['id'];
-
-            // If there was no datatype permission entry for this datatype, have it default to false
-            if ( !isset($can_view_datarecord[$dt_id]) )
-                $can_view_datarecord[$dt_id] = false;
-
-            // If the datarecord is non-public and user doesn't have the 'can_view_datarecord' permission, then remove the datarecord from the array
-            if ( $dr['dataRecordMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
-                unset( $datarecord_array[$dr_id] );
-if ($debug)
-    print 'removed non-public datarecord '.$dr_id."\n";
-
-                // No sense checking anything else for this datarecord, skip to the next one
-                continue;
-            }
-
-            // The user is allowed to view this datarecord...
-            foreach ($dr['dataRecordFields'] as $df_id => $drf) {
-
-                // Remove the datafield if needed
-                if ( isset($datafields_to_remove[$df_id]) ) {
-                    unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
-if ($debug)
-    print 'removed datafield '.$df_id.' from datarecord '.$dr_id."\n";
-
-                    // No sense checking file/image public status, skip to the next datafield
-                    continue;
-                }
-
-                // ...remove the files the user isn't allowed to see
-                foreach ($drf['file'] as $file_num => $file) {
-                    if ( $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
-                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['file'][$file_num] );
-if ($debug)
-    print 'removed non-public file '.$file['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
-                    }
-                }
-
-                // ...remove the images the user isn't allowed to see
-                foreach ($drf['image'] as $image_num => $image) {
-                    if ( $image['parent']['imageMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
-                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['image'][$image_num] );
-if ($debug)
-    print 'removed non-public image '.$image['parent']['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
                     }
                 }
             }
@@ -6087,14 +6049,22 @@ if ($timing) {
      * @param array $datatype_array
      * @param integer $initial_datatype_id
      * @param integer $theme_id
+     * @param integer $parent_theme_id
      *
      * @return array
      */
-    public function stackDatatypeArray($datatype_array, $initial_datatype_id, $theme_id)
+    public function stackDatatypeArray($datatype_array, $initial_datatype_id, $theme_id, $parent_theme_id = null)
     {
         $current_datatype = array();
         if ( isset($datatype_array[$initial_datatype_id]) ) {
             $current_datatype = $datatype_array[$initial_datatype_id];
+
+            // Check if parent theme is set
+            if( isset($current_datatype['themes'][$theme_id]['parentTheme'])
+                && $current_datatype['themes'][$theme_id]['parentTheme']['id'] > 0
+            ) {
+                $parent_theme_id = $current_datatype['themes'][$theme_id]['parentTheme']['id'];
+            }
 
             foreach ($current_datatype['themes'][$theme_id]['themeElements'] as $num => $theme_element) {
                 if ( isset($theme_element['themeDataType']) ) {
@@ -6107,11 +6077,20 @@ if ($timing) {
 
                         $child_theme_id = '';
                         foreach ($datatype_array[$child_datatype_id]['themes'] as $t_id => $t) {
-                            if ( $t['themeType'] == 'master' )
+                            if( isset($t['parentTheme'])
+                                && $t['parentTheme']['id'] != null
+                                && $t['parentTheme']['id'] == $parent_theme_id
+                            ) {
                                 $child_theme_id = $t_id;
+                            }
+                            else if ( $t['themeType'] == 'master'
+                                && $parent_theme_id == null
+                            ) {
+                                $child_theme_id = $t_id;
+                            }
                         }
 
-                        $tmp[$child_datatype_id] = self::stackDatatypeArray($datatype_array, $child_datatype_id, $child_theme_id);
+                        $tmp[$child_datatype_id] = self::stackDatatypeArray($datatype_array, $child_datatype_id, $child_theme_id, $parent_theme_id);
                     }
 
                     $current_datatype['themes'][$theme_id]['themeElements'][$num]['themeDataType'][0]['dataType'] = $tmp;

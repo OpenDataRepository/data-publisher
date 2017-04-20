@@ -21,7 +21,7 @@
                     <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Configure search view..</h3>
                         <div class="ODRBodyContent">
                             <p>
-                                Click a field to hide it from the search view.  To view hidden fields, toggle the "show fields" toggle below.
+                                Click a field to bring up its configurable properties.  To view hidden fields, toggle the "show hidden elements" checkbox below.
                             </p>
                         </div>
                 </div>
@@ -31,11 +31,346 @@
 
     <input type="hidden" id="has_datarecords" value="{{ has_datarecords }}" />
 
-    {% include 'ODRAdminBundle:Theme:theme_area.html.twig' with {
-        'datatype_array': datatype_array,
-        'initial_datatype_id': initial_datatype_id,
-        'theme_id': theme_id,
-        'is_datatype_admin': is_datatype_admin,
-    } %}
+    <div id="ThemeDesignWrapper">
+        <div id="ThemeLeftColumn" class="ODRContentWrapper">
+            <div class="ODRThemeElement">
+                <div class="ODRInnerBox">
+                    <h3 class="ODRHeader">Theme Styling</h3>
+                    <div class="ODRThemeDesignSettings">
+                        <div>
+                            <label for="ODRThemeShowHidden">Show Hidden Elements:</label>
+                            &nbsp;<input type="checkbox" value="0" id="ODRThemeShowHidden" name="ODRThemeShowHidden"></input>
+                        </div>
+                    </div>
+                    <div id="ThemeDesignForm">
+                    </div>
+                    <div id="ThemeDesignKey">
+                        <div class="pure-u-24-24"><h3 class="ODRHeader">Design Key</h3></div>
+                        <div class="pure-u-24-24"></div>
+                        <div class="pure-u-2-24"></div>
+                        <div class="pure-u-20-24">Examples of hidden elements are show below.  Elements visible to users have no additional styling.</div>
+                        <div class="pure-u-2-24"></div>
+
+
+                        <div class="pure-u-24-24"></div>
+
+
+                        <div class="pure-u-2-24"></div>
+                        <div class="ODRThemeElement pure-u-20-24">
+                            <div class="ODRInnerBox ui-sortable">
+                                <div class="ODRDataType ODRLinkedType ODRAccordionWrapper ODRFormAccordion pure-u-1">
+                                    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top ODRThemeVisibleHiddenElement" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                                        <span class="Pad10">Hidden Heading</span>
+                                    </h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pure-u-2-24"></div>
+
+                        <div class="pure-u-2-24"></div>
+                        <div class="ODRThemeElement pure-u-20-24 ODRThemeVisibleHiddenElement">
+                            <div class="ODRInnerBox ui-sortable">
+                                <div class="ODRDataType ODRLinkedType ODRAccordionWrapper ODRFormAccordion pure-u-1">
+                                    <span class="Pad10">Hidden Section</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pure-u-2-24"></div>
+
+
+
+                        <div class="pure-u-2-24"></div>
+                        <div class="ODRDataField pure-u-20-24 ui-resizable ODRThemeVisibleHiddenElement" data-intro="Drag any field in front or behind any other field to re-order the fields.">
+                            <form class="pure-u-1">
+                            <fieldset>
+                            <label for="ExampleInput" class="ODRFieldLabel pure-u-1">
+                                <span class="Pad10">Hidden Field</span>
+                            </label>
+                            <div class="ODRPseudoField" id="ExampleInput"></div>
+                            </fieldset>
+                            </form>
+                        </div>
+                        <div class="pure-u-2-24"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+            <div id="ThemeDesignArea">
+            {% include 'ODRAdminBundle:Theme:theme_area.html.twig' with {
+            'datatype_array': datatype_array,
+            'initial_datatype_id': initial_datatype_id,
+            'theme_id': theme_id,
+            'is_datatype_admin': is_datatype_admin,
+            } %}
+        </div>
+    </div>
+
+
+
+    <script>
+
+        // After DOM Ready
+        jQuery(function() {
+
+            // Setup IntroJS Walkthrough
+            jQuery(".ODRPseudoField:first").attr('data-step', "1")
+            jQuery(".ODRPseudoField:first").attr('data-intro', "Hover over the lower right-hand corner of a field to start resizing a field.  A drag arrow will appear and you can drag left or right to resize.")
+            jQuery(".ODRDataField:nth-child(3)").attr('data-step', "2")
+            jQuery(".ODRDataField:nth-child(3)").attr('data-intro', "Click any field or heading to display user-configurable options in the Theme Styling panel.")
+            jQuery("#ThemeLeftColumn").attr('data-step', "3")
+            jQuery("#ThemeLeftColumn").attr('data-intro', "User-configurable options for fields and headers will appear in this area.")
+            jQuery(".ODRDataField:nth-child(2)").attr('data-step', "4")
+            jQuery(".ODRDataField:nth-child(2)").attr('data-intro', "Drag any field in front or behind any other field to re-order the fields.")
+
+            // Initialize the help button
+            jQuery("#ODRHelpButton")
+                .unbind('click')
+                .click(function() {
+                    introJs().start()
+                })
+
+            // Initialize the theme options
+            jQuery("#ODRThemeShowHidden")
+                .unbind('click')
+                .click(function() {
+                    if(jQuery(this).is(":checked")) {
+                        jQuery(".ODRThemeHiddenElement")
+                            .addClass("ODRThemeVisibleHiddenElement")
+                            .removeClass("ODRThemeHiddenElement")
+                    }
+                    else {
+                        jQuery(".ODRThemeVisibleHiddenElement")
+                            .addClass("ODRThemeHiddenElement")
+                            .removeClass("ODRThemeVisibleHiddenElement")
+                    }
+                })
+
+            // Initialize DataFields
+            jQuery(".ODRThemeElement .ODRInnerBox .ODRDataField")
+                .unbind('click')
+                .click(function() {
+                    var datafield_id = jQuery(this).attr('id').replace('Field_', '')
+                    var theme_element_id = jQuery(this).parent().parent().attr('id').replace('ThemeElement_', '')
+                    LoadDatafieldForm(theme_element_id, datafield_id)
+                })
+
+            // Initialize DataType Headers
+            jQuery(".ODRThemeElement .ODRInnerBox .ODRDataType h3")
+                .unbind('click')
+                .click(function() {
+                    var datatype_id = jQuery(this).parent().attr('id').replace('DataType_', '')
+                    var theme_element_id = jQuery(this).parent().parent().parent().attr('id').replace('ThemeElement_', '')
+                    LoadDatatypeForm(theme_element_id, datatype_id)
+                })
+
+            // Display or hide data type (this is a theme element change
+            function LoadDatatypeForm(theme_element_id, datatype_id) {
+                var datafield = jQuery(this)
+                var url = "{{ path('odr_design_load_theme_datatype', {'theme_element_id': 0, 'datatype_id': 0}) }}";
+                url = url.substr(0, url.length-3);
+                jQuery.getJSON(
+                    url + theme_element_id + "/" + datatype_id,
+                    function(data) {
+                        jQuery("#ThemeDesignForm").html(data.d)
+                        // Save changes to the visibility
+                        jQuery("#UpdateThemeDatatypeForm_hidden").unbind('change')
+                        jQuery("#UpdateThemeDatatypeForm_hidden").change(function() {
+                            var datatype_id = jQuery("#UpdateThemeDatatypeForm_dataType").val()
+                            if(jQuery("#UpdateThemeDatatypeForm_hidden").find(":selected").val() == 1) {
+                                if(jQuery("#ODRThemeShowHidden").is(":checked")) {
+                                    jQuery("#DataType_" + datatype_id).parent().parent().addClass("ODRThemeVisibleHiddenElement")
+                                }
+                                else {
+                                    jQuery("#DataType_" + datatype_id).parent().parent().addClass("ODRThemeHiddenElement")
+                                }
+                            }
+                            else {
+                                jQuery("#DataType_" + datatype_id).parent().parent()
+                                    .removeClass("ODRThemeVisibleHiddenElement")
+                                    .removeClass("ODRThemeHiddenElement")
+                            }
+                            // Submit State Change
+                            SubmitThemeDesignForm()
+                        })
+                        // Save changes to the display type
+                        jQuery("#UpdateThemeDatatypeForm_display_type").unbind('change')
+                        jQuery("#UpdateThemeDatatypeForm_display_type").change(function() {
+                            var datatype_id = jQuery("#UpdateThemeDatatypeForm_dataType").val()
+                            if(jQuery("#UpdateThemeDatatypeForm_display_type").find(":selected").val() == 1) {
+                                if(jQuery("#ODRThemeShowHidden").is(":checked")) {
+                                    jQuery("#DataType_" + datatype_id + " h3:first").addClass("ODRThemeVisibleHiddenElement")
+                                }
+                                else {
+                                    jQuery("#DataType_" + datatype_id + " h3:first").addClass("ODRThemeHiddenElement")
+                                }
+                            }
+                            else {
+                                jQuery("#DataType_" + datatype_id + " h3:first")
+                                    .removeClass("ODRThemeVisibleHiddenElement")
+                                    .removeClass("ODRThemeHiddenElement")
+                            }
+                            // Submit State Change
+                            SubmitThemeDesignForm()
+                        })
+                    }
+                )
+            }
+
+
+            function LoadDatafieldForm(theme_element_id, datafield_id) {
+                var datafield = jQuery(this)
+                var url = "{{ path('odr_design_load_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}";
+                url = url.substr(0, url.length-3);
+                jQuery.getJSON(
+                    url + theme_element_id + "/" + datafield_id,
+                    function(data) {
+                        jQuery("#ThemeDesignForm").html(data.d)
+                        jQuery("#UpdateThemeDatafieldForm_hidden").unbind('change')
+                        jQuery("#UpdateThemeDatafieldForm_hidden").change(function() {
+                            var datafield_id = jQuery("#UpdateThemeDatafieldForm_dataField").val()
+                            if(jQuery("#UpdateThemeDatafieldForm_hidden").find(":selected").val() == 1) {
+                                if(jQuery("#ODRThemeShowHidden").is(":checked")) {
+                                    jQuery("#Field_" + datafield_id).addClass("ODRThemeVisibleHiddenElement")
+                                }
+                                else {
+                                    jQuery("#Field_" + datafield_id).addClass("ODRThemeHiddenElement")
+                                }
+                            }
+                            else {
+                                jQuery("#Field_" + datafield_id)
+                                    .removeClass("ODRThemeVisibleHiddenElement")
+                                    .removeClass("ODRThemeHiddenElement")
+                            }
+                            // Submit State Change
+                            SubmitThemeDesignForm()
+
+                        })
+                    }
+                )
+            }
+
+            function SubmitThemeDesignForm() {
+                jQuery.ajax({
+                    type: "POST",
+                    url: jQuery("#ThemeDesignForm form").attr('action'),
+                    data: jQuery("#ThemeDesignForm form").serialize(),
+                    dataType: 'json',
+                    success: function(data) {
+                        console.log(data)
+                    }
+                });
+            }
+
+            // Setup resizable for all DataFields
+            jQuery(".ODRThemeElement .ODRInnerBox .ODRDataField").each(function() {
+
+                $( this ).resizable({
+                    minHeight: $(this).height(),
+                    maxHeight: $(this).height(),
+                    grid: 41.5,  // 996 width / 24 units
+                    // After resizable stops
+                    start: function( event, ui) {
+                        var datafield_id = ui.originalElement.attr('id').replace('Field_', '')
+                        var theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_', '')
+                        LoadDatafieldForm(theme_element_id, datafield_id)
+                    },
+                    stop: function( event, ui ) {
+                        // Refactor all widths for all elements in array to be f/24
+                        // floor(Percentage of width / 4.16667) =  f/24 => f
+                        // How to handle smaller PureCSS widths...
+
+                        var total_width = ui.originalElement.parent().parent().width()
+                        var width = ui.originalElement.width()
+
+                        console.log(total_width)
+                        console.log(width)
+                        var pct = width / total_width * 100
+
+                        console.log(pct)
+
+                        var u_factor = pct/4.16667
+
+                        console.log(u_factor)
+
+                        if(u_factor < 1) {
+                            u_factor = 1
+                        }
+                        else {
+                            u_factor = Math.round(u_factor)
+                        }
+
+                        console.log('u_factor: ' + u_factor)
+
+                        var prefix = "pure-u";
+                        var classes = ui.originalElement.attr('class').split(" ").filter(function(c) {
+                            return c.lastIndexOf(prefix, 0) !== 0;
+                        })
+                        ui.originalElement.attr('class', classes.join(" ").trim());
+
+                        console.log('class names: ' + ui.originalElement.attr('class'))
+
+                        // Get new width and refactor to f/24
+                        // Remove inline width style.
+                        ui.originalElement.attr('style', function(i, style) {
+                            return style.replace(/width[^;]+;?/g, '');
+                        })
+
+                        // default is always pure-u-1
+                        ui.originalElement.addClass('pure-u-1')
+                        ui.originalElement.addClass('pure-u-md-' + u_factor + '-24')
+                        ui.originalElement.addClass('pure-u-xl-' + u_factor + '-24')
+
+                        var datafield_id = ui.originalElement.attr('id').replace('Field_','')
+                        var theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_','')
+
+                        // Save new U Factors to DB via Get Request
+                        console.log('resizeable stop ' + datafield_id + " -- " + theme_element_id)
+                        jQuery("#UpdateThemeDatafieldForm_cssWidthMed").val(u_factor + "-24")
+                        jQuery("#UpdateThemeDatafieldForm_cssWidthXL").val(u_factor + "-24")
+                        SubmitThemeDesignForm()
+                    }
+                });
+            })
+
+            // Store new sort order
+            jQuery(".ODRThemeElement .ODRInnerBox").sortable({
+                // placeholder: "ui-state-highlight",
+                // forcePlaceholderSize: true,
+                start: function( event, ui ) {
+                    var datafield_id = ui.item.attr('id').replace('Field_', '')
+                    var theme_element_id = ui.item.parent().parent().attr('id').replace('ThemeElement_', '')
+                    LoadDatafieldForm(theme_element_id, datafield_id)
+                },
+                stop: function( event, ui ) {
+                    var datafield_ids = "";
+                    ui.item.parent().find(".ODRDataField").each(function() {
+                        datafield_ids += $( this ).attr('id').replace('Field_','') + ','
+                    })
+                    datafield_ids = datafield_ids.replace(/,$/,'')
+                    var theme_element_id = ui.item.parent().parent().attr('id').replace('ThemeElement_','')
+                    console.log('sort stop ' + datafield_ids + " -- " + theme_element_id)
+                }
+            });
+
+
+            /*
+            jQuery(".ODRDataField label").prepend('<i class="fa fa-lg fa-minus-square ToggleHidden Pointer" style="margin-left: 2px" title="Click to hide this field."></i>')
+            jQuery(".ODRDataField label .ToggleHidden").unbind('click')
+            jQuery(".ODRDataField label .ToggleHidden").click(function() {
+                var datafield_id = $(this).parent().parent().parent().parent().attr('id').replace('Field_','')
+                var theme_element_id = $(this).parent().parent().parent().parent().parent().parent().attr('id').replace('ThemeElement_','')
+                console.log('field click ' + datafield_id + " -- " + theme_element_id)
+            })
+            // Toggle hide value
+
+            jQuery(".ODRDataType h3").append('<i class="FRight fa fa-lg fa-minus-square ToggleHidden Pointer" style="margin-left: 2px" title="Click to hide this field."></i>')
+            jQuery(".ODRDataType h3 .ToggleHidden").unbind('click')
+            jQuery(".ODRDataType h3 .ToggleHidden").click(function() {
+                console.log('header click')
+            })
+            */
+
+        })
+    </script>
 
 {% endspaceless %}

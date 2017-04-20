@@ -94,7 +94,6 @@ class DatatypeInfoService
     /**
      * Builds and returns a list of all datarecords linked to from the provided datarecord ids.
      *
-     * @param \Doctrine\ORM\EntityManager $em
      * @param integer[] $ancestor_ids
      *
      * @return integer[]
@@ -131,7 +130,6 @@ class DatatypeInfoService
     /**
      * Builds and returns a list of all child and linked datatype ids related to the given datatype id.
      *
-     * @param \Doctrine\ORM\EntityManager $em
      * @param int[] $datatype_ids
      * @param boolean $include_links
      *
@@ -197,10 +195,10 @@ class DatatypeInfoService
         return false;
     }
 
+
     /**
      * Gets all layout information required for the given datatype in array format
      *
-     * @param \Doctrine\ORM\EntityManager $em
      * @param array $datatree_array
      * @param integer $datatype_id
      * @param boolean $force_rebuild
@@ -210,6 +208,10 @@ class DatatypeInfoService
     public function getDatatypeData($datatree_array, $datatype_id, $force_rebuild = false)
     {
 
+        // Get Datatree Array if empty
+        if(!is_array($datatree_array) || count($datatree_array) < 1) {
+            $datatree_array = self::getDatatreeArray($force_rebuild);
+        }
         // If datatype data exists in memcached and user isn't demanding a fresh version, return that
         $redis = $this->container->get('snc_redis.default');;
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -224,7 +226,7 @@ class DatatypeInfoService
         // Otherwise...get all non-layout data for a given grandparent datarecord
         $query = $this->em->createQuery(
             'SELECT
-                t, tm,
+                t, pt, st, tm,
                 dt, dtm, dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
                 te, tem,
                 tdf, df, ro, rom,
@@ -235,6 +237,8 @@ class DatatypeInfoService
             LEFT JOIN dt.dataTypeMeta AS dtm
 
             LEFT JOIN dt.themes AS t
+            LEFT JOIN t.parentTheme AS pt
+            LEFT JOIN t.sourceTheme AS st
             LEFT JOIN t.themeMeta AS tm
 
             LEFT JOIN dtm.renderPlugin AS dt_rp
@@ -271,8 +275,9 @@ class DatatypeInfoService
 
         $datatype_data = $query->getArrayResult();
 
-        // The entity -> entity_metadata relationships have to be one -> many from a database perspective, even though there's only supposed to be a single non-deleted entity_metadata object for each entity
-        // Therefore, the preceeding query generates an array that needs to be slightly flattened in a few places
+        // The entity -> entity_metadata relationships have to be one -> many from a database perspective,
+        // even though there's only supposed to be a single non-deleted entity_metadata object for each entity
+        // Therefore, the preceding query generates an array that needs to be slightly flattened in a few places
         foreach ($datatype_data as $dt_num => $dt) {
             // Flatten datatype meta
             $dtm = $dt['dataTypeMeta'][0];
@@ -364,12 +369,239 @@ class DatatypeInfoService
         return $grandparent_datatype_id;
     }
 
+    public function getRecordDatatypes($datarecord_array)
+    {
+
+        $redis = $this->container->get('snc_redis.default');;
+        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+        // ----------------------------------------
+        // Always bypass cache if in dev mode?
+        $bypass_cache = false;
+        if ($this->container->getParameter('kernel.environment') === 'dev')
+            $bypass_cache = true;
+
+        // ----------------------------------------
+        //
+        $datatree_array = self::getDatatreeArray($bypass_cache);
+
+        // Grab all datatypes associated with the desired datarecord
+        // NOTE - not using parent::getAssociatedDatatypes() here on purpose...that would always return child/linked datatypes for the datatype even if this datarecord isn't making use of them
+        $associated_datatypes = array();
+        foreach ($datarecord_array as $dr_id => $dr) {
+            $dt_id = $dr['dataType']['id'];
+
+            if ( !in_array($dt_id, $associated_datatypes) )
+                $associated_datatypes[] = $dt_id;
+        }
+
+
+        // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
+        $datatype_array = array();
+        foreach ($associated_datatypes as $num => $dt_id) {
+            // print $redis_prefix.'.cached_datatype_'.$dt_id;
+            $datatype_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
+            if ($bypass_cache || $datatype_data == false)
+                $datatype_data = self::getDatatypeData($datatree_array, $dt_id, $bypass_cache);
+
+            foreach ($datatype_data as $local_dt_id => $data)
+                $datatype_array[$local_dt_id] = $data;
+        }
+
+        return $datatype_array;
+
+    }
+
+
+
+    /**
+     * Given a group's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.
+     *
+     * @param array &$datatype_array    @see self::getDatatypeArray()
+     * @param array &$datarecord_array  @see self::getDatarecordArray()
+     * @param array $permissions_array  @see self::getUserPermissionsArray()
+     */
+    protected function filterByGroupPermissions(&$datatype_array, &$datarecord_array, $permissions_array)
+    {
+        $debug = true;
+        $debug = false;
+
+        if ($debug)
+            print '----- permissions filter -----'."\n";
+
+        // Save relevant permissions...
+        $datatype_permissions = array();
+        if ( isset($permissions_array['datatypes']) )
+            $datatype_permissions = $permissions_array['datatypes'];
+        $datafield_permissions = array();
+        if ( isset($permissions_array['datafields']) )
+            $datafield_permissions = $permissions_array['datafields'];
+
+        $can_view_datatype = array();
+        $can_view_datarecord = array();
+        $datafields_to_remove = array();
+        foreach ($datatype_array as $dt_id => $dt) {
+            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dt_view' ]) )
+                $can_view_datatype[$dt_id] = true;
+            else
+                $can_view_datatype[$dt_id] = false;
+
+            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dr_view' ]) )
+                $can_view_datarecord[$dt_id] = true;
+            else
+                $can_view_datarecord[$dt_id] = false;
+        }
+
+
+        // For each datatype in the provided array...
+        foreach ($datatype_array as $dt_id => $dt) {
+
+            // If there was no datatype permission entry for this datatype, have it default to false
+            if ( !isset($can_view_datatype[$dt_id]) )
+                $can_view_datatype[$dt_id] = false;
+
+            // If datatype is non-public and user does not have the 'can_view_datatype' permission, then remove the datatype from the array
+            if ( $dt['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datatype[$dt_id] ) {
+                unset( $datatype_array[$dt_id] );
+                if ($debug)
+                    print 'removed non-public datatype '.$dt_id."\n";
+
+                // Also remove all datarecords of that datatype
+                foreach ($datarecord_array as $dr_id => $dr) {
+                    if ($dt_id == $dr['dataType']['id'])
+                        unset( $datarecord_array[$dr_id] );
+                    if ($debug)
+                        print ' -- removed datarecord '.$dr_id."\n";
+                }
+
+                // No sense checking anything else for this datatype, skip to the next one
+                continue;
+            }
+
+            // Otherwise, the user is allowed to see this datatype...
+            foreach ($dt['themes'] as $theme_id => $theme) {
+                foreach ($theme['themeElements'] as $te_num => $te) {
+
+                    // For each datafield in this theme element...
+                    if ( isset($te['themeDataFields']) ) {
+                        foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                            $df_id = $tdf['dataField']['id'];
+
+                            // If the user doesn't have the 'can_view_datafield' permission for that datafield...
+                            if ( $tdf['dataField']['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !(isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) ) ) {
+                                // ...remove it from the layout
+                                unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry on purpose
+                                $datafields_to_remove[$df_id] = 1;
+                                if ($debug)
+                                    print 'removed datafield '.$df_id.' from theme_element '.$te['id'].' datatype '.$dt_id.' theme '.$theme_id.' ('.$theme['themeType'].')'."\n";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Also need to go through the datarecord array and remove both datarecords and datafields that the user isn't allowed to see
+        foreach ($datarecord_array as $dr_id => $dr) {
+            // Save datatype id of this datarecord
+            $dt_id = $dr['dataType']['id'];
+
+            // If there was no datatype permission entry for this datatype, have it default to false
+            if ( !isset($can_view_datarecord[$dt_id]) )
+                $can_view_datarecord[$dt_id] = false;
+
+            // If the datarecord is non-public and user doesn't have the 'can_view_datarecord' permission, then remove the datarecord from the array
+            if ( $dr['dataRecordMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
+                unset( $datarecord_array[$dr_id] );
+                if ($debug)
+                    print 'removed non-public datarecord '.$dr_id."\n";
+
+                // No sense checking anything else for this datarecord, skip to the next one
+                continue;
+            }
+
+            // The user is allowed to view this datarecord...
+            foreach ($dr['dataRecordFields'] as $df_id => $drf) {
+
+                // Remove the datafield if needed
+                if ( isset($datafields_to_remove[$df_id]) ) {
+                    unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
+                    if ($debug)
+                        print 'removed datafield '.$df_id.' from datarecord '.$dr_id."\n";
+
+                    // No sense checking file/image public status, skip to the next datafield
+                    continue;
+                }
+
+                // ...remove the files the user isn't allowed to see
+                foreach ($drf['file'] as $file_num => $file) {
+                    if ( $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
+                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['file'][$file_num] );
+                        if ($debug)
+                            print 'removed non-public file '.$file['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
+                    }
+                }
+
+                // ...remove the images the user isn't allowed to see
+                foreach ($drf['image'] as $image_num => $image) {
+                    if ( $image['parent']['imageMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
+                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['image'][$image_num] );
+                        if ($debug)
+                            print 'removed non-public image '.$image['parent']['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
+                    }
+                }
+            }
+        }
+    }
+
+
+
+    /**
+     * "Inflates" the normally flattened $datatype_array...
+     *
+     * @param array $datatype_array
+     * @param integer $initial_datatype_id
+     * @param integer $theme_id
+     *
+     * @return array
+     */
+    public function stackDatatypeArray($datatype_array, $initial_datatype_id, $theme_id)
+    {
+        $current_datatype = array();
+        if ( isset($datatype_array[$initial_datatype_id]) ) {
+            $current_datatype = $datatype_array[$initial_datatype_id];
+
+            foreach ($current_datatype['themes'][$theme_id]['themeElements'] as $num => $theme_element) {
+                if ( isset($theme_element['themeDataType']) ) {
+                    $theme_datatype = $theme_element['themeDataType'][0];
+
+                    $child_datatype_id = $theme_datatype['dataType']['id'];
+
+                    $tmp = array();
+                    if ( isset($datatype_array[$child_datatype_id]) ) {
+
+                        $child_theme_id = '';
+                        foreach ($datatype_array[$child_datatype_id]['themes'] as $t_id => $t) {
+                            if ( $t['themeType'] == 'master' )
+                                $child_theme_id = $t_id;
+                        }
+
+                        $tmp[$child_datatype_id] = self::stackDatatypeArray($datatype_array, $child_datatype_id, $child_theme_id);
+                    }
+
+                    $current_datatype['themes'][$theme_id]['themeElements'][$num]['themeDataType'][0]['dataType'] = $tmp;
+                }
+            }
+        }
+
+        return $current_datatype;
+    }
+
     /**
      * Utility function to returns the DataTree table in array format
      * TODO: This function is a really bad idea - will be absolutely GIGANTIC at some point.
      * Why is this needed? Plus, how do you know when it needs to be flushed?
      *
-     * @param \Doctrine\ORM\EntityManager $em
      * @param boolean $force_rebuild
      *
      * @return array
@@ -439,7 +671,6 @@ class DatatypeInfoService
      */
     public function getTopLevelDatatypes()
     {
-        /** @var \Doctrine\ORM\EntityManager $em */
         $query = $this->em->createQuery(
             'SELECT dt.id AS datatype_id
             FROM ODRAdminBundle:DataType AS dt

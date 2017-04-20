@@ -8,6 +8,7 @@
         {% set has_datafields = false %}
         {% set has_childtype = false %}
         {% set child_is_link = false %}
+        {% set childtype_hidden = false %}
         {% if theme_element.themeDataFields is defined %}
             {% set has_datafields = true %}
         {% elseif theme_element.themeDataType is defined %}
@@ -16,9 +17,12 @@
             {% if theme_element.themeDataType[0].is_link == 1 %}
                 {% set child_is_link = true %}
             {% endif %}
+            {% if theme_element.themeDataType[0].hidden == 1 %}
+                {% set childtype_hidden = true %}
+            {% endif %}
         {% endif %}
 
-        <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
+        <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}{% if childtype_hidden == 1 %} ODRThemeHiddenElement{% endif %}">
             <div class="ODRInnerBox">
 
                 {% if theme_element.themeDataFields is defined %}
@@ -36,27 +40,36 @@
                     {% endfor %}
                 {% elseif theme_element.themeDataType is defined %}
 
-                    {% for theme_datatype in theme_element.themeDataType %}     {# only ever going to be one, for right now... #}
+                    {% for theme_datatype in theme_element.themeDataType %}
+                        {# only ever going to be one, for right now... #}
                         {% set child_datatype = theme_datatype.dataType %}
 
                         {% if datatype_array[ child_datatype.id ] is defined %}
-                            {% set child_theme_id = 0 %}
-                            {% for theme in datatype_array[ child_datatype.id ].themes %}
-                                {% if theme.themeType == 'master' %}
-                                    {% set child_theme_id = theme.id %}
+
+                            {% set child_theme_id = '' %}
+                            {% for t_id, t in datatype_array[ child_datatype.id ]['themes'] %}
+                                {# Match the parent theme passed to this system #}
+                                {% if theme.parentTheme != null and theme.parentTheme.id > 0 %}
+                                    {% if t.parentTheme != null and t.parentTheme.id == theme.parentTheme.id %}
+                                        {% set child_theme_id = t['id'] %}
+                                    {% endif %}
+                                {% else %}
+                                    {% if t['themeType'] == 'master' %}
+                                        {% set child_theme_id = t['id'] %}
+                                    {% endif %}
                                 {% endif %}
                             {% endfor %}
 
                             {% include 'ODRAdminBundle:Theme:theme_childtype.html.twig' with {
-                            'datatype_array': datatype_array,
-                            'target_datatype_id': child_datatype.id,
-                            'theme_id': child_theme_id,
-
-                            'is_datatype_admin': is_datatype_admin,
-
-                            'is_top_level': 0,
-                            'is_link': theme_datatype.is_link,
-                            } %}
+                                    'datatype_array': datatype_array,
+                                    'target_datatype_id': child_datatype.id,
+                                    'theme_id': child_theme_id,
+                                    'is_datatype_admin': is_datatype_admin,
+                                    'is_top_level': 0,
+                                    'is_link': theme_datatype.is_link,
+                                    'display_type': theme_datatype.display_type
+                                }
+                            %}
                         {% endif %}
                     {% endfor %}
 

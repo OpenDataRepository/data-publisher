@@ -237,78 +237,25 @@ class DisplayController extends ODRCustomController
             );
 
 
-            // ----------------------------------------
-            // Always bypass cache if in dev mode?
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
 
 
-            // Grab all datarecords "associated" with the desired datarecord...
-            $associated_datarecords = parent::getRedisData(($redis->get($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId())));
-            if ($bypass_cache || $associated_datarecords == false) {
-                $associated_datarecords = parent::getAssociatedDatarecords($em, array($datarecord->getId()));
+            // Initialize services
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            $pm_service = $this->container->get('odr.permissions_management_service');
 
-                $redis->set($redis_prefix.'.associated_datarecords_for_'.$datarecord->getId(), gzcompress(serialize($associated_datarecords)));
-            }
+            // Get Associated Datarecords
+            $datarecord_array = $dri_service->getRelatedDatarecords($original_datarecord->getId());
 
-//print '<pre>'.print_r($associated_datarecords, true).'</pre>';  exit();
-
-            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
-            $datarecord_array = array();
-            foreach ($associated_datarecords as $num => $dr_id) {
-                $datarecord_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
-                if ($bypass_cache || $datarecord_data == false)
-                    $datarecord_data = parent::getDatarecordData($em, $dr_id, true);
-
-                foreach ($datarecord_data as $dr_id => $data)
-                    $datarecord_array[$dr_id] = $data;
-            }
-
-//print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
-
-
-            // ----------------------------------------
-            //
-            $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
-
-            // Grab all datatypes associated with the desired datarecord
-            // NOTE - not using parent::getAssociatedDatatypes() here on purpose...that would always return child/linked datatypes for the datatype even if this datarecord isn't making use of them
-            $associated_datatypes = array();
-            foreach ($datarecord_array as $dr_id => $dr) {
-                $dt_id = $dr['dataType']['id'];
-
-                if ( !in_array($dt_id, $associated_datatypes) )
-                    $associated_datatypes[] = $dt_id;
-            }
-
-
-            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            $datatype_array = array();
-            foreach ($associated_datatypes as $num => $dt_id) {
-                // print $redis_prefix.'.cached_datatype_'.$dt_id;
-                $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
-                if ($bypass_cache || $datatype_data == false)
-                    $datatype_data = parent::getDatatypeData($em, $datatree_array, $dt_id, $bypass_cache);
-
-                foreach ($datatype_data as $dt_id => $data)
-                    $datatype_array[$dt_id] = $data;
-            }
-
-//print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
-
+            // Get Associated Datatypes
+            $datatype_array = $dti_service->getRecordDatatypes($datarecord_array);
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
-//print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
-//print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
-
+            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
             // "Inflate" the currently flattened $datarecord_array and $datatype_array...needed so that render plugins for a datatype can also correctly render that datatype's child/linked datatypes
             $stacked_datarecord_array[ $original_datarecord->getId() ] = parent::stackDatarecordArray($datarecord_array, $original_datarecord->getId());
             $stacked_datatype_array[ $original_datatype->getId() ] = parent::stackDatatypeArray($datatype_array, $original_datatype->getId(), $original_theme->getId());
-//print '<pre>'.print_r($stacked_datarecord_array, true).'</pre>';  exit();
-//print '<pre>'.print_r($stacked_datatype_array, true).'</pre>';  exit();
 
 
             // ----------------------------------------
