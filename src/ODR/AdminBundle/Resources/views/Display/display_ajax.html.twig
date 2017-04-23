@@ -28,16 +28,6 @@
 
 <script>
 
-{% if record_display_view is not defined or record_display_view != "short_results" %}
-// Only required if displaying a single record
-$(function() {
-    initPage();
-    $(".MenuDesignArea").remove();
-    window.scrollTo(0,0);
-});
-{% endif %}
-
-
 // Only init if not already defined
 if(typeof initPage === "undefined") {
     function initPage() {
@@ -106,9 +96,6 @@ if(typeof initPage === "undefined") {
                     url = url.substring(0, (url.length-3));
                     url += datarecord_id + '/' + datafield_id;
 
-        //alert(url);
-        //return;
-
                     var label_div = $("#ODRDownloadAllLabel_" + datarecord_id + "_" + datafield_id);
 
                     $.fileDownload(url, {
@@ -146,9 +133,6 @@ if(typeof initPage === "undefined") {
         url = url.substring(0, (url.length - 5));
         url += datarecord_id + '/' + datafield_id + '/' + theme_id;
 
-//alert( url );
-//return;
-
         $(datafield_div).children('form').each(function () {
             $(this).fadeOut();
             $(this).remove();
@@ -184,5 +168,14 @@ if(typeof initPage === "undefined") {
         });
     }
 }
+
+    {% if record_display_view is not defined or record_display_view != "short_results" %}
+    // Only required if displaying a single record
+    $(function() {
+        initPage();
+        $(".MenuDesignArea").remove();
+        window.scrollTo(0,0);
+    });
+    {% endif %}
 </script>
 {% endspaceless %}

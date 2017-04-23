@@ -237,7 +237,8 @@ h3.ui-accordion-header a {
     background-color: rgba(255,255,255,1.0);
     box-shadow: none;
     border-radius: 3px;
-    margin-bottom: 20px;
+    /* margin-bottom: 20px; */
+    margin-bottom: 6px;
 }
 
 .pure-skin-odr .pure-table,
@@ -940,4 +941,78 @@ h3.ODRThemeVisibleHiddenElement {
 
 .Pad10 {
     padding: 10px;
+}
+
+
+
+#loading {
+    width: 280px;
+    height: 177px;
+
+    /* background: url('/img/elements/loading/bg.png'); */
+    background: white;
+    border: 2px solid #7fb9d8;
+    border-radius: 8px;
+    -webkit-box-shadow: 0 10px 6px -6px #777;
+    -moz-box-shadow: 0 10px 6px -6px #777;
+    box-shadow: 0 10px 6px -6px #777;
+    color: #6fa5c7;
+
+    position: fixed;
+    z-index: 999;
+
+    top: 50%;
+    left: 50%;
+
+    margin-top: -88.5px;
+    margin-left: -140px;
+
+    text-align: center;
+}
+
+#loading:after {
+    display: block;
+
+    height: 32px;
+    width: 32px;
+
+    position: absolute;
+    left: 50%;
+    top: 68px;
+
+    margin-left: -16px;
+    margin-top: -16px;
+
+    background: url('/img/elements/loading/spinner.gif');
+
+    content: ' ';
+}
+
+.ODRShortResultWrapper #pagination_header {
+    margin-bottom: 10px;
+}
+
+.ODRShortResults {
+    border: 2px solid #7fb9d8;
+    border-radius: 6px;
+    background: white;
+    margin-bottom: 5px
+}
+.ODRShortResultsHeader {
+    padding-top: 3px;
+    padding-left: 10px;
+    font-weight: 400;
+}
+
+.ODRShortResults .ODRFormWrap {
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+
+.ODRShortResults .ODRFieldArea {
+    margin-top: 0px;
+}
+
+.ODRShortResults .ODRThemeElement:first-of-type {
+    margin-bottom: 0px;
 }

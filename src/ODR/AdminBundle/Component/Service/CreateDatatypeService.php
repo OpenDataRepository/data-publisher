@@ -276,7 +276,8 @@ class CreateDatatypeService
         $new_meta = clone $parent_meta;
         if($existing_meta != null) {
             $new_meta->setShortName($existing_meta->getShortName());
-            $new_meta->setSearchSlug($existing_meta->getSearchSlug());
+            // $new_meta->setSearchSlug($existing_meta->getSearchSlug());
+            $new_meta->setSearchSlug('data_' . $new_datatype->getId());
             $new_meta->setLongName($existing_meta->getLongName());
             $new_meta->setDescription($existing_meta->getDescription());
             // Delete Entity

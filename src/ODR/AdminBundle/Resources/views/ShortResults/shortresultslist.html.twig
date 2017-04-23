@@ -27,13 +27,14 @@
     </div>
 
 {% if count > 0 %}
-    <div class="ODRShortResult">
+    <div class="ODRShortResultWrapper">
         {{ pagination_html | raw }}
         {% include 'ODRAdminBundle:ShortResults:shortresults_ajax.html.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': datarecord_array,
             'theme_id': theme_id,
             'initial_datatype_id': initial_datatype_id,
+            'offset': offset
         } %}
     </div>
 {% elseif logged_in %}

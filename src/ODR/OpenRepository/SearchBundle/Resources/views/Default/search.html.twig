@@ -535,9 +535,9 @@
         var url = '{{ path( 'odr_search_results', { 'search_key': '' } ) }}';
         url += search_key;
 
-        $("#loading-overlay").fadeIn();
+        $("#loading-overlay").fadeIn('fast');
         $("#loading").html('<span>Searching...</span>');
-        $("#loading").fadeIn();
+        $("#loading").fadeIn('fast');
 
         $.ajax({
             type: 'GET',
@@ -591,9 +591,9 @@
                 }
             },
             complete: function(jqXHR, textStatus) {
-                $("#loading-overlay").fadeOut();
-                $("#loading").fadeOut();
+                $("#loading-overlay").fadeOut('fast');
                 $("#loading").html('<span>Loading...</span>');
+                $("#loading").fadeOut('fast');
 
                 // Get the xdebugToken from response headers
                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');

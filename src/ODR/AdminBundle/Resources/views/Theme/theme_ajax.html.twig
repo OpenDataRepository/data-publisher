@@ -63,7 +63,7 @@
                         <div class="ODRThemeElement pure-u-20-24">
                             <div class="ODRInnerBox ui-sortable">
                                 <div class="ODRDataType ODRLinkedType ODRAccordionWrapper ODRFormAccordion pure-u-1">
-                                    <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top ODRThemeVisibleHiddenElement" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+                                    <h3 id="FieldHeading" class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top ODRThemeVisibleHiddenElement" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
                                         <span class="Pad10">Hidden Heading</span>
                                     </h3>
                                 </div>
@@ -72,7 +72,7 @@
                         <div class="pure-u-2-24"></div>
 
                         <div class="pure-u-2-24"></div>
-                        <div class="ODRThemeElement pure-u-20-24 ODRThemeVisibleHiddenElement">
+                        <div id="HiddenDiv" class="ODRThemeElement pure-u-20-24 ODRThemeVisibleHiddenElement">
                             <div class="ODRInnerBox ui-sortable">
                                 <div class="ODRDataType ODRLinkedType ODRAccordionWrapper ODRFormAccordion pure-u-1">
                                     <span class="Pad10">Hidden Section</span>
@@ -84,7 +84,7 @@
 
 
                         <div class="pure-u-2-24"></div>
-                        <div class="ODRDataField pure-u-20-24 ui-resizable ODRThemeVisibleHiddenElement" data-intro="Drag any field in front or behind any other field to re-order the fields.">
+                        <div id="ExampleElement" class="ODRDataField pure-u-20-24 ui-resizable ODRThemeVisibleHiddenElement" data-intro="Drag any field in front or behind any other field to re-order the fields.">
                             <form class="pure-u-1">
                             <fieldset>
                             <label for="ExampleInput" class="ODRFieldLabel pure-u-1">
@@ -117,14 +117,18 @@
         jQuery(function() {
 
             // Setup IntroJS Walkthrough
-            jQuery(".ODRPseudoField:first").attr('data-step', "1")
-            jQuery(".ODRPseudoField:first").attr('data-intro', "Hover over the lower right-hand corner of a field to start resizing a field.  A drag arrow will appear and you can drag left or right to resize.")
-            jQuery(".ODRDataField:nth-child(3)").attr('data-step', "2")
-            jQuery(".ODRDataField:nth-child(3)").attr('data-intro', "Click any field or heading to display user-configurable options in the Theme Styling panel.")
-            jQuery("#ThemeLeftColumn").attr('data-step', "3")
-            jQuery("#ThemeLeftColumn").attr('data-intro', "User-configurable options for fields and headers will appear in this area.")
-            jQuery(".ODRDataField:nth-child(2)").attr('data-step', "4")
-            jQuery(".ODRDataField:nth-child(2)").attr('data-intro', "Drag any field in front or behind any other field to re-order the fields.")
+            jQuery("#ExampleInput").attr('data-step', "1")
+            jQuery("#ExampleInput").attr('data-intro', "Hover over the lower right-hand corner of a field to start resizing a field.  A drag arrow will appear and you can drag left or right to resize.")
+            jQuery("#FieldHeading").attr('data-step', "2")
+            jQuery("#FieldHeading").attr('data-intro', "Click any field or heading to display user-configurable options in the Theme Styling panel.")
+            jQuery("#ThemeDesignForm").attr('data-step', "3")
+            jQuery("#ThemeDesignForm").attr('data-intro', "User-configurable options for fields and headers will appear in this area.")
+            jQuery("#ExampleElement").attr('data-step', "4")
+            jQuery("#ExampleElement").attr('data-intro', "Drag any field in front or behind any other field to re-order the fields.")
+            jQuery("#ThemeDesignKey").attr('data-step', "5")
+            jQuery("#ThemeDesignKey").attr('data-intro', "Hidden fields or headings are highlighted to show their visibility state.")
+            jQuery("#ODRThemeShowHidden").attr('data-step', "6")
+            jQuery("#ODRThemeShowHidden").attr('data-intro', "Visiblity of hidden elements can be changed using this toggle.")
 
             // Initialize the help button
             jQuery("#ODRHelpButton")
