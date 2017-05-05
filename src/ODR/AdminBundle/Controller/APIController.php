@@ -356,6 +356,8 @@ class APIController extends ODRCustomController
             $datarecord = $file->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
                 return self::createJSONError(404, 'Invalid Datarecord');
+            $datarecord = $datarecord->getGrandparent();
+
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
                 return self::createJSONError(404, 'Invalid Datatype');

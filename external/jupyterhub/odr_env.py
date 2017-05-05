@@ -254,11 +254,11 @@ def _buildFileListJSON(datarecord_list, file_list):
     return file_list
 
 
-def downloadFile(file_id):
+def downloadFileToDisk(file_id):
     """
-    Attempts to download a specified file from ODR
+    Attempts to download a specified file from ODR, and saves it in the user's notebook directory.
 
-    Returns the path to the downloaded file, or some other error...
+    Returns the path to the saved file.
     """
 
     # Ensure arguments are valid
@@ -293,3 +293,35 @@ def downloadFile(file_id):
 
     return final_filename
 
+
+def downloadFile(file_id):
+    """
+    Attempts to download a specified file from ODR.
+
+    Returns the contents of the file as a single binary string, since that's easier for NumPy to handle.
+    """
+
+    # Ensure arguments are valid
+    if not isinstance(file_id, int):
+        raise ValueError('file_id must be numeric')
+
+    # Attempt to download the file from ODR
+    api_url = os.environ['ODR_BASEURL'] + '/api/file_download/' + str(file_id)
+
+    r = requests.get(api_url, stream=True)
+    if (r.status_code != 200):
+        raise RuntimeError( r.json() )
+
+    # Name of file is stored within the Content-Disposition header, which is 'attachment; filename="<filename>";'
+    filename_header = r.headers['Content-Disposition']
+    final_filename = filename_header[22:-2]
+
+    # Apparently Symfony doesn't send a 'Content-Length' header despite ODR specifying one?
+#    expected_filesize = float(r.headers['Content-Length']) / 1024.0 / 1024.0
+
+    # Download the file from ODR
+    file_contents = b""
+    for chunk in r.iter_content(chunk_size=65536):  # Attempt to read 64kb at a time? - TODO
+        file_contents = b"".join([file_contents, chunk])
+
+    return file_contents
