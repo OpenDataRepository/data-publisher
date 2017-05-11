@@ -21,7 +21,7 @@
         "incenteev/composer-parameter-handler": "~2.0",
         "twig/extensions": "~1.0",
         "gedmo/doctrine-extensions": "2.4.*",
-        "friendsofsymfony/user-bundle": "~2.0@dev",
+        "friendsofsymfony/user-bundle": "~2.0",
         "mrpoundsign/pheanstalk-5.3": "dev-master",
         "drymek/pheanstalk-bundle": "dev-master",
         "jms/security-extra-bundle": "1.5.*",
@@ -32,7 +32,7 @@
         "ddeboer/data-import": "@stable",
         "phpunit/phpunit": "^4.8",
         "predis/predis": "^1.1",
-        "snc/redis-bundle": "2.x-dev",
+        "snc/redis-bundle": "~2.0",
         "ramsey/uuid": "^3.5",
         "neitanod/forceutf8": "dev-master"
     },
