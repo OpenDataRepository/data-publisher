@@ -1,31 +1,4 @@
-#jp_graph:
-#    resource: "@jpGraphBundle/Resources/config/routing.yml"
-#    prefix:   /
-
-odr_open_repository_graph:
-    resource: "@ODROpenRepositoryGraphBundle/Resources/config/routing.yml"
-    prefix:   /
-
-odr_open_repository_api:
-    resource: "@ODROpenRepositoryApiBundle/Resources/config/routing.yml"
-    prefix:   /
-
-odr_open_repository_user:
-    resource: "@ODROpenRepositoryUserBundle/Resources/config/routing.yml"
-    prefix:   /
-
-odr_open_repository_oauth:
-    resource: "@ODROpenRepositoryOAuthBundle/Resources/config/routing.yml"
-    prefix:   /
-
-odr_admin:
-    resource: "@ODRAdminBundle/Resources/config/routing.yml"
-    prefix:   /
-
-#odr_login:
-#    resource: "@ODRLoginBundle/Resources/config/routing.yml"
-#    prefix:   /
-
+# ----------------------------------------
 # Internal routing configuration to handle ESI
 #_internal:
 #    resource: "@FrameworkBundle/Resources/config/routing/internal.xml"
@@ -54,12 +27,57 @@ fos_user_change_password:
     resource: "@FOSUserBundle/Resources/config/routing/change_password.xml"
     prefix: /profile
 
-
+# ----------------------------------------
+# FOSOAuthServerBundle routes
 fos_oauth_server_token:
     resource: "@FOSOAuthServerBundle/Resources/config/routing/token.xml"
 
 fos_oauth_server_authorize:
     resource: "@FOSOAuthServerBundle/Resources/config/routing/authorize.xml"
+
+# ----------------------------------------
+# HWIOAuthBundle routes
+hwi_oauth_redirect:
+    resource: "@HWIOAuthBundle/Resources/config/routing/redirect.xml"
+    prefix:   /connect
+
+hwi_oauth_connect:
+    resource: "@HWIOAuthBundle/Resources/config/routing/connect.xml"
+    prefix:   /connect
+
+hwi_oauth_login:
+    resource: "@HWIOAuthBundle/Resources/config/routing/login.xml"
+    prefix:   /login
+
+# routes for each individual oauth provider to check...should enumerate the routes listed in security.yml...security -> firewalls -> main -> oauth -> resource_owners:
+#github_login:
+#    pattern: /login/check-github
+
+#google_login:
+#    path: /login/check-google
+
+# ----------------------------------------
+# ODR routes
+odr_open_repository_graph:
+    resource: "@ODROpenRepositoryGraphBundle/Resources/config/routing.yml"
+    prefix:   /
+
+odr_open_repository_api:
+    resource: "@ODROpenRepositoryApiBundle/Resources/config/routing.yml"
+    prefix:   /
+
+odr_open_repository_user:
+    resource: "@ODROpenRepositoryUserBundle/Resources/config/routing.yml"
+    prefix:   /
+
+odr_open_repository_oauth:
+    resource: "@ODROpenRepositoryOAuthBundle/Resources/config/routing.yml"
+    prefix:   /
+
+odr_admin:
+    resource: "@ODRAdminBundle/Resources/config/routing.yml"
+    prefix:   /
+
 
 # ----------------------------------------
 # ----------------------------------------

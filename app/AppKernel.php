@@ -32,6 +32,7 @@ class AppKernel extends Kernel
             new dterranova\Bundle\CryptoBundle\dterranovaCryptoBundle(),
             new Knp\Bundle\MarkdownBundle\KnpMarkdownBundle(),
             new Snc\RedisBundle\SncRedisBundle(),
+            new HWI\Bundle\OAuthBundle\HWIOAuthBundle(),
         );
 
         if (in_array($this->getEnvironment(), array('dev', 'test'))) {
