@@ -4,12 +4,8 @@ namespace ODR\AdminBundle\Component\Service;
 
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileChecksum;
-// use ODR\AdminBundle\Entity\FileMeta;
 use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageChecksum;
-// use ODR\AdminBundle\Entity\ImageMeta;
-// use ODR\AdminBundle\Entity\ImageSizes;
-
 
 // use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 use Symfony\Component\DependencyInjection\ContainerInterface as Container;

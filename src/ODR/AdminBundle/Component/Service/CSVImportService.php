@@ -53,25 +53,8 @@ use Ddeboer\DataImport\Filter;
 use Ddeboer\DataImport\Reader\CsvReader;
 
 
-class CSVImportController extends ODRCustomController
+class CSVImportService
 {
-
-    /**
-     * @var mixed
-     */
-    private $logger;
-
-
-    /**
-     * @var mixed
-     */
-    private $container;
-
-    public function __construct(Container $container, EntityManager $entity_manager, $logger) {
-        $this->container = $container;
-        $this->em = $entity_manager;
-        $this->logger = $logger;
-    }
 
     /**
      * Performs the initial setup for dealing with a CSV import request.
