@@ -38,6 +38,7 @@ class User extends BaseUser
         parent::__construct();
 
         $this->clients = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->userLink = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -264,7 +265,7 @@ class User extends BaseUser
     }
 
 
-    // -------------------- OAuth --------------------
+    // -------------------- OAuth Server --------------------
     /**
      * @var \Doctrine\Common\Collections\Collection
      *
@@ -321,5 +322,61 @@ class User extends BaseUser
         }
 
         return false;
+    }
+
+    // -------------------- OAuth Client --------------------
+    /**
+     * @var \ODR\OpenRepository\OAuthClientBundle\Entity\UserLink
+     *
+     * @ORM\OneToMany(targetEntity="\ODR\OpenRepository\OAuthClientBundle\Entity\UserLink", mappedBy="user")
+     * @ORM\JoinTable(name="fos_user_link_oauth")
+     */
+    private $userLink;
+
+    /**
+     * Set UserLink
+     *
+     * @param \ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink
+     * @return User
+     */
+    public function setUserLink(\ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink)
+    {
+        $this->userLink = $userLink;
+
+        return $this;
+    }
+
+    /**
+     * Get UserLink
+     *
+     * @return \ODR\OpenRepository\OAuthClientBundle\Entity\UserLink
+     */
+    public function getUserLink()
+    {
+        return $this->userLink;
+    }
+
+    /**
+     * Add userLink
+     *
+     * @param \ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink
+     *
+     * @return User
+     */
+    public function addUserLink(\ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink)
+    {
+        $this->userLink[] = $userLink;
+
+        return $this;
+    }
+
+    /**
+     * Remove userLink
+     *
+     * @param \ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink
+     */
+    public function removeUserLink(\ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink)
+    {
+        $this->userLink->removeElement($userLink);
     }
 }

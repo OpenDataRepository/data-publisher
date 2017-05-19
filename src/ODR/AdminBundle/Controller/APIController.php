@@ -75,7 +75,9 @@ class APIController extends ODRCustomController
             if ($user !== 'anon.' && $user->hasRole('ROLE_JUPYTERHUB_USER')) {
                 return new JsonResponse(
                     array(
+                        'id' => $user->getEmail(),
                         'username' => $user->getUserString(),
+                        'realname' => $user->getUserString(),
                         'email' => $user->getEmail(),
                         'jupyterhub_username' => 'jupyter_user_'.$user->getId(),
                         'baseurl' => $this->getParameter('site_baseurl'),

@@ -1,0 +1,10 @@
+# Contains the routes listed in app/config/security.yml under  security: -> firewalls: -> main: -> oauth: -> resource_owners:
+# you'll need to add one route for every additional oauth provider used by the site...use the existing odr_login route as a template
+odr_login:
+    path: /login/check-odr
+
+github_login:
+    path: /login/check-github
+
+google_login:
+    path: /login/check-google

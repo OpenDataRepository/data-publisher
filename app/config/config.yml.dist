@@ -143,18 +143,33 @@ hwi_oauth:
     # list of names of the firewalls in which this bundle is active, this setting MUST be set
     firewall_names: [main]
     resource_owners:    # https://github.com/hwi/HWIOAuthBundle/blob/master/Resources/doc/2-configuring_resource_owners.md
+        odr:
+            type:           oauth2
+            client_id:      [[ ODR CLIENT ID ]]
+            client_secret:  [[ ODR CLIENT SECRET ]]
+            access_token_url:    %site_baseurl%/oauth/v2/token    # should match the route protected in app/config/security.yml under the "oauth_token" firewall
+            authorization_url:   %site_baseurl%/oauth/v2/auth     # should match the route protected in app/config/security.yml under the "oauth_authorize" firewall
+            infos_url:           %site_baseurl%/api/userdata
+            scope:          ""          # TODO
+            paths:
+                identifier: id
+                nickname:   username    # HWIOAuthBundle requires both the "nickname" and the "realname" parameters to be set
+                realname:   username
+            options:
+                csrf: true
+
 #        github:
 #            type:           github
-#            client_id:      <client_id>
-#            client_secret:  <client_secret>
+#            client_id:      [[ GITHUB CLIENT ID ]]
+#            client_secret:  [[ GITHUB CLIENT SECRET ]]
 #            scope:          "user:email"      # https://developer.github.com/v3/oauth/#scopes
 #            options:
 #                csrf: true
 
 #        google:
 #            type:           google
-#            client_id:      <client_id>
-#            client_secret:  <client_secret>
+#            client_id:      [[ GOOGLE CLIENT ID ]]
+#            client_secret:  [[ GOOGLE CLIENT SECRET ]]
 #            scope:          "openid email"         # https://developers.google.com/identity/protocols/OpenIDConnect#scope-param
 #            options:
 #                csrf: true
@@ -189,9 +204,9 @@ services:
         class:     Symfony\Component\HttpFoundation\Session\Storage\Handler\MemcachedSessionHandler
         arguments: [@session.memcached, { prefix: %session_memcached_prefix%, expiretime: %session_memcached_expire% }]
 
-    hwi_oauth.user.provider.fosub_bridge:
-        class: HWI\Bundle\OAuthBundle\Security\Core\User\FOSUBUserProvider
-        # this is the place where the properties are passed to the UserProvider - see config.yml
-        arguments:
-            - '@fos_user.user_manager'
-#            - []    # e.g.  [github: github_id, google: google_id]
+    odr.openrepository.oauthclient.oauth_user_provider:
+        class: ODR\OpenRepository\OAuthClientBundle\Security\Core\User\ODROAuthUserProvider
+        # keys need to match the key of the resource owners in these various configuration files
+        # the value for each needs to be the associated DQL term to identify this resource owner in the ODROpenRepositoryOAuthClientBundle:UserLink entity
+        # e.g.  {odr: user, github: githubId, google: googleId}
+        arguments: [@doctrine.orm.entity_manager, "ODROpenRepositoryUserBundle:User", {odr: user, github: githubId}]

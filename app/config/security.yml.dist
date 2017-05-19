@@ -17,8 +17,10 @@ security:
         ROLE_JUPYTERHUB_USER: ROLE_JUPYTERHUB_USER
 
     providers:
-        fos_userbundle:
-            id: fos_user.user_provider.username
+#        fos_userbundle:
+#            id: fos_user.user_provider.username
+        odr_oauth_provider:
+            id: odr.openrepository.oauthclient.oauth_user_provider
 
     firewalls:
         oauth_token:
@@ -28,7 +30,9 @@ security:
         oauth_authorize:
             pattern:    ^/oauth/v2/auth
             form_login:
-                provider: fos_userbundle
+#                provider: fos_userbundle
+                provider: odr_oauth_provider
+
                 check_path: odr_oauth_server_auth_login_check
                 login_path: odr_oauth_server_auth_login
             anonymous: true
@@ -43,12 +47,26 @@ security:
 
         main:
             pattern: ^/
-            form_login:
-                provider: fos_userbundle
-                # Symfony2 < 2.8
-                #csrf_provider: form.csrf_provider
-                # Symfony >= 2.8
-                csrf_token_generator: security.csrf.token_manager
+#            form_login:
+#                provider: fos_userbundle
+#                # Symfony2 < 2.8
+#                #csrf_provider: form.csrf_provider
+#                # Symfony >= 2.8
+#                csrf_token_generator: security.csrf.token_manager
+
+            oauth:
+                resource_owners:    # https://github.com/hwi/HWIOAuthBundle/blob/master/Resources/doc/3-configuring_the_security_layer.md
+                    odr:           "/login/check-odr"       # All listed routes here also need to be listed in  ODR/OpenRepository/OAuthClientBundle/Resources/config/routing.yml
+#                    github:        "/login/check-github"
+#                    google:        "/login/check-google"
+
+                oauth_user_provider:
+                    service: hwi_oauth.user.provider.fosub_bridge
+
+                login_path:     /login
+                use_forward:    false
+                failure_path:   /login
+
             remember_me:
                 key:      [[ ENTER RANDOM KEY HERE - Text String ]]
                 lifetime: 1209600

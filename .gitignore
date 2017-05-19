@@ -11,6 +11,7 @@
 !var/logs/.gitkeep
 
 # Parameters
+/app/config/config.yml
 /app/config/parameters.yml
 /app/config/parameters.ini
 /app/config/security.yml

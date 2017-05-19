@@ -4,8 +4,8 @@
 #    resource: "@FrameworkBundle/Resources/config/routing/internal.xml"
 #    prefix:   /_internal
 
-fos_user_security:
-    resource: "@FOSUserBundle/Resources/config/routing/security.xml"
+#fos_user_security:
+#    resource: "@FOSUserBundle/Resources/config/routing/security.xml"
 
 # routes are unused, but required so FoS:ResettingController and FoS:ChangePasswordController don't throw errors
 fos_user_profile:
@@ -49,12 +49,10 @@ hwi_oauth_login:
     resource: "@HWIOAuthBundle/Resources/config/routing/login.xml"
     prefix:   /login
 
-# routes for each individual oauth provider to check...should enumerate the routes listed in security.yml...security -> firewalls -> main -> oauth -> resource_owners:
-#github_login:
-#    pattern: /login/check-github
-
-#google_login:
-#    path: /login/check-google
+# Contains the routes listed in app/config/security.yml under  security: -> firewalls: -> main: -> oauth: -> resource_owners:
+odr_open_repository_oauth_client:
+    resource: "@ODROpenRepositoryOAuthClientBundle/Resources/config/routing.yml"
+    prefix:   /
 
 # ----------------------------------------
 # ODR routes
