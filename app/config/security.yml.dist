@@ -19,7 +19,7 @@ security:
     providers:
 #        fos_userbundle:
 #            id: fos_user.user_provider.username
-        odr_oauth_provider:
+        odr_user_provider:
             id: odr.openrepository.oauthclient.oauth_user_provider
 
     firewalls:
@@ -31,7 +31,7 @@ security:
             pattern:    ^/oauth/v2/auth
             form_login:
 #                provider: fos_userbundle
-                provider: odr_oauth_provider
+                provider: odr_user_provider
 
                 check_path: odr_oauth_server_auth_login_check
                 login_path: odr_oauth_server_auth_login
@@ -56,9 +56,9 @@ security:
 
             oauth:
                 resource_owners:    # https://github.com/hwi/HWIOAuthBundle/blob/master/Resources/doc/3-configuring_the_security_layer.md
-                    odr:           "/login/check-odr"       # All listed routes here also need to be listed in  ODR/OpenRepository/OAuthClientBundle/Resources/config/routing.yml
-#                    github:        "/login/check-github"
-#                    google:        "/login/check-google"
+##                    odr:           "/login/check-odr"       # All listed routes here also need to be listed in  ODR/OpenRepository/OAuthClientBundle/Resources/config/routing.yml
+#                    GitHub:        "/login/check-github"
+#                    Google:        "/login/check-google"
 
                 oauth_user_provider:
                     service: hwi_oauth.user.provider.fosub_bridge

@@ -36,12 +36,17 @@ class SecurityController extends Controller
             }
         }
 
+        $csrfToken = $this->has('security.csrf.token_manager')
+            ? $this->get('security.csrf.token_manager')->getToken('authenticate')->getValue()
+            : null;
+
         // TODO - this doesn't seem to actually do anything on authentication failure
         $helper = $this->get('security.authentication_utils');
 
         return $this->render('ODROpenRepositoryOAuthBundle:Security:oauth_login.html.twig', array(
             'last_username' => $helper->getLastUsername(),
             'error'         => $helper->getLastAuthenticationError(),
+            'csrf_token'    => $csrfToken
         ));
     }
 

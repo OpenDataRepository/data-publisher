@@ -5,7 +5,12 @@
     <div>{{ error.messageKey|trans(error.messageData, 'security') }}</div>
 {% endif %}
 
-<form action="{{ path("fos_user_security_check") }}" method="post" class="pure-form {#pure-form-aligned#}">
+{% set form_path = path("fos_user_security_check") %}
+{% if alternate_path is defined and alternate_path != '' %}
+    {% set form_path = alternate_path %}
+{% endif %}
+
+<form action="{{ form_path }}" method="post" class="pure-form {#pure-form-aligned#}">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
     <input type="hidden" id="target_path" name="_target_path" value="" />
 {#

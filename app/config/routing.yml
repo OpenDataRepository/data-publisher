@@ -4,8 +4,8 @@
 #    resource: "@FrameworkBundle/Resources/config/routing/internal.xml"
 #    prefix:   /_internal
 
-#fos_user_security:
-#    resource: "@FOSUserBundle/Resources/config/routing/security.xml"
+fos_user_security:
+    resource: "@FOSUserBundle/Resources/config/routing/security.xml"
 
 # routes are unused, but required so FoS:ResettingController and FoS:ChangePasswordController don't throw errors
 fos_user_profile:
@@ -45,9 +45,10 @@ hwi_oauth_connect:
     resource: "@HWIOAuthBundle/Resources/config/routing/connect.xml"
     prefix:   /connect
 
-hwi_oauth_login:
-    resource: "@HWIOAuthBundle/Resources/config/routing/login.xml"
-    prefix:   /login
+# can't be active at the same time the "fos_user_security" resource is active, otherwise there will be route collision
+#hwi_oauth_login:
+#    resource: "@HWIOAuthBundle/Resources/config/routing/login.xml"
+#    prefix:   /login
 
 # Contains the routes listed in app/config/security.yml under  security: -> firewalls: -> main: -> oauth: -> resource_owners:
 odr_open_repository_oauth_client:

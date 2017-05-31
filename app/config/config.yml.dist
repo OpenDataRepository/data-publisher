@@ -143,22 +143,22 @@ hwi_oauth:
     # list of names of the firewalls in which this bundle is active, this setting MUST be set
     firewall_names: [main]
     resource_owners:    # https://github.com/hwi/HWIOAuthBundle/blob/master/Resources/doc/2-configuring_resource_owners.md
-        odr:
-            type:           oauth2
-            client_id:      [[ ODR CLIENT ID ]]
-            client_secret:  [[ ODR CLIENT SECRET ]]
-            access_token_url:    %site_baseurl%/oauth/v2/token    # should match the route protected in app/config/security.yml under the "oauth_token" firewall
-            authorization_url:   %site_baseurl%/oauth/v2/auth     # should match the route protected in app/config/security.yml under the "oauth_authorize" firewall
-            infos_url:           %site_baseurl%/api/userdata
-            scope:          ""          # TODO
-            paths:
-                identifier: id
-                nickname:   username    # HWIOAuthBundle requires both the "nickname" and the "realname" parameters to be set
-                realname:   username
-            options:
-                csrf: true
+##        odr:
+##            type:           oauth2
+##            client_id:      [[ ODR CLIENT ID ]]
+##            client_secret:  [[ ODR CLIENT SECRET ]]
+##            access_token_url:    %site_baseurl%/oauth/v2/token    # should match the route protected in app/config/security.yml under the "oauth_token" firewall
+##            authorization_url:   %site_baseurl%/oauth/v2/auth     # should match the route protected in app/config/security.yml under the "oauth_authorize" firewall
+##            infos_url:           %site_baseurl%/api/userdata
+##            scope:          ""          # TODO
+##            paths:
+##                identifier: id
+##                nickname:   username    # HWIOAuthBundle requires both the "nickname" and the "realname" parameters to be set
+##                realname:   username
+##            options:
+##                csrf: true
 
-#        github:
+#        GitHub:
 #            type:           github
 #            client_id:      [[ GITHUB CLIENT ID ]]
 #            client_secret:  [[ GITHUB CLIENT SECRET ]]
@@ -166,7 +166,7 @@ hwi_oauth:
 #            options:
 #                csrf: true
 
-#        google:
+#        Google:
 #            type:           google
 #            client_id:      [[ GOOGLE CLIENT ID ]]
 #            client_secret:  [[ GOOGLE CLIENT SECRET ]]
@@ -208,5 +208,5 @@ services:
         class: ODR\OpenRepository\OAuthClientBundle\Security\Core\User\ODROAuthUserProvider
         # keys need to match the key of the resource owners in these various configuration files
         # the value for each needs to be the associated DQL term to identify this resource owner in the ODROpenRepositoryOAuthClientBundle:UserLink entity
-        # e.g.  {odr: user, github: githubId, google: googleId}
-        arguments: [@doctrine.orm.entity_manager, "ODROpenRepositoryUserBundle:User", {odr: user, github: githubId}]
+        # e.g.  {GitHub: githubId, Google: googleId}
+        arguments: [@doctrine.orm.entity_manager, "ODROpenRepositoryUserBundle:User", {}]

@@ -1,7 +1,10 @@
-{% extends "ODROpenRepositoryOAuthBundle::layout.html.twig" %}
+{#{% extends "ODROpenRepositoryOAuthBundle::layout.html.twig" %}#}
 
-{% block fos_user_content %}
-{# src/Acme/DemoBundle/Resources/views/Security/login.html.twig #}
+{#{% block fos_user_content %}#}
+
+{% include "ODROpenRepositoryUserBundle:Security:login.html.twig" with {'alternate_path': path("odr_oauth_server_auth_login_check")} %}
+
+{#
   <div class="form">
       <form id="login" class="vertical" action="{{ path("odr_oauth_server_auth_login_check") }}" method="post">
           <div class="form_title">
@@ -29,4 +32,5 @@
         $("#username").focus();
     });
 </script>
-{% endblock fos_user_content %}
+#}
+{#{% endblock fos_user_content %}#}

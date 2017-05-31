@@ -7,6 +7,7 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
+ * Custom user provider for use by the HWIOAuthBundle oauth client.
  */
 
 namespace ODR\OpenRepository\OAuthClientBundle\Security\Core\User;
@@ -65,7 +66,7 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
      */
     public function loadUserByUsername($username)
     {
-        exit( 'loadUserByUsername()' );
+        exit( 'THIS SHOULD NEVER BE CALLED' );
 
         $user = $this->findUser(array('username' => $username));
         if (!$user) {
@@ -80,9 +81,6 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
      */
     public function loadUserByOAuthUserResponse(UserResponseInterface $response)
     {
-
-//        exit ('loadUserByOAuthUserResponse()' );
-
         $resourceOwnerName = $response->getResourceOwner()->getName();
 
         if (!isset($this->properties[$resourceOwnerName])) {
@@ -152,10 +150,6 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
         )->setParameters( array('criteria' => $criteria_value) );
         $result = $query->getSingleResult();
 
-//        foreach ($result as $key => $value)
-//            exit( '<pre>'.print_r($value, true).'</pre>' );
-
-//        return $this->repository->findOneBy($criteria);
         return $result;
     }
 }
