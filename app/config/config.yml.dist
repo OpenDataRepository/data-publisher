@@ -143,21 +143,7 @@ hwi_oauth:
     # list of names of the firewalls in which this bundle is active, this setting MUST be set
     firewall_names: [main]
     resource_owners:    # https://github.com/hwi/HWIOAuthBundle/blob/master/Resources/doc/2-configuring_resource_owners.md
-##        odr:
-##            type:           oauth2
-##            client_id:      [[ ODR CLIENT ID ]]
-##            client_secret:  [[ ODR CLIENT SECRET ]]
-##            access_token_url:    %site_baseurl%/oauth/v2/token    # should match the route protected in app/config/security.yml under the "oauth_token" firewall
-##            authorization_url:   %site_baseurl%/oauth/v2/auth     # should match the route protected in app/config/security.yml under the "oauth_authorize" firewall
-##            infos_url:           %site_baseurl%/api/userdata
-##            scope:          ""          # TODO
-##            paths:
-##                identifier: id
-##                nickname:   username    # HWIOAuthBundle requires both the "nickname" and the "realname" parameters to be set
-##                realname:   username
-##            options:
-##                csrf: true
-
+        # NOTE: ODR should not be listed here, despite technically being an OAuth provider through the FOSOAuthServerBundle
 #        GitHub:
 #            type:           github
 #            client_id:      [[ GITHUB CLIENT ID ]]

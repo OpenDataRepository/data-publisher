@@ -45,12 +45,12 @@ hwi_oauth_connect:
     resource: "@HWIOAuthBundle/Resources/config/routing/connect.xml"
     prefix:   /connect
 
-# can't be active at the same time the "fos_user_security" resource is active, otherwise there will be route collision
+# unused, FOSUserBundle's login files are overridden to include pieces from this bundle
 #hwi_oauth_login:
 #    resource: "@HWIOAuthBundle/Resources/config/routing/login.xml"
 #    prefix:   /login
 
-# Contains the routes listed in app/config/security.yml under  security: -> firewalls: -> main: -> oauth: -> resource_owners:
+# Resource file needs to contain the routes listed in app/config/security.yml under  security: -> firewalls: -> main: -> oauth: -> resource_owners:
 odr_open_repository_oauth_client:
     resource: "@ODROpenRepositoryOAuthClientBundle/Resources/config/routing.yml"
     prefix:   /

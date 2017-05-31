@@ -56,7 +56,7 @@ security:
 
             oauth:
                 resource_owners:    # https://github.com/hwi/HWIOAuthBundle/blob/master/Resources/doc/3-configuring_the_security_layer.md
-##                    odr:           "/login/check-odr"       # All listed routes here also need to be listed in  ODR/OpenRepository/OAuthClientBundle/Resources/config/routing.yml
+                    # NOTE: ODR should not be listed here, despite technically being an OAuth provider through the FOSOAuthServerBundle
 #                    GitHub:        "/login/check-github"
 #                    Google:        "/login/check-google"
 
@@ -98,7 +98,6 @@ security:
 
 ##########
 # Regular use of site for logged-in users
-#        - { path: ^/api, role: ROLE_USER }                           # XML/XSD download
         - { path: ^/admin$, role: ROLE_USER }                     # front page
         - { path: ^/admin/dashboard, role: ROLE_USER }            # dashboard
         - { path: ^/profile, role: ROLE_USER }                    # ability to edit own profile
