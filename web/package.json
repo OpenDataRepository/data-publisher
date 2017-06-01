@@ -1,0 +1,34 @@
+{
+  "name": "ODR-Data-Publisher",
+  "version": "1.0.0",
+  "description": "Research data publication engine.",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install": "napa cowboy/jquery-hashchange"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "css-loader": "^0.28.4",
+    "napa": "^2.3.0",
+    "node-sass": "^4.5.3",
+    "sass-loader": "^6.0.5",
+    "style-loader": "^0.18.1",
+    "webpack": "^2.6.1"
+  },
+  "dependencies": {
+    "@flowjs/flow.js": "git+https://github.com/flowjs/flow.js.git",
+    "font-awesome": "^4.7.0",
+    "font-awesome-sass-loader": "^2.0.1",
+    "handsontable": "^0.32.0",
+    "introjs": "^0.2.2",
+    "jgrowl": "^1.4.5",
+    "jquery": "^3.2.1",
+    "lodash": "^4.17.4",
+    "plotly": "^1.0.6",
+    "purecss": "^0.6.2"
+  }
+}
