@@ -12,10 +12,10 @@
  * Pretty much directly copied from https://causeyourestuck.io/2016/07/19/oauth2-explained-part-2-setting-up-oauth2-with-symfony2-using-fosoauthserverbundle/
  */
 
-namespace ODR\OpenRepository\OAuthBundle\Command;
+namespace ODR\OpenRepository\OAuthServerBundle\Command;
 
 // Entities
-use ODR\OpenRepository\OAuthBundle\Entity\Client;
+use ODR\OpenRepository\OAuthServerBundle\Entity\Client;
 // Symfony
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputArgument;

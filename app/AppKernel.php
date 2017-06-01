@@ -32,7 +32,7 @@ class AppKernel extends Kernel
             new ODR\AdminBundle\ODRAdminBundle(),
             new ODR\OpenRepository\ApiBundle\ODROpenRepositoryApiBundle(),          // why is this a thing?
             new ODR\OpenRepository\GraphBundle\ODROpenRepositoryGraphBundle(),
-            new ODR\OpenRepository\OAuthBundle\ODROpenRepositoryOAuthBundle(),
+            new ODR\OpenRepository\OAuthServerBundle\ODROpenRepositoryOAuthServerBundle(),
             new ODR\OpenRepository\OAuthClientBundle\ODROpenRepositoryOAuthClientBundle(),
             new ODR\OpenRepository\SearchBundle\ODROpenRepositorySearchBundle(),
             new ODR\OpenRepository\UserBundle\ODROpenRepositoryUserBundle(),

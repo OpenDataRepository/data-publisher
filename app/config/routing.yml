@@ -69,8 +69,8 @@ odr_open_repository_user:
     resource: "@ODROpenRepositoryUserBundle/Resources/config/routing.yml"
     prefix:   /
 
-odr_open_repository_oauth:
-    resource: "@ODROpenRepositoryOAuthBundle/Resources/config/routing.yml"
+odr_open_repository_oauth_server:
+    resource: "@ODROpenRepositoryOAuthServerBundle/Resources/config/routing.yml"
     prefix:   /
 
 odr_admin:

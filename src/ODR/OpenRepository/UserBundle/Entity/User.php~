@@ -269,7 +269,7 @@ class User extends BaseUser
     /**
      * @var \Doctrine\Common\Collections\Collection
      *
-     * @ORM\ManyToMany(targetEntity="\ODR\OpenRepository\OAuthBundle\Entity\Client", inversedBy="users")
+     * @ORM\ManyToMany(targetEntity="\ODR\OpenRepository\OAuthServerBundle\Entity\Client", inversedBy="users")
      * @ORM\JoinTable(name="fos_authorized_clients")
      */
     private $clients;
@@ -277,10 +277,10 @@ class User extends BaseUser
     /**
      * Add authorizedClient
      *
-     * @param \ODR\OpenRepository\OAuthBundle\Entity\Client $client
+     * @param \ODR\OpenRepository\OAuthServerBundle\Entity\Client $client
      * @return User
      */
-    public function addClient(\ODR\OpenRepository\OAuthBundle\Entity\Client $client)
+    public function addClient(\ODR\OpenRepository\OAuthServerBundle\Entity\Client $client)
     {
         $this->clients[] = $client;
 
@@ -290,9 +290,9 @@ class User extends BaseUser
     /**
      * Remove authorizedClient
      *
-     * @param \ODR\OpenRepository\OAuthBundle\Entity\Client $client
+     * @param \ODR\OpenRepository\OAuthServerBundle\Entity\Client $client
      */
-    public function removeClient(\ODR\OpenRepository\OAuthBundle\Entity\Client $client)
+    public function removeClient(\ODR\OpenRepository\OAuthServerBundle\Entity\Client $client)
     {
         $this->clients->removeElement($client);
     }
@@ -310,10 +310,10 @@ class User extends BaseUser
     /**
      * is authorizedClient
      *
-     * @param \ODR\OpenRepository\OAuthBundle\Entity\Client $client
+     * @param \ODR\OpenRepository\OAuthServerBundle\Entity\Client $client
      * @return boolean
      */
-    public function isAuthorizedClient(\ODR\OpenRepository\OAuthBundle\Entity\Client $client)
+    public function isAuthorizedClient(\ODR\OpenRepository\OAuthServerBundle\Entity\Client $client)
     {
         $authorized_clients = self::getClients();
         foreach ($authorized_clients as $authorized_client) {

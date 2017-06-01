@@ -11,7 +11,7 @@
  * @see http://symfony.com/blog/new-in-symfony-2-6-security-component-improvements#added-a-security-error-helper
  */
 
-namespace ODR\OpenRepository\OAuthBundle\Controller;
+namespace ODR\OpenRepository\OAuthServerBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\Request;
@@ -43,7 +43,7 @@ class SecurityController extends Controller
         // TODO - this doesn't seem to actually do anything on authentication failure
         $helper = $this->get('security.authentication_utils');
 
-        return $this->render('ODROpenRepositoryOAuthBundle:Security:oauth_login.html.twig', array(
+        return $this->render('ODROpenRepositoryOAuthServerBundle:Security:oauth_login.html.twig', array(
             'last_username' => $helper->getLastUsername(),
             'error'         => $helper->getLastAuthenticationError(),
             'csrf_token'    => $csrfToken

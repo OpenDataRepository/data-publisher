@@ -1,6 +1,6 @@
 services:
     fos_oauth.preauth_event:
-        class: ODR\OpenRepository\OAuthBundle\EventListener\OAuthEventListener
+        class: ODR\OpenRepository\OAuthServerBundle\EventListener\OAuthEventListener
         arguments: []
         tags:
             - { name: kernel.event_subscriber }

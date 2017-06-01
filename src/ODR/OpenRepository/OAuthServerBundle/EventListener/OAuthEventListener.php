@@ -13,10 +13,10 @@
  *
  */
 
-namespace ODR\OpenRepository\OAuthBundle\EventListener;
+namespace ODR\OpenRepository\OAuthServerBundle\EventListener;
 
 // Entities
-use ODR\OpenRepository\OAuthBundle\Entity\Client;
+use ODR\OpenRepository\OAuthServerBundle\Entity\Client;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use FOS\OAuthServerBundle\Event\OAuthEvent;

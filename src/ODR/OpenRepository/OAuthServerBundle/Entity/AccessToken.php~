@@ -11,7 +11,7 @@
  * existing overridden FOS User Entity.
  */
 
-namespace ODR\OpenRepository\OAuthBundle\Entity;
+namespace ODR\OpenRepository\OAuthServerBundle\Entity;
 
 use FOS\OAuthServerBundle\Entity\AccessToken as BaseAccessToken;
 use Doctrine\ORM\Mapping as ORM;

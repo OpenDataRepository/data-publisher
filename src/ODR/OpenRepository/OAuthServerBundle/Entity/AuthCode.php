@@ -2,25 +2,25 @@
 
 /**
  * Open Data Repository Data Publisher
- * RefreshToken Entity (override)
+ * AuthCode Entity (override)
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Extends the default FOS OAuth RefreshToken Entity to work with the
+ * Extends the default FOS OAuth AuthCode Entity to work with the
  * existing overridden FOS User Entity.
  */
 
-namespace ODR\OpenRepository\OAuthBundle\Entity;
+namespace ODR\OpenRepository\OAuthServerBundle\Entity;
 
-use FOS\OAuthServerBundle\Entity\RefreshToken as BaseRefreshToken;
+use FOS\OAuthServerBundle\Entity\AuthCode as BaseAuthCode;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
  * @ORM\Entity
- * @ORM\Table(name="fos_refresh_token")
+ * @ORM\Table(name="fos_auth_code")
  */
-class RefreshToken extends BaseRefreshToken
+class AuthCode extends BaseAuthCode
 {
     /**
      * @ORM\Id
