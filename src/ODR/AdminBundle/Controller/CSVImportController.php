@@ -65,7 +65,8 @@ class CSVImportController extends ODRCustomController
     /**
      * @var mixed
      */
-    private $container;
+    protected $container;
+
 
     public function __construct(Container $container, EntityManager $entity_manager, $logger) {
         $this->container = $container;
@@ -523,7 +524,7 @@ class CSVImportController extends ODRCustomController
 
 
     /**
-     * Because Excel apparently can't always manage to keep itself from exporting completely blank 
+     * Because Excel apparently can't always manage to keep itself from exporting completely blank
      * rows or columns in the csv files it creates, there needs to be a function to strip these
      * completely blank rows/columns from the csv file that the user uploads.
      *
@@ -700,7 +701,7 @@ class CSVImportController extends ODRCustomController
 
     /**
      * Builds and returns a JSON list of the files that have been uploaded to the user's csv storage directory
-     * 
+     *
      * @param Request $request
      *
      * @return Response
@@ -749,7 +750,7 @@ class CSVImportController extends ODRCustomController
 
     /**
      * Delete all files that have been uploaded to the user's csv storage directory
-     * 
+     *
      * @param Request $request
      *
      * @return Response
@@ -1077,7 +1078,7 @@ class CSVImportController extends ODRCustomController
                     }
                 }
                 else {
-                    // Silently ignore it 
+                    // Silently ignore it
                     unset( $unique_columns[$column_id] );
                 }
             }
@@ -1108,7 +1109,7 @@ class CSVImportController extends ODRCustomController
 //return;
 
             // ----------------------------------------
-            // Compile all the data required for this csv import to store in the tracked job entity 
+            // Compile all the data required for this csv import to store in the tracked job entity
             $additional_data = array(
                 'description' => 'Validating csv import data for DataType '.$datatype_id.'...',
 
@@ -1750,7 +1751,7 @@ class CSVImportController extends ODRCustomController
                             }
                         }
                         break;
-                    
+
                     case "IntegerValue":
                         if ($value !== '') {
                             // Warn about invalid characters in an integer conversion
@@ -1907,7 +1908,7 @@ class CSVImportController extends ODRCustomController
                         /* don't check whether the value collides with an existing value for either of these datafields...if it did, the importer would be unable to update existing datarecords */
                     }
                     else {
-                        // Run a quick query to check whether the new value from the import is a duplicate of an existing value 
+                        // Run a quick query to check whether the new value from the import is a duplicate of an existing value
                         $query = $em->createQuery(
                            'SELECT dr.id AS dr_id
                             FROM ODRAdminBundle:'.$typeclass.' AS e
@@ -1924,7 +1925,7 @@ class CSVImportController extends ODRCustomController
                                 'level' => 'Warning',
                                 'body' => array(
                                     'line_num' => $line_num,
-                                    'message' => 'Column "'.$column_names[$column_num].'" is mapped to a unique datafield, but its value "'.$value.'" already exists in Datarecord '.$dr_id, 
+                                    'message' => 'Column "'.$column_names[$column_num].'" is mapped to a unique datafield, but its value "'.$value.'" already exists in Datarecord '.$dr_id,
                                 ),
                             );
                         }
