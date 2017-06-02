@@ -27,6 +27,7 @@ var config = {
         loaders: [
             {test: /\.css$/, loader: "style-loader!css-loader"}
         ],
+/*
         rules: [
 	  // { 
             // test: /\.css$/, 
@@ -55,6 +56,7 @@ var config = {
             ]
           }
        ]
+*/
     }
 };
 
