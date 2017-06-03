@@ -29,6 +29,39 @@ class UtilityController extends Controller
      * HWIOAuthBundle can't be redirected back to the original URL.
      *
      * @param Request $request
+     * @throws \Exception
+     *
+     * @return Response
+     */
+    public function saveurlAction(Request $request)
+    {
+        // Going to need these...
+        $session = $request->getSession();
+        $router = $this->get('router');
+
+        // Ensure query was correctly formed
+        if (!$request->query->has('url') )
+            throw new \Exception('Invalid query string');
+
+        // Ensure the requested url to save is of this domain
+        $url = $request->query->get('url');
+        $site_baseurl = $this->container->getParameter('site_baseurl');
+
+        if ( strpos($url, $site_baseurl) !== 0 )
+            throw new \Exception('Invalid query string');
+
+         // No issues, save the URL base
+        $session->set('_security.main.target_path', $url);
+        return new Response();
+    }
+
+
+    /**
+     * This action is called by the login page to store any existing URL fragment, otherwise logins handled by the
+     * HWIOAuthBundle can't be redirected back to the original URL.
+     *
+     * @param Request $request
+     * @throws \Exception
      *
      * @return Response
      */

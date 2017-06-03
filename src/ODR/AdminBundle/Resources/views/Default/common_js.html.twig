@@ -13,6 +13,8 @@
                     alert('Page not found: ' + settings.url.substr(0, settings.url.indexOf('?')));
                     break;
                 case 401:
+//                    ODRLogin();   // TODO - modify ODR so it returns correct status codes
+//                    break;
                 case 403:
                     alert( 'Access Denied. [0x883928]' );
                     // If a hash is present, attempt to preserve it so user goes back to this page after login
@@ -129,6 +131,34 @@
         })
 
     });
+
+    function ODRLogin() {
+        // Extract the current base url
+        var baseurl = window.location.href;
+        var fragment = '';
+        if ( baseurl.indexOf('#') !== -1 ) {
+            var pieces = baseurl.split('#');
+            baseurl = pieces[0];
+            fragment = pieces[1];
+        }
+
+        // Append the fragment if needed
+        var redirect_url = '/login';
+        if (fragment !== '')
+            redirect_url += '#' + fragment;
+
+        // Redirect to the login page after saving the base url
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: '{{ path('odr_save_url') }}',
+            dataType: 'json',
+            data: {'url': baseurl},
+            success: function(data, textStatus, jqXHR) {
+                window.location.replace(redirect_url);
+            }
+        });
+    }
 
     function UpdateURL(url) {
         // Update the URL and hash
