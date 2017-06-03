@@ -66,7 +66,7 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
      */
     public function loadUserByUsername($username)
     {
-        exit( 'THIS SHOULD NEVER BE CALLED' );
+        throw new \Exception("ODROAuthUserProvider is not usable as a regular user provider");
 
         $user = $this->findUser(array('username' => $username));
         if (!$user) {
@@ -133,14 +133,16 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
             $this->repository = $this->em->getRepository($this->class);
         }
 
-//        exit ( '<pre>criteria: '.print_r($criteria, true).'</pre>' );
+//        exit( '<pre>'.print_r($criteria, true).'</pre>' );
 
+        // Tweak the provided criteria to make it easier for DQL to locate the correct user
         $criteria_key = $criteria_value = null;
         foreach ($criteria as $key => $value) {
             $criteria_key = $key;
             $criteria_value = $value;
         }
 
+        // Attempt to locate the correct user based off the provided criteria
         $query = $this->em->createQuery(
            'SELECT u
             FROM ODROpenRepositoryUserBundle:User AS u
@@ -148,8 +150,13 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
             WHERE ul.'.$criteria_key.' = :criteria
             AND u.enabled = 1'
         )->setParameters( array('criteria' => $criteria_value) );
-        $result = $query->getSingleResult();
+        $result = $query->getResult();
 
-        return $result;
+        // Would like to use $query->getSingleResult(), but apparently that throws an exception when nothing found...
+        if ( count($result) == 0 )
+            return null;
+
+        // TODO - is this safe?  In theory, a user account is owned by one person...so theoretically only one person knows the login info?
+        return $result[0];
     }
 }

@@ -6,7 +6,7 @@
     {% endif %}
 #}
     {% for owner in hwi_oauth_resource_owners() %}
-        <span class="odr_oauth_{{ owner }}" style="width: 200px; padding: 10px; margin: 10px; background: #d33333;">
+        <span class="odr_oauth_{{ owner }}" style="width: 200px; padding: 10px; margin: 10px; background: #ffec8b;">
             <a href="{{ hwi_oauth_login_url(owner) }}">Log in using {{ owner }}</a>
         </span>
     {% endfor %}

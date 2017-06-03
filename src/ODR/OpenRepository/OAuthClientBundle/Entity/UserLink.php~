@@ -35,11 +35,6 @@ class UserLink
 
     /**
      * @var string
-     */
-    private $odrAccessToken;
-
-    /**
-     * @var string
      * @ORM\Column(name="github_id", type="string", length=255, nullable=true)
      */
     private $githubId;
@@ -49,6 +44,16 @@ class UserLink
      */
     private $githubAccessToken;
 
+    /**
+     * @var string
+     * @ORM\Column(name="google_id", type="string", length=255, nullable=true)
+     */
+    private $googleId;
+
+    /**
+     * @var string
+     */
+    private $googleAccessToken;
 
     /**
      * @inheritdoc
@@ -88,29 +93,6 @@ class UserLink
     public function getUser()
     {
         return $this->user;
-    }
-
-    /**
-     * Set ODRAccessToken
-     *
-     * @param $odrAccessToken
-     * @return UserLink
-     */
-    public function setODRAccessToken($odrAccessToken)
-    {
-        $this->odrAccessToken = $odrAccessToken;
-
-        return $this;
-    }
-
-    /**
-     * Get ODRAccessToken
-     * 
-     * @return string
-     */
-    public function getODRAccessToken()
-    {
-        return $this->odrAccessToken;
     }
 
     /**
@@ -157,5 +139,51 @@ class UserLink
     public function getGithubAccessToken()
     {
         return $this->githubAccessToken;
+    }
+
+    /**
+     * Set GoogleId
+     *
+     * @param $googleId
+     * @return UserLink
+     */
+    public function setGoogleId($googleId)
+    {
+        $this->googleId = $googleId;
+
+        return $this;
+    }
+
+    /**
+     * Get GoogleId
+     *
+     * @return string
+     */
+    public function getGoogleId()
+    {
+        return $this->googleId;
+    }
+
+    /**
+     * Set GoogleAccessToken
+     *
+     * @param $googleAccessToken
+     * @return UserLink
+     */
+    public function setGoogleAccessToken($googleAccessToken)
+    {
+        $this->googleAccessToken = $googleAccessToken;
+
+        return $this;
+    }
+
+    /**
+     * Get GoogleAccessToken
+     *
+     * @return string
+     */
+    public function getGoogleAccessToken()
+    {
+        return $this->googleAccessToken;
     }
 }

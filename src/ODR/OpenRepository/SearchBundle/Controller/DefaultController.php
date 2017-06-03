@@ -46,7 +46,7 @@ class DefaultController extends Controller
      *
      * @return Response
      */
-    public function searchPageError($error_message, Request $request, $inline = false)
+    public function searchPageError($error_message, Request $request, $status_code = 500, $inline = false)
     {
         $return = array();
         $return['r'] = 0;
@@ -132,10 +132,12 @@ class DefaultController extends Controller
         $response = null;
         if ($inline) {
             $response = new Response(json_encode($return));
+            $response->setStatusCode($status_code);
             $response->headers->set('Content-Type', 'application/json');
         }
         else {
             $response = new Response($html);
+            $response->setStatusCode($status_code);
             $response->headers->set('Content-Type', 'text/html');
         }
 
@@ -415,10 +417,10 @@ exit();
                 /** @var DataTypeMeta $meta_entry */
                 $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy( array('searchSlug' => $search_slug) );
                 if ($meta_entry == null)
-                    return self::searchPageError("Page not found", $request);
+                    return self::searchPageError("Page not found", $request, 404);
                 $target_datatype = $meta_entry->getDataType();
                 if ($target_datatype == null)
-                    return self::searchPageError("Page not found", $request);
+                    return self::searchPageError("Page not found", $request, 404);
             }
             /** @var DataType $target_datatype */
 
@@ -435,7 +437,7 @@ exit();
                 $can_view_datarecord = true;
 
             if ( !$target_datatype->isPublic() && !$can_view_datatype )
-                return self::searchPageError("You don't have permission to access this DataType.", $request);
+                return self::searchPageError("You don't have permission to access this DataType.", $request, 403);
 
             // Need to grab all searchable datafields for the target_datatype and its descendants
 

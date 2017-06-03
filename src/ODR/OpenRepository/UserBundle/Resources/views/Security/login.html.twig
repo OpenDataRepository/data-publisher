@@ -1,6 +1,7 @@
 {% extends "ODROpenRepositoryUserBundle::layout.html.twig" %}
 
 {% block fos_user_content %}
+
 {% if error %}
     <div>{{ error.messageKey|trans(error.messageData, 'security') }}</div>
 {% endif %}
@@ -47,40 +48,26 @@
     }
 </style>
 
+
 <script>
     $(function() {
-        // Need to grab referrer for the search slug
-        var referrer = document.referrer;
-        // Need this for the hash
-        var url = window.location.href;
+        // If a URL fragment exists, then notify ODR of its existence so the user can be properly redirected afterwards
+        if ( window.location.href.indexOf('#') !== -1 ) {
+            var fragment = (window.location.href.split('#'))[1];
+            console.log(fragment);
+            var url = "{{ path('odr_save_fragment') }}";
 
-//alert( 'referrer: ' + referrer + "\n\n" + 'url: ' + url );
-
-        // Grab parts of the urls to compare with...
-        var referrer_hostname = referrer.substr(0, referrer.lastIndexOf('/'));
-        var url_hostname = url;
-        if ( url.indexOf('#') !== -1 ) {
-            var tmp = url.split('#');
-            url_hostname = tmp[0].substr(0, tmp[0].lastIndexOf('/'));
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: 'json',
+                data: {'fragment': fragment}
+            });
         }
 
-//alert( referrer_hostname + "\n" + url_hostname + "\n" + (referrer_hostname == url_hostname));
-
-        // If the user was redirected here from a page on this site and a hash is present, splice them together to create a target path for symfony
-        // This target_path should be the page from which they clicked the "Login" button...
-        if (referrer_hostname.indexOf(url_hostname) !== -1 && url.indexOf('#') !== -1) {
-            var tmp = url.split('#');
-            url = referrer + '#' + tmp[1];
-
-//alert( url );
-            $("#target_path").val( url );
-        }
-        else {
-            // Otherwise, just use the default target path redirect...
-        }
-
+        // Apparently the username field isn't focused by default?
         $("#username").focus();
     });
 </script>
 {% endblock fos_user_content %}
-
