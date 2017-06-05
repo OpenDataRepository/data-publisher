@@ -37,17 +37,17 @@
         });
 
         // Detect refresh of page?
-        $(window).load(function() {
+        $(window).on('load', function() {
             if ( window.location.hash != '') {
-                // window.location.hash doesn't preserv url encoding...
+                // window.location.hash doesn't preserve url encoding...
                 var tmp = window.location.href.split('#');
                 var url = tmp[1];
                 LoadContentFullAjax( url );
             }
             else {
-{% if logged_in == true %}
-                LoadContentFullAjax('{{ path('odr_dashboard') }}');
-{% endif %}
+                {% if logged_in == true %}
+                    LoadContentFullAjax('{{ path('odr_dashboard') }}');
+                {% endif %}
             }
         });
 
@@ -58,6 +58,7 @@
             // Needed?
             event.preventDefault();
 
+            console.log('hashchange event')
             // Close Menu
             $("#ODRNav").hide();
             // always scroll to the top of the page?

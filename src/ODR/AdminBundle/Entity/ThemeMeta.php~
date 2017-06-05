@@ -347,4 +347,33 @@ class ThemeMeta
     {
         return $this->sourceSyncCheck;
     }
+    /**
+     * @var integer
+     */
+    private $displayOrder;
+
+
+    /**
+     * Set displayOrder
+     *
+     * @param integer $displayOrder
+     *
+     * @return ThemeMeta
+     */
+    public function setDisplayOrder($displayOrder)
+    {
+        $this->displayOrder = $displayOrder;
+
+        return $this;
+    }
+
+    /**
+     * Get displayOrder
+     *
+     * @return integer
+     */
+    public function getDisplayOrder()
+    {
+        return $this->displayOrder;
+    }
 }

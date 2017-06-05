@@ -257,6 +257,20 @@
                 )
             }
 
+
+            function LoadThemeElementForm(theme_element_id) {
+                console.log('load theme element form')
+                var datafield = jQuery(this)
+                var url = "{{ path('odr_design_get_theme_element_properties', {'theme_element_id': 0}) }}";
+                url = url.substr(0, url.length-1);
+                jQuery.getJSON(
+                    url + theme_element_id,
+                    function(data) {
+                        jQuery("#ThemeDesignForm").html(data.d)
+                    }
+                )
+            }
+
             function SubmitThemeDesignForm() {
                 jQuery.ajax({
                     type: "POST",
@@ -276,11 +290,12 @@
                     minHeight: $(this).height(),
                     maxHeight: $(this).height(),
                     grid: 41.5,  // 996 width / 24 units
-                    // After resizable stops
                     start: function( event, ui) {
+                        console.log('ThemeElement Resize Start')
                         var theme_element_id = ui.originalElement.attr('id').replace('ThemeElement_', '')
-                        // LoadThemeElementForm(theme_element_id)
+                        LoadThemeElementForm(theme_element_id)
                     },
+                    // After resizable stops
                     stop: function( event, ui ) {
                         // Refactor all widths for all elements in array to be f/24
                         // floor(Percentage of width / 4.16667) =  f/24 => f
@@ -289,7 +304,7 @@
                         var total_width = ui.originalElement.parent().width()
                         var width = ui.originalElement.width()
 
-                        console.log(total_width)
+                        console.log('TW = ' + total_width)
                         console.log(width)
                         var pct = width / total_width * 100
 
@@ -332,9 +347,9 @@
 
                         // Save new U Factors to DB via Get Request
                         console.log('resizeable stop ' + theme_element_id)
-                        // jQuery("#UpdateThemeDatafieldForm_cssWidthMed").val(u_factor + "-24")
-                        // jQuery("#UpdateThemeDatafieldForm_cssWidthXL").val(u_factor + "-24")
-                        // SubmitThemeDesignForm()
+                        jQuery("#UpdateThemeElementForm_cssWidthMed").val(u_factor + "-24")
+                        jQuery("#UpdateThemeElementForm_cssWidthXL").val(u_factor + "-24")
+                        SubmitThemeDesignForm()
                     }
                 });
             })

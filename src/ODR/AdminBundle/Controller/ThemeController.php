@@ -39,6 +39,7 @@ use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\ThemeDataField;
 use ODR\AdminBundle\Entity\ThemeDataType;
 use ODR\AdminBundle\Entity\ThemeElement;
+use ODR\AdminBundle\Entity\ThemeElementMeta;
 use ODR\AdminBundle\Entity\ThemeMeta;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
@@ -46,6 +47,7 @@ use ODR\OpenRepository\UserBundle\Entity\User;
 use ODR\AdminBundle\Form\UpdateDataFieldsForm;
 use ODR\AdminBundle\Form\UpdateDataTypeForm;
 use ODR\AdminBundle\Form\UpdateDataTreeForm;
+use ODR\AdminBundle\Form\UpdateThemeElementForm;
 use ODR\AdminBundle\Form\UpdateThemeDatafieldForm;
 use ODR\AdminBundle\Form\UpdateThemeDatatypeForm;
 // Symfony

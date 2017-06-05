@@ -9,6 +9,9 @@
  */
 
 // ! Your application
+window.$ = $
+window.jQuery = $
+
 var SaveTimeout = 2000;
 
 (function($, window, document, undefined){

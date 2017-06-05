@@ -20,7 +20,7 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 // Symfony Form classes
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
-
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 
 class UpdateThemeElementForm extends AbstractType
 {
@@ -30,6 +30,18 @@ class UpdateThemeElementForm extends AbstractType
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
+
+        $builder->add(
+            'cssWidthMed',
+            HiddenType::class
+        );
+
+        $builder->add(
+            'cssWidthXL',
+            HiddenType::class
+        );
+
+        /*
         $builder->add(
             'cssWidthMed',
             ChoiceType::class,
@@ -69,6 +81,7 @@ class UpdateThemeElementForm extends AbstractType
                 'placeholder' => false
             )
         );
+        */
     }
 
 

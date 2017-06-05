@@ -452,7 +452,7 @@
         $("#search_form .ODRInput").each(function() {
             var name = $(this).attr('name');
             var type = $(this).attr('type');
-            var value = $(this).attr('value');
+            var value = $(this).val();
 //            var datatype_id = $(this).attr('rel');
 
             if ( $(this).hasClass('ODRFileDatafieldName') ) {
@@ -498,7 +498,7 @@
 
             $(this).find('input').each(function() {
                 // Grab the radio_option_id
-                var value = $(this).attr('value');
+                var value = $(this).val();
                 if (value == '')
                     return;
 
@@ -520,7 +520,7 @@
         $(".ODRDatatype_require_public").each(function() {
             if ( !$(this).hasClass('ODRSearchDisabled') ) {
                 var name = $(this).attr('name');
-                var value = $(this).attr('value');
+                var value = $(this).val();
 
                 if (search_key != '')
                     search_key += divider;
@@ -613,7 +613,7 @@
 
 {% if background_image_id != null %}
 <script>
-$(window).load(function() {    
+$(window).on('load',function() {
     // After the rest of the page is loaded, start loading the bg image
     var url = "{{ path('odr_image_download', {'image_id': 0 }) }}";
     url = url.substring(0, url.length-1);

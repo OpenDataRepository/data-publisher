@@ -6,16 +6,20 @@
   "scripts": {
     "build": "webpack",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "install": "napa cowboy/jquery-hashchange"
+    "install": "napa cowboy/jquery-hashchange plotly/plotly.js#1.5.0 gabceb/jquery-browser-plugin thorst/jquery-idletimer Naeka/jquery-switchbutton zachstronaut/jquery-animate-css-rotate-scale louisremi/jquery.transform.js zachstronaut/jquery-css-transform iphands/Meltdown johnculviner/jquery.fileDownload"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "css-loader": "^0.28.4",
+    "expose-loader": "^0.7.3",
+    "file-loader": "^0.11.1",
+    "image-webpack-loader": "^3.3.1",
     "napa": "^2.3.0",
     "node-sass": "^4.5.3",
     "sass-loader": "^6.0.5",
+    "script-loader": "^0.7.0",
     "style-loader": "^0.18.1",
     "webpack": "^2.6.1"
   },
@@ -24,11 +28,17 @@
     "font-awesome": "^4.7.0",
     "font-awesome-sass-loader": "^2.0.1",
     "handsontable": "^0.32.0",
-    "introjs": "^0.2.2",
+    "intro.js": "^2.5.0",
     "jgrowl": "^1.4.5",
-    "jquery": "^3.2.1",
+    "jquery": "^1.11.2",
+    "jquery-sparkline": "^2.4.0",
+    "jquery-ui": "^1.12.1",
+    "jquery-ui-bundle": "^1.12.1",
+    "jquery-ui-touch-punch": "^0.2.3",
+    "jquery-validation": "^1.16.0",
+    "jquery.scrollto": "^2.1.2",
+    "jquery.tipsy": "^1.0.3",
     "lodash": "^4.17.4",
-    "plotly": "^1.0.6",
     "purecss": "^0.6.2"
   }
 }
