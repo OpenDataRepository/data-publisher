@@ -26,7 +26,8 @@ c.ODROAuthenticator.manager_token = '[[ ENTER SOME SECRET KEY HERE ]]'
 
 # API tokens to allow JupyterHub services to communicate with JupyterHub's API...can use "openssl rand -hex 32".
 c.JupyterHub.service_tokens = {
-    '[[ ENTER SOME OTHER SECRET KEY HERE ]]': 'odr_oauth_manager'
+    '[[ ENTER SOME OTHER SECRET KEY HERE ]]': 'odr_oauth_manager',
+    '[[ ENTER YET ANOTHER SECRET KEY HERE ]]': 'odr_external',
 }
 
 # JupyterHub service definition
@@ -43,5 +44,10 @@ c.JupyterHub.services = [
 
             'oauth_manager_token': c.ODROAuthenticator.manager_token,
         },
+    },
+    {
+        'name': 'odr_external',
+        'admin': True,
+        'url': odr_base_url
     }
 ]

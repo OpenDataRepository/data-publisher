@@ -22,7 +22,9 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Symfony
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 
 class APIController extends ODRCustomController
@@ -60,6 +62,15 @@ class APIController extends ODRCustomController
 
 
     /**
+     * @param ODRUser $user
+     * @return string
+     */
+    private function getJupyterhubUsername($user)
+    {
+        return 'jupyter_user_'.$user->getId();
+    }
+
+    /**
      * Used by JupyterHub to determine which user has logged in via ODR's OAuth
      *
      * @param Request $request
@@ -79,7 +90,7 @@ class APIController extends ODRCustomController
                         'username' => $user->getUserString(),
                         'realname' => $user->getUserString(),
                         'email' => $user->getEmail(),
-                        'jupyterhub_username' => 'jupyter_user_'.$user->getId(),
+                        'jupyterhub_username' => self::getJupyterhubUsername($user),
                         'baseurl' => $this->getParameter('site_baseurl'),
                     )
                 );
@@ -91,6 +102,105 @@ class APIController extends ODRCustomController
         catch (\Exception $e) {
             return self::createJSONError(500, $e->getMessage());
         }
+    }
+
+
+    /**
+     * Attempts to export the current set of search results to a specific jupyterhub file...
+     *
+     * @param string $search_key
+     * @param Request $request
+     *
+     * @return JsonResponse
+     */
+    public function jupyterhubexportAction($search_key, Request $request)
+    {
+        try {
+            // Going to need these...
+            $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
+            $jupyterhub_server_baseurl = $jupyterhub_config['jupyterhub_baseurl'];
+
+            $jupyterhub_api_baseurl = $jupyterhub_server_baseurl.'/hub/api';
+            $jupyterhub_api_key = $jupyterhub_config['api_key'];
+
+            // Only procede if the user is logged in
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            if ($user === 'anon.')
+                throw new AccessDeniedException();
+            $username = self::getJupyterhubUsername($user);
+
+            // TODO - ensure the user has a jupyterhub account?
+
+            // Attempt to ensure the user's jupyterhub server is started
+            self::startJupyterhubServerFor($user, $jupyterhub_api_baseurl, $jupyterhub_api_key);
+
+            // TODO - user is going to need an oauth token to ODR...starting the user's server from this side means jupyterhub doesn't have it...
+            // TODO - is there some way of getting ODR to send it from here, or is the jupyterhub side going to need to know to request one?
+
+            $data = array(
+                'redirect_url' => $jupyterhub_server_baseurl.'/user/'.$username.'/notebooks/api%20testing.ipynb'
+            );
+
+            return new JsonResponse($data);
+        }
+        catch (\Exception $e) {
+            return self::createJSONError(500, $e->getMessage());
+        }
+    }
+
+
+    /**
+     * Ensures a user's jupyterhub server has been started
+     *
+     * @param ODRUser $user
+     * @param string $jupyterhub_api_baseurl
+     * @param string $jupyterhub_api_key
+     *
+     * @throws \Exception
+     */
+    private function startJupyterhubServerFor($user, $jupyterhub_api_baseurl, $jupyterhub_api_key)
+    {
+        // Need to use cURL to send a POST request...thanks symfony
+        $ch = curl_init();
+
+        // Set the options for the POST request
+        $headers = array();
+        $headers[] = 'Authorization: token '.$jupyterhub_api_key;
+
+        // Juypyterhub API url is of the form  /users/{name}/server
+        $username = self::getJupyterhubUsername($user);
+        $jupyterhub_api_url = $jupyterhub_api_baseurl.'/users/'.$username.'/server';
+
+        curl_setopt_array(
+            $ch,
+            array(
+                CURLOPT_POST => 1,
+                CURLOPT_URL => $jupyterhub_api_url,
+                CURLOPT_FRESH_CONNECT => 1,
+                CURLOPT_RETURNTRANSFER => 1,
+                CURLOPT_FORBID_REUSE => 1,
+                CURLOPT_TIMEOUT => 120,
+                CURLOPT_HTTPHEADER => $headers,
+
+                CURLOPT_SSL_VERIFYPEER => 0,        // TODO - temporary
+            )
+        );
+
+        // Execute the cURL request, and check for errors
+        $ret = curl_exec($ch);
+        if( !$ret ) {
+            $status_code = intval( curl_getinfo($ch, CURLINFO_HTTP_CODE) );
+            if ( $status_code == 201 || $status_code == 202 ) {
+                // Not actually a cURL error, do nothing
+            }
+            else {
+                // Attempt to throw an exception with details...
+                throw new \Exception('Error starting server for ('.$username.'): '. curl_error($ch) );
+            }
+        }
+
+        // The Jupyterhub API can also return a 400 indicating the server is already running...
+        // ...but that isn't really an error from ODR's point of view
     }
 
 

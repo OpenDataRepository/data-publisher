@@ -57,6 +57,8 @@
     &nbsp;&nbsp;&nbsp;
     {% endif %}
     <button class="pure-button pure-button-primary" type="button" onclick="doCSVExport();">Mass Export these datarecords into CSV file</button>
+
+    <button class="pure-button pure-button-primary" type="button" onclick="doJupyterhubExport();">Do something with these in jupyterhub...</button>
 </div>
 {% endif %}
 
@@ -218,6 +220,20 @@
         url += '{{ datatype.id }}' + '/' + '{{ search_key }}' + '/' + '{{ offset }}';
 
         UpdateURL(url);
+    }
+
+    function doJupyterhubExport() {
+        var url = '{{ path('odr_jupyterhub_export', {'search_key': search_key}) }}';
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                window.location.href = data.redirect_url;
+            }
+        });
     }
 {% endif %}
 </script>

@@ -25,8 +25,9 @@ class UtilityController extends Controller
 {
 
     /**
-     * This action is called by the login page to store any existing URL fragment, otherwise logins handled by the
-     * HWIOAuthBundle can't be redirected back to the original URL.
+     * This action is called when the "Login" button in the upper-right corner of the screen is clicked...the page
+     * provides the current baseurl for this action to save in the user's session.  Symfony won't automatically do it
+     * because the user typically isn't directly accessing a "secured" area of the firewall.
      *
      * @param Request $request
      * @throws \Exception

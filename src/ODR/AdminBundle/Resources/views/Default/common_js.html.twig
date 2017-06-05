@@ -155,7 +155,7 @@
             dataType: 'json',
             data: {'url': baseurl},
             success: function(data, textStatus, jqXHR) {
-                window.location.replace(redirect_url);
+                window.location.href = redirect_url;
             }
         });
     }
