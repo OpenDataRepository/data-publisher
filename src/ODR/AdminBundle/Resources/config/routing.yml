@@ -1207,9 +1207,10 @@ odr_permissions_clear:
 #-----------------------------------------
 # API Controller
 odr_jupyterhub_export:
-    path: /admin/export/{search_key}
+    path: /admin/export/{datatype_id}/{search_key}
     defaults: { _controller: ODRAdminBundle:API:jupyterhubexport }
     requirements:
+        datatype_id: \d+
         search_key: '[^\/]*'
 
 odr_api_userdata:

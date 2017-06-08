@@ -223,7 +223,7 @@
     }
 
     function doJupyterhubExport() {
-        var url = '{{ path('odr_jupyterhub_export', {'search_key': search_key}) }}';
+        var url = '{{ path('odr_jupyterhub_export', {'search_key': search_key, 'datatype_id': datatype.id}) }}';
 
         $.ajax({
             cache: false,
@@ -231,7 +231,9 @@
             url: url,
             dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                window.location.href = data.redirect_url;
+                if ( confirm("Please ensure you're already logged into Jupyterhub before clicking the OK button...") )
+                    window.open(data.redirect_url, "_blank");
+//                    window.location.href = data.redirect_url;
             }
         });
     }

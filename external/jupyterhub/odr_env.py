@@ -33,7 +33,7 @@ def __getAccessToken():
     Returns the access_token as a string
     """
 
-    r = requests.get( 'http://127.0.0.1:8094/services/odr_oauth_manager/get_access_token/' + os.environ['OAUTH_SESSION_TOKEN'] )
+    r = requests.get( 'http://127.0.0.1:' + os.environ['OAUTH_MANAGER_PORT'] + '/services/odr_oauth_manager/get_access_token/' + os.environ['OAUTH_SESSION_TOKEN'] )
     if (r.status_code != 200):
         raise RuntimeError( r.json() )
 
@@ -49,7 +49,7 @@ def __useRefreshToken():
       notify that the refresh token has expired.  Or some other error entirely.
     """
 
-    r = requests.get( 'http://127.0.0.1:8094/services/odr_oauth_manager/get_new_access_token/' + os.environ['OAUTH_SESSION_TOKEN'] )
+    r = requests.get( 'http://127.0.0.1:' + os.environ['OAUTH_MANAGER_PORT'] + '/services/odr_oauth_manager/get_new_access_token/' + os.environ['OAUTH_SESSION_TOKEN'] )
     if (r.status_code != 200):
         raise RuntimeError( r.json() )
 
@@ -138,8 +138,8 @@ def _makeRequest(api_url, success_key):
     access_token = __getAccessToken()
 
     r = requests.get(api_url + '?access_token=' + access_token)
-    if (r.status_code != 200):
-        raise RuntimeError( r.json() )
+#    if (r.status_code != 200):
+#        raise RuntimeError( r.json() )
 
     data = json.loads(r.text)
 
@@ -256,9 +256,9 @@ def _buildFileListJSON(datarecord_list, file_list):
 
 def downloadFileToDisk(file_id):
     """
-    Attempts to download a specified file from ODR, and saves it in the user's notebook directory.
+    Attempts to download the specified file from ODR, and saves it in the user's notebook directory.
 
-    Returns the path to the saved file.
+    Returns the path to the downloaded file, or some other error...
     """
 
     # Ensure arguments are valid
@@ -266,7 +266,7 @@ def downloadFileToDisk(file_id):
         raise ValueError('file_id must be numeric')
 
     # Attempt to download the file from ODR
-    api_url = os.environ['ODR_BASEURL'] + '/api/file_download/' + str(file_id)
+    api_url = os.environ['ODR_BASEURL'] + '/api/file_download/' + str(file_id) + '?access_token=' + __getAccessToken()      # TODO - needs to deal with expired access token
 
     r = requests.get(api_url, stream=True)
     if (r.status_code != 200):
@@ -282,13 +282,12 @@ def downloadFileToDisk(file_id):
     # Download the file from ODR
     temp_filename = _id_generator() + '.tmp'
     with open(temp_filename, 'wb') as fd:
-        for chunk in r.iter_content(chunk_size=65536):  # Attempt to read 64kb at a time? - TODO
+        for chunk in r.iter_content(chunk_size=65536):  # Attempt to read 64kb at a time
             fd.write(chunk)
 
     # Rename the downloaded file to match the original name provided by the server
     shutil.move(temp_filename, final_filename)
 
-#    print( 'Wrote ' + str(expected_filesize) + ' Mb to "' + filename + '"' )
     print( 'Saved "' + final_filename + '"' )
 
     return final_filename
@@ -296,7 +295,7 @@ def downloadFileToDisk(file_id):
 
 def downloadFile(file_id):
     """
-    Attempts to download a specified file from ODR.
+    Attempts to download the specified file from ODR.
 
     Returns the contents of the file as a single binary string, since that's easier for NumPy to handle.
     """
@@ -306,7 +305,7 @@ def downloadFile(file_id):
         raise ValueError('file_id must be numeric')
 
     # Attempt to download the file from ODR
-    api_url = os.environ['ODR_BASEURL'] + '/api/file_download/' + str(file_id)
+    api_url = os.environ['ODR_BASEURL'] + '/api/file_download/' + str(file_id) + '?access_token=' + __getAccessToken()      # TODO - needs to deal with expired access token
 
     r = requests.get(api_url, stream=True)
     if (r.status_code != 200):
@@ -321,7 +320,7 @@ def downloadFile(file_id):
 
     # Download the file from ODR
     file_contents = b""
-    for chunk in r.iter_content(chunk_size=65536):  # Attempt to read 64kb at a time? - TODO
+    for chunk in r.iter_content(chunk_size=65536):  # Attempt to read 64kb at a time
         file_contents = b"".join([file_contents, chunk])
 
     return file_contents

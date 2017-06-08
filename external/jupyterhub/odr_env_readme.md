@@ -29,6 +29,11 @@ After that, you can use any of the helper functions defined in `odr_env.py` insi
    This utility function parses the dict returned by `odr_env.getDatarecordData(datarecord_id)`, and returns a new dict with basic identifying data on all the files contained within.
 
 ---
-* `odr_env.downloadFile(file_id, filename)`
+* `odr_env.downloadFileToDisk(file_id, filename)`
 
    This function attempts to download a file from ODR by `file_id`, and writes the contents of that file into `filename` inside your Jupyter Notebook directory if successful.  Currently, only files smaller than 5Mb can be downloaded with this function.
+
+---
+* `odr_env.downloadFile(file_id)`
+
+    This function attempts to download a file from ODR by `file_id`, and returns the contents of the file as a byte stream.  Currently, only files smaller than 5Mb can be downloaded with this function.
