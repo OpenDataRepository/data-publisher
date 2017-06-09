@@ -1,0 +1,12 @@
+#-----------------------------------------
+# Bridge Controller
+odr_api_userdata:
+    path: /api/userdata
+    defaults: { _controller: ODROpenRepositoryJupyterhubBridgeBundle:Bridge:userdata }
+
+odr_jupyterhub_export:
+    path: /admin/export/{datatype_id}/{search_key}
+    defaults: { _controller: ODROpenRepositoryJupyterhubBridgeBundle:Bridge:jupyterhubexport }
+    requirements:
+        datatype_id: \d+
+        search_key: '[^\/]*'

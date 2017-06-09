@@ -5,6 +5,9 @@ use Symfony\Component\Config\Loader\LoaderInterface;
 
 class AppKernel extends Kernel
 {
+    /**
+     * @inheritdoc
+     */
     public function registerBundles()
     {
         $bundles = array(
@@ -32,6 +35,7 @@ class AppKernel extends Kernel
             new ODR\AdminBundle\ODRAdminBundle(),
             new ODR\OpenRepository\ApiBundle\ODROpenRepositoryApiBundle(),          // why is this a thing?
             new ODR\OpenRepository\GraphBundle\ODROpenRepositoryGraphBundle(),
+            new ODR\OpenRepository\JupyterhubBridgeBundle\ODROpenRepositoryJupyterhubBridgeBundle(),
             new ODR\OpenRepository\OAuthServerBundle\ODROpenRepositoryOAuthServerBundle(),
             new ODR\OpenRepository\OAuthClientBundle\ODROpenRepositoryOAuthClientBundle(),
             new ODR\OpenRepository\SearchBundle\ODROpenRepositorySearchBundle(),
@@ -47,6 +51,9 @@ class AppKernel extends Kernel
         return $bundles;
     }
 
+    /**
+     * @inheritdoc
+     */
     public function registerContainerConfiguration(LoaderInterface $loader)
     {
         $loader->load(__DIR__.'/config/config_'.$this->getEnvironment().'.yml');

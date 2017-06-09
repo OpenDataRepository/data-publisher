@@ -73,6 +73,10 @@ odr_open_repository_oauth_server:
     resource: "@ODROpenRepositoryOAuthServerBundle/Resources/config/routing.yml"
     prefix:   /
 
+odr_open_repository_jupyterhub_bridge:
+    resource: "@ODROpenRepositoryJupyterhubBridgeBundle/Resources/config/routing.yml"
+    prefix:   /
+
 odr_admin:
     resource: "@ODRAdminBundle/Resources/config/routing.yml"
     prefix:   /
