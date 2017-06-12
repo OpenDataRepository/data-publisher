@@ -71,3 +71,4 @@ parameters:
         use_jupyterhub: false    # set to true to enable jupyterhub integration
         jupyterhub_baseurl: [[ ENTER URL OF JUPYTERHUB DOMAIN HERE ]]     # This url MUST NOT have a trailing forward slash
         api_key: [[ ENTER RANDOM KEY HERE - Text String ]]
+        bridge_token: [[ ENTER RANDOM KEY HERE - Text String ]]

@@ -20,6 +20,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
@@ -57,7 +58,7 @@ class BridgeController extends ODRCustomController
 
 
     /**
-     * TODO
+     * Returns the user's Jupyterhub username.
      *
      * @param ODRUser $user
      *
@@ -65,7 +66,35 @@ class BridgeController extends ODRCustomController
      */
     private function getJupyterhubUsername($user)
     {
+        // TODO - something more sophisticated?
         return 'jupyter_user_'.$user->getId();
+    }
+
+
+    /**
+     * Loads and returns a list of available "apps" to run inside Jupyterhub.
+     *
+     * @return array
+     */
+    private function loadAvailableJupyterhubApps()
+    {
+        // TODO - load from a directory or parameter file somewhere...
+        $app_list = array(
+            0 => array(
+                'id' => 'app_a',
+                'name' => 'Raman Rollup Graph'
+            ),
+            1 => array(
+                'id' => 'app_b',
+                'name' => 'XRD Rollup Graph'
+            ),
+            2 => array(
+                'id' => 'app_c',
+                'name' => 'Peak Fit'
+            )
+        );
+
+        return $app_list;
     }
 
 
@@ -105,15 +134,14 @@ class BridgeController extends ODRCustomController
 
 
     /**
-     * Attempts to export the current set of search results to a specific jupyterhub file...
+     * Load and return a listing of all available "apps" in jupyterhub as an HTML select.
      *
      * @param integer $datatype_id
-     * @param string $search_key
      * @param Request $request
      *
      * @return JsonResponse
      */
-    public function jupyterhubexportAction($datatype_id, $search_key, Request $request)
+    public function applistAction($datatype_id, Request $request)
     {
         try {
             // ----------------------------------------
@@ -127,16 +155,69 @@ class BridgeController extends ODRCustomController
                 return self::createJSONError(404, 'Datatype is deleted');
 
 
+            // ----------------------------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-
-            // Only procede if the user is logged in
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             if ($user === 'anon.')
-                throw new AccessDeniedException();
-            $username = self::getJupyterhubUsername($user);
+                return self::createJSONError(401);
+            if ( !$user->hasRole('ROLE_ADMIN') || !$user->hasRole('ROLE_JUPYTERHUB_USER') )
+                return self::createJSONError(403);
 
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            $can_view_datatype = false;
+            if ( isset($datatype_permissions[ $datatype_id ]) && isset($datatype_permissions[ $datatype_id ][ 'dt_view' ]) )
+                $can_view_datatype  = true;
+
+            if ( !($datatype->isPublic() || $can_view_datatype) )
+                return self::createJSONError(403);
+
+
+            // ----------------------------------------
+            // Load the list of available "apps"
+            $app_list = self::loadAvailableJupyterhubApps();
+
+            // TODO - do something to reduce the list
+
+            // Sort the array by app name
+            usort($app_list, function($a, $b) {
+                return strcmp($a['name'], $b['name']);
+            });
+
+
+            // ----------------------------------------
+            // Return the applist as a json array
+            $templating = $this->get('templating');
+            $html = $templating->render(
+                'ODROpenRepositoryJupyterhubBridgeBundle:Default:app_list.html.twig',
+                array(
+                    'app_list' => $app_list
+                )
+            );
+
+            return new JsonResponse( array('html' => $html) );
+        }
+        catch (\Exception $e) {
+            return self::createJSONError(500, $e->getMessage());
+        }
+    }
+
+
+    /**
+     * Attempts to export the current set of search results to a specific jupyterhub file...
+     *
+     * @param Request $request
+     *
+     * @return JsonResponse|RedirectResponse
+     */
+    public function jupyterhubexportAction(Request $request)
+    {
+        try {
+            // ----------------------------------------
+            // Get Entity Manager and setup repo
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
 
             // Going to need these...
             $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
@@ -145,28 +226,74 @@ class BridgeController extends ODRCustomController
             $jupyterhub_api_baseurl = $jupyterhub_server_baseurl.'/hub/api';
             $jupyterhub_api_key = $jupyterhub_config['api_key'];
 
+            // Extract parameters from the $_POST request
+            $parameters = $request->request;
+            if ( !$parameters->has('datatype_id') || !$parameters->has('search_key') || !$parameters->has('app_id') )
+                return self::createJSONError(400, "Invalid Form");
+
+            $datatype_id = $parameters->get('datatype_id');
+            $search_key = $parameters->get('search_key');
+            $app_id = $parameters->get('app_id');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ( $datatype == null )
+                return self::createJSONError(404, 'Datatype is deleted');
+
 
             // ----------------------------------------
-            // TODO - ensure the user has a jupyterhub account?
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            if ($user === 'anon.')
+                return self::createJSONError(401, "Permission denied");
+            if ( !$user->hasRole('ROLE_ADMIN') || !$user->hasRole('ROLE_JUPYTERHUB_USER') )
+                return self::createJSONError(403, "Permission denied");
 
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $username = self::getJupyterhubUsername($user);
+
+
+            // ----------------------------------------
+            // Save which datarecords this search covers
+            $saved_search = parent::getSavedSearch($em, $user, $user_permissions['datatypes'], $user_permissions['datafields'], $datatype_id, $search_key, $request);
+
+            // If no datarecords, then don't continue
+            if ( strlen($saved_search['datarecord_list']) == 0 )
+                return self::createJSONError(404, "No datarecords found");
+
+
+            // ----------------------------------------
+            // Ensure the requested "app" exists...
+            $app_list = self::loadAvailableJupyterhubApps();
+
+            $found = false;
+            foreach ($app_list as $app) {
+                if ($app['id'] == $app_id) {
+                    $found = true;
+                    break;
+                }
+            }
+
+            // If nothing found, notify user
+            if (!$found)
+                return self::createJSONError(404, "Invalid app");
+
+
+            // ----------------------------------------
             // TODO - ensure the user is logged in to jupyterhub?  if that is the case, then ODR doesn't need to worry about getting the user an oauth token...
 
             // Attempt to ensure the user's jupyterhub server is started
             self::startJupyterhubServerFor($user, $jupyterhub_api_baseurl, $jupyterhub_api_key);
 
-            // Instruct jupyterhub to create a notebook to run off the saved search
-            $saved_search = parent::getSavedSearch($em, $user, $user_permissions['datatypes'], $user_permissions['datafields'], $datatype_id, $search_key, $request);
-
-            $plugin_name = 'TODO';
-            $new_notebook_name = self::createJupyterhubNotebook($jupyterhub_server_baseurl, $jupyterhub_api_key, $user, $plugin_name, $saved_search);
-
+            $new_notebook_name = self::createJupyterhubNotebook($jupyterhub_server_baseurl, $jupyterhub_api_key, $user, $app_id, $saved_search);
 
             // Instruct the user's browser to redirect to the new notebook
-            $data = array(
-                'redirect_url' => $jupyterhub_server_baseurl.'/hub/user/'.$username.'/notebooks/'.$new_notebook_name
-            );
+            return new RedirectResponse($jupyterhub_server_baseurl.'/hub/user/'.$username.'/notebooks/'.$new_notebook_name, 303);   // 303 status code is intentional
 
-            return new JsonResponse($data);
+            // Returning a 302 redirect here causes IE to redirect to the given url by sending a POST request...most other browsers send a GET request
+            // Oddly enough, IE is the one that's following the original HTTP spec...a 302 response to a POST should technically send another POST to the given redirect URL
+
         }
         catch (\Exception $e) {
             return self::createJSONError(500, $e->getMessage());
@@ -249,14 +376,14 @@ class BridgeController extends ODRCustomController
      * @param string $jupyterhub_server_baseurl
      * @param string $jupyterhub_api_key
      * @param ODRUser $user
-     * @param string $plugin_name
+     * @param string $app_id
      * @param array $saved_search
      *
      * @throws \Exception
      *
      * @return string
      */
-    private function createJupyterhubNotebook($jupyterhub_server_baseurl, $jupyterhub_api_key, $user, $plugin_name, $saved_search)
+    private function createJupyterhubNotebook($jupyterhub_server_baseurl, $jupyterhub_api_key, $user, $app_id, $saved_search)
     {
         // Need to use cURL to send a POST request...thanks symfony
         $ch = curl_init();
@@ -275,7 +402,7 @@ class BridgeController extends ODRCustomController
         $parameters = array(
             'bridge_token' => $bridge_token,
             'username' => self::getJupyterhubUsername($user),
-            'plugin_name' => $plugin_name,
+            'plugin_name' => $app_id,
             'datarecord_list' => $saved_search['datarecord_list'],      // TODO - or send the search key instead?
         );
 

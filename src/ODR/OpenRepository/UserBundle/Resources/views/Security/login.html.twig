@@ -11,43 +11,34 @@
     {% set form_path = alternate_path %}
 {% endif %}
 
-<form action="{{ form_path }}" method="post" class="pure-form {#pure-form-aligned#}">
+<form class="ODRLoginForm" action="{{ form_path }}" method="post" class="pure-form">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}" />
     <input type="hidden" id="target_path" name="_target_path" value="" />
-{#
-    <input type="hidden" id="failure_path" name="_failure_path" value="" />
-#}
+
     <fieldset>
         <div class="pure-control-group">
-            <label for="username">{{ 'security.login.username'|trans({}, 'FOSUserBundle') }}</label>
-            <input type="text" id="username" name="_username" value="{{ last_username }}" required="required" />
+            <input id="username" name="_username" type="email" placeholder="{{ 'security.login.username'|trans({}, 'FOSUserBundle') }}" required="required" />
         </div>
         <div class="pure-control-group">
-            <label for="password">{{ 'security.login.password'|trans({}, 'FOSUserBundle') }}</label>
-            <input type="password" id="password" name="_password" required="required" />
+            <input id="password" name="_password" type="password" placeholder="{{ 'security.login.password'|trans({}, 'FOSUserBundle') }}" required="required" />
+        </div>
+
+        <div class="pure-control-group">
+            <label for="remember">
+                <input id="remember" type="checkbox"> {{ 'security.login.remember_me'|trans({}, 'FOSUserBundle') }}
+            </label>
         </div>
     </fieldset>
 
     <fieldset>
-        <div class="pure-control-group">
-            <input type="checkbox" id="remember_me" name="_remember_me" value="on" />
-            <label for="remember_me">{{ 'security.login.remember_me'|trans({}, 'FOSUserBundle') }}</label>
-            <input class="pure-button pure-button-primary" type="submit" id="_submit" name="_submit" value="{{ 'security.login.submit'|trans({}, 'FOSUserBundle') }}" />
+        <div class="pure-controls">
+            <button id="_submit" name="_submit" class="pure-button pure-button-primary" type="submit">{{ 'security.login.submit'|trans({}, 'FOSUserBundle') }}</button>
+        {% if not app.user %}
+            <a class="address pure-button" href="{{ path('fos_user_resetting_request') }}" >Forgot Password?</a>
+        {% endif %}
         </div>
-{% if not app.user %}
-        <div class="pure-control-group">
-            <a class="address" href="{{ path('fos_user_resetting_request') }}" >Forgot Password?</a>
-        </div>
-{% endif %}
     </fieldset>
 </form>
-
-<style>
-    .pure-control-group {
-        margin-top: 5px;
-    }
-</style>
-
 
 <script>
     $(function() {

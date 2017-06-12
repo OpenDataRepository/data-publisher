@@ -3133,3 +3133,12 @@ form .row {
     display: block;
 }
 
+
+.ODROAuthProviderList {
+    text-align: center;
+    padding-bottom: 25px;
+}
+
+.ODRLoginForm .pure-control-group {
+    margin-bottom: 10px;
+}

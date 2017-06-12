@@ -4,9 +4,13 @@ odr_api_userdata:
     path: /api/userdata
     defaults: { _controller: ODROpenRepositoryJupyterhubBridgeBundle:Bridge:userdata }
 
-odr_jupyterhub_export:
-    path: /admin/export/{datatype_id}/{search_key}
-    defaults: { _controller: ODROpenRepositoryJupyterhubBridgeBundle:Bridge:jupyterhubexport }
+odr_jupyterhub_app_list:
+    path: /admin/jupyterhub/app_list/{datatype_id}
+    defaults: { _controller: ODROpenRepositoryJupyterhubBridgeBundle:Bridge:applist }
     requirements:
         datatype_id: \d+
-        search_key: '[^\/]*'
+
+odr_jupyterhub_export:
+    path: /admin/jupyterhub/export
+    defaults: { _controller: ODROpenRepositoryJupyterhubBridgeBundle:Bridge:jupyterhubexport }
+    requirements: { methods: POST }

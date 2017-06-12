@@ -1,0 +1,9 @@
+{% spaceless %}
+
+<select id="jupyterhub_app_selector">
+    {% for app in app_list %}
+    <option value="{{ app.id }}">{{ app.name }}</option>
+    {% endfor %}
+</select>
+
+{% endspaceless %}
