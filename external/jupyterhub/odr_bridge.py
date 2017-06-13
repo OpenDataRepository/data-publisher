@@ -70,7 +70,13 @@ class CreateNotebook(BridgeRequestHandler):
         """
         Given the identifier of some app/plugin/whatever, returns a dict containing the path to the notebook, which language it's written in, and what extension it should use
         """
-        return {'path': '/root/jupyterhub_apps/multi_sample_raman_graph.ipynb', 'language': 'python', 'extension': '.ipynb'}
+        if (plugin_name == 'app_a'):
+            return {'path': '/root/jupyterhub_apps/raman_graph_by_sample.ipynb', 'language': 'python', 'extension': '.ipynb'}
+        elif (plugin_name == 'app_b'):
+            return {'path': '/root/jupyterhub_apps/raman_graph_by_wavelength.ipynb', 'language': 'python', 'extension': '.ipynb'}
+        else:
+            return {'path': '/root/jupyterhub_apps/raman_graph_by_sample.ipynb', 'language': 'python', 'extension': '.ipynb'}
+
 
     def getCodeToInsert(self, notebook_language, datarecord_list):
         """

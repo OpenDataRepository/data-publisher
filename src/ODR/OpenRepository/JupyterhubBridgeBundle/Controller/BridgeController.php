@@ -82,14 +82,18 @@ class BridgeController extends ODRCustomController
         $app_list = array(
             0 => array(
                 'id' => 'app_a',
-                'name' => 'Raman Rollup Graph'
+                'name' => 'Raman Rollup Graph by Sample'
             ),
             1 => array(
                 'id' => 'app_b',
-                'name' => 'XRD Rollup Graph'
+                'name' => 'Raman Rollup Graph by Wavelength'
             ),
             2 => array(
                 'id' => 'app_c',
+                'name' => 'XRD Rollup Graph'
+            ),
+            3 => array(
+                'id' => 'app_d',
                 'name' => 'Peak Fit'
             )
         );
