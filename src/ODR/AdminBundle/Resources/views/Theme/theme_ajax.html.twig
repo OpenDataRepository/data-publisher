@@ -263,6 +263,7 @@
                 var datafield = jQuery(this)
                 var url = "{{ path('odr_design_get_theme_element_properties', {'theme_element_id': 0}) }}";
                 url = url.substr(0, url.length-1);
+                console.log(url + theme_element_id)
                 jQuery.getJSON(
                     url + theme_element_id,
                     function(data) {

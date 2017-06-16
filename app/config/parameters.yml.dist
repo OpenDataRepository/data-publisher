@@ -17,6 +17,10 @@ parameters:
     secret: 3894eruifsro8945uitrosaughjkrehsduiosreqjwhsdfjk
     #secret: a8910801jwqersjfdk8wfdnsjadflask2093810923809ae9r0af9iau2jlkjwehasdfkjh12
     odr_plugins:
+        csvtable_plugin:
+            name: 'CSV Table Plugin'
+            filename: CSVTablePlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
         graph_plugin:
             name: 'Graph Plugin'
             filename: GraphPlugin

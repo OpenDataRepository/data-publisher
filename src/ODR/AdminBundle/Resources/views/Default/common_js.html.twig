@@ -7,26 +7,46 @@
         $(document).ajaxError(function( event, jqxhr, settings, exception ) {
             switch( jqxhr.status ) {
                 case 500:
-                    alert('Server error: ' + exception);
+                    var res = $.parseHTML(jqxhr.responseText)
+                    var error_type = res[13].childNodes[3].childNodes[1].childNodes[1].childNodes[3].childNodes[5].innerHTML
+                    var error_msg = res[13].childNodes[3].childNodes[1].childNodes[1].childNodes[3].childNodes[3].innerHTML
+                    console.log("500 Error: " + error_msg)
+                    $.jGrowl(
+                        error_type,
+                        {
+                            sticky: true,
+                            openDuration: 250,
+                            closeDuration: 250
+                        }
+                    )
                     break;
                 case 404:
-                    alert('Page not found: ' + settings.url.substr(0, settings.url.indexOf('?')));
+                    var res = $.parseHTML(jqxhr.responseText)
+                    var error_type = res[13].childNodes[3].childNodes[1].childNodes[1].childNodes[3].childNodes[5].innerHTML
+                    var error_msg = res[13].childNodes[3].childNodes[1].childNodes[1].childNodes[3].childNodes[1].innerHTML
+                    console.log("404 Error: " + error_msg)
+                    $.jGrowl(
+                        error_type,
+                        {
+                            sticky: true,
+                            openDuration: 250,
+                            closeDuration: 250
+                        }
+                    )
                     break;
                 case 401:
                 case 403:
-                    alert( 'Access Denied. [0x883928]' );
                     // If a hash is present, attempt to preserve it so user goes back to this page after login
-                    /* var url = window.location.href;
+                    var url = window.location.href;
                     if ( url.indexOf('#') !== -1 ) {
                         var tmp = url.split('#');
                         url = tmp[0].substr(0, tmp[0].lastIndexOf('/')) + '/login#' + tmp[1];
-
                         location.replace(url);
                     }
                     else {
                         // Otherwise, just redirect to admin page
-                        location.replace("{{ path('odr_admin_homepage') }}");
-                    } */
+                        location.replace("/login");
+                    }
                     break;
 /*
                 default:
@@ -166,8 +186,10 @@
         }
 
         // Hide the properties menu
-        $("#ODRNavRightWrapper").fadeOut('fast');
-        $("#content").fadeTo(300, faded_opacity, function() {
+        // $("#ODRNavRightWrapper").fadeOut('fast');
+        // Disable scroll handlers
+        $(window).off('scroll')
+        $("#content").fadeTo(200, faded_opacity, function() {
             // TODO Document what this is doing.
             if (xhr != null)
                 xhr.abort();
@@ -189,7 +211,7 @@
                     if ((data.r == 0) || (data.r == 403)) {
 
                         $("#content").html(data.d.html);
-                        $("#content").fadeTo(500, 1.0);
+                        $("#content").fadeTo(200, 1.0);
 
                         xhr = null;
                     }

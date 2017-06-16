@@ -1,0 +1,58 @@
+# This file is auto-generated during the composer install
+parameters:
+    database_driver: pdo_mysql
+    database_host: localhost
+    database_port: null
+    database_name: odr_planetary_2
+    database_user: planetary2
+    database_password: planetary_db22
+    mailer_transport: smtp
+    mailer_host: localhost
+    mailer_user: null
+    mailer_password: null
+    locale: en
+    secret: a8910801jwqersjfdk8wfdnsjadflask2093810923809ae9r0af9iau2jlkjwehasdfkjh12
+    odr_plugins:
+        graph_plugin:
+            name: 'Graph Plugin'
+            filename: GraphPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        diffraction_plugin:
+            name: 'Diffraction Graph'
+            filename: DiffractionPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        chemistry_plugin:
+            name: 'Chemistry Field'
+            filename: ChemistryPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        references_plugin:
+            name: 'References Plugin'
+            filename: ReferencesPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        comment_plugin:
+            name: 'Comment Plugin'
+            filename: CommentPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        sample_plugin:
+            name: 'Sample Plugin'
+            filename: SamplePlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        person_plugin:
+            name: 'Person Plugin'
+            filename: PersonPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        organization_plugin:
+            name: 'Organization Plugin'
+            filename: OrganizationPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+    memcached.servers:
+        -
+            host: 127.0.0.1
+            port: 11211
+    site_baseurl: 'http://odr.io'
+    memcached_key_prefix: planetary2
+    session_memcached_expire: 3600
+    session_memcached_prefix: planetary2_odr_sess
+    session_memcached_host: 127.0.0.1
+    session_memcached_port: 11211
+    beanstalk_api_key: DJSjasdjkSDFULSDfjsisskkkKKK

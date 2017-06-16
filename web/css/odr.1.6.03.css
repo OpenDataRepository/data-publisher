@@ -2202,6 +2202,7 @@ h1:after {
     line-height: 0px;
     padding: 0px 0px 0px 0px;
     z-index: 500;
+    display: none;
 }
 
 .ODRThemeElement > .DataTypeTools {
@@ -2230,10 +2231,11 @@ h1:after {
     height: 0px;
     line-height: 0px;
     padding: 0px 0px 0px 0px;
-    z-index: 500;
+    margin-right: 8px;
+    z-index: 5;
 }
 #ODRDatatypeDesign .ThemeElementTools i {
-    margin-top: 6px;
+    /* margin-top: 3px; */
 }
 
 #ODRDatatypeDesign .DataTypeTools {
@@ -2253,11 +2255,13 @@ h1:after {
     float: left;
 }
 
+/*
 .tooltip {
     float: left;
     margin-top: 4px;
     margin-right: 4px;
 }
+*/
 .fa-muted {
     cursor: not-allowed;
     /*color: #aa0000;*/
@@ -3173,3 +3177,18 @@ form .row {
 .odr-popup-mobile {position: relative; top: 0; left: 0; margin: 30px 0 0; width: 100%;}
 .odr-popup-btn-close {position: absolute; top: 8px; right: 14px; color: #4EBD79; font-size: 14px; font-weight: bold; text-transform: uppercase; cursor: pointer;}
 
+
+.ODRDropActive {
+   background: rgba(88, 188, 88, 0.5);
+}
+.ODRDropHover {
+    background: rgba(46, 138, 68, 0.5);
+}
+
+.ODRInnerBox {
+    /*
+        Min height is required so sortable allows dropped objects when the
+        sortable itself has no children (of class ODRDataField)
+     */
+    min-height: 50px;
+}

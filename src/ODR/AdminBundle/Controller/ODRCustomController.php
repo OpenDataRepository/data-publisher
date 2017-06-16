@@ -4340,6 +4340,7 @@ if ($debug)
             'displayOrder' => $theme_datafield->getDisplayOrder(),
             'cssWidthMed' => $theme_datafield->getCssWidthMed(),
             'cssWidthXL' => $theme_datafield->getCssWidthXL(),
+            'hidden' => $theme_datafield->getHidden(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -4364,6 +4365,7 @@ if ($debug)
             $new_theme_datafield->setDisplayOrder( $theme_datafield->getDisplayOrder() );
             $new_theme_datafield->setCssWidthMed( $theme_datafield->getCssWidthMed() );
             $new_theme_datafield->setCssWidthXL( $theme_datafield->getCssWidthXL() );
+            $new_theme_datafield->setHidden( $theme_datafield->getHidden() );
 
             $new_theme_datafield->setCreatedBy($user);
         }
@@ -4383,6 +4385,8 @@ if ($debug)
             $new_theme_datafield->setCssWidthMed( $properties['cssWidthMed'] );
         if (isset($properties['cssWidthXL']))
             $new_theme_datafield->setCssWidthXL( $properties['cssWidthXL'] );
+        if (isset($properties['hidden']))
+            $new_theme_datafield->setHidden( $properties['hidden'] );
 
         $new_theme_datafield->setUpdatedBy($user);
 

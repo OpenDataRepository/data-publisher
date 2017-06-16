@@ -43,7 +43,6 @@ class PlugExtension extends \Twig_Extension
         return array(
             new \Twig_SimpleFilter('datafield_plugin', array($this, 'datafieldPluginFilter')),
             new \Twig_SimpleFilter('datatype_plugin', array($this, 'datatypePluginFilter')),
-
             new \Twig_SimpleFilter('xml', array($this, 'xmlFilter')),
             new \Twig_SimpleFilter('is_public', array($this, 'isPublicFilter')),
             new \Twig_SimpleFilter('user_string', array($this, 'userStringFilter')),
@@ -102,11 +101,14 @@ class PlugExtension extends \Twig_Extension
             }
 
             // Several other parts of the arrays should be pruned to avoid duplicate/exccessive data
+            // TODO This is totally wrong - the plugin data is not duplicative.
+            /*
             if ( isset($datafield['dataFieldMeta']) && isset($datafield['dataFieldMeta']['renderPlugin']) )
                 unset( $datafield['dataFieldMeta']['renderPlugin'] );
 
             if ( isset($datarecord['dataType']) )
                 unset( $datarecord['dataType'] );
+            */
 
 
             // Load and execute the render plugin

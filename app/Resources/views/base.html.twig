@@ -36,6 +36,8 @@
     <link rel="stylesheet" href="/css/external/jquery.switchButton.css">
     <link rel="stylesheet" href="/css/external/introjs.min.css">
     <link rel="stylesheet" href="/css/external/jquery.jgrowl.css">
+    <!-- Hands on table -->
+    <link rel="stylesheet" href="/js/mylibs/handsontable/dist/handsontable.full.css">
     <!-- <link rel="stylesheet" href="/css/external/jquery.dataTables.css"> -->
     <link rel="stylesheet" href="/js/mylibs/jquery_datatables/datatables.min.css">
 
@@ -57,10 +59,19 @@
     <!--[if lt IE 10]><script src="/js/mylibs/polyfills/classlist.js"></script><![endif]-->
 
     <!-- Grab Google CDN's jQuery, with a protocol relative URL; fall back to local if offline -->
-    <script src="/js/libs/jquery-1.7.2.js"></script>
+    <!-- <script src="/js/libs/jquery-1.7.2.js"></script> -->
+    <script
+        src="https://code.jquery.com/jquery-1.12.4.min.js"
+        integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ="
+        crossorigin="anonymous"></script>
+    <script src="http://code.jquery.com/jquery-migrate-1.4.1.js"></script>
 
     <!-- Do the same with jQuery UI -->
-    <script src="/js/libs/jquery-ui-1.8.21.js"></script>
+    <!-- <script src="/js/libs/jquery-ui-1.8.21.js"></script> -->
+    <script
+            src="https://code.jquery.com/ui/1.12.0/jquery-ui.min.js"
+            integrity="sha256-eGE6blurk5sHj+rmkfsGYeKyZx3M4bG+ZlFyA7Kns7E="
+            crossorigin="anonymous"></script>
     <script src="/js/libs/lo-dash.min.js"></script>
 
     <!-- Load Webfont loader -->
@@ -104,6 +115,8 @@
     <script src="/js/mylibs/dynamic-tables/jquery.dataTables.tableTools.zeroClipboard.js"></script>
     <script src="/js/mylibs/dynamic-tables/jquery.dataTables.tableTools.js"></script> -->
     <script src="/js/mylibs/jquery_datatables/datatables.min.js"></script>
+    <script src="/js/mylibs/handsontable/dist/handsontable.full.js"></script>
+
 
     <!-- Tooltips -->
     <script src="/js/mylibs/tooltips/jquery.tipsy.js"></script>
@@ -304,7 +317,7 @@
 
 </script>
 
-{% if use_navigation_block == true %}
+{# if use_navigation_block == true %}
     <!-- The container of the sidebar and content box -->
     <!-- The Properties sidebar -->
     <aside id="ODRNavRightWrapper">
@@ -314,7 +327,7 @@
             </div><!-- End of .top -->
         </div>
     </aside><!-- End of sidebar -->
-{% endif %}
+{% endif #}
 
 <div role="main" id="main" class="pure-form pure-g">
     <section id="left-spacer" class="pure-u-md-1-24"></section>

@@ -869,32 +869,37 @@ ul#wizardStatus li.completed:before{
 
 #ThemeDesignForm {
     min-height: 200px;
+    margin-bottom: 8px;
 }
 
 #ThemeDesignForm form {
     margin-top: 6px;
     margin-left: 6px;
 }
+
 #ThemeDesignForm form label {
     display: block;
     text-align: left;
 }
+
 #ThemeDesignKey {
     line-height: normal;
-
 }
 
 #ThemeDesignWrapper {
-    width: 1286px;
+    min-width: 1364px;
     overflow: hidden;
 }
 
 #ThemeLeftColumn {
     background: white;
     border-radius: 4px;
-    width: 255px;
-    min-height: 700px;
+    width: 305px;
+    height: 700px;
+    overflow-y: scroll;
     float: left;
+    /* z-index needed to prevent overlap for some reason */
+    z-index: 1000;
 }
 
 #ThemeLeftColumn > div.ODRThemeElement:first-of-type > .ODRInnerBox {
@@ -904,7 +909,9 @@ ul#wizardStatus li.completed:before{
 
 #ThemeDesignArea {
     width: 1024px;
-    margin-left: 260px;
+    margin-left: 15px;
+    margin-right: 20px;
+    float: left;
 }
 
 #ThemeDesignArea .ui-resizable-se {

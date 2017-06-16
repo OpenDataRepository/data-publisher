@@ -13,6 +13,10 @@ parameters:
     locale: en
     secret: [[ ENTER A LONG RANDOM STRING HERE WITH NO SPACES ]]
     odr_plugins:
+        csvtable_plugin:
+            name: 'CSV Table Plugin'
+            filename: CSVTablePlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
         graph_plugin:
             name: 'Graph Plugin'
             filename: GraphPlugin
