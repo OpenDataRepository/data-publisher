@@ -2,6 +2,13 @@ parameters:
 #    odr_open_repository_graph.example.class: ODR\OpenRepository\GraphBundle\Example
 
 services:
+    graph.cheminedaplugin:
+        class: ODR\OpenRepository\GraphBundle\Plugins\CheminEDAPlugin
+        arguments:
+            templating: "@templating"
+            logger: "@logger"
+            container: "@service_container"
+            entity_manager: "@doctrine.orm.entity_manager"
     graph.csvtableplugin:
         class: ODR\OpenRepository\GraphBundle\Plugins\CSVTablePlugin
         arguments:

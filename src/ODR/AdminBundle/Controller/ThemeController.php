@@ -1137,7 +1137,6 @@ class ThemeController extends ODRCustomController
                 $datatype_array[$dt_id] = $data;
         }
 
-
         // ----------------------------------------
         // Going to need an array of fieldtype ids and fieldtype typenames for notifications about changing fieldtypes
         $fieldtype_array = array();

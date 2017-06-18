@@ -899,7 +899,7 @@ ul#wizardStatus li.completed:before{
     overflow-y: scroll;
     float: left;
     /* z-index needed to prevent overlap for some reason */
-    z-index: 1000;
+    z-index: 99;
 }
 
 #ThemeLeftColumn > div.ODRThemeElement:first-of-type > .ODRInnerBox {
