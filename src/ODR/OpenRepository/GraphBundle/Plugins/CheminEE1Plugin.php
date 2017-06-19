@@ -29,7 +29,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface as Container;
  * Class GraphPlugin
  * @package ODR\OpenRepository\GraphBundle\Plugins
  */
-class CheminEDAPlugin
+class CheminEE1Plugin
 {
     /**
      * @var mixed
@@ -145,29 +145,20 @@ class CheminEDAPlugin
 
                         // Identify File Type and Store $file_data array
                         switch($drf_id) {
-                            case $datafield_mapping['eda_mdi_file']['datafield']['id']:
-                                $file_data[$dr_id]['eda_mdi_file'] = $data_record_field['file'][0];
+                            case $datafield_mapping['ee1_processed_csv']['datafield']['id']:
+                                $file_data[$dr_id]['ee1_processed_csv'] = $data_record_field['file'][0];
                                 break;
-                            case $datafield_mapping['eda_raw_mdi_file']['datafield']['id']:
-                                $file_data[$dr_id]['eda_raw_mdi_file'] = $data_record_field['file'][0];
+                            case $datafield_mapping['ee1_raw_csv']['datafield']['id']:
+                                $file_data[$dr_id]['ee1_raw_csv'] = $data_record_field['file'][0];
                                 break;
-                            case $datafield_mapping['eda_lbl_file']['datafield']['id']:
-                                $file_data[$dr_id]['eda_lbl_file'] = $data_record_field['file'][0];
+                            case $datafield_mapping['ee1_raw_lbl_file']['datafield']['id']:
+                                $file_data[$dr_id]['ee1_raw_lbl_file'] = $data_record_field['file'][0];
                                 break;
-                            case $datafield_mapping['eda_raw_lbl_file']['datafield']['id']:
-                                $file_data[$dr_id]['eda_raw_lbl_file'] = $data_record_field['file'][0];
+                            case $datafield_mapping['ee1_raw_dat_file']['datafield']['id']:
+                                $file_data[$dr_id]['ee1_raw_dat_file'] = $data_record_field['file'][0];
                                 break;
-                            case $datafield_mapping['eda_raw_dat_file']['datafield']['id']:
-                                $file_data[$dr_id]['eda_raw_dat_file'] = $data_record_field['file'][0];
-                                break;
-                            case $datafield_mapping['eda_processing_description']['datafield']['id']:
-                                $file_data[$dr_id]['eda_processing_description'] = $data_record_field['file'][0];
-                                break;
-                            case $datafield_mapping['eda_tiff_file']['datafield']['id']:
-                                $file_data[$dr_id]['eda_tiff_file'] = $data_record_field['file'][0];
-                                break;
-                            case $datafield_mapping['eda_raw_tiff_file']['datafield']['id']:
-                                $file_data[$dr_id]['eda_raw_tiff_file'] = $data_record_field['file'][0];
+                            case $datafield_mapping['ee1_processing_description']['datafield']['id']:
+                                $file_data[$dr_id]['ee1_processing_description'] = $data_record_field['file'][0];
                                 break;
                         }
                     }
@@ -177,19 +168,19 @@ class CheminEDAPlugin
             // Sort the file names for display
             asort($file_names);
 
-            $chemin_eda_table = "";
+            $chemin_ee1_table = "";
             foreach($file_names as $dr_id => $file_name) {
-                $chemin_eda_table .= $dr_id . "_";
+                $chemin_ee1_table .= $dr_id . "_";
             }
-            $chemin_eda_table = substr($chemin_eda_table,0,(strlen($chemin_eda_table) - 1));
+            $chemin_ee1_table = substr($chemin_ee1_table,0,(strlen($chemin_ee1_table) - 1));
 
             // Render the graph html
             $output = $this->templating->render(
-                'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda.html.twig',
+                'ODROpenRepositoryGraphBundle:CheminEE1:chemin_ee1.html.twig',
                 array(
                     'file_names' => $file_names,
                     'file_data' => $file_data,
-                    'chemin_eda_table' => $chemin_eda_table
+                    'chemin_ee1_table' => $chemin_ee1_table
                 )
             );
             return $output;

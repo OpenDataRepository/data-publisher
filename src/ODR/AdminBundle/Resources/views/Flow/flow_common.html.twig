@@ -76,7 +76,9 @@
         var current_value = parseInt( $(id).attr('value') );
         var max_value = $(id).attr('max');
 
-        $(id).progressbar('destroy');
+        // if(typeof($(id).progressbar) == 'function') {
+            // $(id).progressbar('destroy');
+        // }
         $(id).progressbar({
             value: current_value,
             max: max_value,

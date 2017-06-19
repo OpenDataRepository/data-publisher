@@ -67,6 +67,7 @@ input,
 .ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
 .ODRShortResult > .ODRShortResults > .DataRecordShort > .Resizable,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
+.ODRResults > .ODRDataType > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
 .ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox,
 .ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement > .ODRInnerBox {
     border: 1px solid #7fb9d8;
@@ -82,6 +83,7 @@ input,
 .MenuDesignArea > .ODRThemeElement > .ODRInnerBox,
 .ODRShortResult > .ODRShortResults > .DataRecordShort,
 .ODRDesign > .ODRDataType > .ODRFieldArea > .ODRThemeElement,
+.ODRResults > .ODRDataType > .ODRFieldArea > .ODRThemeElement,
 .ODRRecord > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement,
 .ODRResults > .ODRDataType > .ODRFormAccordion > .ODRFieldArea > .ODRThemeElement  {
     /* border: 1px solid #7fb9d8; */

@@ -1,0 +1,164 @@
+{% spaceless %}
+
+<style>
+    .CheminEDATable thead {
+        color: white;
+        font-weight: bold;
+    }
+    .CheminEDATable tbody tr,
+    .CheminEDATable tbody .ODRFileDatafield,
+    .CheminEDATable tbody .ODRFileDatafield_file,
+    .CheminEDATable tbody td {
+        background: rgba(222, 235, 246, 1.0);
+    }
+    .CheminEDATable thead tr,
+    .CheminEDATable thead .ODRFileDatafield,
+    .CheminEDATable thead .ODRFileDatafield_file,
+    .CheminEDATable thead td {
+        background: rgba(158, 195, 228, 1.0);
+    }
+    tr.CheminEDASum .ODRFileDatafield,
+    tr.CheminEDASum .ODRFileDatafield_file,
+    tr.CheminEDASum td {
+        background: rgba(190, 215, 237, 1.0);
+    }
+    .CheminEDATable i {
+        color: rgba(190,215,237,1.0);
+    }
+    tr.CheminEDASum td i {
+        color: rgba(158, 195, 228, 1.0);
+    }
+</style>
+    <div class="ODRThemeElement" style="margin-bottom: 0px;">
+    <div class="ODRInnerBox">
+    <table id="{{ chemin_eda_table }}" class="dataTable CheminEDATable">
+        <thead>
+        <tr>
+            <td>EDA Products</td>
+            <td colspan="2">Images</td>
+            <td colspan="2">Patterns</td>
+            <td colspan="3">DAT, Label & Text Files</td>
+        </tr>
+        </thead>
+        <tbody>
+{% if file_names|length %}
+    {% for dr_id, file_name in file_names %}
+        {# Table row for containing files #}
+        {%  if file_name matches '{SUM}' %}
+            <tr class="CheminEDASum">
+                <td>
+                    {# FILE NAME #}
+                    {{ file_name }}
+                </td>
+                <td>
+                    {%  include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig'
+                    with {
+                    'file': file_data[dr_id]['eda_raw_tiff_file'],
+                    'display_name': "raw"
+                    }
+                    %}
+                </td>
+                <td>
+                    {%  include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig'
+                    with {
+                    'file': file_data[dr_id]['eda_tiff_file'],
+                    'display_name': "no-spot"
+                    }
+                    %}
+                </td>
+                <td>
+                    {%  include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig'
+                    with {
+                    'file': file_data[dr_id]['eda_raw_mdi_file'],
+                    'display_name': "raw"
+                    }
+                    %}
+                </td>
+                <td>
+                    {%  include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig'
+                    with {
+                    'file': file_data[dr_id]['eda_mdi_file'],
+                    'display_name': 'no-spot'
+                    }
+                    %}
+                </td>
+                <td colspan="3">
+                    {%  include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig'
+                    with {
+                    'file': file_data[dr_id]['eda_processing_description'],
+                    'display_name': 'processing_description'
+                    }
+                    %}
+                </td>
+            </tr>
+        {%  else %}
+            <tr>
+                <td>
+                    {# FILE NAME #}
+                    {{ file_name }}
+                </td>
+                <td>
+                    {%  include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig'
+                    with {
+                    'file': file_data[dr_id]['eda_raw_tiff_file'],
+                    'display_name': "raw"
+                    }
+                    %}
+                </td>
+                <td>
+                    {%  include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig'
+                    with {
+                    'file': file_data[dr_id]['eda_tiff_file'],
+                    'display_name': "no-spot"
+                    }
+                    %}
+                </td>
+                <td>
+                    {%  include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig'
+                    with {
+                    'file': file_data[dr_id]['eda_raw_mdi_file'],
+                    'display_name': "raw"
+                    }
+                    %}
+                </td>
+                <td>
+                    {%  include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig'
+                    with {
+                    'file': file_data[dr_id]['eda_mdi_file'],
+                    'display_name': 'no-spot'
+                    }
+                    %}
+                </td>
+                <td>
+                    {%  include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig'
+                    with {
+                    'file': file_data[dr_id]['eda_raw_dat_file'],
+                    'display_name': 'DAT'
+                    }
+                    %}
+                </td>
+                <td>
+                    {%  include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig'
+                    with {
+                    'file': file_data[dr_id]['eda_lbl_file'],
+                    'display_name': 'LBL'
+                    }
+                    %}
+                </td>
+                <td>
+                    {%  include 'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda_file.html.twig'
+                    with {
+                    'file': file_data[dr_id]['eda_processing_description'],
+                    'display_name': 'processing_description'
+                    }
+                    %}
+                </td>
+            </tr>
+        {% endif %}
+    {% endfor %}
+{% endif %}
+        </tbody>
+    </table>
+    </div>
+    </div>
+{% endspaceless %}

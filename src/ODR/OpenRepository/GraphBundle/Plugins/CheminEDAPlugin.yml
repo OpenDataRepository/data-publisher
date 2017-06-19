@@ -38,8 +38,4 @@ ODR\OpenRepository\GraphBundle\Plugins\CheminEDA:
             name: EDA Processing Description
             description:
             type: File
-        eda_tiff_file:
-            name: EDA Tiff File
-            description:
-            type: File
     config_options:

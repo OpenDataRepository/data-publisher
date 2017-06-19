@@ -5,14 +5,12 @@
 {% set render_plugin = datatype.dataTypeMeta.renderPlugin %}
 
 {% if render_plugin.overrideChild == 1 %}
-
     <!-- Start {{ render_plugin.pluginName }} override child html -->
     {% set rendering_options = {'is_top_level': is_top_level, 'is_link': is_link, 'display_type': display_type} %}
     {{ datarecord_array|datatype_plugin(datatype, render_plugin, theme, rendering_options)|raw }}
     <!-- End {{ render_plugin.pluginName }} override child html -->
 
 {% else %}
-
     <div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
 
         {% include 'ODRAdminBundle:Default:fieldarea_header.html.twig' with {
