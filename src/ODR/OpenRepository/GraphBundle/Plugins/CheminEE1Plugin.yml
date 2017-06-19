@@ -23,7 +23,7 @@ ODR\OpenRepository\GraphBundle\Plugins\CheminEDA:
             description:
             type: File
         ee1_processing_description:
-            name: EDA Processing Description
+            name: EE1 Processing Description
             description:
             type: File
     config_options:
