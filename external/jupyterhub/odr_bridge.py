@@ -74,6 +74,8 @@ class CreateNotebook(BridgeRequestHandler):
             return {'path': '/root/jupyterhub_apps/raman_graph_by_sample.ipynb', 'language': 'python', 'extension': '.ipynb'}
         elif (plugin_name == 'app_b'):
             return {'path': '/root/jupyterhub_apps/raman_graph_by_wavelength.ipynb', 'language': 'python', 'extension': '.ipynb'}
+        elif (plugin_name == 'app_c'):
+            return {'path': '/root/jupyterhub_apps/mars_average_soil_composition.ipynb', 'language': 'python', 'extension': '.ipynb'}
         else:
             return {'path': '/root/jupyterhub_apps/raman_graph_by_sample.ipynb', 'language': 'python', 'extension': '.ipynb'}
 

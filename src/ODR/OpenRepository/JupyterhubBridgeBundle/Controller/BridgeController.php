@@ -82,19 +82,23 @@ class BridgeController extends ODRCustomController
         $app_list = array(
             0 => array(
                 'id' => 'app_a',
-                'name' => 'Raman Rollup Graph by Sample'
+                'name' => 'Raman Rollup Graph by Sample',
             ),
             1 => array(
                 'id' => 'app_b',
-                'name' => 'Raman Rollup Graph by Wavelength'
+                'name' => 'Raman Rollup Graph by Wavelength',
             ),
             2 => array(
                 'id' => 'app_c',
-                'name' => 'XRD Rollup Graph'
+                'name' => 'Mars Average Soil',
             ),
             3 => array(
                 'id' => 'app_d',
-                'name' => 'Peak Fit'
+                'name' => 'XRD Rollup Graph',
+            ),
+            4 => array(
+                'id' => 'app_e',
+                'name' => 'Peak Fit',
             )
         );
 
@@ -236,9 +240,8 @@ class BridgeController extends ODRCustomController
                 return self::createJSONError(400, "Invalid Form");
 
             $datatype_id = $parameters->get('datatype_id');
-            $search_key = $parameters->get('search_key');
+            $search_key = urldecode( $parameters->get('search_key') );
             $app_id = $parameters->get('app_id');
-
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);

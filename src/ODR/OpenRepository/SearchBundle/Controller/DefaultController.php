@@ -1156,12 +1156,16 @@ if (isset($debug['basic'])) {
 
     if ($grandparent_ids == '') {
         print 'count($grandparent_ids): 0'."\n";
-        print 'count($public_grandparent_ids): 0'."\n";
     }
     else {
         $grandparent_ids_as_array = explode(',', $grandparent_ids);
         print 'count($grandparent_ids): '.count($grandparent_ids_as_array)."\n";
+    }
 
+    if ($public_grandparent_ids == '') {
+        print 'count($public_grandparent_ids): 0'."\n";
+    }
+    else {
         $grandparent_ids_as_array = explode(',', $public_grandparent_ids);
         print 'count($public_grandparent_ids): '.count($grandparent_ids_as_array)."\n";
     }
