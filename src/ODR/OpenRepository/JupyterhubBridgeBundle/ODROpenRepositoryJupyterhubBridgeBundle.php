@@ -20,7 +20,7 @@ use ODR\OpenRepository\SearchBundle\DependencyInjection\Compiler\ValidatorPass;
 class ODROpenRepositoryJupyterhubBridgeBundle extends Bundle
 {
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function build(ContainerBuilder $container)
     {

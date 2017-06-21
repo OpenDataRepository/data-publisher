@@ -1,0 +1,13 @@
+{% spaceless %}
+
+<div id="" style="margin-top: 25px;">
+    {% for owner in hwi_oauth_resource_owners() %}
+        {% if owner in connected_oauth_resources %}
+            <a class="odr_oauth_{{ owner }} pure-button" href="{{ path('odr_oauth_account_link_disconnect', {'resource': owner}) }}">Disconnect from {{ owner }}</a>
+        {% else %}
+            <a class="odr_oauth_{{ owner }} pure-button" href="{{ path('odr_oauth_account_link_connect', {'resource': owner}) }}">Connect to {{ owner }}</a>
+        {% endif %}
+    {% endfor %}
+</div>
+
+{% endspaceless %}

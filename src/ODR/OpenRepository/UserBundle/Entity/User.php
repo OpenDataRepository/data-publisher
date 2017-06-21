@@ -353,7 +353,7 @@ class User extends BaseUser
      */
     public function getUserLink()
     {
-        return $this->userLink;
+        return $this->userLink->first();
     }
 
     /**

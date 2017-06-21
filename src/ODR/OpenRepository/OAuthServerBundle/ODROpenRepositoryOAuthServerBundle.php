@@ -19,7 +19,7 @@ class ODROpenRepositoryOAuthServerBundle extends Bundle
 {
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getParent()
     {

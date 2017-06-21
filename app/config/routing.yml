@@ -8,9 +8,9 @@ fos_user_security:
     resource: "@FOSUserBundle/Resources/config/routing/security.xml"
 
 # routes are unused, but required so FoS:ResettingController and FoS:ChangePasswordController don't throw errors
-fos_user_profile:
-    resource: "@FOSUserBundle/Resources/config/routing/profile.xml"
-    prefix: /profile
+#fos_user_profile:
+#    resource: "@FOSUserBundle/Resources/config/routing/profile.xml"
+#    prefix: /profile
 
 # currently not allowing users to self-register to the site
 #fos_user_register:

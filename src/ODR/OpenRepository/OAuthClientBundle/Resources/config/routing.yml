@@ -1,3 +1,19 @@
+#-----------------------------------------
+# Link Controller
+odr_oauth_account_link_connect:
+    path: /admin/oauth/connect/{resource}
+    defaults: { _controller: ODROpenRepositoryOAuthClientBundle:Link:connect }
+    requirements:
+        resource: '[a-zA-Z0-9]+'
+
+odr_oauth_account_link_disconnect:
+    path: /admin/oauth/disconnect/{resource}
+    defaults: { _controller: ODROpenRepositoryOAuthClientBundle:Link:disconnect }
+    requirements:
+        resource: '[a-zA-Z0-9]+'
+
+
+#-----------------------------------------
 # Contains the routes listed in app/config/security.yml under  security: -> firewalls: -> main: -> oauth: -> resource_owners:
 # you'll need to add one route for every additional oauth provider used by the site...use the commented routes as templates
 
