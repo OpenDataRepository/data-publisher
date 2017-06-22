@@ -22,12 +22,13 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Symfony
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 
 class APIController extends ODRCustomController
 {
-
 
     /**
      * Utility function to cleanly return JSON error responses.
@@ -56,39 +57,6 @@ class APIController extends ODRCustomController
             ),
             $status_code
         );
-    }
-
-
-    /**
-     * Used by JupyterHub to determine which user has logged in via ODR's OAuth
-     *
-     * @param Request $request
-     *
-     * @return JsonResponse
-     */
-    public function userdataAction(Request $request)
-    {
-        try {
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
-
-            if ($user !== 'anon.' && $user->hasRole('ROLE_JUPYTERHUB_USER')) {
-                return new JsonResponse(
-                    array(
-                        'username' => $user->getUserString(),
-                        'email' => $user->getEmail(),
-                        'jupyterhub_username' => 'jupyter_user_'.$user->getId(),
-                        'baseurl' => $this->getParameter('site_baseurl'),
-                    )
-                );
-            }
-            else {
-                return self::createJSONError(403, 'Permission Denied');
-            }
-        }
-        catch (\Exception $e) {
-            return self::createJSONError(500, $e->getMessage());
-        }
     }
 
 

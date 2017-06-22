@@ -2129,7 +2129,7 @@ if ($debug)
      *
      * @return Response
      */
-    protected function permissionDeniedError($type = '')
+    public function permissionDeniedError($type = '')
     {
         $str = '';
         if ($type !== '')
@@ -2158,7 +2158,7 @@ if ($debug)
      *
      * @return Response
      */
-    protected function deletedEntityError($entity = '')
+    public function deletedEntityError($entity = '')
     {
         $str = '';
         if ($entity !== '')
@@ -5362,7 +5362,7 @@ if ($timing)
                 dfm, ft, df_rp, df_rpi, df_rpo, df_rpm,
                 tdt, c_dt
 
-            FROM ODRAdminBundle:dataType AS dt
+            FROM ODRAdminBundle:DataType AS dt
             LEFT JOIN dt.dataTypeMeta AS dtm
 
             LEFT JOIN dt.themes AS t

@@ -10,6 +10,8 @@ Will (hopefully) be rendered obsolete by https://github.com/jupyterhub/jupyterhu
 
 This service is necessary because getting a new OAuth access_token through the 'refresh_token' grant type also
 requires the 'client_secret' value...something which shouldn't be revealed to users running JupyterHub.
+
+TODO - ensure that this only listens to requests from localhost?
 """
 
 import json
@@ -108,7 +110,7 @@ class CreateOAuthUser(OAuthRequestHandler):
 
 class GetAccessToken(OAuthRequestHandler):
     """
-    Returns a JSON response containing the user's access token
+    Returns a JSON response containing the user's access token.
     """
 
     def get(self, user_session_token):
@@ -196,12 +198,8 @@ def make_app():
     ])
 
 if __name__ == '__main__':
-#    print( os.environ )
-#    r = requests.get( os.environ['JUPYTERHUB_API_URL'] + '/proxy', headers={'Authorization': 'token %s' % os.environ['JUPYTERHUB_API_TOKEN']} )
-#    print( r.text )
-
     app = make_app()
-    app.listen(8094)    # port number needs to match config in jupyterhub_config.py file
+    app.listen( os.environ['port_number'] )
 
     # Apparently need these lines so the service exits cleanly when the hub is shut down
     try:

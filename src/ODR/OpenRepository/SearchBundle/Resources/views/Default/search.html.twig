@@ -446,13 +446,13 @@
         var datatype_id = $("#datatype_id").val();
         search_key = $("#datatype_id").attr('name') + '=' + datatype_id;
         
-        if ( $("#textbox_general").val() !== '' )
-            search_key += divider + $("#textbox_general").attr('name') + '=' + encodeURIComponent( $("#textbox_general").val() );
+        if ( $("#textbox_general").val().trim() != '' )
+            search_key += divider + $("#textbox_general").attr('name') + '=' + encodeURIComponent( $("#textbox_general").val().trim() );
 
         $("#search_form .ODRInput").each(function() {
             var name = $(this).attr('name');
             var type = $(this).attr('type');
-            var value = $(this).attr('value');
+            var value = $(this).attr('value').trim();
 //            var datatype_id = $(this).attr('rel');
 
             if ( $(this).hasClass('ODRFileDatafieldName') ) {
@@ -498,7 +498,7 @@
 
             $(this).find('input').each(function() {
                 // Grab the radio_option_id
-                var value = $(this).attr('value');
+                var value = $(this).attr('value').trim();
                 if (value == '')
                     return;
 

@@ -1,0 +1,24 @@
+{% extends "ODROpenRepositoryOAuthServerBundle::layout.html.twig" %}
+
+{% block body %}
+    {% spaceless %}
+        {% if is_granted('ROLE_JUPYTERHUB_USER') %}
+        <h2>The application "JupyterHub" would like to connect to your account</h2>
+
+        {{ form_start(form, {'method': 'POST', 'action': path('fos_oauth_server_authorize'), 'label_attr': {'class': 'fos_oauth_server_authorize pure-form pure-form-aligned'} }) }}
+            <button class="pure-button" type="submit" name="rejected">{{ 'authorize.reject'|trans({}, 'FOSOAuthServerBundle') }}</button>
+            <button class="pure-button pure-button-primary" type="submit" name="accepted">{{ 'authorize.accept'|trans({}, 'FOSOAuthServerBundle') }}</button>
+
+            {{ form_row(form.client_id) }}
+            {{ form_row(form.response_type) }}
+            {{ form_row(form.redirect_uri) }}
+            {{ form_row(form.state) }}
+            {{ form_row(form.scope) }}
+            {{ form_rest(form) }}
+
+        {{ form_end(form) }}
+        {% else %}
+            <h2>You don't have the correct ODR Role to be able to do this.</h2>
+        {% endif %}
+    {% endspaceless %}
+{% endblock body %}

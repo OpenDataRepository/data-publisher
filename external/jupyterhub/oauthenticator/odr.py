@@ -52,6 +52,11 @@ class LocalODROAuthenticator(LocalAuthenticator, ODROAuthenticator):
         config=True,
         help="TODO"
     )
+    manager_port = Unicode(
+        os.environ.get('OAUTH2_MANAGER_PORT', ''),
+        config=True,
+        help="TODO"
+    )
     token_url = Unicode(
         os.environ.get('OAUTH2_TOKEN_URL', ''),
         config=True,
@@ -83,6 +88,7 @@ class LocalODROAuthenticator(LocalAuthenticator, ODROAuthenticator):
         spawner.env.update({
             'ODR_BASEURL': self.odr_baseurl,
             'OAUTH_SESSION_TOKEN': oauth_session_token,
+            'OAUTH_MANAGER_PORT': self.manager_port,
         })
 
         # Build an API request so the OAuth_manager can store the user's data
@@ -97,7 +103,7 @@ class LocalODROAuthenticator(LocalAuthenticator, ODROAuthenticator):
         params = json.dumps(params)
 
         req = HTTPRequest(
-            'http://127.0.0.1:8094/services/odr_oauth_manager/create_user',
+            'http://127.0.0.1:' + self.manager_port + '/services/odr_oauth_manager/create_user',
             method="POST",
             body=params,
         )
@@ -110,6 +116,9 @@ class LocalODROAuthenticator(LocalAuthenticator, ODROAuthenticator):
         shutil.copyfile('/root/odr_env.py', '/home/' + user.name + '/odr_env.py')
         shutil.copystat('/root/odr_env.py', '/home/' + user.name + '/odr_env.py')
 
+        shutil.copyfile('/root/odr_env_readme.md', '/home/' + user.name + '/odr_env_readme.md')
+        shutil.copystat('/root/odr_env_readme.md', '/home/' + user.name + '/odr_env_readme.md')
+
 
     @gen.coroutine
     def authenticate(self, handler, data=None):
@@ -118,7 +127,6 @@ class LocalODROAuthenticator(LocalAuthenticator, ODROAuthenticator):
             raise web.HTTPError(400, "(ODR) oauth callback made without a token")
         # TODO: Configure the curl_httpclient for tornado
         http_client = AsyncHTTPClient()
-
 
         # Request an authorization code from ODR
         params = dict(

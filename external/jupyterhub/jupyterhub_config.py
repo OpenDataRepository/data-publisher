@@ -23,25 +23,49 @@ c.LocalAuthenticator.create_system_users = True
 
 # Needed to secure a route to the OAuth token manager...can use "openssl rand -hex 32".  Shouldn't match other keys.
 c.ODROAuthenticator.manager_token = '[[ ENTER SOME SECRET KEY HERE ]]'
+c.ODROAuthenticator.manager_port = '8094'
 
 # API tokens to allow JupyterHub services to communicate with JupyterHub's API...can use "openssl rand -hex 32".
 c.JupyterHub.service_tokens = {
-    '[[ ENTER SOME OTHER SECRET KEY HERE ]]': 'odr_oauth_manager'
+    '[[ ENTER SOME OTHER SECRET KEY HERE ]]': 'odr_oauth_manager',
+    '[[ ENTER YET ANOTHER SECRET KEY HERE ]]': 'odr_external',
+    '[[ ENTER SECRET KEY #3 HERE ]]': 'odr_bridge',
 }
+
+# Needed to secure a route between ODR and jupyterhub
+odr_bridge_token = '94ac21355439dd04e04f07e4416a3d494a8afb36158f2720c79c1400587c3051'
+odr_bridge_port = '9642'
 
 # JupyterHub service definition
 c.JupyterHub.services = [
     {
         'name': 'odr_oauth_manager',
-        'admin': True,      # DEBUG - needed to test access to jupyterhub api
+        'admin': False,
         'command': ['python', 'odr_oauth_manager.py'],
-        'url': 'http://127.0.0.1:8094',     # port number needs to match value defined towards the end of odr_oauth_manager.py
+        'url': 'http://127.0.0.1:' + c.ODROAuthenticator.manager_port,
         'environment': {
+            'port_number': c.ODROAuthenticator.manager_port,
+
             'oauth_client_id': c.ODROAuthenticator.client_id,
             'oauth_client_secret': c.ODROAuthenticator.client_secret,
             'oauth_token_url': c.ODROAuthenticator.token_url,
 
             'oauth_manager_token': c.ODROAuthenticator.manager_token,
+        },
+    },
+    {
+        'name': 'odr_external',
+        'admin': True,      # Needs access to jupyterhub api
+        'url': odr_base_url
+    },
+    {
+        'name': 'odr_bridge',
+        'admin': False,
+        'command': ['python', 'odr_bridge.py'],
+        'url': 'http://127.0.0.1:' + odr_bridge_port,
+        'environment': {
+            'bridge_token': odr_bridge_token,
+            'port_number': odr_bridge_port,
         },
     }
 ]

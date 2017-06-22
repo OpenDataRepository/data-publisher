@@ -85,6 +85,10 @@
 
 <button id="ODRProfileSave" class="pure-button pure-button-primary">Save</button>
 
+{% if self_edit and has_oauth_providers %}
+    {% include 'ODROpenRepositoryOAuthClientBundle:Default:oauth_provider_list.html.twig' with {'user': target_user, 'connected_oauth_resources': connected_oauth_resources} %}
+{% endif %}
+
 <script>
     $(function() {
         $("#saved").hide();
@@ -96,7 +100,7 @@
 
     function saveProfileForm() {
 
-{% if self_edit == 'true' %}
+{% if self_edit %}
         var url = "{{ path('odr_self_profile_save') }}";
 {% else %}
         var url = "{{ path('odr_profile_save') }}";

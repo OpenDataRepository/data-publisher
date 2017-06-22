@@ -3945,8 +3945,9 @@ class DisplaytemplateController extends ODRCustomController
                     // ...check that the new search slug isn't going to collide with other parts of the site
                     // TODO - make this automatic based on contents of routing files?
                     $invalid_slugs = array(
-                        "admin", "api", "beanstalk", "design", "edit", "jobs", "login", "logout", "profile", "search", "view",
-                        "app", "bin", "docs", "src", "vendor", "web",
+                        "admin", "api", "app", "beanstalk", "bin", "design", "docs", "edit", "jobs", "login",
+                        "login-check", "logout", "oauth", "profile", "redirect", "resetting", "save_fragment", "search", "src", "vendor",
+                        "view", "web",
                     );
                     if ( in_array($submitted_data->getSearchSlug(), $invalid_slugs) )
                         $datatype_form->addError( new FormError('This abbreviation is reserved for use by ODR') );

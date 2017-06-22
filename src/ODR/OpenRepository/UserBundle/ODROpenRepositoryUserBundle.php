@@ -21,7 +21,7 @@ class ODROpenRepositoryUserBundle extends Bundle
 {
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function getParent()
     {
@@ -30,7 +30,7 @@ class ODROpenRepositoryUserBundle extends Bundle
 
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function build(ContainerBuilder $container)
     {

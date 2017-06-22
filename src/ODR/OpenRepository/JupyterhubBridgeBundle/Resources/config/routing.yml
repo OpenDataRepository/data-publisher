@@ -1,0 +1,16 @@
+#-----------------------------------------
+# Bridge Controller
+odr_api_userdata:
+    path: /api/userdata
+    defaults: { _controller: ODROpenRepositoryJupyterhubBridgeBundle:Bridge:userdata }
+
+odr_jupyterhub_app_list:
+    path: /admin/jupyterhub/app_list/{datatype_id}
+    defaults: { _controller: ODROpenRepositoryJupyterhubBridgeBundle:Bridge:applist }
+    requirements:
+        datatype_id: \d+
+
+odr_jupyterhub_export:
+    path: /admin/jupyterhub/export
+    defaults: { _controller: ODROpenRepositoryJupyterhubBridgeBundle:Bridge:jupyterhubexport }
+    requirements: { methods: POST }

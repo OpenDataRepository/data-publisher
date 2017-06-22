@@ -20,11 +20,12 @@ namespace ODR\AdminBundle\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
-// Entities
+// ODR
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+use ODR\OpenRepository\OAuthClientBundle\Entity\UserLink;
 // Forms
 use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
 use ODR\AdminBundle\Form\ODRUserProfileForm;
@@ -284,10 +285,38 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // ----------------------------------------
             // Grab the specified user
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
+            // User is doing this to his own profile, by definition
+            $self_edit = true;
+
+
+            // TODO - disable if HWIOAuthBundle isn't installed?
+            // Store whether any OAuth providers have been configured
+            $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
+            $resource_owners = $oauth_utils->getResourceOwners();
+
+            $connected_oauth_resources = array();
+            $has_oauth_providers = false;
+            if ( count($resource_owners) > 0 ) {
+                $has_oauth_providers = true;
+
+                // Users should never be able to see or change the connected OAuth accounts of other users
+                if ($self_edit) {
+                    // Attempt to figure out which OAuth providers the user is already connected to
+                    foreach ($user->getUserLink() as $ul) {
+                        /** @var UserLink $ul */
+                        if ( $ul->getProviderName() !== null && $ul->getProviderId() !== null )
+                            $connected_oauth_resources[] = $ul->getProviderName();
+                    }
+                }
+            }
+
+
+            // ----------------------------------------
             // Create a new form to edit the user
             $form = $this->createForm(ODRUserProfileForm::class, $user, array('target_user_id' => $user->getId()));
 
@@ -300,7 +329,10 @@ class ODRUserController extends ODRCustomController
                         'profile_form' => $form->createView(),
                         'current_user' => $user,
                         'target_user' => $user,
-                        'self_edit' => 'true',
+                        'self_edit' => $self_edit,
+
+                        'has_oauth_providers' => $has_oauth_providers,
+                        'connected_oauth_resources' => $connected_oauth_resources,
                     )
                 )
             );
@@ -379,9 +411,33 @@ class ODRUserController extends ODRCustomController
             }
             // --------------------
 
-            $self_edit = 'false';
+            // Store whether the user is doing this to his own profile or not
+            $self_edit = false;
             if ($admin->getId() == $user_id)
-                $self_edit = 'true';
+                $self_edit = true;
+
+
+            // TODO - disable if HWIOAuthBundle isn't installed?
+            // Store whether any OAuth providers have been configured
+            $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
+            $resource_owners = $oauth_utils->getResourceOwners();
+
+            $connected_oauth_resources = array();
+            $has_oauth_providers = false;
+            if ( count($resource_owners) > 0 ) {
+                $has_oauth_providers = true;
+
+                // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
+                if ($self_edit) {
+                    // Attempt to figure out which OAuth providers the user is already connected to
+                    foreach ($user->getUserLink() as $ul) {
+                        /** @var UserLink $ul */
+                        if ( $ul->getProviderName() !== null && $ul->getProviderId() !== null )
+                            $connected_oauth_resources[] = $ul->getProviderName();
+                    }
+                }
+            }
+
 
             // Create a new form to edit the user
             $form = $this->createForm(ODRUserProfileForm::class, $user, array('target_user_id' => $user->getId()));
@@ -396,6 +452,9 @@ class ODRUserController extends ODRCustomController
                         'current_user' => $admin,
                         'target_user' => $user,
                         'self_edit' => $self_edit,
+
+                        'has_oauth_providers' => $has_oauth_providers,
+                        'connected_oauth_resources' => $connected_oauth_resources,
                     )
                 )
             );

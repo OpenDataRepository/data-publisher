@@ -17,33 +17,40 @@
 
 {% block body %}
     <section id="content" class="container_12 clearfix">
+        <div class="ODROAuthProviderList">
+            {% include "ODROpenRepositoryOAuthClientBundle:Connect:login.html.twig" %}
+        </div>
+
         <div id="login_wrapper" style="text-align:center; margin-top:10px;">
             <div>
-            {% if is_granted("IS_AUTHENTICATED_REMEMBERED") %}
-                {{ 'layout.logged_in_as'|trans({'%username%': app.user.username}, 'FOSUserBundle') }} |
-                <a href="{{ path('fos_user_security_logout') }}">
-                    {{ 'layout.logout'|trans({}, 'FOSUserBundle') }}
-                </a>
-            {% else %}
-                <a href="{{ path('fos_user_security_login') }}">{{ 'layout.login'|trans({}, 'FOSUserBundle') }}</a>
-            {% endif %}
+                {% if is_granted("IS_AUTHENTICATED_REMEMBERED") %}
+                    {{ 'layout.logged_in_as'|trans({'%username%': app.user.username}, 'FOSUserBundle') }} |
+                    <a href="{{ path('fos_user_security_logout') }}">
+                        {{ 'layout.logout'|trans({}, 'FOSUserBundle') }}
+                    </a>
+                {% else %}
+                    {# Don't display a link to log in here #}
+                    {#<a href="{{ path('fos_user_security_login') }}">{{ 'layout.login'|trans({}, 'FOSUserBundle') }}</a>#}
+                {% endif %}
             </div>
 
-            {% for key, message in app.session.flashbag.all() %}
-            <div class="{{ key }}">
-                {{ message|trans({}, 'FOSUserBundle') }}
-{#
-{{ dump(key) }}
-{{ dump(message) }}
-#}
-            </div>
-            {% endfor %}
+            {# Doesn't seem to really do anything #}
+            {% if app.request.hasPreviousSession %}
+                {% for type, messages in app.session.flashbag.all() %}
+                    {% for message in messages %}
+                        <div class="flash-{{ type }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+            {% endif %}
 
             <div>
                 {% block fos_user_content %}
                     {#{% include 'ODRLoginBundle:Security:login.html.twig' %}#}
                 {% endblock fos_user_content %}
             </div>
+
         </div>
     </section>
 {% endblock body %}

@@ -1,0 +1,4 @@
+
+{% for owner in hwi_oauth_resource_owners() %}
+    <a class="odr_oauth_{{ owner }} pure-button" href="{{ hwi_oauth_login_url(owner) }}">Log in using {{ owner }}</a>
+{% endfor %}
