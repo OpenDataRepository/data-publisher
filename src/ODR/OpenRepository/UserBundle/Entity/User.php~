@@ -334,26 +334,13 @@ class User extends BaseUser
     private $userLink;
 
     /**
-     * Set UserLink
-     *
-     * @param \ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink
-     * @return User
-     */
-    public function setUserLink(\ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink)
-    {
-        $this->userLink = $userLink;
-
-        return $this;
-    }
-
-    /**
      * Get UserLink
      *
-     * @return \ODR\OpenRepository\OAuthClientBundle\Entity\UserLink
+     * @return \Doctrine\Common\Collections\Collection
      */
     public function getUserLink()
     {
-        return $this->userLink->first();
+        return $this->userLink;
     }
 
     /**

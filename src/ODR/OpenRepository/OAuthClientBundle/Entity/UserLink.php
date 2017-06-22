@@ -35,25 +35,16 @@ class UserLink
 
     /**
      * @var string
-     * @ORM\Column(name="github_id", type="string", length=255, nullable=true)
+     * @ORM\Column(name="provider_name", type="string", length=255, nullable=true)
      */
-    private $githubId;
+    private $providerName;
 
     /**
      * @var string
+     * @ORM\Column(name="provider_id", type="string", length=255, nullable=true)
      */
-    private $githubAccessToken;
+    private $providerId;
 
-    /**
-     * @var string
-     * @ORM\Column(name="google_id", type="string", length=255, nullable=true)
-     */
-    private $googleId;
-
-    /**
-     * @var string
-     */
-    private $googleAccessToken;
 
     /**
      * @inheritdoc
@@ -96,94 +87,48 @@ class UserLink
     }
 
     /**
-     * Set GithubId
+     * Set ProviderName
      *
-     * @param $githubId
+     * @param $providerName
      * @return UserLink
      */
-    public function setGithubId($githubId)
+    public function setProviderName($providerName)
     {
-        $this->githubId = $githubId;
+        $this->providerName = $providerName;
 
         return $this;
     }
 
     /**
-     * Get GithubId
+     * Get ProviderName
      *
      * @return string
      */
-    public function getGithubId()
+    public function getProviderName()
     {
-        return $this->githubId;
+        return $this->providerName;
     }
 
     /**
-     * Set GithubAccessToken
+     * Set ProviderId
      *
-     * @param $githubAccessToken
+     * @param $providerId
      * @return UserLink
      */
-    public function setGithubAccessToken($githubAccessToken)
+    public function setProviderId($providerId)
     {
-        $this->githubAccessToken = $githubAccessToken;
+        $this->providerId = $providerId;
 
         return $this;
     }
 
     /**
-     * Get GithubAccessToken
+     * Get ProviderId
      *
      * @return string
      */
-    public function getGithubAccessToken()
+    public function getProviderId()
     {
-        return $this->githubAccessToken;
-    }
-
-    /**
-     * Set GoogleId
-     *
-     * @param $googleId
-     * @return UserLink
-     */
-    public function setGoogleId($googleId)
-    {
-        $this->googleId = $googleId;
-
-        return $this;
-    }
-
-    /**
-     * Get GoogleId
-     *
-     * @return string
-     */
-    public function getGoogleId()
-    {
-        return $this->googleId;
-    }
-
-    /**
-     * Set GoogleAccessToken
-     *
-     * @param $googleAccessToken
-     * @return UserLink
-     */
-    public function setGoogleAccessToken($googleAccessToken)
-    {
-        $this->googleAccessToken = $googleAccessToken;
-
-        return $this;
-    }
-
-    /**
-     * Get GoogleAccessToken
-     *
-     * @return string
-     */
-    public function getGoogleAccessToken()
-    {
-        return $this->googleAccessToken;
+        return $this->providerId;
     }
 }

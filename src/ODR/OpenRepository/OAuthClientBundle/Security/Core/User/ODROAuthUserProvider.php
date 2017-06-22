@@ -20,7 +20,6 @@ namespace ODR\OpenRepository\OAuthClientBundle\Security\Core\User;
 use ODR\OpenRepository\OAuthClientBundle\Entity\UserLink;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Doctrine
-use Doctrine\Common\Persistence\ObjectRepository;
 use Doctrine\ORM\EntityManager;
 // HWIOAuthBundle
 use HWI\Bundle\OAuthBundle\OAuth\Response\UserResponseInterface;
@@ -47,16 +46,6 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
     protected $session;
 
     /**
-     * @var string
-     */
-    protected $class;
-
-    /**
-     * @var ObjectRepository
-     */
-    protected $repository;
-
-    /**
      * @var array
      */
     protected $properties = array(
@@ -68,14 +57,12 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
      *
      * @param EntityManager $em
      * @param Session       $session
-     * @param string        $class       user entity class to load
      * @param array         $properties  Mapping of resource owners to properties
      */
-    public function __construct(EntityManager $em, Session $session, $class, array $properties)
+    public function __construct(EntityManager $em, Session $session, array $properties)
     {
         $this->em = $em;
         $this->session = $session;
-        $this->class = $class;
         $this->properties = array_merge($this->properties, $properties);
     }
 
@@ -166,10 +153,10 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
     private function findUser(array $criteria)
     {
         // Tweak the provided criteria to make it easier for DQL to locate the correct user
-        $criteria_key = $criteria_value = null;
+        $provider_name = $provider_id = null;
         foreach ($criteria as $key => $value) {
-            $criteria_key = $key;
-            $criteria_value = $value;
+            $provider_name = substr($key, 0, -2);
+            $provider_id = $value;
         }
 
         // Attempt to locate the correct user based off the provided criteria
@@ -177,9 +164,9 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
            'SELECT u
             FROM ODROpenRepositoryUserBundle:User AS u
             JOIN ODROpenRepositoryOAuthClientBundle:UserLink AS ul WITH ul.user = u
-            WHERE ul.'.$criteria_key.' = :criteria
+            WHERE ul.providerName = :provider_name AND ul.providerId = :provider_id
             AND u.enabled = 1'
-        )->setParameters( array('criteria' => $criteria_value) );
+        )->setParameters( array('provider_name' => $provider_name, 'provider_id' => $provider_id) );
         $result = $query->getResult();
 
         // Would like to use $query->getSingleResult(), but apparently that throws an exception when nothing found...
@@ -201,40 +188,48 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
      */
     private function connectUser($user_id, $criteria)
     {
-        if (null === $this->repository)
-            $this->repository = $this->em->getRepository($this->class);
-
         // Tweak the provided criteria
-        $criteria_key = $criteria_value = null;
+        $provider_name = $provider_id = null;
         foreach ($criteria as $key => $value) {
-            $criteria_key = $key;
-            $criteria_value = $value;
+            $provider_name = substr($key, 0, -2);
+            $provider_id = $value;
         }
+
+        // Don't continue if a user is already connected to this criteria
+        // TODO - do something more comphrehensive than just refusing to connect?
+        $user_link = $this->em->getRepository("ODROpenRepositoryOAuthClientBundle:UserLink")->findOneBy( array('providerName' => $provider_name, 'providerId' => $provider_id) );
+        if ($user_link)
+            throw new \RuntimeException("Unable to connect account");
 
         /** @var ODRUser $user */
         // Load the user and its associated UserLink entry
-        $user = $this->repository->find($user_id);
+        $user = $this->em->getRepository("ODROpenRepositoryUserBundle:User")->find($user_id);
         if (!$user)
             throw new \RuntimeException("Invalid User");
 
-        $user_link = $user->getUserLink();
+
+        // Locate an unused UserLink entity for this user if possible
+        $user_link = null;
+        foreach ($user->getUserLink() as $ul) {
+            /** @var UserLink $ul */
+            if ($ul->getProviderName() == null) {
+                $user_link = $ul;
+                break;
+            }
+        }
+
+        // Ensure UserLink entity exists
         if (!$user_link) {
-            // UserLink entry doesn't exist, create it
             $user_link = new UserLink();
             $user_link->setUser( $user );
         }
 
-        $accessor = PropertyAccess::createPropertyAccessor();
-        if ( $accessor->isWritable($user_link, $criteria_key) ) {
-            // Set the id for this OAuth provider to null
-            $accessor->setValue($user_link, $criteria_key, $criteria_value);
+        // Set this UserLink entity to have the correct provider name/id
+        $user_link->setProviderName($provider_name);
+        $user_link->setProviderId($provider_id);
 
-            // Done here, persist, flush, and continue
-            $this->em->persist($user_link);
-            $this->em->flush();
-        }
-        else {
-            throw new \RuntimeException('Unable to connect account');
-        }
+        // Done here, persist, flush, and continue
+        $this->em->persist($user_link);
+        $this->em->flush();
     }
 }

@@ -192,7 +192,7 @@ services:
 
     odr.openrepository.oauthclient.oauth_user_provider:
         class: ODR\OpenRepository\OAuthClientBundle\Security\Core\User\ODROAuthUserProvider
-        # keys need to match the key of the resource owners in these various configuration files
-        # the value for each needs to be the associated DQL term to identify this resource owner in the ODROpenRepositoryOAuthClientBundle:UserLink entity
-        # e.g.  {GitHub: githubId, Google: googleId}
-        arguments: [@doctrine.orm.entity_manager, "ODROpenRepositoryUserBundle:User", {}]
+        # for the third argument, keys need to match the key of the resource owners in these various configuration files
+        # the value for each needs to be the lowercase resource owner key, followed by "Id"
+        # e.g.  arguments: [@doctrine.orm.entity_manager, @session, {GitHub: githubId, Google: googleId}]
+        arguments: [@doctrine.orm.entity_manager, @session, {}]

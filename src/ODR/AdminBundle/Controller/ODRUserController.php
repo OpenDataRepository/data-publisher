@@ -25,6 +25,7 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
+use ODR\OpenRepository\OAuthClientBundle\Entity\UserLink;
 // Forms
 use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
 use ODR\AdminBundle\Form\ODRUserProfileForm;
@@ -32,7 +33,6 @@ use ODR\AdminBundle\Form\ODRUserProfileForm;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\PropertyAccess\PropertyAccess;
 
 
 class ODRUserController extends ODRCustomController
@@ -307,14 +307,10 @@ class ODRUserController extends ODRCustomController
                 // Users should never be able to see or change the connected OAuth accounts of other users
                 if ($self_edit) {
                     // Attempt to figure out which OAuth providers the user is already connected to
-                    $user_link = $user->getUserLink();
-                    if ($user_link) {
-                        $accessor = PropertyAccess::createPropertyAccessor();
-
-                        foreach ($resource_owners as $num => $owner_name) {
-                            if ($accessor->isReadable($user_link, $owner_name.'Id') && $accessor->getValue($user_link, $owner_name.'Id') !== null)
-                                $connected_oauth_resources[] = $owner_name;
-                        }
+                    foreach ($user->getUserLink() as $ul) {
+                        /** @var UserLink $ul */
+                        if ( $ul->getProviderName() !== null && $ul->getProviderId() !== null )
+                            $connected_oauth_resources[] = $ul->getProviderName();
                     }
                 }
             }
@@ -434,14 +430,10 @@ class ODRUserController extends ODRCustomController
                 // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
                 if ($self_edit) {
                     // Attempt to figure out which OAuth providers the user is already connected to
-                    $user_link = $user->getUserLink();
-                    if ($user_link) {
-                        $accessor = PropertyAccess::createPropertyAccessor();
-
-                        foreach ($resource_owners as $num => $owner_name) {
-                            if ($accessor->isReadable($user_link, $owner_name.'Id') && $accessor->getValue($user_link, $owner_name.'Id') !== null)
-                                $connected_oauth_resources[] = $owner_name;
-                        }
+                    foreach ($user->getUserLink() as $ul) {
+                        /** @var UserLink $ul */
+                        if ( $ul->getProviderName() !== null && $ul->getProviderId() !== null )
+                            $connected_oauth_resources[] = $ul->getProviderName();
                     }
                 }
             }

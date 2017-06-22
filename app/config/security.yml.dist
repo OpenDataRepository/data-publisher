@@ -109,6 +109,7 @@ security:
 ##########
 # Regular use of site for logged-in users
         - { path: ^/redirect, role: ROLE_USER }                   # redirects after logging in
+        - { path: ^/admin/oauth, role: ROLE_USER }                # ability to connect/disconnect OAuth provider accounts
 
         - { path: ^/admin$, role: ROLE_USER }                     # front page
         - { path: ^/admin/dashboard, role: ROLE_USER }            # dashboard
