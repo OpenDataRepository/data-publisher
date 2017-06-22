@@ -266,11 +266,8 @@ def downloadFileToDisk(file_id):
         raise ValueError('file_id must be numeric')
 
     # Attempt to download the file from ODR
-    api_url = os.environ['ODR_BASEURL'] + '/api/file_download/' + str(file_id) + '?access_token=' + __getAccessToken()      # TODO - needs to deal with expired access token
-
-    r = requests.get(api_url, stream=True)
-    if (r.status_code != 200):
-        raise RuntimeError( r.json() )
+    api_url = os.environ['ODR_BASEURL'] + '/api/file_download/' + str(file_id)
+    r = _makeFileRequest(api_url)
 
     # Name of file is stored within the Content-Disposition header, which is 'attachment; filename="<filename>";'
     filename_header = r.headers['Content-Disposition']
@@ -305,11 +302,8 @@ def downloadFile(file_id):
         raise ValueError('file_id must be numeric')
 
     # Attempt to download the file from ODR
-    api_url = os.environ['ODR_BASEURL'] + '/api/file_download/' + str(file_id) + '?access_token=' + __getAccessToken()      # TODO - needs to deal with expired access token
-
-    r = requests.get(api_url, stream=True)
-    if (r.status_code != 200):
-        raise RuntimeError( r.json() )
+    api_url = os.environ['ODR_BASEURL'] + '/api/file_download/' + str(file_id)
+    r = _makeFileRequest(api_url)
 
     # Name of file is stored within the Content-Disposition header, which is 'attachment; filename="<filename>";'
     filename_header = r.headers['Content-Disposition']
@@ -324,3 +318,62 @@ def downloadFile(file_id):
         file_contents = b"".join([file_contents, chunk])
 
     return file_contents
+
+
+def _makeFileRequest(api_url):
+    """
+    Attempts to download the specified file from ODR.
+
+    Returns the request object holding the file download response
+    """
+
+    # Run the http request
+    access_token = __getAccessToken()
+    r = requests.get(api_url + '?access_token=' + access_token, stream=True)
+
+    if (r.status_code == 200):
+        # Nothing went wrong, return the response
+        return r
+    else:
+        data = json.loads(r.text)
+
+        if "d" in data:
+            # Got an ODR error...TODO - FIX ODR SO ITS ERRORS ARE CONSISTENT
+            raise RuntimeError( data )
+        elif "error_description" in data:
+            # Got an OAuth error, assume it's most likely to be an access token issue...
+            if data['error_description'] == 'The access token provided has expired.':
+                # Attempt to get a new access token
+                result = __useRefreshToken()
+
+                if 'access_token' not in result:
+                    # Something happened while trying to get a new access_token, abort
+                    raise RuntimeError( result )
+                else:
+                    new_access_token = result['access_token']
+
+                # Run the http request again with the new access token
+                r = requests.get(api_url + '?access_token=' + new_access_token, stream=True)
+                if (r.status_code == 200):
+                    # Nothing went wrong, return the response
+                    return r
+                else:
+                    data = json.loads(r.text)
+
+                    if "d" in data:
+                        # Got an ODR error on the second request...TODO - FIX ODR SO ITS ERRORS ARE CONSISTENT
+                        raise RuntimeError( data )
+                    elif "error_description" in data:
+                        # Got an OAUth error again, most likely the refresh token is no longer valid
+                        raise RuntimeError( data['error_description'] + "\nTry logging out, and then logging back into JupyterHub to fix this...")
+                    else:
+                        # Something completely unexpected happened on the second request, abort
+                        raise RuntimeError( data )
+
+            else:
+                # Some other unexpected OAuth error, abort
+                raise RuntimeError( data['error_description'] )
+
+        else:
+            # Something completely unexpected happened on the first request, abort
+            raise RuntimeError( data )
