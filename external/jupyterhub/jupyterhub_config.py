@@ -33,7 +33,7 @@ c.JupyterHub.service_tokens = {
 }
 
 # Needed to secure a route between ODR and jupyterhub
-odr_bridge_token = '94ac21355439dd04e04f07e4416a3d494a8afb36158f2720c79c1400587c3051'
+odr_bridge_token = '[[ ENTER SECRET KEY #4 HERE ]]'
 odr_bridge_port = '9642'
 
 # JupyterHub service definition
@@ -56,7 +56,6 @@ c.JupyterHub.services = [
     {
         'name': 'odr_external',
         'admin': True,      # Needs access to jupyterhub api
-        'url': odr_base_url
     },
     {
         'name': 'odr_bridge',
