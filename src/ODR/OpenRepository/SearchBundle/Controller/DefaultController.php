@@ -455,24 +455,37 @@ exit();
 
                 // Determine whether the user is allowed to view the background image datafield
                 $df = $target_datatype->getBackgroundImageField();
-                if ( $df->isPublic() || ( isset($datafield_permissions[$df->getId()]) && isset($datafield_permissions[$df->getId()]['view']) ) ) {
+
+                $can_view_datafield = false;
+                if ( isset($datafield_permissions[$df->getId()]) && isset($datafield_permissions[$df->getId()]['view']) )
+                    $can_view_datafield = true;
+
+                if ( $df->isPublic() || $can_view_datafield ) {
                     $query = null;
                     if ($can_view_datarecord) {
+                        // Users without the $can_view_datarecord permission can only all images in all datarecords of this datatype
                         $query = $em->createQuery(
                            'SELECT i.id AS image_id
-                            FROM ODRAdminBundle:Image AS i
-                            WHERE i.original = 1 AND i.dataField = :datafield_id
-                            AND i.deletedAt IS NULL'
-                        )->setParameters( array('datafield_id' => $df->getId()) );
+                            FROM ODRAdminBundle:Image as i
+                            JOIN ODRAdminBundle:DataRecordFields AS drf WITH i.dataRecordFields = drf
+                            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                            WHERE i.original = 1 AND i.dataField = :datafield_id AND i.encrypt_key != :encrypt_key
+                            AND i.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
+                        )->setParameters( array('datafield_id' => $df->getId(), 'encrypt_key' => '') );
                     }
                     else {
+                        // Users without the $can_view_datarecord permission can only view public images in public datarecords of this datatype
                         $query = $em->createQuery(
                            'SELECT i.id AS image_id
-                            FROM ODRAdminBundle:Image AS i
+                            FROM ODRAdminBundle:Image as i
                             JOIN ODRAdminBundle:ImageMeta AS im WITH im.image = i
-                            WHERE i.original = 1 AND i.dataField = :datafield_id AND im.publicDate NOT LIKE :public_date
-                            AND i.deletedAt IS NULL AND im.deletedAt IS NULL'
-                        )->setParameters( array('datafield_id' => $df->getId(), 'public_date' => '2200-01-01 00:00:00') );
+                            JOIN ODRAdminBundle:DataRecordFields AS drf WITH i.dataRecordFields = drf
+                            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                            JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                            WHERE i.original = 1 AND i.dataField = :datafield_id AND i.encrypt_key != :encrypt_key
+                            AND im.publicDate NOT LIKE :public_date AND drm.publicDate NOT LIKE :public_date
+                            AND i.deletedAt IS NULL AND im.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
+                        )->setParameters( array('datafield_id' => $df->getId(), 'encrypt_key' => '', 'public_date' => '2200-01-01 00:00:00') );
                     }
                     $results = $query->getArrayResult();
 
