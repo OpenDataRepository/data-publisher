@@ -50,12 +50,13 @@
                 <td class="ODRCenterText">
                     <input id="sadmin_{{ user.id }}" onclick="setRole('sadmin_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 7 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
                 </td>
-
+{#
                 {% if using_jupyterhub %}
                     <td class="ODRCenterText">
                         <input id="jupyterhub_{{ user.id }}" onclick="setRole('jupyterhub_{{ user.id }}');" type="checkbox" name="user_{{ user.id }}" {% if user.hasRole('ROLE_JUPYTERHUB_USER') %}checked{% endif %} />
                     </td>
                 {% endif %}
+#}
             </tr>
             {% endif %}
 

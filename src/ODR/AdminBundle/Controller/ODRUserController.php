@@ -1045,6 +1045,7 @@ class ODRUserController extends ODRCustomController
 //                throw new \Exception('Unable to change role of another Super-Admin');
 
 
+/*
             // ----------------------------------------
             // Determine whether the Jupyterhub role needs to be dealt with
             $using_jupyterhub = false;
@@ -1061,7 +1062,7 @@ class ODRUserController extends ODRCustomController
                 else
                     $user->addRole('ROLE_JUPYTERHUB_USER');
             }
-
+*/
 
             // ----------------------------------------
             // Users are only allowed to have one of the ODR-specific roles at once

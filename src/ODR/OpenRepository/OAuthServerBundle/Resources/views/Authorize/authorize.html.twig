@@ -2,7 +2,9 @@
 
 {% block body %}
     {% spaceless %}
+{#
         {% if is_granted('ROLE_JUPYTERHUB_USER') %}
+#}
         <h2>The application "JupyterHub" would like to connect to your account</h2>
 
         {{ form_start(form, {'method': 'POST', 'action': path('fos_oauth_server_authorize'), 'label_attr': {'class': 'fos_oauth_server_authorize pure-form pure-form-aligned'} }) }}
@@ -17,8 +19,10 @@
             {{ form_rest(form) }}
 
         {{ form_end(form) }}
+{#
         {% else %}
             <h2>You don't have the correct ODR Role to be able to do this.</h2>
         {% endif %}
+#}
     {% endspaceless %}
 {% endblock body %}

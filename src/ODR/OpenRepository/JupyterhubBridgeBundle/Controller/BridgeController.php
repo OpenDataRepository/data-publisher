@@ -119,7 +119,7 @@ class BridgeController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
 
-            if ($user !== 'anon.' && $user->hasRole('ROLE_JUPYTERHUB_USER')) {
+            if ($user !== 'anon.' /*&& $user->hasRole('ROLE_JUPYTERHUB_USER')*/ ) {
                 return new JsonResponse(
                     array(
                         'id' => $user->getEmail(),
@@ -168,7 +168,7 @@ class BridgeController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             if ($user === 'anon.')
                 return self::createJSONError(401);
-            if ( !$user->hasRole('ROLE_ADMIN') || !$user->hasRole('ROLE_JUPYTERHUB_USER') )
+            if ( !$user->hasRole('ROLE_USER')/* || !$user->hasRole('ROLE_JUPYTERHUB_USER')*/ )
                 return self::createJSONError(403);
 
             $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
@@ -254,7 +254,7 @@ class BridgeController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             if ($user === 'anon.')
                 return self::createJSONError(401, "Permission denied");
-            if ( !$user->hasRole('ROLE_ADMIN') || !$user->hasRole('ROLE_JUPYTERHUB_USER') )
+            if ( !$user->hasRole('ROLE_USER')/* || !$user->hasRole('ROLE_JUPYTERHUB_USER')*/ )
                 return self::createJSONError(403, "Permission denied");
 
             $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
