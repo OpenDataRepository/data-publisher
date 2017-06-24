@@ -1137,7 +1137,6 @@ class ThemeController extends ODRCustomController
                 $datatype_array[$dt_id] = $data;
         }
 
-
         // ----------------------------------------
         // Going to need an array of fieldtype ids and fieldtype typenames for notifications about changing fieldtypes
         $fieldtype_array = array();
@@ -1232,13 +1231,16 @@ class ThemeController extends ODRCustomController
 
             // Populate new ThemeElement form
             $submitted_data = new ThemeElementMeta();
-            $theme_element_form = $this->createForm(UpdateThemeElementForm::class, $submitted_data);
+            $theme_element_form = $this->createForm(
+                UpdateThemeElementForm::class,
+                $submitted_data
+            );
 
             $theme_element_form->handleRequest($request);
 
             if ($theme_element_form->isSubmitted()) {
 
-//$theme_element_form->addError( new FormError('do not save') );
+                //$theme_element_form->addError( new FormError('do not save') );
 
                 if ($theme_element_form->isValid()) {
                     // Store the old and the new css widths for this ThemeElement
@@ -1268,9 +1270,21 @@ class ThemeController extends ODRCustomController
                     throw new \Exception($error_str);
                 }
             } else {
+
                 // Create ThemeElement form to modify existing properties
                 $theme_element_meta = $theme_element->getThemeElementMeta();
-                $theme_element_form = $this->createForm(UpdateThemeElementForm::class, $theme_element_meta);
+                $theme_element_form = $this->createForm(
+                    UpdateThemeElementForm::class,
+                    $theme_element_meta,
+                    array(
+                        'action' => $this->generateUrl(
+                            'odr_design_get_theme_element_properties',
+                            array(
+                                'theme_element_id' => $theme_element_id
+                            )
+                        )
+                    )
+                );
 
                 // Return the slideout html
                 $templating = $this->get('templating');
@@ -1787,6 +1801,418 @@ class ThemeController extends ODRCustomController
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
+
+    /**
+     * Adds a new ThemeElement entity to the current layout.
+     *
+     * @param integer $theme_id  Which theme to add this theme_element to
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function addthemeelementAction($theme_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+            // Not allowed to create a new theme element for a table theme
+            if ($theme->getThemeType() == 'table')
+                throw new \Exception('Not allowed to have multiple theme elements in a table theme');
+
+
+            // Create a new theme element entity
+            /** @var Theme $theme */
+            $data = parent::ODR_addThemeElement($em, $user, $theme);
+            /** @var ThemeElement $theme_element */
+            $theme_element = $data['theme_element'];
+            /** @var ThemeElementMeta $theme_element_meta */
+//            $theme_element_meta = $data['theme_element_meta'];
+
+            // Save changes
+            $em->flush();
+
+            // Return the new theme element's id
+            $return['d'] = array(
+                'theme_element_id' => $theme_element->getId(),
+                'datatype_id' => $datatype->getId(),
+            );
+
+            // TODO - update cached version directly?
+            parent::tmp_updateThemeCache($em, $theme, $user);
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x831225029 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+
+    /**
+     * Updates the display order of ThemeElements inside the current layout.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function themeelementorderAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $post = $_POST;
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
+
+            // Grab the first theme element just to check permissions
+            $theme_element = null;
+            foreach ($post as $index => $theme_element_id) {
+                $theme_element = $repo_theme_element->find($theme_element_id);
+                break;
+            }
+            /** @var ThemeElement $theme_element */
+
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+            $datatype = $theme->getDataType();
+            if ( $datatype == null )
+                return parent::deletedEntityError('DataType');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+            // Shouldn't happen since there's only one theme element per table theme
+            if ($theme->getThemeType() == 'table')
+                throw new \Exception('Not allowed to re-order theme elements inside a table theme');
+
+
+            // If user has permissions, go through all of the theme elements updating their display order if needed
+            foreach ($post as $index => $theme_element_id) {
+                /** @var ThemeElement $theme_element */
+                $theme_element = $repo_theme_element->find($theme_element_id);
+                $em->refresh($theme_element);
+
+                if ( $theme_element->getDisplayOrder() !== $index ) {
+                    // Need to update this theme_element's display order
+                    $properties = array(
+                        'displayOrder' => $index
+                    );
+                    parent::ODR_copyThemeElementMeta($em, $user, $theme_element, $properties);
+                }
+            }
+
+            // TODO - update cached version directly?
+            parent::tmp_updateThemeCache($em, $theme, $user);
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x8283002 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+
+
+    /**
+     * Updates the display order of DataFields inside a ThemeElement, and/or moves the DataField to a new ThemeElement.
+     *
+     * @param integer $initial_theme_element_id
+     * @param integer $ending_theme_element_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function datafieldorderAction($initial_theme_element_id, $ending_theme_element_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab necessary objects
+            $post = $_POST;
+//print_r($post);
+//return;
+
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
+
+            /** @var ThemeElement $initial_theme_element */
+            /** @var ThemeElement $ending_theme_element */
+            $initial_theme_element = $repo_theme_element->find($initial_theme_element_id);
+            $ending_theme_element = $repo_theme_element->find($ending_theme_element_id);
+            if ($initial_theme_element == null || $ending_theme_element == null)
+                return parent::deletedEntityError('ThemeElement');
+
+            if ($initial_theme_element->getTheme() == null || $ending_theme_element->getTheme() == null)
+                return parent::deletedEntityError('Theme');
+            if ( $initial_theme_element->getTheme()->getId() !== $ending_theme_element->getTheme()->getId() )
+                throw new \Exception('Unable to move a datafield between Themes');
+
+            $theme = $initial_theme_element->getTheme();
+            $datatype = $theme->getDataType();
+            if ( $datatype->getDeletedAt() != null )
+                return parent::deletedEntityError('DataType');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+
+            // ----------------------------------------
+            // Ensure there's not a child or linked datatype in the ending theme_element before actually moving this datafield into it
+            /** @var ThemeDataType[] $theme_datatypes */
+            $theme_datatypes = $em->getRepository('ODRAdminBundle:ThemeDataType')->findBy( array('themeElement' => $ending_theme_element_id) );
+            if ( count($theme_datatypes) > 0 )
+                throw new \Exception('Unable to move a Datafield into a ThemeElement that already has a child/linked Datatype');
+
+
+            // ----------------------------------------
+            // Ensure datafield list in $post is valid
+            $query = $em->createQuery(
+                'SELECT dt.id AS dt_id
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                WHERE df.id IN (:datafields)
+                AND df.deletedAt IS NULL AND dt.deletedAt IS NULL
+                GROUP BY dt.id'
+            )->setParameters( array('datafields' => $post) );
+            $results = $query->getArrayResult();
+
+            if ( count($results) > 1 )
+                throw new \Exception('Invalid Datafield list');
+
+
+            // There aren't appreciable differences between 'master', 'search_results', and 'table' themes...at least as far as changing datafield order is concerned
+
+            // Grab all theme_datafield entries currently in the destination theme element
+            $datafield_list = array();
+            /** @var ThemeDataField[] $theme_datafields */
+            $theme_datafields = $ending_theme_element->getThemeDataFields();
+//print 'loading theme_datafield entries for theme_element '.$ending_theme_element->getId()."\n";
+            foreach ($theme_datafields as $tdf) {
+//print '-- found entry for datafield '.$tdf->getDataField()->getId().' tdf '.$tdf->getId()."\n";
+                $datafield_list[ $tdf->getDataField()->getId() ] = $tdf;
+            }
+            /** @var ThemeDataField[] $datafield_list */
+
+
+            // Update the order of the datafields in the destination theme element
+            foreach ($post as $index => $df_id) {
+
+                if ( isset($datafield_list[$df_id]) ) {
+                    // Ensure this datafield has the correct display_order
+                    $tdf = $datafield_list[$df_id];
+                    if ($index != $tdf->getDisplayOrder()) {
+                        $properties = array(
+                            'displayOrder' => $index
+                        );
+//print 'updating theme_datafield '.$tdf->getId().' for datafield '.$tdf->getDataField()->getId().' theme_element '.$tdf->getThemeElement()->getId().' to displayOrder '.$index."\n";
+                        parent::ODR_copyThemeDatafield($em, $user, $tdf, $properties);
+                    }
+                }
+                else {
+                    // This datafield got moved into the theme element
+                    /** @var ThemeDataField $inserted_theme_datafield */
+                    $inserted_theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataField' => $df_id, 'themeElement' => $initial_theme_element_id) );
+                    if ($inserted_theme_datafield == null)
+                        throw new \Exception('theme_datafield entry for Datafield '.$df_id.' themeElement '.$initial_theme_element_id.' does not exist');
+                    else {
+                        $properties = array(
+                            'displayOrder' => $index,
+                            'themeElement' => $ending_theme_element_id,
+                        );
+//print 'moved theme_datafield '.$inserted_theme_datafield->getId().' for Datafield '.$df_id.' themeElement '.$initial_theme_element_id.' to themeElement '.$ending_theme_element_id.' displayOrder '.$index."\n";
+                        parent::ODR_copyThemeDatafield($em, $user, $inserted_theme_datafield, $properties);
+
+                        // Don't need to redo display_order of the other theme_datafield entries in $initial_theme_element_id...they'll work fine even if the values aren't contiguous
+                    }
+                }
+            }
+            $em->flush();
+            /*
+                        // Schedule the cache for an update
+                        $options = array();
+                        $options['mark_as_updated'] = true;
+                        parent::updateDatatypeCache($datatype->getId(), $options);
+            */
+            parent::tmp_updateThemeCache($em, $theme, $user);
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x28268302 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+
+    /**
+     * Deletes a ThemeElement entity from the current layout.
+     *
+     * @param integer $theme_element_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function deletethemeelementAction($theme_element_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Get Current User
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            // Grab the theme element from the repository
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ($theme_element == null)
+                return parent::deletedEntityError('ThemeElement');
+            $em->refresh($theme_element);
+
+            $theme = $theme_element->getTheme();
+            if ($theme == null)
+                return parent::deletedEntityError('Theme');
+
+            $datatype = $theme->getDataType();
+            if ($datatype == null)
+                return parent::deletedEntityError('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var User $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
+            $datatype_permissions = $user_permissions['datatypes'];
+
+            // Ensure user has permissions to be doing this
+            if ( !(isset($datatype_permissions[ $datatype->getId() ]) && isset($datatype_permissions[ $datatype->getId() ][ 'dt_admin' ])) )
+                return parent::permissionDeniedError("edit");
+            // --------------------
+
+            // Not allowed to delete a theme element from a table theme
+            if ($theme->getThemeType() == 'table')
+                throw new \Exception('Not allowed to delete a theme element from a table theme');
+
+            $entities_to_remove = array();
+
+            // Don't allow deletion of theme_element if it still has datafields or a child/linked datatype attached to it
+            $theme_datatypes = $theme_element->getThemeDataType();
+            $theme_datafields = $theme_element->getThemeDataFields();
+
+            if ( count($theme_datatypes) > 0 || count($theme_datafields) > 0 ) {
+                // TODO - allow deletion of theme elements that still have datafields or a child/linked datatype attached to them?
+                $return['r'] = 1;
+                $return['t'] = 'ex';
+                $return['d'] = "This ThemeElement can't be removed...it still contains datafields or a datatype!";
+            }
+            else {
+                // Save who is deleting this theme_element
+                $theme_element->setDeletedBy($user);
+                $em->persist($theme_element);
+
+                // Also delete the meta entry
+                $theme_element_meta = $theme_element->getThemeElementMeta();
+
+                $entities_to_remove[] = $theme_element_meta;
+                $entities_to_remove[] = $theme_element;
+
+                // Commit deletes
+                $em->flush();
+                foreach ($entities_to_remove as $entity)
+                    $em->remove($entity);
+                $em->flush();
+
+                // TODO - update cached version directly?
+                parent::tmp_updateThemeCache($em, $theme, $user);
+            }
+        }
+        catch (\Exception $e) {
+            $return['r'] = 1;
+            $return['t'] = 'ex';
+            $return['d'] = 'Error 0x77392699 ' . $e->getMessage();
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
 
 
 }

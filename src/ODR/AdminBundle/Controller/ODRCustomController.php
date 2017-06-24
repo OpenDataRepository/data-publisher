@@ -3838,7 +3838,6 @@ if ($debug)
         // Poplulate new DataFields form
         $datafield = new DataFields();
         $datafield->setDataType($datatype);
-
         $datafield->setCreatedBy($user);
 
         // This will always be zero unless
@@ -4308,6 +4307,7 @@ if ($debug)
         $theme_datafield->setDisplayOrder(999);
         $theme_datafield->setCssWidthMed('1-3');
         $theme_datafield->setCssWidthXL('1-3');
+        $theme_datafield->setHidden(0);
 
         $theme_datafield->setCreatedBy($user);
         $theme_datafield->setUpdatedBy($user);
@@ -4340,6 +4340,7 @@ if ($debug)
             'displayOrder' => $theme_datafield->getDisplayOrder(),
             'cssWidthMed' => $theme_datafield->getCssWidthMed(),
             'cssWidthXL' => $theme_datafield->getCssWidthXL(),
+            'hidden' => $theme_datafield->getHidden(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -4364,6 +4365,7 @@ if ($debug)
             $new_theme_datafield->setDisplayOrder( $theme_datafield->getDisplayOrder() );
             $new_theme_datafield->setCssWidthMed( $theme_datafield->getCssWidthMed() );
             $new_theme_datafield->setCssWidthXL( $theme_datafield->getCssWidthXL() );
+            $new_theme_datafield->setHidden( $theme_datafield->getHidden() );
 
             $new_theme_datafield->setCreatedBy($user);
         }
@@ -4383,6 +4385,8 @@ if ($debug)
             $new_theme_datafield->setCssWidthMed( $properties['cssWidthMed'] );
         if (isset($properties['cssWidthXL']))
             $new_theme_datafield->setCssWidthXL( $properties['cssWidthXL'] );
+        if (isset($properties['hidden']))
+            $new_theme_datafield->setHidden( $properties['hidden'] );
 
         $new_theme_datafield->setUpdatedBy($user);
 
@@ -4418,6 +4422,7 @@ if ($debug)
         $theme_datatype->setThemeElement($theme_element);
 
         $theme_datatype->setDisplayType(0);     // 0 is accordion, 1 is tabbed, 2 is dropdown, 3 is list
+        $theme_datatype->setHidden(0);
 
         $theme_datatype->setCreatedBy($user);
         $theme_datatype->setUpdatedBy($user);

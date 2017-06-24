@@ -359,7 +359,7 @@ exit();
         $html = '';
 
         try {
-            // Grab necessary objects
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
@@ -436,6 +436,7 @@ exit();
 
             if ( !$target_datatype->isPublic() && !$can_view_datatype )
                 return self::searchPageError("You don't have permission to access this DataType.", $request);
+
 
             // Need to grab all searchable datafields for the target_datatype and its descendants
 
