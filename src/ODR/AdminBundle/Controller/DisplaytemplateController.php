@@ -2723,8 +2723,11 @@ class DisplaytemplateController extends ODRCustomController
             $em->getFilters()->enable('softdeleteable');    // Re-enable the filter
 
             $render_plugin_instance = null;
-            if ( count($results) > 0 )
-                $render_plugin_instance = $results[0];
+            if ( count($results) > 0 ) {
+                // Only want the most recent RenderPluginInstance
+                foreach ($results as $result)
+                    $render_plugin_instance = $result;
+            }
             /** @var RenderPluginInstance|null $render_plugin_instance */
 
             $render_plugin_map = null;
