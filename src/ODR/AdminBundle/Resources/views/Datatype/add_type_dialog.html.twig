@@ -1,9 +1,37 @@
 {% spaceless %}
 
+<ul id="wizardStatus">
+    <li class="current">Step 1. <span class="wizardStatusText">Choose a template.</span></li>
+    <li class="">Step 1. <span class="wizardStatusText">Database information.</span></li>
+    <li class="">Step 3. <span class="wizardStatusText">Add or change fields.</span></li>
+    <li>Step 4. <span class="wizardStatusText">Setup search templates.</span></li>
+    <!-- <li>Step 4. <span class="wizardStatusText">Book/Order repair</span></li> -->
+</ul>
+
+<div class="ODRThemeElement pure-u-1">
+    <div class="ODRInnerBox pure-u-1">
+        <div class="ODRInstructions">
+            <p>Choose a name for your database and enter a description.</p>
+            <p>You can select a pre-defined template or create a completely custom database by selecting from the database templates column.</p>
+        </div>
+    </div>
+</div>
+
 <!-- Add Datatype Dialog -->
-<div class="pure-form pure-g" style="display: none;" id="dialog_add_datatype" title="Add Datatype Dialog">
-    <div class="form_contents pure-u-1">
-        {% include 'ODRAdminBundle:Datatype:add_type_dialog_form.html.twig' with {'form': form} %}
+<div class="ODRThemeElement pure-u-1">
+    <div class="ODRInnerBox pure-u-1">
+    <div class="pure-form pure-g pure-u-1" id="dialog_add_datatype" title="Create a new database">
+        <div class="form_contents pure-u-1">
+            {% include 'ODRAdminBundle:Datatype:create_datatype_info_form.html.twig' with {'form': form} %}
+        </div>
+        <div class="form_contents pure-u-1">
+            <ul>
+                {% for datatype in master_templates %}
+                    <li>{{ datatype.dataTypeMeta[0].shortName }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
     </div>
 </div>
 <!--  End of Add DataType Dialog -->

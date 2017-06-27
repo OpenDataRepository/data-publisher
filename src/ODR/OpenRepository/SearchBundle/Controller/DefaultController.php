@@ -361,7 +361,7 @@ exit();
         $html = '';
 
         try {
-            // Grab necessary objects
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
@@ -438,6 +438,7 @@ exit();
 
             if ( !$target_datatype->isPublic() && !$can_view_datatype )
                 return self::searchPageError("You don't have permission to access this DataType.", $request, 403);
+
 
             // Need to grab all searchable datafields for the target_datatype and its descendants
 
@@ -856,7 +857,11 @@ exit();
                 $theme_type = 'master';
                 $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
             }
-                
+
+            // Temporarily set theme to master...
+            // $theme_type = 'master';
+            // $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => $theme_type) );
+
             if ($theme == null)
                 throw new \Exception('The datatype "'.$datatype->getShortName().'" wants to use a "'.$theme_type.'" theme to render search results, but no such theme exists.');
 
@@ -869,6 +874,7 @@ exit();
             $target = 'results';
             if ($source == 'linking')
                 $target = $source;
+
             $html = $odrcc->renderList($datarecords, $datatype, $theme, $user, $path_str, $target, $encoded_search_key, $offset, $request);
 
              $return['d'] = array(

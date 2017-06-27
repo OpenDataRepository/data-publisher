@@ -1,0 +1,78 @@
+# This file is auto-generated during the composer install
+parameters:
+    database_driver: pdo_mysql
+    database_host: localhost
+    database_port: null
+    database_name: [[ DATABASE NAME ]]
+    database_user: [[ DATABASE USER ]] 
+    database_password: [[ DATABASE PASS ]]
+    mailer_transport: smtp
+    mailer_host: localhost
+    mailer_user: null
+    mailer_password: null
+    locale: en
+    secret: [[ ENTER A LONG RANDOM STRING HERE WITH NO SPACES ]]
+    odr_plugins:
+        cheminee1_plugin:
+            name: 'Chemin EE1 Plugin'
+            filename: CheminEE1Plugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        chemineda_plugin:
+            name: 'Chemin EDA Plugin'
+            filename: CheminEDAPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        csvtable_plugin:
+            name: 'CSV Table Plugin'
+            filename: CSVTablePlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        graph_plugin:
+            name: 'Graph Plugin'
+            filename: GraphPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        gcms_plugin:
+            name: 'GCMassSpec Plugin'
+            filename: GCMassSpecPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        chemistry_plugin:
+            name: 'Chemistry Field'
+            filename: ChemistryPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        references_plugin:
+            name: 'References Plugin'
+            filename: ReferencesPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        comment_plugin:
+            name: 'Comment Plugin'
+            filename: CommentPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        url_plugin:
+            name: 'URL Field'
+            filename: URLPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        organization_plugin:
+            name: 'Organization Plugin'
+            filename: OrganizationPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        person_plugin:
+            name: 'Person Plugin'
+            filename: PersonPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        sample_plugin:
+            name: 'Sample Plugin'
+            filename: SamplePlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        site_plugin:
+            name: 'Site Identifier Plugin'
+            filename: SitePlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+    memcached.servers:
+        -
+            host: 127.0.0.1
+            port: 11211
+    site_baseurl: [[ Site Baseurl 'http://mydomain.com/' ]]
+    memcached_key_prefix: [[ Unique Key for Site - a simple prefix style text snippet - ie: mydomain_key ]]
+    session_memcached_expire: 3600
+    session_memcached_prefix: [[ Session Key Name for Session Storage ]]
+    session_memcached_host: 127.0.0.1
+    session_memcached_port: 11211
+    beanstalk_api_key: [[ Unique Random String for your Beanstalk Queues ]]

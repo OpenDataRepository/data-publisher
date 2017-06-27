@@ -12,7 +12,10 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-<div class="ODRFormWrap"> 
+{% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
+{{ js.write(target, search_key, offset) }}
+
+<div class="ODRFormWrap">
     <div class="header">
     {% if datatype != null %}
         {% if target == "results" %}
@@ -24,20 +27,20 @@
     </div>
 
 {% if count > 0 %}
-    <div class="ODRShortResult">
+    <div class="ODRShortResultWrapper">
         {{ pagination_html | raw }}
         {% include 'ODRAdminBundle:ShortResults:shortresults_ajax.html.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': datarecord_array,
             'theme_id': theme_id,
-
             'initial_datatype_id': initial_datatype_id,
+            'offset': offset
         } %}
     </div>
 {% elseif logged_in %}
-    <center>No Datarecords found</center>
+    No Datarecords found
 {% else %}
-    <center>No Datarecords found...try logging in</center>
+    No Datarecords found...try logging in.
 {% endif %}
 
 </div><!-- End of .ODRFormWrap -->
@@ -259,5 +262,3 @@
 </script>
 {% endspaceless %}
 
-{% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
-{{ js.write(target, search_key, offset) }}

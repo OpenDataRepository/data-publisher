@@ -4,7 +4,7 @@
 {% set theme = datatype.themes[theme_id] %}
 {% set datarecord = datarecord_array[target_datarecord_id] %}
 
-<div class="DataRecordShort DataRecord_{{ datarecord.id }} Pointer" id="DataType_{{ datatype.id }}" onclick="loadDataRecord({{ datarecord.id }});">
+<div class="DataRecordShort DataRecord_{{ datarecord.id }} Pointer" id="DataType_{{ datatype.id }}">
     <div class="Resizable">
         <div class="ODREditLink" rel="{{ datarecord.id }}">
             <u>Edit</u>
@@ -27,3 +27,4 @@
 <div class="ShortResults_offset clearfix"></div>
 
 {% endspaceless %}
+

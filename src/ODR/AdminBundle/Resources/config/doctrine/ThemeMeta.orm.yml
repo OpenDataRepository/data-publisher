@@ -19,6 +19,7 @@ ODR\AdminBundle\Entity\ThemeMeta:
             fixed: false
             nullable: false
             column: template_name
+
         templateDescription:
             type: text
             nullable: true
@@ -28,6 +29,23 @@ ODR\AdminBundle\Entity\ThemeMeta:
             type: boolean
             nullable: false
             column: is_default
+
+        displayOrder:
+            type: integer
+            unsigned: false
+            nullable: true
+            column: display_order
+
+        public:
+            type: datetime
+            nullable: true
+            default: '1980-01-01 01:01:01'
+
+        sourceSyncCheck:
+            type: datetime
+            nullable: true
+            default: '1980-01-01 01:01:01'
+            column: source_sync_check
 
         created:
             type: datetime

@@ -41,7 +41,6 @@
     {% elseif field_typename == "Markdown" %}
         {% set valuefield = '' %}
     {% endif %}
-
 {% endif %}
 
 {% if valuefield == '' and (field_typename == 'File' or field_typename == 'Image' or field_typeclass == 'Radio') %}
@@ -52,9 +51,13 @@
 
     <form class="pure-u-1" id="ViewForm_{{ unique_id }}">
 
-    {% set render_plugin = datafield.dataFieldMeta.renderPlugin %}
-    {% if render_plugin.id != 1 %}
-        {{ datafield|datafield_plugin(datarecord, render_plugin)|raw }}
+    {% set render_plugin_id = 1 %}
+    {% if bypass_render_plugin is not defined or not bypass_render_plugin %}
+        {% set render_plugin_id = datafield.dataFieldMeta.renderPlugin.id %}
+    {%  endif %}
+
+    {% if render_plugin_id != 1 %}
+        {{ datafield|datafield_plugin(datarecord, datafield.dataFieldMeta.renderPlugin)|raw }}
 
     {% elseif field_typename == "Boolean" %}
         <fieldset>

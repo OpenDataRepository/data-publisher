@@ -18,11 +18,25 @@ ODR\AdminBundle\Entity\DataFields:
             gedmo:
                 timestampable:
                     on: create
+
+        is_master_field:
+            type: boolean
+            nullable: false
+            default: false
+
         deletedAt:
             type: datetime
             nullable: true
 
     oneToMany:
+        # TODO These will probably need to be moved to map tables
+        # so that child types can be re-used across multiple master
+        # data types.
+        relatedMasterFields:
+            targetEntity: DataFields
+            mappedBy: masterDataField
+            fetch: EXTRA_LAZY
+
         dataRecordFields:
             targetEntity: DataRecordFields
             cascade: {  }
@@ -56,6 +70,17 @@ ODR\AdminBundle\Entity\DataFields:
             orphanRemoval: false
 
     manyToOne:
+        # TODO These will probably need to be moved to map tables
+        # so that child types can be re-used across multiple master
+        # data types.
+        masterDataField:
+            targetEntity: DataFields
+            fetch: EXTRA_LAZY
+            joinColumns:
+                master_datafield_id:
+                    referencedColumnName: id
+            inversedBy: relatedMasterFields
+
         dataType:
             targetEntity: DataType
             cascade: {  }

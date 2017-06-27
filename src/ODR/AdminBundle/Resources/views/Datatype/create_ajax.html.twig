@@ -1,0 +1,15 @@
+{% spaceless %}
+
+{# include 'ODRAdminBundle:Datatype:type_list.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions, 'datatypes': datatypes, 'section' : section, 'metadata': metadata } #}
+
+<div class="ODRContentWrapper">
+    {% include 'ODRAdminBundle:Datatype:add_type_dialog.html.twig' with {'form': form} %}
+</div>
+
+<script>
+    $(function() {
+        $(".MenuDesignArea").remove();
+    });
+</script>
+
+{% endspaceless %}

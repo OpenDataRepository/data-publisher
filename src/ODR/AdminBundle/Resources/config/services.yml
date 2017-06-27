@@ -38,8 +38,54 @@ services:
         tags:
             - { name: twig.extension }
 
+    odr.custom_controller_service:
+        class: ODR\OpenRepository\AdminBundle\Controller\ODRCustomController
+        arguments: ['@doctrine.orm.entity_manager']
+
     odr_search_controller:
         class: ODR\OpenRepository\SearchBundle\Controller\DefaultController
+
+    odr.permissions_management_service:
+        class: ODR\AdminBundle\Component\Service\PermissionsManagementService
+        arguments:
+            container: "@service_container"
+            entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+
+    odr.datarecord_info_service:
+        class: ODR\AdminBundle\Component\Service\DatarecordInfoService
+        arguments:
+            container: "@service_container"
+            entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+
+    odr.datatype_info_service:
+        class: ODR\AdminBundle\Component\Service\DatatypeInfoService
+        arguments:
+            container: "@service_container"
+            entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+
+    odr.create_datatype_service:
+        class: ODR\AdminBundle\Component\Service\CreateDatatypeService
+        arguments:
+            container: "@service_container"
+            entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+
+    odr.theme_service:
+        class: ODR\AdminBundle\Component\Service\ThemeService
+        arguments:
+            container: "@service_container"
+            entity_manager: "@doctrine.orm.entity_manager"
+            logger: "@logger"
+
+#    odr.permissions_management_service:
+#        class: ODR\AdminBundle\Component\Service\PermissionsManagementService
+#        arguments:
+#            container: "@service_container"
+#            entity_manager: "@doctrine.orm.entity_manager"
+#            logger: "@logger"
 
     odr.crypto_service:
         class: ODR\AdminBundle\Component\Service\CryptoService

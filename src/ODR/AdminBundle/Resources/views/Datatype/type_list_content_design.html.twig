@@ -15,16 +15,9 @@
 <div class="tabletools">
     {% if level > 1 %}
     <div>
-        <button id="ODRDatatypeList_createDatatype" class="pure-button pure-button-primary ODRCreateDatatype"><i class="fa fa-lg fa-plus"></i> New Database</button>
+        <a id="ODRDatatypeList_createDatatype" class="pure-button pure-button-primary ODRCreateDatatype" href="#{{ path('odr_create_type', { 'create_master': 0 }) }}""><i class="fa fa-lg fa-plus"></i> New Database</a>
     </div>
     {% endif %}
-{#
-    {% if level == 7 %}
-    <div>
-        <button id="ODRDatatypeList_recache" class="pure-botton pure-button-primary ODRRecacheAll"><i class="fa fa-lg fa-refresh"></i>Recache All Datatypes</button>
-    </div>
-    {% endif %}
-#}
 </div>
 
 <div id="ODRDataTypeListWrapper">
@@ -135,46 +128,6 @@
 </div>
 
 <script>
-    $(function() {
-        $(".ODRCreateDatatype").unbind('click').click(function() {
-            // Open the dialog to create a new datatype
-            $("#dialog_add_datatype").dialog( "open" );
-        });
-{#
-        $(".ODRRecacheAll").unbind('click').click(function() {
-            if ( confirm("This will rebuild all cache entries for all datatypes.") ) {
-                recacheAll();
-            }
-        });
-#}
-
-        $("#ODRDatatypeList").dataTable({
-            "columnDefs": [
-                {
-                    "targets": [0],
-                    "visible": false,
-                },
-                {
-                    "targets": [1,4,5,6,7,8],
-                    "orderable": false,
-                    "searchable": false,
-                }
-            ],
-            "order": [[ 2, "asc" ]],
-            "fixedHeader": {
-                // headerOffset: 42
-            },
-            responsive: true,
-//            "paging": true,
-            "paging": false,
-            "info": false,
-            "language": {
-                "emptyTable": "No Datatypes found"
-            }
-        });
-
-        $("#ODRDatatypeList").removeAttr('style');
-    });
 
     function deleteDataType(datatype_id) {
         var datatype_name = $("#ODRDatatypeList_" + datatype_id + "_name").html();
@@ -217,42 +170,6 @@
             });
         }
     }
-{#
-    function recacheAll() {
-        // Rebuild all cache entries for all datatypes
-        var url = '{{ path('odr_recache_all') }}';
-
-        var dataType = "json";
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: dataType,
-            success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
-                    alert( 'All DataTypes scheduled for recache...this may take awhile...' );
-                }
-                else {
-                    // Error occurred
-                    alert( data.d );
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-    }
-#}
 </script>
 
 {% endspaceless %}

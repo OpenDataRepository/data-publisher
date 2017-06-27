@@ -43,7 +43,6 @@ class PlugExtension extends \Twig_Extension
         return array(
             new \Twig_SimpleFilter('datafield_plugin', array($this, 'datafieldPluginFilter')),
             new \Twig_SimpleFilter('datatype_plugin', array($this, 'datatypePluginFilter')),
-
             new \Twig_SimpleFilter('xml', array($this, 'xmlFilter')),
             new \Twig_SimpleFilter('is_public', array($this, 'isPublicFilter')),
             new \Twig_SimpleFilter('user_string', array($this, 'userStringFilter')),
@@ -68,13 +67,15 @@ class PlugExtension extends \Twig_Extension
     {
         try {
             // Re-organize list of datarecords into
-            $datarecord_array = array();
-            foreach ($datarecords as $num => $dr)
-                $datarecord_array[ $dr['id'] ] = $dr;
+            // TODO - This does nothing.  The datarecords are already in this format
+            // $datarecord_array = array();
+            // foreach ($datarecords as $num => $dr)
+                // $datarecord_array[ $dr['id'] ] = $dr;
 
             // Load and execute the render plugin
             $svc = $this->container->get($render_plugin['pluginClassName']);
-            return $svc->execute($datarecord_array, $datatype, $render_plugin, $theme, $rendering_options);
+            // return $svc->execute($datarecord_array, $datatype, $render_plugin, $theme, $rendering_options);
+            return $svc->execute($datarecords, $datatype, $render_plugin, $theme, $rendering_options);
         }
         catch (\Exception $e) {
             return 'Error executing RenderPlugin "'.$render_plugin['pluginName'].'" on Datatype '.$datatype['id'].': '.$e->getMessage();
@@ -101,12 +102,15 @@ class PlugExtension extends \Twig_Extension
                     unset( $datarecord['dataRecordFields'][$df_id] );
             }
 
-            // Several other parts of the arrays should be pruned to avoid duplicate/exccessive data
+            // Several other parts of the arrays should be pruned to avoid duplicate/excessive data
+            // TODO This is totally wrong - the plugin data is not duplicative.
+            /*
             if ( isset($datafield['dataFieldMeta']) && isset($datafield['dataFieldMeta']['renderPlugin']) )
                 unset( $datafield['dataFieldMeta']['renderPlugin'] );
 
             if ( isset($datarecord['dataType']) )
                 unset( $datarecord['dataType'] );
+            */
 
 
             // Load and execute the render plugin

@@ -1921,8 +1921,8 @@ footer {
 }
 
 .ODRFormWrap {
-    margin-left: 10px; 
-    margin-right: 10px;
+    margin-left: 0px;
+    margin-right: 0px;
     /* background-color: #FAFAFA; */
     border: 0px solid #B9B9B9;
     border-radius: 2px;
@@ -2054,9 +2054,8 @@ header a {
     width: 450px;
     min-height: 350px;
     right: 0px;
-    background: #eee;
-    border-radius-top-right: 16px;
-    border-radius-bottom-right: 16px;
+    background-color: #6fa5c7;
+    border-radius: 6px;
     padding-top: 8px;
     padding-bottom: 8px;
 
@@ -2206,17 +2205,66 @@ h1:after {
     line-height: 0px;
     padding: 0px 0px 0px 0px;
     z-index: 500;
+    display: none;
 }
 
 .ODRThemeElement > .DataTypeTools {
     margin: 5px 0px;
 }
 
+#ODRDatatypeDesign .fa {
+    margin-top: 1px;
+}
+#ODRDatatypeDesign .ODRDataField {
+    margin-bottom: 4px;
+}
+
+#ODRDatatypeDesign > .ODRThemeElement > .ThemeElementTools {
+    color: #eeeeee;
+}
+#ODRDatatypeDesign .ODRFieldArea > .ODRThemeElement > .ThemeElementTools {
+    color: black;
+}
+#ODRDatatypeDesign .ThemeElementTools {
+    font-size: 18px;
+    color: #eeeeee;
+    float: right;
+    position: relative;
+    top: 0px;
+    height: 0px;
+    line-height: 0px;
+    padding: 0px 0px 0px 0px;
+    margin-right: 8px;
+    z-index: 5;
+}
+#ODRDatatypeDesign .ThemeElementTools i {
+    /* margin-top: 3px; */
+}
+
+#ODRDatatypeDesign .DataTypeTools {
+    font-size: 18px;
+    color: #eeeeee;
+    float: none;
+    position: relative;
+    /* margin-top: 6px; */
+    top: 0px;
+    height: 0px;
+    line-height: 0px;
+    padding: 0px 0px 0px 0px;
+    z-index: 500;
+}
+
+#ODRDatatypeDesign .ODRMarkdownContent .ODRPublicStatusIndicator {
+    float: left;
+}
+
+/*
 .tooltip {
     float: left;
     margin-top: 4px;
     margin-right: 4px;
 }
+*/
 .fa-muted {
     cursor: not-allowed;
     /*color: #aa0000;*/
@@ -2544,6 +2592,10 @@ form .row {
 }
 .ODRAccordionWrapper > h3 {
     padding: 0.78em 1.5em;
+    cursor: pointer;
+}
+.ODRAccordionWrapper > div {
+    margin-top: 4px;
 }
 
 .ODRDataType {
@@ -3114,7 +3166,6 @@ form .row {
     position: absolute;
 }
 
-
 .ODRUploadDragHighlight {
     background: green !important;
 }
@@ -3141,4 +3192,38 @@ form .row {
 
 .ODRLoginForm .pure-control-group {
     margin-bottom: 10px;
+}
+
+.ODRActiveIcon {
+    /*border: 1px solid #00FF00;
+    border-radius: 8px; */
+    color: gold;
+}
+
+/*
+    ODR Responsive Modal
+    Initial Source/Inspirations
+    https://stanhub.com/multiple-responsive-popup-windows-on-same-page/
+ */
+.odr-popup-trigger { display: block; margin: 0 auto; padding: 20px; max-width: 260px; background: #4EBD79; color: #fff;
+    font-size: 18px; font-weight: 700; text-align: center; text-transform: uppercase; line-height: 24px; cursor: pointer; }
+.odr-popup {display: none; position: absolute; top: 100px; left: 50%; width: 700px; margin-left: -350px; padding: 50px 30px;
+    background: #fff; color: #333; font-size: 19px; line-height: 30px; border: 10px solid #150E2D; z-index: 9999;}
+.odr-popup-mobile {position: relative; top: 0; left: 0; margin: 30px 0 0; width: 100%;}
+.odr-popup-btn-close {position: absolute; top: 8px; right: 14px; color: #4EBD79; font-size: 14px; font-weight: bold; text-transform: uppercase; cursor: pointer;}
+
+
+.ODRDropActive {
+   background: rgba(88, 188, 88, 0.5);
+}
+.ODRDropHover {
+    background: rgba(46, 138, 68, 0.5);
+}
+
+.ODRInnerBox {
+    /*
+        Min height is required so sortable allows dropped objects when the
+        sortable itself has no children (of class ODRDataField)
+     */
+    min-height: 50px;
 }

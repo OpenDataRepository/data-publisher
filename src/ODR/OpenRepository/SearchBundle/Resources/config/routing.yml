@@ -22,11 +22,11 @@ odr_search_immediate:
     path:  /{search_slug}/{search_string}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage }
     requirements:
-        search_slug: '[a-zA-Z0-9_]{0,32}'
+        search_slug: '[a-zA-Z0-9_\-]{0,32}'
 
 odr_search:
     path:  /{search_slug}
     defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage, search_slug: '', search_string: '' }
     requirements:
-        search_slug: '[a-zA-Z0-9_]{0,32}'
+        search_slug: '[a-zA-Z0-9_\-]{0,32}'
 

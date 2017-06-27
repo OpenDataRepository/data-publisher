@@ -24,18 +24,19 @@
         </div>
 
         <div class="pure-control-group">
+            <!--
             <label for="remember">
                 <input id="remember" type="checkbox"> {{ 'security.login.remember_me'|trans({}, 'FOSUserBundle') }}
             </label>
+            -->
+            <input type="checkbox" id="remember_me" name="_remember_me" value="on" />
+            <label for="remember_me">{{ 'security.login.remember_me'|trans({}, 'FOSUserBundle') }}</label>
+            <input class="pure-button pure-button-secondary" type="submit" id="_submit" name="_submit" value="{{ 'security.login.submit'|trans({}, 'FOSUserBundle') }}" />
         </div>
-    </fieldset>
-
-    <fieldset>
-        <div class="pure-controls">
-            <button id="_submit" name="_submit" class="pure-button pure-button-primary" type="submit">{{ 'security.login.submit'|trans({}, 'FOSUserBundle') }}</button>
-        {% if not app.user %}
-            <a class="address pure-button" href="{{ path('fos_user_resetting_request') }}" >Forgot Password?</a>
-        {% endif %}
+        <div class="pure-control-group">
+            {% if not app.user %}
+                <a class="address pure-button" href="{{ path('fos_user_resetting_request') }}" >Forgot Password?</a>
+            {% endif %}
         </div>
     </fieldset>
 </form>

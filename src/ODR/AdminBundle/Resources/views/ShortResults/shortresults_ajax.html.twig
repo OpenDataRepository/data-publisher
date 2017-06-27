@@ -1,18 +1,43 @@
 {% spaceless %}
 
+    {% set counter = offset %}
 {% for dr_id, datarecord in datarecord_array %}
-    {% if datarecord.dataType.id == initial_datatype_id %}
-    <div class="ODRShortResults pure-u-1">
-        {% include 'ODRAdminBundle:ShortResults:shortresults_childtype.html.twig' with {
+    <div class="ODRShortResults pure-u-1" id="ShortResults_{{ dr_id }}">
+        <div class="ODRShortResultsHeader pure-u-1 Pointer" id="ShortResultsHeader_{{ dr_id }}">
+            Record {{ counter }} - Click here to view
+        </div>
+        {% include 'ODRAdminBundle:Display:display_ajax.html.twig' with {
             'datatype_array': datatype_array,
-            'datarecord_array': datarecord_array,
+            'datarecord_array': datarecord,
             'theme_id': theme_id,
-
             'target_datatype_id': initial_datatype_id,
-            'target_datarecord_id': datarecord.id,
+            'target_datarecord_id': dr_id,
+            'initial_datatype_id': initial_datatype_id,
+            'initial_datarecord_id': dr_id,
+            'is_top_level': true,
+            'search_key': '',
+            'record_display_view': 'short_results'
         } %}
     </div>
-    {% endif %}
+    {% set counter = counter + 1 %}
 {% endfor %}
 
+    <script>
+        jQuery(function() {
+            jQuery(".ODRShortResultsHeader").each(function() {
+                var id = jQuery(this).attr('id').replace(/ShortResultsHeader_/,'')
+                jQuery(this).unbind('click').click(function() {
+                    loadDataRecord(id)
+                })
+            })
+
+            if(typeof initPage === "undefined") {
+                initPage();
+                // TODO Determine if this is needed
+                $(".MenuDesignArea").remove();
+                window.scrollTo(0, 0);
+            }
+        })
+    </script>
 {% endspaceless %}
+

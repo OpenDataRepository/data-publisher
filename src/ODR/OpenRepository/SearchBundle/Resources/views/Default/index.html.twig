@@ -59,5 +59,34 @@
     {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
     {{ js.write(logged_in) }}
 
+    {# TODO Doublecheck this block - was in conflict.  Possibly removed by Alex #}
+    <script>
+        function ODRLogin() {
+            $(function() {
+                var url = window.location.href;
+                if ( url.indexOf('{{ site_baseurl }}/{{ search_slug }}') !== -1 ) {
+                    {#url = url.replace('{{ site_baseurl }}/{{ search_slug }}', '{{ site_baseurl }}/login');#}
+
+                    var new_url = '{{ site_baseurl }}/login';
+
+                    if ( url.indexOf('#') !== -1 ) {
+                        var pieces = url.split('#');
+                        new_url += '#' + pieces[1];
+                    }
+
+                    url = new_url;
+                }
+                else if ( url.indexOf('#') !== -1 ) {
+                    var pieces = url.split('#');
+                    url = pieces[0] + 'login#' + pieces[1];
+                }
+                else {
+                    url = "{{ path('odr_admin_homepage') }}";
+                }
+
+                window.location.href = url;
+            });
+        }
+    </script>
 {% endblock %}
 

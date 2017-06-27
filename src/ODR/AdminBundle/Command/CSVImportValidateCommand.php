@@ -149,7 +149,8 @@ $output->writeln($data->url);
                     $pheanstalk->release($job);
 
                     // Sleep for a bit
-                    usleep(1000000);     // sleep for 1 second
+                    // usleep(1000000);     // sleep for 1 second
+                    usleep(10000);     // sleep for 10ms
                 }
                 else {
                     $output->writeln($e->getMessage());

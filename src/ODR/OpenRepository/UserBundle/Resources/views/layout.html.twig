@@ -45,10 +45,25 @@
                 {% endfor %}
             {% endif %}
 
-            <div>
-                {% block fos_user_content %}
-                    {#{% include 'ODRLoginBundle:Security:login.html.twig' %}#}
-                {% endblock fos_user_content %}
+            <div class="ODRContentWrapper pure-u-1">
+                <div class="ODRThemeElement pure-u-1">
+                    <div class="ODRInnerBox pure-u-1">
+                        <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i>
+                        {% if is_granted("IS_AUTHENTICATED_REMEMBERED") %}
+                            {{ 'layout.logged_in_as'|trans({'%username%': app.user.username}, 'FOSUserBundle') }} |
+                            <a href="{{ path('fos_user_security_logout') }}">
+                                {{ 'layout.logout'|trans({}, 'FOSUserBundle') }}
+                            </a>
+                        {% else %}
+                            <a href="{{ path('fos_user_security_login') }}">{{ 'layout.login'|trans({}, 'FOSUserBundle') }}</a>
+                        {% endif %}
+                        </h3>
+                        <div class="ODRBodyContent">
+                            {% block fos_user_content %}
+                            {% endblock fos_user_content %}
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>

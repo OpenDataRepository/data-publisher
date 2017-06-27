@@ -23,6 +23,7 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 // Symfony Form classes
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 
 
 class UpdateThemeDatatypeForm extends AbstractType
@@ -44,15 +45,26 @@ class UpdateThemeDatatypeForm extends AbstractType
         );
 
         $builder->add(
-            'display_type',
+            'hidden',
             ChoiceType::class,
             array(
                 'choices' => array(
-                    'Accordion' => '0',
-                    'Tabbed' => '1',
-                    'Dropdown' => '2',
-                    'List' => '3'
+                    'Show' => '0',
+                    'Hide' => '1',
                 ),
+                'choices_as_values' => true,
+                'label'  => 'Visiblity',
+                'expanded' => false,
+                'multiple' => false,
+                'placeholder' => false
+            )
+        );
+
+        $builder->add(
+            'display_type',
+            ChoiceType::class,
+            array(
+                'choices' => $options['display_choices'],
                 'choices_as_values' => true,
                 'label'  => 'Display As',
                 'expanded' => false,
@@ -92,6 +104,11 @@ class UpdateThemeDatatypeForm extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\ThemeDatatype'));
+        $resolver->setDefaults(
+            array(
+                'data_class' => 'ODR\AdminBundle\Entity\ThemeDatatype',
+                'display_choices' => null
+            )
+        );
     }
 }

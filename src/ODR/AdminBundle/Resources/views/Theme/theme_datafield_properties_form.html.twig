@@ -5,36 +5,26 @@
     'method': 'POST',
     'attr': {
         'id': 'ThemeDatafieldPropertiesForm_' ~ theme_datafield_form.vars.value.themeElement.id ~ '_' ~ theme_datafield_form.vars.value.dataField.id,
-        'class': 'ODRThemeDatafieldPropertiesForm pure-form pure-form-aligned'
+        'class': 'ODRThemeDatafieldPropertiesForm ODRThemeForm pure-form'
     }
 }) }}
 
     <fieldset>
         {% if datafield_name is defined %}
-            <div class="pure-control-group">
-                <h3>{{ datafield_name }}</h3>
+            <div class="pure-control-group pure-u-1">
+                <span class="ODRDatafieldName">{{ datafield_name }}</span>
             </div>
         {% endif %}
 
-        <div class="pure-control-group">
-            <label for="{{ theme_datafield_form.cssWidthMed.vars.id }}">
-                <strong>{{ theme_datafield_form.cssWidthMed.vars.label }}</strong>
+        <div class="pure-control-group pure-u-1">
+            <label for="{{ theme_datafield_form.hidden.vars.id }}" class="pure-u-1">
+                {{ theme_datafield_form.hidden.vars.label }}
             </label>
-            {{ form_errors(theme_datafield_form.cssWidthMed) }}
-            {{ form_widget(theme_datafield_form.cssWidthMed, { 'attr': {'style': 'width:auto', 'data-error-type': 'inline'} }) }}
+            {{ form_errors(theme_datafield_form.hidden) }}
+            {{ form_widget(theme_datafield_form.hidden, { 'attr': {'style': 'width:auto', 'data-error-type': 'inline'} }) }}
         </div>
 
-        <div class="pure-control-group">
-            <label for="{{ theme_datafield_form.cssWidthXL.vars.id }}">
-                <strong>{{ theme_datafield_form.cssWidthXL.vars.label }}</strong>
-            </label>
-            {{ form_errors(theme_datafield_form.cssWidthXL) }}
-            {{ form_widget(theme_datafield_form.cssWidthXL, { 'attr': {'style': 'width:auto', 'data-error-type': 'inline'} }) }}
-        </div>
-
-        <div style="display: none">
         {{ form_rest(theme_datafield_form) }}
-        </div>
     </fieldset>
 
 {{ form_end(theme_datafield_form) }}

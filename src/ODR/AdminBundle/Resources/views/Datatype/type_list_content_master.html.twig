@@ -1,0 +1,185 @@
+{% spaceless %}
+
+{% set level = 0 %}
+{% for role in user.getroles %}
+    {% if role == 'ROLE_SUPER_ADMIN' %}
+        {% set level = level + 4 %}
+    {% elseif role == 'ROLE_ADMIN' %}
+        {% set level = level + 2 %}
+    {% elseif role == 'ROLE_USER' %}
+        {% set level = level + 1 %}
+    {% endif %}
+{% endfor %}
+
+        
+<div class="tabletools">
+    {% if level > 1 %}
+    <div>
+        <a id="ODRDatatypeList_createMasterTemplate" class="pure-button pure-button-primary ODRCreateDatatype" href="#{{ path('odr_create_type', { 'create_master': 1}) }}"><i class="fa fa-lg fa-plus"></i> New Master Template</a>
+    </div>
+    {% endif %}
+</div>
+
+<div id="ODRDataTypeListWrapper">
+<table id="ODRDatatypeList" class="display dataTable">
+    <thead>
+        <tr>
+            <th></th>
+            <th>Database Name</th>
+            <th>Master Layout</th>
+            <th>Test Record</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for datatype in datatypes %}
+
+        {% set datatype_baseurl = path('odr_search', { 'search_slug': datatype.dataTypeMeta.searchSlug } ) %}
+
+        {# Pre-determine which permissions user has for this datatype... #}
+        {% set is_datatype_admin = false %}
+
+        {% if datatype_permissions[ datatype.id ] is defined %}
+            {% if datatype_permissions[ datatype.id ][ 'dt_admin' ] is defined %}
+                {% set is_datatype_admin = true %}
+            {% endif %}
+        {% endif %}
+
+
+        {% if is_datatype_admin == true %}
+        <tr>
+            <td>{{ datatype.id }}</td>
+            <td id="ODRDatatypeList_{{ datatype.id }}_name">
+                <span class="ODRDatatypeInfoDiv">
+                    <i class="fa fa-lg fa-info-circle"></i>
+                    <span class="ODRDatatypeInfo">
+                        <div>
+                            <b>Created By: </b>{{ datatype.createdBy|user_string }}<b> on </b>{{ datatype.created|date('Y-m-d') }}
+                        </div>
+                        <div>
+                            <b>Description: </b>{{ datatype.dataTypeMeta.description }}
+                        </div>
+                    </span>
+                </span>
+                {{ datatype.dataTypeMeta.shortName }}
+            </td>
+
+            {# master layout designer link #}
+            <td>
+            {% if datatype.dataTypeMeta.searchSlug == '' %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
+            {% else %}
+                <a id="ODRDatatypeList_{{ datatype.id }}_master_layout" class="address" href="{{ datatype_baseurl }}#{{ path('odr_design_master_theme', { 'datatype_id': datatype.id }) }}" title="Edit {{ datatype.dataTypeMeta.shortName }} Master Layout"><i class="fa fa-lg fa-pencil"></i>&nbsp;Edit</a>
+            {% endif %}
+            </td>
+
+            {# Sample Data Record #}
+            {% set datarecord_count = 0 %}
+            {% if metadata[ datatype.id ] is defined %}
+                {% set datarecord_count = metadata[ datatype.id ] %}
+            {% endif %}
+            <td>
+            {% if datarecord_count == 0 %}
+                <a id="ODRDatarecordList_{{ datatype.id }}_add" class="Pointer" onclick="addDataRecord('{{ datatype_baseurl }}',{{ datatype.id }});"><i class="fa fa-lg fa-plus-circle"></i>&nbsp;Create Test Record</a>
+            {% else %}
+                <a id="ODRDatarecordList_{{ datatype.id }}_view" class="address" href="{{ datatype_baseurl }}#{{ path('odr_search_render', {'search_key': 'dt_id='~datatype.id} ) }}" title="View {{ datatype.dataTypeMeta.shortName }} DataRecords"><i class="fa fa-lg fa-list"></i>&nbsp;View Test Record</a>
+            {% endif %}
+            </td>
+        </tr>
+        {% endif %}
+    {% endfor %}
+
+    </tbody>
+</table>
+</div>
+
+<script>
+
+    function addDataRecord(urlpath, datatype_id) {
+        if ( confirm('Are you sure you want to create a new Datarecord?') ) {
+            var url = '{{ path('odr_record_add', { 'datatype_id': 0 }) }}';
+            url = url.substring(0, (url.length - 1));
+            url += datatype_id;
+
+            var dataType = "json";
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: dataType,
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+                        // Reload this area of the page
+                        var datarecord_id = data.d.datarecord_id;
+
+                        var url = urlpath + '#{{ path('odr_record_edit', { 'datarecord_id': 0 }) }}';
+                        url = url.substring(0, (url.length-1));
+                        url += datarecord_id;
+
+                        window.location = url;
+                    }
+                    else {
+                        // Error occurred
+                        alert( data.d );
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        }
+    }
+
+    function deleteDataType(datatype_id) {
+        var datatype_name = $("#ODRDatatypeList_" + datatype_id + "_name").html();
+
+        if( confirm("Are you sure you want to delete the \"" + datatype_name + "\" datatype and all associated datarecords?") ) {
+            // Delete the datatype selected
+            var url = '{{ path('odr_design_delete_datatype', { 'datatype_id': 0 }) }}';
+            url = url.substring(0, (url.length - 1));
+            url += datatype_id;
+
+            var dataType = "json";
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: dataType,
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+                        // Reload this area of the page
+                        window.location.reload(true);
+                    }
+                    else {
+                        // Error occurred
+                        alert( data.d );
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        }
+    }
+</script>
+
+{% endspaceless %}

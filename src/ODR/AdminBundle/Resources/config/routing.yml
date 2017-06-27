@@ -270,7 +270,22 @@ odr_list_types:
     path:  /admin/type/list/{section}
     defaults: { _controller: ODRAdminBundle:Datatype:list }
     requirements:
-        section: design|records
+        section: design|records|master
+
+odr_create_type:
+    path:  /admin/type/create/{create_master}
+    defaults: { _controller: ODRAdminBundle:Datatype:create }
+    requirements: { methods: GET, create_master: \d }
+
+odr_create_type_info:
+    path:  /admin/type/create/info/{template_choice}
+    defaults: { _controller: ODRAdminBundle:Datatype:createinfo }
+    requirements: { methods: GET, template_choice: -?\d+ }
+
+odr_create_from_master:
+    path:  /admin/type/create/masterbased/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:ODRCustom:copyfrommaster }
+    requirements: { methods: GET, datatype_id: -?\d+ }
 
 odr_add_types:
     path:  /admin/type/add
@@ -353,23 +368,22 @@ odr_design_save_theme_element_order:
     defaults: { _controller: ODRAdminBundle:Theme:themeelementorder }
     requirements: { methods: POST }
 
-
 odr_design_attach_datafield:
-    path:  /design/displaytemplate/attachdatafield/{datafield_id}/{theme_element_id}
+    path:  /design/theme/attachdatafield/{datafield_id}/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Theme:attachdatafield }
     requirements:
         datafield_id: \d+
         theme_element_id: \d+
 
 odr_design_detach_datafield:
-    path:  /design/displaytemplate/detachdatafield/{datafield_id}/{theme_element_id}
+    path:  /design/theme/detachdatafield/{datafield_id}/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Theme:detachdatafield }
     requirements:
         datafield_id: \d+
         theme_element_id: \d+
 
 odr_design_save_datafield_order:
-    path:  /design/displaytemplate/datafieldorder/{initial_theme_element_id}/{ending_theme_element_id}
+    path:  /design/theme/datafieldorder/{initial_theme_element_id}/{ending_theme_element_id}
     defaults: { _controller: ODRAdminBundle:Theme:datafieldorder }
     methods: [POST]
     requirements:
@@ -377,22 +391,31 @@ odr_design_save_datafield_order:
         ending_theme_element_id: \d+
 
 odr_design_load_theme_datafield:
-    path:  /design/displaytemplate/loadthemedatafieldproperties/{datafield_id}/{theme_id}
+    path:  /design/theme/loadthemedatafield/{theme_element_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Theme:loadthemedatafield }
     requirements:
         datafield_id: \d+
-        theme_id: \d+
+        theme_element_id: \d+
 
+# Save routes should not need parameters
 odr_design_save_theme_datafield:
-    path:  /design/displaytemplate/themedatafieldproperties/{theme_element_id}/{datafield_id}
+    path:  /design/theme/savethemedatafield/{theme_element_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Theme:savethemedatafield }
     methods: [POST]
     requirements:
         theme_element_id: \d+
         datafield_id: \d+
 
+odr_design_load_theme_datatype:
+    path:  /design/theme/loadthemedatatype/{theme_element_id}/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Theme:loadthemedatatype }
+    requirements:
+        theme_element_id: \d+
+        datatype_id: \d+
+
+# Save routes should not need parameters
 odr_design_save_theme_datatype:
-    path:  /design/displaytemplate/themedatatypeproperties/{theme_element_id}/{datatype_id}
+    path:  /design/theme/savethemedatatype/{theme_element_id}/{datatype_id}
     defaults: { _controller: ODRAdminBundle:Theme:savethemedatatype }
     methods: [POST]
     requirements:
@@ -415,12 +438,14 @@ odr_design_reload_child:
     requirements:
         source_datatype_id: \d+
         datatype_id: \d+
+
 odr_design_reload_theme_element:
     path: /design/displaytemplate/themeelementreload/{source_datatype_id}/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:reloadthemeelement }
     requirements:
         source_datatype_id: \d+
         theme_element_id: \d+
+
 odr_design_reload_datafield:
     path: /design/displaytemplate/datafieldreload/{source_datatype_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:reloaddatafield }

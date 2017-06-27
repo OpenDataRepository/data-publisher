@@ -104,6 +104,7 @@ ODR\AdminBundle\Entity\DataRecord:
             targetEntity: DataRecord
             inversedBy: children
             fetch: EXTRA_LAZY
+
         grandparent:
             targetEntity: DataRecord
             fetch: EXTRA_LAZY

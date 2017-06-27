@@ -375,4 +375,62 @@ class Theme
     {
         return $this->getThemeMeta()->getIsDefault();
     }
+    /**
+     * @var \ODR\AdminBundle\Entity\Theme
+     */
+    private $parentTheme;
+
+
+    /**
+     * Set parentTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $parentTheme
+     *
+     * @return Theme
+     */
+    public function setParentTheme(\ODR\AdminBundle\Entity\Theme $parentTheme = null)
+    {
+        $this->parentTheme = $parentTheme;
+
+        return $this;
+    }
+
+    /**
+     * Get parentTheme
+     *
+     * @return \ODR\AdminBundle\Entity\Theme
+     */
+    public function getParentTheme()
+    {
+        return $this->parentTheme;
+    }
+    /**
+     * @var \ODR\AdminBundle\Entity\Theme
+     */
+    private $sourceTheme;
+
+
+    /**
+     * Set sourceTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $sourceTheme
+     *
+     * @return Theme
+     */
+    public function setSourceTheme(\ODR\AdminBundle\Entity\Theme $sourceTheme = null)
+    {
+        $this->sourceTheme = $sourceTheme;
+
+        return $this;
+    }
+
+    /**
+     * Get sourceTheme
+     *
+     * @return \ODR\AdminBundle\Entity\Theme
+     */
+    public function getSourceTheme()
+    {
+        return $this->sourceTheme;
+    }
 }

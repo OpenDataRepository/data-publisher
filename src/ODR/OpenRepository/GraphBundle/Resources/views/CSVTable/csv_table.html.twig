@@ -1,0 +1,27 @@
+{% spaceless %}
+
+
+{% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
+    'datarecord': datarecord,
+    'datafield': datafield,
+    'image_thumbnails_only': false,
+    'bypass_render_plugin': true,
+} %}
+
+<div class="pure-u-1">
+    <div id="hot_{{ datafield.id }}" class="pure-u-1"></div>
+    <script>
+        // Handsontable display
+        var data_{{ datafield.id }} = {% spaceless %}{{ data_array|raw }}{% endspaceless %}
+
+        var hot_container_{{ datafield.id }} = document.getElementById('hot_{{ datafield.id }}');
+        var hot_{{ datafield.id }} = new Handsontable(hot_container_{{ datafield.id }}, {
+            data: data_{{ datafield.id }},
+            rowHeaders: true,
+            colHeaders: true,
+            dropdownMenu: true
+        });
+    </script>
+</div>
+
+{% endspaceless %}

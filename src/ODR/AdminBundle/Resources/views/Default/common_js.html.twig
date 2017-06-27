@@ -7,28 +7,48 @@
         $(document).ajaxError(function( event, jqxhr, settings, exception ) {
             switch( jqxhr.status ) {
                 case 500:
-                    alert('Server error: ' + exception);
+                    var res = $.parseHTML(jqxhr.responseText)
+                    var error_type = res[13].childNodes[3].childNodes[1].childNodes[1].childNodes[3].childNodes[5].innerHTML
+                    var error_msg = res[13].childNodes[3].childNodes[1].childNodes[1].childNodes[3].childNodes[3].innerHTML
+                    console.log("500 Error: " + error_msg)
+                    $.jGrowl(
+                        error_type,
+                        {
+                            sticky: true,
+                            openDuration: 250,
+                            closeDuration: 250
+                        }
+                    )
                     break;
                 case 404:
-                    alert('Page not found: ' + settings.url.substr(0, settings.url.indexOf('?')));
+                    var res = $.parseHTML(jqxhr.responseText)
+                    var error_type = res[13].childNodes[3].childNodes[1].childNodes[1].childNodes[3].childNodes[5].innerHTML
+                    var error_msg = res[13].childNodes[3].childNodes[1].childNodes[1].childNodes[3].childNodes[1].innerHTML
+                    console.log("404 Error: " + error_msg)
+                    $.jGrowl(
+                        error_type,
+                        {
+                            sticky: true,
+                            openDuration: 250,
+                            closeDuration: 250
+                        }
+                    )
                     break;
                 case 401:
 //                    ODRLogin();   // TODO - modify ODR so it returns correct status codes
 //                    break;
                 case 403:
-                    alert( 'Access Denied. [0x883928]' );
                     // If a hash is present, attempt to preserve it so user goes back to this page after login
-                    /* var url = window.location.href;
+                    var url = window.location.href;
                     if ( url.indexOf('#') !== -1 ) {
                         var tmp = url.split('#');
                         url = tmp[0].substr(0, tmp[0].lastIndexOf('/')) + '/login#' + tmp[1];
-
                         location.replace(url);
                     }
                     else {
                         // Otherwise, just redirect to admin page
-                        location.replace("{{ path('odr_admin_homepage') }}");
-                    } */
+                        location.replace("/login");
+                    }
                     break;
 /*
                 default:
@@ -39,17 +59,17 @@
         });
 
         // Detect refresh of page?
-        $(window).load(function() {
+        $(window).on('load', function() {
             if ( window.location.hash != '') {
-                // window.location.hash doesn't preserv url encoding...
+                // window.location.hash doesn't preserve url encoding...
                 var tmp = window.location.href.split('#');
                 var url = tmp[1];
                 LoadContentFullAjax( url );
             }
             else {
-{% if logged_in == true %}
-                LoadContentFullAjax('{{ path('odr_dashboard') }}');
-{% endif %}
+                {% if logged_in == true %}
+                    LoadContentFullAjax('{{ path('odr_dashboard') }}');
+                {% endif %}
             }
         });
 
@@ -60,6 +80,7 @@
             // Needed?
             event.preventDefault();
 
+            console.log('hashchange event')
             // Close Menu
             $("#ODRNav").hide();
             // always scroll to the top of the page?
@@ -174,16 +195,32 @@
     }
 
     var xhr = null;
-    function LoadContentFullAjax(url) {
+    var timer = null;
+    function LoadContentFullAjax(url, use_fade) {
+        if (timer) {
+            window.clearTimeout(timer)
+        }
+        // Default use_fade to 1
+        if (undefined == use_fade)
+            use_fade = true
+
         // TODO Determine if this HACK is needed
         // Delete the DataTables fixed headers and bindings.
- 	jQuery(window).unbind('scroll');
- 	jQuery('.fixedHeader-floating').remove();
+ 	    jQuery(window).unbind('scroll');
+ 	    jQuery('.fixedHeader-floating').remove();
+
+
+        var faded_opacity = 0.15
+        if(!use_fade) {
+            faded_opacity = 1
+        }
 
         // Hide the properties menu
-        $("#ODRNavRightWrapper").fadeOut('fast');
-        $("#content").fadeTo(300, 0.15, function() {
-            //
+        // $("#ODRNavRightWrapper").fadeOut('fast');
+        // Disable scroll handlers
+        $(window).off('scroll')
+        $("#content").fadeTo(200, faded_opacity, function() {
+            // TODO Document what this is doing.
             if (xhr != null)
                 xhr.abort();
 
@@ -204,7 +241,7 @@
                     if ((data.r == 0) || (data.r == 403)) {
 
                         $("#content").html(data.d.html);
-                        $("#content").fadeTo(1000, 1.0);
+                        $("#content").fadeTo(200, 1.0);
 
                         xhr = null;
                     }
@@ -443,6 +480,44 @@
         };
     })();
 
+    /*
+    var scrollTop = '';
+    var newHeight = '100';
+    function initODRDialog(elem) {
+        /*
+        $(window).bind('scroll', function() {
+            scrollTop = $( window ).scrollTop();
+            newHeight = scrollTop + 100;
+        });
+
+        if($(window).width() < 767) {
+            $(elem).show().addClass('odr-popup-mobile').css('top', 0);
+            $('html, body').animate({
+                scrollTop: $(elem).offset().top
+            }, 500);
+        } else {
+            $(elem).hide();
+            $(elem).removeClass('odr-popup-mobile').css('top', newHeight).toggle();
+        };
+
+        $(elem).append('<span class="odr-popup-btn-close">close</span>');
+
+        $('html').unbind('click')
+        .click(function() {
+            $('.odr-popup').hide();
+        });
+
+        $('.odr-popup-btn-close').unbind('click')
+        .click(function(e){
+            $(this).parent().hide();
+        });
+
+        $('.odr-popup').unbind('click')
+        .click(function(e){
+            e.stopPropagation();
+        });
+     }
+        */
 </script>
 
 {% include 'ODRAdminBundle:Default:file_handling.html.twig' %}

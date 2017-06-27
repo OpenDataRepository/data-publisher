@@ -13,6 +13,8 @@ ODR\AdminBundle\Entity\DataType:
             generator:
                 strategy: IDENTITY
 
+        # TODO Determine if this revision value
+        # is in use.  Looks like it was never implemented.
         revision:
             type: integer
             unsigned: true
@@ -20,11 +22,20 @@ ODR\AdminBundle\Entity\DataType:
             default: 0
             column: revision
 
+        setup_step:
+            type: string
+            length: 32
+            fixed: false
+            nullable: false
+            default: ''
+            column: setup_step
+
         has_shortresults:
             type: boolean
             nullable: false
             default: false
             column: has_shortresults
+
         has_textresults:
             type: boolean
             nullable: false
@@ -36,16 +47,36 @@ ODR\AdminBundle\Entity\DataType:
             gedmo:
                 timestampable:
                     on: create
+
+        is_master_type:
+            type: boolean
+            nullable: false
+            default: false
+            column: is_master_type
+
+
         updated:
             type: datetime
             gedmo:
                 timestampable:
                     on: update
+
         deletedAt:
             type: datetime
             nullable: true
 
     manyToOne:
+        # TODO These will probably need to be moved to map tables
+        # so that child types can be re-used across multiple master
+        # data types.
+        masterDataType:
+            targetEntity: DataType
+            fetch: EXTRA_LAZY
+            inversedBy: relatedMasterTypes
+            joinColumns:
+                master_datatype_id:
+                    referencedColumnName: id
+
         renderPlugin:
             targetEntity: RenderPlugin
             cascade: {  }
@@ -66,6 +97,7 @@ ODR\AdminBundle\Entity\DataType:
                 createdBy:
                     referencedColumnName: id
             orphanRemoval: false
+
         updatedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -76,6 +108,7 @@ ODR\AdminBundle\Entity\DataType:
                 updatedBy:
                     referencedColumnName: id
             orphanRemoval: false
+
         deletedBy:
             targetEntity: ODR\OpenRepository\UserBundle\Entity\User
             cascade: {  }
@@ -88,6 +121,14 @@ ODR\AdminBundle\Entity\DataType:
             orphanRemoval: false
 
     oneToMany:
+        # TODO These will probably need to be moved to map tables
+        # so that child types can be re-used across multiple master
+        # data types.
+#        relatedMasterTypes:
+#            targetEntity: DataRecord
+#            mappedBy: masterDataType
+#            fetch: EXTRA_LAZY
+
         dataTypeMeta:
             targetEntity: DataTypeMeta
             cascade: { }

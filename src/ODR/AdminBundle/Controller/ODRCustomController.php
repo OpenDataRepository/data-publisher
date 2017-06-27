@@ -202,7 +202,7 @@ class ODRCustomController extends Controller
 
         // -----------------------------------
         $final_html = '';
-        if ( $theme->getThemeType() == 'search_results' ) {
+        if ( $theme->getThemeType() == 'search_results' || $theme->getThemeType() == 'master' ) {
             // -----------------------------------
             // Ensure offset exists for shortresults list
             if ( (($offset-1) * $page_length) > count($datarecords) )
@@ -235,24 +235,45 @@ class ODRCustomController extends Controller
             if ($this->container->getParameter('kernel.environment') === 'dev')
                 $bypass_cache = true;
 
+            // Initialize services
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            // $pm_service = $this->container->get('odr.permissions_management_service');
 
+            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
+            $datarecord_array = array();
+            $related_datarecord_array = array();
+            foreach ($datarecord_list as $num => $dr_id) {
+                $datarecord_info = $dri_service->getRelatedDatarecords($dr_id);
+
+                $stacked_datarecord_array = array();
+                $stacked_datarecord_array[ $dr_id ] = self::stackDatarecordArray($datarecord_info, $dr_id);
+                $datarecord_array[$dr_id] = $stacked_datarecord_array;
+                // $datarecord_array[$dr_id] = $datarecord_info;
+
+
+                foreach ($datarecord_info as $local_dr_id => $data)
+                    $related_datarecord_array[$local_dr_id] = $data;
+
+
+            }
+
+
+            // Get Associated Datatypes
+            $datatype_array = $dti_service->getRecordDatatypes($related_datarecord_array);
+            $datatype_array[ $datatype->getId() ] = self::stackDatatypeArray($datatype_array, $datatype->getId(), $theme->getId());
+
+
+
+            /*
             // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
             // print $redis_prefix.'.cached_datatype_'.$datatype->getId();
             $datatype_array = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype->getId())));
             if ($bypass_cache || $datatype_array == false) {
                 $datatype_array = self::getDatatypeData($em, self::getDatatreeArray($em, $bypass_cache), $datatype->getId(), $bypass_cache);
             }
+            */
 
-            // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
-            $datarecord_array = array();
-            foreach ($datarecord_list as $num => $dr_id) {
-                $datarecord_data = self::getRedisData(($redis->get($redis_prefix.'.cached_datarecord_'.$dr_id)));
-                if ($bypass_cache || $datarecord_data == false)
-                    $datarecord_data = self::getDatarecordData($em, $dr_id, $bypass_cache);
-
-                foreach ($datarecord_data as $dr_id => $data)
-                    $datarecord_array[$dr_id] = $data;
-            }
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             self::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
@@ -286,7 +307,6 @@ class ODRCustomController extends Controller
                     'offset' => $offset,
                 )
             );
-
         }
         else if ( $theme->getThemeType() == 'table' ) {
             // -----------------------------------
@@ -294,12 +314,6 @@ class ODRCustomController extends Controller
             $column_data = self::getDatatablesColumnNames($em, $theme, $datafield_permissions);
             $column_names = $column_data['column_names'];
             $num_columns = $column_data['num_columns'];
-/*
-print '<pre>';
-print_r($column_data);
-print '</pre>';
-exit();
-*/
 
             // Don't render the starting textresults list here, it'll always be loaded via ajax later
 
@@ -540,7 +554,7 @@ exit();
     public function getSavedSearch($em, $user, $datatype_permissions, $datafield_permissions, $datatype_id, $search_key, Request $request)
     {
         // Get necessary objects
-        $redis = $this->container->get('snc_redis.default');;
+        $redis = $this->container->get('snc_redis.default');
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
@@ -2067,58 +2081,6 @@ if ($debug)
                 }
             }
         }
-
-        // Also need to go through the datarecord array and remove both datarecords and datafields that the user isn't allowed to see
-        foreach ($datarecord_array as $dr_id => $dr) {
-            // Save datatype id of this datarecord
-            $dt_id = $dr['dataType']['id'];
-
-            // If there was no datatype permission entry for this datatype, have it default to false
-            if ( !isset($can_view_datarecord[$dt_id]) )
-                $can_view_datarecord[$dt_id] = false;
-
-            // If the datarecord is non-public and user doesn't have the 'can_view_datarecord' permission, then remove the datarecord from the array
-            if ( $dr['dataRecordMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
-                unset( $datarecord_array[$dr_id] );
-if ($debug)
-    print 'removed non-public datarecord '.$dr_id."\n";
-
-                // No sense checking anything else for this datarecord, skip to the next one
-                continue;
-            }
-
-            // The user is allowed to view this datarecord...
-            foreach ($dr['dataRecordFields'] as $df_id => $drf) {
-
-                // Remove the datafield if needed
-                if ( isset($datafields_to_remove[$df_id]) ) {
-                    unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
-if ($debug)
-    print 'removed datafield '.$df_id.' from datarecord '.$dr_id."\n";
-
-                    // No sense checking file/image public status, skip to the next datafield
-                    continue;
-                }
-
-                // ...remove the files the user isn't allowed to see
-                foreach ($drf['file'] as $file_num => $file) {
-                    if ( $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
-                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['file'][$file_num] );
-if ($debug)
-    print 'removed non-public file '.$file['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
-                    }
-                }
-
-                // ...remove the images the user isn't allowed to see
-                foreach ($drf['image'] as $image_num => $image) {
-                    if ( $image['parent']['imageMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
-                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['image'][$image_num] );
-if ($debug)
-    print 'removed non-public image '.$image['parent']['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
-                    }
-                }
-            }
-        }
     }
 
 
@@ -3397,6 +3359,13 @@ if ($debug)
             $em->persist($radio_option_meta);
             $em->flush($radio_option_meta);
 
+            // Master Template Data Fields must increment Master Revision
+            // on all change requests.
+            if($datafield->getIsMasterField()) {
+                $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+                self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
+            }
+
             return $radio_option;
         }
         else {
@@ -3456,6 +3425,13 @@ if ($debug)
                     // Now that it exists, fill out the properties of a RadioOptionMeta entity that were skipped during the manual creation...
                     $radio_option_meta = $em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy( array('radioOption' => $radio_option->getId()) );
                 }
+            }
+
+            // Master Template Data Fields must increment Master Revision
+            // on all change requests.
+            if($datafield->getIsMasterField()) {
+                $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+                self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
             }
 
             return $radio_option;
@@ -3543,6 +3519,14 @@ if ($debug)
         // Save the new meta entry
         $em->persist($new_radio_option_meta);
         $em->flush();
+
+        // Master Template Data Fields must increment Master Revision
+        // on all change requests.
+        if($radio_option->getDataField()->getIsMasterField()) {
+            $datafield = $radio_option->getDataField();
+            $dfm_properties['master_revision'] = $datafield->getDataFieldMeta()->getMasterRevision() + 1;
+            self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
+        }
 
         // Return the new entry
         return $new_radio_option_meta;
@@ -3692,6 +3676,9 @@ if ($debug)
 
             'useShortResults' => $old_meta_entry->getUseShortResults(),
             'publicDate' => $old_meta_entry->getPublicDate(),
+            'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
+            'master_revision' => $old_meta_entry->getMasterRevision(),
+            'tracking_master_revision' => $old_meta_entry->getTrackingMasterRevision(),
         );
 
         // These Datafields entries can be null
@@ -3749,6 +3736,10 @@ if ($debug)
             $new_datatype_meta->setUseShortResults( $old_meta_entry->getUseShortResults() );
             $new_datatype_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
+            $new_datatype_meta->setMasterRevision( $old_meta_entry->getMasterRevision() );
+            $new_datatype_meta->setMasterPublishedRevision( $old_meta_entry->getMasterPublishedRevision() );
+            $new_datatype_meta->setTrackingMasterRevision( $old_meta_entry->getTrackingMasterRevision() );
+
             $new_datatype_meta->setCreatedBy($user);
         }
         else {
@@ -3802,8 +3793,28 @@ if ($debug)
         if ( isset($properties['publicDate']) )
             $new_datatype_meta->setPublicDate( $properties['publicDate'] );
 
+        if ( isset($properties['master_revision']) )
+            $new_datatype_meta->setMasterRevision( $properties['master_revision'] );
+        if ( isset($properties['master_published_revision']) )
+            $new_datatype_meta->setMasterPublishedRevision( $properties['master_published_revision'] );
+        if ( isset($properties['master_published_revision']) )
+            $new_datatype_meta->setTrackingMasterRevision( $properties['tracking_master_revision'] );
+
         $new_datatype_meta->setUpdatedBy($user);
 
+        if($datatype->getIsMasterType()) {
+            // Update grandparent master revision
+            $datatree_array = self::getDatatreeArray($em);
+            $grandparent_datatype_id = self::getGrandparentDatatypeId($datatree_array, $datatype->getId());
+
+            if($grandparent_datatype_id != $datatype->getId()) {
+                $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+                $grandparent_datatype = $repo_datatype->find($grandparent_datatype_id);
+
+                $gp_properties['master_revision'] = $grandparent_datatype->getDataTypeMeta()->getMasterRevision() + 1;
+                self::ODR_copyDatatypeMeta($em, $user, $grandparent_datatype, $gp_properties);
+            }
+        }
 
         // Delete the old entry if needed
         if ($remove_old_entry)
@@ -3834,8 +3845,18 @@ if ($debug)
         // Poplulate new DataFields form
         $datafield = new DataFields();
         $datafield->setDataType($datatype);
-
         $datafield->setCreatedBy($user);
+
+        // This will always be zero unless
+        // created from a Master Template data field.
+        // $datafield->setMasterDataField(0);
+
+        // Add master flags
+        $datafield->setIsMasterField(0);
+
+        if($datatype->getIsMasterType() > 0) {
+            $datafield->setIsMasterField(1);
+        }
 
         $em->persist($datafield);
         $em->flush();
@@ -3846,6 +3867,15 @@ if ($debug)
         $datafield_meta->setDataField($datafield);
         $datafield_meta->setFieldType($fieldtype);
         $datafield_meta->setRenderPlugin($renderplugin);
+
+        // Master Revision defaults to zero.  When
+        // created from a Master Template field, this will
+        // track the data field Master Published Revision.
+        $datafield_meta->setMasterRevision(0);
+        // Will need to set the tracking revision if created
+        // from master template field.
+        $datafield_meta->setTrackingMasterRevision(0);
+        $datafield_meta->setMasterPublishedRevision(0);
 
         $datafield_meta->setFieldName('New Field');
         $datafield_meta->setDescription('Field description.');
@@ -3874,6 +3904,16 @@ if ($debug)
         $datafield_meta->setUpdatedBy($user);
 
         $em->persist($datafield_meta);
+        $em->flush();
+        $em->refresh($datafield_meta);
+
+        if($datatype->getIsMasterType() > 0) {
+            // A datafield publishes its own revision number.
+            // This number will be incremented whenever a change is made
+            // to the master data field.
+            $dfm_properties['master_revision'] = $datafield_meta->getMasterRevision() + 1;
+            self::ODR_copyDatafieldMeta($em, $user, $datafield, $dfm_properties);
+        }
 
 
         // Add the datafield to all groups for this datatype
@@ -3924,6 +3964,9 @@ if ($debug)
             'radio_option_display_unselected' => $old_meta_entry->getRadioOptionDisplayUnselected(),
             'searchable' => $old_meta_entry->getSearchable(),
             'publicDate' => $old_meta_entry->getPublicDate(),
+            'master_revision' => $old_meta_entry->getMasterRevision(),
+            'tracking_master_revision' => $old_meta_entry->getTrackingMasterRevision(),
+            'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
         );
 
         foreach ($existing_values as $key => $value) {
@@ -3963,12 +4006,19 @@ if ($debug)
             $new_datafield_meta->setSearchable( $old_meta_entry->getSearchable() );
             $new_datafield_meta->setPublicDate( $old_meta_entry->getPublicDate() );
 
+            // Master Template Related
+            $new_datafield_meta->setMasterRevision( $old_meta_entry->getMasterRevision() );
+            $new_datafield_meta->setTrackingMasterRevision( $old_meta_entry->getTrackingMasterRevision() );
+            $new_datafield_meta->setMasterPublishedRevision( $old_meta_entry->getMasterPublishedRevision() );
+
             $new_datafield_meta->setCreatedBy($user);
         }
         else {
             // Update the existing meta entry
             $new_datafield_meta = $old_meta_entry;
         }
+
+
 
         // Set any new properties
         if ( isset($properties['fieldType']) )
@@ -4006,22 +4056,43 @@ if ($debug)
             $new_datafield_meta->setSearchable( $properties['searchable'] );
         if ( isset($properties['publicDate']) )
             $new_datafield_meta->setPublicDate( $properties['publicDate'] );
+        if ( isset($properties['master_revision']) ) {
+            $new_datafield_meta->setMasterRevision( $properties['master_revision'] );
+        }
+        // Check in case master revision needs to be updated.
+        else if($datafield->getIsMasterField() > 0) {
+            // We always increment the Master Revision for master data fields
+            $new_datafield_meta->setMasterRevision($new_datafield_meta->getMasterRevision() + 1);
+        }
+
+        if ( isset($properties['tracking_master_revision']) )
+            $new_datafield_meta->setTrackingMasterRevision( $properties['tracking_master_revision'] );
+        if ( isset($properties['master_published_revision']) )
+            $new_datafield_meta->setMasterPublishedRevision( $properties['master_published_revision'] );
 
         $new_datafield_meta->setUpdatedBy($user);
-
-
-        // Delete the old meta entry if necessary
-        if ($remove_old_entry)
-            $em->remove($old_meta_entry);
 
         //Save the new meta entry
         $em->persist($new_datafield_meta);
         $em->flush();
 
+        // Delete the old meta entry if necessary
+        if ($remove_old_entry)
+            $em->remove($old_meta_entry);
+
+        // All metadata changes result in a new
+        // Data Field Master Published Revision.  Revision
+        // changes are picked up by derivative data types
+        // when the parent data type revision is changed.
+        if($datafield->getIsMasterField() > 0) {
+            $datatype = $datafield->getDataType();
+            $properties['master_revision'] = $datatype->getDataTypeMeta()->getMasterRevision() + 1;
+            self::ODR_copyDatatypeMeta($em, $user, $datatype, $properties);
+        }
+
         // Return the new entry
         return $new_datafield_meta;
     }
-
 
     /**
      * Copies the contents of the given ThemeMeta entity into a new ThemeMeta entity if something was changed
@@ -4243,6 +4314,7 @@ if ($debug)
         $theme_datafield->setDisplayOrder(999);
         $theme_datafield->setCssWidthMed('1-3');
         $theme_datafield->setCssWidthXL('1-3');
+        $theme_datafield->setHidden(0);
 
         $theme_datafield->setCreatedBy($user);
         $theme_datafield->setUpdatedBy($user);
@@ -4275,6 +4347,7 @@ if ($debug)
             'displayOrder' => $theme_datafield->getDisplayOrder(),
             'cssWidthMed' => $theme_datafield->getCssWidthMed(),
             'cssWidthXL' => $theme_datafield->getCssWidthXL(),
+            'hidden' => $theme_datafield->getHidden(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -4299,6 +4372,7 @@ if ($debug)
             $new_theme_datafield->setDisplayOrder( $theme_datafield->getDisplayOrder() );
             $new_theme_datafield->setCssWidthMed( $theme_datafield->getCssWidthMed() );
             $new_theme_datafield->setCssWidthXL( $theme_datafield->getCssWidthXL() );
+            $new_theme_datafield->setHidden( $theme_datafield->getHidden() );
 
             $new_theme_datafield->setCreatedBy($user);
         }
@@ -4318,6 +4392,8 @@ if ($debug)
             $new_theme_datafield->setCssWidthMed( $properties['cssWidthMed'] );
         if (isset($properties['cssWidthXL']))
             $new_theme_datafield->setCssWidthXL( $properties['cssWidthXL'] );
+        if (isset($properties['hidden']))
+            $new_theme_datafield->setHidden( $properties['hidden'] );
 
         $new_theme_datafield->setUpdatedBy($user);
 
@@ -4353,6 +4429,7 @@ if ($debug)
         $theme_datatype->setThemeElement($theme_element);
 
         $theme_datatype->setDisplayType(0);     // 0 is accordion, 1 is tabbed, 2 is dropdown, 3 is list
+        $theme_datatype->setHidden(0);
 
         $theme_datatype->setCreatedBy($user);
         $theme_datatype->setUpdatedBy($user);
@@ -5133,6 +5210,7 @@ if ($debug)
 
             if ($transparency >= 0) {
                 // TODO figure out what trnprt_index is used for.
+                $trnprt_indx = null;
                 $transparent_color  = imagecolorsforindex($image, $trnprt_indx);
                 $transparency       = imagecolorallocate($image_resized, $transparent_color['red'], $transparent_color['green'], $transparent_color['blue']);
                 imagefill($image_resized, 0, 0, $transparency);
@@ -5355,7 +5433,7 @@ if ($timing)
         // Otherwise...get all non-layout data for a given grandparent datarecord
         $query = $em->createQuery(
            'SELECT
-                t, tm,
+                t, pt, st, tm,
                 dt, dtm, dt_rp, dt_rpi, dt_rpo, dt_rpm, dt_rpf, dt_rpm_df,
                 te, tem,
                 tdf, df, ro, rom,
@@ -5366,6 +5444,8 @@ if ($timing)
             LEFT JOIN dt.dataTypeMeta AS dtm
 
             LEFT JOIN dt.themes AS t
+            LEFT JOIN t.parentTheme AS pt
+            LEFT JOIN t.sourceTheme AS st
             LEFT JOIN t.themeMeta AS tm
 
             LEFT JOIN dtm.renderPlugin AS dt_rp
@@ -5986,14 +6066,22 @@ if ($timing) {
      * @param array $datatype_array
      * @param integer $initial_datatype_id
      * @param integer $theme_id
+     * @param integer $parent_theme_id
      *
      * @return array
      */
-    public function stackDatatypeArray($datatype_array, $initial_datatype_id, $theme_id)
+    public function stackDatatypeArray($datatype_array, $initial_datatype_id, $theme_id, $parent_theme_id = null)
     {
         $current_datatype = array();
         if ( isset($datatype_array[$initial_datatype_id]) ) {
             $current_datatype = $datatype_array[$initial_datatype_id];
+
+            // Check if parent theme is set
+            if( isset($current_datatype['themes'][$theme_id]['parentTheme'])
+                && $current_datatype['themes'][$theme_id]['parentTheme']['id'] > 0
+            ) {
+                $parent_theme_id = $current_datatype['themes'][$theme_id]['parentTheme']['id'];
+            }
 
             foreach ($current_datatype['themes'][$theme_id]['themeElements'] as $num => $theme_element) {
                 if ( isset($theme_element['themeDataType']) ) {
@@ -6006,11 +6094,20 @@ if ($timing) {
 
                         $child_theme_id = '';
                         foreach ($datatype_array[$child_datatype_id]['themes'] as $t_id => $t) {
-                            if ( $t['themeType'] == 'master' )
+                            if( isset($t['parentTheme'])
+                                && $t['parentTheme']['id'] != null
+                                && $t['parentTheme']['id'] == $parent_theme_id
+                            ) {
                                 $child_theme_id = $t_id;
+                            }
+                            else if ( $t['themeType'] == 'master'
+                                && $parent_theme_id == null
+                            ) {
+                                $child_theme_id = $t_id;
+                            }
                         }
 
-                        $tmp[$child_datatype_id] = self::stackDatatypeArray($datatype_array, $child_datatype_id, $child_theme_id);
+                        $tmp[$child_datatype_id] = self::stackDatatypeArray($datatype_array, $child_datatype_id, $child_theme_id, $parent_theme_id);
                     }
 
                     $current_datatype['themes'][$theme_id]['themeElements'][$num]['themeDataType'][0]['dataType'] = $tmp;

@@ -1,373 +1,394 @@
 {% spaceless %}
 
-{% set datatype = datatype_array[initial_datatype_id] %}
+    {% set datatype = datatype_array[initial_datatype_id] %}
 
-<h1 class="no-margin-top-phone">
-    <span>Master Layout Design &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
-</h1>
-<input type="hidden" id="has_datarecords" value="{{ has_datarecords }}" />
+    <h1 class="no-margin-top-phone">
+        <span>Master Layout Design &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
+    </h1>
 
-{% include 'ODRAdminBundle:Displaytemplate:design_area.html.twig' with {
-    'datatype_array': datatype_array,
-    'initial_datatype_id': initial_datatype_id,
-    'theme_id': theme_id,
+    {%  if datatype.setup_step != "complete" %}
+        <ul id="wizardStatus">
+            <li class="completed">Step 1. <span class="wizardStatusText">Choose a template.</span></li>
+            <li class="completed">Step 2. <span class="wizardStatusText">Database information.</span></li>
+            <li class="current">Step 3. <span class="wizardStatusText">Add or change fields.</span></li>
+            <li>Step 4. <span class="wizardStatusText">Setup search templates.</span></li>
+            <!-- <li>Step 4. <span class="wizardStatusText">Book/Order repair</span></li> -->
+        </ul>
 
-    'is_datatype_admin': is_datatype_admin,
-} %}
+        <div class="ODRContentWrapper pure-u-1">
+            <div class="ODRThemeElement pure-u-1">
+                <div class="ODRInnerBox pure-u-1">
+                    <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Add or change database fields.</h3>
+                    {% if datatype.is_master_type == 1 %} {# Master Template Creation #}
+                        <div class="ODRBodyContent">
+                            <p>Use this design system to create and map the fields for the database template.</p>
+                            <p><a class="pure-button" href="#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}">Save and Create Search Themes</a></p>
+                        </div>
+                        {# elseif datatype.master_type_id == 0 #} {# Custom Database #}
+                        {#
+                        <div class="ODRBodyContent">
+                            <p>Please choose a name for your database and enter the relevant info to ensure proper attribution of your database.</p>
+                            <p>After completing the information below, you will be forwarded to the database management
+                                system to design your database by adding fields and display preferences.</p>
+                        </div>
+                        #}
+                    {% else %} {# Database from template#}
+                        <div class="ODRBodyContent">
+                            <p>The database may be extended or modified using this design system.  The system will alert you when a change will
+                                break compatibility with the parent template.</p>
+                            <p><a class="pure-button" href="#{{ path('odr_design_derivative_themes', { 'datatype_id': datatype.id }) }}">Save and Create Search Themes</a></p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
 
-<div id="link_datatype_dialog_wrapper">
-{% include 'ODRAdminBundle:Displaytemplate:link_type_dialog.html.twig' %}
-</div>
-<div id="plugin_settings_dialog_wrapper">
-{% include 'ODRAdminBundle:Displaytemplate:plugin_settings_dialog.html.twig' %}
-</div>
-<div id="deleted_fields_dialog_wrapper">
-{% include 'ODRAdminBundle:Displaytemplate:undelete_fields_dialog.html.twig' %}
-</div>
+    <input type="hidden" id="has_datarecords" value="{{ has_datarecords }}" />
+
+
+    <div id="ThemeDesignWrapper">
+        <div id="ThemeLeftColumn" class="ODRContentWrapper">
+            <div class="ODRThemeElement">
+                <div class="ODRInnerBox">
+                    <h3 class="ODRHeader">Manage Design</h3>
+                    <div class="ODRThemeDesignSettings">
+                        <p>Click on an element of your design to manage its settings below.</p>
+                        <!--
+                        <div>
+                            <label for="ODRThemeShowHidden">
+                                Show Hidden Elements:
+                            </label>
+                            <input type="checkbox" value="0" id="ODRThemeShowHidden" name="ODRThemeShowHidden">
+                        </div>
+                        -->
+                    </div>
+                    <div class="pure-u-1"></div>
+                    <div class="pure-u-24-24"><h3 class="ODRHeader">Element Settings</h3></div>
+                    <div id="ThemeDesignForm">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="ThemeDesignArea">
+            {% include 'ODRAdminBundle:Displaytemplate:design_area.html.twig' with {
+            'datatype_array': datatype_array,
+            'initial_datatype_id': initial_datatype_id,
+            'theme_id': theme_id,
+
+            'is_datatype_admin': is_datatype_admin,
+            } %}
+        </div>
+    </div>
+
+    <div id="link_datatype_dialog_wrapper">
+        {% include 'ODRAdminBundle:Displaytemplate:link_type_dialog.html.twig' %}
+    </div>
+    <div id="plugin_settings_dialog_wrapper">
+        {% include 'ODRAdminBundle:Displaytemplate:plugin_settings_dialog.html.twig' %}
+    </div>
+    <div id="deleted_fields_dialog_wrapper">
+        {% include 'ODRAdminBundle:Displaytemplate:undelete_fields_dialog.html.twig' %}
+    </div>
 
 {% endspaceless %}
 
-<style>
-    .ODRActiveIcon {
-        background: #00FF00;
-    }
-</style>
-
 <script>
 
-//var SaveTimeout = 750;
-var SaveTimeout = 2000;
-$(function() {
-    initPage();
-    InitSlideout();
-});
+    var SaveTimeout = 2000;
+    $(function() {
+        initPage();
+        initResizeables();
+        initDesignScrollHandler($("#ThemeLeftColumn").offset().top);
+        // InitSlideout();
+    });
 
-function notifySaved() {
-{#
-    $('#saved').css('visibility', 'visible');   // trying out visibility property because normal display property causes slideout to jump around
-    setTimeout(function() {
-        $('#saved').css('visibility', 'hidden');
-    }, 1250);
-#}
-    $.jGrowl('SAVED');
-}
+    function notifySaved() {
+        $.jGrowl('SAVED');
+    }
 
-function initPage() {
-    // Setup Data Fields
-    SetupDataFields();
 
-    // Setup Properties Tack
-    $(".TackProperties").unbind('click').click(function() {
-        if($(this).hasClass('tacked')) {
-            // Remove tacked
-            $(this).removeClass('tacked');
-            $("#ODRNavRight").removeClass('StickOpen');
-            // $("#ODRNavRight").css('right', 0);
+    function SubmitThemeDesignForm() {
+        jQuery.ajax({
+            type: "POST",
+            url: jQuery("#ThemeDesignForm form").attr('action'),
+            data: jQuery("#ThemeDesignForm form").serialize(),
+            dataType: 'json',
+            success: function(data) {
+                console.log(data)
+            }
+        });
+    }
+
+    function LoadThemeElementForm(theme_element_id) {
+        console.log('load theme element form')
+        var datafield = jQuery(this)
+        var url = "{{ path('odr_design_get_theme_element_properties', {'theme_element_id': 0}) }}";
+        url = url.substr(0, url.length-1);
+        console.log(url + theme_element_id)
+        jQuery.getJSON(
+            url + theme_element_id,
+            function(data) {
+                jQuery("#ThemeDesignForm").html(data.d)
+            }
+        )
+    }
+
+    function LoadDatafieldForm(theme_element_id, datafield_id) {
+        var datafield = jQuery(this)
+        var url = "{{ path('odr_design_load_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}";
+        url = url.substr(0, url.length-3);
+        jQuery.getJSON(
+            url + theme_element_id + "/" + datafield_id,
+            function(data) {
+                jQuery("#ThemeDesignForm").html(data.d)
+                jQuery("#UpdateThemeDatafieldForm_hidden").unbind('change')
+                jQuery("#UpdateThemeDatafieldForm_hidden").change(function() {
+                    var datafield_id = jQuery("#UpdateThemeDatafieldForm_dataField").val()
+                    if(jQuery("#UpdateThemeDatafieldForm_hidden").find(":selected").val() == 1) {
+                        if(jQuery("#ODRThemeShowHidden").is(":checked")) {
+                            jQuery("#Field_" + datafield_id).addClass("ODRThemeVisibleHiddenElement")
+                        }
+                        else {
+                            jQuery("#Field_" + datafield_id).addClass("ODRThemeHiddenElement")
+                        }
+                    }
+                    else {
+                        jQuery("#Field_" + datafield_id)
+                            .removeClass("ODRThemeVisibleHiddenElement")
+                            .removeClass("ODRThemeHiddenElement")
+                    }
+                    // Submit State Change
+                    SubmitThemeDesignForm()
+
+                })
+            }
+        )
+    }
+
+    /*
+    // Use an interval to track all drops
+    // and then work out the "highest" drop target
+    // to assign the drop to
+    var drop_interval = ""
+    var drop_objects = new Array()
+    var dropped_object = ""
+    function addDropResult(dropped_obj, elem) {
+        console.log("add drop result 2")
+        clearInterval(drop_interval)
+        if (typeof dropped_obj === 'undefined' && typeof elem === 'undefined') {
+            // Process the add and assign the drop
+            console.log('process the drop')
         }
         else {
-            $(this).addClass('tacked');
-            $("#ODRNavRight").addClass('StickOpen');
-            // $("#ODRNavRight").css('right', 400);
+            // Add an element and set interval (50ms)
+            drop_interval = setInterval(addDropResult, 50)
+
+            console.log($(elem).attr('id'))
+            dropped_object = dropped_obj
+            drop_objects.push( elem )
         }
-    });
+    }
+    */
 
+    function initResizeables() {
 
-    // Setup Add/Info Buttons
-    $(".ODRLinkDatatype").unbind('click').click(function() {
+        /*
+        jQuery(".ODRThemeElement").each(function() {
+            $(this).droppable({
+                accept: ".ODRDataField",
+                activeClass: 'ODRDropActive',
+                hoverClass: 'ODRDropHover',
+                classes: {
+                    'ui-droppable-active': 'ODRDropActive',
+                    'ui-droppable-hover': 'ODRDropHover',
+                },
+                drop: function (event, ui) {
+                    // Cut draggable and move to target
+                    // ui.draggable.prependTo($(this).find(".ODRInnerBox:first"))
+                    $(this).css('background', 'none')
+                    // addDropResult(ui.draggable, $(this))
+                },
+            })
+        })
+        */
 
-        if ( $(this).hasClass('fa-muted') )
-            return;
+        // Setup resizable for all ThemeElements
+        jQuery(".ODRThemeElement").each(function() {
+            $( this ).resizable({
+                minHeight: $(this).height(),
+                maxHeight: $(this).height(),
+                grid: 41.5,  // 996 width / 24 units
+                start: function( event, ui) {
+                    console.log('ThemeElement Resize Start')
+                    // Color while dragging
+                    // ui.originalElement.css('background', 'rgba(46, 138, 68, 0.5)')
+                    var theme_element_id = ui.originalElement.attr('id').replace('ThemeElement_', '')
+                    LoadThemeElementForm(theme_element_id)
+                },
+                // After resizable stops
+                stop: function( event, ui ) {
+                    // Refactor all widths for all elements in array to be f/24
+                    // floor(Percentage of width / 4.16667) =  f/24 => f
+                    // How to handle smaller PureCSS widths...
+                    // ui.originalElement.css('background', 'none')
 
-        var local_datatype_id = $(this).attr('rel');
-        var theme_element_id_data = $(this).parent().parent().attr("id").split(/_/);
-        var theme_element_id = theme_element_id_data[1];
+                    var total_width = ui.originalElement.parent().width()
+                    var width = ui.originalElement.width()
 
-        var url = '{{ path('odr_design_get_link_datatypes', {'datatype_id': 0, 'theme_element_id': 0 } ) }}';
-        url = url.substring(0,(url.length - 3)) + local_datatype_id + "/" + theme_element_id;
+                    console.log('TW = ' + total_width)
+                    console.log(width)
+                    var pct = width / total_width * 100
 
-//alert( url );
-//return;
+                    console.log(pct)
 
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function(data) {
-                if(data.r == 0) {
-                    $("#dialog_link_datatype > .form_contents").html(data.d.html);
-                    $("#dialog_link_datatype").dialog( "open" );
+                    var u_factor = pct/4.16667
 
-                    // This just opens the link dialog, icon muting only happens after the link dialog succeeds
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+                    console.log(u_factor)
 
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-    });
-
-    // Setup Add/Info Buttons
-    $(".ODRUndeleteFields").unbind('click');
-    $(".ODRUndeleteFields").click(function() {
-
-        if ( $(this).hasClass('fa-muted') )
-            return;
-
-        var datatype_id = $(this).attr('rel');
-
-        var url  = '{{ path('odr_design_get_deleted_datafields', {'datatype_id': 0 } ) }}';
-        url = url.substring(0,(url.length - 1)) + datatype_id;
-
-alert( url );
-return;
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    switch(data.t) {
-                        case 'html':
-                            $("#dialog_deleted_fields .form_contents").html(data.d.html);
-                            $("#dialog_deleted_fields").dialog( "open" );
-                        break;
+                    if(u_factor < 1) {
+                        u_factor = 1
                     }
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+                    else {
+                        u_factor = Math.round(u_factor)
+                    }
 
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
+                    console.log('u_factor: ' + u_factor)
 
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
+                    var prefix = "pure-u";
+                    var classes = ui.originalElement.attr('class').split(" ").filter(function(c) {
+                        return c.lastIndexOf(prefix, 0) !== 0;
+                    })
+                    ui.originalElement.attr('class', classes.join(" ").trim());
 
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    console.log('class names: ' + ui.originalElement.attr('class'))
+
+                    // Get new width and refactor to f/24
+                    // Remove inline width style.
+                    ui.originalElement.attr('style', function(i, style) {
+                        style = style.replace(/height[^;]+;?/g, '');
+                        return style.replace(/width[^;]+;?/g, '');
+                    })
+
+                    // default is always pure-u-1
+                    ui.originalElement.addClass('pure-u-1')
+                    ui.originalElement.addClass('pure-u-md-' + u_factor + '-24')
+                    ui.originalElement.addClass('pure-u-xl-' + u_factor + '-24')
+
+                    var theme_element_id = ui.originalElement.attr('id').replace('ThemeElement_','')
+
+                    // Save new U Factors to DB via Get Request
+                    console.log('resizeable stop ' + theme_element_id)
+                    jQuery("#UpdateThemeElementForm_cssWidthMed").val(u_factor + "-24")
+                    jQuery("#UpdateThemeElementForm_cssWidthXL").val(u_factor + "-24")
+                    SubmitThemeDesignForm()
                 }
-            }
+            });
+        })
+
+        // Setup resizable for all DataFields
+        jQuery(".ODRThemeElement .ODRInnerBox .ODRDataField").each(function() {
+
+            $( this ).resizable({
+                minHeight: $(this).height(),
+                maxHeight: $(this).height(),
+                grid: 41.5,  // 996 width / 24 units
+                // After resizable stops
+                start: function( event, ui) {
+                    // ui.originalElement.css('background', 'rgba(46, 138, 68, 0.5)')
+                    var datafield_id = ui.originalElement.attr('id').replace('Field_', '')
+                    var theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_', '')
+                    LoadDatafieldForm(theme_element_id, datafield_id)
+                },
+                stop: function( event, ui ) {
+                    // Refactor all widths for all elements in array to be f/24
+                    // floor(Percentage of width / 4.16667) =  f/24 => f
+                    // How to handle smaller PureCSS widths...
+
+                    // ui.originalElement.css('background', 'none')
+                    var total_width = ui.originalElement.parent().parent().width()
+                    var width = ui.originalElement.width()
+
+                    console.log(total_width)
+                    console.log(width)
+                    var pct = width / total_width * 100
+
+                    console.log(pct)
+
+                    var u_factor = pct/4.16667
+
+                    console.log(u_factor)
+
+                    if(u_factor < 1) {
+                        u_factor = 1
+                    }
+                    else {
+                        u_factor = Math.round(u_factor)
+                    }
+
+                    console.log('u_factor: ' + u_factor)
+
+                    var prefix = "pure-u";
+                    var classes = ui.originalElement.attr('class').split(" ").filter(function(c) {
+                        return c.lastIndexOf(prefix, 0) !== 0;
+                    })
+                    ui.originalElement.attr('class', classes.join(" ").trim());
+
+                    console.log('class names: ' + ui.originalElement.attr('class'))
+
+                    // Get new width and refactor to f/24
+                    // Remove inline width style.
+                    ui.originalElement.attr('style', function(i, style) {
+                        return style.replace(/width[^;]+;?/g, '');
+                    })
+
+                    // default is always pure-u-1
+                    ui.originalElement.addClass('pure-u-1')
+                    ui.originalElement.addClass('pure-u-md-' + u_factor + '-24')
+                    ui.originalElement.addClass('pure-u-xl-' + u_factor + '-24')
+
+                    var datafield_id = ui.originalElement.attr('id').replace('Field_','')
+                    var theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_','')
+
+                    // Save new U Factors to DB via Get Request
+                    console.log('resizeable stop ' + datafield_id + " -- " + theme_element_id)
+                    jQuery("#UpdateThemeDatafieldForm_cssWidthMed").val(u_factor + "-24")
+                    jQuery("#UpdateThemeDatafieldForm_cssWidthXL").val(u_factor + "-24")
+                    SubmitThemeDesignForm()
+                }
+            });
+        })
+    }
+
+
+    function InitDatatypeTools() {
+        console.log('setup render plugin')
+// Setup Add/Info Buttons
+        $(".ODRRenderPlugin").off('click').on('click',function() {
+
+            console.log('fire render')
+            if ( $(this).hasClass('fa-muted') )
+                return;
+
+            var datatype_id = $(this).attr('rel');
+            var datafield_id = 0;
+
+            openPluginSettingsDialog(datafield_id, datatype_id);
         });
-    });
-
-    // Setup Add/Info Buttons
-    $(".ODRRenderPlugin").unbind('click').click(function() {
-
-        if ( $(this).hasClass('fa-muted') )
-            return;
-
-        var datatype_id = $(this).attr('rel');
-        var datafield_id = 0;
-
-        openPluginSettingsDialog(datafield_id, datatype_id);
-    });
 
 
-    $(".ODRAddChildtype").unbind('click').click(function() {
+        $(".ODRAddChildtype").unbind('click').click(function() {
 
-        if ( $(this).hasClass('fa-muted') )
-            return;
+            if ( $(this).hasClass('fa-muted') )
+                return;
 
 //        var parent_datatype_id = $(this).attr('rel');
-        var theme_element_id_data = $(this).parent().parent().attr("id").split(/_/);
-        var theme_element_id = theme_element_id_data[1];
+            var theme_element_id_data = $(this).parent().parent().attr("id").split(/_/);
+            var theme_element_id = theme_element_id_data[1];
 
-        // Load display template menu 
-        var url  = '{{ path('odr_design_add_childtype', {'theme_element_id': 0 } ) }}';
-        url = url.substring(0,(url.length - 1)) + theme_element_id;
-
-//alert( url );
-//return;
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Clear right slideout
-                    $("#ElementData").html("");
-
-                    // ReloadThemeElement() forces a re-render of the theme element, so the 'Add Datafield', 'Add Childtype', 'Link DataType', and 'Delete ThemeElement' icons get muted automatically
-                    ReloadThemeElement(theme_element_id);
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-    });
-
-
-    $(".ODRAddDatafield").unbind('click').click(function() {
-
-        if ( $(this).hasClass('fa-muted') )
-            return;
-
-        var theme_element_id_data = $(this).parent().parent().attr("id").split(/_/);
-        var theme_element_id = theme_element_id_data[1];
-
-        var url = '{{ path('odr_design_add_datafield', { 'theme_element_id': 0 }) }}';
-        url = url.substring(0, (url.length - 1)) + theme_element_id;
-
-//alert( url );
-//return;
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Clear right slideout
-                    $("#ElementData").html("");
-
-                    // ReloadThemeElement() forces a re-render of the theme element, so the 'Add Childtype', 'Link DataType', and 'Delete ThemeElement' icons get muted automatically
-                    ReloadThemeElement(theme_element_id);
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-    });
-
-
-    $(".ODRAddThemeElement").unbind('click').click(function() {
-        // I think this option is always available, but just incase...
-        if ( $(this).hasClass('fa-muted') )
-            return;
-
-        var theme_id = $(this).attr('rel');
-
-        var url = '{{ path('odr_design_add_theme_element', { 'theme_id': 0 }) }}';
-        url = url.substring(0, url.length-1) + theme_id;
-
-//alert( url );
-//return;
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Clear right slideout
-                    $("#ElementData").html("");
-
-                    // Grab ID of new theme element
-                    var theme_element_id = data.d.theme_element_id;
-                    var datatype_id = data.d.datatype_id;
-
-                    // Create a fake theme element and force a save of theme element order
-                    $("#FieldArea_" + datatype_id).prepend("<div id=\"ThemeElement_" + theme_element_id + "\" class=\"ODRThemeElement pure-u-1\"></div>");
-                    SaveThemeElementOrder("#FieldArea_" + datatype_id);
-
-                    // Reload to get actual theme element contents
-                    ReloadThemeElement(theme_element_id);
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-            },
-           complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-    });
-
-
-    $(".ODRDeleteDatatype").unbind('click').click(function() {
-
-        // I think this option is always available, but just incase...
-        if ( $(this).hasClass('fa-muted') )
-            return;
-
-        // Determine datatype_id (for delete) and theme_element_id (for reload)
-        var datatype_id = $(this).attr('rel');
-        var theme_element_data = $(this).parent().parent().parent().parent().parent().attr('id').split(/_/);
-        var theme_element_id = theme_element_data[1];
-
-        if(confirm("This will delete this data type and all associated records.\nAre you sure?")) {
-            var url = '{{ path('odr_design_delete_datatype', { 'datatype_id': 0 } ) }}';
-            url = url.substring(0, (url.length - 1));
-            url += datatype_id;
-
-//alert( url );
-//return;
+// Load display template menu
+            var url  = '{{ path('odr_design_add_childtype', {'theme_element_id': 0 } ) }}';
+            url = url.substring(0,(url.length - 1)) + theme_element_id;
 
             $.ajax({
                 cache: false,
@@ -376,12 +397,474 @@ return;
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
-                        // Delete the datatype from the page
-                        $("#DataType_" + datatype_id).remove();
+// Clear right slideout
+                        $("#ThemeDesignForm").html("");
 
-                        // Reset the containing theme element's icons
-                        var icons = {"ODRAddDatafield": 1, "ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
-                        setThemeElementIcons(theme_element_id, icons);
+// ReloadThemeElement() forces a re-render of the theme element, so the 'Add Datafield', 'Add Childtype', 'Link DataType', and 'Delete ThemeElement' icons get muted automatically
+                        ReloadThemeElement(theme_element_id);
+                    }
+                    else {
+// An error has occurred.
+// Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+// Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+// If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+// Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+// Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+
+
+        $(".ODRAddDatafield").unbind('click').click(function() {
+
+            if ( $(this).hasClass('fa-muted') )
+                return;
+
+            var theme_element_id_data = $(this).parent().parent().attr("id").split(/_/);
+            var theme_element_id = theme_element_id_data[1];
+
+            var url = '{{ path('odr_design_add_datafield', { 'theme_element_id': 0 }) }}';
+            url = url.substring(0, (url.length - 1)) + theme_element_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+// Clear right slideout
+                        $("#ThemeDesignForm").html("");
+
+// ReloadThemeElement() forces a re-render of the theme element, so the 'Add Childtype', 'Link DataType', and 'Delete ThemeElement' icons get muted automatically
+                        ReloadThemeElement(theme_element_id);
+                    }
+                    else {
+// An error has occurred.
+// Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+// Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+// If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+// Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+// Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+
+
+        $(".ODRAddThemeElement").unbind('click').click(function() {
+// I think this option is always available, but just incase...
+            if ( $(this).hasClass('fa-muted') )
+                return;
+
+            var theme_id = $(this).attr('rel');
+
+            var url = '{{ path('odr_design_add_theme_element', { 'theme_id': 0 }) }}';
+            url = url.substring(0, url.length-1) + theme_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+// Clear right slideout
+                        $("#ThemeDesignForm").html("");
+
+// Grab ID of new theme element
+                        var theme_element_id = data.d.theme_element_id;
+                        var datatype_id = data.d.datatype_id;
+
+// Create a fake theme element and force a save of theme element order
+                        $("#FieldArea_" + datatype_id).prepend("<div id=\"ThemeElement_" + theme_element_id + "\" class=\"ODRThemeElement pure-u-1\"></div>");
+                        SaveThemeElementOrder("#FieldArea_" + datatype_id);
+
+// Reload to get actual theme element contents
+                        ReloadThemeElement(theme_element_id);
+                    }
+                    else {
+// An error has occurred.
+// Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+// Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+// If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+// Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+// Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+
+
+        $(".ODRDeleteDatatype").unbind('click').click(function() {
+
+// I think this option is always available, but just incase...
+            if ( $(this).hasClass('fa-muted') )
+                return;
+
+// Determine datatype_id (for delete) and theme_element_id (for reload)
+            var datatype_id = $(this).attr('rel');
+            var theme_element_data = $(this).parent().parent().parent().parent().parent().attr('id').split(/_/);
+            var theme_element_id = theme_element_data[1];
+
+            if(confirm("This will delete this data type and all associated records.\nAre you sure?")) {
+                var url = '{{ path('odr_design_delete_datatype', { 'datatype_id': 0 } ) }}';
+                url = url.substring(0, (url.length - 1));
+                url += datatype_id;
+
+                $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: "json",
+                    success: function(data, textStatus, jqXHR) {
+                        if(data.r == 0) {
+// Delete the datatype from the page
+                            $("#DataType_" + datatype_id).remove();
+
+// Reset the containing theme element's icons
+                            var icons = {"ODRAddDatafield": 1, "ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
+                            setThemeElementIcons(theme_element_id, icons);
+                        }
+                        else {
+// An error has occurred.
+// Show Error message dialog
+                            alert(data.d);
+                        }
+                    },
+                    complete: function(jqXHR, textStatus) {
+// Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+// If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+
+// Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+// Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+                    }
+                });
+            }
+        });
+
+        $(".ODRDeleteThemeElement").unbind('click').click(function() {
+// Don't allow deletion of a theme element that has datafields or a child/linked datatype attached to it
+            if ( $(this).hasClass('fa-muted') )
+                return;
+
+            var theme_element_id_data = $(this).parent().parent().parent().parent().attr('id').split(/_/);
+            var theme_element_id = theme_element_id_data[1];
+
+            if(confirm("Are you sure you want to delete this theme element?")) {
+                var url = '{{ path('odr_design_delete_theme_element', { 'theme_element_id': 0 } ) }}';
+                url = url.substring(0, (url.length - 1));
+                url += theme_element_id;
+
+                $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: "json",
+                    success: function(data, textStatus, jqXHR) {
+                        if(data.r == 0) {
+// Remove theme element from page
+                            $("#ThemeElement_" + theme_element_id).remove();
+
+// No need to update theme element property icons, since it no longer exists
+// Also don't need to update order of theme elements
+                        }
+                        else {
+// Notify of failure
+                            alert(data.d);
+                        }
+                    },
+                    complete: function(jqXHR, textStatus) {
+// Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+// If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+
+// Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+// Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+                    }
+                });
+            }
+        });
+
+
+        $(".ODRDatatypeProperties").unbind('click').click(function() {
+// Grab the id of the Datatype to load
+            var datatype_id = $(this).attr('rel');
+
+// Get the datatype tools
+            var datatype_tools = $("#DataTypeTools_" + datatype_id).html();
+
+// Determine if this Datatype has a parent
+            var parent_datatype_id = '';
+            var potential_parent_element = $("#DataType_" + datatype_id).parent().parent().parent().parent();
+            if ( $(potential_parent_element).hasClass('ODRDataType') ) {
+                var id_data = $(potential_parent_element).attr('id').split(/_/);
+                parent_datatype_id = id_data[1];
+            }
+
+// Load form for current datafield if not already loaded
+            $("#ThemeDesignForm").hide().html("");
+            var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0, 'parent_datatype_id': 0 } ) }}';
+            url = url.substring(0, (url.length - 3));
+            url += datatype_id;
+
+            if (parent_datatype_id != '')
+                url += '/' + parent_datatype_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+                        $("#ThemeDesignForm").html(data.d)
+// Prepend the DataTypeTools
+                        $("#ThemeDesignForm").prepend(datatype_tools).fadeIn('fast');
+                        InitDatatypeTools();
+                        InitDatatypePropertiesForm();
+                    }
+                    else {
+// An error has occurred.
+// Show Error message dialog
+                        console.log(data.d);
+// Need to convert this data to a growl message for user.
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+// Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+// If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+// Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+// Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+
+        $(".ODRThemeElementProperties").unbind('click').click(function() {
+// Load Properties into Element Data
+            var theme_element_id_data = $(this).parent().parent().parent().parent().attr('id').split(/_/);
+            var theme_element_id = theme_element_id_data[1];
+
+// Load form for current datfield if not already loaded
+            $("#ThemeDesignForm").hide().html("");
+            var url = '{{ path('odr_design_get_theme_element_properties', { 'theme_element_id': 0 } ) }}';
+            url = url.substring(0, (url.length - 1));
+            url += theme_element_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    if (data.r == 0) {
+                        $("#ThemeDesignForm").html(data.d).fadeIn('fast');
+                        InitThemeElementPropertiesForm();
+                    }
+                    else {
+// An error has occurred.
+// Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+// Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+// If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+
+// Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+// Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+
+        $(".ODRPublicDatatype").unbind('click').click(function() {
+            var datatype_id = $(this).attr('rel');
+            var element = $(this);
+
+            var url  = '{{ path('odr_design_public_datatype', {'datatype_id': 0} ) }}';
+            url = url.substring(0,(url.length-1));
+            url += datatype_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+// Toggle muted status
+                        var icons = {};
+                        if ( $(element).hasClass('ODRActiveIcon') )
+                            icons = {"ODRPublicDatatype": 0};
+                        else
+                            icons = {"ODRPublicDatatype": 1};
+
+                        setDatatypeIcons(datatype_id, icons);
+                    }
+                    else {
+// An error has occurred.
+// Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+// Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+// If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+// Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+// Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+
+        });
+
+        $(".ODRPublicDatafield").unbind('click').click(function() {
+            var datafield_id = $(this).attr('rel');
+            var element = $(this);
+
+            var url  = '{{ path('odr_design_public_datafield', {'datafield_id': 0} ) }}';
+            url = url.substring(0,(url.length-1));
+            url += datafield_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+// Toggle muted status
+                        var icons = {};
+                        if ( $(element).hasClass('ODRActiveIcon') ) {
+                            $(element).removeClass('ODRActiveIcon');
+                            $(element).attr('title', 'Datafield requires permission to view');
+                        }
+                        else {
+                            $(element).addClass('ODRActiveIcon');
+                            $(element).attr('title', 'Datafield does not require permission to view');
+                        }
+                    }
+                    else {
+// An error has occurred.
+// Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+// Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+// If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+// Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+// Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+
+        });
+    }
+
+    function initPage() {
+        // Setup Data Fields
+        SetupDataFields();
+        InitDatatypeTools();
+
+        // Setup Add/Info Buttons
+        $(".ODRLinkDatatype").unbind('click').click(function() {
+
+            if ( $(this).hasClass('fa-muted') )
+                return;
+
+            var local_datatype_id = $(this).attr('rel');
+            var theme_element_id_data = $(this).parent().parent().attr("id").split(/_/);
+            var theme_element_id = theme_element_id_data[1];
+
+            var url = '{{ path('odr_design_get_link_datatypes', {'datatype_id': 0, 'theme_element_id': 0 } ) }}';
+            url = url.substring(0,(url.length - 3)) + local_datatype_id + "/" + theme_element_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data) {
+                    if(data.r == 0) {
+                        $("#dialog_link_datatype > .form_contents").html(data.d.html);
+                        $("#dialog_link_datatype").dialog( "open" );
+
+                        // This just opens the link dialog, icon muting only happens after the link dialog succeeds
                     }
                     else {
                         // An error has occurred.
@@ -389,7 +872,7 @@ return;
                         alert(data.d);
                     }
                 },
-               complete: function(jqXHR, textStatus) {
+                complete: function(jqXHR, textStatus) {
                     // Get the xdebugToken from response headers
                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
@@ -404,24 +887,19 @@ return;
                     }
                 }
             });
-        }
-    });
+        });
 
-    $(".ODRDeleteThemeElement").unbind('click').click(function() {
-        // Don't allow deletion of a theme element that has datafields or a child/linked datatype attached to it
-        if ( $(this).hasClass('fa-muted') )
-            return;
+        // Setup Add/Info Buttons
+        $(".ODRUndeleteFields").unbind('click');
+        $(".ODRUndeleteFields").click(function() {
 
-        var theme_element_id_data = $(this).parent().parent().parent().parent().attr('id').split(/_/);
-        var theme_element_id = theme_element_id_data[1];
+            if ( $(this).hasClass('fa-muted') )
+                return;
 
-        if(confirm("Are you sure you want to delete this theme element?")) {
-            var url = '{{ path('odr_design_delete_theme_element', { 'theme_element_id': 0 } ) }}';
-            url = url.substring(0, (url.length - 1));
-            url += theme_element_id;
+            var datatype_id = $(this).attr('rel');
 
-//alert( url );
-//return;
+            var url  = '{{ path('odr_design_get_deleted_datafields', {'datatype_id': 0 } ) }}';
+            url = url.substring(0,(url.length - 1)) + datatype_id;
 
             $.ajax({
                 cache: false,
@@ -430,578 +908,12 @@ return;
                 dataType: "json",
                 success: function(data, textStatus, jqXHR) {
                     if(data.r == 0) {
-                        // Remove theme element from page
-                        $("#ThemeElement_" + theme_element_id).remove();
-
-                        // No need to update theme element property icons, since it no longer exists
-                        // Also don't need to update order of theme elements
-                    }
-                    else {
-                        // Notify of failure
-                        alert(data.d);
-                    }
-                },
-                complete: function(jqXHR, textStatus) {
-                     // Get the xdebugToken from response headers
-                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                     // If the Sfjs object exists
-                     if (typeof Sfjs !== "undefined") {
-
-                         // Grab the toolbar element
-                         var currentElement = $('.sf-toolbar')[0];
-
-                         // Load the data of the given xdebug token into the current toolbar wrapper
-                         Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                     }
-                 }
-            });
-        }
-    });
-
-
-    $(".ODRDatatypeProperties").unbind('click').click(function() {
-        // Grab the id of the Datatype to load
-        var datatype_id = $(this).attr('rel');
-
-        // Determine if this Datatype has a parent
-        var parent_datatype_id = '';
-        var potential_parent_element = $("#DataType_" + datatype_id).parent().parent().parent().parent();
-        if ( $(potential_parent_element).hasClass('ODRDataType') ) {
-            var id_data = $(potential_parent_element).attr('id').split(/_/);
-            parent_datatype_id = id_data[1];
-        }
-
-        // Load form for current datafield if not already loaded
-        $("#ElementData").hide().html("");
-        var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0, 'parent_datatype_id': 0 } ) }}';
-        url = url.substring(0, (url.length - 3));
-        url += datatype_id;
-
-        if (parent_datatype_id != '')
-            url += '/' + parent_datatype_id;
-
-//alert( url );
-//return;
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    $("#ElementData").html(data.d).fadeIn('fast');
-                    InitDatatypePropertiesForm();
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    console.log(data.d);    
-                    // Need to convert this data to a growl message for user.
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                 // Get the xdebugToken from response headers
-                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                 // If the Sfjs object exists
-                 if (typeof Sfjs !== "undefined") {
-
-                     // Grab the toolbar element
-                     var currentElement = $('.sf-toolbar')[0];
-
-                     // Load the data of the given xdebug token into the current toolbar wrapper
-                     Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                 }
-             }
-        });
-    });
-
-    $(".ODRThemeElementProperties").unbind('click').click(function() {
-        // Load Properties into Element Data
-        var theme_element_id_data = $(this).parent().parent().parent().parent().attr('id').split(/_/);
-        var theme_element_id = theme_element_id_data[1];
-
-        // Load form for current datfield if not already loaded
-        $("#ElementData").hide().html("");
-        var url = '{{ path('odr_design_get_theme_element_properties', { 'theme_element_id': 0 } ) }}';
-        url = url.substring(0, (url.length - 1));
-        url += theme_element_id;
-
-//alert( url );
-//return;
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
-                    $("#ElementData").html(data.d).fadeIn('fast');
-                    InitThemeElementPropertiesForm();
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                 // Get the xdebugToken from response headers
-                 var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                 // If the Sfjs object exists
-                 if (typeof Sfjs !== "undefined") {
-
-                     // Grab the toolbar element
-                     var currentElement = $('.sf-toolbar')[0];
-
-                     // Load the data of the given xdebug token into the current toolbar wrapper
-                     Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                 }
-             }
-        });
-    });
-
-    $(".ODRPublicDatatype").unbind('click').click(function() {
-        var datatype_id = $(this).attr('rel');
-        var element = $(this);
-
-        var url  = '{{ path('odr_design_public_datatype', {'datatype_id': 0} ) }}';
-        url = url.substring(0,(url.length-1));
-        url += datatype_id;
-
-//alert( url );
-//return;
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Toggle muted status
-                    var icons = {};
-                    if ( $(element).hasClass('ODRActiveIcon') )
-                        icons = {"ODRPublicDatatype": 0};
-                    else
-                        icons = {"ODRPublicDatatype": 1};
-
-                    setDatatypeIcons(datatype_id, icons);
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-
-    });
-
-    $(".ODRPublicDatafield").unbind('click').click(function() {
-        var datafield_id = $(this).attr('rel');
-        var element = $(this);
-
-        var url  = '{{ path('odr_design_public_datafield', {'datafield_id': 0} ) }}';
-        url = url.substring(0,(url.length-1));
-        url += datafield_id;
-
-//alert( url );
-//return;
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // Toggle muted status
-                    var icons = {};
-                    if ( $(element).hasClass('ODRActiveIcon') ) {
-                        $(element).removeClass('ODRActiveIcon');
-                        $(element).attr('title', 'Datafield requires permission to view');
-                    }
-                    else {
-                        $(element).addClass('ODRActiveIcon');
-                        $(element).attr('title', 'Datafield does not require permission to view');
-                    }
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-
-    });
-
-    $(".ODRRadioOptions").unbind('click').click(function() {
-        var datafield_id = $(this).attr('rel');
-
-        // 
-        $("#ElementData").fadeOut().html("");
-        var url  = '{{ path('odr_design_get_radio_options', {'datafield_id': 0} ) }}';
-        url = url.substring(0,(url.length-1));
-        url += datafield_id;
-
-//alert( url );
-//return;
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    // 
-                    $("#ElementData").html(data.d.html).fadeIn('fast');
-                    InitRadioOptionsForm(datafield_id);
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-            },
-            complete: function(jqXHR, textStatus) {
-                // Get the xdebugToken from response headers
-                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-                // If the Sfjs object exists
-                if (typeof Sfjs !== "undefined") {
-                    // Grab the toolbar element
-                    var currentElement = $('.sf-toolbar')[0];
-
-                    // Load the data of the given xdebug token into the current toolbar wrapper
-                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                }
-            }
-        });
-
-    });
-
-
-    // Sortable ThemeElements
-    var starting_fieldarea = null;
-    $(".ODRFieldArea").sortable("destroy").sortable({
-
-        start: function( event, ui ) {
-            // Store where the theme element started
-            starting_fieldarea = $(ui.helper).parent().attr('id');
-
-            // Hide the div that is being dragged around
-            $(ui.helper).hide();
-            // Style the placeholder to more closely match the datafield being drug around
-            $(ui.placeholder).addClass( $(ui.helper).attr('class') );
-            $(ui.placeholder).css( 'height', $(ui.helper).height() );
-            $(ui.placeholder).css( 'width', $(ui.helper).width() * 0.95 );
-        },
-        stop: function( event, ui ) {
-            // Grab where it ended
-            var ending_fieldarea = $(ui.item).parent().attr('id');
-
-            // If the theme element ended up in a different fieldarea, don't save the change and revert the layout
-            if (starting_fieldarea == ending_fieldarea) {
-//alert('legal');
-                SaveThemeElementOrder($(ui.item).parent());
-            }
-            else {
-//alert('illegal');
-                $(".ODRFieldArea").sortable('cancel');
-            }
-
-            // Unhide the object that was being dragged around
-            $(ui.item).show();
-            $(ui.item).removeAttr('style');
-            starting_fieldarea = null;
-        },
-        placeholder: "ui-state-highlight",
-        connectWith: ".ODRFieldArea"
-    });
-    $(".ODRFieldArea").disableSelection();
-
-    // Sortable DataFields
-    var starting_theme_element = null;
-    $(".ODRInnerBox").sortable("destroy").sortable({
-
-        items: "> .ODRDataField",   // Only attach the event to a subset of datafields
-        start: function( event, ui ) {
-            // Store where the datafield started
-            starting_theme_element = $(ui.helper).parent().parent().attr('id');
-            starting_fieldarea = $(ui.helper).parent().parent().parent().attr('id');
-
-            // Hide the div that is being dragged around
-            $(ui.helper).hide();
-            // Style the placeholder to more closely match the datafield being drug around
-            $(ui.placeholder).addClass( $(ui.helper).attr('class') );
-            $(ui.placeholder).css( 'height', $(ui.helper).height() );
-            $(ui.placeholder).css( 'width', $(ui.helper).width() * 0.95 );
-        },
-        stop: function( event, ui ) {
-            // Grab where the datafield ended
-            var ending_theme_element = $(ui.item).parent().parent().attr('id');
-            var ending_fieldarea = $(ui.item).parent().parent().parent().attr('id');
-
-//alert( 'start_ted: ' + starting_theme_element + ' end_ted: ' + ending_theme_element );
-//alert( 'start_fieldarea: ' + starting_fieldarea + ' end_fieldarea: ' + ending_fieldarea );
-
-            // If the datafield ended up in the same fieldarea...
-            if (starting_fieldarea == ending_fieldarea) {
-//alert('legal');
-                // Just need to save the destination theme element
-                SaveDatafieldOrder($(ui.item).parent(), starting_theme_element, ending_theme_element);
-            }
-            else {
-//alert('illegal');
-                // ...if not, don't save the change and revert the layout
-                $(".ODRInnerBox").sortable('cancel');
-            }
-
-            // Unhide the object that was being dragged around
-            $(ui.item).show();
-
-            // jQuery Sortable attaches a display: block style to these elements...get rid of it
-            $(ui.item).removeAttr('style');
-
-            // Reset for the next sortable call
-            starting_theme_element = null;
-            starting_fieldarea = null;
-            $(ui.placeholder).removeAttr('css');
-        },
-/*
-        // Triggers each time the datafield moves into a different TEDs
-        over: function( event, ui ) {
-            if ( $(ui.placeholder).hasClass('ODRActiveIcon') )
-                $(ui.placeholder).removeClass('ODRActiveIcon');
-            else
-                $(ui.placeholder).addClass('ODRActiveIcon');
-        },
-*/
-        placeholder: "ui-state-highlight",
-        connectWith: ".ODRInnerBox"
-    });
-    // Don't want to call disabledSelection() on the right slideout
-    $("#content").find(".ODRInnerBox").disableSelection();
-
-    // Prevent re-ordering of theme_elements and datafields inside Linked Datatypes
-    $(".ODRLinkedType").find(".ODRFieldArea").sortable("destroy");
-    $(".ODRLinkedType").find(".ODRInnerBox").sortable("destroy");
-    $(".ODRThemeElement > .ODRInnerBox > .ODRDataType").parent().sortable("destroy");    // prevent sortable datafields attaching before/after datatypes
-    $("#ElementData").parent(".ODRInnerBox").sortable("destroy");                        // prevent sortable datafields from attaching to the right slideout
-}
-
-var datafield_properties_xhr = null;
-var save_datafield_xhr = null;
-var SaveDatafieldPropertyInterval = [];
-function SaveDatafieldProperty(datafield_id, reload_datafield) {
-    if (SaveDatafieldPropertyInterval[datafield_id] != undefined)
-        SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
-
-    var url = '{{ path('odr_design_get_datafield_properties', { 'datafield_id': 0 } ) }}';
-    url = url.substring(0, (url.length - 1));
-    url += datafield_id;
-
-//alert( url );
-//return;
-
-    var post_data = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
-    $.ajax({
-        type: 'POST',
-        url: url,
-        dataType: "json",
-        data: post_data,
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                notifySaved();
-
-                // Only reload datafield if necessary
-                if (reload_datafield == true) {
-                    ReloadDatafield(datafield_id);
-                }
-
-                if (data.d.force_slideout_reload == true) {
-                    $("#ElementData").fadeOut('slow').html("");
-                    $("#ElementData").html(data.d.html).fadeIn('slow');
-
-                    InitDatafieldPropertiesForm();
-                }
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-
-                // Forcibly reload slideout
-                $("#ElementData").html("");
-                $("#Field_" + datafield_id).trigger('click');
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-            // Get the xdebugToken from response headers
-            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-            // If the Sfjs object exists
-            if (typeof Sfjs !== "undefined") {
-
-                // Grab the toolbar element
-                var currentElement = $('.sf-toolbar')[0];
-
-                // Load the data of the given xdebug token into the current toolbar wrapper
-                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-            }
-
-            save_datafield_xhr = null;
-        }
-    });
-}
-
-var starting_field_top, starting_field_left;
-function SaveThemeDatafieldProperties(theme_element_id, datafield_id) {
-
-    var url = '{{ path('odr_design_save_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}';
-    url = url.substring(0, url.length-3);
-    url += theme_element_id + '/' + datafield_id;
-
-//alert( url );
-//return;
-
-    var post_data = $("#ThemeDatafieldPropertiesForm_" + theme_element_id + "_" + datafield_id).serialize();
-    $.ajax({
-        type: 'POST',
-        url: url,
-        dataType: "json",
-        data: post_data,
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                // Grab css strings from the ajax return
-                var med_width_old = data.widths.med_width_old;
-                var xl_width_old = data.widths.xl_width_old;
-                var med_width_current = data.widths.med_width_current;
-                var xl_width_current = data.widths.xl_width_current;
-
-                // Update the theme element's width classes if necessary
-                if (med_width_current != undefined && med_width_old != med_width_current)
-                    $("#Field_" + datafield_id).removeClass('pure-u-md-' + med_width_old).addClass('pure-u-md-' + med_width_current);
-                if (xl_width_current != undefined && xl_width_old != xl_width_current)
-                    $("#Field_" + datafield_id).removeClass('pure-u-xl-' + xl_width_old).addClass('pure-u-xl-' + xl_width_current);
-
-                notifySaved();
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-            // Get the xdebugToken from response headers
-            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-            // If the Sfjs object exists
-            if (typeof Sfjs !== "undefined") {
-
-                // Grab the toolbar element
-                var currentElement = $('.sf-toolbar')[0];
-
-                // Load the data of the given xdebug token into the current toolbar wrapper
-                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-            }
-        }
-    });
-
-}
-
-// This function is needed for setTimeout() a couple lines down in SetupDataFields()
-function triggerClick(datafield_id) {
-    $("#Field_" + datafield_id).trigger('click');
-}
-
-function SetupDataFields() {
-
-    $(".ODRDataField").unbind('click').click(function(event) {
-
-        // The icon to open RadioOption properties will be overriden by this click event unless this if statement is active
-        if ( event.target.className.indexOf('ODRRadioOptions') !== -1 )
-            return;
-        // ...same deal with datafield public status
-        if ( event.target.className.indexOf('ODRPublicDatafield') !== -1 )
-            return;
-
-        // Grab datafield id
-        var id_data = $(this).attr('id').split(/_/);
-        var datafield_id = id_data[1];
-
-        // Wait for a datafield property save to finish if required
-        if (save_datafield_xhr != null) {
-            window.setTimeout("triggerClick(" + datafield_id + ")", SaveTimeout);
-            return;
-        }
-
-        // Check if this field is already loaded
-        var form_id = "";
-        var form = $("#ElementData").find("form.ODRDatafieldPropertiesForm");
-        if (form.length > 0) {
-            var form_id_data = form.attr("id").split(/_/);
-            form_id = form_id_data[1];
-        } 
-
-        // Load form for current datafield if not already loaded
-        if (form_id != datafield_id) {
-            $("#ElementData").hide().html("");
-            var url = '{{ path('odr_design_get_datafield_properties', { 'datafield_id': 0 } ) }}';
-            url = url.substring(0, (url.length - 1));
-            url += datafield_id;
-
-//alert( url );
-//return;
-
-            // Attempt to ensure only the most recent datafield property request goes through
-            if (datafield_properties_xhr !== null)
-                datafield_properties_xhr.abort();
-
-            // Ajax Load Form in box
-            datafield_properties_xhr = $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: "json",
-                success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        $("#ElementData").html(data.d.html).fadeIn('fast');
-                        InitDatafieldPropertiesForm();
+                        switch(data.t) {
+                            case 'html':
+                                $("#dialog_deleted_fields .form_contents").html(data.d.html);
+                                $("#dialog_deleted_fields").dialog( "open" );
+                                break;
+                        }
                     }
                     else {
                         // An error has occurred.
@@ -1010,1368 +922,1674 @@ function SetupDataFields() {
                     }
                 },
                 complete: function(jqXHR, textStatus) {
-                     // Get the xdebugToken from response headers
-                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
-                     // If the Sfjs object exists
-                     if (typeof Sfjs !== "undefined") {
-    
-                         // Grab the toolbar element
-                         var currentElement = $('.sf-toolbar')[0];
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
 
-                         // Load the data of the given xdebug token into the current toolbar wrapper
-                         Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-                     }
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
 
-                    datafield_properties_xhr = null;
-                 }
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
             });
-        }
-    });
+        });
 
-    // Don't want to be able to modify datafields from a linked datatype
-    $(".ODRLinkedType").find(".ODRDataField").unbind('click');
-}
 
-function InitDatafieldPropertiesForm() {
-    // Init Field Properties forms
-    $("#ElementData").find(".ODRDeleteField").each(function() {
-        var datafield_id_data = $(this).attr('id').split(/_/);
-        var datafield_id = datafield_id_data[1];
+        $(".ODRRadioOptions").unbind('click').click(function() {
+            var datafield_id = $(this).attr('rel');
 
-        $(this).unbind('click').click(function() {
-            if ( $(this).hasClass('pure-button-disabled') ) {
+            //
+            $("#ThemeDesignForm").fadeOut().html("");
+            var url  = '{{ path('odr_design_get_radio_options', {'datafield_id': 0} ) }}';
+            url = url.substring(0,(url.length-1));
+            url += datafield_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    if(data.r == 0) {
+                        //
+                        $("#ThemeDesignForm").html(data.d.html).fadeIn('fast');
+                        InitRadioOptionsForm(datafield_id);
+                    }
+                    else {
+                        // An error has occurred.
+                        // Show Error message dialog
+                        alert(data.d);
+                    }
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+
+        });
+
+
+        // Sortable ThemeElements
+        var starting_fieldarea = null;
+        $(".ODRFieldArea")
+            // .sortable("destroy")
+            .sortable({
+            placeholder: "ui-state-highlight",
+            connectWith: ".ODRFieldArea",
+            start: function( event, ui ) {
+                // Store where the theme element started
+                starting_fieldarea = $(ui.helper).parent().attr('id');
+
+                // Hide the div that is being dragged around
+                // $(ui.helper).hide();
+                // Style the placeholder to more closely match the datafield being drug around
+                $(ui.placeholder).addClass( $(ui.helper).attr('class') );
+                $(ui.placeholder).css( 'height', $(ui.helper).height() );
+                $(ui.placeholder).css( 'width', $(ui.helper).width() * 0.95 );
+            },
+            stop: function( event, ui ) {
+                // Grab where it ended
+                var ending_fieldarea = $(ui.item).parent().attr('id');
+
+                // If the theme element ended up in a different fieldarea, don't save the change and revert the layout
+                if (starting_fieldarea == ending_fieldarea) {
+                    SaveThemeElementOrder($(ui.item).parent());
+                }
+                else {
+                    $(".ODRFieldArea").sortable('cancel');
+                }
+
+                // Unhide the object that was being dragged around
+                $(ui.item).show();
+                $(ui.item).removeAttr('style');
+                starting_fieldarea = null;
+            },
+        });
+        $(".ODRFieldArea").disableSelection();
+
+        // Sortable DataFields
+        var starting_theme_element = null;
+        $(".ODRInnerBox")
+            // .sortable("destroy")
+            .sortable({
+            items: "> .ODRDataField",   // Only attach the event to datafields within the ODRInnerBox
+            placeholder: "ui-state-highlight",
+            connectWith: ".ODRInnerBox",
+            dropOnEmpty: true,
+            start: function( event, ui ) {
+                // Store where the datafield started
+                starting_theme_element = $(ui.helper).parent().parent().attr('id');
+                starting_fieldarea = $(ui.helper).parent().parent().parent().attr('id');
+
+                console.log('sort version 2')
+                // Hide the div that is being dragged around
+                // TODO (WHY?)
+                // $(ui.helper).hide();
+                // Style the placeholder to more closely match the datafield being drug around
+                $(ui.placeholder).addClass( $(ui.helper).attr('class') );
+                $(ui.placeholder).css( 'height', $(ui.helper).height() );
+                $(ui.placeholder).css( 'width', $(ui.helper).width() * 0.95 );
+            },
+            stop: function( event, ui ) {
+                // Grab where the datafield ended
+                var ending_theme_element = $(ui.item).parent().parent().attr('id');
+                var ending_fieldarea = $(ui.item).parent().parent().parent().attr('id');
+
+
+                console.log("Starting TED: " + starting_theme_element + " Ending TED: " + ending_theme_element )
+                console.log("Starting FA: " + starting_fieldarea + " Ending FA: " + ending_fieldarea )
+
+                // If the datafield ended up in the same fieldarea...
+                if (starting_fieldarea == ending_fieldarea) {
+                    console.log('save field area')
+                    // Just need to save the destination theme element
+                    SaveDatafieldOrder($(ui.item).parent(), starting_theme_element, ending_theme_element);
+                }
+                else {
+                    // ...if not, don't save the change and revert the layout
+                    console.log('canceling')
+                    $(".ODRInnerBox").sortable('cancel');
+                }
+
+                // Unhide the object that was being dragged around
+                $(ui.item).show();
+
+                // jQuery Sortable attaches a display: block style to these elements...get rid of it
+                $(ui.item).removeAttr('style');
+
+                // Reset for the next sortable call
+                starting_theme_element = null;
+                starting_fieldarea = null;
+                $(ui.placeholder).removeAttr('css');
+            },
+        })
+        // Prevent re-ordering of theme_elements and datafields inside Linked Datatypes
+        /*
+        $(".ODRLinkedType").find(".ODRFieldArea").sortable("destroy");
+        $(".ODRLinkedType").find(".ODRInnerBox").sortable("destroy");
+        $(".ODRThemeElement > .ODRInnerBox > .ODRDataType").parent().sortable("destroy");    // prevent sortable datafields attaching before/after datatypes
+        $("#ThemeDesignForm").parent(".ODRInnerBox").sortable("destroy");                        // prevent sortable datafields from attaching to the right slideout
+        */
+        // Don't want to call disabledSelection() on the right slideout
+        $("#content").find(".ODRInnerBox").disableSelection();
+
+    }
+
+    var datafield_properties_xhr = null;
+    var save_datafield_xhr = null;
+    var SaveDatafieldPropertyInterval = [];
+    function SaveDatafieldProperty(datafield_id, reload_datafield) {
+        if (SaveDatafieldPropertyInterval[datafield_id] != undefined)
+            SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
+
+        var url = '{{ path('odr_design_get_datafield_properties', { 'datafield_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += datafield_id;
+
+        var post_data = $("#DatafieldPropertiesForm_" + datafield_id).serialize();
+        $.ajax({
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: post_data,
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    notifySaved();
+
+                    // Only reload datafield if necessary
+                    if (reload_datafield == true) {
+                        ReloadDatafield(datafield_id);
+                    }
+
+                    if (data.d.force_slideout_reload == true) {
+                        $("#ThemeDesignForm").fadeOut('slow').html("");
+                        $("#ThemeDesignForm").html(data.d.html).fadeIn('slow');
+
+                        InitDatafieldPropertiesForm();
+                    }
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+
+                    // Forcibly reload slideout
+                    $("#ThemeDesignForm").html("");
+                    $("#Field_" + datafield_id).trigger('click');
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+
+                save_datafield_xhr = null;
+            }
+        });
+    }
+
+    var starting_field_top, starting_field_left;
+    function SaveThemeDatafieldProperties(theme_element_id, datafield_id) {
+
+        var url = '{{ path('odr_design_save_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}';
+        url = url.substring(0, url.length-3);
+        url += theme_element_id + '/' + datafield_id;
+
+        var post_data = $("#ThemeDatafieldPropertiesForm_" + theme_element_id + "_" + datafield_id).serialize();
+        $.ajax({
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: post_data,
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    // Grab css strings from the ajax return
+                    var med_width_old = data.widths.med_width_old;
+                    var xl_width_old = data.widths.xl_width_old;
+                    var med_width_current = data.widths.med_width_current;
+                    var xl_width_current = data.widths.xl_width_current;
+
+                    // Update the theme element's width classes if necessary
+                    if (med_width_current != undefined && med_width_old != med_width_current)
+                        $("#Field_" + datafield_id).removeClass('pure-u-md-' + med_width_old).addClass('pure-u-md-' + med_width_current);
+                    if (xl_width_current != undefined && xl_width_old != xl_width_current)
+                        $("#Field_" + datafield_id).removeClass('pure-u-xl-' + xl_width_old).addClass('pure-u-xl-' + xl_width_current);
+
+                    notifySaved();
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+
+    }
+
+    // This function is needed for setTimeout() a couple lines down in SetupDataFields()
+    function triggerClick(datafield_id) {
+        $("#Field_" + datafield_id).trigger('click');
+    }
+
+    function SetupDataFields() {
+
+        $(".ODRDataField label").addClass('Pointer');
+        $(".ODRDataField").unbind('click').click(function(event) {
+
+            // The icon to open RadioOption properties will be overriden by this click event unless this if statement is active
+            if ( event.target.className.indexOf('ODRRadioOptions') !== -1 )
+                return;
+            // ...same deal with datafield public status
+            if ( event.target.className.indexOf('ODRPublicDatafield') !== -1 )
+                return;
+
+            // Grab datafield id
+            var id_data = $(this).attr('id').split(/_/);
+            var datafield_id = id_data[1];
+
+            // Wait for a datafield property save to finish if required
+            if (save_datafield_xhr != null) {
+                window.setTimeout("triggerClick(" + datafield_id + ")", SaveTimeout);
                 return;
             }
-            else if( confirm("This will delete the Datafield from all layouts, and ALL data (including files and images) stored in it.\n\nAre you certain you want to do this?")) {
-                DeleteDatafield(datafield_id);          
-            }
-        });
-    });
-    $("#ElementData").find(".ODRCopyField").each(function() {
-        var datafield_id_data = $(this).attr('id').split(/_/);
-        var datafield_id = datafield_id_data[1];
 
-        $(this).unbind('click').click(function() {
-            if(confirm("The current layout of this field will be copied into a new field.")) {
-                CopyDatafield(datafield_id);
-            }
-        });
-    });
-
-    // Attach event handlers to the css width selectors in the datafield properties slideout
-    $("#ElementData .ODRThemeDatafieldPropertiesForm").find("select").each(function() {
-        // Grab necessary ids
-        var id_data = $("#ElementData .ODRThemeDatafieldPropertiesForm").attr('id').split(/_/);
-        var theme_element_id =  id_data[1];
-        var datafield_id = id_data[2];
-
-        // Save changes
-        $(this).unbind('change').change(function() {
-            SaveThemeDatafieldProperties(theme_element_id, datafield_id);
-        });
-    });
-
-    // Attach event handlers to most of the rest of the input elements
-    $("#ElementData .ODRDatafieldPropertiesForm").find("select").each(function() {
-        // Grab Datafield id
-        var datafield_id_data = $("#ElementData .ODRDatafieldPropertiesForm").attr('id').split(/_/);
-        var datafield_id = datafield_id_data[1];
-
-        // Save changes
-        $(this).unbind('change').change(function() {
-            // fieldtype selector gets overridden further down 
-
-            // 
-            var reload_datafield = 'false';
-            if ( $(this).hasClass('ODRDatafieldChildren') )
-                reload_datafield = 'true';   // reload datafield upon change of images/radio options per row?
-
-            SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
-            SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ", " + reload_datafield + ")", SaveTimeout);
-
-            save_datafield_xhr = true;
-        });
-    });
-    $("#ElementData .ODRDatafieldPropertiesForm").find("textarea").each(function() {
-        // Grab Datafield id
-        var datafield_id_data = $("#ElementData .ODRDatafieldPropertiesForm").attr('id').split(/_/);
-        var datafield_id = datafield_id_data[1];
-
-        // Save changes
-        $(this).unbind('keyup');
-        $(this).unbind('paste');
-        $(this).on('keyup paste', function() {
-            // Want to update markdown fields immediately
-            if ( $(this).hasClass('ODRDatafieldMarkdown') ) {
-                var text = $(this).val();
-                var markdown_text = window.Markdown(text);
-                $("#Field_" + datafield_id).find(".ODRMarkdownContent").html(markdown_text);
+            // Check if this field is already loaded
+            var form_id = "";
+            var form = $("#ThemeDesignForm").find("form.ODRDatafieldPropertiesForm");
+            if (form.length > 0) {
+                var form_id_data = form.attr("id").split(/_/);
+                form_id = form_id_data[1];
             }
 
-            SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
-            SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ",  false)", SaveTimeout);
+            // Load form for current datafield if not already loaded
+            if (form_id != datafield_id) {
+                $("#ThemeDesignForm").hide().html("");
+                var url = '{{ path('odr_design_get_datafield_properties', { 'datafield_id': 0 } ) }}';
+                url = url.substring(0, (url.length - 1));
+                url += datafield_id;
 
-            save_datafield_xhr = true;
+                // Attempt to ensure only the most recent datafield property request goes through
+                if (datafield_properties_xhr !== null)
+                    datafield_properties_xhr.abort();
+
+                // Ajax Load Form in box
+                datafield_properties_xhr = $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: "json",
+                    success: function(data, textStatus, jqXHR) {
+                        if(data.r == 0) {
+                            $("#ThemeDesignForm").html(data.d.html).fadeIn('fast');
+                            InitDatafieldPropertiesForm();
+                        }
+                        else {
+                            // An error has occurred.
+                            // Show Error message dialog
+                            alert(data.d);
+                        }
+                    },
+                    complete: function(jqXHR, textStatus) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+
+                        datafield_properties_xhr = null;
+                    }
+                });
+            }
         });
-    });
-    $("#ElementData .ODRDatafieldPropertiesForm").find("input").each(function() {
-        // Grab Datafield id
-        var datafield_id_data = $("#ElementData .ODRDatafieldPropertiesForm").attr('id').split(/_/);
-        var datafield_id = datafield_id_data[1];
 
-        // Save changes
-        if($(this).is(":checkbox")) {
+        // Don't want to be able to modify datafields from a linked datatype
+        // TODO Review if this causes problems.  Allowing linked data types to be edited through source linked type.
+        // $(".ODRLinkedType").find(".ODRDataField").unbind('click');
+    }
+
+    function InitDatafieldPropertiesForm() {
+        // Init Field Properties forms
+        $("#ThemeDesignForm").find(".ODRDeleteField").each(function() {
+            var datafield_id_data = $(this).attr('id').split(/_/);
+            var datafield_id = datafield_id_data[1];
+
+            $(this).unbind('click').click(function() {
+                if ( $(this).hasClass('pure-button-disabled') ) {
+                    return;
+                }
+                else if( confirm("This will delete the Datafield from all layouts, and ALL data (including files and images) stored in it.\n\nAre you certain you want to do this?")) {
+                    DeleteDatafield(datafield_id);
+                }
+            });
+        });
+        $("#ThemeDesignForm").find(".ODRCopyField").each(function() {
+            var datafield_id_data = $(this).attr('id').split(/_/);
+            var datafield_id = datafield_id_data[1];
+
+            $(this).unbind('click').click(function() {
+                if(confirm("The current layout of this field will be copied into a new field.")) {
+                    CopyDatafield(datafield_id);
+                }
+            });
+        });
+
+        // Attach event handlers to the css width selectors in the datafield properties slideout
+        $("#ThemeDesignForm .ODRThemeDatafieldPropertiesForm").find("select").each(function() {
+            // Grab necessary ids
+            var id_data = $("#ThemeDesignForm .ODRThemeDatafieldPropertiesForm").attr('id').split(/_/);
+            var theme_element_id =  id_data[1];
+            var datafield_id = id_data[2];
+
+            // Save changes
             $(this).unbind('change').change(function() {
-                // 
-                var reload_datafield = false;
-                if ( $(this).hasClass('ODRDatafieldNameSort') )
-                    reload_datafield = true;   // reload datafield upon setting radio options to sort by name in the datafield
+                SaveThemeDatafieldProperties(theme_element_id, datafield_id);
+            });
+        });
+
+        // Attach event handlers to most of the rest of the input elements
+        $("#ThemeDesignForm .ODRDatafieldPropertiesForm").find("select").each(function() {
+            // Grab Datafield id
+            var datafield_id_data = $("#ThemeDesignForm .ODRDatafieldPropertiesForm").attr('id').split(/_/);
+            var datafield_id = datafield_id_data[1];
+
+            // Save changes
+            $(this).unbind('change').change(function() {
+                // fieldtype selector gets overridden further down
+
+                //
+                var reload_datafield = 'false';
+                if ( $(this).hasClass('ODRDatafieldChildren') )
+                    reload_datafield = 'true';   // reload datafield upon change of images/radio options per row?
 
                 SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
                 SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ", " + reload_datafield + ")", SaveTimeout);
 
                 save_datafield_xhr = true;
             });
-        }
-        else {
+        });
+        $("#ThemeDesignForm .ODRDatafieldPropertiesForm").find("textarea").each(function() {
+            // Grab Datafield id
+            var datafield_id_data = $("#ThemeDesignForm .ODRDatafieldPropertiesForm").attr('id').split(/_/);
+            var datafield_id = datafield_id_data[1];
+
+            // Save changes
             $(this).unbind('keyup');
             $(this).unbind('paste');
             $(this).on('keyup paste', function() {
-                // 
-                if ( $(this).hasClass('ODRDatafieldName') ) {   // inline update of datafield name  TODO - error handling?
+                // Want to update markdown fields immediately
+                if ( $(this).hasClass('ODRDatafieldMarkdown') ) {
                     var text = $(this).val();
-                    $("#Label_" + datafield_id).html(text);
+                    var markdown_text = window.Markdown(text);
+                    $("#Field_" + datafield_id).find(".ODRMarkdownContent").html(markdown_text);
                 }
 
                 SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
-                SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ", false)", SaveTimeout);
+                SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ",  false)", SaveTimeout);
 
                 save_datafield_xhr = true;
             });
-        }
-    });
+        });
+        $("#ThemeDesignForm .ODRDatafieldPropertiesForm").find("input").each(function() {
+            // Grab Datafield id
+            var datafield_id_data = $("#ThemeDesignForm .ODRDatafieldPropertiesForm").attr('id').split(/_/);
+            var datafield_id = datafield_id_data[1];
 
-    var fieldtype_array = {};
-{% for ft_id,ft_typename in fieldtype_array %}
-    fieldtype_array[{{ ft_id }}] = "{{ ft_typename }}";
-{% endfor %}
+            // Save changes
+            if($(this).is(":checkbox")) {
+                $(this).unbind('change').change(function() {
+                    //
+                    var reload_datafield = false;
+                    if ( $(this).hasClass('ODRDatafieldNameSort') )
+                        reload_datafield = true;   // reload datafield upon setting radio options to sort by name in the datafield
 
-    // Override the handler for the fieldtype selector
-    $("#ElementData .ODRDatafieldPropertiesForm").find("#DatafieldsForm_field_type").each(function() {
-        // Grab Datafield id
-        var datafield_id_data = $("#ElementData .ODRDatafieldPropertiesForm").attr('id').split(/_/);
-        var datafield_id =  datafield_id_data[1];
+                    SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
+                    SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ", " + reload_datafield + ")", SaveTimeout);
 
-        // ...
-        $(this).unbind('change').change(function() {
-
-            // If datatype has datarecords, changing a fieldtype might cause loss of data
-            var str = "WARNING: Changing the type of this Datafield will cause the loss of ALL data currently in this Datafield.";
-            var previous_fieldtype_id = $("#previous_fieldtype").val();
-            var current_fieldtype_id = $("#DatafieldsForm_field_type").val();
-
-            var previous_fieldtype = fieldtype_array[previous_fieldtype_id];
-            var current_fieldtype = fieldtype_array[current_fieldtype_id];
-
-
-            // Changes that require no extra consideration or work
-            var no_warn = {
-                // single radio and single select fields can be changed to any other radio fieldtype
-                'Single Radio': ['Multiple Radio','Single Select','Multiple Select'],
-                'Single Select': ['Single Radio','Multiple Radio','Multiple Select'],
-                // markdown fields have no data to lose
-                'Markdown': ['Boolean','File','Image','Integer','Paragraph Text','Long Text','Medium Text','Single Radio','Short Text','DateTime','Multiple Radio','Single Select','Multiple Select','Decimal']
-            };
-
-            // Changes that require the server to migrate data between storage entities
-            // TODO - changing other fieldtypes to radio/select fields
-            var time_warn = {
-                'Integer': ['Paragraph Text','Long Text','Medium Text','Short Text','Decimal'],
-                'Long Text': ['Paragraph Text'],
-                'Medium Text': ['Paragraph Text','Long Text'],
-                'Short Text': ['Paragraph Text','Long Text','Medium Text'],
-                'Decimal': ['Paragraph Text','Long Text','Medium Text','Short Text']
-            };
-
-            // Changes from 'longer' fieldtypes to 'shorter' fieldtypes
-            var length_warn = {
-                'Paragraph Text': ['Long Text','Medium Text','Short Text'],
-                'Long Text': ['Medium Text','Short Text'],
-                'Medium Text': ['Short Text']
-            };
-
-            // Changes from text fields to integer/decimal...it can easily result in lost data
-            var number_warn = {
-                'Paragraph Text': ['Integer','Decimal'],
-                'Long Text': ['Integer','Decimal'],
-                'Medium Text': ['Integer','Decimal'],
-                'Short Text': ['Integer','Decimal']
-            };
-
-            // Changing from multiple radio/select to single radio/select...have to ensure at most one radio option is selected...
-            var radio_warn = {
-                'Multiple Radio': ['Single Radio','Single Select'],
-                'Multiple Select': ['Single Radio','Single Select']
-            };
-
-            // Converting from decimal to integer...going to lose fractional parts of data
-            var precision_warn = {
-                'Decimal': ['Integer']
-            };
-
-            // TODO - conversions to boolean?
-
-            // All other changes necessarily result in loss of ALL data
-
-            // Warn the user about potential issues when changing fieldtypes
-            if ( no_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, no_warn[previous_fieldtype]) !== -1 ) {
-                str = '';
-            }
-            else if ( time_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, time_warn[previous_fieldtype]) !== -1 ) {
-                str = 'NOTICE: The server will need some time to migrate data if the type of this Datafield is changed.';
-            }
-            else if ( length_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, length_warn[previous_fieldtype]) !== -1 ) {
-                str = 'WARNING: You are attempting to convert a longer textfield into a shorter textfield...some data may be truncated...are you sure?';
-            }
-            else if ( number_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, number_warn[previous_fieldtype]) !== -1 ) {
-                str = 'WARNING: All non-numerical characters will be deleted from the textfield, and the remaining characters converted into a number...If the textfield is not mostly numerical already, the resulting values may be nonsensical...are you sure?';
-            }
-            else if ( radio_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, radio_warn[previous_fieldtype]) !== -1 ) {
-                str = 'WARNING: Any Datarecords where this Datafield has multiple RadioOptions selected will be modified to have at most one RadioOption selected...are you sure?';
-            }
-            else if ( precision_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, precision_warn[previous_fieldtype]) !== -1 ) {
-                str = 'WARNING: Any fractional parts of the decimal values will be dropped during this migration of data...are you sure?';
-            }
-
-
-            if ( $("#has_datarecords").val() == '' || str === '' || confirm(str) ) {
-                // Datatype has no datarecords attached, or user doesn't care...save the change
-                SaveDatafieldProperty(datafield_id, true);  // reload datafield because fieldtype changed
-                save_datafield_xhr = true;
-
-                str = '';
-                if (current_fieldtype == 'Paragraph Text')
-                    str = 'No Character Limit';
-                else if (current_fieldtype == 'Long Text')
-                    str = '255 Character Limit';
-                else if (current_fieldtype == 'Medium Text')
-                    str = '64 Character Limit';
-                else if (current_fieldtype == 'Short Text')
-                    str = '32 Character Limit';
-
-                if (str !== '')
-                    $("#field_type_meta").attr('title', str);
-
-                $("#previous_fieldtype").val(current_fieldtype_id);
+                    save_datafield_xhr = true;
+                });
             }
             else {
-                // Revert back to old field type
-                previous_fieldtype_id = $("#previous_fieldtype").val();
-                $(this).val( previous_fieldtype_id );
+                $(this).unbind('keyup');
+                $(this).unbind('paste');
+                $(this).on('keyup paste', function() {
+                    //
+                    if ( $(this).hasClass('ODRDatafieldName') ) {   // inline update of datafield name  TODO - error handling?
+                        var text = $(this).val();
+                        $("#Label_" + datafield_id).html(text);
+                    }
+
+                    SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);
+                    SaveDatafieldPropertyInterval[datafield_id] = window.setInterval("SaveDatafieldProperty(" + datafield_id + ", false)", SaveTimeout);
+
+                    save_datafield_xhr = true;
+                });
             }
-
         });
-    });
 
-    $("#ElementData").fadeIn('fast'); 
-}
+        var fieldtype_array = {};
+        {% for ft_id,ft_typename in fieldtype_array %}
+        fieldtype_array[{{ ft_id }}] = "{{ ft_typename }}";
+        {% endfor %}
+
+        // Override the handler for the fieldtype selector
+        $("#ThemeDesignForm .ODRDatafieldPropertiesForm").find("#DatafieldsForm_field_type").each(function() {
+            // Grab Datafield id
+            var datafield_id_data = $("#ThemeDesignForm .ODRDatafieldPropertiesForm").attr('id').split(/_/);
+            var datafield_id =  datafield_id_data[1];
+
+            // ...
+            $(this).unbind('change').change(function() {
+
+                // If datatype has datarecords, changing a fieldtype might cause loss of data
+                var str = "WARNING: Changing the type of this Datafield will cause the loss of ALL data currently in this Datafield.";
+                var previous_fieldtype_id = $("#previous_fieldtype").val();
+                var current_fieldtype_id = $("#DatafieldsForm_field_type").val();
+
+                var previous_fieldtype = fieldtype_array[previous_fieldtype_id];
+                var current_fieldtype = fieldtype_array[current_fieldtype_id];
 
 
-function InitSlideout() {
-    // Load display template menu
-    var url = '{{ path('odr_design_nav_slideout') }}';
+                // Changes that require no extra consideration or work
+                var no_warn = {
+                    // single radio and single select fields can be changed to any other radio fieldtype
+                    'Single Radio': ['Multiple Radio','Single Select','Multiple Select'],
+                    'Single Select': ['Single Radio','Multiple Radio','Multiple Select'],
+                    // markdown fields have no data to lose
+                    'Markdown': ['Boolean','File','Image','Integer','Paragraph Text','Long Text','Medium Text','Single Radio','Short Text','DateTime','Multiple Radio','Single Select','Multiple Select','Decimal']
+                };
 
-    $.ajax({
-        cache: false,
-        type: 'GET',
-        url: url,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {  
-                switch(data.t) {
-                    case 'html':
-                        $(".MenuDesignArea").remove();
-                        $("#ODRNavRight .top").append(data.d);
-                        $("#ODRNavRightWrapper").fadeIn('fast');
-//                        $(".MenuDesignArea a").click();
+                // Changes that require the server to migrate data between storage entities
+                // TODO - changing other fieldtypes to radio/select fields
+                var time_warn = {
+                    'Integer': ['Paragraph Text','Long Text','Medium Text','Short Text','Decimal'],
+                    'Long Text': ['Paragraph Text'],
+                    'Medium Text': ['Paragraph Text','Long Text'],
+                    'Short Text': ['Paragraph Text','Long Text','Medium Text'],
+                    'Decimal': ['Paragraph Text','Long Text','Medium Text','Short Text']
+                };
 
-                        // Clear Element Data Holder
-                        $("#ElementData").html("");
-                    break;
+                // Changes from 'longer' fieldtypes to 'shorter' fieldtypes
+                var length_warn = {
+                    'Paragraph Text': ['Long Text','Medium Text','Short Text'],
+                    'Long Text': ['Medium Text','Short Text'],
+                    'Medium Text': ['Short Text']
+                };
 
-                    case 'func':
-                        // Call External Function
-                        data.d.func(data);
-                    break;
+                // Changes from text fields to integer/decimal...it can easily result in lost data
+                var number_warn = {
+                    'Paragraph Text': ['Integer','Decimal'],
+                    'Long Text': ['Integer','Decimal'],
+                    'Medium Text': ['Integer','Decimal'],
+                    'Short Text': ['Integer','Decimal']
+                };
+
+                // Changing from multiple radio/select to single radio/select...have to ensure at most one radio option is selected...
+                var radio_warn = {
+                    'Multiple Radio': ['Single Radio','Single Select'],
+                    'Multiple Select': ['Single Radio','Single Select']
+                };
+
+                // Converting from decimal to integer...going to lose fractional parts of data
+                var precision_warn = {
+                    'Decimal': ['Integer']
+                };
+
+                // TODO - conversions to boolean?
+
+                // All other changes necessarily result in loss of ALL data
+
+                // Warn the user about potential issues when changing fieldtypes
+                if ( no_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, no_warn[previous_fieldtype]) !== -1 ) {
+                    str = '';
+                }
+                else if ( time_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, time_warn[previous_fieldtype]) !== -1 ) {
+                    str = 'NOTICE: The server will need some time to migrate data if the type of this Datafield is changed.';
+                }
+                else if ( length_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, length_warn[previous_fieldtype]) !== -1 ) {
+                    str = 'WARNING: You are attempting to convert a longer textfield into a shorter textfield...some data may be truncated...are you sure?';
+                }
+                else if ( number_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, number_warn[previous_fieldtype]) !== -1 ) {
+                    str = 'WARNING: All non-numerical characters will be deleted from the textfield, and the remaining characters converted into a number...If the textfield is not mostly numerical already, the resulting values may be nonsensical...are you sure?';
+                }
+                else if ( radio_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, radio_warn[previous_fieldtype]) !== -1 ) {
+                    str = 'WARNING: Any Datarecords where this Datafield has multiple RadioOptions selected will be modified to have at most one RadioOption selected...are you sure?';
+                }
+                else if ( precision_warn[previous_fieldtype] !== undefined && $.inArray(current_fieldtype, precision_warn[previous_fieldtype]) !== -1 ) {
+                    str = 'WARNING: Any fractional parts of the decimal values will be dropped during this migration of data...are you sure?';
+                }
+
+
+                if ( $("#has_datarecords").val() == '' || str === '' || confirm(str) ) {
+                    // Datatype has no datarecords attached, or user doesn't care...save the change
+                    SaveDatafieldProperty(datafield_id, true);  // reload datafield because fieldtype changed
+                    save_datafield_xhr = true;
+
+                    str = '';
+                    if (current_fieldtype == 'Paragraph Text')
+                        str = 'No Character Limit';
+                    else if (current_fieldtype == 'Long Text')
+                        str = '255 Character Limit';
+                    else if (current_fieldtype == 'Medium Text')
+                        str = '64 Character Limit';
+                    else if (current_fieldtype == 'Short Text')
+                        str = '32 Character Limit';
+
+                    if (str !== '')
+                        $("#field_type_meta").attr('title', str);
+
+                    $("#previous_fieldtype").val(current_fieldtype_id);
+                }
+                else {
+                    // Revert back to old field type
+                    previous_fieldtype_id = $("#previous_fieldtype").val();
+                    $(this).val( previous_fieldtype_id );
+                }
+
+            });
+        });
+
+        $("#ThemeDesignForm").fadeIn('fast');
+    }
+
+
+    function InitSlideout() {
+        // Load display template menu
+        var url = '{{ path('odr_design_nav_slideout') }}';
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    switch(data.t) {
+                        case 'html':
+                            $(".MenuDesignArea").remove();
+                            $("#ODRNavRight .top").append(data.d);
+                            $("#ODRNavRightWrapper").fadeIn('fast');
+
+                            // Clear Element Data Holder
+                            $("#ThemeDesignForm").html("");
+                            break;
+
+                        case 'func':
+                            // Call External Function
+                            data.d.func(data);
+                            break;
+                    }
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+        });
+    }
+
+    var SaveDataTypeInterval = [];
+    function SaveDatatypeProperties(datatype_id) {
+        if (SaveDataTypeInterval[datatype_id] != undefined)
+            SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
+
+        var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += datatype_id;
+
+        var form_data = $("#DatatypePropertiesForm_" + datatype_id).serialize();
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: form_data,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    notifySaved();
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+
+                    // Forcibly reload slideout
+                    $("#ThemeDesignForm").html("");
+                    $("#DataTypeTools_" + datatype_id + " > .ODRDatatypeProperties").trigger('click');
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                 }
             }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
+        });
+    }
+
+
+    function SaveDatatreeProperties(datatree_id) {
+
+        var url = '{{ path('odr_design_save_datatree', {'datatree_id': 0}) }}';
+        url = url.substring(0, (url.length - 1));
+        url += datatree_id;
+
+        var form_data = $("#DatatreePropertiesForm_" + datatree_id).serialize();
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: form_data,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if (data.r == 0) {
+                    notifySaved();
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
             }
-        },
-/*
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+        });
+    }
 
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
 
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
+    function SaveThemeDatatypeProperties(theme_element_id, datatype_id) {
 
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-*/
-   });
-}
+        var url = '{{ path('odr_design_save_theme_datatype', {'theme_element_id': 0, 'datatype_id': 0}) }}';
+        url = url.substring(0, (url.length - 3));
+        url += theme_element_id + '/' + datatype_id;
 
-var SaveDataTypeInterval = [];
-function SaveDatatypeProperties(datatype_id) {
-    if (SaveDataTypeInterval[datatype_id] != undefined)
-        SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
+        var form_data = $("#ThemeDatatypePropertiesForm_" + theme_element_id + "_" + datatype_id).serialize();
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: form_data,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    notifySaved();
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
-    var url = '{{ path('odr_design_get_datatype_properties', { 'datatype_id': 0 } ) }}';
-    url = url.substring(0, (url.length - 1));
-    url += datatype_id;
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
 
-    var form_data = $("#DatatypePropertiesForm_" + datatype_id).serialize();
-    $.ajax({
-        type: 'POST',
-        url: url,
-        data: form_data,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                notifySaved();
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
             }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
+        });
+    }
 
-                // Forcibly reload slideout
-                $("#ElementData").html("");
-                $("#DataTypeTools_" + datatype_id + " > .ODRDatatypeProperties").trigger('click');
+    function SaveThemeElementOrder(container) {
+
+        var i = 0;
+        var theme_element_ids = {};
+        $(container).children(".ODRThemeElement").each(function() {
+            var id_data = $(this).attr('id').split(/_/);
+            theme_element_ids[i] = id_data[1];
+            i++;
+        });
+
+        var url = '{{ path('odr_design_save_theme_element_order') }}';
+
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            data: theme_element_ids,
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
             }
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+        });
+    }
 
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
+    function SaveDatafieldOrder(container, initial_theme_element_id, ending_theme_element_id) {
 
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
+        var i = 0;
+        var datafield_ids = {};
+        $(container).children(".ODRDataField").each(function() {
+            var id_data = $(this).attr('id').split(/_/);
+            datafield_ids[i] = id_data[1];
+            i++;
+        });
 
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-}
+        // Get the id numbers of the passed-in theme elements
+        var theme_element = initial_theme_element_id.split(/_/);
+        initial_theme_element_id = theme_element[1];
+        var theme_element = ending_theme_element_id.split(/_/);
+        ending_theme_element_id = theme_element[1];
 
+        // Theme ID
+        var url = '{{ path('odr_design_save_datafield_order', {'initial_theme_element_id': 0, 'ending_theme_element_id' : 0} ) }}';
+        url = url.substring(0, url.length-3);
+        url += initial_theme_element_id + '/' + ending_theme_element_id;
 
-function SaveDatatreeProperties(datatree_id) {
-
-    var url = '{{ path('odr_design_save_datatree', {'datatree_id': 0}) }}';
-    url = url.substring(0, (url.length - 1));
-    url += datatree_id;
-
-//alert( url );
-//return;
-
-    var form_data = $("#DatatreePropertiesForm_" + datatree_id).serialize();
-    $.ajax({
-        type: 'POST',
-        url: url,
-        data: form_data,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if (data.r == 0) {
-                notifySaved();
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
-
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
-
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-}
-
-
-function SaveThemeDatatypeProperties(theme_element_id, datatype_id) {
-
-    var url = '{{ path('odr_design_save_theme_datatype', {'theme_element_id': 0, 'datatype_id': 0}) }}';
-    url = url.substring(0, (url.length - 3));
-    url += theme_element_id + '/' + datatype_id;
-
-//alert( url );
-//return;
-
-    var form_data = $("#ThemeDatatypePropertiesForm_" + theme_element_id + "_" + datatype_id).serialize();
-    $.ajax({
-        type: 'POST',
-        url: url,
-        data: form_data,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                notifySaved();
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-            // Get the xdebugToken from response headers
-            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-            // If the Sfjs object exists
-            if (typeof Sfjs !== "undefined") {
-
-                // Grab the toolbar element
-                var currentElement = $('.sf-toolbar')[0];
-
-                // Load the data of the given xdebug token into the current toolbar wrapper
-                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-            }
-        }
-    });
-}
-
-function SaveThemeElementOrder(container) {
-
-    var i = 0;
-    var theme_element_ids = {};
-    $(container).children(".ODRThemeElement").each(function() {
-        var id_data = $(this).attr('id').split(/_/);
-        theme_element_ids[i] = id_data[1];
-        i++;
-    });
-
-    var url = '{{ path('odr_design_save_theme_element_order') }}';
-
-//alert( url );
-//return;
-
-    $.ajax({
-        cache: false,
-        type: 'POST',
-        data: theme_element_ids,
-        url: url,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
-
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
-
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-}
-
-function SaveDatafieldOrder(container, initial_theme_element_id, ending_theme_element_id) {
-
-    var i = 0;
-    var datafield_ids = {};
-    $(container).children(".ODRDataField").each(function() {
-        var id_data = $(this).attr('id').split(/_/);
-        datafield_ids[i] = id_data[1];
-        i++;
-    });
-
-    // Get the id numbers of the passed-in theme elements
-    var theme_element = initial_theme_element_id.split(/_/);
-    initial_theme_element_id = theme_element[1];
-    var theme_element = ending_theme_element_id.split(/_/);
-    ending_theme_element_id = theme_element[1];
-
-    // Theme ID
-    var url = '{{ path('odr_design_save_datafield_order', {'initial_theme_element_id': 0, 'ending_theme_element_id' : 0} ) }}';
-    url = url.substring(0, url.length-3);
-    url += initial_theme_element_id + '/' + ending_theme_element_id;
-
-//alert( url );
-//return;
-
-    $.ajax({
-        cache: false,
-        type: 'POST',
-        data: datafield_ids,
-        url: url,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                // Don't reload a ThemeElement div unless a DataField got moved between different ThemeElements
-                if ( initial_theme_element_id != ending_theme_element_id ) {
-                    // Reload starting ThemeElement if all datafields got moved out of it
-                    if ( $("#ThemeElement_"+initial_theme_element_id).children(".ODRDataField").length == 0 ) {
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            data: datafield_ids,
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    // Don't reload a ThemeElement div unless a DataField got moved between different ThemeElements
+                    if ( initial_theme_element_id != ending_theme_element_id ) {
+                        // Reload starting ThemeElement if all datafields got moved out of it
+                        if ( $("#ThemeElement_"+initial_theme_element_id).children(".ODRDataField").length == 0 ) {
 //                        ReloadThemeElement(initial_theme_element_id);
 
-                        var icons = {"ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
-                        setThemeElementIcons(initial_theme_element_id, icons);
+                            var icons = {"ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
+                            setThemeElementIcons(initial_theme_element_id, icons);
+                        }
+
+                        // Reload ending ThemeElement if it now posesses a single datafield (would have been empty before)
+                        if ( $("#ThemeElement_"+ending_theme_element_id).children(".ODRDataField").length == 1 ) {
+
+                            var icons = {"ODRAddChildtype": 0, "ODRLinkDatatype": 0, "ODRDeleteThemeElement": 0};
+                            setThemeElementIcons(ending_theme_element_id, icons);
+                        }
+
                     }
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
-                    // Reload ending ThemeElement if it now posesses a single datafield (would have been empty before)
-                    if ( $("#ThemeElement_"+ending_theme_element_id).children(".ODRDataField").length == 1 ) {
-//                        ReloadThemeElement(ending_theme_element_id);
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
 
-                        var icons = {"ODRAddChildtype": 0, "ODRLinkDatatype": 0, "ODRDeleteThemeElement": 0};
-                        setThemeElementIcons(ending_theme_element_id, icons);
-                    }
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
 
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                 }
             }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
-
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
-
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-}
-
-
-function SaveThemeElementProperties(theme_element_id) {
-
-    var url = '{{ path('odr_design_get_theme_element_properties', { 'theme_element_id': 0 } ) }}';
-    url = url.substring(0, (url.length - 1));
-    url += theme_element_id;
-
-//alert( url );
-//return;
-
-    var form_data = $("#ThemeElementPropertiesForm_" + theme_element_id).serialize();
-    $.ajax({
-        type: 'POST',
-        url: url,
-        data: form_data,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                // Grab css strings from the ajax return
-                var med_width_old = data.widths.med_width_old;
-                var xl_width_old = data.widths.xl_width_old;
-                var med_width_current = data.widths.med_width_current;
-                var xl_width_current = data.widths.xl_width_current;
-
-                // Update the theme element's width classes if necessary
-                if (med_width_current != undefined && med_width_old != med_width_current)
-                    $("#ThemeElement_" + theme_element_id).removeClass('pure-u-md-' + med_width_old).addClass('pure-u-md-' + med_width_current);
-                if (xl_width_current != undefined && xl_width_old != xl_width_current)
-                    $("#ThemeElement_" + theme_element_id).removeClass('pure-u-xl-' + xl_width_old).addClass('pure-u-xl-' + xl_width_current);
-
-                notifySaved();
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
-
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
-
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-
-}
-
-function InitDatatypePropertiesForm() {
-    // Init Datatype Properties forms
-
-    $("#ElementData .ODRDatatypePropertiesForm").find("select").each(function() {
-        var datatype_id_data = $("#ElementData .ODRDatatypePropertiesForm").attr('id').split(/_/);
-        var datatype_id = datatype_id_data[1];
-
-        $(this).unbind('change').change(function() {
-            SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
-            SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
         });
-    });
+    }
 
-    $("#ElementData .ODRDatatypePropertiesForm").find("textarea").each(function() {
-        var datatype_id_data = $("#ElementData .ODRDatatypePropertiesForm").attr('id').split(/_/);
-        var datatype_id = datatype_id_data[1];
 
-        $(this).unbind('keyup');
-        $(this).unbind('paste');
-        $(this).on('keyup paste', function() {
-            SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
-            SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
+    function SaveThemeElementProperties(theme_element_id) {
+
+        var url = '{{ path('odr_design_get_theme_element_properties', { 'theme_element_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += theme_element_id;
+
+        var form_data = $("#ThemeElementPropertiesForm_" + theme_element_id).serialize();
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: form_data,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    // Grab css strings from the ajax return
+                    var med_width_old = data.widths.med_width_old;
+                    var xl_width_old = data.widths.xl_width_old;
+                    var med_width_current = data.widths.med_width_current;
+                    var xl_width_current = data.widths.xl_width_current;
+
+                    // Update the theme element's width classes if necessary
+                    if (med_width_current != undefined && med_width_old != med_width_current)
+                        $("#ThemeElement_" + theme_element_id).removeClass('pure-u-md-' + med_width_old).addClass('pure-u-md-' + med_width_current);
+                    if (xl_width_current != undefined && xl_width_old != xl_width_current)
+                        $("#ThemeElement_" + theme_element_id).removeClass('pure-u-xl-' + xl_width_old).addClass('pure-u-xl-' + xl_width_current);
+
+                    notifySaved();
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
         });
-    });
 
-    $("#ElementData .ODRDatatypePropertiesForm").find("input").each(function() {
-        var datatype_id_data = $("#ElementData .ODRDatatypePropertiesForm").attr('id').split(/_/);
-        var datatype_id = datatype_id_data[1];
+    }
 
-        if( $(this).is(":checkbox") ) {
+    function InitDatatypePropertiesForm() {
+        // Init Datatype Properties forms
+
+        $("#ThemeDesignForm .ODRDatatypePropertiesForm").find("select").each(function() {
+            var datatype_id_data = $("#ThemeDesignForm .ODRDatatypePropertiesForm").attr('id').split(/_/);
+            var datatype_id = datatype_id_data[1];
+
             $(this).unbind('change').change(function() {
                 SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
                 SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
             });
-        }
-        else {
+        });
+
+        $("#ThemeDesignForm .ODRDatatypePropertiesForm").find("textarea").each(function() {
+            var datatype_id_data = $("#ThemeDesignForm .ODRDatatypePropertiesForm").attr('id').split(/_/);
+            var datatype_id = datatype_id_data[1];
+
             $(this).unbind('keyup');
             $(this).unbind('paste');
             $(this).on('keyup paste', function() {
-                // If the short_name field got changed, grab the new value
-                if ( $(this).hasClass("ODRDatatypeShortName") ) {
-                    var short_name = $(this).val();
-                    $("#Datatype_" + datatype_id + "_ShortName").html(short_name);
-                }
-
                 SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
                 SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
             });
-        }
-    });
-
-
-    $("#ElementData .ODRDatatreePropertiesForm").find("input").each(function() {
-        var id_data = $("#ElementData .ODRDatatreePropertiesForm").attr('id').split(/_/);
-        var datatree_id = id_data[1];
-
-        if( $(this).is(":checkbox") ) {
-            $(this).unbind('change').change(function() {
-                SaveDatatreeProperties(datatree_id);
-            });
-        }
-    });
-
-    $("#ElementData .ODRThemeDatatypePropertiesForm").find("select").each(function() {
-        var id_data = $("#ElementData .ODRThemeDatatypePropertiesForm").attr('id').split(/_/);
-        var theme_element_id = id_data[1];
-        var datatype_id = id_data[2];
-
-        $(this).unbind('change').change(function() {
-            SaveThemeDatatypeProperties(theme_element_id, datatype_id);
         });
-    });
-}
 
-function InitThemeElementPropertiesForm() {
-    // Init Theme Element Properties forms
-    $("#ElementData .ODRThemeElementPropertiesForm").find("select").each(function() {
-        var id_data = $("#ElementData .ODRThemeElementPropertiesForm").attr('id').split(/_/);
-        var theme_element_id = id_data[1];
+        $("#ThemeDesignForm .ODRDatatypePropertiesForm").find("input").each(function() {
+            var datatype_id_data = $("#ThemeDesignForm .ODRDatatypePropertiesForm").attr('id').split(/_/);
+            var datatype_id = datatype_id_data[1];
 
-        $(this).unbind('change').change(function() {
-            SaveThemeElementProperties(theme_element_id);
-        });
-    });
-}
-
-function CopyDatafield(datafield_id) {
-    // Grab theme_element id
-    var theme_element_id_data = $("#Field_" + datafield_id).parent().parent().attr('id').split(/_/);
-    var theme_element_id = theme_element_id_data[1];
-
-    var url = '{{ path('odr_design_copy_datafield', { 'theme_element_id': 0, 'datafield_id': 0 } ) }}';
-    url = url.substring(0, (url.length - 3));
-    url += theme_element_id + '/' + datafield_id;
-
-//alert( url );
-//return;
-
-    $.ajax({
-        cache: false,
-        type: 'GET',
-        url: url,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                // Clear right slideout
-                $("#ElementData").html("");
-
-                // Reload the theme element because of the brand-new datafield
-                ReloadThemeElement(theme_element_id);
+            if( $(this).is(":checkbox") ) {
+                $(this).unbind('change').change(function() {
+                    SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
+                    SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
+                });
             }
             else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
+                $(this).unbind('keyup');
+                $(this).unbind('paste');
+                $(this).on('keyup paste', function() {
+                    // If the short_name field got changed, grab the new value
+                    if ( $(this).hasClass("ODRDatatypeShortName") ) {
+                        var short_name = $(this).val();
+                        $("#Datatype_" + datatype_id + "_ShortName").html(short_name);
+                    }
+
+                    SaveDataTypeInterval[datatype_id] = window.clearInterval(SaveDataTypeInterval[datatype_id]);
+                    SaveDataTypeInterval[datatype_id] = window.setInterval('SaveDatatypeProperties("' + datatype_id + '")', SaveTimeout);
+                });
             }
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+        });
 
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
 
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
+        $("#ThemeDesignForm .ODRDatatreePropertiesForm").find("input").each(function() {
+            var id_data = $("#ThemeDesignForm .ODRDatatreePropertiesForm").attr('id').split(/_/);
+            var datatree_id = id_data[1];
 
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-}
+            if( $(this).is(":checkbox") ) {
+                $(this).unbind('change').change(function() {
+                    SaveDatatreeProperties(datatree_id);
+                });
+            }
+        });
 
-function DeleteDatafield(datafield_id) {
-    var url = '{{ path('odr_design_delete_datafield', { 'datafield_id': 0 } ) }}';
-    url = url.substring(0, (url.length - 1));
-    url += datafield_id;
+        $("#ThemeDesignForm .ODRThemeDatatypePropertiesForm").find("select").each(function() {
+            var id_data = $("#ThemeDesignForm .ODRThemeDatatypePropertiesForm").attr('id').split(/_/);
+            var theme_element_id = id_data[1];
+            var datatype_id = id_data[2];
+
+            $(this).unbind('change').change(function() {
+                SaveThemeDatatypeProperties(theme_element_id, datatype_id);
+            });
+        });
+    }
+
+    function InitThemeElementPropertiesForm() {
+        // Init Theme Element Properties forms
+        $("#ThemeDesignForm .ODRThemeElementPropertiesForm").find("select").each(function() {
+            var id_data = $("#ThemeDesignForm .ODRThemeElementPropertiesForm").attr('id').split(/_/);
+            var theme_element_id = id_data[1];
+
+            $(this).unbind('change').change(function() {
+                SaveThemeElementProperties(theme_element_id);
+            });
+        });
+    }
+
+    function CopyDatafield(datafield_id) {
+        // Grab theme_element id
+        var theme_element_id_data = $("#Field_" + datafield_id).parent().parent().attr('id').split(/_/);
+        var theme_element_id = theme_element_id_data[1];
+
+        var url = '{{ path('odr_design_copy_datafield', { 'theme_element_id': 0, 'datafield_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 3));
+        url += theme_element_id + '/' + datafield_id;
 
 //alert( url );
 //return;
 
-    $.ajax({
-        cache: false,
-        type: 'GET',
-        url: url,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                // Grab containing ThemeElement and its id
-                var theme_element = $("#Field_" + datafield_id).parent().parent();
-                var id_data = $(theme_element).attr('id').split(/_/);
-                var theme_element_id = id_data[1];
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    // Clear right slideout
+                    $("#ThemeDesignForm").html("");
 
-                // Don't want the datafield or its slideout around anymore
-                $("#Field_" + datafield_id).remove();
-                $("#ElementData").html('');
+                    // Reload the theme element because of the brand-new datafield
+                    ReloadThemeElement(theme_element_id);
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
 
-                // Determine whether icons need to be un-muted due to deletion of datafield
-                var has_datafields = false;
-                $(theme_element).children(".ODRDataField").each(function() {
-                    has_datafields = true;
-                });
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
 
-                if (!has_datafields) {
-                    // Enable icons
-                    var icons = {"ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
-                    setThemeElementIcons(theme_element_id, icons);
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                 }
             }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+        });
+    }
 
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
+    function DeleteDatafield(datafield_id) {
+        var url = '{{ path('odr_design_delete_datafield', { 'datafield_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += datafield_id;
 
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
+//alert( url );
+//return;
 
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-}
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    // Grab containing ThemeElement and its id
+                    var theme_element = $("#Field_" + datafield_id).parent().parent();
+                    var id_data = $(theme_element).attr('id').split(/_/);
+                    var theme_element_id = id_data[1];
 
-function InitRadioOptionsForm(datafield_id) {
-    $("#ElementData").find(".ODRDeleteRadioOption").each(function() {
-        $(this).unbind('click').click(function() {
-            var radio_option_data = $(this).attr('id').split(/_/);
-            var radio_option_id = radio_option_data[1];
+                    // Don't want the datafield or its slideout around anymore
+                    $("#Field_" + datafield_id).remove();
+                    $("#ThemeDesignForm").html('');
 
-            if ( confirm('Are you sure you want to delete this radio option?') ) {
-                DeleteOption(radio_option_id);
+                    // Determine whether icons need to be un-muted due to deletion of datafield
+                    var has_datafields = false;
+                    $(theme_element).children(".ODRDataField").each(function() {
+                        has_datafields = true;
+                    });
+
+                    if (!has_datafields) {
+                        // Enable icons
+                        var icons = {"ODRAddChildtype": 1, "ODRLinkDatatype": 1, "ODRDeleteThemeElement": 1};
+                        setThemeElementIcons(theme_element_id, icons);
+                    }
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
             }
         });
-    });
+    }
 
-    $("#ElementData").find(".ODRDefaultRadioOption").each(function() {
-        $(this).unbind('click').click(function() {
-            var radio_option_id = $(this).attr('rel');
-            DefaultOption(radio_option_id);
+    function InitRadioOptionsForm(datafield_id) {
+        $("#ThemeDesignForm").find(".ODRDeleteRadioOption").each(function() {
+            $(this).unbind('click').click(function() {
+                var radio_option_data = $(this).attr('id').split(/_/);
+                var radio_option_id = radio_option_data[1];
+
+                if ( confirm('Are you sure you want to delete this radio option?') ) {
+                    DeleteOption(radio_option_id);
+                }
+            });
         });
-    });
 
-
-    $("#ElementData").find(".ODRAddRadioOption").unbind('click').click(function() {
-        var datafield_id = $(this).attr('rel');
-
-        AddOption(datafield_id);
-    });
-/*
-    $("#ElementData").find(".ODRImportRadioOption").unbind('click');
-    $("#ElementData").find(".ODRImportRadioOption").click(function() {
-        var datafield_id = $(this).attr('rel');
-
-        ImportRadioOption(datafield_id);
-    });
-*/
-
-    $("#ElementData").find(".ODRRadioOptionName").each(function() {
-        $(this).unbind('keyup');
-        $(this).unbind('paste');
-        $(this).on('keyup paste', function() {
-            var radio_option_id = $(this).attr('rel');
-            var datafield_id = $(this).parent().parent().parent().attr('rel');
-
-            // Immediately update the option name if not sorting by alphabetical order
-            if ( $("#datafield_" + datafield_id + "_name_sort").val() == 0 ) {
-                var option_name = $(this).val();
-                if ( $("#Option_" + radio_option_id + "_name").html() != null )
-                    $("#Option_" + radio_option_id + "_name").html(option_name);    // single/multiple radio
-                else
-                    $("#Option_" + radio_option_id).text(option_name);  // single/multiple select
-
-            }
-
-            SaveRadioOptionNameInterval[radio_option_id] = window.clearInterval(SaveRadioOptionNameInterval[radio_option_id]);
-            SaveRadioOptionNameInterval[radio_option_id] = window.setInterval("SaveRadioOptionName(" + datafield_id + "," + radio_option_id + ")", SaveTimeout);
+        $("#ThemeDesignForm").find(".ODRDefaultRadioOption").each(function() {
+            $(this).unbind('click').click(function() {
+                var radio_option_id = $(this).attr('rel');
+                DefaultOption(radio_option_id);
+            });
         });
-    });
 
-    // Only allow sorting radio options if datafield not set to alphabetical ordering
-    if ( $("#datafield_" + datafield_id + "_name_sort").val() == 0 ) {
-        // Sortable Radio Options
-        $(".ODRSortableOption").sortable("destroy");
-        $(".ODRSortableOption").sortable({
 
-            start: function( event, ui ) {
-                // Hide the div that is being dragged around
+        $("#ThemeDesignForm").find(".ODRAddRadioOption").unbind('click').click(function() {
+            var datafield_id = $(this).attr('rel');
+
+            AddOption(datafield_id);
+        });
+
+        $("#ThemeDesignForm").find(".ODRRadioOptionName").each(function() {
+            $(this).unbind('keyup');
+            $(this).unbind('paste');
+            $(this).on('keyup paste', function() {
+                var radio_option_id = $(this).attr('rel');
+                var datafield_id = $(this).parent().parent().parent().attr('rel');
+
+                // Immediately update the option name if not sorting by alphabetical order
+                if ( $("#datafield_" + datafield_id + "_name_sort").val() == 0 ) {
+                    var option_name = $(this).val();
+                    if ( $("#Option_" + radio_option_id + "_name").html() != null )
+                        $("#Option_" + radio_option_id + "_name").html(option_name);    // single/multiple radio
+                    else
+                        $("#Option_" + radio_option_id).text(option_name);  // single/multiple select
+
+                }
+
+                SaveRadioOptionNameInterval[radio_option_id] = window.clearInterval(SaveRadioOptionNameInterval[radio_option_id]);
+                SaveRadioOptionNameInterval[radio_option_id] = window.setInterval("SaveRadioOptionName(" + datafield_id + "," + radio_option_id + ")", SaveTimeout);
+            });
+        });
+
+        // Only allow sorting radio options if datafield not set to alphabetical ordering
+        if ( $("#datafield_" + datafield_id + "_name_sort").val() == 0 ) {
+            // Sortable Radio Options
+            // $(".ODRSortableOption").sortable("destroy");
+            $(".ODRSortableOption").sortable({
+
+                start: function( event, ui ) {
+                    // Hide the div that is being dragged around
 //                $(ui.helper).hide();
-            },
-            stop: function( event, ui ) {
-                SaveRadioOptionOrder(0);    // don't use alphabetical sort
+                },
+                stop: function( event, ui ) {
+                    SaveRadioOptionOrder(0);    // don't use alphabetical sort
 
-                // Unhide the object that was being dragged around
+                    // Unhide the object that was being dragged around
 //                $(ui.item).show();
-                $(ui.item).removeAttr('style');
-            },
-            placeholder: "ui-state-highlight",
-            connectWith: ".ODRSortableOption"
-        });
+                    $(ui.item).removeAttr('style');
+                },
+                placeholder: "ui-state-highlight",
+                connectWith: ".ODRSortableOption"
+            });
 //        $(".ODRSortableOption").disableSelection();   // TODO - commented out because it was intefering with clicking into the radio optio name fields...wat?!?
-    }
-
-}
-
-function SaveRadioOptionOrder(alphabetical_sort) {
-    // Grab order of radio options
-    var i = 0;
-    var radio_option_ids = {};
-    $(".ODRSortableOption").children().each(function() {
-        var id_data = $(this).attr('id').split(/_/);
-        radio_option_ids[i] = id_data[2];
-        i++;
-    });
-
-    // Grab datafield
-    var datafield_id = $(".ODRSortableOption").attr("rel");
-
-    var url = '{{ path('odr_design_save_radio_option_order', {'datafield_id': 0, 'alphabetical_sort': 0} ) }}';
-    url = url.substring(0, url.length-3);
-    url += datafield_id + '/' + alphabetical_sort;
-
-//alert( url );
-//return;
-
-    $.ajax({
-        cache: false,
-        type: 'POST',
-        data: radio_option_ids,
-        url: url,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                notifySaved();
-
-                // Can't necessarily cut and paste one option because this could be a first-time request to make options alphabetical...
-                ReloadDatafield(datafield_id);
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
-
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
-
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-
-}
-
-
-var SaveRadioOptionNameInterval = [];
-function SaveRadioOptionName(datafield_id, radio_option_id) {
-    if (SaveRadioOptionNameInterval[radio_option_id] != undefined)
-        SaveRadioOptionNameInterval[radio_option_id] = window.clearInterval(SaveRadioOptionNameInterval[radio_option_id]);
-
-    var url = '{{ path('odr_design_save_radio_option_name', { 'radio_option_id': 0 }) }}';
-    url = url.substring(0,(url.length - 1));
-    url += radio_option_id;
-
-//alert( url );
-//return;
-
-    var post_data = $("#ODRRadioOptionsForm_0").find("#radio_option_" + radio_option_id + "_name").serialize();    // only want one field
-    $.ajax({
-        type: 'POST',
-        url: url,
-        dataType: "json",
-        data: post_data,
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-//                $("#ElementData").html('');
-                notifySaved();
-
-                // Save the radio option order if necessary
-                if ( $("#datafield_" + datafield_id + "_name_sort").val() == 1 )
-                    SaveRadioOptionOrder(1);    // 1 == alphabetical sort
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-            // Get the xdebugToken from response headers
-            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-            // If the Sfjs object exists
-            if (typeof Sfjs !== "undefined") {
-
-                // Grab the toolbar element
-                var currentElement = $('.sf-toolbar')[0];
-
-                // Load the data of the given xdebug token into the current toolbar wrapper
-                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-            }
         }
-    });
 
-}
-
-function AddOption(datafield_id) {
-    var url = '{{ path('odr_design_add_radio_option', { 'datafield_id': 0 }) }}';
-    // Load display template menu
-    url = url.substring(0,(url.length - 1));
-    url += datafield_id;
-
-//alert( url );
-//return;
-
-    $.ajax({
-        cache: false,
-        type: 'GET',
-        url: url,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                // Refresh right slideout
-                $("#Field_" + datafield_id + "_radio_options").trigger('click');
-
-                // Reload the datafield to get the new radio option
-                ReloadDatafield(datafield_id);
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
-
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
-
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-}
-
-function DeleteOption(radio_option_id) {
-    var url = '{{ path('odr_design_delete_radio_option', { 'radio_option_id': 0 } ) }}';
-    url = url.substring(0, (url.length - 1));
-    url += radio_option_id;
-
-//alert( url );
-//return;
-
-    $.ajax({
-        cache: false,
-        type: 'GET',
-        url: url,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                // Delete the radio option out of the slideout
-                $("#radio_option_" + radio_option_id).remove();
-
-                // Delete the radio option off the page
-                $("#Option_" + radio_option_id).remove();
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
-
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
-
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-}
-
-function DefaultOption(radio_option_id) {
-    var url = '{{ path('odr_design_default_radio_option', { 'radio_option_id': 0 } ) }}';
-    url = url.substring(0, (url.length - 1));
-    url += radio_option_id;
-
-//alert( url );
-//return;
-
-    $.ajax({
-        cache: false,
-        type: 'GET',
-        url: url,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                notifySaved();
-            }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
-
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
-
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-}
-
-
-function ReloadChild(datatype_id) {
-    var url = '{{ path('odr_design_reload_child', { 'source_datatype_id': 0, 'datatype_id': 0 }) }}';
-    url = url.substring(0, url.length-3);
-    url += {{ datatype.id }} + '/' + datatype_id;
-
-//alert( url );
-//return;
-
-    var append = true;
-    var datatype_div = $("#DataType_" + datatype_id);
-    var element = $(datatype_div).prev();
-    if ( $(element).attr('class') === undefined ) {
-        append = false;
-        element = $(datatype_div).parent();
     }
 
-    // Create a loading div to block off the datafield?
-    insertLoadingDiv("DataType_" + datatype_id);
+    function SaveRadioOptionOrder(alphabetical_sort) {
+        // Grab order of radio options
+        var i = 0;
+        var radio_option_ids = {};
+        $(".ODRSortableOption").children().each(function() {
+            var id_data = $(this).attr('id').split(/_/);
+            radio_option_ids[i] = id_data[2];
+            i++;
+        });
 
+        // Grab datafield
+        var datafield_id = $(".ODRSortableOption").attr("rel");
 
-    $.ajax({
-        cache: false,
-        type: 'GET',
-        url: url,
-        dataType: 'json',
-        success: function(data, textStatus, jqXHR) {
-            // remove old datatype
-            $(datatype_div).fadeOut();
-            $(datatype_div).remove();
-
-            // insert new html
-            if (append)
-                $(element).after(data.d.html);
-            else
-                $(element).prepend(data.d.html);
-
-            initPage();
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
-
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
-
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-}
-
-
-function ReloadThemeElement(theme_element_id) {
-    var url = '{{ path('odr_design_reload_theme_element', { 'source_datatype_id': 0, 'theme_element_id': 0 }) }}';
-    url = url.substring(0, url.length-3);
-    url += {{ datatype.id }} + '/' + theme_element_id;
+        var url = '{{ path('odr_design_save_radio_option_order', {'datafield_id': 0, 'alphabetical_sort': 0} ) }}';
+        url = url.substring(0, url.length-3);
+        url += datafield_id + '/' + alphabetical_sort;
 
 //alert( url );
 //return;
 
-    var append = true;
-    var theme_element = $("#ThemeElement_" + theme_element_id);
-    var element = $(theme_element).prev();
-    if ( $(element).attr('class') === undefined ) {
-        append = false;
-        element = $(theme_element).parent();
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            data: radio_option_ids,
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    notifySaved();
+
+                    // Can't necessarily cut and paste one option because this could be a first-time request to make options alphabetical...
+                    ReloadDatafield(datafield_id);
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+
     }
 
-    // Create a loading div to block off the datafield?
-    insertLoadingDiv("ThemeElement_" + theme_element_id);
 
-    $.ajax({
-        cache: false,
-        type: 'GET',
-        url: url,
-        dataType: 'json',
-        success: function(data, textStatus, jqXHR) {
-            // Remove old theme element
-            $(theme_element).fadeOut();
-            $(theme_element).remove();
+    var SaveRadioOptionNameInterval = [];
+    function SaveRadioOptionName(datafield_id, radio_option_id) {
+        if (SaveRadioOptionNameInterval[radio_option_id] != undefined)
+            SaveRadioOptionNameInterval[radio_option_id] = window.clearInterval(SaveRadioOptionNameInterval[radio_option_id]);
 
-            // Insert new html
-            if (append)
-                $(element).after(data.d.html);
-            else
-                $(element).prepend(data.d.html);
-
-            initPage();
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
-
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
-
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-}
-
-function ReloadDatafield(datafield_id) {
-    var url = '{{ path('odr_design_reload_datafield', { 'source_datatype_id': 0, 'datafield_id': 0 }) }}';
-    url = url.substring(0, url.length-3);
-    url += {{ datatype.id }} + '/' + datafield_id;
+        var url = '{{ path('odr_design_save_radio_option_name', { 'radio_option_id': 0 }) }}';
+        url = url.substring(0,(url.length - 1));
+        url += radio_option_id;
 
 //alert( url );
 //return;
 
-    var append = true;
-    var datafield = $("#Field_" + datafield_id);
-    var element = $(datafield).prev();
+        var post_data = $("#ODRRadioOptionsForm_0").find("#radio_option_" + radio_option_id + "_name").serialize();    // only want one field
+        $.ajax({
+            type: 'POST',
+            url: url,
+            dataType: "json",
+            data: post_data,
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+//                $("#ThemeDesignForm").html('');
+                    notifySaved();
+
+                    // Save the radio option order if necessary
+                    if ( $("#datafield_" + datafield_id + "_name_sort").val() == 1 )
+                        SaveRadioOptionOrder(1);    // 1 == alphabetical sort
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+
+    }
+
+    function AddOption(datafield_id) {
+        var url = '{{ path('odr_design_add_radio_option', { 'datafield_id': 0 }) }}';
+        // Load display template menu
+        url = url.substring(0,(url.length - 1));
+        url += datafield_id;
+
+//alert( url );
+//return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    // Refresh right slideout
+                    $("#Field_" + datafield_id + "_radio_options").trigger('click');
+
+                    // Reload the datafield to get the new radio option
+                    ReloadDatafield(datafield_id);
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function DeleteOption(radio_option_id) {
+        var url = '{{ path('odr_design_delete_radio_option', { 'radio_option_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += radio_option_id;
+
+//alert( url );
+//return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    // Delete the radio option out of the slideout
+                    $("#radio_option_" + radio_option_id).remove();
+
+                    // Delete the radio option off the page
+                    $("#Option_" + radio_option_id).remove();
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function DefaultOption(radio_option_id) {
+        var url = '{{ path('odr_design_default_radio_option', { 'radio_option_id': 0 } ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += radio_option_id;
+
+//alert( url );
+//return;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    notifySaved();
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+
+    function ReloadChild(datatype_id) {
+        var url = '{{ path('odr_design_reload_child', { 'source_datatype_id': 0, 'datatype_id': 0 }) }}';
+        url = url.substring(0, url.length-3);
+        url += {{ datatype.id }} + '/' + datatype_id;
+
+//alert( url );
+//return;
+
+        var append = true;
+        var datatype_div = $("#DataType_" + datatype_id);
+        var element = $(datatype_div).prev();
+        if ( $(element).attr('class') === undefined ) {
+            append = false;
+            element = $(datatype_div).parent();
+        }
+
+        // Create a loading div to block off the datafield?
+        insertLoadingDiv("DataType_" + datatype_id);
+
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: 'json',
+            success: function(data, textStatus, jqXHR) {
+                // remove old datatype
+                $(datatype_div).fadeOut();
+                $(datatype_div).remove();
+
+                // insert new html
+                if (append)
+                    $(element).after(data.d.html);
+                else
+                    $(element).prepend(data.d.html);
+
+                initPage();
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+
+    function ReloadThemeElement(theme_element_id) {
+        var url = '{{ path('odr_design_reload_theme_element', { 'source_datatype_id': 0, 'theme_element_id': 0 }) }}';
+        url = url.substring(0, url.length-3);
+        url += {{ datatype.id }} + '/' + theme_element_id;
+
+//alert( url );
+//return;
+
+        var append = true;
+        var theme_element = $("#ThemeElement_" + theme_element_id);
+        var element = $(theme_element).prev();
+        if ( $(element).attr('class') === undefined ) {
+            append = false;
+            element = $(theme_element).parent();
+        }
+
+        // Create a loading div to block off the datafield?
+        insertLoadingDiv("ThemeElement_" + theme_element_id);
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: 'json',
+            success: function(data, textStatus, jqXHR) {
+                // Remove old theme element
+                $(theme_element).fadeOut();
+                $(theme_element).remove();
+
+                // Insert new html
+                if (append)
+                    $(element).after(data.d.html);
+                else
+                    $(element).prepend(data.d.html);
+
+                initPage();
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function ReloadDatafield(datafield_id) {
+        var url = '{{ path('odr_design_reload_datafield', { 'source_datatype_id': 0, 'datafield_id': 0 }) }}';
+        url = url.substring(0, url.length-3);
+        url += {{ datatype.id }} + '/' + datafield_id;
+
+//alert( url );
+//return;
+
+        var append = true;
+        var datafield = $("#Field_" + datafield_id);
+        var element = $(datafield).prev();
 //alert( $(element).attr('class') );
 
-    if ( $(element).attr('class') === undefined ) {
-        append = false;
-        element = $(datafield).parent();
+        if ( $(element).attr('class') === undefined ) {
+            append = false;
+            element = $(datafield).parent();
+        }
+
+        // Create a loading div to block off the datafield?
+        insertLoadingDiv("Field_" + datafield_id);
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: 'json',
+            success: function(data, textStatus, jqXHR) {
+                // Remove old datafield
+                $(datafield).remove();
+
+                // Insert new html
+                if (append)
+                    $(element).after(data.d.html);
+                else
+                    $(element).prepend(data.d.html);
+
+                initPage();
+//            $("#Field_" + datafield_id).trigger('click');
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
     }
 
-    // Create a loading div to block off the datafield?
-    insertLoadingDiv("Field_" + datafield_id);
+    function insertLoadingDiv(parent_div_id) {
 
-    $.ajax({
-        cache: false,
-        type: 'GET',
-        url: url,
-        dataType: 'json',
-        success: function(data, textStatus, jqXHR) {
-            // Remove old datafield
-            $(datafield).remove();
+        // Need dimensions of parent div...
+        var element = $("#" + parent_div_id);
+        var height = $(element).css('height');
+        var width = $(element).css('width');
 
-            // Insert new html
-            if (append)
-                $(element).after(data.d.html);
-            else
-                $(element).prepend(data.d.html);
+        // Create a loading div
+        $(element).prepend("<div id=\"" + parent_div_id + "_loading_div\" class=\"ODROverlayDiv ODRReloadDiv\"><strong>Loading...</strong></div>");
 
-            initPage();
-//            $("#Field_" + datafield_id).trigger('click');
-        },
-        complete: function(jqXHR, textStatus) {
-             // Get the xdebugToken from response headers
-             var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-             // If the Sfjs object exists
-             if (typeof Sfjs !== "undefined") {
-
-                 // Grab the toolbar element
-                 var currentElement = $('.sf-toolbar')[0];
-
-                 // Load the data of the given xdebug token into the current toolbar wrapper
-                 Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-             }
-         }
-    });
-}
-
-function insertLoadingDiv(parent_div_id) {
-
-    // Need dimensions of parent div...
-    var element = $("#" + parent_div_id);
-    var height = $(element).css('height');
-    var width = $(element).css('width');
-
-    // Create a loading div
-    $(element).prepend("<div id=\"" + parent_div_id + "_loading_div\" class=\"ODROverlayDiv ODRReloadDiv\"><strong>Loading...</strong></div>");
-
-    // Apply dimensions of parent div to loading div
-    $("#" + parent_div_id + "_loading_div").css({"height": height, "line-height": height, "width": width});
-}
+        // Apply dimensions of parent div to loading div
+        $("#" + parent_div_id + "_loading_div").css({"height": height, "line-height": height, "width": width});
+    }
 
 
-function openPluginSettingsDialog(datafield_id, datatype_id) {
+    function openPluginSettingsDialog(datafield_id, datatype_id) {
 
-    var url  = '{{ path('odr_render_plugin_dialog', {'datatype_id': 0, 'datafield_id': 0 } ) }}';
-    url = url.substring(0,(url.length - 3));
-    url += datatype_id + '/' + datafield_id;
+        var url  = '{{ path('odr_render_plugin_dialog', {'datatype_id': 0, 'datafield_id': 0 } ) }}';
+        url = url.substring(0,(url.length - 3));
+        url += datatype_id + '/' + datafield_id;
 
-    $.ajax({
-        cache: false,
-        type: 'GET',
-        url: url,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            if(data.r == 0) {
-                $("#dialog_plugin_settings .form_contents").html(data.d.html);
-                $("#dialog_plugin_settings").dialog( "open" );
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                if(data.r == 0) {
+                    $("#dialog_plugin_settings .form_contents").html(data.d.html);
+                    $("#dialog_plugin_settings").dialog( "open" );
+                }
+                else {
+                    // An error has occurred.
+                    // Show Error message dialog
+                    alert(data.d);
+                }
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
             }
-            else {
-                // An error has occurred.
-                // Show Error message dialog
-                alert(data.d);
-            }
-        },
-        complete: function(jqXHR, textStatus) {
-            // Get the xdebugToken from response headers
-            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-            // If the Sfjs object exists
-            if (typeof Sfjs !== "undefined") {
-                // Grab the toolbar element
-                var currentElement = $('.sf-toolbar')[0];
-
-                // Load the data of the given xdebug token into the current toolbar wrapper
-                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-            }
-        }
-    });
-}
+        });
+    }
 
 </script>
 
