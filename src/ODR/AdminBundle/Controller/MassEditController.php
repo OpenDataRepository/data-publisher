@@ -38,6 +38,8 @@ use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
+// Services
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -45,7 +47,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class MassEditController extends ODRCustomController
 {
-
 
     /**
      * Sets up a mass edit request made from a search results page.
@@ -187,6 +188,10 @@ class MassEditController extends ODRCustomController
         // Required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
+
+        /** @var PermissionsManagementService $pm_service */
+        $pm_service = $this->container->get('odr.permissions_management_service');
+
         $redis = $this->container->get('snc_redis.default');;
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -240,7 +245,7 @@ class MassEditController extends ODRCustomController
         // ----------------------------------------
         // Filter by user permissions
         $datarecord_array = array();
-        parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+        $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 
         // Render the MassEdit page

@@ -29,6 +29,8 @@ use ODR\OpenRepository\OAuthClientBundle\Entity\UserLink;
 // Forms
 use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
 use ODR\AdminBundle\Form\ODRUserProfileForm;
+// Services
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
@@ -1463,6 +1465,11 @@ class ODRUserController extends ODRCustomController
             // Required objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -1543,7 +1550,7 @@ class ODRUserController extends ODRCustomController
 
             // Filter by the target user's permissions
             $datarecord_array = array();
-            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 //print '<pre>'.print_r($datatype_array, true).'</pre>'; exit();
 

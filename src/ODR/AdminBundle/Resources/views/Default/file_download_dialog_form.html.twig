@@ -41,19 +41,21 @@
 
         {% if datarecord['children'] is defined and datarecord['children']|length > 0 %}
             {% for child_dt_id, child_dr_list in datarecord['children'] %}
-                <li><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ datatype_names[child_dt_id] }}
-                {% for child_dr_id, child_dr in child_dr_list %}
-                    {% include 'ODRAdminBundle:Default:file_download_dialog_form.html.twig' with {
-                        'datarecord_id': child_dr_id,
+                {% if datatype_names[child_dt_id] is defined %}
+                    <li><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ datatype_names[child_dt_id] }}
+                    {% for child_dr_id, child_dr in child_dr_list %}
+                        {% include 'ODRAdminBundle:Default:file_download_dialog_form.html.twig' with {
+                            'datarecord_id': child_dr_id,
 
-                        'datarecord_array': child_dr_list,
-                        'datafield_names': datafield_names,
-                        'datatype_names': datatype_names,
+                            'datarecord_array': child_dr_list,
+                            'datafield_names': datafield_names,
+                            'datatype_names': datatype_names,
 
-                        'is_top_level': false,
-                    } %}
-                {% endfor %}
-                </li>
+                            'is_top_level': false,
+                        } %}
+                    {% endfor %}
+                    </li>
+                {% endif %}
             {% endfor %}
         {% endif %}
         </ul>

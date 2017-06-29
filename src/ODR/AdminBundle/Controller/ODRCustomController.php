@@ -69,6 +69,8 @@ use ODR\AdminBundle\Entity\TrackedError;
 use ODR\OpenRepository\UserBundle\Entity\User;
 use ODR\AdminBundle\Entity\UserGroup;
 // Forms
+// Services
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -138,6 +140,10 @@ class ODRCustomController extends Controller
 
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
+
+        /** @var PermissionsManagementService $pm_service */
+        $pm_service = $this->container->get('odr.permissions_management_service');
+
         $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
         $logged_in = false;
@@ -241,42 +247,29 @@ class ODRCustomController extends Controller
             // $pm_service = $this->container->get('odr.permissions_management_service');
 
             // Grab the cached versions of all of the associated datarecords, and store them all at the same level in a single array
-            $datarecord_array = array();
             $related_datarecord_array = array();
             foreach ($datarecord_list as $num => $dr_id) {
                 $datarecord_info = $dri_service->getRelatedDatarecords($dr_id);
 
-                $stacked_datarecord_array = array();
-                $stacked_datarecord_array[ $dr_id ] = self::stackDatarecordArray($datarecord_info, $dr_id);
-                $datarecord_array[$dr_id] = $stacked_datarecord_array;
-                // $datarecord_array[$dr_id] = $datarecord_info;
-
-
                 foreach ($datarecord_info as $local_dr_id => $data)
                     $related_datarecord_array[$local_dr_id] = $data;
-
-
             }
 
-
-            // Get Associated Datatypes
+            // Get datatypes of all related datarecords
             $datatype_array = $dti_service->getRecordDatatypes($related_datarecord_array);
-            $datatype_array[ $datatype->getId() ] = self::stackDatatypeArray($datatype_array, $datatype->getId(), $theme->getId());
-
-
-
-            /*
-            // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-            // print $redis_prefix.'.cached_datatype_'.$datatype->getId();
-            $datatype_array = self::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$datatype->getId())));
-            if ($bypass_cache || $datatype_array == false) {
-                $datatype_array = self::getDatatypeData($em, self::getDatatreeArray($em, $bypass_cache), $datatype->getId(), $bypass_cache);
-            }
-            */
-
 
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            self::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            $pm_service->filterByGroupPermissions($datatype_array, $related_datarecord_array, $user_permissions);
+
+            // Stack the datatype and all of its children
+            $datatype_array[ $datatype->getId() ] = self::stackDatatypeArray($datatype_array, $datatype->getId(), $theme->getId());
+
+            // Stack each individual datarecord in the array
+            $datarecord_array = array();
+            foreach ($related_datarecord_array as $dr_id => $dr) {
+                if ( $dr['dataType']['id'] == $datatype->getId() )
+                    $datarecord_array[$dr_id] = self::stackDatarecordArray($related_datarecord_array, $dr_id);
+            }
 
 
             // -----------------------------------
@@ -1098,6 +1091,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated most likely going to be replaced by the PermissionsManagementService
+     *
      * Ensures the given user is in the given group.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -1142,6 +1137,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated most likely going to be replaced by the PermissionsManagementService
+     *
      * Create a new Group for users of the given datatype.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -1317,6 +1314,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated most likely going to be replaced by the PermissionsManagementService
+     *
      * Creates GroupDatatypePermissions for all groups when a new datatype is created.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -1459,6 +1458,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @deprecated most likely going to be replaced by the PermissionsManagementService
+     *
      * Creates GroupDatafieldPermissions for all groups when a new datafield is created, and updates existing cache entries for groups and users with the new datafield.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -1801,6 +1802,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @todo - move into the PermissionsManagementService?
+     *
      * Gets and returns the permissions array for the given group.
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -1916,6 +1919,8 @@ class ODRCustomController extends Controller
 
 
     /**
+     * @todo - move into the PermissionsManagementService?
+     *
      * Rebuilds the cached version of a group's datatype/datafield permissions array
      *
      * @param \Doctrine\ORM\EntityManager $em
@@ -1992,95 +1997,6 @@ class ODRCustomController extends Controller
             'datatypes' => $datatype_permissions,
             'datafields' => $datafield_permissions,
         );
-    }
-
-
-    /**
-     * Given a group's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.
-     *
-     * @param array &$datatype_array    @see self::getDatatypeArray()
-     * @param array &$datarecord_array  @see self::getDatarecordArray()
-     * @param array $permissions_array  @see self::getUserPermissionsArray()
-     */
-    protected function filterByGroupPermissions(&$datatype_array, &$datarecord_array, $permissions_array)
-    {
-$debug = true;
-$debug = false;
-
-if ($debug)
-    print '----- permissions filter -----'."\n";
-
-        // Save relevant permissions...
-        $datatype_permissions = array();
-        if ( isset($permissions_array['datatypes']) )
-            $datatype_permissions = $permissions_array['datatypes'];
-        $datafield_permissions = array();
-        if ( isset($permissions_array['datafields']) )
-            $datafield_permissions = $permissions_array['datafields'];
-
-        $can_view_datatype = array();
-        $can_view_datarecord = array();
-        $datafields_to_remove = array();
-        foreach ($datatype_array as $dt_id => $dt) {
-            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dt_view' ]) )
-                $can_view_datatype[$dt_id] = true;
-            else
-                $can_view_datatype[$dt_id] = false;
-
-            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dr_view' ]) )
-                $can_view_datarecord[$dt_id] = true;
-            else
-                $can_view_datarecord[$dt_id] = false;
-        }
-
-
-        // For each datatype in the provided array...
-        foreach ($datatype_array as $dt_id => $dt) {
-
-            // If there was no datatype permission entry for this datatype, have it default to false
-            if ( !isset($can_view_datatype[$dt_id]) )
-                $can_view_datatype[$dt_id] = false;
-
-            // If datatype is non-public and user does not have the 'can_view_datatype' permission, then remove the datatype from the array
-            if ( $dt['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datatype[$dt_id] ) {
-                unset( $datatype_array[$dt_id] );
-if ($debug)
-    print 'removed non-public datatype '.$dt_id."\n";
-
-                // Also remove all datarecords of that datatype
-                foreach ($datarecord_array as $dr_id => $dr) {
-                    if ($dt_id == $dr['dataType']['id'])
-                        unset( $datarecord_array[$dr_id] );
-if ($debug)
-    print ' -- removed datarecord '.$dr_id."\n";
-                }
-
-                // No sense checking anything else for this datatype, skip to the next one
-                continue;
-            }
-
-            // Otherwise, the user is allowed to see this datatype...
-            foreach ($dt['themes'] as $theme_id => $theme) {
-                foreach ($theme['themeElements'] as $te_num => $te) {
-
-                    // For each datafield in this theme element...
-                    if ( isset($te['themeDataFields']) ) {
-                        foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                            $df_id = $tdf['dataField']['id'];
-
-                            // If the user doesn't have the 'can_view_datafield' permission for that datafield...
-                            if ( $tdf['dataField']['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !(isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) ) ) {
-                                // ...remove it from the layout
-                                unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry on purpose
-                                $datafields_to_remove[$df_id] = 1;
-if ($debug)
-    print 'removed datafield '.$df_id.' from theme_element '.$te['id'].' datatype '.$dt_id.' theme '.$theme_id.' ('.$theme['themeType'].')'."\n";
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
 

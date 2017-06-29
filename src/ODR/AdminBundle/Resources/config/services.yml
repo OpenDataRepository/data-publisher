@@ -45,6 +45,8 @@ services:
     odr_search_controller:
         class: ODR\OpenRepository\SearchBundle\Controller\DefaultController
 
+
+    #
     odr.permissions_management_service:
         class: ODR\AdminBundle\Component\Service\PermissionsManagementService
         arguments:
@@ -80,13 +82,6 @@ services:
             entity_manager: "@doctrine.orm.entity_manager"
             logger: "@logger"
 
-#    odr.permissions_management_service:
-#        class: ODR\AdminBundle\Component\Service\PermissionsManagementService
-#        arguments:
-#            container: "@service_container"
-#            entity_manager: "@doctrine.orm.entity_manager"
-#            logger: "@logger"
-
     odr.crypto_service:
         class: ODR\AdminBundle\Component\Service\CryptoService
         arguments:
@@ -94,6 +89,8 @@ services:
             entity_manager: "@doctrine.orm.entity_manager"
             logger: "@logger"
 
+
+    # Defines a number of reusable classes to use inside Symfony forms
     odr.type.datafield_type:
         class: ODR\AdminBundle\Form\Type\DatafieldType
         arguments: ['@doctrine.orm.entity_manager']

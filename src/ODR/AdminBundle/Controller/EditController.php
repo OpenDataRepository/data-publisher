@@ -46,6 +46,8 @@ use ODR\AdminBundle\Form\LongTextForm;
 use ODR\AdminBundle\Form\LongVarcharForm;
 use ODR\AdminBundle\Form\MediumVarcharForm;
 use ODR\AdminBundle\Form\ShortVarcharForm;
+// Services
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -54,6 +56,7 @@ use Symfony\Component\Form\FormError;
 
 class EditController extends ODRCustomController
 {
+
     /**
      * Creates a new DataRecord.
      * 
@@ -2921,6 +2924,10 @@ if ($debug)
         // Required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
+
+        /** @var PermissionsManagementService $pm_service */
+        $pm_service = $this->container->get('odr.permissions_management_service');
+
         $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
         $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
 
@@ -3058,7 +3065,7 @@ if ($debug)
 
         // ----------------------------------------
         // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-        parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+        $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 //print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
 //print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 

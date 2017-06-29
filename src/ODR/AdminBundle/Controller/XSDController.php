@@ -24,6 +24,8 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
+// Services
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -294,6 +296,9 @@ class XSDController extends ODRCustomController
     private function XSD_GetDisplayData($em, $version, $datatype_id, Request $request)
     {
         try {
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             // All of these should already exist
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
@@ -354,7 +359,7 @@ class XSDController extends ODRCustomController
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $datarecord_array = array();
-            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 //print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 //print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();

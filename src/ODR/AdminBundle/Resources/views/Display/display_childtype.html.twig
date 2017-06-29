@@ -22,7 +22,7 @@
             'display_type': display_type
         } %}
 
-            {% for dr_id, datarecord in datarecord_array %}
+        {% for dr_id, datarecord in datarecord_array %}
 
 {#
 ----------</br>
@@ -43,14 +43,7 @@ render_plugin.overrideFields: {{ render_plugin.overrideFields }}</br>
 ----------</br>
 #}
 
-            {% include 'ODRAdminBundle:Display:accordion_header.html.twig'
-                with {
-                    'datarecord': datarecord,
-                    'datatype': datatype,
-                    'is_top_level': is_top_level,
-                    'display_type': display_type
-                }
-            %}
+            {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {'datarecord': datarecord, 'datatype': datatype, 'is_top_level': is_top_level, 'display_type': display_type} %}
 
             <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
 
@@ -60,7 +53,6 @@ render_plugin.overrideFields: {{ render_plugin.overrideFields }}</br>
                     {{ [datarecord]|datatype_plugin(datatype, render_plugin, theme, rendering_options)|raw }}
                     {# [datarecord] converts datarecord into a single-element array #}
 
-                    {% include 'ODRAdminBundle:Display:accordion_header.html.twig' with {'datarecord': datarecord, 'datatype': datatype, 'is_top_level': is_top_level, 'display_type': display_type} %}
                 {% endif %}
 
                 {% if render_plugin.overrideFields == 0 %}
@@ -83,7 +75,6 @@ render_plugin.overrideFields: {{ render_plugin.overrideFields }}</br>
         {% endfor %}
 
         {% include 'ODRAdminBundle:Default:fieldarea_footer.html.twig' with {'display_type': display_type } %}
-
 
     </div><!-- End of #DataType_{{ datatype.id }} -->
 

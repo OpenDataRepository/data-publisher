@@ -29,6 +29,10 @@ use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
+// Services
+use ODR\AdminBundle\Component\Service\DatarecordInfoService;
+use ODR\AdminBundle\Component\Service\DatatypeInfoService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
@@ -38,6 +42,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DisplayController extends ODRCustomController
 {
+
     /**
      * Returns the "Results" version of the given DataRecord.
      * 
@@ -56,14 +61,21 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $session = $request->getSession();
 
+            /** @var DatatypeInfoService $dti_service */
+            $dti_service = $this->container->get('odr.datatype_info_service');
+            /** @var DatarecordInfoService $dri_service */
+            $dri_service = $this->container->get('odr.datarecord_info_service');
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
+            // ----------------------------------------
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
@@ -238,19 +250,11 @@ class DisplayController extends ODRCustomController
             );
 
 
-
-
-            // Initialize services
-            $dti_service = $this->container->get('odr.datatype_info_service');
-            $dri_service = $this->container->get('odr.datarecord_info_service');
-            $pm_service = $this->container->get('odr.permissions_management_service');
-
-            // Get Associated Datarecords
-            $datarecord_array = $dri_service->getRelatedDatarecords($original_datarecord->getId());
-
-            // Get Associated Datatypes
-            $datatype_array = $dti_service->getRecordDatatypes($datarecord_array);
             // ----------------------------------------
+            // Get all Datarecords and Datatypes that are associated with the datarecord to render
+            $datarecord_array = $dri_service->getRelatedDatarecords($original_datarecord->getId());
+            $datatype_array = $dti_service->getRecordDatatypes($datarecord_array);
+
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
             $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
@@ -317,6 +321,11 @@ class DisplayController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
+
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -424,7 +433,7 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
             // Extract datafield and theme_datafield from datatype_array
             $datafield = null;
@@ -1130,6 +1139,10 @@ class DisplayController extends ODRCustomController
             // Get necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -1293,7 +1306,7 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
             // Get rid of all non-file/image datafields while the datarecord array is still "deflated"
             $datafield_ids = array();
@@ -1377,7 +1390,7 @@ class DisplayController extends ODRCustomController
         catch (\Exception $e) {
             $return['r'] = 1;
             $return['t'] = 'ex';
-            $return['d'] = 'Error 0x848418124: ' . $e->getMessage();
+            $return['d'] = 'Error 0x2479417: '.$e->getMessage();
         }
 
         $response = new Response(json_encode($return));
@@ -1410,10 +1423,10 @@ class DisplayController extends ODRCustomController
 
                     if ( is_null($ret) ) {
                         // This child datarecord didn't have any files/images, and also didn't have any children of its own with files/images...don't want to see it later
-                        unset($dr_array[$datarecord_id]['children'][$child_dt_id][$child_dr_id]);
+                        unset( $dr_array[$datarecord_id]['children'][$child_dt_id][$child_dr_id] );
 
                         // If this datarecord has no child datarecords of this child datatype with files/images, then get rid of the entire array entry for the child datatype
-                        if ( count($dr_array[$datarecord_id]['children'][$child_dt_id] ) == 0)
+                        if ( count($dr_array[$datarecord_id]['children'][$child_dt_id]) == 0 )
                             unset( $dr_array[$datarecord_id]['children'][$child_dt_id] );
                     }
                     else {
@@ -1464,6 +1477,10 @@ class DisplayController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -1551,7 +1568,7 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
             // Intersect the array of desired file/image ids with the array of permitted files/ids to determine which files/images to add to the zip archive
             $file_list = array();

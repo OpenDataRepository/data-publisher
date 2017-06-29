@@ -1,8 +1,16 @@
 <?php
 
+/**
+ * Open Data Repository Data Publisher
+ * Graph Controller
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * TODO
+ */
+
 namespace ODR\OpenRepository\GraphBundle\Controller;
-// namespace ODR\AdminBundle\Controller;
-// namespace ODR;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
@@ -13,12 +21,27 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
+// Services
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+
 
 class GraphController extends ODRCustomController
 {
+
+    /**
+     * TODO
+     *
+     * @param integer $plugin_id
+     * @param integer $datatype_id
+     * @param integer $datarecord_id
+     * @param Request $request
+     *
+     * @return RedirectResponse|Response
+     */
     public function staticAction($plugin_id, $datatype_id, $datarecord_id, Request $request)
     {
         try {
@@ -33,6 +56,10 @@ class GraphController extends ODRCustomController
             // Load required objects
             /* * @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -179,7 +206,7 @@ class GraphController extends ODRCustomController
 
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
             // throw new \Exception('{ ""message"": "Permission Denied", "detail": "Data type  or data record is non-public."}');
             // throw new \Exception("Data type  or data record is non-public.");
@@ -234,9 +261,15 @@ class GraphController extends ODRCustomController
             );
             return new Response($response, '200', $headers);
         }
-
     }
 
+
+    /**
+     * @param string $message
+     * @param string $detail
+     *
+     * @return mixed
+     */
     public function svgWarning($message, $detail = "") {
 
         $templating = $this->get('templating');
@@ -248,6 +281,5 @@ class GraphController extends ODRCustomController
                 'detail' => $detail
             )
         );
-
     }
 }

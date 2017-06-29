@@ -1,21 +1,26 @@
 {% spaceless %}
 
-    {% set counter = offset %}
+{% set counter = offset %}
+
 {% for dr_id, datarecord in datarecord_array %}
     <div class="ODRShortResults pure-u-1" id="ShortResults_{{ dr_id }}">
         <div class="ODRShortResultsHeader pure-u-1 Pointer" id="ShortResultsHeader_{{ dr_id }}">
             Record {{ counter }} - Click here to view
         </div>
+
+        {# Get the regular display renderer to render each datarecord individually #}
+        {% set dr_array = { dr_id: datarecord } %}
         {% include 'ODRAdminBundle:Display:display_ajax.html.twig' with {
             'datatype_array': datatype_array,
-            'datarecord_array': datarecord,
+            'datarecord_array': dr_array,
+
             'theme_id': theme_id,
-            'target_datatype_id': initial_datatype_id,
-            'target_datarecord_id': dr_id,
             'initial_datatype_id': initial_datatype_id,
             'initial_datarecord_id': dr_id,
-            'is_top_level': true,
+
+            'is_top_level': 1,
             'search_key': '',
+
             'record_display_view': 'short_results'
         } %}
     </div>
@@ -40,4 +45,3 @@
         })
     </script>
 {% endspaceless %}
-

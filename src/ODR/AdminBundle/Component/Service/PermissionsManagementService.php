@@ -1,98 +1,215 @@
 <?php
 
+/**
+ * Open Data Repository Data Publisher
+ * Permissions Management Service
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * TODO
+ *
+ */
+
 namespace ODR\AdminBundle\Component\Service;
 
-// Controllers/Classes
-use ODR\OpenRepository\SearchBundle\Controller\DefaultController as SearchController;
-use ODR\AdminBundle\Controller\ODRCustomController as ODRCustomController;
 // Entities
-use ODR\AdminBundle\Entity\Boolean AS ODRBoolean;
 use ODR\AdminBundle\Entity\DataFields;
-use ODR\AdminBundle\Entity\DataFieldsMeta;
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataRecordFields;
-use ODR\AdminBundle\Entity\DataRecordMeta;
-use ODR\AdminBundle\Entity\DataTree;
-use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
-use ODR\AdminBundle\Entity\DataTypeMeta;
-use ODR\AdminBundle\Entity\DatetimeValue;
-use ODR\AdminBundle\Entity\DecimalValue;
-use ODR\AdminBundle\Entity\FieldType;
-use ODR\AdminBundle\Entity\File;
-use ODR\AdminBundle\Entity\FileChecksum;
-use ODR\AdminBundle\Entity\FileMeta;
 use ODR\AdminBundle\Entity\Group;
-use ODR\AdminBundle\Entity\GroupDatafieldPermissions;
-use ODR\AdminBundle\Entity\GroupDatatypePermissions;
 use ODR\AdminBundle\Entity\GroupMeta;
-use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\ImageChecksum;
-use ODR\AdminBundle\Entity\ImageMeta;
-use ODR\AdminBundle\Entity\ImageSizes;
-use ODR\AdminBundle\Entity\IntegerValue;
-use ODR\AdminBundle\Entity\LinkedDataTree;
-use ODR\AdminBundle\Entity\LongText;
-use ODR\AdminBundle\Entity\LongVarchar;
-use ODR\AdminBundle\Entity\MediumVarchar;
-use ODR\AdminBundle\Entity\RadioOptions;
-use ODR\AdminBundle\Entity\RadioOptionsMeta;
-use ODR\AdminBundle\Entity\RadioSelection;
-use ODR\AdminBundle\Entity\RenderPlugin;
-use ODR\AdminBundle\Entity\RenderPluginFields;
-use ODR\AdminBundle\Entity\RenderPluginInstance;
-use ODR\AdminBundle\Entity\RenderPluginMap;
-use ODR\AdminBundle\Entity\RenderPluginOptions;
-use ODR\AdminBundle\Entity\ShortVarchar;
-use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\AdminBundle\Entity\Theme;
-use ODR\AdminBundle\Entity\ThemeDataField;
-use ODR\AdminBundle\Entity\ThemeDataType;
-use ODR\AdminBundle\Entity\ThemeElement;
-use ODR\AdminBundle\Entity\ThemeElementMeta;
-use ODR\AdminBundle\Entity\ThemeMeta;
-use ODR\AdminBundle\Entity\TrackedError;
 use ODR\OpenRepository\UserBundle\Entity\User;
 use ODR\AdminBundle\Entity\UserGroup;
 // Forms
 // Symfony
-
 use Symfony\Component\DependencyInjection\ContainerInterface as Container;
+// Other
 use Doctrine\ORM\EntityManager;
+use Psr\Log\LoggerInterface;
 
 
-/**
- * Created by PhpStorm.
- * User: nate
- * Date: 10/14/16
- * Time: 11:59 AM
- */
 class PermissionsManagementService
 {
 
-
     /**
-     * @var mixed
-     */
-    private $logger;
-
-    private $user;
-    private $created_datatypes;
-
-    /**
-     * @var mixed
+     * @var Container
      */
     private $container;
 
-    public function __construct(Container $container, EntityManager $entity_manager, $logger) {
+    /**
+     * @var EntityManager
+     */
+    private $em;
+
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+
+    // TODO
+    private $user;
+    private $created_datatypes;
+
+
+    /**
+     * PermissionsManagementService constructor.
+     *
+     * @param Container $container
+     * @param EntityManager $entity_manager
+     * @param LoggerInterface $logger
+     */
+    public function __construct(Container $container, EntityManager $entity_manager, LoggerInterface $logger) {
         $this->container = $container;
         $this->em = $entity_manager;
         $this->logger = $logger;
     }
 
 
+    /**
+     * Given a group's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.
+     *
+     * @param array &$datatype_array    @see TODO
+     * @param array &$datarecord_array  @see TODO
+     * @param array $permissions_array  @see TODO
+     */
+    public function filterByGroupPermissions(&$datatype_array, &$datarecord_array, $permissions_array)
+    {
+$debug = true;
+$debug = false;
+
+if ($debug)
+    print '----- permissions filter -----'."\n";
+
+        // Save relevant permissions...
+        $datatype_permissions = array();
+        if ( isset($permissions_array['datatypes']) )
+            $datatype_permissions = $permissions_array['datatypes'];
+        $datafield_permissions = array();
+        if ( isset($permissions_array['datafields']) )
+            $datafield_permissions = $permissions_array['datafields'];
+
+        $can_view_datatype = array();
+        $can_view_datarecord = array();
+        $datafields_to_remove = array();
+        foreach ($datatype_array as $dt_id => $dt) {
+            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dt_view' ]) )
+                $can_view_datatype[$dt_id] = true;
+            else
+                $can_view_datatype[$dt_id] = false;
+
+            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dr_view' ]) )
+                $can_view_datarecord[$dt_id] = true;
+            else
+                $can_view_datarecord[$dt_id] = false;
+        }
+
+
+        // For each datatype in the provided array...
+        foreach ($datatype_array as $dt_id => $dt) {
+
+            // If there was no datatype permission entry for this datatype, have it default to false
+            if ( !isset($can_view_datatype[$dt_id]) )
+                $can_view_datatype[$dt_id] = false;
+
+            // If datatype is non-public and user does not have the 'can_view_datatype' permission, then remove the datatype from the array
+            if ( $dt['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datatype[$dt_id] ) {
+                unset( $datatype_array[$dt_id] );
+if ($debug)
+    print 'removed non-public datatype '.$dt_id."\n";
+
+                // Also remove all datarecords of that datatype
+                foreach ($datarecord_array as $dr_id => $dr) {
+                    if ($dt_id == $dr['dataType']['id'])
+                        unset( $datarecord_array[$dr_id] );
+if ($debug)
+    print ' -- removed datarecord '.$dr_id."\n";
+                }
+
+                // No sense checking anything else for this datatype, skip to the next one
+                continue;
+            }
+
+            // Otherwise, the user is allowed to see this datatype...
+            foreach ($dt['themes'] as $theme_id => $theme) {
+                foreach ($theme['themeElements'] as $te_num => $te) {
+
+                    // For each datafield in this theme element...
+                    if ( isset($te['themeDataFields']) ) {
+                        foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
+                            $df_id = $tdf['dataField']['id'];
+
+                            // If the user doesn't have the 'can_view_datafield' permission for that datafield...
+                            if ( $tdf['dataField']['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !(isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) ) ) {
+                                // ...remove it from the layout
+                                unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry on purpose
+                                $datafields_to_remove[$df_id] = 1;
+if ($debug)
+    print 'removed datafield '.$df_id.' from theme_element '.$te['id'].' datatype '.$dt_id.' theme '.$theme_id.' ('.$theme['themeType'].')'."\n";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Also need to go through the datarecord array and remove both datarecords and datafields that the user isn't allowed to see
+        foreach ($datarecord_array as $dr_id => $dr) {
+            // Save datatype id of this datarecord
+            $dt_id = $dr['dataType']['id'];
+
+            // If there was no datatype permission entry for this datatype, have it default to false
+            if ( !isset($can_view_datarecord[$dt_id]) )
+                $can_view_datarecord[$dt_id] = false;
+
+            // If the datarecord is non-public and user doesn't have the 'can_view_datarecord' permission, then remove the datarecord from the array
+            if ( $dr['dataRecordMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
+                unset( $datarecord_array[$dr_id] );
+if ($debug)
+    print 'removed non-public datarecord '.$dr_id."\n";
+
+                // No sense checking anything else for this datarecord, skip to the next one
+                continue;
+            }
+
+            // The user is allowed to view this datarecord...
+            foreach ($dr['dataRecordFields'] as $df_id => $drf) {
+
+                // Remove the datafield if needed
+                if ( isset($datafields_to_remove[$df_id]) ) {
+                    unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id] );
+if ($debug)
+    print 'removed datafield '.$df_id.' from datarecord '.$dr_id."\n";
+
+                    // No sense checking file/image public status, skip to the next datafield
+                    continue;
+                }
+
+                // ...remove the files the user isn't allowed to see
+                foreach ($drf['file'] as $file_num => $file) {
+                    if ( $file['fileMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
+                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['file'][$file_num] );
+if ($debug)
+    print 'removed non-public file '.$file['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
+                    }
+                }
+
+                // ...remove the images the user isn't allowed to see
+                foreach ($drf['image'] as $image_num => $image) {
+                    if ( $image['parent']['imageMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datarecord[$dt_id] ) {
+                        unset( $datarecord_array[$dr_id]['dataRecordFields'][$df_id]['image'][$image_num] );
+if ($debug)
+    print 'removed non-public image '.$image['parent']['id'].' from datarecord '.$dr_id.' datatype '.$dt_id."\n";
+                    }
+                }
+            }
+        }
+    }
+
 
     /**
+     * @todo test this
+     *
      * Ensures the given user is in the given group.
      *
      * @param User $user
@@ -105,7 +222,7 @@ class PermissionsManagementService
     {
         // Check to see if the user already belongs to this group
         $query = $this->em->createQuery(
-            'SELECT ug
+           'SELECT ug
             FROM ODRAdminBundle:UserGroup AS ug
             WHERE ug.user = :user_id AND ug.group = :group_id
             AND ug.deletedAt IS NULL'
@@ -136,6 +253,8 @@ class PermissionsManagementService
 
 
     /**
+     * @todo test this
+     *
      * Create a new Group for users of the given datatype.
      *
      * @param User $user
@@ -237,7 +356,7 @@ class PermissionsManagementService
         // Create the initial datafield permission entries
         $this->em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted datafields
         $query = $this->em->createQuery(
-            'SELECT df.id AS df_id, df.deletedAt AS df_deletedAt
+           'SELECT df.id AS df_id, df.deletedAt AS df_deletedAt
             FROM ODRAdminBundle:DataFields AS df
             JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
             WHERE dt.id IN (:datatype_ids)'
@@ -309,7 +428,10 @@ class PermissionsManagementService
         return array('group' => $group, 'group_meta' => $group_meta);
     }
 
+
     /**
+     * @todo test this
+     *
      * Creates GroupDatatypePermissions for all groups when a new datatype is created.
      *
      * @param User $user
@@ -456,6 +578,8 @@ class PermissionsManagementService
 
 
     /**
+     * @todo test this
+     *
      * Creates GroupDatafieldPermissions for all groups when a new datafield is created, and updates existing cache entries for groups and users with the new datafield.
      *
      * @param User $user
@@ -556,84 +680,4 @@ class PermissionsManagementService
             $redis->del($redis_prefix.'.user_'.$user_id.'_permissions');
     }
 
-
-
-    /**
-     * Given a group's permission arrays, filter the provided datarecord/datatype arrays so twig doesn't render anything they're not supposed to see.
-     *
-     * @param array &$datatype_array    @see self::getDatatypeArray()
-     * @param array &$datarecord_array  @see self::getDatarecordArray()
-     * @param array $permissions_array  @see self::getUserPermissionsArray()
-     */
-    public function filterByGroupPermissions(&$datatype_array, &$datarecord_array, $permissions_array)
-    {
-
-        // Save relevant permissions...
-        $datatype_permissions = array();
-        if ( isset($permissions_array['datatypes']) )
-            $datatype_permissions = $permissions_array['datatypes'];
-        $datafield_permissions = array();
-        if ( isset($permissions_array['datafields']) )
-            $datafield_permissions = $permissions_array['datafields'];
-
-        $can_view_datatype = array();
-        $can_view_datarecord = array();
-        $datafields_to_remove = array();
-        foreach ($datatype_array as $dt_id => $dt) {
-            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dt_view' ]) )
-                $can_view_datatype[$dt_id] = true;
-            else
-                $can_view_datatype[$dt_id] = false;
-
-            if ( isset($datatype_permissions[ $dt_id ]) && isset($datatype_permissions[ $dt_id ][ 'dr_view' ]) )
-                $can_view_datarecord[$dt_id] = true;
-            else
-                $can_view_datarecord[$dt_id] = false;
-        }
-
-
-        // For each datatype in the provided array...
-        foreach ($datatype_array as $dt_id => $dt) {
-
-            // If there was no datatype permission entry for this datatype, have it default to false
-            if ( !isset($can_view_datatype[$dt_id]) )
-                $can_view_datatype[$dt_id] = false;
-
-            // If datatype is non-public and user does not have the 'can_view_datatype' permission, then remove the datatype from the array
-            if ( $dt['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00' && !$can_view_datatype[$dt_id] ) {
-                unset( $datatype_array[$dt_id] );
-
-                // Also remove all datarecords of that datatype
-                foreach ($datarecord_array as $dr_id => $dr) {
-                    if ($dt_id == $dr['dataType']['id'])
-                        unset( $datarecord_array[$dr_id] );
-                }
-
-                // No sense checking anything else for this datatype, skip to the next one
-                continue;
-            }
-
-            // Otherwise, the user is allowed to see this datatype...
-            foreach ($dt['themes'] as $theme_id => $theme) {
-                foreach ($theme['themeElements'] as $te_num => $te) {
-
-                    // For each datafield in this theme element...
-                    if ( isset($te['themeDataFields']) ) {
-                        foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
-                            $df_id = $tdf['dataField']['id'];
-
-                            // If the user doesn't have the 'can_view_datafield' permission for that datafield...
-                            if ( $tdf['dataField']['dataFieldMeta']['publicDate']->format('Y-m-d H:i:s') == '2200-01-01 00:00:00'
-                                && !( isset($datafield_permissions[$df_id]) && isset($datafield_permissions[$df_id]['view']) )
-                            ) {
-                                // ...remove it from the layout
-                                unset( $datatype_array[$dt_id]['themes'][$theme_id]['themeElements'][$te_num]['themeDataFields'][$tdf_num]['dataField'] );  // leave the theme_datafield entry on purpose
-                                $datafields_to_remove[$df_id] = 1;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 }

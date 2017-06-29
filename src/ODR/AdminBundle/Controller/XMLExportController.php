@@ -14,13 +14,15 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\OpenRepository\UserBundle\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\Theme;
+use ODR\OpenRepository\UserBundle\Entity\User;
 // Forms
+// Services
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -351,6 +353,10 @@ class XMLExportController extends ODRCustomController
     private function GetDisplayData($em, $version, $datarecord_id, $format, Request $request)
     {
         try {
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+
             // ----------------------------------------
             // Grab necessary objects
             $redis = $this->container->get('snc_redis.default');;
@@ -441,7 +447,7 @@ class XMLExportController extends ODRCustomController
 
             // ----------------------------------------
             // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-            parent::filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
+            $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 //print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
 //print '<pre>'.print_r($datatype_array, true).'</pre>';  exit();
 
