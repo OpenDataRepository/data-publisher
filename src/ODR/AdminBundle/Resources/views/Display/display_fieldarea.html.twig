@@ -52,9 +52,11 @@
                                         {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
                                             {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
                                         {% else %}
+                                            {# TODO - What does "is_short_form" do #}
                                             {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
                                             'datarecord': datarecord,
                                             'datafield': datafield,
+                                            'is_short_form': false,
                                             'image_thumbnails_only': false,
                                             } %}
                                         {% endif %}

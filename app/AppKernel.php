@@ -33,7 +33,7 @@ class AppKernel extends Kernel
             new JMS\SecurityExtraBundle\JMSSecurityExtraBundle(),
 
             new ODR\AdminBundle\ODRAdminBundle(),
-            new ODR\OpenRepository\ApiBundle\ODROpenRepositoryApiBundle(),          // why is this a thing?
+            new ODR\OpenRepository\ApiBundle\ODROpenRepositoryApiBundle(),
             new ODR\OpenRepository\GraphBundle\ODROpenRepositoryGraphBundle(),
             new ODR\OpenRepository\JupyterhubBridgeBundle\ODROpenRepositoryJupyterhubBridgeBundle(),
             new ODR\OpenRepository\OAuthServerBundle\ODROpenRepositoryOAuthServerBundle(),
