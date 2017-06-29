@@ -90,6 +90,7 @@ security:
 
     access_control:
 ##########
+# API control
         - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
 
 ##########

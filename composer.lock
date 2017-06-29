@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "content-hash": "ad50038ff17c355d19cfefcf7d6533af",
+    "content-hash": "cd3ab0411421bbc49b180825098dce7b",
     "packages": [
         {
             "name": "behat/transliterator",
@@ -2282,7 +2282,7 @@
         },
         {
             "name": "neitanod/forceutf8",
-            "version": "dev-master",
+            "version": "v2.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neitanod/forceutf8.git",
@@ -2312,7 +2312,7 @@
             ],
             "description": "PHP Class Encoding featuring popular Encoding::toUTF8() function --formerly known as forceUTF8()-- that fixes mixed encoded strings.",
             "homepage": "https://github.com/neitanod/forceutf8",
-            "time": "2017-05-22 18:50:57"
+            "time": "2017-05-22T18:50:57+00:00"
         },
         {
             "name": "paragonie/random_compat",
@@ -5073,8 +5073,7 @@
         "mrpoundsign/pheanstalk-5.3": 20,
         "drymek/pheanstalk-bundle": 20,
         "dterranova/crypto-bundle": 20,
-        "ddeboer/data-import": 0,
-        "neitanod/forceutf8": 20
+        "ddeboer/data-import": 0
     },
     "prefer-stable": false,
     "prefer-lowest": false,

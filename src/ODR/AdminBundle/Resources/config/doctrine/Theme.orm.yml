@@ -55,6 +55,16 @@ ODR\AdminBundle\Entity\Theme:
                     referencedColumnName: id
             orphanRemoval: false
 
+        relatedThemes:
+            targetEntity: Theme
+            mappedBy: parentTheme
+            fetch: EXTRA_LAZY
+
+        relatedSourceThemes:
+            targetEntity: Theme
+            mappedBy: sourceTheme
+            fetch: EXTRA_LAZY
+
     manyToOne:
         parentTheme:
             targetEntity: Theme

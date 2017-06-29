@@ -32,6 +32,11 @@ class DataType
     private $revision;
 
     /**
+     * @var string
+     */
+    private $setup_step;
+
+    /**
      * @var boolean
      */
     private $has_shortresults;
@@ -40,6 +45,11 @@ class DataType
      * @var boolean
      */
     private $has_textresults;
+
+    /**
+     * @var boolean
+     */
+    private $is_master_type;
 
     /**
      * @var \DateTime
@@ -55,6 +65,11 @@ class DataType
      * @var \DateTime
      */
     private $deletedAt;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $relatedMasterTypes;
 
     /**
      * @var \Doctrine\Common\Collections\Collection
@@ -82,6 +97,11 @@ class DataType
     private $groups;
 
     /**
+     * @var \ODR\AdminBundle\Entity\DataType
+     */
+    private $masterDataType;
+
+    /**
      * @var \ODR\AdminBundle\Entity\RenderPlugin
      */
     private $renderPlugin;
@@ -107,6 +127,7 @@ class DataType
      */
     public function __construct()
     {
+        $this->relatedMasterTypes = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataTypeMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeDataType = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataFields = new \Doctrine\Common\Collections\ArrayCollection();
@@ -145,6 +166,30 @@ class DataType
     public function getRevision()
     {
         return $this->revision;
+    }
+
+    /**
+     * Set setupStep
+     *
+     * @param string $setupStep
+     *
+     * @return DataType
+     */
+    public function setSetupStep($setupStep)
+    {
+        $this->setup_step = $setupStep;
+
+        return $this;
+    }
+
+    /**
+     * Get setupStep
+     *
+     * @return string
+     */
+    public function getSetupStep()
+    {
+        return $this->setup_step;
     }
 
     /**
@@ -191,6 +236,30 @@ class DataType
     public function getHasTextresults()
     {
         return $this->has_textresults;
+    }
+
+    /**
+     * Set isMasterType
+     *
+     * @param boolean $isMasterType
+     *
+     * @return DataType
+     */
+    public function setIsMasterType($isMasterType)
+    {
+        $this->is_master_type = $isMasterType;
+
+        return $this;
+    }
+
+    /**
+     * Get isMasterType
+     *
+     * @return boolean
+     */
+    public function getIsMasterType()
+    {
+        return $this->is_master_type;
     }
 
     /**
@@ -260,6 +329,40 @@ class DataType
     public function getDeletedAt()
     {
         return $this->deletedAt;
+    }
+
+    /**
+     * Add relatedMasterType
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecord $relatedMasterType
+     *
+     * @return DataType
+     */
+    public function addRelatedMasterType(\ODR\AdminBundle\Entity\DataRecord $relatedMasterType)
+    {
+        $this->relatedMasterTypes[] = $relatedMasterType;
+
+        return $this;
+    }
+
+    /**
+     * Remove relatedMasterType
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecord $relatedMasterType
+     */
+    public function removeRelatedMasterType(\ODR\AdminBundle\Entity\DataRecord $relatedMasterType)
+    {
+        $this->relatedMasterTypes->removeElement($relatedMasterType);
+    }
+
+    /**
+     * Get relatedMasterTypes
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRelatedMasterTypes()
+    {
+        return $this->relatedMasterTypes;
     }
 
     /**
@@ -426,6 +529,30 @@ class DataType
     public function getGroups()
     {
         return $this->groups;
+    }
+
+    /**
+     * Set masterDataType
+     *
+     * @param \ODR\AdminBundle\Entity\DataType $masterDataType
+     *
+     * @return DataType
+     */
+    public function setMasterDataType(\ODR\AdminBundle\Entity\DataType $masterDataType = null)
+    {
+        $this->masterDataType = $masterDataType;
+
+        return $this;
+    }
+
+    /**
+     * Get masterDataType
+     *
+     * @return \ODR\AdminBundle\Entity\DataType
+     */
+    public function getMasterDataType()
+    {
+        return $this->masterDataType;
     }
 
     /**
@@ -642,160 +769,5 @@ class DataType
     public function getRenderPlugin()
     {
         return $this->getDataTypeMeta()->getRenderPlugin();
-    }
-    /**
-     * @var boolean
-     */
-    private $is_master_type;
-
-    /**
-     * @var integer
-     */
-    private $master_published_revision;
-
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     */
-    private $relatedMasterTypes;
-
-    /**
-     * @var \ODR\AdminBundle\Entity\DataType
-     */
-    private $masterDataType;
-
-
-    /**
-     * Set isMasterType
-     *
-     * @param boolean $isMasterType
-     *
-     * @return DataType
-     */
-    public function setIsMasterType($isMasterType)
-    {
-        $this->is_master_type = $isMasterType;
-
-        return $this;
-    }
-
-    /**
-     * Get isMasterType
-     *
-     * @return boolean
-     */
-    public function getIsMasterType()
-    {
-        return $this->is_master_type;
-    }
-
-    /**
-     * Set masterPublishedRevision
-     *
-     * @param integer $masterPublishedRevision
-     *
-     * @return DataType
-     */
-    public function setMasterPublishedRevision($masterPublishedRevision)
-    {
-        $this->master_published_revision = $masterPublishedRevision;
-
-        return $this;
-    }
-
-    /**
-     * Get masterPublishedRevision
-     *
-     * @return integer
-     */
-    public function getMasterPublishedRevision()
-    {
-        return $this->master_published_revision;
-    }
-
-    /**
-     * Add relatedMasterType
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecord $relatedMasterType
-     *
-     * @return DataType
-     */
-    public function addRelatedMasterType(\ODR\AdminBundle\Entity\DataRecord $relatedMasterType)
-    {
-        $this->relatedMasterTypes[] = $relatedMasterType;
-
-        return $this;
-    }
-
-    /**
-     * Remove relatedMasterType
-     *
-     * @param \ODR\AdminBundle\Entity\DataRecord $relatedMasterType
-     */
-    public function removeRelatedMasterType(\ODR\AdminBundle\Entity\DataRecord $relatedMasterType)
-    {
-        $this->relatedMasterTypes->removeElement($relatedMasterType);
-    }
-
-    /**
-     * Get relatedMasterTypes
-     *
-     * @return \Doctrine\Common\Collections\Collection
-     */
-    public function getRelatedMasterTypes()
-    {
-        return $this->relatedMasterTypes;
-    }
-
-    /**
-     * Set masterDataType
-     *
-     * @param \ODR\AdminBundle\Entity\DataType $masterDataType
-     *
-     * @return DataType
-     */
-    public function setMasterDataType(\ODR\AdminBundle\Entity\DataType $masterDataType = null)
-    {
-        $this->masterDataType = $masterDataType;
-
-        return $this;
-    }
-
-    /**
-     * Get masterDataType
-     *
-     * @return \ODR\AdminBundle\Entity\DataType
-     */
-    public function getMasterDataType()
-    {
-        return $this->masterDataType;
-    }
-    /**
-     * @var string
-     */
-    private $setup_step;
-
-
-    /**
-     * Set setupStep
-     *
-     * @param string $setupStep
-     *
-     * @return DataType
-     */
-    public function setSetupStep($setupStep)
-    {
-        $this->setup_step = $setupStep;
-
-        return $this;
-    }
-
-    /**
-     * Get setupStep
-     *
-     * @return string
-     */
-    public function getSetupStep()
-    {
-        return $this->setup_step;
     }
 }

@@ -42,12 +42,6 @@ ODR\AdminBundle\Entity\DataType:
             default: false
             column: has_textresults
 
-        created:
-            type: datetime
-            gedmo:
-                timestampable:
-                    on: create
-
         is_master_type:
             type: boolean
             nullable: false
@@ -55,6 +49,11 @@ ODR\AdminBundle\Entity\DataType:
             column: is_master_type
 
 
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
         updated:
             type: datetime
             gedmo:
@@ -64,6 +63,65 @@ ODR\AdminBundle\Entity\DataType:
         deletedAt:
             type: datetime
             nullable: true
+
+    oneToMany:
+        # TODO These will probably need to be moved to map tables
+        # so that child types can be re-used across multiple master
+        # data types.
+        relatedMasterTypes:
+            targetEntity: DataType
+            mappedBy: masterDataType
+            fetch: EXTRA_LAZY
+
+        dataTypeMeta:
+            targetEntity: DataTypeMeta
+            cascade: { }
+            mappedBy: dataType
+            inversedBy: null
+            joinColumns:
+                data_type_meta_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        themeDataType:
+            targetEntity: ThemeDataType
+            cascade: {  }
+            mappedBy: dataType
+            inversedBy: null
+            fetch: EXTRA_LAZY
+            joinColumns:
+                theme_data_type_id:
+                    referencedColumnName: id
+
+        dataFields:
+            targetEntity: DataFields
+            cascade: {  }
+            mappedBy: dataType
+            inversedBy: null
+            fetch: EXTRA_LAZY
+            joinColumns:
+                data_fields_id:
+                    referencedColumnName: id
+
+        themes:
+            targetEntity: Theme
+            cascade: { }
+            mappedBy: dataType
+            inversedBy: null
+            joinColumns:
+                theme_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        groups:
+            targetEntity: Group
+            cascade: { }
+            mappedBy: dataType
+            inversedBy: null
+            joinColumns:
+                group_id:
+                    referencedColumnName: id
+            orphanRemoval: false
 
     manyToOne:
         # TODO These will probably need to be moved to map tables
@@ -117,65 +175,6 @@ ODR\AdminBundle\Entity\DataType:
             fetch: EXTRA_LAZY
             joinColumns:
                 deletedBy:
-                    referencedColumnName: id
-            orphanRemoval: false
-
-    oneToMany:
-        # TODO These will probably need to be moved to map tables
-        # so that child types can be re-used across multiple master
-        # data types.
-#        relatedMasterTypes:
-#            targetEntity: DataRecord
-#            mappedBy: masterDataType
-#            fetch: EXTRA_LAZY
-
-        dataTypeMeta:
-            targetEntity: DataTypeMeta
-            cascade: { }
-            mappedBy: dataType
-            inversedBy: null
-            joinColumns:
-                data_type_meta_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-
-        themeDataType:
-            targetEntity: ThemeDataType
-            cascade: {  }
-            mappedBy: dataType
-            inversedBy: null
-            fetch: EXTRA_LAZY
-            joinColumns:
-                theme_data_type_id:
-                    referencedColumnName: id
-
-        dataFields:
-            targetEntity: DataFields
-            cascade: {  }
-            mappedBy: dataType
-            inversedBy: null
-            fetch: EXTRA_LAZY
-            joinColumns:
-                data_fields_id:
-                    referencedColumnName: id
-
-        themes:
-            targetEntity: Theme
-            cascade: { }
-            mappedBy: dataType
-            inversedBy: null
-            joinColumns:
-                theme_id:
-                    referencedColumnName: id
-            orphanRemoval: false
-
-        groups:
-            targetEntity: Group
-            cascade: { }
-            mappedBy: dataType
-            inversedBy: null
-            joinColumns:
-                group_id:
                     referencedColumnName: id
             orphanRemoval: false
 

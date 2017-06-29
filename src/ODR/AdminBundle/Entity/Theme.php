@@ -62,6 +62,26 @@ class Theme
     private $dataType;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $relatedThemes;
+
+    /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $relatedSourceThemes;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\Theme
+     */
+    private $parentTheme;
+
+    /**
+     * @var \ODR\AdminBundle\Entity\Theme
+     */
+    private $sourceTheme;
+
+    /**
      * @var \ODR\OpenRepository\UserBundle\Entity\User
      */
     private $createdBy;
@@ -83,6 +103,8 @@ class Theme
     {
         $this->themeMeta = new \Doctrine\Common\Collections\ArrayCollection();
         $this->themeElements = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->relatedThemes = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->relatedSourceThemes = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -277,6 +299,122 @@ class Theme
     }
 
     /**
+     * Add relatedTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $relatedTheme
+     *
+     * @return Theme
+     */
+    public function addRelatedTheme(\ODR\AdminBundle\Entity\Theme $relatedTheme)
+    {
+        $this->relatedThemes[] = $relatedTheme;
+
+        return $this;
+    }
+
+    /**
+     * Remove relatedTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $relatedTheme
+     */
+    public function removeRelatedTheme(\ODR\AdminBundle\Entity\Theme $relatedTheme)
+    {
+        $this->relatedThemes->removeElement($relatedTheme);
+    }
+
+    /**
+     * Get relatedThemes
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRelatedThemes()
+    {
+        return $this->relatedThemes;
+    }
+
+    /**
+     * Add relatedSourceTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $relatedSourceTheme
+     *
+     * @return Theme
+     */
+    public function addRelatedSourceTheme(\ODR\AdminBundle\Entity\Theme $relatedSourceTheme)
+    {
+        $this->relatedSourceThemes[] = $relatedSourceTheme;
+
+        return $this;
+    }
+
+    /**
+     * Remove relatedSourceTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $relatedSourceTheme
+     */
+    public function removeRelatedSourceTheme(\ODR\AdminBundle\Entity\Theme $relatedSourceTheme)
+    {
+        $this->relatedSourceThemes->removeElement($relatedSourceTheme);
+    }
+
+    /**
+     * Get relatedSourceThemes
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getRelatedSourceThemes()
+    {
+        return $this->relatedSourceThemes;
+    }
+
+    /**
+     * Set parentTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $parentTheme
+     *
+     * @return Theme
+     */
+    public function setParentTheme(\ODR\AdminBundle\Entity\Theme $parentTheme = null)
+    {
+        $this->parentTheme = $parentTheme;
+
+        return $this;
+    }
+
+    /**
+     * Get parentTheme
+     *
+     * @return \ODR\AdminBundle\Entity\Theme
+     */
+    public function getParentTheme()
+    {
+        return $this->parentTheme;
+    }
+
+    /**
+     * Set sourceTheme
+     *
+     * @param \ODR\AdminBundle\Entity\Theme $sourceTheme
+     *
+     * @return Theme
+     */
+    public function setSourceTheme(\ODR\AdminBundle\Entity\Theme $sourceTheme = null)
+    {
+        $this->sourceTheme = $sourceTheme;
+
+        return $this;
+    }
+
+    /**
+     * Get sourceTheme
+     *
+     * @return \ODR\AdminBundle\Entity\Theme
+     */
+    public function getSourceTheme()
+    {
+        return $this->sourceTheme;
+    }
+
+    /**
      * Set createdBy
      *
      * @param \ODR\OpenRepository\UserBundle\Entity\User $createdBy
@@ -374,63 +512,5 @@ class Theme
     public function getIsDefault()
     {
         return $this->getThemeMeta()->getIsDefault();
-    }
-    /**
-     * @var \ODR\AdminBundle\Entity\Theme
-     */
-    private $parentTheme;
-
-
-    /**
-     * Set parentTheme
-     *
-     * @param \ODR\AdminBundle\Entity\Theme $parentTheme
-     *
-     * @return Theme
-     */
-    public function setParentTheme(\ODR\AdminBundle\Entity\Theme $parentTheme = null)
-    {
-        $this->parentTheme = $parentTheme;
-
-        return $this;
-    }
-
-    /**
-     * Get parentTheme
-     *
-     * @return \ODR\AdminBundle\Entity\Theme
-     */
-    public function getParentTheme()
-    {
-        return $this->parentTheme;
-    }
-    /**
-     * @var \ODR\AdminBundle\Entity\Theme
-     */
-    private $sourceTheme;
-
-
-    /**
-     * Set sourceTheme
-     *
-     * @param \ODR\AdminBundle\Entity\Theme $sourceTheme
-     *
-     * @return Theme
-     */
-    public function setSourceTheme(\ODR\AdminBundle\Entity\Theme $sourceTheme = null)
-    {
-        $this->sourceTheme = $sourceTheme;
-
-        return $this;
-    }
-
-    /**
-     * Get sourceTheme
-     *
-     * @return \ODR\AdminBundle\Entity\Theme
-     */
-    public function getSourceTheme()
-    {
-        return $this->sourceTheme;
     }
 }
