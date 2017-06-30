@@ -9,8 +9,10 @@
     {% if field_typename == "Boolean" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" style="margin:0.5em 0;">
-            <input type="checkbox" name="">
-            {{ datafield.dataFieldMeta.fieldName }}
+            <input type="checkbox" name="">&nbsp;
+
+            <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield.dataFieldMeta.fieldName }}</span>
+
             {% if is_datatype_admin == true %}
             <span style="margin-left: 10px;">
                 <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
@@ -24,7 +26,10 @@
             <div class="ODRFileDatafield_header pure-u-1">
                 <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
                 <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
-                <span id="ODRDataField_{{ datafield.id }} title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
+
+                <span id="ODRDataField_{{ datafield.id }}" title="{{ datafield.dataFieldMeta.description }}">
+                    <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield.dataFieldMeta.fieldName }}</span>
+                </span>
             </div>
                 <div class="ODRFileDatafield_file pure-u-1">
                     <span class="ODRFileSpacer ODRFileSpacer_nonpublic">&nbsp;</span>
@@ -55,7 +60,10 @@
     {% elseif field_typename == "Image" %}
     <fieldset>
         <span class="pure-u-1">
-            <h3 id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</h3>
+            <h3 id="Label_{{ datafield.id }}" class="ODRFieldLabel pure-u-1" title="{{ datafield.dataFieldMeta.description }}">
+                <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield.dataFieldMeta.fieldName }}</span>
+            </h3>
+
             {% if is_datatype_admin == true %}
             <span style="margin-left: 10px;">
                 <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
@@ -74,17 +82,23 @@
     {% elseif field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Paragraph Text" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
+
         {% if is_datatype_admin == true %}
             <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="ODRPublicStatusIndicator Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
-            {{ datafield.dataFieldMeta.fieldName }}</label>
         {% endif %}
+
+            <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield.dataFieldMeta.fieldName }}</span>
+        </label>
         <div class="ODRPseudoField" id="Input_{{ datafield.id }}"></div>
     </fieldset>
 
     {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">
+                <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield.dataFieldMeta.fieldName }}</span>
+            </label>
+
             <span style="margin-left: 10px;">
                 <i id="Field_{{ datafield.id }}_radio_options" class="ODRRadioOptions Pointer fa fa-lg fa-cog" title="Edit Options" rel="{{ datafield.id }}"></i>
             </span>
@@ -114,7 +128,10 @@
     {% elseif field_typename == "Single Select" or field_typename == "Multiple Select" %}
     <fieldset>
         <span class="pure-u-1">
-            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</label>
+            <label id="Label_{{ datafield.id }}" class="ODRFieldLabel" title="{{ datafield.dataFieldMeta.description }}">
+                <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield.dataFieldMeta.fieldName }}</span>
+            </label>
+
             <span style="margin-left: 10px;">
                 <i id="Field_{{ datafield.id }}_radio_options" class="ODRRadioOptions Pointer fa fa-lg fa-cog" title="Edit Options" rel="{{ datafield.id }}"></i>
             </span>
@@ -141,7 +158,8 @@
     {% elseif field_typename == "DateTime" %}
     <fieldset>
         <label id="Label_{{ datafield.id }}" for="Input_{{ datafield.id }}" class="ODRFieldLabel pure-u-1">
-            {{ datafield.dataFieldMeta.fieldName }}
+            <span id="ODRDatafield_{{ datafield.id }}_name">{{ datafield.dataFieldMeta.fieldName }}</span>
+
             {% if is_datatype_admin == true %}
                 <i id="ODRDatafield_{{ datafield.id }}_publicStatus" class="ODRPublicStatusIndicator Pointer fa fa-lg fa-globe {% if datafield.dataFieldMeta.publicDate|is_public %}ODRActiveIcon{% endif %} ODRPublicDatafield" title="Field {% if not datafield.dataFieldMeta.publicDate|is_public %}requires {% else %}does not require {% endif %}permission to view" rel="{{ datafield.id }}"></i>
             {% endif %}
@@ -163,7 +181,6 @@
         </fieldset>
 
     {% endif %}
-
 </form>
 
 </div><!-- End of #Field_{{ datafield.id }} -->

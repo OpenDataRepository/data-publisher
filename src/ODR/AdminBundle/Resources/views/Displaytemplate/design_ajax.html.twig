@@ -215,16 +215,19 @@
 
         // Setup resizable for all ThemeElements
         jQuery(".ODRThemeElement").each(function() {
-            $( this ).resizable({
+            if ( $(this).parent(".ODRFieldArea").length === 0 )
+                return;
+
+            $(this).resizable({
                 minHeight: $(this).height(),
                 maxHeight: $(this).height(),
                 grid: 41.5,  // 996 width / 24 units
                 start: function( event, ui) {
-                    console.log('ThemeElement Resize Start')
+//                    console.log('ThemeElement Resize Start');
                     // Color while dragging
                     // ui.originalElement.css('background', 'rgba(46, 138, 68, 0.5)')
                     var theme_element_id = ui.originalElement.attr('id').replace('ThemeElement_', '')
-                    LoadThemeElementForm(theme_element_id)
+                    LoadThemeElementForm(theme_element_id);
                 },
                 // After resizable stops
                 stop: function( event, ui ) {
@@ -233,58 +236,58 @@
                     // How to handle smaller PureCSS widths...
                     // ui.originalElement.css('background', 'none')
 
-                    var total_width = ui.originalElement.parent().width()
-                    var width = ui.originalElement.width()
+                    var total_width = ui.originalElement.parent().width();
+                    var width = ui.originalElement.width();
 
-                    console.log('TW = ' + total_width)
-                    console.log(width)
-                    var pct = width / total_width * 100
+//                    console.log('TW = ' + total_width);
+//                    console.log(width);
+                    var pct = width / total_width * 100;
 
-                    console.log(pct)
+//                    console.log(pct);
 
-                    var u_factor = pct/4.16667
+                    var u_factor = pct/4.16667;
 
-                    console.log(u_factor)
+//                    console.log(u_factor);
 
                     if(u_factor < 1) {
-                        u_factor = 1
+                        u_factor = 1;
                     }
                     else {
-                        u_factor = Math.round(u_factor)
+                        u_factor = Math.round(u_factor);
                     }
 
-                    console.log('u_factor: ' + u_factor)
+//                    console.log('u_factor: ' + u_factor);
 
                     var prefix = "pure-u";
                     var classes = ui.originalElement.attr('class').split(" ").filter(function(c) {
                         return c.lastIndexOf(prefix, 0) !== 0;
-                    })
+                    });
                     ui.originalElement.attr('class', classes.join(" ").trim());
 
-                    console.log('class names: ' + ui.originalElement.attr('class'))
+//                    console.log('class names: ' + ui.originalElement.attr('class'));
 
                     // Get new width and refactor to f/24
                     // Remove inline width style.
                     ui.originalElement.attr('style', function(i, style) {
                         style = style.replace(/height[^;]+;?/g, '');
                         return style.replace(/width[^;]+;?/g, '');
-                    })
+                    });
 
                     // default is always pure-u-1
-                    ui.originalElement.addClass('pure-u-1')
-                    ui.originalElement.addClass('pure-u-md-' + u_factor + '-24')
-                    ui.originalElement.addClass('pure-u-xl-' + u_factor + '-24')
+                    ui.originalElement.addClass('pure-u-1');
+                    ui.originalElement.addClass('pure-u-md-' + u_factor + '-24');
+                    ui.originalElement.addClass('pure-u-xl-' + u_factor + '-24');
 
-                    var theme_element_id = ui.originalElement.attr('id').replace('ThemeElement_','')
+//                    var theme_element_id = ui.originalElement.attr('id').replace('ThemeElement_','');
 
                     // Save new U Factors to DB via Get Request
-                    console.log('resizeable stop ' + theme_element_id)
-                    jQuery("#UpdateThemeElementForm_cssWidthMed").val(u_factor + "-24")
-                    jQuery("#UpdateThemeElementForm_cssWidthXL").val(u_factor + "-24")
-                    SubmitThemeDesignForm()
+//                    console.log('resizeable stop ' + theme_element_id);
+                    jQuery("#UpdateThemeElementForm_cssWidthMed").val(u_factor + "-24");
+                    jQuery("#UpdateThemeElementForm_cssWidthXL").val(u_factor + "-24");
+                    SubmitThemeDesignForm();
                 }
             });
-        })
+        });
 
         // Setup resizable for all DataFields
         jQuery(".ODRThemeElement .ODRInnerBox .ODRDataField").each(function() {
@@ -296,9 +299,9 @@
                 // After resizable stops
                 start: function( event, ui) {
                     // ui.originalElement.css('background', 'rgba(46, 138, 68, 0.5)')
-                    var datafield_id = ui.originalElement.attr('id').replace('Field_', '')
-                    var theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_', '')
-                    LoadDatafieldForm(theme_element_id, datafield_id)
+                    var datafield_id = ui.originalElement.attr('id').replace('Field_', '');
+                    var theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_', '');
+                    LoadDatafieldForm(theme_element_id, datafield_id);
                 },
                 stop: function( event, ui ) {
                     // Refactor all widths for all elements in array to be f/24
@@ -306,55 +309,55 @@
                     // How to handle smaller PureCSS widths...
 
                     // ui.originalElement.css('background', 'none')
-                    var total_width = ui.originalElement.parent().parent().width()
-                    var width = ui.originalElement.width()
+                    var total_width = ui.originalElement.parent().parent().width();
+                    var width = ui.originalElement.width();
 
-                    console.log(total_width)
-                    console.log(width)
-                    var pct = width / total_width * 100
+//                    console.log(total_width);
+//                    console.log(width);
+                    var pct = width / total_width * 100;
 
-                    console.log(pct)
+//                    console.log(pct);
 
-                    var u_factor = pct/4.16667
+                    var u_factor = pct/4.16667;
 
-                    console.log(u_factor)
+//                    console.log(u_factor);
 
                     if(u_factor < 1) {
-                        u_factor = 1
+                        u_factor = 1;
                     }
                     else {
-                        u_factor = Math.round(u_factor)
+                        u_factor = Math.round(u_factor);
                     }
 
-                    console.log('u_factor: ' + u_factor)
+//                    console.log('u_factor: ' + u_factor);
 
                     var prefix = "pure-u";
                     var classes = ui.originalElement.attr('class').split(" ").filter(function(c) {
                         return c.lastIndexOf(prefix, 0) !== 0;
-                    })
+                    });
                     ui.originalElement.attr('class', classes.join(" ").trim());
 
-                    console.log('class names: ' + ui.originalElement.attr('class'))
+//                    console.log('class names: ' + ui.originalElement.attr('class'));
 
                     // Get new width and refactor to f/24
                     // Remove inline width style.
                     ui.originalElement.attr('style', function(i, style) {
                         return style.replace(/width[^;]+;?/g, '');
-                    })
+                    });
 
                     // default is always pure-u-1
-                    ui.originalElement.addClass('pure-u-1')
-                    ui.originalElement.addClass('pure-u-md-' + u_factor + '-24')
-                    ui.originalElement.addClass('pure-u-xl-' + u_factor + '-24')
+                    ui.originalElement.addClass('pure-u-1');
+                    ui.originalElement.addClass('pure-u-md-' + u_factor + '-24');
+                    ui.originalElement.addClass('pure-u-xl-' + u_factor + '-24');
 
-                    var datafield_id = ui.originalElement.attr('id').replace('Field_','')
-                    var theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_','')
+//                    var datafield_id = ui.originalElement.attr('id').replace('Field_','');
+//                    var theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_','');
 
                     // Save new U Factors to DB via Get Request
-                    console.log('resizeable stop ' + datafield_id + " -- " + theme_element_id)
-                    jQuery("#UpdateThemeDatafieldForm_cssWidthMed").val(u_factor + "-24")
-                    jQuery("#UpdateThemeDatafieldForm_cssWidthXL").val(u_factor + "-24")
-                    SubmitThemeDesignForm()
+//                    console.log('resizeable stop ' + datafield_id + " -- " + theme_element_id);
+                    jQuery("#UpdateThemeDatafieldForm_cssWidthMed").val(u_factor + "-24");
+                    jQuery("#UpdateThemeDatafieldForm_cssWidthXL").val(u_factor + "-24");
+                    SubmitThemeDesignForm();
                 }
             });
         })
@@ -1078,12 +1081,12 @@
             },
         })
         // Prevent re-ordering of theme_elements and datafields inside Linked Datatypes
-        /*
+/*
         $(".ODRLinkedType").find(".ODRFieldArea").sortable("destroy");
         $(".ODRLinkedType").find(".ODRInnerBox").sortable("destroy");
         $(".ODRThemeElement > .ODRInnerBox > .ODRDataType").parent().sortable("destroy");    // prevent sortable datafields attaching before/after datatypes
         $("#ThemeDesignForm").parent(".ODRInnerBox").sortable("destroy");                        // prevent sortable datafields from attaching to the right slideout
-        */
+*/
         // Don't want to call disabledSelection() on the right slideout
         $("#content").find(".ODRInnerBox").disableSelection();
 
@@ -1400,7 +1403,7 @@
                     //
                     if ( $(this).hasClass('ODRDatafieldName') ) {   // inline update of datafield name  TODO - error handling?
                         var text = $(this).val();
-                        $("#Label_" + datafield_id).html(text);
+                        $("#ODRDatafield_" + datafield_id + "_name").html(text);
                     }
 
                     SaveDatafieldPropertyInterval[datafield_id] = window.clearInterval(SaveDatafieldPropertyInterval[datafield_id]);

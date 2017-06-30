@@ -1,4 +1,5 @@
 {% spaceless %}
+
 {% set fieldtype = datafield.getfieldtype %}
 {% set typename = fieldtype.gettypename %}
 {% set typeclass = fieldtype.gettypeclass %}
@@ -26,7 +27,6 @@
             </label>
             {{ form_errors(datafield_form.field_name) }}
             {{ form_widget(datafield_form.field_name, { 'attr': {'class': 'required ODRDatafieldName', 'data-error-type': 'inline' } }) }}
-            {#{{ form_widget(datafield_form.data_type, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}#}
         </div>
     {% endif %}
 
@@ -89,7 +89,7 @@
                 <strong>{{ datafield_form.markdown_text.vars.label }}</strong>
             </label>
             {{ form_errors(datafield_form.markdown_text) }}
-            {{ form_widget(datafield_form.markdown_text, { 'attr': {'class': 'ODRDatafieldMarkdown', 'style': 'width:400px; min-height:300px;'} }) }}
+            {{ form_widget(datafield_form.markdown_text, { 'attr': {'class': 'ODRDatafieldMarkdown pure-u-23-24', 'style': 'min-height:300px;'} }) }}
         </div>
         {% endif %}
 

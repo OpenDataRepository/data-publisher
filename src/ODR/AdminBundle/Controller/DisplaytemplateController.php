@@ -117,6 +117,10 @@ class DisplaytemplateController extends ODRCustomController
             if ($tracked_job !== null)
                 throw new \Exception('Preventing deletion of any DataField for this DataType, because a CSV Import for this DataType is in progress...');
 
+            // Check that the datafield isn't being used for something else before deleting it
+            if ( !self::canDeleteDatafield($em, $datafield) )
+                throw new \Exception('Datafield is in use, unable to delete');
+
 
             // ----------------------------------------
             // Save which themes are going to get theme_datafield entries deleted
@@ -4221,12 +4225,9 @@ class DisplaytemplateController extends ODRCustomController
             $force_slideout_reload = false;
 
             // Keep track of conditions where parts of the datafield shouldn't be changed...
-            $ret = self::canDeleteDatafield($datafield);
-            $prevent_datafield_deletion = $ret['prevent_deletion'];
-            $prevent_datafield_deletion_message = $ret['prevent_deletion_message'];
             $ret = self::canChangeFieldtype($em, $datafield);
             $prevent_fieldtype_change = $ret['prevent_change'];
-            $prevent_fieldtype_change_message = $ret['prevent_change_message'];
+
 
             // Check whether this datafield is being used by a table theme
             $query = $em->createQuery(
@@ -4329,9 +4330,6 @@ class DisplaytemplateController extends ODRCustomController
                     $rpf = $rpm->getRenderPluginFields();
 
                     $dt_fieldtypes = explode(',', $rpf->getAllowedFieldtypes());
-
-                    $prevent_datafield_deletion = true;
-                    $prevent_datafield_deletion_message = 'This Datafield is currently required by the "'.$datatype->getRenderPlugin()->getPluginName().'" for this Datatype...unable to delete';
                 }
                 else {
                     // Datafield not in use, no restrictions
@@ -4634,7 +4632,7 @@ class DisplaytemplateController extends ODRCustomController
 
 
                 // Keep track of conditions where parts of the datafield shouldn't be changed...
-                $ret = self::canDeleteDatafield($datafield);
+                $ret = self::canDeleteDatafield($em, $datafield);
                 $prevent_datafield_deletion = $ret['prevent_deletion'];
                 $prevent_datafield_deletion_message = $ret['prevent_deletion_message'];
                 $ret = self::canChangeFieldtype($em, $datafield);
@@ -4682,11 +4680,12 @@ class DisplaytemplateController extends ODRCustomController
     /**
      * Helper function to determine whether a datafield can be deleted
      *
+     * @param \Doctrine\ORM\EntityManager $em
      * @param DataFields $datafield
      *
      * @return array
      */
-    private function canDeleteDatafield($datafield) {
+    private function canDeleteDatafield($em, $datafield) {
         $ret = array(
             'prevent_deletion' => false,
             'prevent_deletion_message' => '',
@@ -4694,10 +4693,30 @@ class DisplaytemplateController extends ODRCustomController
 
         $datatype = $datafield->getDataType();
         if ($datatype->getExternalIdField() !== null && $datatype->getExternalIdField()->getId() == $datafield->getId()) {
-            $ret = array(
+            return array(
                 'prevent_deletion' => true,
                 'prevent_deletion_message' => "This datafield is currently in use as the Datatype's external ID field...unable to delete",
             );
+        }
+
+        if ( $datatype->getRenderPlugin()->getId() !== 1 ) {
+            // Datafield is part of a Datatype using a render plugin...check to see if the Datafield is actually in use for the render plugin
+            $query = $em->createQuery(
+               'SELECT rpf.fieldName
+                FROM ODRAdminBundle:RenderPluginInstance AS rpi
+                JOIN ODRAdminBundle:RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
+                JOIN ODRAdminBundle:RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
+                WHERE rpi.dataType = :datatype_id AND rpm.dataField = :datafield_id AND rpf.active = 1
+                AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL AND rpf.deletedAt IS NULL'
+            )->setParameters( array('datatype_id' => $datatype->getId(), 'datafield_id' => $datafield->getId()) );
+            $results = $query->getArrayResult();
+
+            if ( count($results) > 0 ) {
+                return array(
+                    'prevent_deletion' => true,
+                    'prevent_deletion_message' => 'This Datafield is currently required by the "'.$datatype->getRenderPlugin()->getPluginName().'" for this Datatype...unable to delete',
+                );
+            }
         }
 
         return $ret;
