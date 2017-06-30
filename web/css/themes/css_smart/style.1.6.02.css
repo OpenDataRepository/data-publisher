@@ -132,6 +132,7 @@ h3.ODRHeader,
     color: white;
     width: 100%;
     background-color: #6fa5c7;
+    font-weight: bold;
 }
 
 .ODRResults label {

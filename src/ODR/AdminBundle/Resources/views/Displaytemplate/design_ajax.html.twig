@@ -1537,42 +1537,6 @@
     }
 
 
-    function InitSlideout() {
-        // Load display template menu
-        var url = '{{ path('odr_design_nav_slideout') }}';
-
-        $.ajax({
-            cache: false,
-            type: 'GET',
-            url: url,
-            dataType: "json",
-            success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    switch(data.t) {
-                        case 'html':
-                            $(".MenuDesignArea").remove();
-                            $("#ODRNavRight .top").append(data.d);
-                            $("#ODRNavRightWrapper").fadeIn('fast');
-
-                            // Clear Element Data Holder
-                            $("#ThemeDesignForm").html("");
-                            break;
-
-                        case 'func':
-                            // Call External Function
-                            data.d.func(data);
-                            break;
-                    }
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
-            },
-        });
-    }
-
     var SaveDataTypeInterval = [];
     function SaveDatatypeProperties(datatype_id) {
         if (SaveDataTypeInterval[datatype_id] != undefined)

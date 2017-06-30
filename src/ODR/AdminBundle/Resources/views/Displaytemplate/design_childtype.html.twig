@@ -7,17 +7,8 @@
 
     {% if is_top_level == 0 %}
         {# current datatype is a child or linked datatype #}
-        <h3
-                class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top"
-                role="tab"
-                aria-expanded="true"
-                aria-selected="true"
-                tabindex="0">
-            <a
-                    id="Datatype_{{ datatype.id }}_ShortName"
-                    class="ODRDatatypeProperties Pointer tooltip"
-                    title="Click to display properties."
-                    rel="{{ datatype.id }}">
+        <h3 class="ui-accordion-header ui-helper-reset ui-state-default ui-state-active ui-corner-top" role="tab" aria-expanded="true" aria-selected="true" tabindex="0">
+            <a id="Datatype_{{ datatype.id }}_ShortName" class="ODRDatatypeProperties Pointer tooltip" title="Click to display properties." rel="{{ datatype.id }}">
                 {{ datatype.dataTypeMeta.shortName }}
             </a>
         </h3>
@@ -40,13 +31,9 @@
         </div><!-- End of #FieldArea_{{ datatype.id }} -->
     {% else %}
 
-        <div class="ODRTHemeElement pure-u-1">
+        <div class="ODRThemeElement pure-u-1">
             <div class="ODRInnerBox pure-u-1">
-                <h3
-                        id="Datatype_{{ datatype.id }}_ShortName"
-                        rel="{{ datatype.id }}"
-                        class="ODRHeader ODRDatatypeProperties Pointer tooltip"
-                        title="Click to display properties.">
+                <h3 id="Datatype_{{ datatype.id }}_ShortName" rel="{{ datatype.id }}" class="ODRHeader ODRDatatypeProperties Pointer tooltip" title="Click to display properties.">
                     {{ datatype.dataTypeMeta.shortName }}
                 </h3>
                 {# current datatype is top-level #}

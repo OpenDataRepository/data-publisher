@@ -509,10 +509,6 @@ odr_design_delete_datatype:
     requirements:
         datatype_id:  \d+
 
-odr_design_nav_slideout:
-    path:  /design/displaytemplate/navslideout
-    defaults: { _controller: ODRAdminBundle:Displaytemplate:navslideout }
-
 odr_design_add_childtype:
     path:  /design/displaytemplate/addchilddatatype/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Displaytemplate:addchilddatatype }
