@@ -47,6 +47,7 @@ class PlugExtension extends \Twig_Extension
             new \Twig_SimpleFilter('is_public', array($this, 'isPublicFilter')),
             new \Twig_SimpleFilter('user_string', array($this, 'userStringFilter')),
             new \Twig_SimpleFilter('filesize', array($this, 'filesizeFilter')),
+            new \Twig_SimpleFilter('is_empty', array($this, 'isEmptyFilter')),
         );
     }
 
@@ -240,6 +241,72 @@ class PlugExtension extends \Twig_Extension
         }
         catch (\Exception $e) {
             throw new \Exception( "Error executing filesize filter: ".$e->getMessage() );
+        }
+    }
+
+
+    /**
+     * Returns whether the provided theme_element should be considered "empty", and therefore not displayed.
+     *
+     * @param array $theme_element
+     * @param array $datarecord
+     *
+     * @return bool
+     * @throws \Exception
+     */
+    public function isEmptyFilter($theme_element, $datarecord)
+    {
+        try {
+//            print '<pre>'.print_r($theme_element, true).'</pre>';
+
+            if ( !isset($theme_element['themeElementMeta']) )
+                throw new \Exception('Array does not describe a theme_element');
+
+            // If the theme element has datafield entries...
+            if ( isset($theme_element['themeDataFields']) && count($theme_element['themeDataFields']) > 0 ) {
+
+                // ...it is not considered empty if at least one of those datafields has not been filtered out, and is not hidden
+                foreach ($theme_element['themeDataFields'] as $num => $tdf) {
+                    if ( $tdf['hidden'] == 0 && isset($tdf['dataField']) && count($tdf['dataField']) > 0 )
+                        return false;
+                }
+            }
+
+            // If the theme element has a child datatype entry...
+            if ( isset($theme_element['themeDataType']) && count($theme_element['themeDataType']) > 0 ) {
+
+                // ...and that entry has not been filtered out and is not hidden...
+                foreach ($theme_element['themeDataType'] as $num => $tdt) {
+
+                    // Note: Display mode won't pass this check if the child datatype doesn't have any child/linked datarecords for this datatype
+                    //  Edit mode will apparently always pass this check
+                    if ( $tdt['hidden'] == 0 && isset($tdt['dataType']) && count($tdt['dataType']) > 0 ) {
+
+                        if ( $tdt['is_link'] == 0 ) {
+                            // This theme element contains a child datatype, and is therefore never considered "empty" when in Edit mode
+                            return false;
+                        }
+                        else {
+                            // This theme element contains a linked datatype...
+                            $child_datatype_id = '';
+                            foreach ($tdt['dataType'] as $cdt_id => $cdt)
+                                $child_datatype_id = $cdt['id'];
+
+                            // ...it's only considered empty when there are no linked datarecords of this linked datatype
+                            if ( isset($datarecord['children']) && isset($datarecord['children'][$child_datatype_id]) && count($datarecord['children'][$child_datatype_id]) > 0 )
+                                return false;
+                            else
+                                return true;
+                        }
+                    }
+                }
+            }
+
+            // Otherwise, the theme element is empty and should not be displayed
+            return true;
+        }
+        catch (\Exception $e) {
+            throw new \Exception( "Error executing is_empty filter: ".$e->getMessage() );
         }
     }
 

@@ -73,7 +73,7 @@
         {#<fieldset class="pure-u-1">#}
             <div class="ODRFileDatafield">
                 <div class="ODRFileDatafield_header pure-u-1">
-                    {% if not is_short_form %}<i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;{% endif %}
+                    <i class="Pointer fa fa-download fa-lg ODRDownloadAllFiles" title="Download all Files in this Datafield"></i>&nbsp;
                     <span title="{{ datafield.dataFieldMeta.description }}">{{ datafield.dataFieldMeta.fieldName }}</span>
                 </div>
                 {% for file in valuefield %}

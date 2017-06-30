@@ -47,7 +47,7 @@ if(typeof initPage === "undefined") {
 
         // Hide divs for accordion purposes
         setupAccordions();
-
+{#
         // Hide empty theme element divs
         $(".ODRThemeElement").each(function() {
             var has_children = false;
@@ -63,7 +63,7 @@ if(typeof initPage === "undefined") {
             if (!has_children)
                 $(this).css( "display", "none" );
         });
-
+#}
         $(".ODRFileDownloadProgress").hide();
 
         $("a.ODRFileDownload").unbind('click').click(function(event) {

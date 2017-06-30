@@ -74,7 +74,7 @@ $(function() {
 
     // Hide divs for accordion purposes
     setupAccordions();
-
+{#
     // Hide empty theme element divs
     $(".ODRThemeElement").each(function() {
         var has_children = false;
@@ -96,7 +96,7 @@ $(function() {
         if (!has_children)
             $(this).css( "display", "none" );
     });
-
+#}
     // --------------------
     initPage();
     $(".MenuDesignArea").remove();
