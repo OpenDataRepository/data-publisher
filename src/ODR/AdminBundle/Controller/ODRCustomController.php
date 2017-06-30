@@ -201,7 +201,7 @@ class ODRCustomController extends Controller
                     $scroll_target = '';
 
                 // Null out the scroll target
-                $session->set('scroll_target', '');     // WTF WHY
+                $session->set('scroll_target', '');
             }
         }
 

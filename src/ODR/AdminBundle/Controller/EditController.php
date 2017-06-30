@@ -3646,8 +3646,7 @@ if ($debug)
                 'html' => $record_header_html.$record_page_html,
             );
 
-            // Store which datarecord this is in the session so 
-            $session = $request->getSession();
+            // Store which datarecord to scroll to if returning to the search results list
             $session->set('scroll_target', $datarecord->getId());
         }
         catch (\Exception $e) {

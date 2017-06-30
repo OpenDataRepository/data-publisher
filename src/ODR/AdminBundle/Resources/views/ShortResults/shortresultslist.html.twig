@@ -12,9 +12,6 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-{% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
-{{ js.write(target, search_key, offset) }}
-
 <div class="ODRFormWrap">
     <div class="header">
     {% if datatype != null %}
@@ -76,6 +73,7 @@
 </div>
 {% endif %}
 
+{#
 <style type="text/css">
     .ShortResults_offset {
         min-height: 10px;
@@ -84,6 +82,7 @@
         float: right;
     }
 </style>
+#}
 
 <script>
 
@@ -120,7 +119,7 @@
         });
 {% endif %}
     });
-
+{#
     function ReloadDatafield(datarecord_id, datafield_id) {
 
         var datafield_div = $("#Field_" + datarecord_id + "_" + datafield_id);
@@ -167,11 +166,10 @@
             }
         });
     }
-
+#}
     function ShortResults_initPage(prevent_scroll) {
         // Resize all elements dependent on window size
-        $(window).unbind('resize');
-        $(window).resize(function() {
+        $(window).unbind('resize').resize(function() {
             WindowResizeInterval = window.clearInterval(WindowResizeInterval);
             WindowResizeInterval = window.setInterval("onWindowResize()", 500);
         });
@@ -182,6 +180,7 @@
         // Set up image galleries
         setupImageGalleries();
 
+{#
 {% if not can_edit_datarecord %}
         // Remove links to edit mode
         $(".ODREditLink").remove();
@@ -193,6 +192,7 @@
             loadDataRecord( $(this).attr('rel'), 'edit' );
         });
 {% endif %}
+#}
 
         $(".ODRFileDownloadProgress").hide();
 
@@ -207,6 +207,7 @@
             handleFileDownload(event, file_id, href, short_form, can_cancel);    // defined in Default::file_handling.html.twig
         });
 
+{#
         // Hide empty fieldareas
         $(".ODRFieldArea").each(function() {
             var max_height = 0;
@@ -225,14 +226,15 @@
 //                $(this).parents('.ChildDataType').css('height', max_height + 'px');
             }
         });
+#}
 
 {% if scroll_target != '' %}
 //alert( {{ scroll_target }} );
         if (!prevent_scroll) {
-            var datarecord = '.DataRecord_' + {{ scroll_target }};
-            if ( $(datarecord) !== null && $(datarecord) !== undefined && $(datarecord).parent().prev().offset() !== null ) {
+            var target = '#ShortResults_' + {{ scroll_target }};
+            if ( $(target) !== null && $(target) !== undefined && $(target).offset() !== null ) {
                 $('html, body').animate({
-                    scrollTop: $(datarecord).parent().prev().offset().top
+                    scrollTop: $(target).offset().top
                 }, 500);
             }
         }
@@ -260,5 +262,8 @@
     }
 {% endif %}
 </script>
-{% endspaceless %}
 
+{% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
+{{ js.write(target, search_key, offset) }}
+
+{% endspaceless %}

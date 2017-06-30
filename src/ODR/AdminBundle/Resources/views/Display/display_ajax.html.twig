@@ -2,8 +2,7 @@
 
 {% set datatype = datatype_array[initial_datatype_id] %}
 
-
-{% if record_display_view is not defined or record_display_view != "short_results" %}
+{% if record_display_view == "single" %}
 <h1 class="no-margin-top-phone">
     <span>Search Result &raquo; {{ datatype.dataTypeMeta.shortName }}</span>
 </h1>
@@ -20,21 +19,19 @@
     'is_top_level': is_top_level,
 } %}
 
-{% if record_display_view is not defined or record_display_view != "short_results" %}
+{% if record_display_view == "single" %}
 <div id="download_files_dialog_wrapper">
     {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' %}
 </div>
 {% endif %}
 
+{% if record_display_view == "single" %}
 <script>
 
-// Only init if not already defined
-if(typeof initPage === "undefined") {
     function initPage() {
 
         // Resize all elements dependent on window size
-        $(window).unbind('resize');
-        $(window).resize(function() {
+        $(window).unbind('resize').resize(function() {
             WindowResizeInterval = window.clearInterval(WindowResizeInterval);      // WindowResizeInterval variable defined in common.js
             WindowResizeInterval = window.setInterval("onWindowResize()", 500);
         });
@@ -138,15 +135,13 @@ if(typeof initPage === "undefined") {
             }
         });
     }
-}
 
-    {% if record_display_view is not defined or record_display_view != "short_results" %}
-    // Only required if displaying a single record
     $(function() {
         initPage();
         $(".MenuDesignArea").remove();
         window.scrollTo(0,0);
     });
-    {% endif %}
+{% endif %}
+
 </script>
 {% endspaceless %}

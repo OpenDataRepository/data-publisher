@@ -21,27 +21,21 @@
             'is_top_level': 1,
             'search_key': '',
 
-            'record_display_view': 'short_results'
+            'record_display_view': 'multiple'
         } %}
     </div>
     {% set counter = counter + 1 %}
 {% endfor %}
 
-    <script>
-        jQuery(function() {
-            jQuery(".ODRShortResultsHeader").each(function() {
-                var id = jQuery(this).attr('id').replace(/ShortResultsHeader_/,'')
-                jQuery(this).unbind('click').click(function() {
-                    loadDataRecord(id)
-                })
-            })
+<script>
+    jQuery(function() {
+        jQuery(".ODRShortResultsHeader").each(function() {
+            var id = jQuery(this).attr('id').replace(/ShortResultsHeader_/,'');
+            jQuery(this).unbind('click').click(function() {
+                loadDataRecord(id);
+            });
+        });
+    });
+</script>
 
-            if(typeof initPage === "undefined") {
-                initPage();
-                // TODO Determine if this is needed
-                $(".MenuDesignArea").remove();
-                window.scrollTo(0, 0);
-            }
-        })
-    </script>
 {% endspaceless %}

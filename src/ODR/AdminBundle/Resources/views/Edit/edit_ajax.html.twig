@@ -60,8 +60,7 @@ $(function() {
     // Only need to do this stuff once?
 
     // Resize all elements dependent on window size
-    $(window).unbind('resize');
-    $(window).resize(function() {
+    $(window).unbind('resize').resize(function() {
         WindowResizeInterval = window.clearInterval(WindowResizeInterval);      // variable WindowResizeInterval defined in common.js
         WindowResizeInterval = window.setInterval("onWindowResize()", 500);
     });
@@ -101,7 +100,6 @@ $(function() {
     initPage();
     $(".MenuDesignArea").remove();
     window.scrollTo(0,0);
-
 });
 
 

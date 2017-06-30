@@ -279,6 +279,7 @@ class DisplayController extends ODRCustomController
                     'is_top_level' => $is_top_level,
 
                     'search_key' => $search_key,
+                    'record_display_view' => 'single',
                 )
             );
 
@@ -287,6 +288,8 @@ class DisplayController extends ODRCustomController
                 'html' => $header_html.$page_html
             );
 
+            // Store which datarecord to scroll to if returning to the search results list
+            $session->set('scroll_target', $datarecord->getId());
         }
         catch (\Exception $e) {
             $return['r'] = 1;
