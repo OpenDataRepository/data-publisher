@@ -20,38 +20,17 @@
 
     <div id="ThemeElement_{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
         <div class="ODRInnerBox">
-        {%  if theme_element.id == 14499999 %}
-        <div id="hot_example" style="height: 250px; width: 400px;"></div>
-
-            <script>
-
-                var data = [
-                    ["", "Ford", "Volvo", "Toyota", "Honda"],
-                    ["2016", 10, 11, 12, 13],
-                    ["2017", 20, 11, 14, 13],
-                    ["2018", 30, 15, 12, 13]
-                ];
-
-                var hot_container = document.getElementById('hot_example');
-                var hot = new Handsontable(hot_container, {
-                    data: data,
-                    rowHeaders: true,
-                    colHeaders: true,
-                    dropdownMenu: true
-                });
-            </script>
-            {% else %}
 
         {# if is_link == 0 #}
         {# TODO Allow linked datatypes to be edited directly - need to warn user if used by other databases #}
         {% if is_link != -1 %}
             <div id="ThemeElementTools_{{ theme_element.id }}" class="ThemeElementTools pure-u-1"><span style="float:right;">
-                <!--
+{#
                 <i id="ODRThemeElement_{{ theme_element.id }}_properties"
                    class="Pointer tooltip fa fa-info-circle ODRThemeElementProperties"
                    title="Group Box Properties">
                 </i>
-                -->
+#}
                 <i id="ODRThemeElement_{{ theme_element.id }}_addDF"
                    class="Pointer tooltip fa fa-plus-square {% if has_childtype %}fa-muted{% endif %} ODRAddDatafield"
                    title="Add Field" rel="{{ datatype.id }}">
@@ -83,9 +62,6 @@
                    title="Delete ThemeElement">
                 </i>
             </span></div>
-
-        {% endif %}
-
 
         {% if theme_element.themeDataFields is defined %}
             {# render all datafields in this theme element #}

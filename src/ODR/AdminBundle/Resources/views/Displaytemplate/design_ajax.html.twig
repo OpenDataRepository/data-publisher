@@ -100,7 +100,6 @@
         initPage();
         initResizeables();
         initDesignScrollHandler($("#ThemeLeftColumn").offset().top);
-        // InitSlideout();
     });
 
     function notifySaved() {
@@ -121,11 +120,10 @@
     }
 
     function LoadThemeElementForm(theme_element_id) {
-        console.log('load theme element form')
-        var datafield = jQuery(this)
+//        console.log('load theme element form')
         var url = "{{ path('odr_design_get_theme_element_properties', {'theme_element_id': 0}) }}";
         url = url.substr(0, url.length-1);
-        console.log(url + theme_element_id)
+//        console.log(url + theme_element_id)
         jQuery.getJSON(
             url + theme_element_id,
             function(data) {
@@ -160,13 +158,12 @@
                     }
                     // Submit State Change
                     SubmitThemeDesignForm()
-
                 })
             }
         )
     }
 
-    /*
+{#
     // Use an interval to track all drops
     // and then work out the "highest" drop target
     // to assign the drop to
@@ -189,11 +186,11 @@
             drop_objects.push( elem )
         }
     }
-    */
+#}
 
     function initResizeables() {
 
-        /*
+{#
         jQuery(".ODRThemeElement").each(function() {
             $(this).droppable({
                 accept: ".ODRDataField",
@@ -211,7 +208,7 @@
                 },
             })
         })
-        */
+#}
 
         // Setup resizable for all ThemeElements
         jQuery(".ODRThemeElement").each(function() {
@@ -697,7 +694,7 @@
                 }
             });
         });
-
+{#
         $(".ODRThemeElementProperties").unbind('click').click(function() {
 // Load Properties into Element Data
             var theme_element_id_data = $(this).parent().parent().parent().parent().attr('id').split(/_/);
@@ -741,7 +738,7 @@
                 }
             });
         });
-
+#}
         $(".ODRPublicDatatype").unbind('click').click(function() {
             var datatype_id = $(this).attr('rel');
             var element = $(this);
@@ -1907,7 +1904,7 @@
             });
         });
     }
-
+{#
     function InitThemeElementPropertiesForm() {
         // Init Theme Element Properties forms
         $("#ThemeDesignForm .ODRThemeElementPropertiesForm").find("select").each(function() {
@@ -1919,7 +1916,7 @@
             });
         });
     }
-
+#}
     function CopyDatafield(datafield_id) {
         // Grab theme_element id
         var theme_element_id_data = $("#Field_" + datafield_id).parent().parent().attr('id').split(/_/);

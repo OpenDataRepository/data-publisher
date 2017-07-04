@@ -55,9 +55,7 @@
                         <div class="pure-u-20-24">Examples of hidden elements are show below.  Elements visible to users have no additional styling.</div>
                         <div class="pure-u-2-24"></div>
 
-
                         <div class="pure-u-24-24"></div>
-
 
                         <div class="pure-u-2-24"></div>
                         <div class="ODRThemeElement pure-u-20-24">
@@ -81,8 +79,6 @@
                         </div>
                         <div class="pure-u-2-24"></div>
 
-
-
                         <div class="pure-u-2-24"></div>
                         <div id="ExampleElement" class="ODRDataField pure-u-20-24 ui-resizable ODRThemeVisibleHiddenElement" data-intro="Drag any field in front or behind any other field to re-order the fields.">
                             <form class="pure-u-1">
@@ -101,18 +97,15 @@
         </div>
             <div id="ThemeDesignArea">
             {% include 'ODRAdminBundle:Theme:theme_area.html.twig' with {
-            'datatype_array': datatype_array,
-            'initial_datatype_id': initial_datatype_id,
-            'theme_id': theme_id,
-            'is_datatype_admin': is_datatype_admin,
+                'datatype_array': datatype_array,
+                'initial_datatype_id': initial_datatype_id,
+                'theme_id': theme_id,
+                'is_datatype_admin': is_datatype_admin,
             } %}
         </div>
     </div>
 
-
-
     <script>
-
         // After DOM Ready
         jQuery(function() {
 
@@ -173,7 +166,6 @@
 
             // Display or hide data type (this is a theme element change
             function LoadDatatypeForm(theme_element_id, datatype_id) {
-                var datafield = jQuery(this)
                 var url = "{{ path('odr_design_load_theme_datatype', {'theme_element_id': 0, 'datatype_id': 0}) }}";
                 url = url.substr(0, url.length-3);
                 jQuery.getJSON(
@@ -181,8 +173,7 @@
                     function(data) {
                         jQuery("#ThemeDesignForm").html(data.d)
                         // Save changes to the visibility
-                        jQuery("#UpdateThemeDatatypeForm_hidden").unbind('change')
-                        jQuery("#UpdateThemeDatatypeForm_hidden").change(function() {
+                        jQuery("#UpdateThemeDatatypeForm_hidden").unbind('change').change(function() {
                             var datatype_id = jQuery("#UpdateThemeDatatypeForm_dataType").val()
                             if(jQuery("#UpdateThemeDatatypeForm_hidden").find(":selected").val() == 1) {
                                 if(jQuery("#ODRThemeShowHidden").is(":checked")) {
@@ -201,8 +192,7 @@
                             SubmitThemeDesignForm()
                         })
                         // Save changes to the display type
-                        jQuery("#UpdateThemeDatatypeForm_display_type").unbind('change')
-                        jQuery("#UpdateThemeDatatypeForm_display_type").change(function() {
+                        jQuery("#UpdateThemeDatatypeForm_display_type").unbind('change').change(function() {
                             var datatype_id = jQuery("#UpdateThemeDatatypeForm_dataType").val()
                             if(jQuery("#UpdateThemeDatatypeForm_display_type").find(":selected").val() == 1) {
                                 if(jQuery("#ODRThemeShowHidden").is(":checked")) {
@@ -226,7 +216,6 @@
 
 
             function LoadDatafieldForm(theme_element_id, datafield_id) {
-                var datafield = jQuery(this)
                 var url = "{{ path('odr_design_load_theme_datafield', {'theme_element_id': 0, 'datafield_id': 0}) }}";
                 url = url.substr(0, url.length-3);
                 jQuery.getJSON(
@@ -259,11 +248,10 @@
 
 
             function LoadThemeElementForm(theme_element_id) {
-                console.log('load theme element form')
-                var datafield = jQuery(this)
+//                console.log('load theme element form')
                 var url = "{{ path('odr_design_get_theme_element_properties', {'theme_element_id': 0}) }}";
                 url = url.substr(0, url.length-1);
-                console.log(url + theme_element_id)
+//                console.log(url + theme_element_id)
                 jQuery.getJSON(
                     url + theme_element_id,
                     function(data) {
@@ -292,8 +280,8 @@
                     maxHeight: $(this).height(),
                     grid: 41.5,  // 996 width / 24 units
                     start: function( event, ui) {
-                        console.log('ThemeElement Resize Start')
-                        var theme_element_id = ui.originalElement.attr('id').replace('ThemeElement_', '')
+                        console.log('ThemeElement Resize Start');
+                        var theme_element_id = ui.originalElement.attr('id').replace('ThemeElement_', '');
                         LoadThemeElementForm(theme_element_id)
                     },
                     // After resizable stops
@@ -302,18 +290,18 @@
                         // floor(Percentage of width / 4.16667) =  f/24 => f
                         // How to handle smaller PureCSS widths...
 
-                        var total_width = ui.originalElement.parent().width()
-                        var width = ui.originalElement.width()
+                        var total_width = ui.originalElement.parent().width();
+                        var width = ui.originalElement.width();
 
-                        console.log('TW = ' + total_width)
-                        console.log(width)
-                        var pct = width / total_width * 100
+//                        console.log('TW = ' + total_width);
+//                        console.log(width);
+                        var pct = width / total_width * 100;
 
-                        console.log(pct)
+//                        console.log(pct);
 
-                        var u_factor = pct/4.16667
+                        var u_factor = pct/4.16667;
 
-                        console.log(u_factor)
+//                        console.log(u_factor);
 
                         if(u_factor < 1) {
                             u_factor = 1
@@ -322,38 +310,38 @@
                             u_factor = Math.round(u_factor)
                         }
 
-                        console.log('u_factor: ' + u_factor)
+//                        console.log('u_factor: ' + u_factor);
 
                         var prefix = "pure-u";
                         var classes = ui.originalElement.attr('class').split(" ").filter(function(c) {
                             return c.lastIndexOf(prefix, 0) !== 0;
-                        })
+                        });
                         ui.originalElement.attr('class', classes.join(" ").trim());
 
-                        console.log('class names: ' + ui.originalElement.attr('class'))
+//                        console.log('class names: ' + ui.originalElement.attr('class'));
 
                         // Get new width and refactor to f/24
                         // Remove inline width style.
                         ui.originalElement.attr('style', function(i, style) {
                             style = style.replace(/height[^;]+;?/g, '');
                             return style.replace(/width[^;]+;?/g, '');
-                        })
+                        });
 
                         // default is always pure-u-1
-                        ui.originalElement.addClass('pure-u-1')
-                        ui.originalElement.addClass('pure-u-md-' + u_factor + '-24')
-                        ui.originalElement.addClass('pure-u-xl-' + u_factor + '-24')
+                        ui.originalElement.addClass('pure-u-1');
+                        ui.originalElement.addClass('pure-u-md-' + u_factor + '-24');
+                        ui.originalElement.addClass('pure-u-xl-' + u_factor + '-24');
 
-                        var theme_element_id = ui.originalElement.attr('id').replace('ThemeElement_','')
+//                        var theme_element_id = ui.originalElement.attr('id').replace('ThemeElement_','');
 
                         // Save new U Factors to DB via Get Request
-                        console.log('resizeable stop ' + theme_element_id)
-                        jQuery("#UpdateThemeElementForm_cssWidthMed").val(u_factor + "-24")
-                        jQuery("#UpdateThemeElementForm_cssWidthXL").val(u_factor + "-24")
+//                        console.log('resizeable stop ' + theme_element_id);
+                        jQuery("#UpdateThemeElementForm_cssWidthMed").val(u_factor + "-24");
+                        jQuery("#UpdateThemeElementForm_cssWidthXL").val(u_factor + "-24");
                         SubmitThemeDesignForm()
                     }
                 });
-            })
+            });
 
             // Setup resizable for all DataFields
             jQuery(".ODRThemeElement .ODRInnerBox .ODRDataField").each(function() {
@@ -364,8 +352,8 @@
                     grid: 41.5,  // 996 width / 24 units
                     // After resizable stops
                     start: function( event, ui) {
-                        var datafield_id = ui.originalElement.attr('id').replace('Field_', '')
-                        var theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_', '')
+                        var datafield_id = ui.originalElement.attr('id').replace('Field_', '');
+                        var theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_', '');
                         LoadDatafieldForm(theme_element_id, datafield_id)
                     },
                     stop: function( event, ui ) {
@@ -373,18 +361,18 @@
                         // floor(Percentage of width / 4.16667) =  f/24 => f
                         // How to handle smaller PureCSS widths...
 
-                        var total_width = ui.originalElement.parent().parent().width()
-                        var width = ui.originalElement.width()
+                        var total_width = ui.originalElement.parent().parent().width();
+                        var width = ui.originalElement.width();
 
-                        console.log(total_width)
-                        console.log(width)
-                        var pct = width / total_width * 100
+//                        console.log(total_width);
+//                        console.log(width);
+                        var pct = width / total_width * 100;
 
-                        console.log(pct)
+//                        console.log(pct);
 
-                        var u_factor = pct/4.16667
+                        var u_factor = pct/4.16667;
 
-                        console.log(u_factor)
+//                        console.log(u_factor);
 
                         if(u_factor < 1) {
                             u_factor = 1
@@ -393,61 +381,61 @@
                             u_factor = Math.round(u_factor)
                         }
 
-                        console.log('u_factor: ' + u_factor)
+//                        console.log('u_factor: ' + u_factor);
 
                         var prefix = "pure-u";
                         var classes = ui.originalElement.attr('class').split(" ").filter(function(c) {
                             return c.lastIndexOf(prefix, 0) !== 0;
-                        })
+                        });
                         ui.originalElement.attr('class', classes.join(" ").trim());
 
-                        console.log('class names: ' + ui.originalElement.attr('class'))
+//                        console.log('class names: ' + ui.originalElement.attr('class'));
 
                         // Get new width and refactor to f/24
                         // Remove inline width style.
                         ui.originalElement.attr('style', function(i, style) {
                             return style.replace(/width[^;]+;?/g, '');
-                        })
+                        });
 
                         // default is always pure-u-1
-                        ui.originalElement.addClass('pure-u-1')
-                        ui.originalElement.addClass('pure-u-md-' + u_factor + '-24')
-                        ui.originalElement.addClass('pure-u-xl-' + u_factor + '-24')
+                        ui.originalElement.addClass('pure-u-1');
+                        ui.originalElement.addClass('pure-u-md-' + u_factor + '-24');
+                        ui.originalElement.addClass('pure-u-xl-' + u_factor + '-24');
 
-                        var datafield_id = ui.originalElement.attr('id').replace('Field_','')
-                        var theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_','')
+//                        var datafield_id = ui.originalElement.attr('id').replace('Field_','');
+//                        var theme_element_id = ui.originalElement.parent().parent().attr('id').replace('ThemeElement_','');
 
                         // Save new U Factors to DB via Get Request
-                        console.log('resizeable stop ' + datafield_id + " -- " + theme_element_id)
-                        jQuery("#UpdateThemeDatafieldForm_cssWidthMed").val(u_factor + "-24")
-                        jQuery("#UpdateThemeDatafieldForm_cssWidthXL").val(u_factor + "-24")
+//                        console.log('resizeable stop ' + datafield_id + " -- " + theme_element_id);
+                        jQuery("#UpdateThemeDatafieldForm_cssWidthMed").val(u_factor + "-24");
+                        jQuery("#UpdateThemeDatafieldForm_cssWidthXL").val(u_factor + "-24");
                         SubmitThemeDesignForm()
                     }
                 });
-            })
+            });
 
             // Store new sort order
             jQuery(".ODRThemeElement .ODRInnerBox").sortable({
                 // placeholder: "ui-state-highlight",
                 // forcePlaceholderSize: true,
                 start: function( event, ui ) {
-                    var datafield_id = ui.item.attr('id').replace('Field_', '')
-                    var theme_element_id = ui.item.parent().parent().attr('id').replace('ThemeElement_', '')
+                    var datafield_id = ui.item.attr('id').replace('Field_', '');
+                    var theme_element_id = ui.item.parent().parent().attr('id').replace('ThemeElement_', '');
                     LoadDatafieldForm(theme_element_id, datafield_id)
                 },
                 stop: function( event, ui ) {
                     var datafield_ids = "";
                     ui.item.parent().find(".ODRDataField").each(function() {
                         datafield_ids += $( this ).attr('id').replace('Field_','') + ','
-                    })
-                    datafield_ids = datafield_ids.replace(/,$/,'')
-                    var theme_element_id = ui.item.parent().parent().attr('id').replace('ThemeElement_','')
+                    });
+                    datafield_ids = datafield_ids.replace(/,$/,'');
+                    var theme_element_id = ui.item.parent().parent().attr('id').replace('ThemeElement_','');
                     console.log('sort stop ' + datafield_ids + " -- " + theme_element_id)
                 }
             });
 
 
-            /*
+{#
             jQuery(".ODRDataField label").prepend('<i class="fa fa-lg fa-minus-square ToggleHidden Pointer" style="margin-left: 2px" title="Click to hide this field."></i>')
             jQuery(".ODRDataField label .ToggleHidden").unbind('click')
             jQuery(".ODRDataField label .ToggleHidden").click(function() {
@@ -462,8 +450,7 @@
             jQuery(".ODRDataType h3 .ToggleHidden").click(function() {
                 console.log('header click')
             })
-            */
-
+#}
         })
     </script>
 
