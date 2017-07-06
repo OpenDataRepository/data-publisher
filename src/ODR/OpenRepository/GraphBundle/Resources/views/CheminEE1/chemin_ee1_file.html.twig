@@ -5,7 +5,6 @@
             <span class="ODRFileSpacer {% if file.fileMeta.publicDate|is_public %}ODRFileSpacer_public{% else %}ODRFileSpacer_nonpublic{% endif %}">&nbsp;</span>
 
             <span class="ODRTruncateFilename">
-
                 {% set filename = file.fileMeta.originalFileName %}
                 {% if file.fileMeta.originalFileName == null %}
                     {% set filename = 'File_' ~ file.id ~ '.' ~ file.ext %}
@@ -42,7 +41,7 @@
                     $(function() {
                         createFileEncryptProgressCheck({{ file.id }}, {{ datarecord.id }}, {{ datafield.id }});
                     });
-                    </script>
+                </script>
             {% endif %}
         </div>
     </div>
