@@ -60,24 +60,6 @@ class CSVImportController extends ODRCustomController
 {
 
     /**
-     * @var mixed
-     */
-    private $logger;
-
-
-    /**
-     * @var mixed
-     */
-    protected $container;
-
-
-    public function __construct(Container $container, EntityManager $entity_manager, $logger) {
-        $this->container = $container;
-        $this->em = $entity_manager;
-        $this->logger = $logger;
-    }
-
-    /**
      * Performs the initial setup for dealing with a CSV import request.
      *
      * @param integer $datatype_id Which DataType the CSV data is being imported into.

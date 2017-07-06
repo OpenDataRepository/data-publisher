@@ -2228,7 +2228,7 @@ h1:after {
 #ODRDatatypeDesign .ThemeElementTools {
     font-size: 18px;
     color: #eeeeee;
-    float: right;
+    /*float: right;*/
     position: relative;
     top: 0px;
     height: 0px;
