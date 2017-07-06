@@ -2,12 +2,12 @@
 
 /**
  * Open Data Repository Data Publisher
- * Chemin EDA Plugin
+ * Chemin EFM Plugin
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * This plugin is specifically for CheMin EDA products, and "combines" eight file datafields into a single
+ * This plugin is specifically for CheMin EFM products, and "combines" three file datafields into a single
  * compact display.
  */
 
@@ -17,7 +17,7 @@ use Doctrine\ORM\EntityManager;
 use Symfony\Component\DependencyInjection\ContainerInterface as Container;
 
 
-class CheminEDAPlugin
+class CheminEFMPlugin
 {
     /**
      * @var mixed
@@ -55,7 +55,7 @@ class CheminEDAPlugin
 
 
     /**
-     * Executes the Chemin EDA Plugin on the provided datarecords
+     * Executes the Chemin EFM Plugin on the provided datarecords
      *
      * @param array $datarecords
      * @param array $datatype
@@ -156,26 +156,14 @@ class CheminEDAPlugin
 
                             // Identify file type
                             switch($df_id) {
-                                case $datafield_mapping['eda_mdi_file']['datafield']['id']:
-                                    $file_data[$shortened_filename]['eda_mdi_file'] = $file;
+                                case $datafield_mapping['efm_raw_tiff_file']['datafield']['id']:
+                                    $file_data[$shortened_filename]['efm_raw_tiff_file'] = $file;
                                     break;
-                                case $datafield_mapping['eda_raw_mdi_file']['datafield']['id']:
-                                    $file_data[$shortened_filename]['eda_raw_mdi_file'] = $file;
+                                case $datafield_mapping['efm_lbl_file']['datafield']['id']:
+                                    $file_data[$shortened_filename]['efm_lbl_file'] = $file;
                                     break;
-                                case $datafield_mapping['eda_lbl_file']['datafield']['id']:
-                                    $file_data[$shortened_filename]['eda_lbl_file'] = $file;
-                                    break;
-                                case $datafield_mapping['eda_dat_file']['datafield']['id']:
-                                    $file_data[$shortened_filename]['eda_dat_file'] = $file;
-                                    break;
-                                case $datafield_mapping['eda_processing_description']['datafield']['id']:
-                                    $file_data[$shortened_filename]['eda_processing_description'] = $file;
-                                    break;
-                                case $datafield_mapping['eda_tiff_file']['datafield']['id']:
-                                    $file_data[$shortened_filename]['eda_tiff_file'] = $file;
-                                    break;
-                                case $datafield_mapping['eda_raw_tiff_file']['datafield']['id']:
-                                    $file_data[$shortened_filename]['eda_raw_tiff_file'] = $file;
+                                case $datafield_mapping['efm_dat_file']['datafield']['id']:
+                                    $file_data[$shortened_filename]['efm_dat_file'] = $file;
                                     break;
                             }
                         }
@@ -187,10 +175,10 @@ class CheminEDAPlugin
 
             // Render and return the graph html
             $output = $this->templating->render(
-                'ODROpenRepositoryGraphBundle:CheminEDA:chemin_eda.html.twig',
+                'ODROpenRepositoryGraphBundle:CheminEFM:chemin_efm.html.twig',
                 array(
                     'file_data' => $file_data,
-                    'chemin_eda_table' => 'chemin_eda_table_'.$datarecord_id,
+                    'chemin_efm_table' => 'chemin_efm_table_'.$datarecord_id,
                 )
             );
             return $output;

@@ -12,6 +12,47 @@ parameters:
     locale: en
     secret: [[ ENTER RANDOM KEY HERE - Text String ]]
     odr_plugins:
+        chemined1_plugin:
+            name: 'Chemin ED1 Plugin'
+            filename: CheminED1Plugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        chemineda_plugin:
+            name: 'Chemin EDA Plugin'
+            filename: CheminEDAPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        chemineds_plugin:
+            name: 'Chemin EDS Plugin'
+            filename: CheminEDSPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        cheminee1_plugin:
+            name: 'Chemin EE1 Plugin'
+            filename: CheminEE1Plugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        chemineea_plugin:
+            name: 'Chemin EEA Plugin'
+            filename: CheminEEAPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        cheminees_plugin:
+            name: 'Chemin EES Plugin'
+            filename: CheminEESPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        cheminefm_plugin:
+            name: 'Chemin EFM Plugin'
+            filename: CheminEFMPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        cheminetr_plugin:
+            name: 'Chemin ETR Plugin'
+            filename: CheminETRPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+
+        gcms_plugin:
+            name: 'GCMassSpec Plugin'
+            filename: GCMassSpecPlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
+        csvtable_plugin:
+            name: 'CSV Table Plugin'
+            filename: CSVTablePlugin
+            bundle_path: /ODR/OpenRepository/GraphBundle
         graph_plugin:
             name: 'Graph Plugin'
             filename: GraphPlugin
@@ -36,6 +77,7 @@ parameters:
             name: 'URL Field'
             filename: URLPlugin
             bundle_path: /ODR/OpenRepository/GraphBundle
+
         organization_plugin:
             name: 'Organization Plugin'
             filename: OrganizationPlugin

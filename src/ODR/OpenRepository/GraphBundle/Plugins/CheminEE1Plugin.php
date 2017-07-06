@@ -1,34 +1,22 @@
-<?php 
+<?php
 
 /**
  * Open Data Repository Data Publisher
- * Graph Plugin
+ * Chemin EE1 Plugin
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * The graph plugin plots a line graph out of data files uploaded
- * to a File DataField, and labels them using a "legend" field
- * selected when the graph plugin is created...
- *
+ * This plugin is specifically for CheMin EE1 products, and "combines" five file datafields into a single
+ * compact display.
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
-// Controllers/Classes
-
-// Libraries
-use Ramsey\Uuid\Uuid;
-use Ramsey\Uuid\Exception\UnsatisfiedDependencyException;
-
-// Symfony components
+use Doctrine\ORM\EntityManager;
 use Symfony\Component\DependencyInjection\ContainerInterface as Container;
-// use Doctrine\ORM\EntityManager;
 
-/**
- * Class GraphPlugin
- * @package ODR\OpenRepository\GraphBundle\Plugins
- */
+
 class CheminEE1Plugin
 {
     /**
@@ -42,20 +30,32 @@ class CheminEE1Plugin
     private $logger;
 
     /**
+     * @var Container
+     */
+    private $container;
+
+    /**
+     * @var EntityManager
+     */
+    private $entity_manager;
+
+
+    /**
      * GraphPlugin constructor.
      *
      * @param $templating
      * @param $logger
      */
-    public function __construct($templating, $logger, Container $container, $entity_manager) {
+    public function __construct($templating, $logger, $container, $entity_manager) {
         $this->templating = $templating;
-	    $this->logger = $logger;
+        $this->logger = $logger;
         $this->container = $container;
         $this->em = $entity_manager;
     }
 
+
     /**
-     * Executes the Graph Plugin on the provided datarecords
+     * Executes the Chemin EE1 Plugin on the provided datarecords
      *
      * @param array $datarecords
      * @param array $datatype
@@ -70,7 +70,6 @@ class CheminEE1Plugin
     {
 
         try {
-
             // ----------------------------------------
             // Grab various properties from the render plugin array
             $render_plugin_instance = $render_plugin['renderPluginInstance'][0];
@@ -125,62 +124,66 @@ class CheminEE1Plugin
                 $datafield_mapping[$key] = array('datafield' => $df);
             }
 
-            $file_names = array();
-            $file_data = array();
-            foreach($datarecords as $dr_id => $datarecord) {
-                foreach($datarecord['dataRecordFields'] as $drf_id => $data_record_field) {
-                    //  Get file names and store array (First DRF can be used for name)
-                    if(isset($data_record_field['file']) && isset($data_record_field['file'][0])) {
-                        if(!isset($file_names[$dr_id])) {
-                            $file_name = $data_record_field['file'][0]['fileMeta']['originalFileName'];
-                            if(strlen($file_name) > 0) {
-                                $file_name_data = preg_split("/_/", $file_name);
-                                $file_name = $file_name_data[0] . "_" . $file_name_data[1];
-                                if(preg_match("/SUM/",$file_name)) {
-                                    $file_name .= "_" . $file_name_data[2];
-                                }
-                            }
-                            $file_names[$dr_id] = $file_name;
-                        }
+            // ----------------------------------------
+            // The names of the files uploaded to this child datarecord should have two parts...
+            // ...the second part being more or less a description of the contents of the file, which can be ignored
+            // ...the first part being a key that matches across all the different file types
+            $datarecord_id = '';
 
-                        // Identify File Type and Store $file_data array
-                        switch($drf_id) {
-                            case $datafield_mapping['ee1_processed_csv']['datafield']['id']:
-                                $file_data[$dr_id]['ee1_processed_csv'] = $data_record_field['file'][0];
-                                break;
-                            case $datafield_mapping['ee1_raw_csv']['datafield']['id']:
-                                $file_data[$dr_id]['ee1_raw_csv'] = $data_record_field['file'][0];
-                                break;
-                            case $datafield_mapping['ee1_raw_lbl_file']['datafield']['id']:
-                                $file_data[$dr_id]['ee1_raw_lbl_file'] = $data_record_field['file'][0];
-                                break;
-                            case $datafield_mapping['ee1_raw_dat_file']['datafield']['id']:
-                                $file_data[$dr_id]['ee1_raw_dat_file'] = $data_record_field['file'][0];
-                                break;
-                            case $datafield_mapping['ee1_processing_description']['datafield']['id']:
-                                $file_data[$dr_id]['ee1_processing_description'] = $data_record_field['file'][0];
-                                break;
+            $file_data = array();
+            foreach ($datarecords as $dr_id => $dr) {
+                // Store the datarecord id to use to name the plugin's table later on
+                $datarecord_id = $dr_id;
+
+                foreach ($dr['dataRecordFields'] as $df_id => $drf) {
+                    if ( isset($drf['file']) ) {
+                        foreach ($drf['file'] as $num => $file) {
+                            $original_filename = $file['fileMeta']['originalFileName'];
+
+                            // Don't want the file's original extension
+                            $pieces = explode('.', $original_filename);
+
+                            // Only want the identifying info at the beginning of the filename
+                            $pieces = explode('_', $pieces[0]);
+                            $shortened_filename = $pieces[0].'_'.$pieces[1];
+                            if ($pieces[0] == 'SUM')
+                                $shortened_filename.= '_'.$pieces[2];
+
+                            // Want to store all types of files under the same identifying info
+                            if ( !isset($file_data[$shortened_filename]) )
+                                $file_data[$shortened_filename] = array();
+
+                            // Identify file type
+                            switch($df_id) {
+                                case $datafield_mapping['ee1_processed_csv']['datafield']['id']:
+                                    $file_data[$shortened_filename]['ee1_processed_csv'] = $file;
+                                    break;
+                                case $datafield_mapping['ee1_raw_csv']['datafield']['id']:
+                                    $file_data[$shortened_filename]['ee1_raw_csv'] = $file;
+                                    break;
+                                case $datafield_mapping['ee1_raw_lbl_file']['datafield']['id']:
+                                    $file_data[$shortened_filename]['ee1_raw_lbl_file'] = $file;
+                                    break;
+                                case $datafield_mapping['ee1_raw_dat_file']['datafield']['id']:
+                                    $file_data[$shortened_filename]['ee1_raw_dat_file'] = $file;
+                                    break;
+                                case $datafield_mapping['ee1_processing_description']['datafield']['id']:
+                                    $file_data[$shortened_filename]['ee1_processing_description'] = $file;
+                                    break;
+                            }
                         }
                     }
                 }
             }
 
-            // Sort the file names for display
-            asort($file_names);
-
-            $chemin_ee1_table = "";
-            foreach($file_names as $dr_id => $file_name) {
-                $chemin_ee1_table .= $dr_id . "_";
-            }
-            $chemin_ee1_table = substr($chemin_ee1_table,0,(strlen($chemin_ee1_table) - 1));
+            ksort($file_data);
 
             // Render the graph html
             $output = $this->templating->render(
                 'ODROpenRepositoryGraphBundle:CheminEE1:chemin_ee1.html.twig',
                 array(
-                    'file_names' => $file_names,
                     'file_data' => $file_data,
-                    'chemin_ee1_table' => $chemin_ee1_table
+                    'chemin_ee1_table' => 'chemin_ee1_table_'.$datarecord_id,
                 )
             );
             return $output;

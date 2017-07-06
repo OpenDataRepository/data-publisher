@@ -5,43 +5,44 @@
             <span class="ODRFileSpacer {% if file.fileMeta.publicDate|is_public %}ODRFileSpacer_public{% else %}ODRFileSpacer_nonpublic{% endif %}">&nbsp;</span>
 
             <span class="ODRTruncateFilename">
-                            {% set filename = file.fileMeta.originalFileName %}
+
+                {% set filename = file.fileMeta.originalFileName %}
                 {% if file.fileMeta.originalFileName == null %}
                     {% set filename = 'File_' ~ file.id ~ '.' ~ file.ext %}
                 {% endif %}
 
                 <span class="ODRFileInfoDiv">
-                                <i class="fa fa-lg fa-info-circle"></i>
-                                <span class="ODRFileInfo">
-                                <div>
-                                    <i class="fa fa-globe ODRPublicFile"></i>&nbsp;
-                                    {% if not file.fileMeta.publicDate|is_public %}File is not public{% else %}File was made public on {{ file.fileMeta.publicDate|date('Y-m-d') }}{% endif %}
-                                </div>
-                                <div>
-                                    <i class="fa fa-calendar"></i>&nbsp;
-                                    Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy|user_string }}
-                                </div>
-                                <div>
-                                    <i class="fa fa-file-o"></i>&nbsp;
-                                    {{ file.filesize|filesize }}
-                                </div>
-                                </span>
-                            </span>
-                            <a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="ODRFileDownload" title="{{ filename }}" rel="{{ file.id }}">
-                                {{ display_name }}
-                            </a>
-                        </span>
+                    <i class="fa fa-lg fa-info-circle"></i>
+                    <span class="ODRFileInfo">
+                        <div>
+                            <i class="fa fa-globe ODRPublicFile"></i>&nbsp;
+                            {% if not file.fileMeta.publicDate|is_public %}File is not public{% else %}File was made public on {{ file.fileMeta.publicDate|date('Y-m-d') }}{% endif %}
+                        </div>
+                        <div>
+                            <i class="fa fa-calendar"></i>&nbsp;
+                            Uploaded {{ file.created|date('Y-m-d') }} by {{ file.createdBy|user_string }}
+                        </div>
+                        <div>
+                            <i class="fa fa-file-o"></i>&nbsp;
+                            {{ file.filesize|filesize }}
+                        </div>
+                    </span>
+                </span>
+                <a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="ODRFileDownload" title="{{ filename }}" rel="{{ file.id }}">
+                    {{ display_name }}
+                </a>
+            </span>
 
             <span id="ODRFileDecrypt_{{ file.id }}_overlay" class="ODRFakeProgressBar_overlay" {% if file.original_checksum != '' %}style="visibility:hidden;"{% endif %}>
-                            <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRFakeProgressBar"></span>
-                        </span>
+                <span id="ODRFileDecrypt_{{ file.id }}_progress" class="ODRFakeProgressBar"></span>
+            </span>
 
             {% if file.provisioned == true %}
                 <script>
                     $(function() {
                         createFileEncryptProgressCheck({{ file.id }}, {{ datarecord.id }}, {{ datafield.id }});
                     });
-                </script>
+                    </script>
             {% endif %}
         </div>
     </div>

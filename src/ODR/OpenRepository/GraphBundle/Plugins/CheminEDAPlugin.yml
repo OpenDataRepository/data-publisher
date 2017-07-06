@@ -26,12 +26,8 @@ ODR\OpenRepository\GraphBundle\Plugins\CheminEDA:
             name: EDA LBL File
             description:
             type: File
-        eda_raw_lbl_file:
-            name: EDA RAW LBL File
-            description:
-            type: File
-        eda_raw_dat_file:
-            name: EDA RAW DAT File
+        eda_dat_file:
+            name: EDA DAT File
             description:
             type: File
         eda_processing_description:
