@@ -34,10 +34,17 @@
                         }
                     )
                     break;
+
+                case 401:
+                case 403:
+                    ODRLogin();
+                    break;
+{#
                 case 401:
 //                    ODRLogin();   // TODO - modify ODR so it returns correct status codes
 //                    break;
                 case 403:
+/*
                     // If a hash is present, attempt to preserve it so user goes back to this page after login
                     var url = window.location.href;
                     if ( url.indexOf('#') !== -1 ) {
@@ -49,12 +56,14 @@
                         // Otherwise, just redirect to admin page
                         location.replace("/login");
                     }
+*/
                     break;
 /*
                 default:
                     alert('Error: ' + exception);
                     break;
 */
+#}
             }
         });
 
@@ -163,8 +172,14 @@
             fragment = pieces[1];
         }
 
-        // Append the fragment if needed
-        var redirect_url = '/login';
+        // Save the "app_dev.php" part of the url if needed
+        var redirect_url = '/app_dev.php';
+        if ( baseurl.indexOf('app_dev.php') === -1 )
+            redirect_url = '/login';
+        else
+            redirect_url += '/login';
+
+        // Append the fragment if it exists
         if (fragment !== '')
             redirect_url += '#' + fragment;
 

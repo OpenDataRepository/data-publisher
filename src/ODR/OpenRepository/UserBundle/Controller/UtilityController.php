@@ -79,18 +79,25 @@ class UtilityController extends Controller
         if (!$request->query->has('fragment') )
             throw new \Exception('Invalid query string');
 
-        // If the fragment starts with  "/app_dev.php", get rid of it...route matching will fail otherwise
+        // If the fragment starts with  "/app_dev.php", temporarily get rid of it...route matching will fail otherwise
         $fragment = $request->query->get('fragment');
-        if ( strpos($fragment, '/app_dev.php') !== false )
+        $has_appdev = false;
+        if ( strpos($fragment, '/app_dev.php') !== false ) {
+            $has_appdev = true;
             $fragment = substr($fragment, 12);
+        }
 
         // The fragment should be an actual route...not bothering to catch any exception that arises, would just rethrow it anyways
         $route = $router->match($fragment);
 
-        // Ensure all target paths are cleared before saving
-        self::clearTargetPaths($request);
+        // Ensure most target paths are cleared before saving
+        // Don't want to clear "_security.main.target_path", because users will always get redirected to the dashboard in that case
+        self::clearTargetPaths($request, false);
 
         // No issues, save the URL fragment
+        if ($has_appdev)
+            $fragment = '/app_dev.php'.$fragment;
+
         $session->set('_security.url_fragment', $fragment);
         return new Response();
     }
@@ -110,6 +117,7 @@ class UtilityController extends Controller
     {
         // Going to attempt to figure out the correct redirect URL from the user's session...
         $session = $request->getSession();
+//        exit( '<pre>'.print_r($session, true).'</pre>' );
         $url = '';
 
         if ( $session->has('_security.oauth_connect.redirect_path') ) {
@@ -152,8 +160,9 @@ class UtilityController extends Controller
      * Utility function to ensure the user's session doesn't somehow redirect to a path when it shouldn't.
      *
      * @param Request $request
+     * @param boolean $clear_all_paths
      */
-    private function clearTargetPaths($request)
+    private function clearTargetPaths($request, $clear_all_paths = true)
     {
         $session = $request->getSession();
 
@@ -165,12 +174,14 @@ class UtilityController extends Controller
         if ( $session->has('_security.oauth_authorize.target_path') )
             $session->remove('_security.oauth_authorize.target_path');
 
-        // Remove the redirect path for conventional logins to ODR
-        if ( $session->has('_security.main.target_path') ) {
-            $session->remove('_security.main.target_path');
+        if ($clear_all_paths) {
+            // Remove the redirect path for conventional logins to ODR
+            if ($session->has('_security.main.target_path')) {
+                $session->remove('_security.main.target_path');
 
-            if ( $session->has('_security.url_fragment') )
-                $session->remove('_security.url_fragment');
+                if ($session->has('_security.url_fragment'))
+                    $session->remove('_security.url_fragment');
+            }
         }
     }
 }

@@ -17,9 +17,6 @@
 
 {% block body %}
     <section id="content" class="container_12 clearfix">
-        <div class="ODROAuthProviderList">
-            {% include "ODROpenRepositoryOAuthClientBundle:Connect:login.html.twig" %}
-        </div>
 
         <div id="login_wrapper" style="text-align:center; margin-top:10px;">
             <div>
@@ -66,6 +63,10 @@
                 </div>
             </div>
 
+        </div>
+
+        <div class="ODROAuthProviderList">
+            {% include "ODROpenRepositoryOAuthClientBundle:Connect:login.html.twig" %}
         </div>
     </section>
 {% endblock body %}

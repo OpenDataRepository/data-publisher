@@ -22,22 +22,21 @@
         <div class="pure-control-group">
             <input id="password" name="_password" type="password" placeholder="{{ 'security.login.password'|trans({}, 'FOSUserBundle') }}" required="required" />
         </div>
+    </fieldset>
 
-        <div class="pure-control-group">
-            <!--
+    <fieldset>
+        <div class="pure-controls">
             <label for="remember">
                 <input id="remember" type="checkbox"> {{ 'security.login.remember_me'|trans({}, 'FOSUserBundle') }}
             </label>
-            -->
-            <input type="checkbox" id="remember_me" name="_remember_me" value="on" />
-            <label for="remember_me">{{ 'security.login.remember_me'|trans({}, 'FOSUserBundle') }}</label>
+
             <input class="pure-button pure-button-secondary" type="submit" id="_submit" name="_submit" value="{{ 'security.login.submit'|trans({}, 'FOSUserBundle') }}" />
         </div>
-        <div class="pure-control-group">
-            {% if not app.user %}
-                <a class="address pure-button" href="{{ path('fos_user_resetting_request') }}" >Forgot Password?</a>
-            {% endif %}
+    {% if not app.user %}
+        <div class="pure-controls">
+            <a class="address pure-button" href="{{ path('fos_user_resetting_request') }}" >Forgot Password?</a>
         </div>
+    {% endif %}
     </fieldset>
 </form>
 
@@ -46,7 +45,7 @@
         // If a URL fragment exists, then notify ODR of its existence so the user can be properly redirected afterwards
         if ( window.location.href.indexOf('#') !== -1 ) {
             var fragment = (window.location.href.split('#'))[1];
-            console.log(fragment);
+//            console.log(fragment);
             var url = "{{ path('odr_save_fragment') }}";
 
             $.ajax({
