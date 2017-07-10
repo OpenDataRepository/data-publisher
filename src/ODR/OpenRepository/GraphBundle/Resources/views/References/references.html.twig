@@ -37,8 +37,13 @@
     {% endif %}
 
     {% if mapping.file|length > 0 %}
-        {% for file in mapping.file.datarecordfield.file %}
-            &nbsp;<a href="{{ path('odr_file_download', {'file_id': file.id} ) }}">[view file]</a>    {# This plugin will only receive files the user is allowed to view #}
+        {% for file in mapping.file.datarecordfield.file %}    {# This plugin will only receive files the user is allowed to view #}
+            &nbsp;<a href="{{ path('odr_file_download', { 'file_id': file.id } ) }}" class="ODRFileDownload" rel="{{ file.id }}">[view file]</a>
+
+            {# these spans are needed so the file downloading javascript doesn't crash...commenting out the classnames renders them invisible #}
+            <span id="ODRFileDecrypt_{{ file.id }}_overlay" {#class="ODRFakeProgressBar_overlay"#} style="visibility:hidden;">
+                <span id="ODRFileDecrypt_{{ file.id }}_progress" {#class="ODRFakeProgressBar"#}></span>
+            </span>
         {% endfor %}
     {% endif %}
 {% endif %}

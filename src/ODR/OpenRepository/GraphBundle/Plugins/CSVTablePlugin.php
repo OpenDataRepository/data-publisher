@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 /**
  * Open Data Repository Data Publisher
@@ -7,53 +7,37 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * The graph plugin plots a line graph out of data files uploaded
- * to a File DataField, and labels them using a "legend" field
- * selected when the graph plugin is created...
- *
+ * The CSVTable Plugin reads a single file uploaded into a file datafield, and uses a javascript library
+ * to render a nice table view of the contents of that file.
  */
 
 namespace ODR\OpenRepository\GraphBundle\Plugins;
 
-// Controllers/Classes
-
-// Libraries
-use Ramsey\Uuid\Uuid;
-use Ramsey\Uuid\Exception\UnsatisfiedDependencyException;
-
-// Symfony components
+use Doctrine\ORM\EntityManager;
 use Symfony\Component\DependencyInjection\ContainerInterface as Container;
-// use Doctrine\ORM\EntityManager;
 
-/**
- * Class GraphPlugin
- * @package ODR\OpenRepository\GraphBundle\Plugins
- */
+
 class CSVTablePlugin
 {
-
-
     /**
      * @var mixed
      */
     private $templating;
-
 
     /**
      * @var mixed
      */
     private $logger;
 
+    /**
+     * @var Container
+     */
+    private $container;
 
     /**
-     * @var array
+     * @var EntityManager
      */
-    // private $line_colors;
-
-    /**
-     * @var array
-     */
-    // private $jpgraph_line_colors;
+    private $entity_manager;
 
 
     /**
@@ -62,20 +46,21 @@ class CSVTablePlugin
      * @param $templating
      * @param $logger
      */
-    public function __construct($templating, $logger, Container $container, $entity_manager) {
+    public function __construct($templating, $logger, $container, $entity_manager) {
         $this->templating = $templating;
-	    $this->logger = $logger;
+        $this->logger = $logger;
         $this->container = $container;
         $this->em = $entity_manager;
     }
 
+
     /**
-     * Executes the Graph Plugin on the provided datarecords
+     * Executes the CSVTable Plugin on the provided datafield
      *
      * @param array $datafield
      * @param array $datarecord
      * @param array $render_plugin
-     * @param array $themeType = "master" by default.
+     * @param string $themeType     One of 'master', 'search_results', 'table', TODO?
      *
      * @return string
      * @throws \Exception
@@ -84,8 +69,10 @@ class CSVTablePlugin
     {
 
         try {
-
             // ----------------------------------------
+//            $str = '<pre>'.print_r($datafield, true)."\n".print_r($datarecord, true)."\n".print_r($render_plugin, true)."\n".'</pre>';
+//            return $str;
+
             // Grab various properties from the render plugin array
             $render_plugin_options = $render_plugin['renderPluginInstance'][0]['renderPluginOptions'];
 
@@ -97,38 +84,43 @@ class CSVTablePlugin
             }
 
 
-            $file = $datarecord['dataRecordFields'][$datafield['id']]['file']['0'];
-
-            // Check that the file exists...
-            $local_filepath = realpath(dirname(__FILE__) . '/../../../../../web/' . $file['localFileName']);
-            if (!$local_filepath) {
-                // File does not exist for some reason...see if it's getting decrypted right now
-                return $local_filepath . "<div>File not found.</div>." ;
-            }
-
-            // Load file and parse into array
+            // ----------------------------------------
+            // Only execute the plugin if a file has been uploaded to this datafield
             $data_array = array();
-            if (($handle = fopen($local_filepath, "r")) !== FALSE) {
-                while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-                    array_push($data_array, $data);
+            if ( isset($datarecord['dataRecordFields'][$datafield['id']]['file']['0']) ) {
+
+                // Check that the file exists...
+                $file = $datarecord['dataRecordFields'][$datafield['id']]['file']['0'];
+                $local_filepath = realpath(dirname(__FILE__).'/../../../../../web/'.$file['localFileName']);
+                if (!$local_filepath) {
+                    // File does not exist for some reason...probably due to being non-public TODO - FIX THIS
+                    throw new \Exception('Unable to open file');
                 }
-                fclose($handle);
+
+                // TODO - test whether this'll work on stupid csv files like CSVImport has to deal with
+                // Load file and parse into array
+                $data_array = array();
+                if (($handle = fopen($local_filepath, "r")) !== FALSE) {
+                    while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+                        array_push($data_array, $data);
+                    }
+                    fclose($handle);
+                }
+
+                $data_array = json_encode($data_array);
             }
 
-            $data_array = json_encode($data_array);
-
+            // ----------------------------------------
             $output = $this->templating->render(
                 'ODROpenRepositoryGraphBundle:CSVTable:csv_table.html.twig',
                 array(
                     'datafield' => $datafield,
                     'datarecord' => $datarecord,
                     'data_array' => $data_array,
-                    'local_file_path' => $local_filepath
                 )
             );
 
             return $output;
-
         }
         catch (\Exception $e) {
             // TODO Can we remove this?...

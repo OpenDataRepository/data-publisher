@@ -2240,7 +2240,7 @@ class ODRCustomController extends Controller
                     $datarecords[ $dr_id ] = $sort_value;
                 }
 
-                asort($datarecords);
+                asort($datarecords, SORT_NATURAL);
 //print 'sorted datarecords: <pre>'.print_r($datarecords, true).'</pre>';
             }
 

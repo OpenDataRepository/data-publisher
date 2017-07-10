@@ -3990,14 +3990,16 @@ class DisplaytemplateController extends ODRCustomController
                     if ($new_sortfield !== null)
                         $new_sortfield = $new_sortfield->getId();
 
-                    if ($parent_datatype_id !== '' && ($old_external_id_field !== $new_external_id_field || $old_namefield !== $new_namefield || $old_sortfield !== $new_sortfield) ) {
-                        // Locate all datarecords of this datatype
+                    if ($old_external_id_field !== $new_external_id_field || $old_namefield !== $new_namefield || $old_sortfield !== $new_sortfield) {
+                        // Locate all datarecords of this datatype's grandparent
+                        $grandparent_datatype_id = parent::getGrandparentDatatypeId(parent::getDatatreeArray($em), $datatype->getId());
+
                         $query = $em->createQuery(
                            'SELECT dr.id AS dr_id
                             FROM ODRAdminBundle:DataRecord AS dr
                             WHERE dr.dataType = :datatype_id
                             AND dr.deletedAt IS NULL'
-                        )->setParameters(array('datatype_id' => $datatype->getId()));
+                        )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
                         $results = $query->getArrayResult();
 
                         // Wipe all cached entries for these datarecords
