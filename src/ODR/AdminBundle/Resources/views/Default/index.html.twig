@@ -25,21 +25,11 @@
 {% endif %}
 
 {% block navigation_top %}
-{#{% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'site_baseurl': site_baseurl, 'search_slug': search_slug} %}#}
-{% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'user_permissions': user_permissions} %}
+    {% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'user_permissions': user_permissions} %}
 {% endblock %}
-
-{#
-{% block navigation_bottom %}
-{% include 'ODRAdminBundle::navigation_bottom.html.twig' %}
-{% endblock %}
-#}
 
 {% block body %}
-
     {% set logged_in = true %}
     {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
     {{ js.write(logged_in) }}
-
 {% endblock %}
-

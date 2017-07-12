@@ -1,0 +1,24 @@
+{% spaceless %}
+
+{% extends '::base.html.twig' %}
+
+{# Intentionally not setting any variables to populate the menubar across the top of the page #}
+
+{% block title %}ODR Admin{% endblock %}
+
+{% block body %}
+
+    <h2>An Error Occurred -- the server returned "{{ status_code }} {{ status_text }}".</h2>
+
+    <div class="ODRNotificationHeader">
+        {{ exception_source }}: "{{ exception.message }}"
+    </div>
+
+    <div class="ODRNotificationText">
+        Something is broken. Please let us know what you were doing when this error occurred.<br>
+        We will fix it as soon as possible. Sorry for any inconvenience caused.
+    </div>
+
+{% endblock %}
+
+{% endspaceless %}

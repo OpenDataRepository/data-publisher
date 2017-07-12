@@ -1,36 +1,37 @@
 {% block navigation_top %}
 
-{% set level = 0 %}
-{% for role in user.getroles %}
-    {% if role == 'ROLE_SUPER_ADMIN' %}
-        {% set level = level + 4 %}
-    {% elseif role == 'ROLE_ADMIN' %}
-        {% set level = level + 2 %}
-    {% elseif role == 'ROLE_USER' %}
-        {% set level = level + 1 %}
-    {% endif %}
-{% endfor %}
+{% spaceless %}
 
-{% set is_datatype_admin = false %}
-{% if level == 7 %}
-    {% set is_datatype_admin = true %}
-{% else %}
-    {% for datatype_id, permissions in user_permissions %}
-        {% if user_permissions[ datatype_id ][ 'dt_admin' ] is defined %}
-            {% set is_datatype_admin = true %}
+    {% set level = 0 %}
+    {% for role in user.getroles %}
+        {% if role == 'ROLE_SUPER_ADMIN' %}
+            {% set level = level + 4 %}
+        {% elseif role == 'ROLE_ADMIN' %}
+            {% set level = level + 2 %}
+        {% elseif role == 'ROLE_USER' %}
+            {% set level = level + 1 %}
         {% endif %}
     {% endfor %}
-{% endif %}
 
-{#{% set baseurl =  site_baseurl ~ "/" ~ search_slug %}#}
-<!-- This div is used to indicate the original position of the scrollable nav -->
+    {% set is_datatype_admin = false %}
+    {% if level == 7 %}
+        {% set is_datatype_admin = true %}
+    {% else %}
+        {% for datatype_id, permissions in user_permissions %}
+            {% if user_permissions[ datatype_id ][ 'dt_admin' ] is defined %}
+                {% set is_datatype_admin = true %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
     <ul class="ODR-pure-submenu">
         <li class="pure-menu-item"><a class="pure-menu-link" href="{{ path('odr_admin_homepage') }}">&nbsp;<i class="fa fa-md fa-dashboard fa-fw"></i>Dashboard</a></li>
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_self_profile_edit') }}">&nbsp;<i class="fa fa-md fa-user fa-fw"></i>Profile</a></li>
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_job_list') }}">&nbsp;<i class="fa fa-md fa-cogs fa-fw"></i>Active Jobs</a></li>
 
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_list_types', { 'section': 'records' } ) }}" title="List Records">&nbsp;<i class="fa fa-md fa-fw fa-list"></i>List Records</a></li>
-{% if is_datatype_admin == true %}
+
+    {% if is_datatype_admin == true %}
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_list_types', { 'section': 'design' } ) }}" title="List Databases">&nbsp;<i class="fa fa-md fa-fw fa-cog"></i>List Databases</a></li>
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_list_types', { 'section': 'master' } ) }}" title="List Master Templates">&nbsp;<i class="fa fa-md fa-fw fa-list"></i>List Templates</a></li>
 
@@ -46,10 +47,9 @@
             {% endif %}
             </ul>
         </li>
-{% endif %}
-
+    {% endif %}
     </ul>
 
+{% endspaceless %}
+
 {% endblock %}
-
-

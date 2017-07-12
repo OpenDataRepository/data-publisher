@@ -163,60 +163,28 @@
 </head>
 
 <body class="pure-skin-odr">
-<!-- The toolbar at the top -->
-<!-- <section id="toolbar" class="pure-form pure-g"> -->
 
+<!-- main menu -->
 <div class="ODRMenuWrapper pure-g" id="ODRMainMenu">
     <div class="pure-menu pure-menu-horizontal odr-custom-can-transform pure-u-1 pure-u-md-7-24">
         <span class="odr-custom-toggle" id="toggle"><i class="fa fa-lg fa-bars"></i> Menu</span>
         <ul class="pure-menu-list">
             {% if use_navigation_block == true %}
                 <li class="pure-menu-item"><span class="pure-menu-heading odr-custom-brand">Admin&nbsp;<i class="fa fa-md fa-plus-square"></i></span>
-                    {% block navigation_top %}
-                    {% endblock %}
+                    {% block navigation_top %}{% endblock %}
                 </li>
             {% endif %}
-            {# if header_left_title != '' %}
-                <li class="pure-menu-item"><a class="pure-menu-link" href="{{ header_left_path }}">{{ header_left_title }}</a></li>
-            {% endif #}
+
             {% if header_middle_title != '' %}
                 <li class="pure-menu-item"><a class="pure-menu-link" href="{{ header_middle_path }}">{{ header_middle_title }}</a></li>
             {% endif %}
         </ul>
-        {# block navigation_top %}
-        {% endblock #}
     </div>
+
     <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-can-transform odr-menu-center pure-u-1 pure-u-md-10-24">
-        <ul class="pure-menu-list">
-            {# block center_navigation_top %}
-            {% endblock #}
-            {#
-            <li class="pure-menu-item"><span class="pure-menu-heading">Home</span>
-                <ul class="ODR-pure-submenu">
-                    <li class="pure-menu-item"><span class="pure-menu-heading">TEST 1</span>
-                        <ul class="ODR-pure-submenu">
-                            <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 222</a></li>
-                            <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 222</a></li>
-                        </ul>
-                    </li>
-                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
-                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
-                    <li class="pure-menu-item"><span class="pure-menu-heading">TEST 3</span>
-                        <ul class="ODR-pure-submenu">
-                            <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 222</a></li>
-                            <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 222</a></li>
-                        </ul>
-                    </li>
-                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
-                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
-                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">TEST 2</a></li>
-                </ul>
-            </li>
-            <li class="pure-menu-item"><a href="#" class="pure-menu-link">About</a></li>
-            <li class="pure-menu-item"><a href="#" class="pure-menu-link">Contact</a></li>
-        #}
-        </ul>
+        {#<ul class="pure-menu-list"></ul>#}
     </div>
+
     <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-6-24">
         <ul class="pure-menu-list">
             {% if current_user != '' %}
@@ -230,21 +198,18 @@
             {% endif %}
         </ul>
     </div>
+
     <div class="pure-menu pure-menu-horizontal odr-hide-small odr-custom-menu-3 odr-custom-can-transform pure-u-1 pure-u-md-1-24">
         <ul class="pure-menu-list">
-            <li class="pure-menu-item"><span class="pure-menu-heading"><i id="ODRHelpButton" class="Pointer fa fa-lg fa-question-circle"></i></span>
-                {# block help_navigation_top %}
-                <ul class="ODR-pure-submenu">
-                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">Wiki - Coming Soon</a></li>
-                </ul>
-                {% endblock #}
+            <li class="pure-menu-item">
+                <span class="pure-menu-heading">
+                    <i id="ODRHelpButton" class="Pointer fa fa-lg fa-question-circle"></i>
+                </span>
             </li>
         </ul>
     </div>
 </div>
-
-
-<!-- </section><!-- End of #toolbar -->
+<!-- End of #ODRMainMenu -->
 
 <script>
     (function (window, document) {
@@ -252,8 +217,7 @@
         var WINDOW_CHANGE_EVENT = ('onorientationchange' in window) ? 'orientationchange':'resize'
 
         // Add Click handler for all menu LI
-        jQuery("#ODRMainMenu .pure-menu-heading").unbind('click');
-        jQuery("#ODRMainMenu .pure-menu-heading").click(function() {
+        jQuery("#ODRMainMenu .pure-menu-heading").unbind('click').click(function() {
             if(jQuery(document).width() < 768) {
                 jQuery(this).parent().toggleClass('show');
             }
@@ -262,7 +226,7 @@
         // jQuery("#ODRMainMenu li .pure-menu-heading").unbind('mouseenter');
         jQuery("#ODRMainMenu li").mouseenter(function() {
             if(jQuery(document).width() >= 768) {
-                var elem = jQuery(this).children().first()
+                var elem = jQuery(this).children().first();
                 if (jQuery(elem).hasClass("pure-menu-heading")) {
                     jQuery(elem).parent().addClass('show');
                 }
@@ -281,17 +245,17 @@
         // Close menus on click
         jQuery("#ODRMainMenu a").click(function(){
             // Close menu
-            closeMenu()
+            closeMenu();
             jQuery("#ODRMainMenu").find(".show").toggleClass('show');
-        })
+        });
 
         function toggleHorizontal() {
             [].forEach.call(
-                    document.getElementById('ODRMainMenu').querySelectorAll('.odr-custom-can-transform'),
-                    function(el){
-                        console.log('toggle horizontal interior')
-                        el.classList.toggle('pure-menu-horizontal');
-                    }
+                document.getElementById('ODRMainMenu').querySelectorAll('.odr-custom-can-transform'),
+                function(el){
+                    console.log('toggle horizontal interior');
+                    el.classList.toggle('pure-menu-horizontal');
+                }
             );
             if(jQuery(".ODRMenuWrapper").hasClass("overflow-visible")) {
                 jQuery(".ODRMenuWrapper").removeClass("overflow-visible")
@@ -299,7 +263,7 @@
             else {
                 jQuery(".ODRMenuWrapper").addClass("overflow-visible")
             }
-        };
+        }
 
         function toggleMenu() {
             // set timeout so that the panel has a chance to roll up
@@ -312,7 +276,7 @@
             }
             menu.classList.toggle('open');
             document.getElementById('toggle').classList.toggle('x');
-        };
+        }
 
         function closeMenu() {
             if (menu.classList.contains('open')) {
@@ -330,37 +294,27 @@
 
 </script>
 
-{# if use_navigation_block == true %}
-    <!-- The container of the sidebar and content box -->
-    <!-- The Properties sidebar -->
-    <aside id="ODRNavRightWrapper">
-        <div id="ODRNavRight" class="NavSlideOut">
-            <div id="ODRMenuLabelRight">properties <i title="Click to stick in place." class="fa fa-thumb-tack Pointer TackProperties"></i></div>
-            <div class="top">
-            </div><!-- End of .top -->
-        </div>
-    </aside><!-- End of sidebar -->
-{% endif #}
 
+<!-- main content -->
 <div role="main" id="main" class="pure-form pure-g">
     <section id="left-spacer" class="pure-u-md-1-24"></section>
 
-    <!-- Here goes the content. -->
     <section id="content" class="pure-u-1 pure-u-md-22-24" data-sort=true style="margin-top: 10px;">
         {% block body %}{% endblock %}
     </section><!-- End of #content -->
 
     <section id="right-spacer" class="pure-u-md-1-24"></section>
-</div><!-- End of #main -->
+</div>
+<!-- End of #main -->
 
 <!-- The footer -->
 <footer class="pure-u-1">
-        <span class="ODRMenuRight pure-menu pure-menu-open pure-menu-horizontal">
-            <ul class="pure-menu-list">
-                <li class="pure-menu-item odr-no-effects"><a class="ODRLogoImage" href="http://www.opendatarepository.org/about"><img src="/images/ODR_Logo_Final.svg" alt="Open Data Repository" /></a></li>
-                <li class="pure-menu-heading">&copy; {{ "now"|date("Y") }}&nbsp;&nbsp;</li>
-            </ul>
-        </span>
+    <span class="ODRMenuRight pure-menu pure-menu-open pure-menu-horizontal">
+        <ul class="pure-menu-list">
+            <li class="pure-menu-item odr-no-effects"><a class="ODRLogoImage" href="http://www.opendatarepository.org/about"><img src="/images/ODR_Logo_Final.svg" alt="Open Data Repository" /></a></li>
+            <li class="pure-menu-heading">&copy; {{ "now"|date("Y") }}&nbsp;&nbsp;</li>
+        </ul>
+    </span>
 </footer> <!-- End of footer -->
 
 <!-- The loading box -->

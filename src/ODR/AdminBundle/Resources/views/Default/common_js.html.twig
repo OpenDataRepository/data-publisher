@@ -2,68 +2,18 @@
 <script>
 
     $(function() {
-
         // Define a global error handler for ajax calls
         $(document).ajaxError(function( event, jqxhr, settings, exception ) {
             switch( jqxhr.status ) {
-                case 500:
-                    var res = $.parseHTML(jqxhr.responseText)
-                    var error_type = res[13].childNodes[3].childNodes[1].childNodes[1].childNodes[3].childNodes[5].innerHTML
-                    var error_msg = res[13].childNodes[3].childNodes[1].childNodes[1].childNodes[3].childNodes[3].innerHTML
-                    console.log("500 Error: " + error_msg)
-                    $.jGrowl(
-                        error_type,
-                        {
-                            sticky: true,
-                            openDuration: 250,
-                            closeDuration: 250
-                        }
-                    )
-                    break;
-                case 404:
-                    var res = $.parseHTML(jqxhr.responseText)
-                    var error_type = res[13].childNodes[3].childNodes[1].childNodes[1].childNodes[3].childNodes[5].innerHTML
-                    var error_msg = res[13].childNodes[3].childNodes[1].childNodes[1].childNodes[3].childNodes[1].innerHTML
-                    console.log("404 Error: " + error_msg)
-                    $.jGrowl(
-                        error_type,
-                        {
-                            sticky: true,
-                            openDuration: 250,
-                            closeDuration: 250
-                        }
-                    )
-                    break;
-
                 case 401:
-                case 403:
                     ODRLogin();
                     break;
-{#
-                case 401:
-//                    ODRLogin();   // TODO - modify ODR so it returns correct status codes
-//                    break;
-                case 403:
-/*
-                    // If a hash is present, attempt to preserve it so user goes back to this page after login
-                    var url = window.location.href;
-                    if ( url.indexOf('#') !== -1 ) {
-                        var tmp = url.split('#');
-                        url = tmp[0].substr(0, tmp[0].lastIndexOf('/')) + '/login#' + tmp[1];
-                        location.replace(url);
-                    }
-                    else {
-                        // Otherwise, just redirect to admin page
-                        location.replace("/login");
-                    }
-*/
+
+                default:    {# 400, 403, 404, 405, 500, etc #}
+                    var response = $.parseJSON( jqxhr.responseText );
+//                    console.log( response );
+                    createJGrowlError(response);
                     break;
-/*
-                default:
-                    alert('Error: ' + exception);
-                    break;
-*/
-#}
             }
         });
 
@@ -88,8 +38,8 @@
         $(window).on("hashchange", function(event) {
             // Needed?
             event.preventDefault();
+//            console.log('hashchange event');
 
-            console.log('hashchange event')
             // Close Menu
             $("#ODRNav").hide();
             // always scroll to the top of the page?
@@ -154,13 +104,28 @@
             UpdateURL(url);
         });
 
-
+{#
         // Menu click handler
         $("#ODRMainMenu a").click(function() {
 
         })
-
+#}
     });
+
+    function createJGrowlError(response) {
+        var error_text = '<div class="ODRNotificationHeader">' + response.error.code + ' ' + response.error.status_text + ' -- ' + response.error.exception_source + "</div>";
+        error_text += '<div class="ODRNotificationText">' + response.error.message + '</div>';
+
+        $.jGrowl(
+            error_text,
+            {
+                theme: "ODRNotification",
+                sticky: true,
+                openDuration: 250,
+                closeDuration: 250
+            }
+        );
+    }
 
     function ODRLogin() {
         // Extract the current base url
@@ -495,7 +460,7 @@
         };
     })();
 
-    /*
+{#
     var scrollTop = '';
     var newHeight = '100';
     function initODRDialog(elem) {
@@ -532,7 +497,7 @@
             e.stopPropagation();
         });
      }
-        */
+#}
 </script>
 
 {% include 'ODRAdminBundle:Default:file_handling.html.twig' %}

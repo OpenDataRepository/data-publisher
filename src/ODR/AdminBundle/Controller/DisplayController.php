@@ -28,6 +28,11 @@ use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Forms
 // Services
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
@@ -35,6 +40,7 @@ use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
 use Symfony\Component\HttpFoundation\Cookie;
+use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -79,16 +85,16 @@ class DisplayController extends ODRCustomController
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                return parent::deletedEntityError('Datarecord');
+                throw new ODRNotFoundException('Datarecord');
 
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('Datatype');
+                throw new ODRNotFoundException('Datatype');
 
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
             if ($theme == null)
-                return parent::deletedEntityError('Theme');
+                throw new ODRNotFoundException('Theme');
 
             // Save incase the user originally requested a child datarecord
             $original_datarecord = $datarecord;
@@ -101,15 +107,17 @@ class DisplayController extends ODRCustomController
             if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() ) {
                 $is_top_level = 0;
                 $datarecord = $datarecord->getGrandparent();
+                if ($datarecord->getDeletedAt() != null)
+                    throw new ODRNotFoundException('Datarecord');
 
                 $datatype = $datarecord->getDataType();
                 if ($datatype->getDeletedAt() != null)
-                    return parent::deletedEntityError('Datatype');
+                    throw new ODRNotFoundException('Datatype');
 
                 /** @var Theme $theme */
                 $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
                 if ($theme == null)
-                    return parent::deletedEntityError('Theme');
+                    throw new ODRNotFoundException('Theme');
             }
 
 
@@ -128,7 +136,7 @@ class DisplayController extends ODRCustomController
                 }
                 else {
                     // ...if either the datatype is non-public or the datarecord is non-public, return false
-                    return parent::permissionDeniedError('view');
+                    throw new ODRForbiddenException();
                 }
             }
             else {
@@ -149,7 +157,7 @@ class DisplayController extends ODRCustomController
                 // TODO - should this check block viewing of a public child datarecord if the user isn't allowed to see its parent?
                 // If either the datatype or the datarecord is not public, and the user doesn't have the correct permissions...then don't allow them to view the datarecord
                 if ( !($original_datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) )
-                    return parent::permissionDeniedError('view');
+                    throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
@@ -292,9 +300,11 @@ class DisplayController extends ODRCustomController
             $session->set('scroll_target', $datarecord->getId());
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x38978321 ' . $e->getMessage();
+            $source = 0x8f465413;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -336,19 +346,20 @@ class DisplayController extends ODRCustomController
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                return parent::deletedEntityError('Datarecord');
+                throw new ODRNotFoundException('Datarecord');
+
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
-                return parent::deletedEntityError('DataField');
+                throw new ODRNotFoundException('Datafield');
             $datatype = $datafield->getDataType();
-            if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
 
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
             if ($theme == null)
-                return parent::deletedEntityError('Theme');
+                throw new ODRNotFoundException('Theme');
 
 
             // Save incase the user originally requested a re-render of a datafield from a child datarecord
@@ -358,10 +369,12 @@ class DisplayController extends ODRCustomController
             // ...want the grandparent datarecord and datatype for everything else, however
             if ( $datarecord->getId() !== $datarecord->getGrandparent()->getId() ) {
                 $datarecord = $datarecord->getGrandparent();
+                if ($datarecord->getDeletedAt() != null)
+                    throw new ODRNotFoundException('Datarecord');
 
                 $datatype = $datarecord->getDataType();
-                if ($datatype == null)
-                    return parent::deletedEntityError('Datatype');
+                if ($datatype->getDeletedAt() != null)
+                    throw new ODRNotFoundException('Datatype');
             }
 
 
@@ -378,7 +391,7 @@ class DisplayController extends ODRCustomController
                 }
                 else {
                     // ...if any of the relevant entities are non-public, return false
-                    return parent::permissionDeniedError('view');
+                    throw new ODRForbiddenException();
                 }
             }
             else {
@@ -402,7 +415,7 @@ class DisplayController extends ODRCustomController
 
                 // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
                 if ( !($original_datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
-                    return parent::permissionDeniedError('view');
+                    throw new ODRForbiddenException();
             }
             // --------------------
 
@@ -474,9 +487,11 @@ class DisplayController extends ODRCustomController
             $return['d'] = array('html' => $html);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x438381285 ' . $e->getMessage();
+            $source = 0xb667f28f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -505,6 +520,7 @@ class DisplayController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
@@ -513,20 +529,21 @@ class DisplayController extends ODRCustomController
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
-                return parent::deletedEntityError('File');
+                throw new ODRNotFoundException('File');
+
             $datafield = $file->getDataField();
             if ($datafield->getDeletedAt() != null)
-                return parent::deletedEntityError('DataField');
+                throw new ODRNotFoundException('Datafield');
             $datarecord = $file->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
-                return parent::deletedEntityError('DataRecord');
+                throw new ODRNotFoundException('Datarecord');
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('DataType');
+                throw new ODRNotFoundException('Datatype');
 
             // Files that aren't done encrypting shouldn't be downloaded
             if ($file->getProvisioned() == true)
-                return parent::deletedEntityError('File');
+                throw new ODRNotFoundException('File');
 
 
             // ----------------------------------------
@@ -539,7 +556,7 @@ class DisplayController extends ODRCustomController
                 }
                 else {
                     // something is non-public, therefore an anonymous user isn't allowed to download this file
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
                 }
             }
             else {
@@ -562,7 +579,7 @@ class DisplayController extends ODRCustomController
 
                 // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
                 if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
@@ -684,13 +701,11 @@ class DisplayController extends ODRCustomController
             return $response;
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x3835385 ' . $e->getMessage();
-
-            $response = new Response(json_encode($return));
-            $response->headers->set('Content-Type', 'application/json');
-            return $response;
+            $source = 0x9afc6f73;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
@@ -720,20 +735,21 @@ class DisplayController extends ODRCustomController
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
             if ($file == null)
-                return parent::deletedEntityError('File');
+                throw new ODRNotFoundException('File');
+
             $datafield = $file->getDataField();
             if ($datafield->getDeletedAt() != null)
-                return parent::deletedEntityError('DataField');
+                throw new ODRNotFoundException('Datafield');
             $datarecord = $file->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
-                return parent::deletedEntityError('DataRecord');
+                throw new ODRNotFoundException('Datarecord');
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('DataType');
+                throw new ODRNotFoundException('Datatype');
 
             // Files that aren't done encrypting shouldn't be downloaded
             if ($file->getProvisioned() == true)
-                return parent::deletedEntityError('File');
+                throw new ODRNotFoundException('File');
 
 
             // ----------------------------------------
@@ -746,7 +762,7 @@ class DisplayController extends ODRCustomController
                 }
                 else {
                     // something is non-public, therefore an anonymous user isn't allowed to download this file
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
                 }
             }
             else {
@@ -769,7 +785,7 @@ class DisplayController extends ODRCustomController
 
                 // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
                 if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
@@ -782,7 +798,7 @@ class DisplayController extends ODRCustomController
 
             $local_filepath = realpath( dirname(__FILE__).'/../../../../web/'.$file->getUploadDir().'/'.$filename );
             if (!$local_filepath)
-                throw new \Exception('File at "'.$local_filepath.'" does not exist');
+                throw new FileNotFoundException($local_filepath);
 
             $response = self::createDownloadResponse($file, $local_filepath);
 
@@ -793,13 +809,14 @@ class DisplayController extends ODRCustomController
             return $response;
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x848418123: ' . $e->getMessage();
+            // Force the error return to be in json
+            $request->setRequestFormat('json');
 
-            // The jquery $.fileDownload() behaves better if an error is returned as the responseHTML...
-            $response = new Response($return['d']);
-            return $response;
+            $source = 0xe3de488a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
@@ -978,8 +995,6 @@ class DisplayController extends ODRCustomController
         $return['t'] = 'html';
         $return['d'] = '';
 
-        $response = new Response();
-
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -989,20 +1004,21 @@ class DisplayController extends ODRCustomController
             /** @var Image $image */
             $image = $em->getRepository('ODRAdminBundle:Image')->find($image_id);
             if ($image == null)
-                return parent::deletedEntityError('Image');
+                throw new ODRNotFoundException('Image');
+
             $datafield = $image->getDataField();
             if ($datafield->getDeletedAt() != null)
-                return parent::deletedEntityError('DataField');
+                throw new ODRNotFoundException('Datafield');
             $datarecord = $image->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
-                return parent::deletedEntityError('DataRecord');
+                throw new ODRNotFoundException('Datarecord');
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('DataType');
+                throw new ODRNotFoundException('Datatype');
 
             // Images that aren't done encrypting shouldn't be downloaded
             if ($image->getEncryptKey() == '')
-                return parent::deletedEntityError('Image');
+                throw new ODRNotFoundException('Image');
 
 
             // ----------------------------------------
@@ -1016,7 +1032,7 @@ class DisplayController extends ODRCustomController
                 }
                 else {
                     // something is non-public, therefore an anonymous user isn't allowed to download this image
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
                 }
             }
             else {
@@ -1039,7 +1055,7 @@ class DisplayController extends ODRCustomController
 
                 // If datatype is not public and user doesn't have permissions to view anything other than public sections of the datarecord, then don't allow them to view
                 if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) )
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
             }
             // ----------------------------------------
 
@@ -1051,10 +1067,10 @@ class DisplayController extends ODRCustomController
 
             $handle = fopen($image_path, 'r');
             if ($handle === false)
-                throw new \Exception('Unable to open image at "'.$image_path.'"');
-
+                throw new FileNotFoundException($image_path);
 
             // Have to send image headers first...
+            $response = new Response();
             $response->setPrivate();
             switch ( strtolower($image->getExt()) ) {
                 case 'gif':
@@ -1101,22 +1117,16 @@ class DisplayController extends ODRCustomController
             // If the image isn't public, delete the decrypted version so it can't be accessed without going through symfony
             if ( !$image->isPublic() )
                 unlink($image_path);
-        }
-        catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x848418124: ' . $e->getMessage();
-        }
 
-        if ($return['r'] !== 0) {
-            // If error encountered, do a json return
-            $response = new Response(json_encode($return));
-            $response->headers->set('Content-Type', 'application/json');
-            return $response;
-        }
-        else {
             // Return the previously created response
             return $response;
+        }
+        catch (\Exception $e) {
+            $source = 0xc2fbf062;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
@@ -1139,6 +1149,7 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // ----------------------------------------
             // Get necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -1153,15 +1164,15 @@ class DisplayController extends ODRCustomController
             /** @var DataRecord $grandparent_datarecord */
             $grandparent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($grandparent_datarecord_id);
             if ($grandparent_datarecord == null)
-                return parent::deletedEntityError('Grandparent DataRecord');
+                throw new ODRNotFoundException('Grandparent Datarecord');
 
             $grandparent_datatype = $grandparent_datarecord->getDataType();
             if ($grandparent_datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('Grandparent DataType');
+                throw new ODRNotFoundException('Grandparent Datarecord');
 
 
             if ( ($datarecord_id === 0 && $datafield_id !== 0) || ($datarecord_id !== 0 && $datafield_id === 0) )
-                throw new \Exception('Invalid arguments');
+                throw new ODRBadRequestException();
 
             /** @var DataType|null $datatype */
             $datatype = null;
@@ -1170,11 +1181,11 @@ class DisplayController extends ODRCustomController
             if ($datarecord_id !== 0) {
                 $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
                 if ($datarecord == null)
-                    return parent::deletedEntityError('DataRecord');
+                    throw new ODRNotFoundException('Datarecord');
 
                 $datatype = $datarecord->getDataType();
                 if ($datatype->getDeletedAt() != null)
-                    return parent::deletedEntityError('DataType');
+                    throw new ODRNotFoundException('Datatype');
             }
 
             /** @var DataFields|null $datafield */
@@ -1182,7 +1193,7 @@ class DisplayController extends ODRCustomController
             if ($datafield_id !== 0) {
                 $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
                 if ($datafield == null)
-                    return parent::deletedEntityError('DataField');
+                    throw new ODRNotFoundException('Datafield');
             }
 
 
@@ -1195,15 +1206,15 @@ class DisplayController extends ODRCustomController
 
             if ($user === 'anon.') {
                 if ( !$grandparent_datatype->isPublic() || !$grandparent_datarecord->isPublic() )
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
 
                 // Check permissions on the specified datarecord if it exists
                 if ( $datarecord != null && !$datarecord->isPublic() )
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
 
                 // Check permissions on the specified datafield if it exists
                 if ( $datafield != null && !$datafield->isPublic() )
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
             }
             else {
                 // Grab the user's permission list
@@ -1221,7 +1232,7 @@ class DisplayController extends ODRCustomController
 
                 // If grandparent datatype is not public and user doesn't have permissions to view anything other than public sections of the grandparent datarecord, then don't allow them to view
                 if ( !($grandparent_datatype->isPublic() || $can_view_grandparent_datatype)  || !($grandparent_datarecord->isPublic() || $can_view_grandparent_datarecord) )
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
 
 
                 // Check permissions on the specified datarecord if it exists
@@ -1236,7 +1247,7 @@ class DisplayController extends ODRCustomController
 
                     // If datatype is not public and user doesn't have permissions to view anything other than public sections of the grandparent datarecord, then don't allow them to view
                     if ( !($datatype->isPublic() || $can_view_datatype)  || !($datarecord->isPublic() || $can_view_datarecord) )
-                        return parent::permissionDeniedError();
+                        throw new ODRForbiddenException();
                 }
 
                 // Check permissions on the specified datafield if it exists
@@ -1246,7 +1257,7 @@ class DisplayController extends ODRCustomController
                         $can_view_datafield = true;
 
                     if ( !($datafield->isPublic() || $can_view_datafield) )
-                        return parent::permissionDeniedError();
+                        throw new ODRForbiddenException();
                 }
             }
 
@@ -1391,9 +1402,11 @@ class DisplayController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x2479417: '.$e->getMessage();
+            $source = 0xce2c6ae9;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1465,9 +1478,14 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            $post = $_POST;
-//print_r($post);  exit();
+            // Symfony firewall won't permit GET requests to reach this point
+            $post = $request->request->all();
 
+            // Require at least one of these...
+            if ( !isset($post['files']) && !isset($post['images']) )
+                throw new ODRBadRequestException();
+
+            // Don't need to check whether the file/image ids are numeric...they're not sent to the database
             $file_ids = array();
             if ( isset($post['files']) )
                 $file_ids = $post['files'];
@@ -1492,11 +1510,11 @@ class DisplayController extends ODRCustomController
             /** @var DataRecord $grandparent_datarecord */
             $grandparent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($grandparent_datarecord_id);
             if ($grandparent_datarecord == null)
-                return parent::deletedEntityError('DataRecord');
+                throw new ODRNotFoundException('Datarecord');
 
             $grandparent_datatype = $grandparent_datarecord->getDataType();
             if ($grandparent_datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('DataType');
+                throw new ODRNotFoundException('Datatype');
 
 
             // ----------------------------------------
@@ -1638,11 +1656,13 @@ print '<pre>'.print_r($file_list, true).'</pre>';
 print '<pre>'.print_r($image_list, true).'</pre>';
 exit();
 */
+
             // ----------------------------------------
             // If any files/images remain...
             if ( count($file_list) == 0 && count($image_list) == 0 ) {
                 // TODO - what to return?
-                throw new \Exception('No files are available to download');
+                $exact = true;
+                throw new ODRNotFoundException('No files are available to download', $exact);
             }
             else {
                 // Generate the url for cURL to use
@@ -1704,9 +1724,11 @@ exit();
             $return['d'] = array('archive_filename' => $archive_filename, 'archive_size' => $archive_size);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x4148561: ' . $e->getMessage();
+            $source = 0xc31d45b5;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         // If error encountered, do a json return
@@ -1717,7 +1739,7 @@ exit();
 
 
     /**
-     *
+     * Downloads a zip archive constructed by self::startdownloadarchiveAction()
      *
      * @param string $archive_filename
      * @param Request $request
@@ -1732,19 +1754,19 @@ exit();
         $return['d'] = '';
 
         try {
-            // Can't really check permissions...
+            // TODO - some level of permissions checking?  maybe store archive filename in user's session?
 
-            // Ensure zip archive exists before attempting to download it
+            // Symfony firewall requires $archive_filename to match "0|[0-9a-zA-Z\-\_]{12}.zip"
             if ($archive_filename == '0')
-                throw new \Exception('Invalid archive filename');
+                throw new ODRBadRequestException();
 
             $archive_filepath = dirname(__FILE__).'/../../../../web/uploads/files/'.$archive_filename;
             if ( !file_exists($archive_filepath) )
-                throw new \Exception('Invalid archive filename');
+                throw new FileNotFoundException($archive_filename);
 
             $handle = fopen($archive_filepath, 'r');
             if ($handle === false)
-                throw new \Exception('Unable to open existing file at "'.$archive_filepath.'"');
+                throw new FileNotFoundException($archive_filename);
 
 
             // Set up a response to send the file back
@@ -1785,13 +1807,14 @@ exit();
             return $response;
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x848418123: ' . $e->getMessage();
+            // Force the error return to be in json
+            $request->setRequestFormat('json');
 
-            // The jquery $.fileDownload() behaves better if an error is returned as the responseHTML...
-            $response = new Response($return['d']);
-            return $response;
+            $source = 0xc953bbf3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 }

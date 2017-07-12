@@ -1,0 +1,13 @@
+{% spaceless %}
+
+<?xml version="1.0" encoding="{{ _charset }}" ?>
+
+<error code="{{ status_code }}" status_text="{{ status_text }}" message="{{ exception.message }}" exception_source="{{ exception_source }}">
+    {% for e in exception.toarray %}
+        <exception class="{{ e.class }}" message="{{ e.message }}">
+            {% include '@Twig/Exception/traces.xml.twig' with { 'exception': e } only %}
+        </exception>
+    {% endfor %}
+</error>
+
+{% endspaceless %}

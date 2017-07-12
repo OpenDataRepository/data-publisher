@@ -2002,6 +2002,7 @@ class ODRCustomController extends Controller
 
     /**
      * Utility function so other controllers can return 403 errors easily.
+     * @deprecated
      *
      * @param string $type
      *
@@ -2031,6 +2032,7 @@ class ODRCustomController extends Controller
 
     /**
      * Utility function so other controllers can notify of deleted entities easily.
+     * @deprecated
      *
      * @param string $entity
      *
