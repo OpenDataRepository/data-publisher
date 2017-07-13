@@ -37,7 +37,11 @@ use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
-// Forms
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Symfony
@@ -73,7 +77,7 @@ class MassEditController extends ODRCustomController
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
+                throw new ODRNotFoundException('Datatype');
 
             // --------------------
             // Determine user privileges
@@ -93,7 +97,7 @@ class MassEditController extends ODRCustomController
 
             // Ensure user has permissions to be doing this
             if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
             // ----------------------------------------
@@ -163,9 +167,11 @@ class MassEditController extends ODRCustomController
             $return['d'] = array( 'html' => $header_html.$page_html );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x12736279 ' . $e->getMessage();
+            $source = 0x50ff5a99;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -180,7 +186,9 @@ class MassEditController extends ODRCustomController
      * @param integer $datatype_id    The database id that the search was performed on.
      * @param string $odr_tab_id
      * @param Request $request
-     * 
+     *
+     * @throws ODRNotFoundException
+     *
      * @return string
      */
     private function massEditRender($datatype_id, $odr_tab_id, Request $request)
@@ -199,12 +207,12 @@ class MassEditController extends ODRCustomController
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
         if ($datatype == null)
-            return parent::deletedEntityError('Datatype');
+            throw new ODRNotFoundException('Datatype');
 
         /** @var Theme $theme */
         $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
         if ($theme == null)
-            return parent::deletedEntityError('Theme');
+            throw new ODRNotFoundException('Theme');
 
 
         // --------------------
@@ -282,13 +290,15 @@ class MassEditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Ensure post is valid
-            $post = $_POST;
-//print_r($post);
-//return;
+            // Force exceptions to be in json
+            $request->setRequestFormat('json');
+
+            $post = $request->request->all();
+//print_r($post);  exit();
+
 
             if ( !(isset($post['odr_tab_id']) && (isset($post['datafields']) || isset($post['public_status'])) && isset($post['datatype_id'])) )
-                throw new \Exception('bad post request');
+                throw new ODRBadRequestException();
 
             $odr_tab_id = $post['odr_tab_id'];
             $datafields = array();
@@ -303,14 +313,12 @@ class MassEditController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-//            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
             $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-//            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
+                throw new ODRNotFoundException('Datatype');
 
 //            $redis = $this->container->get('snc_redis.default');;
 //            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
@@ -338,7 +346,7 @@ class MassEditController extends ODRCustomController
 
             // Ensure user has permissions to be doing this
             if ( !$user->hasRole('ROLE_ADMIN') || !($datatype->isPublic() || $can_view_datatype) || !$can_edit_datarecord )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -357,7 +365,7 @@ class MassEditController extends ODRCustomController
 //print '<pre>'.print_r($results, true).'</pre>';  exit();
 
             if ( count($results) > 0 )
-                throw new \Exception('A mass edit job is already in progress for this Datatype');
+                throw new ODRException('A mass edit job is already in progress for this Datatype');
 
 
             // ----------------------------------------
@@ -413,7 +421,7 @@ class MassEditController extends ODRCustomController
             foreach ($datatype_list as $dt_id => $num) {
                 $grandparent_datatype_id = parent::getGrandparentDatatypeId($datatree_array, $dt_id);
                 if ($grandparent_datatype_id != $datatype->getId())
-                    throw new \Exception('Invalid Form');
+                    throw new ODRBadRequestException();
             }
 /*
 print '$datarecords: '.print_r($datarecords, true)."\n";
@@ -586,9 +594,11 @@ return;
             $em->flush();
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x24463979 ' . $e->getMessage();
+            $source = 0xf0de8b70;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -612,11 +622,16 @@ return;
         $return['d'] = '';
 
         try {
+            // Force exceptions to be in json
             $ret = '';
-            $post = $_POST;
-//$ret = print_r($post, true);
+            $request->setRequestFormat('json');
+
+            $post = $request->request->all();
+//print_r($post);  exit();
+
+
             if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecord_id']) || !isset($post['public_status']) || !isset($post['api_key']) )
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
@@ -640,7 +655,7 @@ return;
             $repo_user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User');
 
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
 
 
             // ----------------------------------------
@@ -650,11 +665,11 @@ return;
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                throw new \Exception('MassEditCommand.php: DataRecord '.$datarecord_id.' is deleted, skipping');
+                throw new ODRNotFoundException('MassEditCommand.php: DataRecord '.$datarecord_id.' is deleted, skipping');
 
             $datatype = $datarecord->getDataType();
-            if ($datatype == null)
-                throw new \Exception('MassEditCommand.php: DataRecord '.$datarecord_id.' belongs to a deleted DataType, skipping');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('MassEditCommand.php: DataRecord '.$datarecord_id.' belongs to a deleted DataType, skipping');
 
             $datatype_id = $datatype->getId();
 
@@ -743,9 +758,11 @@ return;
             $return['d'] = $ret;
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x392577639 ' . $e->getMessage();
+            $source = 0xb506e43f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -771,10 +788,15 @@ return;
         $ret = '';
 
         try {
-            $post = $_POST;
+            // Force exceptions to be in json
+            $request->setRequestFormat('json');
+
+            $post = $request->request->all();
+//print_r($post);  exit();
+
 
             if ( !isset($post['tracked_job_id']) || !isset($post['user_id']) || !isset($post['datarecord_id']) || !isset($post['datafield_id']) || !isset($post['value']) || !isset($post['api_key']) )
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
 
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
@@ -802,7 +824,7 @@ return;
             $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
 
             if ($api_key !== $beanstalk_api_key)
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
 
 
             // ----------------------------------------
@@ -812,16 +834,16 @@ return;
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                throw new \Exception('MassEditCommand.php: Datarecord '.$datarecord_id.' is deleted, skipping');
+                throw new ODRNotFoundException('MassEditCommand.php: Datarecord '.$datarecord_id.' is deleted, skipping');
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
-                throw new \Exception('MassEditCommand.php: Datafield '.$datafield_id.' is deleted, skipping');
+                throw new ODRNotFoundException('MassEditCommand.php: Datafield '.$datafield_id.' is deleted, skipping');
 
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() !== null)
-                throw new \Exception('MassEditCommand.php: Datatype '.$datatype->getId().' is deleted, skipping');
+                throw new ODRNotFoundException('MassEditCommand.php: Datatype '.$datatype->getId().' is deleted, skipping');
             $datatype_id = $datatype->getId();
 
 
@@ -1057,9 +1079,11 @@ $ret .=  "---------------\n";
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x61395739 ' . $e->getMessage();
+            $source = 0x99001e8b;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));

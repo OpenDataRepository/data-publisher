@@ -249,7 +249,7 @@
             });
         }
     }
-
+{#
     function downloadXSD(datatype_id) {
         var url = '{{ path('odr_get_datatype_xsd', { 'version': 'v1', 'datatype_id': 0 }) }}';
         url = url.substring(0, (url.length - 1));
@@ -257,7 +257,7 @@
 
         document.location = url;
     }
-
+#}
 {% if hidden_datatype_count != 0 %}
     function redoRowClasses() {
         var count = 0;

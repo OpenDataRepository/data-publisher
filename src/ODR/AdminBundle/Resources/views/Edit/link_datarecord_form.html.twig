@@ -72,16 +72,21 @@
 
         });
 
+        // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...
+        $.fn.dataTable.ext.errMode = 'none';
+        $(table).on('error.dt', function(e, settings, techNote, message) {
+            console.log(message);
+        });
 
         // Ensure checkboxes have proper state on redraw of table
         $(table).on('draw.dt', function() {
             initCheckboxes("#TextResults_current", true);
         });
 
-        {% if count > 0 %}
+{% if count > 0 %}
         // Prepend a header for the checkbox column
         $("#TextResults_current").children('thead').children('tr').prepend('<th rowspan="1" colspan="1">Linked?</th>');
-        {% endif %}
+{% endif %}
 
         // Initial checking of linked checkboxes
         initCheckboxes("#TextResults_current", true);

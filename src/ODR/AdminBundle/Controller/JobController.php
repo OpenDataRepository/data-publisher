@@ -21,6 +21,10 @@ use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -45,7 +49,6 @@ class JobController extends ODRCustomController
         $return['d'] = '';
 
         try {
-
             $jobs = array(
 //                'recache' => 'Recaching',
                 'migrate' => 'DataField Migration',
@@ -68,12 +71,13 @@ class JobController extends ODRCustomController
                     )
                 )
             );
-
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x32268134 ' . $e->getMessage();
+            $source = 0x070b08bb;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -105,9 +109,11 @@ class JobController extends ODRCustomController
                 $return['d'] = self::refreshJob($user, $job_type, intval($job_id), $request);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x32221345 ' . $e->getMessage();
+            $source = 0xbafc9425;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -429,7 +435,7 @@ class JobController extends ODRCustomController
                 /** @var DataType $datatype */
                 $datatype = $repo_datatype->find($datatype_id);
                 if ($datatype == null) {
-                    return parent::deletedEntityError('DataType');
+                    throw new ODRNotFoundException('Datatype');
                 }
                 else {
                     // --------------------
@@ -441,7 +447,7 @@ class JobController extends ODRCustomController
 
                     // Ensure user has permissions to be doing this
                     if ( !(isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_admin'])) )   // TODO - change from is_admin permission?
-                        return parent::permissionDeniedError("admin");
+                        throw new ODRForbiddenException();
                     // --------------------
                 }
             }
@@ -458,9 +464,11 @@ class JobController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x32791345 ' . $e->getMessage();
+            $source = 0x8501ab5c;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));

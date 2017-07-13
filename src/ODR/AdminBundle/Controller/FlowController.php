@@ -11,6 +11,8 @@
  * but has been modified to work with Symfony's natural file handling, and
  * further modified to meed the specific needs of ODR.
  *
+ * Due to the needs of the library, this controller intentionally does not use ODR's custom exceptions.
+ *
  * @see https://github.com/flowjs/flow.js
  * @see https://github.com/flowjs/flow-php-server
  *

@@ -1,33 +1,27 @@
 <?php
 
 /**
-* Open Data Repository Data Publisher
-* MassEdit Command
-* (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
-* (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
-* Released under the GPLv2
-*
-* This Symfony console command takes beanstalk jobs from the
-* mass_edit tube and passes the parameters to WorkerController,
-* which will make a given edit to multiple DataRecord entities
-* at once.
-*
-*/
+ * Open Data Repository Data Publisher
+ * MassEdit Command
+ * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
+ * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
+ * Released under the GPLv2
+ *
+ * This Symfony console command takes beanstalk jobs from the
+ * mass_edit tube and passes the parameters to WorkerController,
+ * which will make a given edit to multiple DataRecord entities
+ * at once.
+ *
+ */
 
 namespace ODR\AdminBundle\Command;
 
-//use Symfony\Component\Console\Command\Command;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
-
-
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
-// dunno if needed
-use ODR\AdminBundle\Entity\DataRecord;
-use ODR\AdminBundle\Entity\DataType;
 
 class MassEditCommand extends ContainerAwareCommand
 {
@@ -141,6 +135,12 @@ class MassEditCommand extends ContainerAwareCommand
                             $output->writeln( $result->d );
                             $delete_job = false;
                         }
+                    }
+                    else if ( isset($result->error) ) {
+                        $error = $result->error;
+                        $message = $error->code.' '.$error->status_text.' ('.$error->exception_source.'): '.$error->message;
+
+                        $output->writeln( $message );
                     }
                     else {
                         // Should always be a json return...

@@ -21,12 +21,12 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 // Entities
 use ODR\AdminBundle\Entity\DataType;
 use ODR\OpenRepository\UserBundle\Entity\User;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRException;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\Cookie;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 
 class DefaultController extends ODRCustomController
@@ -41,7 +41,6 @@ class DefaultController extends ODRCustomController
      */
     public function indexAction(Request $request)
     {
-        $html = '';
 
         try {
             // Grab the current user
@@ -53,11 +52,10 @@ class DefaultController extends ODRCustomController
             $datatype_permissions = array();
             if ($user !== 'anon.') {
                 $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
-//            $user_permissions = parent::getUserPermissionsArray($em, $user->getId(), true);
                 $datatype_permissions = $user_permissions['datatypes'];
             }
 
-            // Render the base html for the page...$this->render() apparently creates a full Reponse object
+            // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
             $html = $this->renderView(
                 'ODRAdminBundle:Default:index.html.twig',
                 array(
@@ -65,15 +63,18 @@ class DefaultController extends ODRCustomController
                     'user_permissions' => $datatype_permissions,
                 )
             );
+
+            $response = new Response($html);
+            $response->headers->set('Content-Type', 'text/html');
+            return $response;
         }
         catch (\Exception $e) {
-            // This and ODROpenRepositorySearchBundle:Default:searchAction() are currently the only two controller actions that make Symfony handle the errors instead of AJAX popups
-            throw new HttpException( 500, 'Error 0x1436562', $e );
+            $source = 0xe75008d8;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
-
-        $response = new Response($html);
-        $response->headers->set('Content-Type', 'text/html');
-        return $response;
     }
 
 
@@ -92,14 +93,14 @@ class DefaultController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // ----------------------------------------
             // Ensure user has correct set of permissions, since this is immediately called after login...
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            // No caching in dev environment
-            $bypass_cache = false;
-            if ($this->container->getParameter('kernel.environment') === 'dev')
-                $bypass_cache = true;
+            $redis = $this->container->get('snc_redis.default');;
+            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
 
 
             /** @var User $user */
@@ -107,10 +108,12 @@ class DefaultController extends ODRCustomController
             $user_permissions = parent::getUserPermissionsArray($em, $user->getId());
             $datatype_permissions = $user_permissions['datatypes'];
 
-            // Grab the cached graph data
-            $redis = $this->container->get('snc_redis.default');;
-            // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+
+            // ----------------------------------------
+            // No caching in dev environment
+            $bypass_cache = false;
+            if ($this->container->getParameter('kernel.environment') === 'dev')
+                $bypass_cache = true;
 
             // Only want to create dashboard html graphs for top-level datatypes...
             $datatree_array = parent::getDatatreeArray($em);
@@ -190,9 +193,11 @@ class DefaultController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x1883779 ' . $e->getMessage();
+            $source = 0x4406ae1a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));

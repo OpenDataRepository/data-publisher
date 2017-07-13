@@ -60,6 +60,12 @@
 
         });
 
+        // Don't want dataTables to make an alert() every time it encounters an error, but still want to make a note of it...
+        $.fn.dataTable.ext.errMode = 'none';
+        $(search_table).on('error.dt', function(e, settings, techNote, message) {
+            console.log(message);
+        });
+
         // Because this table is dynamic, it needs to check for potential changes in the number of columns that it loads via ajax...
         $(search_table).on('xhr.dt', function(e, settings, json) {
             // check number of columns in json array
@@ -136,7 +142,6 @@
         initCheckboxes("#TextResults_current", true);
         initCheckboxes("#TextResults_search", false);
     }
-
 </script>
 
 {% endspaceless %}

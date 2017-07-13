@@ -91,8 +91,8 @@ class ODRExceptionController extends ExceptionController
         if (!$logged_in && $status_code == 403)
             $status_code = 401;
 
-        // Convert the "code" variable back into a hex string
-        $exception_source = '0x'.dechex( $exception->getCode() );
+        // Convert the integer "code" variable back into a hex string...right-pad to 8 digit hex
+        $exception_source = sprintf('0x%08x', $exception->getCode() );
 
 
         // ----------------------------------------

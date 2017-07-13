@@ -17,12 +17,16 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\OpenRepository\UserBundle\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
+use ODR\OpenRepository\UserBundle\Entity\User;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Forms
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -47,12 +51,11 @@ class TextResultsController extends ODRCustomController
 
         try {
             // ----------------------------------------
-            $session = $request->getSession();
+            // Symfony firewall won't permit GET requests to reach this point
+            $post = $request->request->all();
 
-            // Grab data from post...
-            $post = $_POST;
-//print_r($post);
-//return;
+            if ( !isset($post['datatype_id']) || !isset($post['theme_id']) || !isset($post['draw']) || !isset($post['start']) )
+                throw new ODRBadRequestException();
 
             $odr_tab_id = '';
             if ( isset($post['odr_tab_id']) && trim($post['odr_tab_id']) !== '' )
@@ -62,6 +65,8 @@ class TextResultsController extends ODRCustomController
             $theme_id = intval( $post['theme_id'] );
             $draw = intval( $post['draw'] );    // intval() because of recommendation by datatables documentation
             $start = intval( $post['start'] );
+
+            $session = $request->getSession();
 
             // Need to deal with requests for a sorted table...
             $sort_column = 0;
@@ -94,7 +99,7 @@ class TextResultsController extends ODRCustomController
             // search_key is optional
             $search_key = '';
             if ( isset($post['search_key']) )
-                $search_key = urldecode($post['search_key']);   // apparently have to decode this because it's coming through a POST request instead of a GET?
+                $search_key = urldecode($post['search_key']);   // Symfony doesn't automatically decode this since it's not coming through a GET request
 
 
             // ----------------------------------------
@@ -105,14 +110,15 @@ class TextResultsController extends ODRCustomController
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
-                throw new \Exception('Datatype is deleted');
+                throw new ODRNotFoundException('Datatype');
 
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
             if ($theme == null)
-                throw new \Exception('Theme is deleted');
+                throw new ODRNotFoundException('Theme');
             if ($theme->getDataType()->getId() !== $datatype->getId() || $theme->getThemeType() !== 'table')
-                throw new \Exception('Invalid request');
+                throw new ODRBadRequestException();
+
 
             // Determine whether user is logged in or not
             /** @var User $user */
@@ -324,9 +330,11 @@ class TextResultsController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x122280082 ' . $e->getMessage();
+            $source = 0xa1955869;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -370,15 +378,16 @@ class TextResultsController extends ODRCustomController
             $session->set('stored_tab_data', $stored_tab_data);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x182060382 ' . $e->getMessage();
+            $source = 0x25baf2e3;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -423,15 +432,16 @@ class TextResultsController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x906023282 ' . $e->getMessage();
+            $source = 0xbb8573dc;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 
@@ -464,15 +474,16 @@ class TextResultsController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x923362822 ' . $e->getMessage();
+            $source = 0x9c3bb094;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
-
     }
 
 }

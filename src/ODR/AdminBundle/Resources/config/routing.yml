@@ -817,18 +817,6 @@ odr_datatables_state_destroy:
 
 #-----------------------------------------
 # XSD Controller
-#odr_xsd_generate_datatype:
-#    path:  /admin/xsd/build/{datatype_id}
-#    defaults: { _controller: ODRAdminBundle:XSD:builddatatype }
-#    requirements:
-#        datatype_id:  \d+
-
-#odr_xsd_download:
-#    path:  /admin/xsd/download/{datatype_id}
-#    defaults: { _controller: ODRAdminBundle:XSD:downloadXSD }
-#    requirements:
-#        datatype_id:  \d+
-
 odr_get_datatype_xsd:
     path:  /api/schema/datatype/{version}/{datatype_id}
     defaults: { _controller: ODRAdminBundle:XSD:getDatatypeXSD }
@@ -870,18 +858,6 @@ odr_xml_import_file_download:
 
 #-----------------------------------------
 # XMLExport Controller
-#odr_xml_export:
-#    path:  /admin/xml/export/{datarecord_id}
-#    defaults: { _controller: ODRAdminBundle:XMLExport:export }
-#    requirements:
-#        datarecord_id: \d+
-
-#odr_xml_download:
-#    path:  /admin/xml/download/{datarecord_id}
-#    defaults: { _controller: ODRAdminBundle:XMLExport:downloadXML }
-#    requirements:
-#        datarecord_id: \d+
-
 odr_get_datarecord_xml:
     path:  /api/datarecord/{version}/{datarecord_id}/{format}
     defaults: { _controller: ODRAdminBundle:XMLExport:getDatarecordXML, format: 'xml' }
