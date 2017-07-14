@@ -11,8 +11,8 @@
  * completely replaces the default FoS functionality for creating,
  * editing, and deleting users.
  *
- * Password resetting and changing are handled by the ODR UserBundle,
- * which overrides the relevant sections of the FoS bundle.
+ * Password resetting is handled by the ODR UserBundle by overriding
+ * the relevant section of the FoSUserBundle.
  *
  */
 
@@ -26,6 +26,11 @@ use ODR\AdminBundle\Entity\Group;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\OpenRepository\OAuthClientBundle\Entity\UserLink;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Forms
 use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
 use ODR\AdminBundle\Form\ODRUserProfileForm;
@@ -72,7 +77,7 @@ class ODRUserController extends ODRCustomController
             }
 
             if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )
-                return parent::permissionDeniedError();
+                throw new ODRForbiddenException();
             // --------------------
 
             // Create the form that will be used
@@ -92,9 +97,11 @@ class ODRUserController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x882775132 ' . $e->getMessage();
+            $source = 0xeaa9d56a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -119,6 +126,11 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // Ensure request is properly formed first
+            $post = $request->request->all();
+            if ( !isset($post['email']) )
+                throw new ODRBadRequestException();
+
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
@@ -136,14 +148,10 @@ class ODRUserController extends ODRCustomController
             }
 
             if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )
-                return parent::permissionDeniedError();
+                throw new ODRForbiddenException();
             // --------------------
 
             // Attempt to find a user with this email address
-            $post = $request->request->all();
-            if ( !isset($post['email']) )
-                throw new \Exception('Invalid Form');
-
             $email = $post['email'];
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var ODRUser $user */
@@ -156,9 +164,11 @@ class ODRUserController extends ODRCustomController
                 $return['d'] = 0;
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x822773532 ' . $e->getMessage();
+            $source = 0x4a78400f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -182,17 +192,19 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // Ensure request is properly formed first
+            $post = $request->request->all();
+            if ( !isset($post['ODRUserProfileForm']) )
+                throw new ODRBadRequestException();
+            $post = $post['ODRUserProfileForm'];
+
+
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $user_manager = $this->container->get('fos_user.user_manager');
             $router = $this->get('router');
 
-            $post = $request->request->all();
-            if ( !isset($post['ODRUserProfileForm']) )
-                throw new \Exception('Invalid Form');
-
-            $post = $post['ODRUserProfileForm'];
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -208,7 +220,7 @@ class ODRUserController extends ODRCustomController
             }
 
             if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )
-                return parent::permissionDeniedError();
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -261,9 +273,11 @@ class ODRUserController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = array('html' => 'Error 0x217735332 ' . $e->getMessage());
+            $source = 0xc5f96e25;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -295,7 +309,6 @@ class ODRUserController extends ODRCustomController
             // User is doing this to his own profile, by definition
             $self_edit = true;
 
-
             // TODO - disable if HWIOAuthBundle isn't installed?
             // Store whether any OAuth providers have been configured
             $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
@@ -316,7 +329,6 @@ class ODRUserController extends ODRCustomController
                     }
                 }
             }
-
 
             // ----------------------------------------
             // Create a new form to edit the user
@@ -341,9 +353,11 @@ class ODRUserController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x678877532 ' . $e->getMessage();
+            $source = 0x97f688bd;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -375,7 +389,7 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ($user == null || !$user->isEnabled())
-                return parent::deletedEntityError('User');
+                throw new ODRNotFoundException('User');
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -387,7 +401,7 @@ class ODRUserController extends ODRCustomController
 
                 // If user lacks super admin and admin roles, not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
 
                 // Grab permissions of both target user and admin
                 $admin_permissions = parent::getUserPermissionsArray($em, $admin->getId());
@@ -409,7 +423,7 @@ class ODRUserController extends ODRCustomController
 
                 // If not allowed, block access
                 if (!$allow)
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
             }
             // --------------------
 
@@ -440,7 +454,6 @@ class ODRUserController extends ODRCustomController
                 }
             }
 
-
             // Create a new form to edit the user
             $form = $this->createForm(ODRUserProfileForm::class, $user, array('target_user_id' => $user->getId()));
 
@@ -463,9 +476,11 @@ class ODRUserController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x678877532 ' . $e->getMessage();
+            $source = 0xb6a03520;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -489,22 +504,31 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // Need to get the user id out of the form to check permissions...
+            $post = $request->request->all();
+            if ( !isset($post['ODRUserProfileForm']) )
+                throw new ODRBadRequestException();
+            if ( !isset($post['ODRUserProfileForm']['user_id']) )
+                throw new ODRBadRequestException();
+
+            $user_id = intval( $post['ODRUserProfileForm']['user_id'] );
+
             // Grab the current user
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Only allow this if the user is modifying their own profile
-            $post = $request->request->all();
-            if ( isset($post['ODRUserProfileForm']) && $user->getId() == $post['ODRUserProfileForm']['user_id'])
-                $return = self::saveProfile($request);
-            else
-                throw new \Exception('Invalid form');
+            if ($user->getId() !== $user_id)
+                throw new ODRBadRequestException();
 
+            self::saveProfile($user_id, $request);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x678773129 ' . $e->getMessage();
+            $source = 0x4c69f197;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -530,9 +554,11 @@ class ODRUserController extends ODRCustomController
         try {
             // Need to get the user id out of the form to check permissions...
             $post = $request->request->all();
-
             if ( !isset($post['ODRUserProfileForm']) )
-                throw new \Exception('Invalid Form');
+                throw new ODRBadRequestException();
+            if ( !isset($post['ODRUserProfileForm']['user_id']) )
+                throw new ODRBadRequestException();
+
             $user_id = intval( $post['ODRUserProfileForm']['user_id'] );
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -540,8 +566,8 @@ class ODRUserController extends ODRCustomController
 
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
-            if ($user == null)
-                return parent::deletedEntityError('User');
+            if ($user == null || !$user->isEnabled())
+                throw new ODRNotFoundException('User');
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -553,7 +579,7 @@ class ODRUserController extends ODRCustomController
 
                 // If user lacks super admin and admin roles, not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
 
                 // Grab permissions of both target user and admin
                 $admin_permissions = parent::getUserPermissionsArray($em, $admin->getId());
@@ -575,17 +601,19 @@ class ODRUserController extends ODRCustomController
 
                 // If not allowed, block access
                 if (!$allow)
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
             }
             // --------------------
 
             // Save any changes to the profile
-            $return = self::saveProfile($request);
+            self::saveProfile($user_id, $request);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x678773129 ' . $e->getMessage();
+            $source = 0xc6125a86;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -596,18 +624,14 @@ class ODRUserController extends ODRCustomController
 
     /**
      * Saves modifications to user profiles to the database.
-     * 
+     *
+     * @param integer $target_user_id
      * @param Request $request
      * 
-     * @return array
+     * @throws ODRException
      */
-    private function saveProfile(Request $request)
+    private function saveProfile($target_user_id, Request $request)
     {
-        $return = array();
-        $return['r'] = 0;
-        $return['t'] = '';
-        $return['d'] = '';
-
         // Get required objects
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
@@ -616,20 +640,10 @@ class ODRUserController extends ODRCustomController
 
 //        $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-        // Grab which user is being modified
-        $post = $request->request->all();
-        if ( !isset($post['ODRUserProfileForm']) ) {
-            $return['r'] = 1;
-            $return['d'] = array('html' => 'Invalid Form');
-            return $return;
-        }
-
-        $post = $post['ODRUserProfileForm'];
-        $target_user_id = intval( $post['user_id'] );
         /** @var ODRUser $target_user */
         $target_user = $repo_user->find($target_user_id);
         if ($target_user == null)
-            return parent::deletedEntityError('User');
+            throw new ODRNotFoundException('User');     // theoretically shouldn't happen
 
         $email = $target_user->getEmail();
 
@@ -640,6 +654,7 @@ class ODRUserController extends ODRCustomController
         if ($form->isSubmitted()) {
 
             // TODO - check for additional non-password errors to throw?
+            //$form->addError( new FormError('do not save') );
 
             // If no errors...
             if ($form->isValid()) {
@@ -650,13 +665,9 @@ class ODRUserController extends ODRCustomController
             else {
                 // Form validation failed
                 $error_str = parent::ODR_getErrorMessages($form);
-
-                $return['r'] = 1;
-                $return['d'] = array('html' => $error_str);
+                throw new ODRException($error_str);
             }
         }
-
-        return $return;
     }
 
 
@@ -683,7 +694,7 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $target_user */
             $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ($target_user == null || !$target_user->isEnabled())
-                return parent::deletedEntityError('User');
+                throw new ODRNotFoundException('User');
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -695,7 +706,7 @@ class ODRUserController extends ODRCustomController
 
                 // If user lacks super admin and admin roles, not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
 
                 // Grab permissions of both target user and admin
                 $admin_permissions = parent::getUserPermissionsArray($em, $admin->getId());
@@ -717,7 +728,7 @@ class ODRUserController extends ODRCustomController
 
                 // If not allowed, block access
                 if (!$allow)
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
             }
             // --------------------
 
@@ -739,9 +750,11 @@ class ODRUserController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x677153132 ' . $e->getMessage();
+            $source = 0x6c1fc667;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -765,22 +778,26 @@ class ODRUserController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // Need to get the user id out of the form to check permissions...
+            $post = $request->request->all();
+            if ( !isset($post['ODRAdminChangePasswordForm']) )
+                throw new ODRBadRequestException();
+            if ( !isset($post['ODRAdminChangePasswordForm']['user_id']) )
+                throw new ODRBadRequestException();
+
+            $target_user_id = intval( $post['ODRAdminChangePasswordForm']['user_id'] );
+
+
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $user_manager = $this->container->get('fos_user.user_manager');
 
-            $post = $request->request->all();
-            if ( !isset($post['ODRAdminChangePasswordForm']) )      // TODO - better way of grabbing this?
-                throw new \Exception('Invalid Form');
-
-            // Locate the target user
-            $post = $post['ODRAdminChangePasswordForm'];
-            $target_user_id = intval( $post['user_id'] );
             /** @var ODRUser $target_user */
             $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($target_user_id);
             if ($target_user == null)
-                return parent::deletedEntityError('User');
+                throw new ODRNotFoundException('User');
+
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -792,7 +809,7 @@ class ODRUserController extends ODRCustomController
 
                 // If user lacks super admin and admin roles, not allowed to do this
                 if ( !$admin->hasRole('ROLE_ADMIN') )
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
 
                 // Grab permissions of both target user and admin
                 $admin_permissions = parent::getUserPermissionsArray($em, $admin->getId());
@@ -814,7 +831,7 @@ class ODRUserController extends ODRCustomController
 
                 // If not allowed, block access
                 if (!$allow)
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
             }
             // --------------------
 
@@ -827,8 +844,7 @@ class ODRUserController extends ODRCustomController
                 // Password length and complexity is handled by the isPasswordValid() callback function in ODR\OpenRepository\UserBundle\Entity\User
 
                 // TODO - check for additional errors to throw?
-
-//$form->addError( new FormError('do not save...') );
+                //$form->addError( new FormError('do not save') );
 
                 // If no errors...
                 if ($form->isValid()) {
@@ -838,16 +854,16 @@ class ODRUserController extends ODRCustomController
                 else {
                     // Form validation failed
                     $error_str = parent::ODR_getErrorMessages($form);
-
-                    $return['r'] = 1;
-                    $return['d'] = array('html' => $error_str);
+                    throw new ODRException($error_str);
                 }
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = array('html' => 'Error 0x213534325 ' . $e->getMessage());
+            $source = 0x482172cc;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -887,9 +903,9 @@ class ODRUserController extends ODRCustomController
                     $admin_permission_count++;
             }
 
-//            if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') && $admin_permission_count == 0 )  // provide access to super admins or those with at least one 'is_datatype_admin' permission
-            if ( !$admin_user->hasRole('ROLE_ADMIN') || $admin_permission_count == 0 )          // deny access if user does not have any 'is_datatype_admin' permissions, or if user is not admin/super admin
-                return parent::permissionDeniedError();
+            // Deny access if user does not have any 'is_datatype_admin' permissions, or if user is not admin/super admin
+            if ( !$admin_user->hasRole('ROLE_ADMIN') || $admin_permission_count == 0 )
+                throw new ODRForbiddenException();
             // --------------------
 
             // Grab all the users
@@ -932,9 +948,11 @@ class ODRUserController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x68871752 ' . $e->getMessage();
+            $source = 0x4f9fcf8c;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -963,7 +981,7 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin */
             $admin = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
-                return parent::permissionDeniedError();
+                throw new ODRForbiddenException();
             // --------------------
 
             // Grab all the users
@@ -996,9 +1014,11 @@ class ODRUserController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x48871752 ' . $e->getMessage();
+            $source = 0xaa351c38;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1029,7 +1049,7 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') )
-                return parent::permissionDeniedError();
+                throw new ODRForbiddenException();
             // --------------------
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1038,13 +1058,15 @@ class ODRUserController extends ODRCustomController
 
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            if ($user == null || !$user->isEnabled())
+                throw new ODRNotFoundException('User');
 
             if (!$user->isEnabled())
-                throw new \Exception('Unable to change role of a deleted User');
+                throw new ODRException('Unable to change role of a deleted User');
             if ( $user->getId() == $admin_user->getId() && $role !== 'jupyterhub' )
-                throw new \Exception('Unable to change own role');
+                throw new ODRException('Unable to change own role');
 //            if ( $user->hasRole('ROLE_SUPER_ADMIN') )
-//                throw new \Exception('Unable to change role of another Super-Admin');
+//                throw new ODRException('Unable to change role of another Super-Admin');
 
 
 /*
@@ -1130,9 +1152,11 @@ class ODRUserController extends ODRCustomController
             $user_manager->updateUser($user);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x48781756 ' . $e->getMessage();
+            $source = 0xee335a24;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1162,7 +1186,7 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') )
-                return parent::permissionDeniedError();
+                throw new ODRForbiddenException();
             // --------------------
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1171,12 +1195,12 @@ class ODRUserController extends ODRCustomController
 
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
-            if (!$user->isEnabled())
-                throw new \Exception('User is already deleted');
+            if ($user == null || !$user->isEnabled())
+                throw new ODRNotFoundException('User');
 
             // Prevent super-admins from being deleted?
 //            if ( $user->hasRole('ROLE_SUPER_ADMIN') )
-//                throw new \Exception('Unable to delete another Super-Admin user');
+//                throw new ODRException('Unable to delete another Super-Admin user');
 
             // Remove user from all the groups they're currently a member of
             $query_str = '
@@ -1224,9 +1248,11 @@ class ODRUserController extends ODRCustomController
             );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x88817522 ' . $e->getMessage();
+            $source = 0x750059fa;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1256,7 +1282,7 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
             if ( !$admin_user->hasRole('ROLE_SUPER_ADMIN') )
-                return parent::permissionDeniedError();
+                throw new ODRForbiddenException();
             // --------------------
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1265,9 +1291,8 @@ class ODRUserController extends ODRCustomController
 
             /** @var ODRUser $user */
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
-            if ($user->isEnabled())
-                throw new \Exception('User is already active');
-
+            if ($user == null || $user->isEnabled())
+                throw new ODRNotFoundException('User');
 
             // This may not be the right way to do it...
             $user->setEnabled(1);
@@ -1291,9 +1316,11 @@ class ODRUserController extends ODRCustomController
 
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x88817523 ' . $e->getMessage();
+            $source = 0x79443334;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1342,9 +1369,11 @@ class ODRUserController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x648812732 ' . $e->getMessage();
+            $source = 0x1cfad2a4;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1377,16 +1406,16 @@ class ODRUserController extends ODRCustomController
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
+                throw new ODRNotFoundException('Datatype');
 
             /** @var ODRUser $target_user */
             $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ($target_user == null || !$target_user->isEnabled())
-                return parent::deletedEntityError('User');
+                throw new ODRNotFoundException('User');
 
             $top_level_datatypes = parent::getTopLevelDatatypes();
             if ( !in_array($datatype_id, $top_level_datatypes) )
-                throw new \Exception('Not allowed to run this on child Datatypes');
+                throw new ODRBadRequestException('Only available for top-level Datatypes');
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -1401,10 +1430,10 @@ class ODRUserController extends ODRCustomController
 
                 // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
                 if ( !isset($datatype_permissions[$datatype_id]) || !isset($datatype_permissions[$datatype_id]['dt_admin']) )
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
             }
             else {
-                return parent::permissionDeniedError();
+                throw new ODRForbiddenException();
             }
             // --------------------
 
@@ -1434,9 +1463,11 @@ class ODRUserController extends ODRCustomController
             );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x881216122 ' . $e->getMessage();
+            $source = 0x8f12f6cb;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1477,21 +1508,21 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $target_user */
             $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             if ($target_user == null || !$target_user->isEnabled())
-                return parent::deletedEntityError('User');
+                throw new ODRNotFoundException('User');
 
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
             if ($theme == null)
-                return parent::deletedEntityError('Theme');
+                throw new ODRNotFoundException('Theme');
 
             $datatype = $theme->getDataType();
             if ($datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('Datatype');
+                throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
             $top_level_datatypes = parent::getTopLevelDatatypes();
             if ( !in_array($datatype_id, $top_level_datatypes) )
-                throw new \Exception('Not allowed to run this on child Datatypes');
+                throw new ODRBadRequestException('Only available for top-level Datatypes');
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -1506,10 +1537,10 @@ class ODRUserController extends ODRCustomController
 
                 // If requesting user isn't an admin for this datatype, don't allow them to set datafield permissions for other users
                 if ( !isset($datatype_permissions[$datatype_id]) || !isset($datatype_permissions[$datatype_id]['dt_admin']) )
-                    return parent::permissionDeniedError();
+                    throw new ODRForbiddenException();
             }
             else {
-                return parent::permissionDeniedError();
+                throw new ODRForbiddenException();
             }
             // --------------------
 
@@ -1572,9 +1603,11 @@ class ODRUserController extends ODRCustomController
             );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x12612834 ' . $e->getMessage();
+            $source = 0x1206f648;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));

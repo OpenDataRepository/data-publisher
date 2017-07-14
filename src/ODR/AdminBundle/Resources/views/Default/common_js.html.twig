@@ -17,6 +17,7 @@
             }
         });
 
+
         // Detect refresh of page?
         $(window).on('load', function() {
             if ( window.location.hash != '') {
@@ -182,7 +183,7 @@
         }
         // Default use_fade to 1
         if (undefined == use_fade)
-            use_fade = true
+            use_fade = true;
 
         // TODO Determine if this HACK is needed
         // Delete the DataTables fixed headers and bindings.
@@ -190,15 +191,15 @@
  	    jQuery('.fixedHeader-floating').remove();
 
 
-        var faded_opacity = 0.15
+        var faded_opacity = 0.15;
         if(!use_fade) {
-            faded_opacity = 1
+            faded_opacity = 1;
         }
 
         // Hide the properties menu
         // $("#ODRNavRightWrapper").fadeOut('fast');
         // Disable scroll handlers
-        $(window).off('scroll')
+        $(window).off('scroll');
         $("#content").fadeTo(200, faded_opacity, function() {
             // TODO Document what this is doing.
             if (xhr != null)
@@ -210,30 +211,28 @@
                 data = {'odr_tab_id': window.sessionStorage.getItem('odr_tab_id')};
 
             // Load to Content area
-            var dataType = "json";
             xhr = $.ajax({
                 cache: false,
                 type: 'GET',
                 url: url,
-                dataType: dataType,
+                dataType: "json",
                 data: data,
                 success: function(data, textStatus, jqXHR) {
-                    if ((data.r == 0) || (data.r == 403)) {
 
+                    if ( data.r == 2 ) {   // for redirects to another url
+                        xhr = null;
+                        UpdateURL( data.d.url );
+                    }
+                    else {
                         $("#content").html(data.d.html);
                         $("#content").fadeTo(200, 1.0);
 
                         xhr = null;
                     }
-                    else if ( data.r == 2 ) {   // for redirects to another url
-                        xhr = null;
-                        UpdateURL( data.d.url );
-                    }
-                    else {
-                        // An error has occurred.
-                        // Show Error message dialog
-                        alert(data.d);
-                    }
+
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
                 },
                 complete: function(jqXHR, textStatus) {
                     // Get the xdebugToken from response headers

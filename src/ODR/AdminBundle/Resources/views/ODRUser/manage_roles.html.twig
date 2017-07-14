@@ -1,82 +1,81 @@
 {% spaceless %}
 
-<div class="header">
-    <h2>User List
-        <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
-    </h2>
-</div>
+<div class="ODRContentWrapper pure-u-1">
+    <div class="ODRThemeElement pure-u-1">
+        <div class="ODRInnerBox pure-u-1">
+            <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i>
+                User List
+                <span id="saved">&nbsp;&nbsp;&nbsp;SAVED</span>
+            </h3>
 
-<div class="content">
-
-<div class="ODRTableOuterWrap">
-<div class="ODRTableWrap">
-    <table class="pure-table pure-table-striped" style="width: 100%">
-        <thead>
-            <tr>
-                <th>User Name</th>
-                <th class="Pointer ODRCenterText" title="Restricted to datatypes they have permissions for">User</th>
-                <th class="Pointer ODRCenterText" title="Able to create new datatypes and delete datatypes they are admin of, but still restricted by datatype permissions">Admin</th>
-                <th class="Pointer ODRCenterText" title="Able to create new users, change user roles, and perform any action to any datatype">Super Admin</th>
-
-                {% if using_jupyterhub %}
-                    <th class="Pointer ODRCenterText" title="Able to access JupyterHub">JupyterHub User</th>
-                {% endif %}
-            </tr>
-        </thead>
-        <tbody>
-        {% for user in users %}
-
-            {% if user.enabled == 1 %}
-            <tr>
-                <td>{{ user.username }}</td>
-
-                {% set level = 0 %}
-                {% for role in user.getroles %}
-                    {% if role == 'ROLE_SUPER_ADMIN' %}
-                        {% set level = level + 4 %}
-                    {% elseif role == 'ROLE_ADMIN' %}
-                        {% set level = level + 2 %}
-                    {% elseif role == 'ROLE_USER' %}
-                        {% set level = level + 1 %}
-                    {% endif %}
-                {% endfor %}
-
-                <td class="ODRCenterText">
-                    <input id="user_{{ user.id }}" onclick="setRole('user_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 1 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
-                </td>
-                <td class="ODRCenterText">
-                    <input id="admin_{{ user.id }}" onclick="setRole('admin_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 3 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
-                </td>
-                <td class="ODRCenterText">
-                    <input id="sadmin_{{ user.id }}" onclick="setRole('sadmin_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 7 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
-                </td>
+            <div class="ODRBodyContent">
+                <table class="pure-table pure-table-striped" style="width: 100%">
+                    <thead><tr>
+                        <th>User Name</th>
+                        <th class="Pointer ODRCenterText" title="Restricted to datatypes they have permissions for">User</th>
+                        <th class="Pointer ODRCenterText" title="Able to create new datatypes and delete datatypes they are admin of, but still restricted by datatype permissions">Admin</th>
+                        <th class="Pointer ODRCenterText" title="Able to create new users, change user roles, and perform any action to any datatype">Super Admin</th>
 {#
-                {% if using_jupyterhub %}
-                    <td class="ODRCenterText">
-                        <input id="jupyterhub_{{ user.id }}" onclick="setRole('jupyterhub_{{ user.id }}');" type="checkbox" name="user_{{ user.id }}" {% if user.hasRole('ROLE_JUPYTERHUB_USER') %}checked{% endif %} />
-                    </td>
-                {% endif %}
+                    {% if using_jupyterhub %}
+                        <th class="Pointer ODRCenterText" title="Able to access JupyterHub">JupyterHub User</th>
+                    {% endif %}
 #}
-            </tr>
-            {% endif %}
+                    </tr></thead>
+                    <tbody>
+                {% for user in users %}
+                    {% if user.enabled == 1 %}
+                        <tr>
+                            <td>{{ user.username }}</td>
 
-        {% else %}
-            <tr>
-                {% if using_jupyterhub %}
-                    <td colspan="4">No Users Found</td>
+                            {% set level = 0 %}
+                            {% for role in user.getroles %}
+                                {% if role == 'ROLE_SUPER_ADMIN' %}
+                                    {% set level = level + 4 %}
+                                {% elseif role == 'ROLE_ADMIN' %}
+                                    {% set level = level + 2 %}
+                                {% elseif role == 'ROLE_USER' %}
+                                    {% set level = level + 1 %}
+                                {% endif %}
+                            {% endfor %}
+
+                            <td class="ODRCenterText">
+                                <input id="user_{{ user.id }}" onclick="setRole('user_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 1 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
+                            </td>
+                            <td class="ODRCenterText">
+                                <input id="admin_{{ user.id }}" onclick="setRole('admin_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 3 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
+                            </td>
+                            <td class="ODRCenterText">
+                                <input id="sadmin_{{ user.id }}" onclick="setRole('sadmin_{{ user.id }}');" type="radio" name="user_{{ user.id }}" {% if level == 7 %}checked{% endif %} {% if user == admin_user %}disabled{% endif%}/>
+                            </td>
+{#
+                        {% if using_jupyterhub %}
+                            <td class="ODRCenterText">
+                                <input id="jupyterhub_{{ user.id }}" onclick="setRole('jupyterhub_{{ user.id }}');" type="checkbox" name="user_{{ user.id }}" {% if user.hasRole('ROLE_JUPYTERHUB_USER') %}checked{% endif %} />
+                            </td>
+                        {% endif %}
+#}
+                        </tr>
+                    {% endif %}
                 {% else %}
-                    <td colspan="3">No Users Found</td>
-                {% endif %}
-            </tr>
-        {% endfor %}
+                    <tr>
+{#
+                    {% if using_jupyterhub %}
+                        <td colspan="4">No Users Found</td>
+                    {% else %}
+#}
+                        <td colspan="3">No Users Found</td>
+{#
+                    {% endif %}
+#}
+                    </tr>
+                {% endfor %}
+                    </tbody>
+                </table>
 
-        </tbody>
-    </table>
-
+            </div><!-- end of .ODRBodyContent -->
+        </div>
+    </div>
 </div>
-</div>
-
-</div><!-- End of .content -->
             
 <script>
     $(function() {
@@ -92,24 +91,20 @@
         url = url.substring(0, (url.length - 2));
         url += user_id + '/' + role;
 
-        var dataType = "json";
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if (data.r == 0) {
-                    $('#saved').fadeIn();
-                    setTimeout(function() {
-                        $('#saved').fadeOut();
-                    }, 2000);
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d);
-                }
+                $('#saved').fadeIn();
+
+                setTimeout(function() {
+                    $('#saved').fadeOut();
+                }, 2000);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // TODO - revert back to previously selected option on error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers

@@ -1,0 +1,103 @@
+{% spaceless %}
+
+{{ form_start(profile_form, {
+    'method': 'POST',
+    'attr': {
+        'id': 'ODRUserProfileForm',
+        'class': 'ODRUserProfileForm pure-form pure-form-aligned pure-u-md-1 pure-u-lg-18-24 pure-u-xl-14-24'
+    }
+}) }}
+
+    <fieldset>
+        <div id="form_errors">
+            {{ form_errors(profile_form) }}
+            {{ form_errors(profile_form.plainPassword.first) }}
+        </div>
+        <div id="password_errors"></div>
+    </fieldset>
+
+    <fieldset>
+        <div class="pure-control-group pure-u-1">
+            <label for="{{ profile_form.email.vars.id }}">
+                {{ profile_form.email.vars.label }}
+            </label>
+            {{ form_errors(profile_form.email) }}
+            {{ form_widget(profile_form.email, { 'attr': {'class': 'required', 'data-error-type': 'inline' } }) }}
+        </div>
+        <div class="pure-control-group pure-u-1">
+            <label for="emailCheckButton">
+                Click to check:
+            </label>
+            <span {#style="margin: 5px;"#}>
+                <button id="emailCheckButton" type="button" class="pure-button pure-button-primary" onclick="checkEmail();">Check Email Availability</button>
+            </span>
+            <span id="email_errors" style="margin: 5px;"></span>
+        </div>
+        <div class="pure-control-group pure-u-1 pure-u-md-1-2">
+            <label for="{{ profile_form.plainPassword.first.vars.id }}">
+                {{ profile_form.plainPassword.first.vars.label }}
+            </label>
+            {{ form_errors(profile_form.plainPassword.first) }}
+            {{ form_widget(profile_form.plainPassword.first, { 'attr': {'class': '', 'data-error-type': 'inline', 'required': 'required' } }) }}
+        </div>
+        <div class="pure-control-group pure-u-1 pure-u-md-1-2">
+            <label for="{{ profile_form.plainPassword.second.vars.id }}">
+                {{ profile_form.plainPassword.second.vars.label }}
+            </label>
+            {{ form_errors(profile_form.plainPassword.second) }}
+            {{ form_widget(profile_form.plainPassword.second, { 'attr': {'class': '', 'data-error-type': 'inline', 'required': 'required' } }) }}
+        </div>
+
+        <div class="pure-control-group">&nbsp;</div>
+
+        <div class="pure-control-group pure-u-1 pure-u-md-1-2">
+            <label for="{{ profile_form.firstName.vars.id }}">
+                {{ profile_form.firstName.vars.label }}
+            </label>
+            {{ form_errors(profile_form.firstName) }}
+            {{ form_widget(profile_form.firstName, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
+        </div>
+        <div class="pure-control-group pure-u-1 pure-u-md-1-2">
+            <label for="{{ profile_form.lastName.vars.id }}">
+                {{ profile_form.lastName.vars.label }}
+            </label>
+            {{ form_errors(profile_form.lastName) }}
+            {{ form_widget(profile_form.lastName, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
+        </div>
+
+        <div class="pure-control-group pure-u-1 pure-u-md-1-2">
+            <label for="{{ profile_form.institution.vars.id }}">
+                {{ profile_form.institution.vars.label }}
+            </label>
+            {{ form_errors(profile_form.institution) }}
+            {{ form_widget(profile_form.institution, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
+        </div>
+        <div class="pure-control-group pure-u-1 pure-u-md-1-2">
+            <label for="{{ profile_form.position.vars.id }}">
+                {{ profile_form.position.vars.label }}
+            </label>
+            {{ form_errors(profile_form.position) }}
+            {{ form_widget(profile_form.position, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
+        </div>
+        <div class="pure-control-group pure-u-1 pure-u-md-1-2">
+            <label for="{{ profile_form.phoneNumber.vars.id }}">
+                {{ profile_form.phoneNumber.vars.label }}
+            </label>
+            {{ form_errors(profile_form.phoneNumber) }}
+            {{ form_widget(profile_form.phoneNumber, { 'attr': {'class': '', 'data-error-type': 'inline' } }) }}
+        </div>
+
+        <div class="pure-control-group pure-u-1">
+            <button id="submitButton" class="pure-button pure-button-primary">Save</button>
+        </div>
+
+        <div style="display: none">
+            {{ form_rest(profile_form) }}
+        </div>
+    </fieldset>
+
+{{ form_end(profile_form) }}
+
+{% include 'ODRAdminBundle:ODRUser:password_rules.html.twig' with {'form': profile_form} %}
+
+{% endspaceless %}
