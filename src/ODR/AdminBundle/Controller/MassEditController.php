@@ -290,9 +290,6 @@ class MassEditController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Force exceptions to be in json
-            $request->setRequestFormat('json');
-
             $post = $request->request->all();
 //print_r($post);  exit();
 
@@ -622,7 +619,7 @@ return;
         $return['d'] = '';
 
         try {
-            // Force exceptions to be in json
+            // This should only be called by a beanstalk worker process, so force exceptions to be in json
             $ret = '';
             $request->setRequestFormat('json');
 
@@ -788,7 +785,7 @@ return;
         $ret = '';
 
         try {
-            // Force exceptions to be in json
+            // This should only be called by a beanstalk worker process, so force exceptions to be in json
             $request->setRequestFormat('json');
 
             $post = $request->request->all();

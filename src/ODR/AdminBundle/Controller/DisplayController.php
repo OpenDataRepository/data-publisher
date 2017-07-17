@@ -809,8 +809,10 @@ class DisplayController extends ODRCustomController
             return $response;
         }
         catch (\Exception $e) {
-            // Force the error return to be in json
-            $request->setRequestFormat('json');
+            // Usually this'll be called via the jQuery fileDownload plugin, and therefore need a json-format error
+            // But in the off-chance it's a direct link, then the error format needs to remain html
+            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
+                $request->setRequestFormat('json');
 
             $source = 0xe3de488a;
             if ($e instanceof ODRException)
@@ -1807,8 +1809,10 @@ exit();
             return $response;
         }
         catch (\Exception $e) {
-            // Force the error return to be in json
-            $request->setRequestFormat('json');
+            // Usually this'll be called via the jQuery fileDownload plugin, and therefore need a json-format error
+            // But in the off-chance it's a direct link, then the error format needs to remain html
+            if ( $request->query->has('error_type') && $request->query->get('error_type') == 'json' )
+                $request->setRequestFormat('json');
 
             $source = 0xc953bbf3;
             if ($e instanceof ODRException)

@@ -177,7 +177,6 @@ console.log(dr_id);
     function submitForm() {
         var post_data = $("#LinkDataRecordForm").serialize();
         var url = $("#LinkDataRecordForm").attr('action');
-        var dataType = "json";
 
 //alert(url);
 //return;
@@ -185,18 +184,14 @@ console.log(dr_id);
         $.ajax({
             type: 'POST',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             data: post_data,
             success: function(data, textStatus, xhr) {
-                if(data.r == 0) {
-                    // Force a reload of the page so stuff is guaranteed to display correctly
-                    window.location.reload();
-                }
-                else {
-                    // An error has occurred.
-                    // Show Error message dialog
-                    alert(data.d.html);
-                }
+                // Force a reload of the page so stuff is guaranteed to display correctly
+                window.location.reload();
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers

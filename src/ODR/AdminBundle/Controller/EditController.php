@@ -37,6 +37,12 @@ use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User;
+// Exceptions
+use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\AdminBundle\Exception\ODRException;
+use ODR\AdminBundle\Exception\ODRForbiddenException;
+use ODR\AdminBundle\Exception\ODRNotFoundException;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Forms
 use ODR\AdminBundle\Form\BooleanForm;
 use ODR\AdminBundle\Form\DatetimeValueForm;
@@ -80,7 +86,7 @@ class EditController extends ODRCustomController
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ( $datatype == null )
-                return parent::deletedEntityError('Datatype');
+                throw new ODRNotFoundException('Datatype');
 
 
             // --------------------
@@ -100,14 +106,14 @@ class EditController extends ODRCustomController
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
             if ( !($datatype->isPublic() || $can_view_datatype) || !$can_add_datarecord )
-                return parent::permissionDeniedError("create new DataRecords for");
+                throw new ODRForbiddenException();
             // --------------------
 
 
             // Determine whether this is a request to add a datarecord for a top-level datatype or not
             $top_level_datatypes = parent::getTopLevelDatatypes();
             if ( !in_array($datatype_id, $top_level_datatypes) )
-                throw new \Exception('EditController::adddatarecordAction() called for child datatype');
+                throw new ODRBadRequestException('EditController::adddatarecordAction() called for child datatype');
 
             // Create a new datarecord
             $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
@@ -153,9 +159,11 @@ class EditController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x29328834 ' . $e->getMessage();
+            $source = 0x2d4d92e6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     
         $response = new Response(json_encode($return));  
@@ -169,12 +177,11 @@ class EditController extends ODRCustomController
      * 
      * @param integer $datatype_id    The database id of the child DataType this new child DataRecord will belong to.
      * @param integer $parent_id      The database id of the DataRecord...
-     * @param integer $grandparent_id The database id of the top-level DataRecord in this inheritance chain.
      * @param Request $request
      * 
      * @return Response
      */
-    public function addchildrecordAction($datatype_id, $parent_id, $grandparent_id, Request $request)
+    public function addchildrecordAction($datatype_id, $parent_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -185,23 +192,21 @@ class EditController extends ODRCustomController
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
 
             // Grab needed Entities from the repository
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
             if ( $datatype == null )
-                return parent::deletedEntityError('Datatype');
+                throw new ODRNotFoundException('Datatype');
 
             /** @var DataRecord $parent */
-            $parent = $repo_datarecord->find($parent_id);
+            $parent = $em->getRepository('ODRAdminBundle:DataRecord')->find($parent_id);
             if ( $parent == null )
-                return parent::deletedEntityError('DataRecord');
+                throw new ODRNotFoundException('DataRecord');
 
-            /** @var DataRecord $grandparent */
-            $grandparent = $repo_datarecord->find($grandparent_id);
-            if ( $grandparent == null )
-                return parent::deletedEntityError('DataRecord');
+            $grandparent = $parent->getGrandparent();
+            if ( $grandparent->getDeletedAt() != null )
+                throw new ODRNotFoundException('Grandparent DataRecord');
 
 
             // --------------------
@@ -225,14 +230,14 @@ class EditController extends ODRCustomController
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
             if ( !($datatype->isPublic() || $can_view_datatype) || !($grandparent->isPublic() || $can_view_datarecord) || !$can_add_datarecord )
-                return parent::permissionDeniedError("add child DataRecords to");
+                throw new ODRForbiddenException();
             // --------------------
 
 
             // Determine whether this is a request to add a datarecord for a top-level datatype or not
             $top_level_datatypes = parent::getTopLevelDatatypes();
             if ( in_array($datatype_id, $top_level_datatypes) )
-                throw new \Exception('EditController::addchildrecordAction() called for top-level datatype');
+                throw new ODRBadRequestException('EditController::addchildrecordAction() called for top-level datatype');
 
             // Create new Data Record
             $datarecord = parent::ODR_addDataRecord($em, $user, $datatype);
@@ -257,9 +262,11 @@ class EditController extends ODRCustomController
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x293288355555 ' . $e->getMessage();
+            $source = 0x3d2835d5;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -298,11 +305,11 @@ class EditController extends ODRCustomController
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                return parent::deletedEntityError('Datarecord');
+                throw new ODRNotFoundException('Datarecord');
 
             $datatype = $datarecord->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('Datatype');
+            if ( $datatype->getDeletedAt() != null )
+                throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
 
@@ -327,12 +334,12 @@ class EditController extends ODRCustomController
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
             if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_delete_datarecord )
-                return parent::permissionDeniedError("delete DataRecords from");
+                throw new ODRForbiddenException();
             // --------------------
 
 
             if ($datarecord->getId() !== $datarecord->getGrandparent()->getId())
-                throw new \Exception('EditController::deletedatarecordAction() called on a Datarecord that is not top-level');
+                throw new ODRBadRequestException('EditController::deletedatarecordAction() called on a Datarecord that is not top-level');
 
 
             // ----------------------------------------
@@ -461,9 +468,11 @@ class EditController extends ODRCustomController
             $return['d'] = $url;
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x2039183556 '. $e->getMessage();
+            $source = 0x2fb5590f;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -474,15 +483,13 @@ class EditController extends ODRCustomController
 
     /**
      * Deletes a child DataRecord, and re-renders the DataRecord so the child disappears.
-     * TODO - modify this so $datatype_id isn't needed?
-     * 
+     *
      * @param integer $datarecord_id The database id of the datarecord being deleted
-     * @param integer $datatype_id
      * @param Request $request
      * 
      * @return Response
      */
-    public function deletechildrecordAction($datarecord_id, $datatype_id, Request $request)
+    public function deletechildrecordAction($datarecord_id, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -502,9 +509,13 @@ class EditController extends ODRCustomController
             // Grab the necessary entities
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if ( $datarecord == null )
-                return parent::deletedEntityError('DataRecord');
+            if ($datarecord == null)
+                throw new ODRNotFoundException('DataRecord');
+
             $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+            $datatype_id = $datatype->getId();
 
 
             // --------------------
@@ -528,12 +539,12 @@ class EditController extends ODRCustomController
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
             if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_delete_datarecord )
-                return parent::permissionDeniedError("delete child DataRecords from");
+                throw new ODRForbiddenException();
             // --------------------
 
 
             if ($datarecord->getId() == $datarecord->getGrandparent()->getId())
-                throw new \Exception('EditController::deletechildrecordAction() called on a Datarecord that is top-level');
+                throw new ODRBadRequestException('EditController::deletechildrecordAction() called on a Datarecord that is top-level');
 
             $parent = $datarecord->getParent();
             $grandparent = $datarecord->getGrandparent();
@@ -659,9 +670,11 @@ class EditController extends ODRCustomController
             );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x203288355556 '. $e->getMessage();
+            $source = 0x82bb1bb6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -693,26 +706,26 @@ class EditController extends ODRCustomController
             // Grab the necessary entities
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
-            if ( $file == null )
-                return parent::deletedEntityError('File');
+            if ($file == null)
+                throw new ODRNotFoundException('File');
 
             $datafield = $file->getDataField();
-            if ( $datafield == null )
-                return parent::deletedEntityError('DataField');
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
             $datafield_id = $datafield->getId();
 
             $datarecord = $file->getDataRecord();
-            if ( $datarecord == null )
-                return parent::deletedEntityError('DataRecord');
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
 
             $datatype = $datarecord->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
             // Files that aren't done encrypting shouldn't be modified
             if ($file->getProvisioned() == true)
-                return parent::deletedEntityError('File');
+                throw new ODRNotFoundException('File');
 
 
             // --------------------
@@ -737,7 +750,7 @@ class EditController extends ODRCustomController
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
             if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -773,9 +786,11 @@ class EditController extends ODRCustomController
                 $return['d'] = array('need_reload' => true);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x203288355556 '. $e->getMessage();
+            $source = 0x08e2fe10;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -810,26 +825,27 @@ class EditController extends ODRCustomController
             // Grab the necessary entities
             /** @var File $file */
             $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
-            if ( $file == null )
-                return parent::deletedEntityError('File');
+            if ($file == null)
+                throw new ODRNotFoundException('File');
 
             $datafield = $file->getDataField();
             if ($datafield->getDeletedAt() != null)
-                return parent::deletedEntityError('DataField');
+                throw new ODRNotFoundException('Datafield');
             $datafield_id = $datafield->getId();
 
             $datarecord = $file->getDataRecord();
             if ($datarecord->getDeletedAt() != null)
-                return parent::deletedEntityError('DataRecord');
+                throw new ODRNotFoundException('Datarecord');
 
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('DataType');
+                throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
             // Files that aren't done encrypting shouldn't be modified
             if ($file->getProvisioned() == true)
-                return parent::deletedEntityError('File');
+                throw new ODRNotFoundException('File');
+
 
             // --------------------
             // Determine user privileges
@@ -853,7 +869,7 @@ class EditController extends ODRCustomController
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
             if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -929,7 +945,7 @@ class EditController extends ODRCustomController
             // Need to rebuild this particular datafield's html to reflect the changes...
             $return['t'] = 'html';
             $return['d'] = array(
-                'is_public' => $file->isPublic(),
+                'is_public' => $file->isPublic(),   // TODO - why does this not throw an exception like publicimageAction()?
                 'public_date' => $public_date->format('Y-m-d'),
             );
 
@@ -961,9 +977,11 @@ class EditController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x2032883556 '. $e->getMessage();
+            $source = 0x5201b0cd;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -996,26 +1014,26 @@ class EditController extends ODRCustomController
             // Grab the necessary entities
             /** @var Image $image */
             $image = $repo_image->find($image_id);
-            if ( $image == null )
-                return parent::deletedEntityError('Image');
+            if ($image == null)
+                throw new ODRNotFoundException('Image');
 
             $datafield = $image->getDataField();
-            if ( $datafield == null )
-                return parent::deletedEntityError('DataField');
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
             $datafield_id = $datafield->getId();
 
             $datarecord = $image->getDataRecord();
-            if ( $datarecord == null )
-                return parent::deletedEntityError('DataRecord');
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
 
             $datatype = $datarecord->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
             // Images that aren't done encrypting shouldn't be downloaded
             if ($image->getOriginalChecksum() == '')
-                return parent::deletedEntityError('Image');
+                throw new ODRNotFoundException('Image');
 
             // --------------------
             // Determine user privileges
@@ -1039,7 +1057,7 @@ class EditController extends ODRCustomController
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
             if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -1051,6 +1069,7 @@ class EditController extends ODRCustomController
             // Toggle public status of specified image...
             $public_date = null;
 
+            $is_public = null;
             if ( $image->isPublic() ) {
                 // Make the original image non-public
                 $public_date = new \DateTime('2200-01-01 00:00:00');
@@ -1067,6 +1086,8 @@ class EditController extends ODRCustomController
                     if ( file_exists($absolute_path) )
                         unlink($absolute_path);
                 }
+
+                $is_public = false;
             }
             else {
                 // Make the original image public
@@ -1078,13 +1099,16 @@ class EditController extends ODRCustomController
                 // Immediately decrypt the image and all of its children
                 foreach ($all_images as $img)
                     parent::decryptObject($img->getId(), 'image');
+
+                $is_public = true;
             }
 
 
             // Need to rebuild this particular datafield's html to reflect the changes...
             $return['t'] = 'html';
             $return['d'] = array(
-                'is_public' => $image->isPublic(),
+//                'is_public' => $image->isPublic(),    // TODO - this was throwing exceptions about not being able to access the associated ImageMeta entry after creating a new one...
+                'is_public' => $is_public,
                 'public_date' => $public_date->format('Y-m-d'),
             );
 
@@ -1096,9 +1120,11 @@ class EditController extends ODRCustomController
             // TODO - update cached search results?
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x2038825456 '. $e->getMessage();
+            $source = 0xf051d2f4;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1131,25 +1157,26 @@ class EditController extends ODRCustomController
             // Grab the necessary entities
             /** @var Image $image */
             $image = $repo_image->find($image_id);
-            if ( $image == null )
-                return parent::deletedEntityError('Image');
+            if ($image == null)
+                throw new ODRNotFoundException('Image');
+
             $datafield = $image->getDataField();
-            if ( $datafield == null )
-                return parent::deletedEntityError('DataField');
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
             $datafield_id = $datafield->getId();
 
             $datarecord = $image->getDataRecord();
-            if ( $datarecord == null )
-                return parent::deletedEntityError('DataRecord');
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
 
             $datatype = $datarecord->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
             // Images that aren't done encrypting shouldn't be modified
             if ($image->getOriginalChecksum() == '')
-                return parent::deletedEntityError('Image');
+                throw new ODRNotFoundException('Image');
 
 
             // --------------------
@@ -1174,7 +1201,7 @@ class EditController extends ODRCustomController
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
             if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -1220,9 +1247,11 @@ class EditController extends ODRCustomController
             // TODO - update cached search results?
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x2078485256 '. $e->getMessage();
+            $source = 0xee8e8649;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1256,26 +1285,26 @@ class EditController extends ODRCustomController
             // Grab the necessary entities
             /** @var Image $image */
             $image = $repo_image->find($image_id);
-            if ( $image == null )
-                return parent::deletedEntityError('Image');
+            if ($image == null)
+                throw new ODRNotFoundException('Image');
 
             $datafield = $image->getDataField();
-            if ( $datafield == null )
-                return parent::deletedEntityError('DataField');
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
             $datafield_id = $datafield->getId();
 
             $datarecord = $image->getDataRecord();
-            if ( $datarecord == null )
-                return parent::deletedEntityError('DataRecord');
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
 
             $datatype = $datarecord->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
             // Images that aren't done encrypting shouldn't be modified
             if ($image->getOriginalChecksum() == '')
-                return parent::deletedEntityError('Image');
+                throw new ODRNotFoundException('Image');
 
 
             // --------------------
@@ -1300,7 +1329,7 @@ class EditController extends ODRCustomController
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
             if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -1457,9 +1486,11 @@ class EditController extends ODRCustomController
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x784825462 '. $e->getMessage();
+            $source = 0x4093b173;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1499,17 +1530,17 @@ class EditController extends ODRCustomController
             /** @var Image $image */
 
             $datafield = $image->getDataField();
-            if ( $datafield == null )
-                return parent::deletedEntityError('DataField');
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
             $datafield_id = $datafield->getId();
 
             $datarecord = $image->getDataRecord();
-            if ( $datarecord == null )
-                return parent::deletedEntityError('DataRecord');
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
 
             $datatype = $datarecord->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
 
@@ -1535,7 +1566,7 @@ class EditController extends ODRCustomController
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
             if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -1555,12 +1586,12 @@ class EditController extends ODRCustomController
 
             // Throw exceptions if the post request doesn't match the expected image list
             if ( count($post) !== count($all_images) ) {
-                throw new \Exception('Invalid POST request...wrong number of images');
+                throw new ODRBadRequestException('wrong number of images');
             }
             else {
                 foreach ($post as $index => $image_id) {
                     if ( !isset($all_images[$image_id]) )
-                        throw new \Exception('Invalid POST request...unexpected image id');
+                        throw new ODRBadRequestException('Invalid Image Id');
                 }
             }
 
@@ -1582,9 +1613,11 @@ class EditController extends ODRCustomController
             parent::tmp_updateDatarecordCache($em, $datarecord, $user);
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x822889302 ' . $e->getMessage();
+            $source = 0x8b01c7e4;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1619,12 +1652,12 @@ class EditController extends ODRCustomController
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
-            if ( $datarecord == null )
-                return parent::deletedEntityError('DataRecord');
+            if ($datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
 
             $datatype = $datarecord->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
 
@@ -1641,7 +1674,7 @@ class EditController extends ODRCustomController
 
             // Ensure user has permissions to be doing this
             if ( !$is_datatype_admin )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -1686,16 +1719,16 @@ class EditController extends ODRCustomController
 
             // re-render?  wat
             $return['d'] = array(
+                'public' => $public,    // TODO - check whether this could get changed to $datarecord->isPublic()...see publicimageAction()
                 'datarecord_id' => $datarecord_id,
-//                'datarecord_id' => $datarecord->getGrandparent()->getId(),
-//                'datatype_id' => $datatype->getId(),
-                'public' => $public,
             );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x2028983556 '. $e->getMessage();
+            $source = 0x3df683c4;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1733,17 +1766,17 @@ class EditController extends ODRCustomController
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
-            if ( $datafield == null )
-                return parent::deletedEntityError('Datafield');
+            if ($datafield == null)
+                throw new ODRNotFoundException('Datafield');
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                return parent::deletedEntityError('Datarecord');
+                throw new ODRNotFoundException('Datarecord');
 
             $datatype = $datafield->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('Datatype');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
             /** @var RadioOptions $radio_option */
@@ -1751,7 +1784,7 @@ class EditController extends ODRCustomController
             if ($radio_option_id != 0) {
                 $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find($radio_option_id);
                 if ($radio_option == null)
-                    return parent::deletedEntityError('RadioOption');
+                    throw new ODRNotFoundException('RadioOption');
             }
 
 
@@ -1777,7 +1810,7 @@ class EditController extends ODRCustomController
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
             if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -1832,7 +1865,7 @@ class EditController extends ODRCustomController
             }
             else {
                 // No point doing anything if not a radio fieldtype
-                throw new \Exception('RecordController::radioselectionAction() called on Datafield that is not a Radio FieldType');
+                throw new ODRBadRequestException('RecordController::radioselectionAction() called on Datafield that is not a Radio FieldType');
             }
 
 
@@ -1857,9 +1890,11 @@ class EditController extends ODRCustomController
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x18373679 ' . $e->getMessage();
+            $source = 0x01019cfb;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -1898,17 +1933,17 @@ class EditController extends ODRCustomController
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                return parent::deletedEntityError('DataRecord');
+                throw new ODRNotFoundException('Datarecord');
 
             $datatype = $datarecord->getDataType();
             if ($datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('DataType');
+                throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
-                return parent::deletedEntityError('DataField');
+                throw new ODRNotFoundException('Datafield');
 
 
             // --------------------
@@ -1933,7 +1968,7 @@ class EditController extends ODRCustomController
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions for this datafield...don't undertake this action
             if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datafield )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -1979,7 +2014,7 @@ class EditController extends ODRCustomController
                 default:
                     // Radio fieldtypes aren't supposed to be updated here ever
                     // Files/Images might be permissible in the future
-                    throw new \Exception('RecordController::updateAction() called for a Datafield using the '.$typeclass.' Radio FieldType');
+                    throw new ODRBadRequestException('RecordController::updateAction() called for a Datafield using the '.$typeclass.' Radio FieldType');
                     break;
             }
 
@@ -2070,30 +2105,18 @@ class EditController extends ODRCustomController
                     }
                     else {
                         // Form validation failed
-                        $return['r'] = 2;
-                        $return['typeclass'] = $typeclass;
-                        if ($typeclass == 'DatetimeValue') {
-                            // Need to convert datetime values into strings...
-                            $old_value = $old_value->format('Y-m-d');
-                            if ($old_value == '9999-12-31')
-                                $old_value = '';
-
-                            $return['old_value'] = $old_value;
-                        }
-                        else {
-                            // ...otherwise, just return the old value
-                            $return['old_value'] = $old_value;
-                        }
-
-                        $return['error'] = parent::ODR_getErrorMessages($form);
+                        $error_str = parent::ODR_getErrorMessages($form);
+                        throw new ODRException($error_str);
                     }
                 }
             }
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x88320029 ' . $e->getMessage();
+            $source = 0x294a59c5;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -2204,28 +2227,28 @@ class EditController extends ODRCustomController
             // Grab the datatypes from the database
             /** @var DataRecord $local_datarecord */
             $local_datarecord = $repo_datarecord->find($local_datarecord_id);
-            if ( $local_datarecord == null )
-                return parent::deletedEntityError('DataRecord');
+            if ($local_datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
 
             $local_datatype = $local_datarecord->getDataType();
             if ($local_datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('DataType');
+                throw new ODRNotFoundException('Local Datatype');
             $local_datatype_id = $local_datatype->getId();
 
             /** @var DataType $ancestor_datatype */
             $ancestor_datatype = $repo_datatype->find($ancestor_datatype_id);
-            if ( $ancestor_datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($ancestor_datatype == null)
+                throw new ODRNotFoundException('Ancestor Datatype');
 
             /** @var DataType $descendant_datatype */
             $descendant_datatype = $repo_datatype->find($descendant_datatype_id);
-            if ( $descendant_datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($descendant_datatype == null)
+                throw new ODRNotFoundException('Descendant Datatype');
 
             // Ensure a link exists from ancestor to descendant datatype
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $ancestor_datatype->getId(), 'descendant' => $descendant_datatype->getId()) );
             if ($datatree == null)
-                return parent::deletedEntityError('DataTree');
+                throw new ODRNotFoundException('DataTree');
 
 
             // --------------------
@@ -2254,7 +2277,7 @@ class EditController extends ODRCustomController
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
             if ( !($ancestor_datatype->isPublic() || $can_view_ancestor_datatype) || !($descendant_datatype->isPublic() || $can_view_descendant_datatype) || !($local_datarecord->isPublic() || $can_view_local_datarecord) || !$can_edit_ancestor_datarecord )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 $debug = true;
@@ -2288,7 +2311,7 @@ if ($debug)
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $remote_datatype->getId(), 'themeType' => 'table') );
             if ($theme == null)
-                throw new \Exception('Remote Datatype does not have a Table Theme');
+                throw new ODRException('Remote Datatype does not have a Table Theme');
 
 
             // ----------------------------------------
@@ -2442,9 +2465,11 @@ exit();
             );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x293428835555 ' . $e->getMessage();
+            $source = 0x30878efd;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -2469,10 +2494,13 @@ exit();
         $return['d'] = '';
 
         try {
-            // Grab the data from the POST request 
-            $post = $_POST;
-//print_r($post);
-//return;
+            // Symfony firewall won't permit GET requests to reach this point
+            $post = $request->request->all();
+//print_r($post);  exit();
+
+
+            if ( !isset($post['local_datarecord_id']) || !isset($post['ancestor_datatype_id']) || !isset($post['descendant_datatype_id']))
+                throw new ODRBadRequestException();
 
             $local_datarecord_id = $post['local_datarecord_id'];
             $ancestor_datatype_id = $post['ancestor_datatype_id'];
@@ -2496,29 +2524,29 @@ exit();
 
             /** @var DataRecord $local_datarecord */
             $local_datarecord = $repo_datarecord->find($local_datarecord_id);
-            if ( $local_datarecord == null )
-                return parent::deletedEntityError('DataRecord');
+            if ($local_datarecord == null)
+                throw new ODRNotFoundException('Datarecord');
 
             $local_datatype = $local_datarecord->getDataType();
-            if ( $local_datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($local_datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Local Datatype');
             $local_datatype_id = $local_datatype->getId();
 
 
             /** @var DataType $ancestor_datatype */
             $ancestor_datatype = $repo_datatype->find($ancestor_datatype_id);
-            if ( $ancestor_datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($ancestor_datatype == null)
+                throw new ODRNotFoundException('Ancestor Datatype');
 
             /** @var DataType $descendant_datatype */
             $descendant_datatype = $repo_datatype->find($descendant_datatype_id);
-            if ( $descendant_datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($descendant_datatype == null)
+                throw new ODRNotFoundException('Descendant Datatype');
 
             // Ensure a link exists from ancestor to descendant datatype
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $ancestor_datatype->getId(), 'descendant' => $descendant_datatype->getId()) );
             if ($datatree == null)
-                return parent::deletedEntityError('DataTree');
+                throw new ODRNotFoundException('DataTree');
 
             // Determine which datatype is the remote one
             $remote_datatype_id = $descendant_datatype_id;
@@ -2551,7 +2579,7 @@ exit();
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't undertake this action
             if ( !($ancestor_datatype->isPublic() || $can_view_ancestor_datatype) || !($descendant_datatype->isPublic() || $can_view_descendant_datatype) || !($local_datarecord->isPublic() || $can_view_local_datarecord) || !$can_edit_ancestor_datarecord )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
 
 
             // Need to also check whether user has view permissions for remote datatype...
@@ -2577,7 +2605,7 @@ exit();
 
                 // ...if there are, then prevent the action since the user isn't allowed to see them
                 if ( count($results) > 0 )
-                    return parent::permissionDeniedError("edit");
+                    throw new ODRForbiddenException();
             }
             else {
                 /* user can view remote datatype, no other checks needed */
@@ -2705,9 +2733,11 @@ if ($debug)
             );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x832812835 ' . $e->getMessage();
+            $source = 0xdd047dcd;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -2743,22 +2773,22 @@ if ($debug)
             /** @var DataType $child_datatype */
             $child_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($child_datatype_id);
             if ($child_datatype == null)
-                return parent::deletedEntityError('Datatype');
+                throw new ODRNotFoundException('Datatype');
 
             /** @var DataRecord $parent_datarecord */
             $parent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($parent_datarecord_id);
             if ($parent_datarecord == null)
-                return parent::deletedEntityError('Datarecord');
+                throw new ODRNotFoundException('Datarecord');
 
             $parent_datatype = $parent_datarecord->getDataType();
             if ($parent_datatype->getDeletedAt() != null)
-                return parent::deletedEntityError('Datatype');
+                throw new ODRNotFoundException('Parent Datatype');
             $parent_datatype_id = $parent_datatype->getId();
 
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $child_datatype->getId(), 'themeType' => 'master') );
             if ($theme == null)
-                return parent::deletedEntityError('Theme');
+                throw new ODRNotFoundException('Theme');
 
 
             // --------------------
@@ -2787,13 +2817,13 @@ if ($debug)
 
             // If the datatype/datarecord is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't reload the child datatype's HTML
             if ( !($parent_datatype->isPublic() || $can_view_parent_datatype) )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             if ( !($child_datatype->isPublic() || $can_view_child_datatype) )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             if ( !($parent_datarecord->isPublic() || $can_view_datarecord) )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             if ( !$can_edit_datarecord )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -2802,9 +2832,11 @@ if ($debug)
             );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x833871285 ' . $e->getMessage();
+            $source = 0xb61ecefa;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -2840,22 +2872,22 @@ if ($debug)
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
-                return parent::deletedEntityError('Datafield');
+                throw new ODRNotFoundException('Datafield');
 
             $datatype = $datafield->getDataType();
-            if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                return parent::deletedEntityError('Datarecord');
+                throw new ODRNotFoundException('Datarecord');
 
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
             if ($theme == null)
-                return parent::deletedEntityError('Theme');
+                throw new ODRNotFoundException('Theme');
 
 
             // --------------------
@@ -2884,7 +2916,7 @@ if ($debug)
 
             // If the datatype/datarecord/datafield is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't reload the datafield HTML
             if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) || !$can_edit_datarecord )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -2893,9 +2925,11 @@ if ($debug)
             );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x833871285 ' . $e->getMessage();
+            $source = 0xc28be446;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -2915,7 +2949,7 @@ if ($debug)
      *                                        if 'datafield', then $target_id should be a datafield id
      * @param Request $request
      *
-     * @throws \Exception
+     * @throws ODRException
      *
      * @return string
      */
@@ -3003,7 +3037,7 @@ if ($debug)
                 $datatype = $repo_datatype->find($grandparent_datatype_id);
             }
             else {
-                throw new \Exception('Unable to locate grandparent datatype for datatype '.$child_datatype->getId());
+                throw new ODRException('Unable to locate grandparent datatype for datatype '.$child_datatype->getId());
             }
         }
         else if ($template_name == 'datafield') {
@@ -3206,7 +3240,7 @@ if ($debug)
             }
 
             if ($theme_datatype == null)
-                throw new \Exception('Unable to locate theme_datatype entry for child datatype '.$child_datatype->getId());
+                throw new ODRException('Unable to locate theme_datatype entry for child datatype '.$child_datatype->getId());
 
             $is_link = $theme_datatype['is_link'];
             $display_type = $theme_datatype['display_type'];
@@ -3262,7 +3296,7 @@ if ($debug)
             }
 
             if ( $datafield == null )
-                throw new \Exception('Unable to locate array entry for datafield '.$datafield_id);
+                throw new ODRException('Unable to locate array entry for datafield '.$datafield_id);
 
 
             $html = $templating->render(
@@ -3288,8 +3322,6 @@ if ($debug)
      *
      * @param array $datatype_array    @see parent::getDatatypeData()
      * @param array $datarecord_array  @see parent::getDatarecordData()
-     *
-     * @throws \Exception
      *
      * @return array
      */
@@ -3318,7 +3350,6 @@ if ($debug)
                         foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
                             if ( !isset($tdf['dataField']) ) {
                                 // Don't throw an exception if the datafield entry in the array doesn't exist...it just means that the user can't see that datafield, so therefore no need for a csrf token
-                                //throw new \Exception('Datarecord '.$dr['id'].' ThemeDatafield '.$tdf['id'].' missing a datafield entry!');
                             }
                             else {
                                 $df_id = $tdf['dataField']['id'];
@@ -3362,22 +3393,22 @@ if ($debug)
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
             if ($datafield == null)
-                return parent::deletedEntityError('Datafield');
+                throw new ODRNotFoundException('Datafield');
 
             $datatype = $datafield->getDataType();
-            if ($datatype == null)
-                return parent::deletedEntityError('Datatype');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ($datarecord == null)
-                return parent::deletedEntityError('Datarecord');
+                throw new ODRNotFoundException('Datarecord');
 
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findOneBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
             if ($theme == null)
-                return parent::deletedEntityError('Theme');
+                throw new ODRNotFoundException('Theme');
 
 
             // --------------------
@@ -3406,12 +3437,12 @@ if ($debug)
 
             // If the datatype/datarecord/datafield is not public and the user doesn't have view permissions, or the user doesn't have edit permissions...don't reload the datafield HTML
             if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !($datafield->isPublic() || $can_view_datafield) || !$can_edit_datarecord )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
             // Don't run if the datafield isn't a file datafield
             if ( $datafield->getFieldType()->getTypeClass() !== 'File' )
-                throw new \Exception('Datafield is not of a File Typeclass');
+                throw new ODRBadRequestException('Datafield is not of a File Typeclass');
 
 
             // Load all files uploaded to this datafield
@@ -3449,9 +3480,11 @@ if ($debug)
             );
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x833871285 ' . $e->getMessage();
+            $source = 0xe33cd134;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -3488,15 +3521,15 @@ if ($debug)
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
             if ( $datarecord == null )
-                return parent::deletedEntityError('Datarecord');
+                throw new ODRNotFoundException('Datarecord');
 
             // TODO - not accurate, technically...
             if ($datarecord->getProvisioned() == true)
-                return parent::permissionDeniedError();
+                throw new ODRNotFoundException('Datarecord');
 
             $datatype = $datarecord->getDataType();
-            if ( $datatype == null )
-                return parent::deletedEntityError('DataType');
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
             $datatype_id = $datatype->getId();
 
 
@@ -3505,7 +3538,7 @@ if ($debug)
             /** @var Theme $theme */
             $theme = $em->getRepository('ODRAdminBundle:Theme')->findBy( array('dataType' => $datatype->getId(), 'themeType' => 'master') );
             if ($theme == null)
-                return parent::deletedEntityError('Theme');
+                throw new ODRNotFoundException('Theme');
 
 
             // --------------------
@@ -3530,7 +3563,7 @@ if ($debug)
 
             // Ensure user has permissions to be doing this
             if ( !($datatype->isPublic() || $can_view_datatype) || !($datarecord->isPublic() || $can_view_datarecord) || !$can_edit_datarecord )
-                return parent::permissionDeniedError("edit");
+                throw new ODRForbiddenException();
             // --------------------
 
 
@@ -3650,9 +3683,11 @@ if ($debug)
             $session->set('scroll_target', $datarecord->getId());
         }
         catch (\Exception $e) {
-            $return['r'] = 1;
-            $return['t'] = 'ex';
-            $return['d'] = 'Error 0x435858435 ' . $e->getMessage();
+            $source = 0x409f64ee;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $source);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
         $response = new Response(json_encode($return));
@@ -3677,6 +3712,8 @@ if ($debug)
         $return['d'] = '';
 
         try {
+            throw new ODRNotImplementedException();
+
             // ----------------------------------------
             // Get Entity Manager and setup repositories
             /** @var \Doctrine\ORM\EntityManager $em */

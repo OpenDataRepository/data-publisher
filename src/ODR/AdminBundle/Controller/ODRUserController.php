@@ -267,7 +267,7 @@ class ODRUserController extends ODRCustomController
                     else {
                         // Form validation failed
                         $error_str = parent::ODR_getErrorMessages($form);
-                        $return['d'] = array('html' => $error_str);
+                        throw new ODRException($error_str);
                     }
                 }
             }

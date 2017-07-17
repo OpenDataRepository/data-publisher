@@ -368,7 +368,7 @@ function doMassUpdate() {
             UpdateURL(url);
         },
         error: function (jqXHR, textStatus, errorThrown) {
-            alert('No changes made');
+            alert('Error encountered, no changes made');
         },
         complete: function(jqXHR, textStatus) {
             // Get the xdebugToken from response headers

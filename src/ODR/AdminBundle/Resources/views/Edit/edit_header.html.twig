@@ -35,7 +35,6 @@
 
     <div class="pure-u-1">
         <button type="button" class="pure-button pure-button-primary" onclick="loadDataRecord({{ datarecord.id }});">View DataRecord</button>
-        {#<button type="button" class="pure-button pure-button-primary" onclick="UpdateURL('#{{ path('odr_get_datarecord_xml', {'version': 'v1', 'datarecord_id': datarecord.id }) }}');">Export DataRecord</button>#}
         <button type="button" class="pure-button pure-button-primary" onclick="exportXML({{ datarecord.id }})">Export DataRecord</button>
 
         {% if is_datatype_admin == 1 %}
@@ -68,26 +67,20 @@
         url = url.substring(0, (url.length - 1));
         url += datarecord_id;
 
-        var dataType = "json";
-
         $.ajax({
             cache: false,
             type: 'GET',
             url: url,
-            dataType: dataType,
+            dataType: "json",
             success: function(data, textStatus, jqXHR) {
-                if(data.r == 0) {
-                    var html = $("#public_button").html();
-                    if ( html.indexOf('Non') !== -1 )
-                        $("#public_button").html('Make DataRecord Public');
-                    else
-                        $("#public_button").html('Make DataRecord Non-Public');
-                    
-                }
-                else {
-                    // Error occurred
-                    alert( data.d );
-                }
+                var html = $("#public_button").html();
+                if ( html.indexOf('Non') !== -1 )
+                    $("#public_button").html('Make DataRecord Public');
+                else
+                    $("#public_button").html('Make DataRecord Non-Public');
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
             },
             complete: function(jqXHR, textStatus) {
                 // Get the xdebugToken from response headers
@@ -116,62 +109,24 @@
 
 {% if can_delete_record == 1 %}
     function deleteRecord(datarecord_id) {
-
         if ( confirm("Are you sure you want to delete this DataRecord?") ) {
             var url = '{{ path('odr_record_delete', { 'datarecord_id': 0, 'search_key': '' }) }}';
             url = url.substring(0, (url.length - 2));
             url += datarecord_id + '/' + '{{ search_key }}';
 
-            var dataType = "json";
-
             $.ajax({
                 type: 'GET',
                 url: url,
-                dataType: dataType,
+                dataType: "json",
                 success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        // Refresh child wrapper area
-                        var url = data.d;
-                        UpdateURL(url);
-                    }
-                    else {
-                        // Error occurred
-                        alert( data.d );
-                    }
-                }
-            });
-        }
-    }
-{% endif %}
-{% if can_add_record == 1 and is_top_level == 1 %}
-    function addDataRecord(datatype_id) {
-        if ( confirm('Are you sure you want to create a new Datarecord?') ) {
-            var url = '{{ path('odr_record_add', { 'datatype_id': 0 }) }}';
-            url = url.substring(0, (url.length - 1));
-            url += datatype_id;
-
-            var dataType = "json";
-            $.ajax({
-                cache: false,
-                type: 'GET',
-                url: url,
-                dataType: dataType,
-                success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        // Reload this area of the page
-                        var datarecord_id = data.d.datarecord_id;
-
-                        var url = '{{ path('odr_record_edit', { 'datarecord_id': 0 }) }}';
-                        url = url.substring(0, (url.length-1));
-                        url += datarecord_id;
-
-                        UpdateURL(url);
-                    }
-                    else {
-                        // Error occurred
-                        alert( data.d );
-                    }
+                    // Redirect to an appopriate page
+                    var url = data.d;
+                    UpdateURL(url);
                 },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+{#    success redirects user away from page, don't need this
                 complete: function(jqXHR, textStatus) {
                     // Get the xdebugToken from response headers
                     var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
@@ -185,6 +140,51 @@
                         Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
                     }
                 }
+#}
+            });
+        }
+    }
+{% endif %}
+{% if can_add_record == 1 and is_top_level == 1 %}
+    function addDataRecord(datatype_id) {
+        if ( confirm('Are you sure you want to create a new Datarecord?') ) {
+            var url = '{{ path('odr_record_add', { 'datatype_id': 0 }) }}';
+            url = url.substring(0, (url.length - 1));
+            url += datatype_id;
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function(data, textStatus, jqXHR) {
+                    // Reload this area of the page
+                    var datarecord_id = data.d.datarecord_id;
+
+                    var url = '{{ path('odr_record_edit', { 'datarecord_id': 0 }) }}';
+                    url = url.substring(0, (url.length-1));
+                    url += datarecord_id;
+
+                    UpdateURL(url);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+{#    success redirects user away from page, don't need this
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+#}
             });
         }
     }

@@ -44,23 +44,7 @@
 
         // Hide divs for accordion purposes
         setupAccordions();
-{#
-        // Hide empty theme element divs
-        $(".ODRThemeElement").each(function() {
-            var has_children = false;
-            $(this).find(".ODRDataField").each(function() {
-                has_children = true;
-            });
 
-            $(this).find(".ODRRenderPluginContent").each(function() {
-                // Also don't hide the theme element if a render plugin exists
-                has_children = true;
-            });
-
-            if (!has_children)
-                $(this).css( "display", "none" );
-        });
-#}
         $(".ODRFileDownloadProgress").hide();
 
         $("a.ODRFileDownload").unbind('click').click(function(event) {
@@ -91,7 +75,7 @@
         });
 
     }
-
+{#
     function ReloadDatafield(datarecord_id, datafield_id) {
 
         var datafield_div = $("#Field_" + datarecord_id + "_" + datafield_id);
@@ -135,7 +119,7 @@
             }
         });
     }
-
+#}
     $(function() {
         initPage();
         $(".MenuDesignArea").remove();

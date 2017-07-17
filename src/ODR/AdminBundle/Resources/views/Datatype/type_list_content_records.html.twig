@@ -1,6 +1,5 @@
 {% spaceless %}
 
-{#<button id="all_datatypes_toggle" type="button" class="pure-button" onclick="showAllDatatypes();" rel="Show only ">Show all public Databases</button>#}
 <div id="ODRDatatypeToggleDiv">
     <label for="all_datatypes_toggle" class="pure-button">
         <input type="checkbox" id="all_datatypes_toggle" style="margin-right: 5px;" />
@@ -160,12 +159,12 @@
             "columnDefs": [
                 {
                     "targets": [0],
-                    "visible": false,
+                    "visible": false
                 },
                 {
                     "targets": [1,4,5,6],
                     "orderable": false,
-                    "searchable": false,
+                    "searchable": false
                 }
             ],
             "order": [[ 2, "asc" ]],
@@ -176,7 +175,7 @@
             },
             "info": false,
             "language": {
-                "emptyTable": "No Datatypes found"
+                "emptyTable": "No Databases found"
             }
         });
 
@@ -218,20 +217,17 @@
                 url: url,
                 dataType: dataType,
                 success: function(data, textStatus, jqXHR) {
-                    if(data.r == 0) {
-                        // Reload this area of the page
-                        var datarecord_id = data.d.datarecord_id;
+                    // Reload this area of the page
+                    var datarecord_id = data.d.datarecord_id;
 
-                        var url = urlpath + '#{{ path('odr_record_edit', { 'datarecord_id': 0 }) }}';
-                        url = url.substring(0, (url.length-1));
-                        url += datarecord_id;
+                    var url = urlpath + '#{{ path('odr_record_edit', { 'datarecord_id': 0 }) }}';
+                    url = url.substring(0, (url.length-1));
+                    url += datarecord_id;
 
-                        window.location = url;
-                    }
-                    else {
-                        // Error occurred
-                        alert( data.d );
-                    }
+                    window.location = url;
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
                 },
                 complete: function(jqXHR, textStatus) {
                     // Get the xdebugToken from response headers

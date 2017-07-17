@@ -58,7 +58,7 @@ class XMLExportController extends ODRCustomController
             if ($format == '')
                 throw new ODRBadRequestException('Invalid Format: Must request either XML or JSON');
 
-            // Assume the user wants it in xml...setRequestFormat() here so any error messages returned are in the desired format
+            // Assume the user wants the export in xml...setRequestFormat() here so any error messages returned are in the desired format
             $mime_type = 'text/xml';
             $request->setRequestFormat('xml');
             if ($format == 'json') {

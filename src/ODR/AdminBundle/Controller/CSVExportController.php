@@ -479,7 +479,7 @@ return;
         $return['d'] = '';
 
         try {
-            // Force exceptions to be in json
+            // This should only be called by a beanstalk worker process, so force exceptions to be in json
             $request->setRequestFormat('json');
 
             $post = $request->request->all();
@@ -722,7 +722,7 @@ return;
         $return['d'] = '';
 
         try {
-            // Force exceptions to be in json
+            // This should only be called by a beanstalk worker process, so force exceptions to be in json
             $request->setRequestFormat('json');
 
             $post = $request->request->all();
@@ -974,7 +974,7 @@ return;
         $return['d'] = '';
 
         try {
-            // Force exceptions to be in json
+            // This should only be called by a beanstalk worker process, so force exceptions to be in json
             $request->setRequestFormat('json');
 
             $post = $request->request->all();

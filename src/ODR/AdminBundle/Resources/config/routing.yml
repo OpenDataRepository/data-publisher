@@ -635,19 +635,17 @@ odr_record_delete:
         search_key: '[^\/]*'
 
 odr_record_addchild:
-    path:  /edit/addchilddatarecord/{datatype_id}/{parent_id}/{grandparent_id}
+    path:  /edit/addchilddatarecord/{datatype_id}/{parent_id}
     defaults: { _controller: ODRAdminBundle:Edit:addchildrecord }
     requirements:
         datatype_id:  \d+
         parent_id:  \d+
-        grandparent_id:  \d+
 
 odr_record_deletechild:
-    path:  /edit/deletechilddatarecord/{datarecord_id}/{datatype_id}
+    path:  /edit/deletechilddatarecord/{datarecord_id}
     defaults: { _controller: ODRAdminBundle:Edit:deletechildrecord }
     requirements:
         datarecord_id:  \d+
-        datatype_id:  \d+
 
 odr_record_radio_selection:
     path:  /edit/radioselection/{datarecord_id}/{datafield_id}/{radio_option_id}

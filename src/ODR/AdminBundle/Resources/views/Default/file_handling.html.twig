@@ -99,6 +99,10 @@
         var decrypt_progress = $("#ODRFileDecrypt_" + file_id + "_progress");
 
         var download = $.fileDownload(href, {
+            // Instruct ODR to send any errors back as json
+            data: {
+                'error_type': 'json'
+            },
             prepareCallback: function(url) {
 {#
 //console.log('prepare for file ' + file_id);
@@ -339,6 +343,10 @@
 
                     // Start downloading the archive
                     var download = $.fileDownload(download_url, {
+                        // Instruct ODR to send any errors back as json
+                        data: {
+                            'error_type': 'json'
+                        },
                         prepareCallback: function(url) {
 
                         },
